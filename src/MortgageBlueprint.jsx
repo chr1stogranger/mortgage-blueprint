@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from "react";
 const CITY_TAX_RATES = {
  "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
  "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
@@ -404,8 +404,10 @@ function PayRing({ segments, total }) {
   </div>
  </div>);
 }
-function Tab({ label, active, onClick }) {
- return (<button onClick={onClick} style={{ background: active ? T.tabActiveBg : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT }}>{label}</button>);
+function Tab({ label, active, onClick, locked, completed }) {
+ return (<button onClick={locked ? undefined : onClick} style={{ background: active ? T.tabActiveBg : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
+  {locked && <span style={{ marginRight: 3, fontSize: 10 }}>🔒</span>}{label}{completed && !active && <span style={{ marginLeft: 3, fontSize: 9 }}>✓</span>}
+ </button>);
 }
 function Progress({ value, max, color, height }) {
  const pctV = max > 0 ? Math.min(1, value / max) : 0;
@@ -567,6 +569,232 @@ const LS = {
  },
 };
 
+// ── Tab Progression System ──
+const TAB_PROGRESSION = ["setup","calc","costs","qualify","debts","income","assets","tax","amort","learn","compare","summary"];
+const HOUSE_STAGES = [
+ { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
+ { tab: "calc", part: "Foundation", desc: "Concrete slab poured" },
+ { tab: "costs", part: "Floor Framing", desc: "Joists & subfloor laid" },
+ { tab: "qualify", part: "Wall Framing", desc: "Studs going up" },
+ { tab: "debts", part: "Roof Trusses", desc: "Trusses set in place" },
+ { tab: "income", part: "Exterior Walls", desc: "Sheathing applied" },
+ { tab: "assets", part: "Roof Shingles", desc: "Weather-tight!" },
+ { tab: "tax", part: "Windows & Doors", desc: "Let there be light" },
+ { tab: "amort", part: "Siding & Paint", desc: "Looking sharp" },
+ { tab: "learn", part: "Interior Finish", desc: "Making it a home" },
+ { tab: "compare", part: "Landscaping", desc: "Curb appeal" },
+ { tab: "summary", part: "Move-In Ready!", desc: "Welcome home!" },
+];
+const SKILL_PRESETS = {
+ beginner: { label: "Beginner", sub: "First-Time Homebuyer", icon: "🏠", desc: "Guided step-by-step. Complete each tab to unlock the next. Perfect if this is your first time.", unlockedThrough: 1 },
+ experienced: { label: "Experienced", sub: "Repeat Buyer", icon: "🔑", desc: "Core tabs unlocked. Advanced analysis tabs unlock as you go.", unlockedThrough: 7 },
+ expert: { label: "Expert", sub: "Investor / Pro", icon: "🏗️", desc: "Full access to every tool from the start. No restrictions.", unlockedThrough: 11 },
+};
+const TOGGLE_DESCRIPTIONS = {
+ firstTimeBuyer: { on: "Enables 3% down conventional (income limits apply). Also unlocks Rent vs Buy analysis.", off: "Standard down payment minimums (5% conv, 3.5% FHA, 0% VA)." },
+ ownsProperties: { on: "Opens the REO (Real Estate Owned) tab to track existing properties, rental income, and reserve requirements.", off: "No existing properties to report." },
+ hasSellProperty: { on: "Opens the Seller Net tab — calculates your net proceeds, capital gains tax, and how sale funds apply to your new purchase.", off: "Not selling a property as part of this transaction." },
+ showInvestor: { on: "Opens the Investor tab with NOI, Cap Rate, Cash-on-Cash, DSCR, and IRR analysis for rental properties.", off: "Standard primary/second home analysis only." },
+};
+
+// ── Construction House SVG ──
+function ConstructionHouse({ stagesComplete, total }) {
+ const pct = total > 0 ? stagesComplete / total : 0;
+ const s = stagesComplete; // shorthand
+ // Colors
+ const SKY1 = "#1a1a2e", SKY2 = "#16213e", GRASS = "#2d5016", DIRT = "#8B7355";
+ const CONCRETE = "#9E9E9E", WOOD = "#C49A6C", WOODDARK = "#8B6914", BRICK = "#B85C38";
+ const ROOF = "#5C3317", SHINGLE = "#8B4513", GLASS = "#87CEEB", DOOR = "#654321";
+ const SIDING = "#D2B48C", PAINT = "#F5F5DC", CHIMNEY = "#8B7765";
+ return (
+  <svg viewBox="0 0 360 240" style={{ width: "100%", maxWidth: 360, display: "block", margin: "0 auto" }}>
+   {/* Sky */}
+   <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0%" stopColor={s >= 11 ? "#0a1628" : SKY1} />
+     <stop offset="100%" stopColor={s >= 11 ? "#1a3a5c" : SKY2} />
+    </linearGradient>
+    <linearGradient id="concreteG" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0%" stopColor="#B0B0B0" /><stop offset="100%" stopColor="#888" />
+    </linearGradient>
+   </defs>
+   <rect width="360" height="240" fill="url(#sky)" rx="12" />
+   {/* Stars when complete */}
+   {s >= 11 && <>
+    {[30,80,150,220,290,340,60,180,310].map((x,i) => <circle key={i} cx={x} cy={10+i*4} r={0.8} fill="#fff" opacity={0.6+i*0.04} />)}
+   </>}
+   {/* Ground */}
+   <rect x="0" y="180" width="360" height="60" fill={GRASS} rx="0" />
+   {/* Dirt patch / construction site */}
+   <rect x="60" y="175" width="240" height="65" fill={DIRT} rx="4" opacity="0.7" />
+   {/* ── Stage 0: Empty lot ── */}
+   {s < 1 && <>
+    <rect x="80" y="145" width="3" height="40" fill="#888" />
+    <rect x="68" y="140" width="50" height="22" fill="#fff" rx="2" stroke="#ccc" />
+    <text x="93" y="153" textAnchor="middle" fontSize="7" fontWeight="700" fill="#D32F2F">FOR SALE</text>
+    {/* Construction barrels */}
+    <rect x="150" y="165" width="14" height="18" fill="#FF6600" rx="2" />
+    <rect x="150" y="169" width="14" height="3" fill="#fff" />
+    <rect x="200" y="165" width="14" height="18" fill="#FF6600" rx="2" />
+    <rect x="200" y="169" width="14" height="3" fill="#fff" />
+   </>}
+   {/* ── Stage 1: Foundation ── */}
+   {s >= 1 && <>
+    <rect x="80" y="165" width="200" height="16" fill="url(#concreteG)" rx="2" />
+    <line x1="100" y1="170" x2="100" y2="181" stroke="#999" strokeWidth="0.5" />
+    <line x1="140" y1="170" x2="140" y2="181" stroke="#999" strokeWidth="0.5" />
+    <line x1="180" y1="170" x2="180" y2="181" stroke="#999" strokeWidth="0.5" />
+    <line x1="220" y1="170" x2="220" y2="181" stroke="#999" strokeWidth="0.5" />
+    <line x1="260" y1="170" x2="260" y2="181" stroke="#999" strokeWidth="0.5" />
+   </>}
+   {/* ── Stage 2: Floor framing ── */}
+   {s >= 2 && <>
+    <rect x="82" y="158" width="196" height="8" fill={WOOD} rx="1" />
+    {[90,110,130,150,170,190,210,230,250,268].map((x,i) => <rect key={i} x={x} y="158" width="3" height="8" fill={WOODDARK} />)}
+   </>}
+   {/* ── Stage 3: Wall framing ── */}
+   {s >= 3 && <>
+    {/* Left wall studs */}
+    {[85,100,115,130,145].map((x,i) => <rect key={`l${i}`} x={x} y="100" width="3" height="58" fill={WOOD} />)}
+    {/* Right wall studs */}
+    {[215,230,245,260,272].map((x,i) => <rect key={`r${i}`} x={x} y="100" width="3" height="58" fill={WOOD} />)}
+    {/* Top plates */}
+    <rect x="82" y="98" width="80" height="4" fill={WOODDARK} />
+    <rect x="200" y="98" width="78" height="4" fill={WOODDARK} />
+    {/* Bottom plates */}
+    <rect x="82" y="156" width="196" height="3" fill={WOODDARK} />
+   </>}
+   {/* ── Stage 4: Roof trusses ── */}
+   {s >= 4 && <>
+    <polygon points="180,55 82,98 278,98" fill="none" stroke={WOOD} strokeWidth="4" />
+    <polygon points="180,55 82,98 278,98" fill="none" stroke={WOODDARK} strokeWidth="1.5" />
+    {/* Cross braces */}
+    <line x1="130" y1="77" x2="230" y2="77" stroke={WOOD} strokeWidth="3" />
+    <line x1="180" y1="55" x2="180" y2="98" stroke={WOOD} strokeWidth="3" />
+   </>}
+   {/* ── Stage 5: Exterior walls / sheathing ── */}
+   {s >= 5 && <>
+    <rect x="82" y="98" width="78" height="60" fill="#C4A882" rx="1" />
+    <rect x="200" y="98" width="78" height="60" fill="#C4A882" rx="1" />
+    {/* Center opening for door area */}
+    <rect x="160" y="98" width="40" height="60" fill="#C4A882" opacity="0.3" />
+   </>}
+   {/* ── Stage 6: Roof shingles ── */}
+   {s >= 6 && <>
+    <polygon points="180,50 72,100 288,100" fill={ROOF} />
+    <polygon points="180,53 77,100 283,100" fill={SHINGLE} />
+    {/* Shingle texture rows */}
+    {[65,72,79,86,93].map((y,i) => <line key={i} x1={80+i*6} y1={y} x2={280-i*6} y2={y} stroke={ROOF} strokeWidth="0.8" opacity="0.5" />)}
+   </>}
+   {/* ── Stage 7: Windows & doors ── */}
+   {s >= 7 && <>
+    {/* Left windows */}
+    <rect x="95" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="106" y1="112" x2="106" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="95" y1="122" x2="117" y2="122" stroke="#fff" strokeWidth="1" />
+    <rect x="130" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="141" y1="112" x2="141" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="130" y1="122" x2="152" y2="122" stroke="#fff" strokeWidth="1" />
+    {/* Right windows */}
+    <rect x="215" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="226" y1="112" x2="226" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="215" y1="122" x2="237" y2="122" stroke="#fff" strokeWidth="1" />
+    <rect x="248" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="259" y1="112" x2="259" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="248" y1="122" x2="270" y2="122" stroke="#fff" strokeWidth="1" />
+    {/* Front door */}
+    <rect x="168" y="115" width="24" height="43" fill={DOOR} rx="2" stroke="#4A3520" strokeWidth="1" />
+    <circle cx="187" cy="138" r="2" fill="#DAA520" />
+   </>}
+   {/* ── Stage 8: Siding & paint ── */}
+   {s >= 8 && <>
+    <rect x="82" y="98" width="78" height="60" fill={SIDING} rx="1" />
+    <rect x="200" y="98" width="78" height="60" fill={SIDING} rx="1" />
+    <rect x="160" y="98" width="40" height="60" fill={PAINT} rx="1" />
+    {/* Horizontal siding lines */}
+    {[106,114,122,130,138,146,154].map((y,i) => <>
+     <line key={`sl${i}`} x1="82" y1={y} x2="160" y2={y} stroke="#C4A060" strokeWidth="0.5" />
+     <line key={`sr${i}`} x1="200" y1={y} x2="278" y2={y} stroke="#C4A060" strokeWidth="0.5" />
+    </>)}
+    {/* Re-draw windows on top of siding */}
+    <rect x="95" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="106" y1="112" x2="106" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="95" y1="122" x2="117" y2="122" stroke="#fff" strokeWidth="1" />
+    <rect x="130" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="141" y1="112" x2="141" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="130" y1="122" x2="152" y2="122" stroke="#fff" strokeWidth="1" />
+    <rect x="215" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="226" y1="112" x2="226" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="215" y1="122" x2="237" y2="122" stroke="#fff" strokeWidth="1" />
+    <rect x="248" y="112" width="22" height="20" fill={GLASS} rx="1" stroke="#fff" strokeWidth="1.5" />
+    <line x1="259" y1="112" x2="259" y2="132" stroke="#fff" strokeWidth="1" />
+    <line x1="248" y1="122" x2="270" y2="122" stroke="#fff" strokeWidth="1" />
+    <rect x="168" y="115" width="24" height="43" fill={DOOR} rx="2" stroke="#4A3520" strokeWidth="1" />
+    <circle cx="187" cy="138" r="2" fill="#DAA520" />
+   </>}
+   {/* ── Stage 9: Interior finish (warm glow through windows) ── */}
+   {s >= 9 && <>
+    <rect x="96" y="113" width="20" height="18" fill="#FFE4B5" opacity="0.6" />
+    <rect x="131" y="113" width="20" height="18" fill="#FFE4B5" opacity="0.6" />
+    <rect x="216" y="113" width="20" height="18" fill="#FFE4B5" opacity="0.5" />
+    <rect x="249" y="113" width="20" height="18" fill="#FFE4B5" opacity="0.5" />
+   </>}
+   {/* ── Stage 10: Landscaping ── */}
+   {s >= 10 && <>
+    {/* Walkway */}
+    <rect x="172" y="158" width="16" height="22" fill="#B8A898" rx="1" />
+    <rect x="170" y="180" width="20" height="12" fill="#C4B5A5" rx="1" />
+    {/* Bushes */}
+    <ellipse cx="90" cy="162" rx="12" ry="8" fill="#228B22" />
+    <ellipse cx="75" cy="164" rx="8" ry="6" fill="#2E7D32" />
+    <ellipse cx="270" cy="162" rx="12" ry="8" fill="#228B22" />
+    <ellipse cx="285" cy="164" rx="8" ry="6" fill="#2E7D32" />
+    {/* Tree */}
+    <rect x="48" y="125" width="5" height="40" fill="#5D4037" />
+    <ellipse cx="50" cy="115" rx="18" ry="20" fill="#1B5E20" />
+    <ellipse cx="45" cy="110" rx="12" ry="14" fill="#2E7D32" />
+    {/* Mailbox */}
+    <rect x="305" y="155" width="4" height="20" fill="#666" />
+    <rect x="298" y="150" width="18" height="10" fill="#1565C0" rx="2" />
+    <rect x="316" y="153" width="4" height="4" fill="#D32F2F" />
+    {/* Fence sections */}
+    <rect x="30" y="165" width="50" height="2" fill="#DEB887" />
+    <rect x="35" y="155" width="2" height="20" fill="#DEB887" />
+    <rect x="55" y="155" width="2" height="20" fill="#DEB887" />
+    <rect x="75" y="155" width="2" height="20" fill="#DEB887" />
+   </>}
+   {/* ── Stage 11: Complete! ── */}
+   {s >= 11 && <>
+    {/* Chimney */}
+    <rect x="120" y="55" width="16" height="30" fill={CHIMNEY} />
+    <rect x="117" y="52" width="22" height="6" fill="#7B6B5E" rx="1" />
+    {/* Chimney smoke */}
+    <ellipse cx="128" cy="42" rx="6" ry="4" fill="#888" opacity="0.4" />
+    <ellipse cx="132" cy="32" rx="8" ry="5" fill="#999" opacity="0.3" />
+    <ellipse cx="126" cy="22" rx="10" ry="6" fill="#aaa" opacity="0.2" />
+    {/* Porch light */}
+    <circle cx="165" cy="110" r="3" fill="#FFD700" opacity="0.9" />
+    <circle cx="165" cy="110" r="8" fill="#FFD700" opacity="0.15" />
+    {/* Welcome mat */}
+    <rect x="170" y="155" width="20" height="4" fill="#8B4513" rx="1" />
+    {/* Moon */}
+    <circle cx="320" cy="30" r="12" fill="#F5F5DC" opacity="0.8" />
+    <circle cx="325" cy="27" r="10" fill="url(#sky)" />
+    {/* Flag */}
+    <rect x="295" y="130" width="2" height="30" fill="#888" />
+    <rect x="297" y="130" width="15" height="10" fill="#B71C1C" />
+    <rect x="297" y="133" width="15" height="1" fill="#fff" />
+    <rect x="297" y="136" width="15" height="1" fill="#fff" />
+    <rect x="297" y="130" width="6" height="5" fill="#1A237E" />
+   </>}
+   {/* Progress bar at bottom */}
+   <rect x="20" y="222" width="320" height="6" rx="3" fill="rgba(255,255,255,0.1)" />
+   <rect x="20" y="222" width={Math.max(6, 320 * pct)} height="6" rx="3" fill={s >= 11 ? "#4CAF50" : s >= 6 ? "#2196F3" : "#FF9800"} />
+   <text x="345" y="228" textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.6)" fontWeight="600">{stagesComplete}/{total}</text>
+  </svg>
+ );
+}
+
 export default function MortgageBlueprint() {
  const [darkMode, setDarkMode] = useState(true);
  T = darkMode ? DARK : LIGHT;
@@ -698,6 +926,12 @@ export default function MortgageBlueprint() {
  const [courseView, setCourseView] = useState("course"); // "course" | "library"
  const [courseQuizSubmitted, setCourseQuizSubmitted] = useState(false);
  const [showCourseComplete, setShowCourseComplete] = useState(false);
+ // ── Skill Level & Tab Progression ──
+ const [skillLevel, setSkillLevel] = useState("beginner");
+ const [completedTabs, setCompletedTabs] = useState({});
+ const [unlockAll, setUnlockAll] = useState(false);
+ const [toggleHint, setToggleHint] = useState(null);
+ const scrollSentinelRef = useRef(null);
  const getState = () => ({
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, hoa, annualIns, includeEscrow,
   transferTaxCity, discountPts, sellerCredit, realtorCredit, emd, sellerTaxBasis,
@@ -1262,6 +1496,71 @@ export default function MortgageBlueprint() {
  };
  const completedCount = Object.keys(courseProgress).filter(k => courseProgress[k]).length;
  const courseComplete = completedCount === COURSE_CHAPTERS.length;
+ // ── Skill Level & Tab Progression: Load from storage ──
+ useEffect(() => {
+  (async () => {
+   try { const sl = await LS.get("app:skillLevel"); if (sl?.value) setSkillLevel(sl.value); } catch(e) {}
+   try { const ct = await LS.get("app:completedTabs"); if (ct?.value) setCompletedTabs(JSON.parse(ct.value)); } catch(e) {}
+   try { const ua = await LS.get("app:unlockAll"); if (ua?.value === "true") setUnlockAll(true); } catch(e) {}
+  })();
+ }, []);
+ const saveCompletedTabs = (newTabs) => {
+  setCompletedTabs(newTabs);
+  try { LS.set("app:completedTabs", JSON.stringify(newTabs)); } catch(e) {}
+ };
+ const saveSkillLevel = (level) => {
+  setSkillLevel(level);
+  try { LS.set("app:skillLevel", level); } catch(e) {}
+ };
+ const saveUnlockAll = (val) => {
+  setUnlockAll(val);
+  try { LS.set("app:unlockAll", val ? "true" : "false"); } catch(e) {}
+ };
+ // Determine which tabs are unlocked
+ const getUnlockedIndex = () => {
+  if (unlockAll || skillLevel === "expert") return TAB_PROGRESSION.length - 1;
+  const preset = SKILL_PRESETS[skillLevel];
+  let maxUnlocked = preset ? preset.unlockedThrough : 0;
+  // Extend by completed tabs
+  for (let i = maxUnlocked + 1; i < TAB_PROGRESSION.length; i++) {
+   if (completedTabs[TAB_PROGRESSION[i - 1]]) maxUnlocked = i;
+   else break;
+  }
+  return maxUnlocked;
+ };
+ const unlockedIndex = getUnlockedIndex();
+ const isTabUnlocked = (tabId) => {
+  if (unlockAll || skillLevel === "expert") return true;
+  const idx = TAB_PROGRESSION.indexOf(tabId);
+  if (idx === -1) {
+   // Conditional tabs (refi, reo, sell, invest, rentvbuy) — unlock if their prerequisite is met AND parent area is unlocked
+   if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 1; // need calc unlocked
+   if (tabId === "reo") return unlockedIndex >= 6; // need assets area
+   if (tabId === "sell") return unlockedIndex >= 8; // need amort area
+   if (tabId === "invest") return unlockedIndex >= 8;
+   if (tabId === "rentvbuy") return unlockedIndex >= 8;
+   return true;
+  }
+  return idx <= unlockedIndex;
+ };
+ const markTabComplete = (tabId) => {
+  if (!completedTabs[tabId]) {
+   const newTabs = { ...completedTabs, [tabId]: true };
+   saveCompletedTabs(newTabs);
+  }
+ };
+ // Count completed stages for house graphic
+ const houseStagesComplete = TAB_PROGRESSION.filter(t => completedTabs[t]).length;
+ // Scroll-to-bottom detection — marks current tab as complete
+ useEffect(() => {
+  const handleScroll = () => {
+   const el = document.documentElement;
+   const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+   if (atBottom && tab !== "settings") markTabComplete(tab);
+  };
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  return () => window.removeEventListener("scroll", handleScroll);
+ }, [tab, completedTabs]);
  // ── Security: Auto-lock on inactivity ──
  useEffect(() => {
   if (!pinSet) return;
@@ -1301,6 +1600,10 @@ export default function MortgageBlueprint() {
    await LS.delete("sec:pin");
    await LS.delete("sec:consent");
    await LS.delete("sec:autolock");
+   await LS.delete("app:skillLevel");
+   await LS.delete("app:completedTabs");
+   await LS.delete("app:unlockAll");
+   await LS.delete("course:progress");
   } catch(e) {}
   setPinCode(""); setPinSet(false); setConsentGiven(false); setShowClearConfirm(false); setClearStep(0);
   window.location.reload();
@@ -2016,7 +2319,7 @@ export default function MortgageBlueprint() {
      </div>
     </div>
     <div style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-     {TABS.map(([k, l]) => <Tab key={k} label={l} active={tab === k} onClick={() => setTab(k)} />)}
+     {TABS.map(([k, l]) => <Tab key={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) setTab(k); }} />)}
     </div>
    </div>
    <div style={{ padding: "0 20px" }}>
@@ -2952,6 +3255,46 @@ export default function MortgageBlueprint() {
  <div style={{ marginTop: 20 }}>
   <Hero value={isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
  </div>
+ {/* ── House Construction Progress ── */}
+ <Card style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+  <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
+  <div style={{ padding: "10px 14px 12px" }}>
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div>
+     <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
+     <div style={{ fontSize: 11, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
+    </div>
+    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
+   </div>
+  </div>
+ </Card>
+ {/* ── Skill Level Selector ── */}
+ <Sec title="Experience Level">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+    {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
+     <button key={key} onClick={() => saveSkillLevel(key)}
+      style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+      <div style={{ fontSize: 22 }}>{preset.icon}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
+      <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
+     </button>
+    ))}
+   </div>
+   <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {SKILL_PRESETS[skillLevel].desc}
+   </div>
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 4px", marginTop: 4 }}>
+    <div>
+     <span style={{ fontSize: 14, color: T.text }}>Unlock all tabs</span>
+     <div style={{ fontSize: 11, color: T.textTertiary }}>Override progression — access everything now</div>
+    </div>
+    <div onClick={() => saveUnlockAll(!unlockAll)} style={{ width: 52, height: 30, borderRadius: 99, background: unlockAll ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: unlockAll ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+  </Card>
+ </Sec>
  {showCompareHint && scenarioList.length > 1 && (
   <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
    <div>
@@ -3034,36 +3377,49 @@ export default function MortgageBlueprint() {
    <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} />
    <Sel label="Tax State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} />
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div>
+    <div style={{ flex: 1, marginRight: 12 }}>
      <span style={{ fontSize: 14, color: T.text }}>First-Time Homebuyer?</span>
-     <div style={{ fontSize: 11, color: T.textTertiary }}>Enables 3% down on conforming conventional</div>
     </div>
-    <div onClick={() => setFirstTimeBuyer(!firstTimeBuyer)} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div onClick={() => { setFirstTimeBuyer(!firstTimeBuyer); setToggleHint(toggleHint === "firstTimeBuyer" ? null : "firstTimeBuyer"); }} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
      <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: firstTimeBuyer ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
     </div>
    </div>
-   {firstTimeBuyer && <Note color={T.blue}>3% down also requires income ≤ 100% AMI for the county. Verify AMI eligibility with your lender.</Note>}
+   {toggleHint === "firstTimeBuyer" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${firstTimeBuyer ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, transition: "all 0.3s" }}>
+    {firstTimeBuyer ? TOGGLE_DESCRIPTIONS.firstTimeBuyer.on : TOGGLE_DESCRIPTIONS.firstTimeBuyer.off}
+   </div>}
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
-    <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s" }}>
+    <div style={{ flex: 1, marginRight: 12 }}>
+     <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
+    </div>
+    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
      <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
     </div>
    </div>
+   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
+   </div>}
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
-    <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s" }}>
+    <div style={{ flex: 1, marginRight: 12 }}>
+     <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
+    </div>
+    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
      <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
     </div>
    </div>
+   {toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
+   </div>}
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
-    <div>
+    <div style={{ flex: 1, marginRight: 12 }}>
      <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
-     <div style={{ fontSize: 11, color: T.textTertiary }}>NOI, Cap Rate, CoC, DSCR, IRR analysis</div>
     </div>
-    <div onClick={() => setShowInvestor(!showInvestor)} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
      <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
     </div>
    </div>
+   {toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
+   </div>}
   </Card>
  </Sec>
  {!isRefi && <Sec title="Your Team">
