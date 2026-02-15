@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 const CITY_TAX_RATES = {
  "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
  "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
