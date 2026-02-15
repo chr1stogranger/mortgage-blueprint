@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 const CITY_TAX_RATES = {
  "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
  "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
@@ -930,6 +930,7 @@ export default function MortgageBlueprint() {
  const [skillLevel, setSkillLevel] = useState("beginner");
  const [completedTabs, setCompletedTabs] = useState({});
  const [unlockAll, setUnlockAll] = useState(false);
+ const [gameMode, setGameMode] = useState(true);
  const [toggleHint, setToggleHint] = useState(null);
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
@@ -1220,6 +1221,7 @@ export default function MortgageBlueprint() {
  };
  // Auto-load compare data when switching to compare tab
  React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab]);
+ React.useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [tab]);
  React.useEffect(() => { if (loanType === "FHA" || loanType === "VA") setIncludeEscrow(true); }, [loanType]);
  React.useEffect(() => {
   if (tab === "qualify") {
@@ -1502,6 +1504,7 @@ export default function MortgageBlueprint() {
    try { const sl = await LS.get("app:skillLevel"); if (sl?.value) setSkillLevel(sl.value); } catch(e) {}
    try { const ct = await LS.get("app:completedTabs"); if (ct?.value) setCompletedTabs(JSON.parse(ct.value)); } catch(e) {}
    try { const ua = await LS.get("app:unlockAll"); if (ua?.value === "true") setUnlockAll(true); } catch(e) {}
+   try { const gm = await LS.get("app:gameMode"); if (gm?.value === "false") setGameMode(false); } catch(e) {}
   })();
  }, []);
  const saveCompletedTabs = (newTabs) => {
@@ -1516,9 +1519,13 @@ export default function MortgageBlueprint() {
   setUnlockAll(val);
   try { LS.set("app:unlockAll", val ? "true" : "false"); } catch(e) {}
  };
+ const saveGameMode = (val) => {
+  setGameMode(val);
+  try { LS.set("app:gameMode", val ? "true" : "false"); } catch(e) {}
+ };
  // Determine which tabs are unlocked
  const getUnlockedIndex = () => {
-  if (unlockAll || skillLevel === "expert") return TAB_PROGRESSION.length - 1;
+  if (!gameMode || unlockAll || skillLevel === "expert") return TAB_PROGRESSION.length - 1;
   const preset = SKILL_PRESETS[skillLevel];
   let maxUnlocked = preset ? preset.unlockedThrough : 0;
   // Extend by completed tabs
@@ -1530,7 +1537,7 @@ export default function MortgageBlueprint() {
  };
  const unlockedIndex = getUnlockedIndex();
  const isTabUnlocked = (tabId) => {
-  if (unlockAll || skillLevel === "expert") return true;
+  if (!gameMode || unlockAll || skillLevel === "expert") return true;
   const idx = TAB_PROGRESSION.indexOf(tabId);
   if (idx === -1) {
    // Conditional tabs (refi, reo, sell, invest, rentvbuy) — unlock if their prerequisite is met AND parent area is unlocked
@@ -1603,6 +1610,7 @@ export default function MortgageBlueprint() {
    await LS.delete("app:skillLevel");
    await LS.delete("app:completedTabs");
    await LS.delete("app:unlockAll");
+   await LS.delete("app:gameMode");
    await LS.delete("course:progress");
   } catch(e) {}
   setPinCode(""); setPinSet(false); setConsentGiven(false); setShowClearConfirm(false); setClearStep(0);
@@ -2322,6 +2330,23 @@ export default function MortgageBlueprint() {
      {TABS.map(([k, l]) => <Tab key={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) setTab(k); }} />)}
     </div>
    </div>
+   {/* ── Persistent House Banner (Build Mode) ── */}
+   {gameMode && tab !== "setup" && (
+    <div style={{ padding: "0 20px" }}>
+     <div style={{ background: T.card, borderRadius: 16, overflow: "hidden", marginTop: 8, marginBottom: 4, border: `1px solid ${T.cardBorder}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+      <div style={{ maxWidth: 280, margin: "0 auto", padding: "8px 0 0" }}>
+       <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
+      </div>
+      <div style={{ padding: "6px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+       <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc} · Scroll to bottom to complete tab</div>
+       </div>
+       <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
+      </div>
+     </div>
+    </div>
+   )}
    <div style={{ padding: "0 20px" }}>
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && (<>
@@ -3255,45 +3280,58 @@ export default function MortgageBlueprint() {
  <div style={{ marginTop: 20 }}>
   <Hero value={isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
  </div>
- {/* ── House Construction Progress ── */}
- <Card style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
-  <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
-  <div style={{ padding: "10px 14px 12px" }}>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <div>
-     <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
-     <div style={{ fontSize: 11, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
-   </div>
-  </div>
- </Card>
- {/* ── Skill Level Selector ── */}
- <Sec title="Experience Level">
+ {/* ── Build Mode Toggle + House ── */}
+ <Sec title="Build Mode">
   <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-    {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
-     <button key={key} onClick={() => saveSkillLevel(key)}
-      style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-      <div style={{ fontSize: 22 }}>{preset.icon}</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
-      <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
-     </button>
-    ))}
-   </div>
-   <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {SKILL_PRESETS[skillLevel].desc}
-   </div>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 4px", marginTop: 4 }}>
-    <div>
-     <span style={{ fontSize: 14, color: T.text }}>Unlock all tabs</span>
-     <div style={{ fontSize: 11, color: T.textTertiary }}>Override progression — access everything now</div>
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
+    <div style={{ flex: 1, marginRight: 12 }}>
+     <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Build Mode</div>
+     <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Guided progression with a house that builds as you learn. Tabs unlock as you scroll through each one.</div>
     </div>
-    <div onClick={() => saveUnlockAll(!unlockAll)} style={{ width: 52, height: 30, borderRadius: 99, background: unlockAll ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: unlockAll ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    <div onClick={() => saveGameMode(!gameMode)} style={{ width: 52, height: 30, borderRadius: 99, background: gameMode ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: gameMode ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
     </div>
    </div>
   </Card>
+  {gameMode && <>
+   <Card style={{ padding: 0, overflow: "hidden" }}>
+    <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
+    <div style={{ padding: "10px 14px 12px" }}>
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div>
+       <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
+       <div style={{ fontSize: 11, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
+     </div>
+    </div>
+   </Card>
+   <Card>
+    <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Experience Level</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+     {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
+      <button key={key} onClick={() => saveSkillLevel(key)}
+       style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+       <div style={{ fontSize: 22 }}>{preset.icon}</div>
+       <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
+       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
+      </button>
+     ))}
+    </div>
+    <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+     {SKILL_PRESETS[skillLevel].desc}
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0 4px", marginTop: 4 }}>
+     <div>
+      <span style={{ fontSize: 14, color: T.text }}>Unlock all tabs</span>
+      <div style={{ fontSize: 11, color: T.textTertiary }}>Override progression — access everything now</div>
+     </div>
+     <div onClick={() => saveUnlockAll(!unlockAll)} style={{ width: 52, height: 30, borderRadius: 99, background: unlockAll ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+      <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: unlockAll ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+   </Card>
+  </>}
  </Sec>
  {showCompareHint && scenarioList.length > 1 && (
   <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
