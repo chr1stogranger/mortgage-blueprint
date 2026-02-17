@@ -1066,6 +1066,11 @@ export default function MortgageBlueprint() {
  const [firstTimeBuyer, setFirstTimeBuyer] = useState(false);
  const [loanOfficer, setLoanOfficer] = useState("Chris Granger");
  const [loEmail, setLoEmail] = useState("cgranger@xperthomelending.com");
+ const [loPhone, setLoPhone] = useState("(415) 987-8489");
+ const [loNmls, setLoNmls] = useState("952015");
+ const [companyName, setCompanyName] = useState("Xpert Home Lending");
+ const [companyNmls, setCompanyNmls] = useState("2179191");
+ const [borrowerName, setBorrowerName] = useState("");
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
  const [fredApiKey, setFredApiKey] = useState("");
  const [borrowerEmail, setBorrowerEmail] = useState("");
@@ -1187,7 +1192,7 @@ export default function MortgageBlueprint() {
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
   incomes, otherIncome, assets, creditScore, extraPayment, payExtra, debtFree, autoJumboSwitch,
-  hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, realtorName, reos,
+  hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
@@ -1263,6 +1268,11 @@ export default function MortgageBlueprint() {
   if (s.firstTimeBuyer !== undefined) setFirstTimeBuyer(s.firstTimeBuyer);
   if (s.loanOfficer !== undefined) setLoanOfficer(s.loanOfficer);
   if (s.loEmail !== undefined) setLoEmail(s.loEmail);
+  if (s.loPhone !== undefined) setLoPhone(s.loPhone);
+  if (s.loNmls !== undefined) setLoNmls(s.loNmls);
+  if (s.companyName !== undefined) setCompanyName(s.companyName);
+  if (s.companyNmls !== undefined) setCompanyNmls(s.companyNmls);
+  if (s.borrowerName !== undefined) setBorrowerName(s.borrowerName);
   if (s.realtorName !== undefined) setRealtorName(s.realtorName);
   if (s.propertyAddress !== undefined) setPropertyAddress(s.propertyAddress);
   if (s.propertyTBD !== undefined) setPropertyTBD(s.propertyTBD);
@@ -1360,7 +1370,7 @@ export default function MortgageBlueprint() {
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
   incomes, otherIncome, assets, creditScore, extraPayment, payExtra,
-  hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, realtorName, reos,
+  hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
@@ -1535,9 +1545,14 @@ export default function MortgageBlueprint() {
   const lines = [];
   const ln = (t, v) => lines.push(`${t}: ${v || ""}`);
   const sep = () => lines.push("─".repeat(40));
-  lines.push(isRefi ? "REFINANCE ANALYSIS" : "PURCHASE ANALYSIS");
+  lines.push(isRefi ? "REFINANCE ESTIMATE" : "PURCHASE ESTIMATE");
+  lines.push("⚠️ FOR ILLUSTRATIVE PURPOSES ONLY — NOT AN OFFICIAL QUOTE");
   lines.push(`Scenario: ${scenarioName}`);
-  lines.push(`Prepared by: ${loanOfficer || "Loan Officer"}`);
+  if (borrowerName) lines.push(`Prepared for: ${borrowerName}`);
+  lines.push(`Prepared by: ${loanOfficer || "Loan Officer"}${loNmls ? " · NMLS #" + loNmls : ""}`);
+  if (companyName) lines.push(`${companyName}${companyNmls ? " · NMLS #" + companyNmls : ""}`);
+  if (loPhone) lines.push(`Phone: ${loPhone}`);
+  if (loEmail) lines.push(`Email: ${loEmail}`);
   lines.push(`Date: ${new Date().toLocaleDateString()}`);
   sep();
   if (isRefi) {
@@ -1597,49 +1612,103 @@ export default function MortgageBlueprint() {
   }
   sep();
   lines.push("");
-  lines.push("This is an estimate and not a commitment to lend.");
-  lines.push("Rates and terms subject to change.");
+  lines.push("DISCLAIMER: This is a hypothetical estimate for illustrative purposes only.");
+  lines.push("It is NOT a loan offer, pre-approval, or commitment to lend.");
+  lines.push("Contact a licensed loan officer for an official quote.");
   return lines.join("\n");
  };
  const generatePdfHtml = () => {
   const c = calc;
-  const dk = darkMode;
-  const row = (l, v, bold) => `<tr><td style="padding:6px 12px;${bold ? "font-weight:700;" : ""}">${l}</td><td style="padding:6px 12px;text-align:right;font-weight:600;font-family:system-ui">${v}</td></tr>`;
-  const hdr = (t) => `<tr><td colspan="2" style="padding:10px 12px 4px;font-weight:700;font-size:14px;color:#2563eb;border-bottom:2px solid #e5e7eb">${t}</td></tr>`;
-  let html = `<!DOCTYPE html><html><head><title>${scenarioName} - Loan Summary</title><style>
-   body{font-family:-apple-system,system-ui,sans-serif;max-width:680px;margin:0 auto;padding:20px;color:#1a1a1a}
-   h1{font-size:22px;margin-bottom:4px} h2{font-size:13px;color:#666;font-weight:400;margin-top:0}
-   table{width:100%;border-collapse:collapse;margin:10px 0} td{font-size:13px}
-   .hero{text-align:center;padding:24px;background:#f0f9ff;border-radius:12px;margin:16px 0}
-   .hero .amt{font-size:36px;font-weight:800;letter-spacing:-1px} .hero .lbl{font-size:13px;color:#666;margin-top:4px}
-   .footer{margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#999}
-   @media print{body{padding:0;margin:10px}}
-  </style></head><body>`;
-  html += `<h1>${isRefi ? "Refinance" : "Purchase"} Analysis</h1>`;
-  html += `<h2>${scenarioName} · Prepared by ${loanOfficer || "Loan Officer"} · ${new Date().toLocaleDateString()}</h2>`;
+  const loName = loanOfficer || "Loan Officer";
+  const coName = companyName || "";
+  const bName = borrowerName || "Valued Client";
+  const propAddr = propertyTBD ? "TBD" : (propertyAddress || "");
+  const propLoc = `${city}, ${propertyState}${propertyZip ? " " + propertyZip : ""}`;
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const row = (l, v, bold, color) => `<tr><td style="padding:8px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;${bold ? "font-weight:700;" : ""}">${l}</td><td style="padding:8px 16px;text-align:right;font-size:13px;font-weight:600;color:${color || "#1a202c"};border-bottom:1px solid #f0f0f0;font-family:system-ui">${v}</td></tr>`;
+  const hdr = (t) => `<tr><td colspan="2" style="padding:14px 16px 6px;font-weight:700;font-size:13px;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #2563eb">${t}</td></tr>`;
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${scenarioName} - Loan Estimate</title><style>
+   *{box-sizing:border-box;margin:0;padding:0}
+   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f8fc;color:#1a202c;-webkit-font-smoothing:antialiased}
+   .wrapper{max-width:640px;margin:0 auto;background:#fff;border-radius:0}
+   .header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);padding:28px 32px;color:#fff}
+   .header-top{display:flex;justify-content:space-between;align-items:flex-start}
+   .lo-info h2{font-size:20px;font-weight:700;margin-bottom:2px;letter-spacing:-0.3px}
+   .lo-info .title{font-size:12px;opacity:0.85;font-weight:400}
+   .lo-contact{font-size:11px;opacity:0.8;text-align:right;line-height:1.6}
+   .lo-contact a{color:#fff;text-decoration:none}
+   .prepared-for{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.85}
+   .prepared-for strong{font-size:14px;opacity:1;display:block;margin-top:2px}
+   .hero-bar{background:#f0f7ff;padding:24px 32px;text-align:center;border-bottom:1px solid #e2e8f0}
+   .hero-bar .big{font-size:38px;font-weight:800;color:#1e3a5f;letter-spacing:-1.5px;font-family:system-ui}
+   .hero-bar .sub{font-size:13px;color:#64748b;margin-top:4px}
+   .body-content{padding:24px 32px}
+   table{width:100%;border-collapse:collapse;margin:0 0 20px 0}
+   .section-note{background:#f8fafc;border-left:3px solid #2563eb;padding:12px 16px;margin:16px 0;font-size:12px;color:#475569;line-height:1.5;border-radius:0 6px 6px 0}
+   .footer{background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0}
+   .footer-brand{font-size:13px;font-weight:600;color:#1e3a5f}
+   .footer-legal{font-size:10px;color:#94a3b8;line-height:1.5;margin-top:8px}
+   .footer-nmls{font-size:10px;color:#94a3b8;margin-top:4px}
+   .estimate-banner{background:#fef3c7;border-bottom:1px solid #f59e0b;padding:8px 32px;text-align:center;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px}
+   @media print{body{background:#fff}.wrapper{box-shadow:none}}
+   @media(max-width:500px){.header{padding:20px 18px}.body-content{padding:18px}.hero-bar{padding:18px}.header-top{flex-direction:column}.lo-contact{text-align:left;margin-top:10px}}
+  </style></head><body><div class="wrapper">`;
+
+  // HEADER
+  html += `<div class="header"><div class="header-top"><div class="lo-info"><h2>${loName}</h2><div class="title">Loan Officer${loNmls ? " · NMLS #" + loNmls : ""}</div></div><div class="lo-contact">`;
+  if (loPhone) html += `<div>📞 <a href="tel:${loPhone.replace(/\D/g,"")}">${loPhone}</a></div>`;
+  if (loEmail) html += `<div>✉️ <a href="mailto:${loEmail}">${loEmail}</a></div>`;
+  html += `</div></div>`;
+  html += `<div class="prepared-for">Prepared for<strong>${bName}</strong>${dateStr}</div>`;
+  html += `</div>`;
+  html += `<div class="estimate-banner">⚠️ Hypothetical Estimate — For Illustrative Purposes Only — Not a Loan Offer</div>`;
+
   if (isRefi) {
-   html += `<div class="hero"><div class="amt" style="color:${c.refiMonthlySavings > 0 ? "#16a34a" : "#dc2626"}">${fmt(c.refiMonthlySavings)}/mo</div><div class="lbl">Monthly P&I Savings · Breakeven ${c.refiBreakevenMonths} months</div></div>`;
-   html += `<table>${hdr("Current Loan")}${row("Balance",fmt(c.refiEffBalance))}${row("Rate",refiCurrentRate+"%")}${row("P&I",fmt(c.refiEffPI))}${row("Remaining",c.refiEffRemaining+" mos")}${row("Total PITI",fmt(c.refiCurTotalPmt))}`;
-   html += `${hdr("Proposed New Loan")}${row("Amount",fmt(c.refiNewLoanAmt))}${row("Rate",rate+"%")}${row("Term",term+"yr "+loanType)}${row("P&I",fmt(c.refiNewPi))}${row("Total PITI",fmt(c.refiNewTotalPmt))}`;
-   html += `${hdr("Savings")}${row("Monthly P&I",fmt(c.refiMonthlySavings))}${row("Closing Costs",fmt(c.totalClosingCosts))}${row("Breakeven",c.refiBreakevenMonths+" mos")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings))}`;
-   html += `${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✓":"✗"))}${row("Breakeven < 2 Years",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✓":"✗"))}${row("Payoff 1yr+ Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✓":"✗"))}${row("Score",c.refiTestScore+"/3",true)}</table>`;
+   // REFI HERO
+   const savColor = c.refiMonthlySavings > 0 ? "#16a34a" : "#dc2626";
+   html += `<div class="hero-bar"><div class="big" style="color:${savColor}">${fmt(c.refiMonthlySavings)}<span style="font-size:18px;font-weight:400">/mo savings</span></div><div class="sub">Monthly P&I Savings · Breakeven in ${c.refiBreakevenMonths} months</div></div>`;
+
+   html += `<div class="body-content">`;
+   html += `<table>${hdr("Current Loan")}${row("Balance",fmt(c.refiEffBalance))}${row("Rate",refiCurrentRate+"%")}${row("P&I Payment",fmt(c.refiEffPI))}${row("Remaining Term",c.refiEffRemaining+" months")}${row("Total PITI",fmt(c.refiCurTotalPmt),true)}</table>`;
+   html += `<table>${hdr("Proposed New Loan")}${row("Loan Amount",fmt(c.refiNewLoanAmt))}${row("Rate",rate+"%")}${row("Term",term+" Year "+loanType)}${row("P&I Payment",fmt(c.refiNewPi))}${row("Total PITI",fmt(c.refiNewTotalPmt),true)}</table>`;
+   html += `<table>${hdr("Savings Analysis")}${row("Monthly P&I Savings",fmt(c.refiMonthlySavings),false,c.refiMonthlySavings>0?"#16a34a":"#dc2626")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Months to Breakeven",c.refiBreakevenMonths+" months")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings),true,"#16a34a")}</table>`;
+   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✅":"❌"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✅":"❌"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✅":"❌"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
   } else {
-   html += `<div class="hero"><div class="amt">${fmt(c.housingPayment)}/mo</div><div class="lbl">${propertyTBD ? "TBD · " : (propertyAddress ? propertyAddress + " · " : "")}${fmt(c.cashToClose)} to close</div></div>`;
-   html += `<table>${hdr("Loan Details")}${propertyTBD ? row("Property", "TBD") : (propertyAddress ? row("Property", propertyAddress) : "")}${row("Location", city+", "+propertyState+(propertyZip ? " "+propertyZip : ""))}${row("Purchase Price",fmt(salesPrice))}${row("Down Payment",fmt(c.dp)+" ("+downPct+"%)")}${row("Base Loan",fmt(c.baseLoan))}`;
-   if (c.fhaUp > 0) html += row("FHA UFMIP",fmt(c.fhaUp));
+   // PURCHASE HERO
+   html += `<div class="hero-bar"><div class="big">${fmt(c.housingPayment)}<span style="font-size:18px;font-weight:400">/mo</span></div><div class="sub">${propAddr !== "TBD" && propAddr ? propAddr + " · " : ""}${fmt(c.cashToClose)} cash to close</div></div>`;
+
+   html += `<div class="body-content">`;
+   html += `<table>${hdr("Property & Loan Details")}`;
+   if (propAddr) html += row("Property", propAddr);
+   html += `${row("Location",propLoc)}${row("Purchase Price",fmt(salesPrice))}${row("Down Payment",fmt(c.dp)+" ("+downPct+"%)")}${row("Base Loan Amount",fmt(c.baseLoan))}`;
+   if (c.fhaUp > 0) html += row("FHA Upfront MIP",fmt(c.fhaUp));
    if (c.vaFundingFee > 0) html += row("VA Funding Fee",fmt(c.vaFundingFee));
-   html += `${row("Total Loan",fmt(c.loan))}${row("Type",loanType+" · "+term+"yr")}${row("Rate",rate+"%")}${row("Category",c.loanCategory)}`;
-   html += `${hdr("Monthly Payment")}${row("Principal & Interest",fmt(c.pi))}${row("Property Tax",fmt(c.monthlyTax))}${row("Insurance",fmt(c.ins))}`;
+   html += `${row("Total Loan Amount",fmt(c.loan),true)}${row("Loan Type",loanType+" · "+term+" Year")}${row("Interest Rate",rate+"%")}${row("Loan Category",c.loanCategory)}</table>`;
+
+   html += `<table>${hdr("Monthly Payment Breakdown")}${row("Principal & Interest",fmt(c.pi))}${row("Property Tax",fmt(c.monthlyTax))}${row("Homeowner's Insurance",fmt(c.ins))}`;
    if (c.monthlyMI > 0) html += row("Mortgage Insurance",fmt(c.monthlyMI));
-   if (hoa > 0) html += row("HOA",fmt(hoa));
-   html += `${row("TOTAL",fmt(c.housingPayment),true)}`;
-   html += `${hdr("Closing Costs")}${row("Closing Costs",fmt(c.totalClosingCosts))}${row("Prepaids & Escrow",fmt(c.totalPrepaidExp))}${row("Cash to Close",fmt(c.cashToClose),true)}</table>`;
+   if (hoa > 0) html += row("HOA Dues",fmt(hoa));
+   html += `${row("TOTAL PAYMENT",fmt(c.housingPayment),true,"#1e3a5f")}</table>`;
+
+   html += `<table>${hdr("Cash to Close")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Prepaids & Escrow Reserves",fmt(c.totalPrepaidExp))}${row("Down Payment",fmt(c.dp))}${row("TOTAL CASH TO CLOSE",fmt(c.cashToClose),true,"#1e3a5f")}</table>`;
+
+   if (calc.yearlyInc > 0) {
+    html += `<table>${hdr("Qualification Snapshot")}${row("Gross Monthly Income",fmt(calc.monthlyGross))}${row("Front-End DTI (Housing)",calc.frontDti.toFixed(1)+"%")}${row("Back-End DTI (Total Debt)",calc.dti.toFixed(1)+"%")}${row("After-Tax Monthly Payment",fmt(calc.afterTaxPayment))}</table>`;
+   }
   }
-  html += `<div class="footer">This is an estimate and not a commitment to lend. Rates, terms, and fees are subject to change. Consult with your loan officer for exact figures.</div></body></html>`;
+
+  html += `<div class="section-note">💡 This is a hypothetical estimate for educational purposes only. It is not a loan offer, commitment to lend, or official rate quote. Actual rates, terms, and costs may vary significantly. Contact a licensed loan officer for a personalized quote based on your specific financial situation.</div>`;
+  html += `</div>`;
+
+  // FOOTER
+  html += `<div class="footer"><div class="footer-brand">${coName}${companyNmls ? " · NMLS #" + companyNmls : ""}</div>`;
+  html += `<div class="footer-legal">DISCLAIMER: This is a hypothetical estimate generated for educational and illustrative purposes only. It does not constitute a loan offer, pre-approval, rate lock, or commitment to lend. All figures are approximate and based on general market assumptions. Actual rates, fees, and terms will vary based on individual credit profile, property details, and lender guidelines. Please consult a licensed mortgage professional for an official quote.</div>`;
+  html += `<div class="footer-nmls">Generated by Mortgage Blueprint · ${dateStr}</div>`;
+  html += `</div></div></body></html>`;
   return html;
  };
  const handleEmailSummary = () => {
-  const subject = encodeURIComponent(`${isRefi ? "Refinance" : "Purchase"} Analysis — ${scenarioName}`);
+  const subject = encodeURIComponent(`${isRefi ? "Refinance" : "Purchase"} Estimate — ${scenarioName}`);
   const body = encodeURIComponent(generateSummaryText());
   const to = encodeURIComponent(borrowerEmail || "");
   const bccParam = loEmail ? `&bcc=${encodeURIComponent(loEmail)}` : "";
@@ -2645,8 +2714,13 @@ export default function MortgageBlueprint() {
   {showEmailModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowEmailModal(false)}>
    <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={e => e.stopPropagation()}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-     <div style={{ fontSize: 18, fontWeight: 700 }}>Share {isRefi ? "Refi" : "Purchase"} Summary</div>
+     <div style={{ fontSize: 18, fontWeight: 700 }}>Share {isRefi ? "Refi" : "Purchase"} Estimate</div>
      <button onClick={() => setShowEmailModal(false)} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 16, cursor: "pointer", color: T.textSecondary }}>✕</button>
+    </div>
+    <div style={{ marginBottom: 12 }}>
+     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Borrower Name</label>
+     <input value={borrowerName} onChange={e => setBorrowerName(e.target.value)} placeholder="Client's full name"
+      style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
     </div>
     <div style={{ marginBottom: 16 }}>
      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Borrower Email</label>
@@ -2660,17 +2734,20 @@ export default function MortgageBlueprint() {
     {/* Action buttons */}
     <div style={{ background: `${T.orange}15`, border: `1px solid ${T.orange}33`, borderRadius: 10, padding: "10px 12px", marginBottom: 8, marginTop: 12 }}>
      <div style={{ fontSize: 11, color: T.orange, fontWeight: 600 }}>⚠️ SECURITY NOTICE</div>
-     <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2, lineHeight: 1.5 }}>Email is not encrypted. This summary contains sensitive financial data. Only send to verified recipients.</div>
+     <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2, lineHeight: 1.5 }}>Email is not encrypted. This estimate contains financial data. Only send to verified recipients. This is not an official loan quote.</div>
     </div>
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
      <button onClick={() => { handleEmailSummary(); setShowEmailModal(false); }} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      ✉️ Email Summary
+      ✉️ Email Estimate
      </button>
      <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ width: "100%", padding: 16, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       📄 Print / Save PDF
      </button>
      <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
       📋 Copy to Clipboard
+     </button>
+     <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
+      👁 Preview Branded Summary
      </button>
     </div>
     {/* Preview */}
@@ -3779,6 +3856,9 @@ export default function MortgageBlueprint() {
  {(loanOfficer || realtorName) && <Sec title="Your Team">
   <Card>
    {loanOfficer && <MRow label="Loan Officer" value={loanOfficer} />}
+   {loPhone && <MRow label="Phone" value={loPhone} />}
+   {loNmls && <MRow label="NMLS" value={"#" + loNmls} />}
+   {companyName && <MRow label="Company" value={companyName + (companyNmls ? " · NMLS #" + companyNmls : "")} />}
    {realtorName && <MRow label="Realtor" value={realtorName} />}
   </Card>
  </Sec>}
@@ -3791,10 +3871,12 @@ export default function MortgageBlueprint() {
  </Sec>}
  <Sec title="Share">
   <Card>
+   <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
    <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📧 Email Summary</button>
-    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📄 Print / PDF</button>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📧 Email</button>
+    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📄 PDF</button>
+    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>👁 Preview</button>
    </div>
    {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself on all emails.</Note>}
    {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
@@ -4071,8 +4153,17 @@ export default function MortgageBlueprint() {
  {!isRefi && <Sec title="Your Team">
   <Card>
    <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
+    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
+   </div>
    <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
+    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
+   </div>
    <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
+   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
   </Card>
  </Sec>}
  {isRefi && <Sec title="Refi Purpose">
@@ -4151,8 +4242,17 @@ export default function MortgageBlueprint() {
  {isRefi && <Sec title="Your Team">
   <Card>
    <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
+    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
+   </div>
    <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
+    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
+   </div>
    <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
+   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
   </Card>
  </Sec>}
  <Sec title="Security">
@@ -4406,10 +4506,12 @@ export default function MortgageBlueprint() {
  </Sec>}
  <Sec title="Share">
   <Card>
+   <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
    <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📧 Email Summary</button>
-    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📄 Print / PDF</button>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📧 Email</button>
+    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📄 PDF</button>
+    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>👁 Preview</button>
    </div>
    {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
   </Card>
