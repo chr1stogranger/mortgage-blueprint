@@ -1668,15 +1668,19 @@ export default function MortgageBlueprint() {
    const matched = rateMap[loanType];
    if (matched && !isNaN(matched)) setRate(matched);
   };
-  const parseJSON = (text) => {
-   if (!text) return null;
-   const c = text.replace(/```json/g, "").replace(/```/g, "").trim();
-   try { return JSON.parse(c); } catch(e) {}
-   const m = c.match(/\{[^{}]*30yr_fixed[^{}]*\}/);
-   if (m) try { return JSON.parse(m[0]); } catch(e) {}
-   return null;
-  };
-  // Attempt 1: Direct FRED API (works when deployed, blocked in artifact sandbox)
+  // Attempt 1: Vercel serverless proxy (avoids CORS)
+  try {
+   const res = await fetch("/api/rates");
+   if (res.ok) {
+    const data = await res.json();
+    if (data["30yr_fixed"] > 2 && data["30yr_fixed"] < 15) {
+     applyRates(data);
+     setRatesLoading(false);
+     return;
+    }
+   }
+  } catch(e) { console.log("Proxy fetch failed:", e.message); }
+  // Attempt 2: Direct FRED API (fallback for local dev)
   if (fredApiKey) {
    try {
     const base = "https://api.stlouisfed.org/fred/series/observations";
@@ -1700,62 +1704,9 @@ export default function MortgageBlueprint() {
      setRatesLoading(false);
      return;
     }
-   } catch(e) { console.log("FRED direct failed (expected in sandbox):", e.message); }
+   } catch(e) { console.log("FRED direct failed:", e.message); }
   }
-  // Attempt 2: Claude API with web search for real-time FRED data
-  try {
-   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-     model: "claude-sonnet-4-20250514",
-     max_tokens: 1024,
-     tools: [{ type: "web_search_20250305", name: "web_search" }],
-     messages: [{ role: "user", content: "Look up today's Freddie Mac PMMS mortgage rates on fred.stlouisfed.org. I need 30-year fixed, 15-year fixed, and 5/1 ARM rates. After searching, respond with ONLY a JSON object in this exact format, no other text:\n{\"30yr_fixed\":6.85,\"15yr_fixed\":6.20,\"5yr_arm\":6.55}" }],
-    }),
-   });
-   if (!res.ok) throw new Error("API error " + res.status);
-   const data = await res.json();
-   const texts = (data.content || []).filter(b => b.type === "text").map(b => b.text);
-   const allText = texts.join(" ");
-   let parsed = parseJSON(allText);
-   if (!parsed) {
-    const findNum = (patterns) => {
-     for (const p of patterns) { const m = allText.match(p); if (m) return parseFloat(m[1]); }
-     return null;
-    };
-    const v30 = findNum([/30.?year.?fixed[:\s]*?([\d]+\.[\d]+)/i, /MORTGAGE30US[^]*?([\d]+\.[\d]+)/i, /conventional[:\s]*?([\d]+\.[\d]+)/i]);
-    if (v30 && v30 > 2 && v30 < 15) {
-     parsed = {
-      "30yr_fixed": v30,
-      "15yr_fixed": findNum([/15.?year.?fixed[:\s]*?([\d]+\.[\d]+)/i]) || +(v30 - 0.6).toFixed(2),
-      "5yr_arm": findNum([/5.?1?.?arm[:\s]*?([\d]+\.[\d]+)/i]) || +(v30 - 0.3).toFixed(2),
-     };
-    }
-   }
-   if (!parsed) {
-    const nums = [...allText.matchAll(/([\d]+\.[\d]+)\s*%/g)].map(m => parseFloat(m[1])).filter(r => r > 2 && r < 15);
-    if (nums.length > 0) {
-     const v30 = Math.max(...nums);
-     parsed = { "30yr_fixed": v30, "15yr_fixed": +(v30 - 0.6).toFixed(2), "5yr_arm": +(v30 - 0.3).toFixed(2) };
-    }
-   }
-   if (parsed && parsed["30yr_fixed"] > 2 && parsed["30yr_fixed"] < 15) {
-    const v30 = parsed["30yr_fixed"];
-    parsed["30yr_fha"] = parsed["30yr_fha"] || +(v30 - 0.25).toFixed(2);
-    parsed["30yr_va"] = parsed["30yr_va"] || +(v30 - 0.35).toFixed(2);
-    parsed["30yr_jumbo"] = parsed["30yr_jumbo"] || +(v30 + 0.25).toFixed(2);
-    parsed["5yr_arm"] = parsed["5yr_arm"] || +(v30 - 0.3).toFixed(2);
-    parsed.source = "FRED via web search";
-    applyRates(parsed);
-    setRatesLoading(false);
-    return;
-   }
-   throw new Error("Could not find rates — try again in a moment");
-  } catch(e) {
-   console.error("Rate fetch error:", e);
-   setRatesError(e.message || "Rate fetch failed — try again");
-  }
+  setRatesError("Could not fetch rates — try again in a moment");
   setRatesLoading(false);
  };
 
