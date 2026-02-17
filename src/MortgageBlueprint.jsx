@@ -1005,6 +1005,31 @@ export default function MortgageBlueprint() {
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("setup");
+ // ── App Mode: Blueprint or PricePoint ──
+ const [appMode, setAppMode] = useState("blueprint");
+ const [ppGuessInput, setPpGuessInput] = useState("");
+ const [ppGuesses, setPpGuesses] = useState([]);
+ const [ppView, setPpView] = useState("cards"); // cards | results | leaderboard | stats
+ const [ppShowReveal, setPpShowReveal] = useState(null);
+ const [ppRevealAnim, setPpRevealAnim] = useState(false);
+ const [ppCardAnim, setPpCardAnim] = useState("");
+ const [ppNotif, setPpNotif] = useState(null);
+ const ppTouchStartX = useRef(null);
+ const ppTouchStartY = useRef(null);
+ const PP_VIEWS = ["cards","results","leaderboard","stats"];
+ const ppHandleTouchStart = (e) => { ppTouchStartX.current = e.touches[0].clientX; ppTouchStartY.current = e.touches[0].clientY; };
+ const ppHandleTouchEnd = (e) => {
+  if (ppTouchStartX.current === null) return;
+  const dx = e.changedTouches[0].clientX - ppTouchStartX.current;
+  const dy = e.changedTouches[0].clientY - ppTouchStartY.current;
+  ppTouchStartX.current = null; ppTouchStartY.current = null;
+  if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+  const cur = PP_VIEWS.indexOf(ppView);
+  if (cur === -1) return;
+  if (dx < -60 && cur < PP_VIEWS.length - 1) setPpView(PP_VIEWS[cur + 1]);
+  else if (dx > 60 && cur > 0) setPpView(PP_VIEWS[cur - 1]);
+ };
+ const ppViewIdx = PP_VIEWS.indexOf(ppView);
  const [salesPrice, setSalesPrice] = useState(1000000);
  const [downPct, setDownPct] = useState(20);
  const [rate, setRate] = useState(6.5);
@@ -1026,6 +1051,19 @@ export default function MortgageBlueprint() {
  const [includeEscrow, setIncludeEscrow] = useState(true);
  const [transferTaxCity, setTransferTaxCity] = useState("Alameda");
  const [discountPts, setDiscountPts] = useState(0);
+ const [underwritingFee, setUnderwritingFee] = useState(1195);
+ const [processingFee, setProcessingFee] = useState(400);
+ const [appraisalFee, setAppraisalFee] = useState(795);
+ const [creditReportFee, setCreditReportFee] = useState(95);
+ const [floodCertFee, setFloodCertFee] = useState(8);
+ const [mersFee, setMersFee] = useState(25);
+ const [taxServiceFee, setTaxServiceFee] = useState(85);
+ const [titleInsurance, setTitleInsurance] = useState(700);
+ const [titleSearch, setTitleSearch] = useState(1261);
+ const [settlementFee, setSettlementFee] = useState(502);
+ const [escrowFee, setEscrowFee] = useState(2400);
+ const [recordingFee, setRecordingFee] = useState(200);
+ const [lenderCredit, setLenderCredit] = useState(0);
  const [sellerCredit, setSellerCredit] = useState(0);
  const [realtorCredit, setRealtorCredit] = useState(0);
  const [emd, setEmd] = useState(0);
@@ -1186,7 +1224,7 @@ export default function MortgageBlueprint() {
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow,
-  transferTaxCity, discountPts, sellerCredit, realtorCredit, emd, sellerTaxBasis,
+  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
   prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
@@ -1226,6 +1264,19 @@ export default function MortgageBlueprint() {
    setTransferTaxCity(match ? match.city : (TT_CITY_NAMES.includes(s.transferTaxCity) ? s.transferTaxCity : "Not listed"));
   }
   if (s.discountPts !== undefined) setDiscountPts(s.discountPts);
+  if (s.underwritingFee !== undefined) setUnderwritingFee(s.underwritingFee);
+  if (s.processingFee !== undefined) setProcessingFee(s.processingFee);
+  if (s.appraisalFee !== undefined) setAppraisalFee(s.appraisalFee);
+  if (s.creditReportFee !== undefined) setCreditReportFee(s.creditReportFee);
+  if (s.floodCertFee !== undefined) setFloodCertFee(s.floodCertFee);
+  if (s.mersFee !== undefined) setMersFee(s.mersFee);
+  if (s.taxServiceFee !== undefined) setTaxServiceFee(s.taxServiceFee);
+  if (s.titleInsurance !== undefined) setTitleInsurance(s.titleInsurance);
+  if (s.titleSearch !== undefined) setTitleSearch(s.titleSearch);
+  if (s.settlementFee !== undefined) setSettlementFee(s.settlementFee);
+  if (s.escrowFee !== undefined) setEscrowFee(s.escrowFee);
+  if (s.recordingFee !== undefined) setRecordingFee(s.recordingFee);
+  if (s.lenderCredit !== undefined) setLenderCredit(s.lenderCredit);
   if (s.sellerCredit !== undefined) setSellerCredit(s.sellerCredit);
   if (s.realtorCredit !== undefined) setRealtorCredit(s.realtorCredit);
   if (s.emd !== undefined) setEmd(s.emd);
@@ -1365,7 +1416,7 @@ export default function MortgageBlueprint() {
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow,
-  transferTaxCity, discountPts, sellerCredit, realtorCredit, emd, sellerTaxBasis,
+  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
@@ -2105,12 +2156,12 @@ export default function MortgageBlueprint() {
   const buyerCityTT = isRefi ? 0 : (isSF ? 0 : (salesPrice / 1000 * ttEntry.rate) * 0.5);
   const buyerCountyTT = 0;
   const pointsCost = loan * (discountPts / 100);
-  const origCharges = 1595 + pointsCost;
+  const origCharges = underwritingFee + processingFee + pointsCost;
   const hoaCert = (!isRefi && (propType === "Condo" || propType === "Townhouse")) ? 500 : 0;
-  const cannotShop = 750 + 200 + 150 + 55 + 45 + 10;
-  const titleEscrow = isRefi ? 1995 : (2200 + 700 + 500);
-  const canShop = titleEscrow + 225 + hoaCert;
-  const govCharges = buyerCityTT + buyerCountyTT + 225 + 75 + 50;
+  const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + taxServiceFee;
+  const titleEscrowTotal = isRefi ? 1995 : (titleInsurance + titleSearch + settlementFee + escrowFee);
+  const canShop = titleEscrowTotal + hoaCert;
+  const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
   const totalClosingCosts = origCharges + cannotShop + canShop + govCharges;
   const closeYear = new Date().getFullYear();
   const closeDate = new Date(closeYear, closingMonth - 1, closingDay);
@@ -2128,7 +2179,7 @@ export default function MortgageBlueprint() {
   const escrowInsMonths = 3;
   const initialEscrow = includeEscrow ? (monthlyTax * escrowTaxMonths) + (ins * escrowInsMonths) : 0;
   const totalPrepaidExp = totalPrepaids + initialEscrow;
-  const totalCredits = sellerCredit + realtorCredit + emd;
+  const totalCredits = sellerCredit + realtorCredit + emd + lenderCredit;
   const cashToClose = dp + totalClosingCosts + totalPrepaidExp + payoffAtClosing - totalCredits;
   const ficoMin = loanType === "FHA" ? 580 : loanType === "Jumbo" ? 700 : loanType === "VA" ? 580 : 620;
   const ficoCheck = creditScore > 0 ? (creditScore >= ficoMin ? "Good!" : "Too Low") : "—";
@@ -2331,7 +2382,7 @@ export default function MortgageBlueprint() {
    housingPayment, displayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
-   ttEntry, buyerCityTT, buyerCountyTT, pointsCost, origCharges, hoaCert, cannotShop, canShop,
+   ttEntry, buyerCityTT, buyerCountyTT, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
    govCharges, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose,
    reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck, resCheck, minDPpct, recDPpct, dpWarning,
@@ -2358,7 +2409,7 @@ export default function MortgageBlueprint() {
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow,
-  transferTaxCity, discountPts, sellerCredit, realtorCredit, emd,
+  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
   sellerTaxBasis, prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
@@ -2577,6 +2628,82 @@ export default function MortgageBlueprint() {
    </div>
   );
  };
+ // ═══════════════════════════════════════════
+ // PRICEPOINT — Sample Listings & Logic
+ // ═══════════════════════════════════════════
+ const PP_LISTINGS = [
+  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:956 },
+  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:845 },
+  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Parkside",pricePerSqft:861 },
+  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
+  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:917 },
+  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:875 },
+  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:795 },
+  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:663 },
+  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:852 },
+  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:696 },
+ ];
+ const ppFmt = n => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) ?? "—";
+ const ppAbsPct = (g,a) => (Math.abs((g-a)/a)*100).toFixed(1);
+ const ppPct = (g,a) => (((g-a)/a)*100).toFixed(1);
+
+ // Load/save PP guesses
+ useEffect(() => { try { const s = localStorage.getItem("pp-guesses"); if (s) setPpGuesses(JSON.parse(s)); } catch(e){} }, []);
+ useEffect(() => { try { localStorage.setItem("pp-guesses", JSON.stringify(ppGuesses)); } catch(e){} }, [ppGuesses]);
+
+ const ppActiveListings = PP_LISTINGS.filter(l => !ppGuesses.find(g => g.listingId === l.id));
+ const ppCurrentListing = ppActiveListings[0];
+
+ const ppHandleGuess = () => {
+  const val = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
+  if (!val || !ppCurrentListing) return;
+  setPpCardAnim("pp-submitted");
+  setTimeout(() => {
+   setPpGuesses(prev => [...prev, {
+    listingId:ppCurrentListing.id, zpid:ppCurrentListing.zpid, guess:val, soldPrice:null,
+    listPrice:ppCurrentListing.listPrice, zestimate:ppCurrentListing.zestimate,
+    address:ppCurrentListing.address, city:ppCurrentListing.city,
+    propertyType:ppCurrentListing.propertyType, neighborhood:ppCurrentListing.neighborhood,
+    sqft:ppCurrentListing.sqft, beds:ppCurrentListing.beds, baths:ppCurrentListing.baths,
+    photo:ppCurrentListing.photo, timestamp:Date.now(), revealed:false,
+   }]);
+   setPpGuessInput("");
+   setPpCardAnim("");
+   setPpNotif(`Locked in ${ppFmt(val)} for ${ppCurrentListing.address}`);
+   setTimeout(() => setPpNotif(null), 3000);
+  }, 400);
+ };
+
+ const ppSimulateSold = (idx) => {
+  const g = ppGuesses[idx];
+  if (g.revealed) { setPpShowReveal(g); setTimeout(() => setPpRevealAnim(true), 50); return; }
+  const base = g.zestimate || g.listPrice;
+  const v = (Math.random() - 0.4) * 0.08;
+  const sold = Math.round(base * (1 + v));
+  const updated = [...ppGuesses]; updated[idx] = {...g, revealed:true, soldPrice:sold};
+  setPpGuesses(updated); setPpShowReveal(updated[idx]); setTimeout(() => setPpRevealAnim(true), 50);
+ };
+ const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
+ const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
+ const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+
+ const ppRevealed = ppGuesses.filter(g => g.revealed && g.soldPrice);
+ const ppAvgDiff = ppRevealed.length > 0 ? (ppRevealed.reduce((s,g) => s + Math.abs((g.guess-g.soldPrice)/g.soldPrice)*100, 0)/ppRevealed.length).toFixed(1) : "—";
+ const ppOverCount = ppRevealed.filter(g => g.guess > g.soldPrice).length;
+ const ppUnderCount = ppRevealed.filter(g => g.guess < g.soldPrice).length;
+ let ppCurStreak = 0;
+ for (let i = ppRevealed.length-1; i >= 0; i--) { if (parseFloat(ppAbsPct(ppRevealed[i].guess, ppRevealed[i].soldPrice)) <= 5) ppCurStreak++; else break; }
+ let ppBestStreak = 0, ppTs = 0;
+ for (const g of ppRevealed) { if (parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 5) { ppTs++; ppBestStreak = Math.max(ppBestStreak, ppTs); } else ppTs = 0; }
+
+ const PP_LEADERBOARD = [
+  { name:"Sarah K.",role:"Agent · Compass",avgDiff:2.1,streak:7,guesses:34,badge:"🎯" },
+  { name:"Mike T.",role:"Lender · First Republic",avgDiff:3.4,streak:4,guesses:28,badge:"🔥" },
+  { name:"You",role:"Lender",avgDiff:ppAvgDiff === "—" ? 99 : parseFloat(ppAvgDiff),streak:ppCurStreak,guesses:ppGuesses.length,badge:"📊" },
+  { name:"Jessica R.",role:"Agent · Coldwell Banker",avgDiff:4.8,streak:2,guesses:41,badge:"⭐" },
+  { name:"David L.",role:"Investor",avgDiff:5.1,streak:1,guesses:19,badge:"" },
+ ].sort((a,b) => a.avgDiff === 99 ? 1 : b.avgDiff === 99 ? -1 : a.avgDiff - b.avgDiff);
+
  const TABS = [["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
   ["costs","Costs"],["qualify","Qualify"],["debts","Debts"],["income","Income"],["assets","Assets"],
@@ -2757,8 +2884,26 @@ export default function MortgageBlueprint() {
     </div>
    </div>
   </div>}
+   {/* ── App Mode Toggle ── */}
+   <div style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+    <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
+     <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
+      {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
+       <button key={k} onClick={() => setAppMode(k)} style={{
+        padding: "8px 20px", borderRadius: 12, border: "none", fontSize: 13, fontWeight: 700,
+        fontFamily: "'SF Pro Display','Inter',sans-serif", cursor: "pointer", transition: "all 0.25s",
+        background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
+        color: appMode === k ? "#fff" : T.textTertiary,
+        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : "0 2px 12px rgba(56,189,126,0.3)") : "none",
+       }}>{l}</button>
+      ))}
+     </div>
+    </div>
+   </div>
+   {/* ── Blueprint Mode ── */}
+   {appMode === "blueprint" && <>
    {/* ── Sticky Header ── */}
-   <div style={{ position: "sticky", top: 0, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg }}>
+   <div style={{ position: "sticky", top: 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg }}>
     <div style={{ padding: "16px 20px 8px" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
@@ -2991,44 +3136,106 @@ export default function MortgageBlueprint() {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value={fmt(calc.cashToClose)} label="Cash to Close" color={T.green} />
+  <Hero value={fmt(calc.cashToClose)} label="Estimated Cash to Close" color={T.green} />
  </div>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "16px 0" }}>
-  <Card pad={14}><div style={{ fontSize: 11, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em" }}>{fmt(calc.totalClosingCosts)}</div></Card>
-  <Card pad={14}><div style={{ fontSize: 11, color: T.textTertiary }}>Prepaids</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.orange, letterSpacing: "-0.03em" }}>{fmt(calc.totalPrepaidExp)}</div></Card>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
+  <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Down Payment</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em" }}>{fmt(calc.dp)}</div><div style={{ fontSize: 10, color: T.textTertiary }}>{downPct}%</div></Card>
+  <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em" }}>{fmt(calc.totalClosingCosts)}</div></Card>
  </div>
- <Sec title="Origination">
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+  <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Prepaids & Escrow</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.orange, letterSpacing: "-0.03em" }}>{fmt(calc.totalPrepaidExp)}</div></Card>
+  <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Credits</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green, letterSpacing: "-0.03em" }}>-{fmt(calc.totalCredits)}</div></Card>
+ </div>
+
+ {/* ── A. LENDER FEES ── */}
+ <Sec title="A. Lender Fees">
   <Card>
-   <MRow label="Lender Fee" value={fmt2(1595)} />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Underwriting Fee" value={underwritingFee} onChange={setUnderwritingFee} sm />
+    <Inp label="Processing Fee" value={processingFee} onChange={setProcessingFee} sm />
+   </div>
    <Inp label="Discount Points" value={discountPts} onChange={setDiscountPts} prefix="" suffix="pts" step={0.125} max={10} sm tip="Upfront fee to lower your rate. 1 point = 1% of loan amount, typically reduces rate by ~0.25%. Worth it if you keep the loan 4+ years." />
-   {discountPts > 0 && <MRow label="Points Cost" value={fmt2(calc.pointsCost)} color={T.orange} />}
-   <MRow label="Total Origination" value={fmt2(calc.origCharges)} bold />
+   {discountPts > 0 && <MRow label="Points Cost" value={fmt2(calc.pointsCost)} sub={`${discountPts} pts × ${fmt(calc.loan)}`} color={T.orange} />}
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Lender Fees" value={fmt2(calc.origCharges)} bold />
+   </div>
   </Card>
  </Sec>
- <Sec title="Third Party">
+
+ {/* ── B. SERVICES YOU CANNOT SHOP FOR ── */}
+ <Sec title="B. Services You Cannot Shop For">
   <Card>
-   <MRow label="Appraisal" value={fmt2(750)} />
-   <MRow label="Credit Report" value={fmt2(200)} />
-   <MRow label="Title / Escrow" value={isRefi ? fmt2(1995) : fmt2(2200 + 700 + 500)} />
-   <MRow label="Total Third Party" value={fmt2(calc.cannotShop + calc.canShop)} bold />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Appraisal" value={appraisalFee} onChange={setAppraisalFee} sm />
+    <Inp label="Credit Report" value={creditReportFee} onChange={setCreditReportFee} sm />
+   </div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+    <Inp label="Flood Cert" value={floodCertFee} onChange={setFloodCertFee} sm />
+    <Inp label="MERS" value={mersFee} onChange={setMersFee} sm />
+    <Inp label="Tax Service" value={taxServiceFee} onChange={setTaxServiceFee} sm />
+   </div>
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Cannot Shop" value={fmt2(calc.cannotShop)} bold />
+   </div>
   </Card>
  </Sec>
- <Sec title="Government">
+
+ {/* ── C. SERVICES YOU CAN SHOP FOR ── */}
+ <Sec title="C. Services You Can Shop For">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Title Insurance" value={titleInsurance} onChange={setTitleInsurance} sm />
+    <Inp label="Title Search" value={titleSearch} onChange={setTitleSearch} sm />
+   </div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Settlement Agent" value={settlementFee} onChange={setSettlementFee} sm />
+    <Inp label="Escrow/Closing Fee" value={escrowFee} onChange={setEscrowFee} sm />
+   </div>
+   {calc.hoaCert > 0 && <MRow label="HOA Certification" value={fmt2(calc.hoaCert)} sub="Condo/Townhouse" />}
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Can Shop" value={fmt2(calc.canShop)} bold />
+   </div>
+   <Note color={T.blue}>Title and escrow fees are negotiable. Shop around for the best rates — you have the right to choose your own providers.</Note>
+  </Card>
+ </Sec>
+
+ {/* ── D. TAXES & GOVERNMENT FEES ── */}
+ <Sec title="D. Taxes & Government Fees">
   <Card>
    {!isRefi && <>
    <Sel label="City Transfer Tax" value={transferTaxCity} onChange={setTransferTaxCity} options={getTTCitiesForState(propertyState).map(c => ({ value: c, label: c === "Not listed" ? "Not listed" : `${c} ($${getTTForCity(c, salesPrice).rate}/$1K)` }))} tip="Government tax charged when property changes hands. Rate varies by city. Typically split between buyer and seller." />
    {transferTaxCity === city && transferTaxCity !== "Not listed" && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 8 }}>✓ Auto-matched from property city</div>}
    {!getTTCitiesForState(propertyState).includes(city) && transferTaxCity === "Not listed" && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -4, marginBottom: 8 }}>{city || "This city"} has no city transfer tax — only county ($1.10/$1K)</div>}
-   <MRow label="City TT (Buyer 50%)" value={fmt2(calc.buyerCityTT)} sub={calc.buyerCityTT === 0 && transferTaxCity !== "Not listed" ? "Seller pays" : null} />
+   <MRow label="City Transfer Tax (Buyer 50%)" value={fmt2(calc.buyerCityTT)} sub={calc.buyerCityTT === 0 && transferTaxCity !== "Not listed" ? "Seller pays" : null} />
    {calc.ttEntry.rate > 0 && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -4, marginBottom: 8 }}>Tier: ${calc.ttEntry.rate}/$1K for {calc.ttEntry.label}</div>}
    </>}
    {isRefi && <Note color={T.blue}>No transfer tax on refinances in California.</Note>}
-   <MRow label="Recording" value={fmt2(350)} />
-   <MRow label="Total Government" value={fmt2(calc.govCharges)} bold />
+   <Inp label="Recording Fees" value={recordingFee} onChange={setRecordingFee} sm />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Government Fees" value={fmt2(calc.govCharges)} bold />
+   </div>
    {!isRefi && transferTaxCity === "San Francisco" && <Note color={T.blue}>SF: Seller customarily pays 100% of transfer tax.</Note>}
   </Card>
  </Sec>
- <Sec title="Prepaids & Escrow">
+
+ {/* ── CLOSING COSTS SUBTOTAL ── */}
+ <Card style={{ background: `${T.blue}10`, border: `1px solid ${T.blue}25` }}>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+   {[["A. Lender Fees", fmt2(calc.origCharges)], ["B. Cannot Shop", fmt2(calc.cannotShop)], ["C. Can Shop", fmt2(calc.canShop)], ["D. Government", fmt2(calc.govCharges)]].map(([l, v], i) => (
+    <div key={i} style={{ padding: "6px 12px", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+     <span style={{ color: T.textSecondary }}>{l}</span>
+     <span style={{ fontWeight: 600, fontFamily: FONT }}>{v}</span>
+    </div>
+   ))}
+  </div>
+  <div style={{ borderTop: `2px solid ${T.blue}40`, marginTop: 6, paddingTop: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between" }}>
+   <span style={{ fontWeight: 700, fontSize: 14, color: T.blue }}>Total Closing Costs</span>
+   <span style={{ fontWeight: 700, fontSize: 14, fontFamily: FONT, color: T.blue }}>{fmt(calc.totalClosingCosts)}</span>
+  </div>
+ </Card>
+
+ {/* ── E. PREPAIDS & ESCROW ── */}
+ <Sec title="E. Prepaids">
   <Card>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
     <Sel label="Closing Month" value={closingMonth} onChange={v => setClosingMonth(parseInt(v))} options={[{value:1,label:"January"},{value:2,label:"February"},{value:3,label:"March"},{value:4,label:"April"},{value:5,label:"May"},{value:6,label:"June"},{value:7,label:"July"},{value:8,label:"August"},{value:9,label:"September"},{value:10,label:"October"},{value:11,label:"November"},{value:12,label:"December"}]} sm />
@@ -3036,16 +3243,31 @@ export default function MortgageBlueprint() {
    </div>
    <MRow label="Prepaid Interest" value={fmt2(calc.prepaidInt)} sub={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day`} />
    <Inp label="Homeowner's Insurance (Annual)" value={annualIns} onChange={setAnnualIns} suffix="/yr" sm />
-   {includeEscrow && <>
-   <MRow label={`Escrow: Tax (${calc.escrowTaxMonths} mo)`} value={fmt2(calc.monthlyTax * calc.escrowTaxMonths)} sub={`${fmt(calc.monthlyTax)} × ${calc.escrowTaxMonths}`} />
-   <MRow label={`Escrow: Insurance (${calc.escrowInsMonths} mo)`} value={fmt2(calc.ins * calc.escrowInsMonths)} sub={`${fmt(calc.ins)} × ${calc.escrowInsMonths}`} />
-   <MRow label="Initial Escrow Total" value={fmt2(calc.initialEscrow)} bold />
-   <Note color={T.blue}>Closing in {["January","February","March","April","May","June","July","August","September","October","November","December"][closingMonth-1]} → {calc.escrowTaxMonths} months property tax + {calc.escrowInsMonths} months insurance in escrow.</Note>
-   </>}
-   {!includeEscrow && <Note color={T.orange}>Not impounding — no initial escrow collected at closing. Tax & insurance paid separately by borrower.</Note>}
-   <MRow label="Total Prepaids" value={fmt2(calc.totalPrepaidExp)} bold />
+   <MRow label="Hazard Insurance Premium (12 mo)" value={fmt2(annualIns)} sub={`${fmt2(annualIns / 12)}/mo × 12`} />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Prepaids" value={fmt2(calc.prepaidInt + annualIns)} bold />
+   </div>
   </Card>
-  {(() => {
+ </Sec>
+
+ {includeEscrow && <Sec title="F. Initial Escrow Payment at Closing">
+  <Card>
+   <MRow label={`Property Tax Reserve (${calc.escrowTaxMonths} mo)`} value={fmt2(calc.monthlyTax * calc.escrowTaxMonths)} sub={`${fmt(calc.monthlyTax)}/mo × ${calc.escrowTaxMonths}`} />
+   <MRow label={`Hazard Insurance Reserve (${calc.escrowInsMonths} mo)`} value={fmt2(calc.ins * calc.escrowInsMonths)} sub={`${fmt(calc.ins)}/mo × ${calc.escrowInsMonths}`} />
+   {calc.monthlyMI > 0 && <MRow label="Mortgage Insurance Reserve" value={fmt2(calc.monthlyMI * 2)} sub={`${fmt(calc.monthlyMI)}/mo × 2`} />}
+   <MRow label="Aggregate Adjustment" value="$0.00" />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Initial Escrow" value={fmt2(calc.initialEscrow)} bold />
+   </div>
+   <Note color={T.blue}>Closing in {["January","February","March","April","May","June","July","August","September","October","November","December"][closingMonth-1]} → {calc.escrowTaxMonths} months property tax + {calc.escrowInsMonths} months insurance held in escrow.</Note>
+  </Card>
+ </Sec>}
+ {!includeEscrow && <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}25` }}>
+  <Note color={T.orange}>Escrow waived — no initial escrow collected at closing. Tax & insurance paid separately by borrower.</Note>
+ </Card>}
+
+ {/* ── FIRST PAYMENT EXPLAINER ── */}
+ {(() => {
    const mos = ["January","February","March","April","May","June","July","August","September","October","November","December"];
    const shortMos = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
    const cm = closingMonth - 1;
@@ -3063,23 +3285,30 @@ export default function MortgageBlueprint() {
      </div>
     </div>
    </Card>;
-  })()}
- </Sec>
- <Sec title="Credits">
+ })()}
+
+ {/* ── G. CREDITS ── */}
+ <Sec title="G. Credits">
   <Card>
    <Inp label="Seller Credit" value={sellerCredit} onChange={setSellerCredit} sm tip="Money the seller agrees to pay toward your closing costs. Negotiate this in your purchase offer. Max allowed varies by loan type." />
+   <Inp label="Lender Credit" value={lenderCredit} onChange={setLenderCredit} sm tip="Credit from the lender, usually in exchange for a slightly higher interest rate. Reduces your out-of-pocket closing costs." />
    <Inp label="Realtor Credit" value={realtorCredit} onChange={setRealtorCredit} sm tip="Commission rebate from your buyer's agent applied toward your closing costs." />
-   <Inp label="EMD" value={emd} onChange={setEmd} sm tip="Earnest Money Deposit. A good-faith deposit you submit with your offer to show you're serious. Credited back to you at closing." />
-   <MRow label="Total Credits" value={`-${fmt(calc.totalCredits)}`} color={T.green} bold />
+   <Inp label="EMD (Earnest Money Deposit)" value={emd} onChange={setEmd} sm tip="Good-faith deposit submitted with your offer. Credited back to you at closing — reduces cash needed." />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Credits" value={`-${fmt(calc.totalCredits)}`} color={T.green} bold />
+   </div>
   </Card>
  </Sec>
- <Card style={{ background: T.successBg }}>
-  <MRow label="Down Payment" value={fmt(calc.dp)} bold />
-  <MRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} />
-  <MRow label="Prepaids & Escrow" value={fmt(calc.totalPrepaidExp)} />
-  <MRow label="Credits" value={`-${fmt(calc.totalCredits)}`} color={T.green} />
-  <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-   <MRow label="Cash to Close" value={fmt(calc.cashToClose)} color={T.green} bold />
+
+ {/* ── ESTIMATED FUNDS TO CLOSE ── */}
+ <Card style={{ background: T.successBg, border: `1px solid ${T.green}30` }}>
+  <div style={{ fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Estimated Funds to Close</div>
+  <MRow label="Down Payment" value={fmt(calc.dp)} />
+  <MRow label="A–D. Total Closing Costs" value={fmt(calc.totalClosingCosts)} />
+  <MRow label="E–F. Prepaids & Escrow" value={fmt(calc.totalPrepaidExp)} />
+  <MRow label="G. Credits Applied" value={`-${fmt(calc.totalCredits)}`} color={T.green} />
+  <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
+   <MRow label="ESTIMATED CASH FROM BORROWER" value={fmt(calc.cashToClose)} color={T.green} bold />
   </div>
  </Card>
 </>)}
@@ -5708,6 +5937,263 @@ export default function MortgageBlueprint() {
   </div>
  </div>
 )}
+   </div>
+   </>}
+   {/* ═══════════════════════════════════════════ */}
+   {/* PRICEPOINT MODE */}
+   {/* ═══════════════════════════════════════════ */}
+   {appMode === "pricepoint" && (
+    <div style={{ maxWidth: 480, margin: "0 auto" }}>
+     <style>{`
+      @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
+      @keyframes ppSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
+      @keyframes ppCardExit { to { opacity:0; transform:translateX(120%) rotate(8deg) } }
+      @keyframes ppNotifIn { from { opacity:0; transform:translateY(-20px) } to { opacity:1; transform:translateY(0) } }
+      .pp-submitted { animation: ppCardExit 0.4s ease-in forwards }
+      .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(12px) }
+      .pp-rvl-ov.vis { opacity:1 }
+      .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:420px; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
+      .pp-rvl-ov.vis .pp-rvl-cd { transform:translateY(0) }
+     `}</style>
+
+     {/* PP Notification */}
+     {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
+
+     {/* PP Header */}
+     <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div>
+       <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
+       <div style={{ fontSize: 12, color: T.textTertiary }}>Sunset District · SF</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+       <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: ppCurStreak > 0 ? 1 : 0.4 }}>🔥 {ppCurStreak}</div>
+      </div>
+     </div>
+
+     {/* PP Sub-Nav */}
+     <div style={{ display: "flex", gap: 4, padding: "0 18px 12px" }}>
+      {[["cards","🏠 Guess"],["results","📋 Results"],["leaderboard","🏆 Ranks"],["stats","📊 Stats"]].map(([k,l]) => (
+       <button key={k} onClick={() => setPpView(k)} style={{
+        flex:1, padding: "8px 4px", borderRadius: 10, border: "none", fontSize: 11, fontWeight: 600,
+        cursor: "pointer", transition: "all 0.2s",
+        background: ppView === k ? "rgba(56,189,126,0.12)" : T.pillBg,
+        color: ppView === k ? "#38bd7e" : T.textTertiary,
+        borderBottom: ppView === k ? "2px solid #38bd7e" : "2px solid transparent",
+       }}>{l}</button>
+      ))}
+     </div>
+     {/* Swipe dots */}
+     <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 10 }}>
+      {PP_VIEWS.map((v,i) => (
+       <div key={v} style={{ width: ppViewIdx === i ? 18 : 6, height: 6, borderRadius: 3, background: ppViewIdx === i ? "#38bd7e" : "rgba(255,255,255,0.1)", transition: "all 0.3s" }} />
+      ))}
+     </div>
+
+     <div style={{ padding: "0 18px" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
+
+      {/* ── PP CARDS VIEW ── */}
+      {ppView === "cards" && (
+       ppCurrentListing ? (
+        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
+         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
+          <img src={ppCurrentListing.photo} alt="" style={{ width:"100%", height:200, objectFit:"cover", borderRadius: 16, border: `1px solid ${T.cardBorder}` }} onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+          <div style={{ padding: "14px 0 0" }}>
+           <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>{ppCurrentListing.address}</div>
+           <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{ppCurrentListing.neighborhood} · {ppCurrentListing.city}, {ppCurrentListing.state} {ppCurrentListing.zip}</div>
+           <div style={{ display: "flex", gap: 6, margin: "12px 0", flexWrap: "wrap" }}>
+            {[[ppCurrentListing.beds,"Beds"],[ppCurrentListing.baths,"Baths"],[(ppCurrentListing.sqft||0).toLocaleString(),"SqFt"],[ppCurrentListing.yearBuilt,"Built"],["$"+ppCurrentListing.pricePerSqft,"/SF"]].map(([v,l],i) => (
+             <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 12px", textAlign: "center", flex: 1, minWidth: 55 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{v}</div>
+              <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 1 }}>{l}</div>
+             </div>
+            ))}
+           </div>
+           <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+            <div style={{ flex: 1 }}>
+             <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
+             <div style={{ fontSize: 22, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
+            </div>
+            {ppCurrentListing.zestimate && <div style={{ flex: 1 }}>
+             <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
+             <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+            </div>}
+           </div>
+           <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
+            placeholder="What will it sell for?"
+            style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 10, boxSizing: "border-box" }} />
+           {ppGuessInput && (() => {
+            const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
+            if (!v) return null;
+            const d = ((v - ppCurrentListing.listPrice)/ppCurrentListing.listPrice*100).toFixed(1);
+            const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
+            return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
+             {d > 0 ? "+" : ""}{d}% vs list{pp ? ` · $${pp}/SF` : ""}
+             {ppCurrentListing.zestimate ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
+            </div>;
+           })()}
+           <button onClick={ppHandleGuess} disabled={!ppGuessInput} style={{
+            width:"100%", padding: "14px", borderRadius: 16, border: "none", fontSize: 15, fontWeight: 700,
+            background: ppGuessInput ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+            color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
+            transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
+           }}>Lock It In 🔒</button>
+           <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
+            {ppActiveListings.length - 1} more in queue
+           </div>
+          </div>
+         </div>
+        </div>
+       ) : (
+        <div style={{ textAlign:"center", padding:"60px 20px" }}>
+         <div style={{ fontSize:48, marginBottom:16 }}>🏡</div>
+         <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
+         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {PP_LISTINGS.length} listings.</div>
+         <button onClick={ppResetAll} style={{ padding:"12px 24px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:14, fontWeight:600, cursor:"pointer" }}>Reset All</button>
+        </div>
+       )
+      )}
+
+      {/* ── PP RESULTS VIEW ── */}
+      {ppView === "results" && (
+       <div style={{ animation: "ppFadeIn 0.3s ease" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Your Guesses</div>
+        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>Tap pending guesses to simulate SOLD reveal</div>
+        {ppGuesses.length === 0 ? (
+         <div style={{ textAlign:"center", padding:"40px", color:T.textTertiary }}>No guesses yet — go make some!</div>
+        ) : [...ppGuesses].reverse().map((g, i) => {
+         const realIdx = ppGuesses.length - 1 - i;
+         return (
+          <div key={realIdx} onClick={() => ppSimulateSold(realIdx)}
+           style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", borderRadius:14, cursor:"pointer", background:T.card, border:`1px solid ${T.cardBorder}`, transition:"all 0.2s", marginBottom:8 }}>
+           <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:14, fontWeight:600, color:T.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.address}</div>
+            <div style={{ fontSize:11, color:T.textTertiary, marginTop:1 }}>{g.neighborhood} · {g.propertyType}</div>
+            <div style={{ display:"flex", gap:12, marginTop:4, fontSize:12 }}>
+             <span><span style={{ color:T.textTertiary }}>List:</span> <span style={{ color:T.textSecondary }}>{ppFmt(g.listPrice)}</span></span>
+             <span><span style={{ color:T.textTertiary }}>You:</span> <span style={{ color:"#38bd7e", fontWeight:700 }}>{ppFmt(g.guess)}</span></span>
+            </div>
+           </div>
+           <div style={{ textAlign:"right", flexShrink:0, marginLeft:8 }}>
+            {g.revealed && g.soldPrice ? (
+             <>
+              <div style={{ fontSize:12, color:T.textTertiary }}>Sold {ppFmt(g.soldPrice)}</div>
+              <div style={{ fontSize:18, fontWeight:800, color:parseFloat(ppAbsPct(g.guess,g.soldPrice))<=3?"#38bd7e":parseFloat(ppAbsPct(g.guess,g.soldPrice))<=7?"#e8c84d":"#e85d5d" }}>
+               {g.guess>=g.soldPrice?"+":""}{ppPct(g.guess,g.soldPrice)}%
+              </div>
+             </>
+            ) : (
+             <span style={{ display:"inline-block", padding:"4px 10px", borderRadius:8, fontSize:10, fontWeight:700, background:"rgba(56,189,126,0.1)", color:"#38bd7e", border:"1px solid rgba(56,189,126,0.2)" }}>● Pending</span>
+            )}
+           </div>
+          </div>
+         );
+        })}
+       </div>
+      )}
+
+      {/* ── PP LEADERBOARD VIEW ── */}
+      {ppView === "leaderboard" && (
+       <div style={{ animation: "ppFadeIn 0.3s ease" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Leaderboard</div>
+        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>Sunset District · Ranked by avg % off</div>
+        {PP_LEADERBOARD.map((p,i) => (
+         <div key={i} style={{
+          display:"flex", alignItems:"center", padding:"14px 16px", borderRadius:14,
+          background: p.name === "You" ? "rgba(56,189,126,0.06)" : T.card,
+          border: `1px solid ${p.name === "You" ? "rgba(56,189,126,0.2)" : T.cardBorder}`,
+          marginBottom:8,
+         }}>
+          <div style={{
+           width:32, height:32, borderRadius:10,
+           background: i<3 ? ["linear-gradient(135deg,#38bd7e,#2d9d68)","linear-gradient(135deg,#a8b4c0,#c8d0d8)","linear-gradient(135deg,#c9904a,#e0b070)"][i] : T.pillBg,
+           display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:13,
+           color: i<3 ? "#fff" : T.textTertiary, marginRight:12, flexShrink:0,
+          }}>{i+1}</div>
+          <div style={{ flex:1 }}>
+           <div style={{ fontSize:14, fontWeight:600, color: p.name === "You" ? "#38bd7e" : T.text }}>{p.name} {p.badge}</div>
+           <div style={{ fontSize:11, color:T.textTertiary }}>{p.role} · {p.guesses} guesses · 🔥{p.streak}</div>
+          </div>
+          <div style={{ fontSize:20, fontWeight:800, color: p.name === "You" ? "#38bd7e" : T.text }}>
+           {p.avgDiff === 99 ? "—" : p.avgDiff + "%"}
+          </div>
+         </div>
+        ))}
+       </div>
+      )}
+
+      {/* ── PP STATS VIEW ── */}
+      {ppView === "stats" && (
+       <div style={{ animation: "ppFadeIn 0.3s ease" }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 16 }}>Your Stats</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+         {[["Avg Accuracy",ppAvgDiff==="—"?"—":ppAvgDiff+"%","#38bd7e"],["Streak","🔥 "+ppCurStreak,"#38bd7e"],["Best","⭐ "+ppBestStreak,T.text],["Total",ppGuesses.length,T.text],["Revealed",ppRevealed.length,T.text],["Pending",ppGuesses.length-ppRevealed.length,"#e8c84d"]].map(([l,v,c],i) => (
+          <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20 }}>
+           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
+           <div style={{ fontSize:24, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
+          </div>
+         ))}
+        </div>
+        {/* Bias bar */}
+        <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:10 }}>
+         <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Pricing Bias</div>
+         {ppRevealed.length > 0 ? (<>
+          <div style={{ display:"flex", height:34, borderRadius:10, overflow:"hidden", marginBottom:8 }}>
+           {ppOverCount > 0 && <div style={{ width:`${(ppOverCount/ppRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppOverCount}</div>}
+           {ppUnderCount > 0 && <div style={{ width:`${(ppUnderCount/ppRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppUnderCount}</div>}
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.textTertiary }}>
+           <span><span style={{ color:"#e85d5d" }}>●</span> Over ({ppOverCount})</span>
+           <span><span style={{ color:T.blue }}>●</span> Under ({ppUnderCount})</span>
+          </div>
+         </>) : <div style={{ color:T.textTertiary, fontSize:13 }}>Reveal guesses to see your bias</div>}
+        </div>
+        {ppGuesses.length > 0 && (
+         <button onClick={ppResetAll} style={{ width:"100%", padding:14, borderRadius:14, border:`1px solid rgba(232,93,93,0.2)`, background:"rgba(232,93,93,0.08)", color:"#e85d5d", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:10 }}>Reset All Data</button>
+        )}
+       </div>
+      )}
+     </div>
+
+     {/* PP SOLD REVEAL MODAL */}
+     {ppShowReveal && ppShowReveal.soldPrice && (
+      <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
+       <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
+        <div style={{ textAlign:"center" }}>
+         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>🏠 SOLD</div>
+         <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
+         <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
+         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24 }}>
+          <div>
+           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Your Guess</div>
+           <div style={{ fontSize:22, fontWeight:800, color:T.text }}>{ppFmt(ppShowReveal.guess)}</div>
+           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.guess/ppShowReveal.sqft)}/SF</div>}
+          </div>
+          <div style={{ width:1, background:T.cardBorder }} />
+          <div>
+           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Sold Price</div>
+           <div style={{ fontSize:22, fontWeight:800, color:"#38bd7e" }}>{ppFmt(ppShowReveal.soldPrice)}</div>
+           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.soldPrice/ppShowReveal.sqft)}/SF</div>}
+          </div>
+         </div>
+         {(() => {
+          const diff = parseFloat(ppAbsPct(ppShowReveal.guess,ppShowReveal.soldPrice));
+          const over = ppShowReveal.guess > ppShowReveal.soldPrice;
+          const great = diff <= 3, good = diff <= 7;
+          return (
+           <div style={{ background: great ? "rgba(56,189,126,0.08)" : good ? "rgba(232,200,77,0.08)" : "rgba(232,93,93,0.08)", border: `1px solid ${great ? "rgba(56,189,126,0.25)" : good ? "rgba(232,200,77,0.25)" : "rgba(232,93,93,0.25)"}`, borderRadius:16, padding:"18px 20px" }}>
+            <div style={{ fontSize:32, fontWeight:800, color: great ? "#38bd7e" : good ? "#e8c84d" : "#e85d5d" }}>{over?"+":"−"}{diff.toFixed(1)}%</div>
+            <div style={{ fontSize:13, color:T.textSecondary, marginTop:4 }}>{great?"🎯 Sniper accuracy!":good?"👏 Strong market read!":over?"📈 Bit optimistic":"📉 Undervalued this one"}</div>
+            <div style={{ fontSize:12, color:T.textTertiary, marginTop:4 }}>{over?"Over":"Under"} by {ppFmt(Math.abs(ppShowReveal.guess-ppShowReveal.soldPrice))}</div>
+           </div>
+          );
+         })()}
+         <button onClick={ppCloseReveal} style={{ width:"100%", padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", marginTop:20, letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
+        </div>
+       </div>
+      </div>
+     )}
+    </div>
+   )}
    </div>
   </div>
  );
