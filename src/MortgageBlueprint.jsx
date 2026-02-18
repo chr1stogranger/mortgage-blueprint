@@ -6136,25 +6136,19 @@ export default function MortgageBlueprint() {
      </div>
 
      {/* PP Bottom Tab Bar */}
-     <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 100, background: T.card, borderTop: `1px solid ${T.cardBorder}`, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: "8px 12px", paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
-      {/* Swipe dots */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 8 }}>
-       {PP_VIEWS.map((v,i) => (
-        <div key={v} style={{ width: ppViewIdx === i ? 18 : 6, height: 6, borderRadius: 3, background: ppViewIdx === i ? "#38bd7e" : `${T.textTertiary}30`, transition: "all 0.3s" }} />
-       ))}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-around" }}>
+     <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 100, background: T.card, borderTop: `1px solid ${T.cardBorder}`, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: "6px 10px", paddingBottom: "max(6px, env(safe-area-inset-bottom))" }}>
+      <div style={{ display: "flex", justifyContent: "space-around", gap: 6 }}>
        {[["cards","🏠","Guess"],["results","📋","Results"],["leaderboard","🏆","Ranks"],["stats","📊","Stats"]].map(([k,icon,label]) => (
         <button key={k} onClick={() => { setPpView(k); setPpViewIdx(PP_VIEWS.indexOf(k)); }} style={{
-         flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-         padding: "6px 4px", border: "none", borderRadius: 10, cursor: "pointer",
-         background: "transparent",
+         flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+         padding: "10px 8px 8px", borderRadius: 14, cursor: "pointer",
+         background: ppView === k ? "rgba(56,189,126,0.1)" : "transparent",
+         border: ppView === k ? "1px solid rgba(56,189,126,0.15)" : "1px solid transparent",
          color: ppView === k ? "#38bd7e" : T.textTertiary,
-         transition: "all 0.2s",
+         transition: "all 0.25s",
         }}>
-         <span style={{ fontSize: 20 }}>{icon}</span>
-         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5 }}>{label}</span>
-         {ppView === k && <div style={{ width: 20, height: 3, borderRadius: 2, background: "#38bd7e", marginTop: 1 }} />}
+         <span style={{ fontSize: 24, lineHeight: 1 }}>{icon}</span>
+         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3 }}>{label}</span>
         </button>
        ))}
       </div>
