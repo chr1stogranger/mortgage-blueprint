@@ -6194,7 +6194,6 @@ export default function MortgageBlueprint() {
      )}
     </div>
    )}
-   </div>
   </div>
  );
 }
