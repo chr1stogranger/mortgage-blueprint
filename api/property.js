@@ -1,30 +1,24 @@
-// =============================================================
-// /api/property — Get full property details + photos by zpid
-// =============================================================
-// Vercel Serverless Function (works with Vite projects)
-// Returns up to 20 photos per property
-// =============================================================
+// /api/property — Get property details + photos by zpid (RapidAPI)
+var API_HOST = "real-time-real-estate-data.p.rapidapi.com";
 
-const API_HOST = "real-time-real-estate-data.p.rapidapi.com";
-
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const apiKey = process.env.RAPIDAPI_KEY;
+    var apiKey = process.env.RAPIDAPI_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    const { zpid } = req.query;
+    var zpid = req.query.zpid;
     if (!zpid) {
       return res.status(400).json({ error: "zpid required" });
     }
 
-    const apiRes = await fetch(
-      `https://${API_HOST}/property-details?zpid=${zpid}`,
+    var apiRes = await fetch(
+      "https://" + API_HOST + "/property-details?zpid=" + zpid,
       {
         method: "GET",
         headers: {
@@ -35,20 +29,20 @@ export default async function handler(req, res) {
     );
 
     if (!apiRes.ok) {
-      const errText = await apiRes.text();
+      var errText = await apiRes.text();
       return res.status(apiRes.status).json({ error: errText });
     }
 
-    const raw = await apiRes.json();
-    const d = raw.data || raw;
+    var raw = await apiRes.json();
+    var d = raw.data || raw;
 
-    const property = {
+    var property = {
       id: String(d.zpid || zpid),
       zpid: String(d.zpid || zpid),
-      address: d.streetAddress || d.address?.streetAddress || "",
-      city: d.city || d.address?.city || "San Francisco",
-      state: d.state || d.address?.state || "CA",
-      zip: d.zipcode || d.address?.zipcode || "",
+      address: d.streetAddress || (d.address && d.address.streetAddress) || "",
+      city: d.city || (d.address && d.address.city) || "San Francisco",
+      state: d.state || (d.address && d.address.state) || "CA",
+      zip: d.zipcode || (d.address && d.address.zipcode) || "",
       beds: d.bedrooms || 0,
       baths: d.bathrooms || 0,
       sqft: d.livingArea || 0,
@@ -70,59 +64,59 @@ export default async function handler(req, res) {
       neighborhood: getNeighborhood(d),
     };
 
-    return res.status(200).json({ property });
+    return res.status(200).json({ property: property });
   } catch (err) {
     console.error("Property error:", err);
     return res.status(500).json({ error: err.message });
   }
-}
+};
 
 function extractPhotos(d) {
-  // Method 1: photos array with mixedSources (most common)
+  // Method 1: photos array with mixedSources
   if (d.photos && Array.isArray(d.photos)) {
-    return d.photos
-      .flatMap((g) => {
-        const jpegs = g.mixedSources?.jpeg || [];
-        // Get the largest resolution available (last in array)
-        const best = jpegs.length > 0 ? jpegs[jpegs.length - 1] : null;
-        return best ? [best.url] : [];
-      })
-      .filter(Boolean)
-      .slice(0, 8);
+    var urls = [];
+    for (var i = 0; i < d.photos.length && urls.length < 8; i++) {
+      var jpegs = (d.photos[i].mixedSources && d.photos[i].mixedSources.jpeg) || [];
+      if (jpegs.length > 0) {
+        urls.push(jpegs[jpegs.length - 1].url);
+      }
+    }
+    return urls.filter(Boolean);
   }
   // Method 2: carouselPhotos
   if (d.carouselPhotos) {
-    return d.carouselPhotos.map((p) => p.url).filter(Boolean).slice(0, 8);
+    return d.carouselPhotos.map(function (p) { return p.url; }).filter(Boolean).slice(0, 8);
   }
   // Method 3: responsivePhotos
   if (d.responsivePhotos) {
-    return d.responsivePhotos
-      .map((p) => {
-        const urls = p.mixedSources?.jpeg || [];
-        return urls.length > 0 ? urls[urls.length - 1].url : null;
-      })
-      .filter(Boolean)
-      .slice(0, 8);
+    var result = [];
+    for (var j = 0; j < d.responsivePhotos.length && result.length < 8; j++) {
+      var srcs = (d.responsivePhotos[j].mixedSources && d.responsivePhotos[j].mixedSources.jpeg) || [];
+      if (srcs.length > 0) {
+        result.push(srcs[srcs.length - 1].url);
+      }
+    }
+    return result.filter(Boolean);
   }
-  // Fallback: main image
+  // Fallback
   if (d.imgSrc) return [d.imgSrc];
   return [];
 }
 
 function normalizeType(t) {
   if (!t) return "Other";
-  if (t.includes("SINGLE")) return "Single Family";
-  if (t.includes("CONDO")) return "Condo";
-  if (t.includes("TOWN")) return "Townhouse";
-  if (t.includes("MULTI")) return "Multi-Family";
+  if (t.indexOf("SINGLE") >= 0) return "Single Family";
+  if (t.indexOf("CONDO") >= 0) return "Condo";
+  if (t.indexOf("TOWN") >= 0) return "Townhouse";
+  if (t.indexOf("MULTI") >= 0) return "Multi-Family";
   return t;
 }
 
 function getNeighborhood(item) {
-  const addr = (item.streetAddress || "").toLowerCase();
-  const m = addr.match(/(\d+)(st|nd|rd|th)\s+ave/);
+  var addr = (item.streetAddress || "").toLowerCase();
+  var m = addr.match(/(\d+)(st|nd|rd|th)\s+ave/);
   if (m) {
-    const n = parseInt(m[1]);
+    var n = parseInt(m[1]);
     if (n <= 15) return "Inner Sunset";
     if (n <= 30) return "Central Sunset";
     return "Outer Sunset";
