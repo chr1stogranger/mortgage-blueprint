@@ -1015,6 +1015,10 @@ export default function MortgageBlueprint() {
  const [ppCardAnim, setPpCardAnim] = useState("");
  const [ppNotif, setPpNotif] = useState(null);
  const [ppSoldMode, setPpSoldMode] = useState(true);
+ const [ppHometown, setPpHometown] = useState(() => { try { return JSON.parse(localStorage.getItem("pp-hometown")) || null; } catch(e) { return null; } });
+ const [ppShowHometownSetup, setPpShowHometownSetup] = useState(false);
+ const [ppHometownInput, setPpHometownInput] = useState("");
+ const [ppLeaderboardFilter, setPpLeaderboardFilter] = useState("all"); // "all" | "agents" | "buyers"
  const [ppSearchZip, setPpSearchZip] = useState("");
  const [ppLiveActive, setPpLiveActive] = useState([]);
  const [ppLiveSold, setPpLiveSold] = useState([]);
@@ -1225,6 +1229,8 @@ export default function MortgageBlueprint() {
  const [unlockAll, setUnlockAll] = useState(false);
  const [gameMode, setGameMode] = useState(true);
  const [toggleHint, setToggleHint] = useState(null);
+ const [setupAdvancedOpen, setSetupAdvancedOpen] = useState(false);
+ const [setupTeamOpen, setSetupTeamOpen] = useState(false);
  const [highlightField, setHighlightField] = useState(null);
  const touchStartRef = useRef(null);
  const touchStartYRef = useRef(null);
@@ -1894,6 +1900,23 @@ export default function MortgageBlueprint() {
  const saveSkillLevel = (level) => {
   setSkillLevel(level);
   try { LS.set("app:skillLevel", level); } catch(e) {}
+  // Auto-toggle property flags based on experience level
+  if (level === "beginner") {
+   setFirstTimeBuyer(true);
+   setOwnsProperties(false);
+   setHasSellProperty(false);
+   setShowInvestor(false);
+  } else if (level === "experienced") {
+   setFirstTimeBuyer(false);
+   setOwnsProperties(true);
+   setHasSellProperty(true);
+   setShowInvestor(false);
+  } else if (level === "expert") {
+   setFirstTimeBuyer(false);
+   setOwnsProperties(true);
+   setHasSellProperty(true);
+   setShowInvestor(true);
+  }
  };
  const saveUnlockAll = (val) => {
   setUnlockAll(val);
@@ -2661,7 +2684,13 @@ export default function MortgageBlueprint() {
     setPpLiveActive(data.activeListings || []);
     setPpLiveSold(data.soldListings || []);
     setPpDataSource("live");
-    setPpLocationLabel(data.location || searchValue);
+    const locLabel = data.location || searchValue;
+    setPpLocationLabel(locLabel);
+    // Update hometown label if this was a hometown search
+    if (ppHometown && (ppHometown.zip === searchValue || ppHometown.city === searchValue)) {
+     const updated = { ...ppHometown, label: locLabel };
+     setPpHometown(updated);
+    }
     // Reset guesses when loading new location data
     setPpGuesses([]);
     setPpGuessInput("");
@@ -2676,13 +2705,40 @@ export default function MortgageBlueprint() {
   }
  };
 
- // Auto-load from Setup tab zip when entering PricePoint
+ // Save hometown to localStorage
+ useEffect(() => { try { if (ppHometown) localStorage.setItem("pp-hometown", JSON.stringify(ppHometown)); } catch(e){} }, [ppHometown]);
+
+ // Auto-load from hometown (or Setup zip as fallback) when entering PricePoint
  useEffect(() => {
-  if (appMode === "pricepoint" && propertyZip && propertyZip.length === 5 && ppDataSource === "hardcoded" && ppLiveActive.length === 0 && ppLiveSold.length === 0) {
-   setPpSearchZip(propertyZip);
-   ppFetchListings(propertyZip);
+  if (appMode === "pricepoint" && ppDataSource === "hardcoded" && ppLiveActive.length === 0 && ppLiveSold.length === 0) {
+   if (ppHometown && ppHometown.zip) {
+    setPpSearchZip(ppHometown.zip);
+    ppFetchListings(ppHometown.zip);
+   } else if (ppHometown && ppHometown.city) {
+    setPpSearchZip(ppHometown.city);
+    ppFetchListings(ppHometown.city);
+   } else if (!ppHometown) {
+    // No hometown set — show setup prompt
+    setPpShowHometownSetup(true);
+   }
   }
  }, [appMode]);
+
+ const ppSaveHometown = () => {
+  const val = ppHometownInput.trim();
+  if (!val) return;
+  const isZip = /^\d{5}$/.test(val);
+  const ht = isZip ? { zip: val, label: val } : { city: val, label: val };
+  setPpHometown(ht);
+  setPpShowHometownSetup(false);
+  setPpSearchZip(val);
+  ppFetchListings(val);
+ };
+
+ const ppChangeHometown = () => {
+  setPpHometownInput(ppHometown?.label || "");
+  setPpShowHometownSetup(true);
+ };
 
  const ppHandleSearch = () => {
   if (ppSearchZip.trim()) ppFetchListings(ppSearchZip.trim());
@@ -2811,13 +2867,24 @@ export default function MortgageBlueprint() {
  let ppBestStreak = 0, ppTs = 0;
  for (const g of ppRevealed) { if (parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 5) { ppTs++; ppBestStreak = Math.max(ppBestStreak, ppTs); } else ppTs = 0; }
 
- const PP_LEADERBOARD = [
-  { name:"Sarah K.",role:"Agent · Compass",avgDiff:2.1,streak:7,guesses:34,badge:"🎯" },
-  { name:"Mike T.",role:"Lender · First Republic",avgDiff:3.4,streak:4,guesses:28,badge:"🔥" },
-  { name:"You",role:"Lender",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge:"📊" },
-  { name:"Jessica R.",role:"Agent · Coldwell Banker",avgDiff:4.8,streak:2,guesses:41,badge:"⭐" },
-  { name:"David L.",role:"Investor",avgDiff:5.1,streak:1,guesses:19,badge:"" },
+ const PP_LEADERBOARD_ALL = [
+  { name:"Sarah K.",role:"Agent · Compass",category:"agent",avgDiff:2.1,streak:7,guesses:34,badge:"🎯" },
+  { name:"Mike T.",role:"Lender · First Republic",category:"agent",avgDiff:3.4,streak:4,guesses:28,badge:"🔥" },
+  { name:"You",role:"Lender",category:"agent",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge:"📊" },
+  { name:"Jessica R.",role:"Agent · Coldwell Banker",category:"agent",avgDiff:4.8,streak:2,guesses:41,badge:"⭐" },
+  { name:"Rachel M.",role:"Agent · KW",category:"agent",avgDiff:5.6,streak:3,guesses:22,badge:"" },
+  { name:"Tom W.",role:"Lender · Chase",category:"agent",avgDiff:6.2,streak:1,guesses:15,badge:"" },
+  { name:"David L.",role:"Investor",category:"buyer",avgDiff:5.1,streak:1,guesses:19,badge:"" },
+  { name:"Emily C.",role:"First-Time Buyer",category:"buyer",avgDiff:6.8,streak:2,guesses:12,badge:"🏡" },
+  { name:"Jason P.",role:"Buyer · Relocating",category:"buyer",avgDiff:7.3,streak:0,guesses:9,badge:"" },
+  { name:"Karen S.",role:"Investor · Flipper",category:"buyer",avgDiff:3.9,streak:5,guesses:31,badge:"💰" },
+  { name:"Alex N.",role:"Buyer · Move-Up",category:"buyer",avgDiff:8.1,streak:0,guesses:7,badge:"" },
+  { name:"Brian H.",role:"Buyer · Downsizer",category:"buyer",avgDiff:5.5,streak:1,guesses:16,badge:"" },
  ].sort((a,b) => a.avgDiff === 99 ? 1 : b.avgDiff === 99 ? -1 : a.avgDiff - b.avgDiff);
+
+ const PP_LEADERBOARD = ppLeaderboardFilter === "all" ? PP_LEADERBOARD_ALL
+  : ppLeaderboardFilter === "agents" ? PP_LEADERBOARD_ALL.filter(p => p.category === "agent" || p.name === "You")
+  : PP_LEADERBOARD_ALL.filter(p => p.category === "buyer" || p.name === "You");
 
  const TABS = [["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
@@ -4246,39 +4313,104 @@ export default function MortgageBlueprint() {
   <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Subject to lender requirements. Rates change daily. Not a commitment to lend.</div>
  </Card>
 </>)}
-{/* ═══ SETUP ═══ */}
+{/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
  <div style={{ marginTop: 20 }}>
   <Hero value={isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
  </div>
- {/* ── Build Mode Toggle + House ── */}
- <Sec title="Build Mode">
-  <Card>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
-    <div style={{ flex: 1, marginRight: 12 }}>
-     <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Build Mode</div>
-     <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Guided progression with a house that builds as you learn. Tabs unlock as you scroll through each one.</div>
-    </div>
-    <div onClick={() => saveGameMode(!gameMode)} style={{ width: 52, height: 30, borderRadius: 99, background: gameMode ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: gameMode ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+
+ {/* ── Build Mode ── */}
+ <Card>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
+   <div style={{ flex: 1, marginRight: 12 }}>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Build Mode</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Guided progression — tabs unlock as you go. A house builds as you learn.</div>
+   </div>
+   <div onClick={() => saveGameMode(!gameMode)} style={{ width: 52, height: 30, borderRadius: 99, background: gameMode ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: gameMode ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   </div>
+  </div>
+ </Card>
+ {gameMode && (
+  <Card style={{ padding: 0, overflow: "hidden" }}>
+   <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
+   <div style={{ padding: "10px 14px 12px" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+     <div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
+      <div style={{ fontSize: 11, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
+     </div>
+     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
     </div>
    </div>
   </Card>
-  {gameMode && <>
-   <Card style={{ padding: 0, overflow: "hidden" }}>
-    <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
-    <div style={{ padding: "10px 14px 12px" }}>
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div>
-       <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
-       <div style={{ fontSize: 11, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
-     </div>
+ )}
+
+ {/* Compare Hint */}
+ {showCompareHint && scenarioList.length > 1 && (
+  <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+   <div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>📊 Compare tab available!</div>
+    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>You have {scenarioList.length} scenarios. View them side-by-side.</div>
+   </div>
+   <div style={{ display: "flex", gap: 6 }}>
+    <button onClick={() => { setTab("compare"); setShowCompareHint(false); }} style={{ background: T.green, color: "#FFF", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Compare</button>
+    <button onClick={() => setShowCompareHint(false)} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+   </div>
+  </div>
+ )}
+
+ {/* ── Quick Start ── */}
+ <Sec title="Quick Start">
+  <Card>
+   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+    <div style={{ fontSize: 16 }}>⚡</div>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Quick Start</div>
+    <div style={{ fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 8px", borderRadius: 6, marginLeft: "auto" }}>REQUIRED</div>
+   </div>
+
+   {/* Transaction Type */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+    {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
+     <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "12px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+    ))}
+   </div>
+
+   {/* Zip Code */}
+   <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="94501" req />
+   {lookupZip(propertyZip) && (
+    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
+   )}
+   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
+    <div style={{ fontSize: 11, color: T.orange, marginTop: -8, marginBottom: 10 }}>Zip not in database — select city and state in Property Details below</div>
+   )}
+
+   {/* FICO */}
+   <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
+   {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
+    <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
+    <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
+     {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
+    </span>
+   </div>}
+
+   {/* First-Time Buyer */}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>First-Time Homebuyer?</span>
+    <div onClick={() => { setFirstTimeBuyer(!firstTimeBuyer); setToggleHint(toggleHint === "firstTimeBuyer" ? null : "firstTimeBuyer"); }} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: firstTimeBuyer ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
     </div>
-   </Card>
-   <Card>
-    <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Experience Level</div>
+   </div>
+   {toggleHint === "firstTimeBuyer" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${firstTimeBuyer ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, transition: "all 0.3s" }}>
+    {firstTimeBuyer ? TOGGLE_DESCRIPTIONS.firstTimeBuyer.on : TOGGLE_DESCRIPTIONS.firstTimeBuyer.off}
+   </div>}
+
+   {/* Experience Level */}
+   <div style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+     Experience Level
+     <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>tailors your experience</span>
+    </div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
      {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
       <button key={key} onClick={() => saveSkillLevel(key)}
@@ -4292,81 +4424,79 @@ export default function MortgageBlueprint() {
     <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
      {SKILL_PRESETS[skillLevel].desc}
     </div>
-   </Card>
-  </>}
- </Sec>
- {showCompareHint && scenarioList.length > 1 && (
-  <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-   <div>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>📊 Compare tab available!</div>
-    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>You have {scenarioList.length} scenarios. View them side-by-side.</div>
-   </div>
-   <div style={{ display: "flex", gap: 6 }}>
-    <button onClick={() => { setTab("compare"); setShowCompareHint(false); }} style={{ background: T.green, color: "#FFF", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Compare</button>
-    <button onClick={() => setShowCompareHint(false)} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
-   </div>
-  </div>
- )}
- <Sec title="Scenarios" action="+ New" onAction={() => setNewScenarioName("New Scenario")}>
-  {newScenarioName !== "" && (
-   <Card>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Scenario</div>
-    <TextInp label="Name" value={newScenarioName} onChange={setNewScenarioName} placeholder="e.g. 3BR Condo Oakland" />
-    <div style={{ display: "flex", gap: 8 }}>
-     <button onClick={() => createScenario(newScenarioName)} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Create</button>
-     <button onClick={() => setNewScenarioName("")} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-    </div>
-   </Card>
-  )}
-  {scenarioList.map((name) => (
-   <Card key={name} onClick={() => name !== scenarioName && editingScenarioName !== name ? switchScenario(name) : null}
-    style={{ border: name === scenarioName ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
-    {editingScenarioName === name ? (
-     <div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Scenario</div>
-      <input value={editScenarioValue} onChange={e => setEditScenarioValue(e.target.value)}
-       onKeyDown={e => { if (e.key === "Enter") { renameScenario(name, editScenarioValue); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
-       autoFocus
-       style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 8, padding: "10px 12px", fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
-      <div style={{ display: "flex", gap: 6 }}>
-       <button onClick={() => { renameScenario(name, editScenarioValue); setEditingScenarioName(null); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Save</button>
-       <button onClick={() => setEditingScenarioName(null)} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-      </div>
-     </div>
-    ) : (
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ flex: 1 }}>
-       <div style={{ fontSize: 15, fontWeight: 600, color: name === scenarioName ? T.blue : T.text }}>{name}</div>
-       {name === scenarioName && <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active</div>}
-      </div>
-      {name === scenarioName && (
-       <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
-        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
-        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); }} style={{ background: T.errorBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
-       </div>
-      )}
-     </div>
-    )}
-   </Card>
-  ))}
-  {scenarioList.length > 1 && (
-   <button onClick={() => setTab("compare")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 12, padding: "12px 0", cursor: "pointer", marginTop: 4 }}>
-    <span style={{ fontSize: 14, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length} Scenarios Side-by-Side</span>
-   </button>
-  )}
- </Sec>
- <Sec title="Transaction Type">
-  <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-     <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "14px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{label}</button>
-    ))}
    </div>
   </Card>
  </Sec>
- <Sec title="Subject Property">
+
+ {/* ── Live Estimate ── */}
+ <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 18, padding: "18px 16px", marginBottom: 12 }}>
+  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: T.green, textTransform: "uppercase", marginBottom: 8 }}>LIVE ESTIMATE</div>
+  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
+   <span style={{ fontSize: 36, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
+   <span style={{ fontSize: 14, color: T.textTertiary }}>/mo</span>
+  </div>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+   {[
+    ["P&I", fmt(calc.pi), T.blue],
+    ["Tax", fmt(calc.monthlyTax), T.orange],
+    ["Ins", fmt(calc.ins), T.green],
+    ["MI", calc.monthlyMI > 0 ? fmt(calc.monthlyMI) : "—", calc.monthlyMI > 0 ? T.red : T.textTertiary],
+   ].map(([label, val, color], i) => (
+    <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+     <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: FONT }}>{val}</div>
+     <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{label}</div>
+    </div>
+   ))}
+  </div>
+  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, textAlign: "center" }}>
+   {fmt(salesPrice)} {isRefi ? "value" : "purchase"} · {downPct}% down · {rate}% rate · {loanType}
+  </div>
+ </div>
+
+ {/* ── Loan Details ── */}
+ <Sec title="Loan Details">
   <Card>
+   <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Down %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} sm req tip="The percentage of the purchase price you pay upfront." />
+    <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req tip="Your annual interest rate." />
+   </div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Sel label="Loan Type" value={loanType} onChange={setLoanType} options={LOAN_TYPES} req />
+    <Sel label="Term" value={term} onChange={setTerm} options={["30","25","20","15","10"].map(t=>({value:t,label:t+" yr"}))} req />
+   </div>
+   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
+   {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB above or increase to 5%.</Note>}
+   {/* Quick metrics */}
+   <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+    <div style={{ background: T.pillBg, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+     <div style={{ fontSize: 10, color: T.textTertiary }}>Loan Amount</div>
+     <div style={{ fontSize: 15, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{fmt(calc.loan)}</div>
+    </div>
+    <div style={{ background: T.pillBg, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+     <div style={{ fontSize: 10, color: T.textTertiary }}>LTV</div>
+     <div style={{ fontSize: 15, fontWeight: 700, color: T.orange, fontFamily: FONT }}>{pct(calc.ltv, 0)}</div>
+    </div>
+    <div style={{ background: T.pillBg, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+     <div style={{ fontSize: 10, color: T.textTertiary }}>Cash to Close</div>
+     <div style={{ fontSize: 15, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(calc.cashToClose)}</div>
+    </div>
+   </div>
+  </Card>
+ </Sec>
+
+ {/* ── Property & Borrower Details (collapsible) ── */}
+ <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
+  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+   <span style={{ fontSize: 14 }}>⚙️</span>
+   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Property & Borrower Details</span>
+  </div>
+  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
+ </div>
+ {setupAdvancedOpen && (
+  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
+   {/* Property Address */}
    <div style={{ marginBottom: 14 }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Property Address</div>
@@ -4384,10 +4514,8 @@ export default function MortgageBlueprint() {
       style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
     )}
    </div>
+   {/* City / State / County */}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <div>
-     <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="94501" req />
-    </div>
     <div>
      {propertyState === "California" ? (
       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
@@ -4395,25 +4523,46 @@ export default function MortgageBlueprint() {
       <TextInp label="City" value={city} onChange={setCity} />
      )}
     </div>
-   </div>
-   {lookupZip(propertyZip) && (
-    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 8 }}>✓ Auto-filled from zip: {city}, {propertyCounty} County, {propertyState}</div>
-   )}
-   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
-    <div style={{ fontSize: 11, color: T.orange, marginTop: -4, marginBottom: 8 }}>Zip not in database — select city and state manually</div>
-   )}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
-    {propertyCounty ? (
-     <div style={{ padding: "8px 0" }}>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>County</div>
-      <div style={{ fontSize: 15, fontWeight: 600, fontFamily: FONT }}>{propertyCounty}</div>
-     </div>
-    ) : null}
    </div>
-   {/* Auto-fill summary */}
-   <div style={{ marginTop: 8, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
-    <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Property Details</div>
+   {propertyCounty && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 8 }}>County: {propertyCounty}</div>}
+
+   {/* Filing Status + Tax State */}
+   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
+   <Sel label="Tax State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} req />
+
+   {/* Property Toggles */}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
+    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
+   </div>}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
+    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   {toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
+   </div>}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
+    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   {toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
+   </div>}
+
+   {/* Tax Details Summary */}
+   <div style={{ marginTop: 12, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>AUTO-FILLED FROM ZIP</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
      <span style={{ color: T.textTertiary }}>Tax Rate</span>
      <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
@@ -4427,89 +4576,12 @@ export default function MortgageBlueprint() {
       <span style={{ color: T.textTertiary }}>Area Median Income</span>
       <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{fmt(COUNTY_AMI[propertyCounty])}</span>
      </>}
-     {propertyCounty && COUNTY_AMI[propertyCounty] && <>
-      <span style={{ color: T.textTertiary }}>80% AMI (Low)</span>
-      <span style={{ color: T.text, fontWeight: 500, fontFamily: FONT, textAlign: "right" }}>{fmt(Math.round(COUNTY_AMI[propertyCounty] * 0.8))}</span>
-      <span style={{ color: T.textTertiary }}>120% AMI (Moderate)</span>
-      <span style={{ color: T.text, fontWeight: 500, fontFamily: FONT, textAlign: "right" }}>{fmt(Math.round(COUNTY_AMI[propertyCounty] * 1.2))}</span>
-     </>}
     </div>
    </div>
   </Card>
- </Sec>
- <Sec title="Borrower Profile">
-  <Card>
-   <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
-   {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
-    <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
-    <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
-     {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
-    </span>
-   </div>}
-   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
-   <Sel label="Tax State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} req />
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div style={{ flex: 1, marginRight: 12 }}>
-     <span style={{ fontSize: 14, color: T.text }}>First-Time Homebuyer?</span>
-    </div>
-    <div onClick={() => { setFirstTimeBuyer(!firstTimeBuyer); setToggleHint(toggleHint === "firstTimeBuyer" ? null : "firstTimeBuyer"); }} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: firstTimeBuyer ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "firstTimeBuyer" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${firstTimeBuyer ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, transition: "all 0.3s" }}>
-    {firstTimeBuyer ? TOGGLE_DESCRIPTIONS.firstTimeBuyer.on : TOGGLE_DESCRIPTIONS.firstTimeBuyer.off}
-   </div>}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div style={{ flex: 1, marginRight: 12 }}>
-     <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
-    </div>
-    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
-   </div>}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div style={{ flex: 1, marginRight: 12 }}>
-     <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
-    </div>
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
-   </div>}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
-    <div style={{ flex: 1, marginRight: 12 }}>
-     <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
-    </div>
-    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
-   </div>}
-  </Card>
- </Sec>
- {!isRefi && <Sec title="Your Team">
-  <Card>
-   <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
-    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
-   </div>
-   <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
-    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
-   </div>
-   <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
-   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
-  </Card>
- </Sec>}
+ )}
+
+ {/* ── Refi Sections (when applicable) ── */}
  {isRefi && <Sec title="Refi Purpose">
   <Card>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -4583,8 +4655,19 @@ export default function MortgageBlueprint() {
    {refiHomeValue > 0 && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Current Equity</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(refiHomeValue - calc.refiEffBalance)}</div></div>}
   </div>
  </div>}
- {isRefi && <Sec title="Your Team">
-  <Card>
+
+ {/* ── Your Team (collapsible) ── */}
+ <div onClick={() => setSetupTeamOpen(!setupTeamOpen)}
+  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupTeamOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupTeamOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+   <span style={{ fontSize: 14 }}>👥</span>
+   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Your Team</span>
+   <span style={{ fontSize: 11, color: T.textTertiary }}>(LO, Realtor, Borrower)</span>
+  </div>
+  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupTeamOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
+ </div>
+ {setupTeamOpen && (
+  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
    <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
@@ -4598,12 +4681,71 @@ export default function MortgageBlueprint() {
    <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
    <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
   </Card>
- </Sec>}
- <Sec title="Security">
-  <Card>
-   <Note color={T.blue}>Your data is stored locally on this device. For multi-device sync, account login, and admin access — a full app build is planned with Google OAuth, encrypted storage, and role-based access control (Borrower / LO / Realtor / Admin).</Note>
-  </Card>
+ )}
+
+ {/* ── Scenarios ── */}
+ <Sec title="Scenarios" action="+ New" onAction={() => setNewScenarioName("New Scenario")}>
+  {newScenarioName !== "" && (
+   <Card>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Scenario</div>
+    <TextInp label="Name" value={newScenarioName} onChange={setNewScenarioName} placeholder="e.g. 3BR Condo Oakland" />
+    <div style={{ display: "flex", gap: 8 }}>
+     <button onClick={() => createScenario(newScenarioName)} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Create</button>
+     <button onClick={() => setNewScenarioName("")} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+    </div>
+   </Card>
+  )}
+  {scenarioList.map((name) => (
+   <Card key={name} onClick={() => name !== scenarioName && editingScenarioName !== name ? switchScenario(name) : null}
+    style={{ border: name === scenarioName ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
+    {editingScenarioName === name ? (
+     <div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Scenario</div>
+      <input value={editScenarioValue} onChange={e => setEditScenarioValue(e.target.value)}
+       onKeyDown={e => { if (e.key === "Enter") { renameScenario(name, editScenarioValue); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
+       autoFocus
+       style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 8, padding: "10px 12px", fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
+      <div style={{ display: "flex", gap: 6 }}>
+       <button onClick={() => { renameScenario(name, editScenarioValue); setEditingScenarioName(null); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Save</button>
+       <button onClick={() => setEditingScenarioName(null)} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+      </div>
+     </div>
+    ) : (
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ flex: 1 }}>
+       <div style={{ fontSize: 15, fontWeight: 600, color: name === scenarioName ? T.blue : T.text }}>{name}</div>
+       {name === scenarioName && <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active</div>}
+      </div>
+      {name === scenarioName && (
+       <div style={{ display: "flex", gap: 6 }}>
+        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
+        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
+        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); }} style={{ background: T.errorBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
+       </div>
+      )}
+     </div>
+    )}
+   </Card>
+  ))}
+  {scenarioList.length > 1 && (
+   <button onClick={() => setTab("compare")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 12, padding: "12px 0", cursor: "pointer", marginTop: 4 }}>
+    <span style={{ fontSize: 14, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length} Scenarios Side-by-Side</span>
+   </button>
+  )}
  </Sec>
+
+ {/* ── Continue to Calculator ── */}
+ <button onClick={() => setTab("calc")} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginBottom: 8, boxShadow: "0 4px 20px rgba(74,144,217,0.3)" }}>
+  {gameMode ? `Continue to Calculator → Step ${Math.min(houseStagesComplete + 1, TAB_PROGRESSION.length)} of ${TAB_PROGRESSION.length}` : "Continue to Calculator →"}
+ </button>
+ <div style={{ textAlign: "center", fontSize: 11, color: T.textTertiary, marginBottom: 12 }}>
+  {gameMode ? "Complete each tab to build your house" : "You can always come back to adjust these settings"}
+ </div>
+
+ {/* Security */}
+ <Card style={{ background: T.pillBg }}>
+  <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>🔒 Your data is stored locally on this device. No account required.</div>
+ </Card>
 </>)}
 {/* ═══ REO - Real Estate Owned ═══ */}
 {tab === "reo" && (<>
@@ -6080,11 +6222,12 @@ export default function MortgageBlueprint() {
       <div>
        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
        <div style={{ fontSize: 12, color: T.textTertiary }}>
-        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppSoldMode ? "Practice · Sold Homes" : "Competition · Sunset District"}
+        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Sold Homes" : "Active Listings"}` : ppSoldMode ? "Practice · Sold Homes" : "Competition · Sunset District"}
         {ppDataSource === "live" && <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(56,189,126,0.15)", color:"#38bd7e", fontWeight:700 }}>LIVE</span>}
        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+       {ppHometown && <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>📍 {ppHometown.label}</button>}
        <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>🔥 {ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
       </div>
      </div>
@@ -6127,9 +6270,16 @@ export default function MortgageBlueprint() {
          <span style={{ fontSize: 11, color: T.textTertiary }}>
           {PP_ACTIVE_SOURCE.length} active · {PP_SOLD_SOURCE.length} sold
          </span>
-         <button onClick={() => { setPpDataSource("hardcoded"); setPpLiveActive([]); setPpLiveSold([]); setPpLocationLabel(""); setPpGuesses([]); setPpSearchZip(""); try{localStorage.removeItem("pp-guesses")}catch(e){} }} style={{ fontSize: 11, color: T.textTertiary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-          Use sample data
-         </button>
+         <div style={{ display: "flex", gap: 10 }}>
+          {ppHometown && ppLocationLabel !== ppHometown.label && (
+           <button onClick={() => { setPpSearchZip(ppHometown.zip || ppHometown.city); ppFetchListings(ppHometown.zip || ppHometown.city); }} style={{ fontSize: 11, color: "#38bd7e", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+            🏡 Back to {ppHometown.label}
+           </button>
+          )}
+          <button onClick={() => { setPpDataSource("hardcoded"); setPpLiveActive([]); setPpLiveSold([]); setPpLocationLabel(""); setPpGuesses([]); setPpSearchZip(""); try{localStorage.removeItem("pp-guesses")}catch(e){} }} style={{ fontSize: 11, color: T.textTertiary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+           Sample data
+          </button>
+         </div>
         </div>
        )}
       </div>
@@ -6141,6 +6291,60 @@ export default function MortgageBlueprint() {
        <div style={{ fontSize: 36, marginBottom: 12, animation: "ppFadeIn 0.5s ease infinite alternate" }}>🏠</div>
        <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>Searching listings...</div>
        <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 4 }}>Pulling live data from Zillow</div>
+      </div>
+     )}
+
+     {/* PP Hometown Setup Prompt */}
+     {ppShowHometownSetup && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 250, backdropFilter: "blur(12px)", animation: "ppFadeIn 0.3s ease" }}>
+       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: 380, width: "90%", textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📍</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 6 }}>Set Your Hometown</div>
+        <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 20, lineHeight: 1.5 }}>
+         This is where PricePoint will pull properties from. Your leaderboard will be based on your city.
+        </div>
+        <input
+         value={ppHometownInput}
+         onChange={e => setPpHometownInput(e.target.value)}
+         onKeyDown={e => e.key === "Enter" && ppSaveHometown()}
+         placeholder="ZIP code or city name..."
+         autoFocus
+         style={{
+          width: "100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.3)`, borderRadius: 14,
+          padding: "14px 18px", fontSize: 18, fontWeight: 600, color: T.text, textAlign: "center",
+          outline: "none", boxSizing: "border-box", marginBottom: 12,
+         }}
+        />
+        <button
+         onClick={ppSaveHometown}
+         disabled={!ppHometownInput.trim()}
+         style={{
+          width: "100%", padding: "14px", borderRadius: 14, border: "none", fontSize: 15, fontWeight: 700,
+          background: ppHometownInput.trim() ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+          color: ppHometownInput.trim() ? "#fff" : T.textTertiary,
+          cursor: ppHometownInput.trim() ? "pointer" : "not-allowed",
+          transition: "all 0.2s", letterSpacing: 0.5, marginBottom: 8,
+         }}
+        >
+         Set Hometown 🏡
+        </button>
+        {ppHometown && (
+         <button
+          onClick={() => setPpShowHometownSetup(false)}
+          style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 13, cursor: "pointer", padding: "8px" }}
+         >
+          Cancel
+         </button>
+        )}
+        {!ppHometown && (
+         <button
+          onClick={() => { setPpShowHometownSetup(false); }}
+          style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", padding: "8px", marginTop: 4 }}
+         >
+          Skip — use sample data
+         </button>
+        )}
+       </div>
       </div>
      )}
 
@@ -6289,8 +6493,25 @@ export default function MortgageBlueprint() {
       {/* ── PP LEADERBOARD VIEW ── */}
       {ppView === "leaderboard" && (
        <div style={{ animation: "ppFadeIn 0.3s ease" }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Leaderboard</div>
-        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>{ppDataSource === "live" ? `${ppLocationLabel} · Live data` : "Sunset District · Live listings only (practice excluded)"}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 2 }}>
+         {ppHometown ? `${ppHometown.label} Leaderboard` : ppLocationLabel ? `${ppLocationLabel} Leaderboard` : "Leaderboard"}
+        </div>
+        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 14 }}>
+         {ppHometown ? "Your City Rankings · Practice excluded" : "Live listings only · Practice excluded"}
+        </div>
+
+        {/* Filter Slide Bar */}
+        <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3, marginBottom: 14 }}>
+         {[["all","All"],["agents","Realtors"],["buyers","Buyers"]].map(([k,l]) => (
+          <button key={k} onClick={() => setPpLeaderboardFilter(k)} style={{
+           flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600,
+           background: ppLeaderboardFilter === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
+           color: ppLeaderboardFilter === k ? "#fff" : T.textTertiary,
+           cursor: "pointer", transition: "all 0.2s",
+          }}>{l}</button>
+         ))}
+        </div>
+
         {PP_LEADERBOARD.map((p,i) => (
          <div key={i} style={{
           display:"flex", alignItems:"center", padding:"14px 16px", borderRadius:14,
