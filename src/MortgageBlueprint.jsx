@@ -1428,6 +1428,13 @@ export default function MortgageBlueprint() {
    document.head.appendChild(newMeta);
   }
  }, [darkMode]);
+ // Enforce viewport to prevent iOS zoom
+ useEffect(() => {
+  let vp = document.querySelector('meta[name="viewport"]');
+  const content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
+  if (vp) vp.setAttribute('content', content);
+  else { vp = document.createElement('meta'); vp.name = 'viewport'; vp.content = content; document.head.appendChild(vp); }
+ }, []);
  useEffect(() => {
   if (!loaded) return;
   if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -3045,8 +3052,10 @@ export default function MortgageBlueprint() {
  const someGood = calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || calc.cashCheck === "Good!" || calc.resCheck === "Good!" || dpOk;
  const qualStatus = allGood ? "approved" : someGood ? "almost" : "none";
  return (
-  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 50, fontFamily: FONT, width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
-   <style>{`html, body { overflow-x: hidden !important; max-width: 100vw !important; -webkit-text-size-adjust: 100%; }
+  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 50, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+   <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
+    *, *::before, *::after { box-sizing: border-box; }
+    @viewport { width: device-width; }
     @keyframes buildGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(74,144,217,0.5), 0 0 20px rgba(74,144,217,0.15); } 50% { box-shadow: 0 0 0 2px rgba(74,144,217,0.8), 0 0 30px rgba(74,144,217,0.25); } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
    `}</style>
@@ -3156,7 +3165,7 @@ export default function MortgageBlueprint() {
    </div>
   </div>}
    {/* ── App Mode Toggle ── */}
-   <div style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+   <div style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
       {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
@@ -3174,7 +3183,7 @@ export default function MortgageBlueprint() {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Sticky Header ── */}
-   <div style={{ position: "sticky", top: 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg }}>
+   <div style={{ position: "sticky", top: 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ padding: "16px 20px 8px" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
