@@ -1235,6 +1235,7 @@ export default function MortgageBlueprint() {
  const [gameMode, setGameMode] = useState(true);
  const [toggleHint, setToggleHint] = useState(null);
  const [setupAdvancedOpen, setSetupAdvancedOpen] = useState(false);
+ const [buildStep, setBuildStep] = useState(0); // 0=Quick Start, 1=Property & Borrower (refi only), 3=done
  const [setupTeamOpen, setSetupTeamOpen] = useState(false);
  const [highlightField, setHighlightField] = useState(null);
  const touchStartRef = useRef(null);
@@ -1912,6 +1913,10 @@ export default function MortgageBlueprint() {
    try { const ct = await LS.get("app:completedTabs"); if (ct?.value) setCompletedTabs(JSON.parse(ct.value)); } catch(e) {}
    try { const ua = await LS.get("app:unlockAll"); if (ua?.value === "true") setUnlockAll(true); } catch(e) {}
    try { const gm = await LS.get("app:gameMode"); if (gm?.value === "false") setGameMode(false); } catch(e) {}
+   try { const bs = await LS.get("app:buildStepV2"); if (bs?.value) setBuildStep(parseInt(bs.value) || 0); else {
+    // Existing users who already completed setup should skip the guided flow
+    const ct = await LS.get("app:completedTabs"); if (ct?.value) { const parsed = JSON.parse(ct.value); if (parsed.setup) setBuildStep(3); }
+   } } catch(e) {}
   })();
  }, []);
  const saveCompletedTabs = (newTabs) => {
@@ -1946,6 +1951,10 @@ export default function MortgageBlueprint() {
  const saveGameMode = (val) => {
   setGameMode(val);
   try { LS.set("app:gameMode", val ? "true" : "false"); } catch(e) {}
+ };
+ const saveBuildStep = (step) => {
+  setBuildStep(step);
+  try { LS.set("app:buildStepV2", String(step)); } catch(e) {}
  };
 
  // Build Mode: Continue button for bottom of each tab
@@ -3037,6 +3046,10 @@ export default function MortgageBlueprint() {
  const qualStatus = allGood ? "approved" : someGood ? "almost" : "none";
  return (
   <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 50, fontFamily: FONT, width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+   <style>{`html, body { overflow-x: hidden !important; max-width: 100vw !important; -webkit-text-size-adjust: 100%; }
+    @keyframes buildGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(74,144,217,0.5), 0 0 20px rgba(74,144,217,0.15); } 50% { box-shadow: 0 0 0 2px rgba(74,144,217,0.8), 0 0 30px rgba(74,144,217,0.25); } }
+    .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
+   `}</style>
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -4395,6 +4408,138 @@ export default function MortgageBlueprint() {
   <Hero value={isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
  </div>
 
+ {/* ── Step Indicator (during guided flow) ── */}
+ {gameMode && buildStep < 3 && (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 4px 0" }}>
+   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    {(isRefi ? [0,1] : [0]).map((i, idx, arr) => (
+     <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ width: 22, height: 22, borderRadius: 11, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+       background: i < buildStep ? T.green : i === buildStep ? T.blue : T.inputBg,
+       color: i <= buildStep ? "#fff" : T.textTertiary, transition: "all 0.4s" }}>
+       {i < buildStep ? "✓" : idx + 1}
+      </div>
+      {idx < arr.length - 1 && <div style={{ width: 16, height: 2, borderRadius: 1, background: i < buildStep ? T.green : T.inputBg, transition: "all 0.4s" }} />}
+     </div>
+    ))}
+   </div>
+   <button onClick={() => { saveBuildStep(3); markTabComplete("setup"); }} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT, textDecoration: "underline", padding: "4px 0" }}>Skip intro</button>
+  </div>
+ )}
+
+ {/* ── Quick Start (blue glow during guided flow) ── */}
+ <div className={gameMode && buildStep === 0 && buildStep < 3 ? "build-active" : ""} style={gameMode && buildStep < 3 ? { opacity: buildStep === 0 ? 1 : 0.5, transition: "all 0.5s ease", position: "relative", borderRadius: 20 } : {}}>
+ <Sec title="Quick Start">
+  <Card>
+   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+    <div style={{ fontSize: 16 }}>⚡</div>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Quick Start</div>
+    <div style={{ fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 8px", borderRadius: 6, marginLeft: "auto" }}>REQUIRED</div>
+   </div>
+
+   {/* Transaction Type */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+    {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
+     <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "12px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+    ))}
+   </div>
+
+   {/* Zip Code */}
+   <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="94501" req />
+   {lookupZip(propertyZip) && (
+    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
+   )}
+   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
+    <div style={{ fontSize: 11, color: T.orange, marginTop: -8, marginBottom: 10 }}>Zip not in database — select city and state in Property Details below</div>
+   )}
+
+   {/* FICO */}
+   <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
+   {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
+    <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
+    <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
+     {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
+    </span>
+   </div>}
+
+   {/* Sales Price & Down Payment */}
+   <div style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
+    <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+    <Inp label="Down Payment %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req tip="The percentage of the purchase price you pay upfront. Minimum varies by loan type." />
+    {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
+   </div>
+
+   {/* First-Time Buyer */}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>First-Time Homebuyer?</span>
+    <div onClick={() => { setFirstTimeBuyer(!firstTimeBuyer); setToggleHint(toggleHint === "firstTimeBuyer" ? null : "firstTimeBuyer"); }} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: firstTimeBuyer ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   {toggleHint === "firstTimeBuyer" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${firstTimeBuyer ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, transition: "all 0.3s" }}>
+    {firstTimeBuyer ? TOGGLE_DESCRIPTIONS.firstTimeBuyer.on : TOGGLE_DESCRIPTIONS.firstTimeBuyer.off}
+   </div>}
+
+   {/* Experience Level */}
+   <div style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+     Experience Level
+     <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>tailors your experience</span>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+     {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
+      <button key={key} onClick={() => saveSkillLevel(key)}
+       style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+       <div style={{ fontSize: 22 }}>{preset.icon}</div>
+       <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
+       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
+      </button>
+     ))}
+    </div>
+    <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+     {SKILL_PRESETS[skillLevel].desc}
+    </div>
+   </div>
+  </Card>
+ </Sec>
+ {gameMode && buildStep === 0 && buildStep < 3 && (
+  isRefi ? (
+   <button onClick={() => { saveBuildStep(1); setSetupAdvancedOpen(true); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 8, boxShadow: "0 4px 16px rgba(74,144,217,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+    Next: Property & Borrower Details →
+   </button>
+  ) : (
+   <button onClick={() => { saveBuildStep(3); markTabComplete("setup"); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #38bd7e, #2d9d68)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 8, boxShadow: "0 4px 16px rgba(56,189,126,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+    ✓ Complete Setup
+   </button>
+  )
+ )}
+ </div>{/* end Quick Start wrapper */}
+
+ {/* ── Live Estimate ── */}
+ <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 18, padding: "18px 16px", marginBottom: 12 }}>
+  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: T.green, textTransform: "uppercase", marginBottom: 8 }}>LIVE ESTIMATE</div>
+  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
+   <span style={{ fontSize: 36, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
+   <span style={{ fontSize: 14, color: T.textTertiary }}>/mo</span>
+  </div>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+   {[
+    ["P&I", fmt(calc.pi), T.blue],
+    ["Tax", fmt(calc.monthlyTax), T.orange],
+    ["Ins", fmt(calc.ins), T.green],
+    ["MI", calc.monthlyMI > 0 ? fmt(calc.monthlyMI) : "—", calc.monthlyMI > 0 ? T.red : T.textTertiary],
+   ].map(([label, val, color], i) => (
+    <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+     <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: FONT }}>{val}</div>
+     <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{label}</div>
+    </div>
+   ))}
+  </div>
+  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, textAlign: "center" }}>
+   {fmt(salesPrice)} {isRefi ? "value" : "purchase"} · {downPct}% down · {rate}% rate · {loanType}
+  </div>
+ </div>
+
  {/* ── Build Mode ── */}
  <Card>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
@@ -4436,141 +4581,17 @@ export default function MortgageBlueprint() {
   </div>
  )}
 
- {/* ── Quick Start ── */}
- <Sec title="Quick Start">
-  <Card>
-   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-    <div style={{ fontSize: 16 }}>⚡</div>
-    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Quick Start</div>
-    <div style={{ fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 8px", borderRadius: 6, marginLeft: "auto" }}>REQUIRED</div>
-   </div>
-
-   {/* Transaction Type */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-    {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-     <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "12px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{label}</button>
-    ))}
-   </div>
-
-   {/* Zip Code */}
-   <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="94501" req />
-   {lookupZip(propertyZip) && (
-    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
-   )}
-   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
-    <div style={{ fontSize: 11, color: T.orange, marginTop: -8, marginBottom: 10 }}>Zip not in database — select city and state in Property Details below</div>
-   )}
-
-   {/* FICO */}
-   <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
-   {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
-    <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
-    <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
-     {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
-    </span>
-   </div>}
-
-   {/* First-Time Buyer */}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>First-Time Homebuyer?</span>
-    <div onClick={() => { setFirstTimeBuyer(!firstTimeBuyer); setToggleHint(toggleHint === "firstTimeBuyer" ? null : "firstTimeBuyer"); }} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: firstTimeBuyer ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "firstTimeBuyer" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${firstTimeBuyer ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, transition: "all 0.3s" }}>
-    {firstTimeBuyer ? TOGGLE_DESCRIPTIONS.firstTimeBuyer.on : TOGGLE_DESCRIPTIONS.firstTimeBuyer.off}
-   </div>}
-
-   {/* Experience Level */}
-   <div style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-     Experience Level
-     <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>tailors your experience</span>
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-     {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
-      <button key={key} onClick={() => saveSkillLevel(key)}
-       style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-       <div style={{ fontSize: 22 }}>{preset.icon}</div>
-       <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
-       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
-      </button>
-     ))}
-    </div>
-    <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-     {SKILL_PRESETS[skillLevel].desc}
-    </div>
-   </div>
-  </Card>
- </Sec>
-
- {/* ── Live Estimate ── */}
- <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 18, padding: "18px 16px", marginBottom: 12 }}>
-  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: T.green, textTransform: "uppercase", marginBottom: 8 }}>LIVE ESTIMATE</div>
-  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
-   <span style={{ fontSize: 36, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
-   <span style={{ fontSize: 14, color: T.textTertiary }}>/mo</span>
-  </div>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-   {[
-    ["P&I", fmt(calc.pi), T.blue],
-    ["Tax", fmt(calc.monthlyTax), T.orange],
-    ["Ins", fmt(calc.ins), T.green],
-    ["MI", calc.monthlyMI > 0 ? fmt(calc.monthlyMI) : "—", calc.monthlyMI > 0 ? T.red : T.textTertiary],
-   ].map(([label, val, color], i) => (
-    <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-     <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: FONT }}>{val}</div>
-     <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{label}</div>
-    </div>
-   ))}
-  </div>
-  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, textAlign: "center" }}>
-   {fmt(salesPrice)} {isRefi ? "value" : "purchase"} · {downPct}% down · {rate}% rate · {loanType}
-  </div>
- </div>
-
- {/* ── Loan Details ── */}
- <Sec title="Loan Details">
-  <Card>
-   <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Down %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} sm req tip="The percentage of the purchase price you pay upfront." />
-    <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req tip="Your annual interest rate." />
-   </div>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Sel label="Loan Type" value={loanType} onChange={setLoanType} options={LOAN_TYPES} req />
-    <Sel label="Term" value={term} onChange={setTerm} options={["30","25","20","15","10"].map(t=>({value:t,label:t+" yr"}))} req />
-   </div>
-   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
-   {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB above or increase to 5%.</Note>}
-   {/* Quick metrics */}
-   <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-    <div style={{ background: T.pillBg, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-     <div style={{ fontSize: 10, color: T.textTertiary }}>Loan Amount</div>
-     <div style={{ fontSize: 15, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{fmt(calc.loan)}</div>
-    </div>
-    <div style={{ background: T.pillBg, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-     <div style={{ fontSize: 10, color: T.textTertiary }}>LTV</div>
-     <div style={{ fontSize: 15, fontWeight: 700, color: T.orange, fontFamily: FONT }}>{pct(calc.ltv, 0)}</div>
-    </div>
-    <div style={{ background: T.pillBg, borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-     <div style={{ fontSize: 10, color: T.textTertiary }}>Cash to Close</div>
-     <div style={{ fontSize: 15, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(calc.cashToClose)}</div>
-    </div>
-   </div>
-  </Card>
- </Sec>
-
  {/* ── Property & Borrower Details (collapsible) ── */}
+ <div className={gameMode && buildStep === 1 && buildStep < 3 ? "build-active" : ""} style={gameMode && buildStep < 3 ? { opacity: buildStep === 1 ? 1 : buildStep > 1 ? 0.5 : 0.3, transition: "all 0.5s ease", pointerEvents: buildStep >= 1 ? "auto" : "none", position: "relative", borderRadius: 20 } : {}}>
  <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: (setupAdvancedOpen || (gameMode && buildStep === 1)) ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: (setupAdvancedOpen || (gameMode && buildStep === 1)) ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
    <span style={{ fontSize: 14 }}>⚙️</span>
    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Property & Borrower Details</span>
   </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
+  <span style={{ fontSize: 16, color: T.textTertiary, transform: (setupAdvancedOpen || (gameMode && buildStep === 1)) ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
  </div>
- {setupAdvancedOpen && (
+ {(setupAdvancedOpen || (gameMode && buildStep === 1)) && (
   <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
    {/* Property Address */}
    <div style={{ marginBottom: 14 }}>
@@ -4655,6 +4676,21 @@ export default function MortgageBlueprint() {
     </div>
    </div>
   </Card>
+ )}
+ {gameMode && buildStep === 1 && (
+  <button onClick={() => { saveBuildStep(3); markTabComplete("setup"); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #38bd7e, #2d9d68)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 8, boxShadow: "0 4px 16px rgba(56,189,126,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+   ✓ Complete Setup
+  </button>
+ )}
+ </div>{/* end Property & Borrower wrapper */}
+
+ {/* Setup Complete celebration */}
+ {gameMode && buildStep >= 3 && completedTabs["setup"] && (
+  <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: `${T.green}10`, border: `1px solid ${T.green}30`, borderRadius: 18 }}>
+   <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
+   <div style={{ fontSize: 16, fontWeight: 700, color: T.green, marginBottom: 4 }}>Setup Complete!</div>
+   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>Your mortgage blueprint is ready. Explore the tabs below to dive deeper.</div>
+  </div>
  )}
 
  {/* ── Refi Sections (when applicable) ── */}
