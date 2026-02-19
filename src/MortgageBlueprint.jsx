@@ -1014,6 +1014,14 @@ export default function MortgageBlueprint() {
  const [ppRevealAnim, setPpRevealAnim] = useState(false);
  const [ppCardAnim, setPpCardAnim] = useState("");
  const [ppNotif, setPpNotif] = useState(null);
+ const [ppSoldMode, setPpSoldMode] = useState(true);
+ const [ppSearchZip, setPpSearchZip] = useState("");
+ const [ppLiveActive, setPpLiveActive] = useState([]);
+ const [ppLiveSold, setPpLiveSold] = useState([]);
+ const [ppLoading, setPpLoading] = useState(false);
+ const [ppError, setPpError] = useState(null);
+ const [ppDataSource, setPpDataSource] = useState("hardcoded"); // "hardcoded" | "live"
+ const [ppLocationLabel, setPpLocationLabel] = useState("");
  const ppTouchStartX = useRef(null);
  const ppTouchStartY = useRef(null);
  const PP_VIEWS = ["cards","results","leaderboard","stats"];
@@ -2629,7 +2637,59 @@ export default function MortgageBlueprint() {
   );
  };
  // ═══════════════════════════════════════════
- // PRICEPOINT — Sample Listings & Logic
+ // PRICEPOINT — Live Data Fetching
+ // ═══════════════════════════════════════════
+ const ppFetchListings = async (searchValue) => {
+  if (!searchValue || searchValue.trim().length < 2) return;
+  setPpLoading(true);
+  setPpError(null);
+  try {
+   const isZip = /^\d{5}$/.test(searchValue.trim());
+   const params = isZip
+    ? `zip=${searchValue.trim()}`
+    : `city=${encodeURIComponent(searchValue.trim())}&state=CA`;
+   const resp = await fetch(`/api/pricepoint?${params}`);
+   if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+   const data = await resp.json();
+   if (data.error) throw new Error(data.error);
+   const hasActive = data.activeListings && data.activeListings.length > 0;
+   const hasSold = data.soldListings && data.soldListings.length > 0;
+   if (!hasActive && !hasSold) {
+    setPpError("No listings found for this location. Using sample data.");
+    setPpDataSource("hardcoded");
+   } else {
+    setPpLiveActive(data.activeListings || []);
+    setPpLiveSold(data.soldListings || []);
+    setPpDataSource("live");
+    setPpLocationLabel(data.location || searchValue);
+    // Reset guesses when loading new location data
+    setPpGuesses([]);
+    setPpGuessInput("");
+    try { localStorage.removeItem("pp-guesses"); } catch(e){}
+   }
+  } catch (err) {
+   console.error("PricePoint fetch error:", err);
+   setPpError(`Could not load live data: ${err.message}. Using sample data.`);
+   setPpDataSource("hardcoded");
+  } finally {
+   setPpLoading(false);
+  }
+ };
+
+ // Auto-load from Setup tab zip when entering PricePoint
+ useEffect(() => {
+  if (appMode === "pricepoint" && propertyZip && propertyZip.length === 5 && ppDataSource === "hardcoded" && ppLiveActive.length === 0 && ppLiveSold.length === 0) {
+   setPpSearchZip(propertyZip);
+   ppFetchListings(propertyZip);
+  }
+ }, [appMode]);
+
+ const ppHandleSearch = () => {
+  if (ppSearchZip.trim()) ppFetchListings(ppSearchZip.trim());
+ };
+
+ // ═══════════════════════════════════════════
+ // PRICEPOINT — Sample Listings & Logic (fallback)
  // ═══════════════════════════════════════════
  const PP_LISTINGS = [
   { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:956 },
@@ -2643,6 +2703,19 @@ export default function MortgageBlueprint() {
   { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:852 },
   { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:696 },
  ];
+
+ const PP_SOLD_LISTINGS = [
+  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:931 },
+  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Parkside",pricePerSqft:977 },
+  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:953 },
+  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
+  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
+  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:692 },
+  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:906 },
+  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:823 },
+  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
+  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909 },
+ ];
  const ppFmt = n => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) ?? "—";
  const ppAbsPct = (g,a) => (Math.abs((g-a)/a)*100).toFixed(1);
  const ppPct = (g,a) => (((g-a)/a)*100).toFixed(1);
@@ -2651,26 +2724,44 @@ export default function MortgageBlueprint() {
  useEffect(() => { try { const s = localStorage.getItem("pp-guesses"); if (s) setPpGuesses(JSON.parse(s)); } catch(e){} }, []);
  useEffect(() => { try { localStorage.setItem("pp-guesses", JSON.stringify(ppGuesses)); } catch(e){} }, [ppGuesses]);
 
- const ppActiveListings = PP_LISTINGS.filter(l => !ppGuesses.find(g => g.listingId === l.id));
+ // Use live data if available, otherwise fall back to hardcoded
+ const PP_ACTIVE_SOURCE = ppDataSource === "live" && ppLiveActive.length > 0 ? ppLiveActive : PP_LISTINGS;
+ const PP_SOLD_SOURCE = ppDataSource === "live" && ppLiveSold.length > 0 ? ppLiveSold : PP_SOLD_LISTINGS;
+
+ const ppActiveListings = ppSoldMode
+  ? PP_SOLD_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id))
+  : PP_ACTIVE_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id));
  const ppCurrentListing = ppActiveListings[0];
+ const ppTotalListings = ppSoldMode ? PP_SOLD_SOURCE.length : PP_ACTIVE_SOURCE.length;
 
  const ppHandleGuess = () => {
   const val = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
   if (!val || !ppCurrentListing) return;
+  const isSold = ppSoldMode && ppCurrentListing.soldPrice;
   setPpCardAnim("pp-submitted");
   setTimeout(() => {
-   setPpGuesses(prev => [...prev, {
-    listingId:ppCurrentListing.id, zpid:ppCurrentListing.zpid, guess:val, soldPrice:null,
+   const newGuess = {
+    listingId:ppCurrentListing.id, zpid:ppCurrentListing.zpid, guess:val,
+    soldPrice: isSold ? ppCurrentListing.soldPrice : null,
     listPrice:ppCurrentListing.listPrice, zestimate:ppCurrentListing.zestimate,
     address:ppCurrentListing.address, city:ppCurrentListing.city,
     propertyType:ppCurrentListing.propertyType, neighborhood:ppCurrentListing.neighborhood,
     sqft:ppCurrentListing.sqft, beds:ppCurrentListing.beds, baths:ppCurrentListing.baths,
-    photo:ppCurrentListing.photo, timestamp:Date.now(), revealed:false,
-   }]);
+    photo:ppCurrentListing.photo, timestamp:Date.now(),
+    revealed: isSold ? true : false,
+    isSoldMode: !!isSold,
+   };
+   setPpGuesses(prev => [...prev, newGuess]);
    setPpGuessInput("");
    setPpCardAnim("");
-   setPpNotif(`Locked in ${ppFmt(val)} for ${ppCurrentListing.address}`);
-   setTimeout(() => setPpNotif(null), 3000);
+   if (isSold) {
+    // Instant reveal for sold listings
+    setPpShowReveal(newGuess);
+    setTimeout(() => setPpRevealAnim(true), 50);
+   } else {
+    setPpNotif(`Locked in ${ppFmt(val)} for ${ppCurrentListing.address}`);
+    setTimeout(() => setPpNotif(null), 3000);
+   }
   }, 400);
  };
 
@@ -2685,9 +2776,33 @@ export default function MortgageBlueprint() {
  };
  const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
  const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
- const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+ const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
 
  const ppRevealed = ppGuesses.filter(g => g.revealed && g.soldPrice);
+ const ppCompGuesses = ppGuesses.filter(g => !g.isSoldMode);
+ const ppCompRevealed = ppCompGuesses.filter(g => g.revealed && g.soldPrice);
+ const ppPracticeGuesses = ppGuesses.filter(g => g.isSoldMode);
+ const ppPracticeRevealed = ppPracticeGuesses.filter(g => g.revealed && g.soldPrice);
+
+ // Competition stats (for leaderboard)
+ const ppCompAvgDiff = ppCompRevealed.length > 0 ? (ppCompRevealed.reduce((s,g) => s + Math.abs((g.guess-g.soldPrice)/g.soldPrice)*100, 0)/ppCompRevealed.length).toFixed(1) : "—";
+ const ppCompOverCount = ppCompRevealed.filter(g => g.guess > g.soldPrice).length;
+ const ppCompUnderCount = ppCompRevealed.filter(g => g.guess < g.soldPrice).length;
+ let ppCompCurStreak = 0;
+ for (let i = ppCompRevealed.length-1; i >= 0; i--) { if (parseFloat(ppAbsPct(ppCompRevealed[i].guess, ppCompRevealed[i].soldPrice)) <= 5) ppCompCurStreak++; else break; }
+ let ppCompBestStreak = 0, ppCompTs = 0;
+ for (const g of ppCompRevealed) { if (parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 5) { ppCompTs++; ppCompBestStreak = Math.max(ppCompBestStreak, ppCompTs); } else ppCompTs = 0; }
+
+ // Practice stats
+ const ppPracticeAvgDiff = ppPracticeRevealed.length > 0 ? (ppPracticeRevealed.reduce((s,g) => s + Math.abs((g.guess-g.soldPrice)/g.soldPrice)*100, 0)/ppPracticeRevealed.length).toFixed(1) : "—";
+ let ppPracticeCurStreak = 0;
+ for (let i = ppPracticeRevealed.length-1; i >= 0; i--) { if (parseFloat(ppAbsPct(ppPracticeRevealed[i].guess, ppPracticeRevealed[i].soldPrice)) <= 5) ppPracticeCurStreak++; else break; }
+ let ppPracticeBestStreak = 0, ppPracticeTs = 0;
+ for (const g of ppPracticeRevealed) { if (parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 5) { ppPracticeTs++; ppPracticeBestStreak = Math.max(ppPracticeBestStreak, ppPracticeTs); } else ppPracticeTs = 0; }
+ const ppPracticeOverCount = ppPracticeRevealed.filter(g => g.guess > g.soldPrice).length;
+ const ppPracticeUnderCount = ppPracticeRevealed.filter(g => g.guess < g.soldPrice).length;
+
+ // Combined for display
  const ppAvgDiff = ppRevealed.length > 0 ? (ppRevealed.reduce((s,g) => s + Math.abs((g.guess-g.soldPrice)/g.soldPrice)*100, 0)/ppRevealed.length).toFixed(1) : "—";
  const ppOverCount = ppRevealed.filter(g => g.guess > g.soldPrice).length;
  const ppUnderCount = ppRevealed.filter(g => g.guess < g.soldPrice).length;
@@ -2699,7 +2814,7 @@ export default function MortgageBlueprint() {
  const PP_LEADERBOARD = [
   { name:"Sarah K.",role:"Agent · Compass",avgDiff:2.1,streak:7,guesses:34,badge:"🎯" },
   { name:"Mike T.",role:"Lender · First Republic",avgDiff:3.4,streak:4,guesses:28,badge:"🔥" },
-  { name:"You",role:"Lender",avgDiff:ppAvgDiff === "—" ? 99 : parseFloat(ppAvgDiff),streak:ppCurStreak,guesses:ppGuesses.length,badge:"📊" },
+  { name:"You",role:"Lender",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge:"📊" },
   { name:"Jessica R.",role:"Agent · Coldwell Banker",avgDiff:4.8,streak:2,guesses:41,badge:"⭐" },
   { name:"David L.",role:"Investor",avgDiff:5.1,streak:1,guesses:19,badge:"" },
  ].sort((a,b) => a.avgDiff === 99 ? 1 : b.avgDiff === 99 ? -1 : a.avgDiff - b.avgDiff);
@@ -2778,7 +2893,7 @@ export default function MortgageBlueprint() {
  const someGood = calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || calc.cashCheck === "Good!" || calc.resCheck === "Good!" || dpOk;
  const qualStatus = allGood ? "approved" : someGood ? "almost" : "none";
  return (
-  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 50, fontFamily: FONT }}>
+  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 50, fontFamily: FONT, width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -5943,8 +6058,9 @@ export default function MortgageBlueprint() {
    {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "pricepoint" && (
-    <div style={{ maxWidth: 480, margin: "0 auto" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
      <style>{`
+      html, body { background: ${T.bg} !important; overflow-x: hidden; }
       @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
       @keyframes ppSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
       @keyframes ppCardExit { to { opacity:0; transform:translateX(120%) rotate(8deg) } }
@@ -5963,21 +6079,107 @@ export default function MortgageBlueprint() {
      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
-       <div style={{ fontSize: 12, color: T.textTertiary }}>Sunset District · SF</div>
+       <div style={{ fontSize: 12, color: T.textTertiary }}>
+        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppSoldMode ? "Practice · Sold Homes" : "Competition · Sunset District"}
+        {ppDataSource === "live" && <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(56,189,126,0.15)", color:"#38bd7e", fontWeight:700 }}>LIVE</span>}
+       </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-       <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: ppCurStreak > 0 ? 1 : 0.4 }}>🔥 {ppCurStreak}</div>
+       <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>🔥 {ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
       </div>
      </div>
+
+     {/* PP Search Bar */}
+     {ppView === "cards" && (
+      <div style={{ padding: "0 18px 10px" }}>
+       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input
+         value={ppSearchZip}
+         onChange={e => setPpSearchZip(e.target.value)}
+         onKeyDown={e => e.key === "Enter" && ppHandleSearch()}
+         placeholder="ZIP code or city..."
+         style={{
+          flex: 1, background: T.pillBg, border: `1px solid ${T.cardBorder}`, borderRadius: 12,
+          padding: "10px 14px", fontSize: 14, color: T.text, outline: "none", boxSizing: "border-box",
+         }}
+        />
+        <button
+         onClick={ppHandleSearch}
+         disabled={ppLoading || !ppSearchZip.trim()}
+         style={{
+          padding: "10px 16px", borderRadius: 12, border: "none", fontSize: 13, fontWeight: 700,
+          background: ppSearchZip.trim() && !ppLoading ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+          color: ppSearchZip.trim() && !ppLoading ? "#fff" : T.textTertiary,
+          cursor: ppSearchZip.trim() && !ppLoading ? "pointer" : "not-allowed",
+          transition: "all 0.2s", whiteSpace: "nowrap",
+         }}
+        >
+         {ppLoading ? "⏳" : "🔍 Search"}
+        </button>
+       </div>
+       {ppError && (
+        <div style={{ marginTop: 6, fontSize: 11, color: "#e8c84d", background: "rgba(232,200,77,0.08)", borderRadius: 8, padding: "6px 10px" }}>
+         ⚠️ {ppError}
+        </div>
+       )}
+       {ppDataSource === "live" && (
+        <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+         <span style={{ fontSize: 11, color: T.textTertiary }}>
+          {PP_ACTIVE_SOURCE.length} active · {PP_SOLD_SOURCE.length} sold
+         </span>
+         <button onClick={() => { setPpDataSource("hardcoded"); setPpLiveActive([]); setPpLiveSold([]); setPpLocationLabel(""); setPpGuesses([]); setPpSearchZip(""); try{localStorage.removeItem("pp-guesses")}catch(e){} }} style={{ fontSize: 11, color: T.textTertiary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+          Use sample data
+         </button>
+        </div>
+       )}
+      </div>
+     )}
+
+     {/* PP Loading Overlay */}
+     {ppLoading && (
+      <div style={{ textAlign: "center", padding: "40px 20px" }}>
+       <div style={{ fontSize: 36, marginBottom: 12, animation: "ppFadeIn 0.5s ease infinite alternate" }}>🏠</div>
+       <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>Searching listings...</div>
+       <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 4 }}>Pulling live data from Zillow</div>
+      </div>
+     )}
+
+     {/* Sold Mode Toggle */}
+     {ppView === "cards" && !ppLoading && (
+      <div style={{ padding: "0 18px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: ppSoldMode ? "#e8c84d" : "#38bd7e" }}>
+         {ppSoldMode ? "🎓 Practice Mode" : "🏆 Competition"}
+        </span>
+        <span style={{ fontSize: 10, color: T.textTertiary, background: T.pillBg, borderRadius: 6, padding: "2px 6px" }}>
+         {ppSoldMode ? "Sold Homes" : "Live Listings"}
+        </span>
+       </div>
+       <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{
+        position: "relative", width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+        background: ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+        transition: "background 0.3s", padding: 0,
+       }}>
+        <div style={{
+         position: "absolute", top: 2, left: ppSoldMode ? 22 : 2,
+         width: 20, height: 20, borderRadius: 10, background: "#fff",
+         transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+        }} />
+       </button>
+      </div>
+     )}
 
      <div style={{ padding: "0 18px", paddingBottom: 80, overflow: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
 
       {/* ── PP CARDS VIEW ── */}
-      {ppView === "cards" && (
+      {ppView === "cards" && !ppLoading && (
        ppCurrentListing ? (
         <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
-          <img src={ppCurrentListing.photo} alt="" style={{ width:"100%", height:200, objectFit:"cover", borderRadius: 16, border: `1px solid ${T.cardBorder}` }} onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+          <div style={{ position: "relative" }}>
+           <img src={ppCurrentListing.photo} alt="" style={{ width:"100%", height:200, objectFit:"cover", borderRadius: 16, border: `1px solid ${T.cardBorder}` }} onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+           {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}>🏷️ Sold</div>}
+          </div>
           <div style={{ padding: "14px 0 0" }}>
            <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>{ppCurrentListing.address}</div>
            <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{ppCurrentListing.neighborhood} · {ppCurrentListing.city}, {ppCurrentListing.state} {ppCurrentListing.zip}</div>
@@ -5994,13 +6196,20 @@ export default function MortgageBlueprint() {
              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
              <div style={{ fontSize: 22, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
             </div>
-            {ppCurrentListing.zestimate && <div style={{ flex: 1 }}>
-             <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
-             <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
-            </div>}
+            {ppSoldMode && ppCurrentListing.soldDate ? (
+             <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Sold Date</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
+             </div>
+            ) : ppCurrentListing.zestimate ? (
+             <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+             </div>
+            ) : null}
            </div>
            <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
-            placeholder="What will it sell for?"
+            placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
             style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 10, boxSizing: "border-box" }} />
            {ppGuessInput && (() => {
             const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
@@ -6009,7 +6218,7 @@ export default function MortgageBlueprint() {
             const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
             return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
              {d > 0 ? "+" : ""}{d}% vs list{pp ? ` · $${pp}/SF` : ""}
-             {ppCurrentListing.zestimate ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
+             {!ppSoldMode && ppCurrentListing.zestimate ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
             </div>;
            })()}
            <button onClick={ppHandleGuess} disabled={!ppGuessInput} style={{
@@ -6017,19 +6226,24 @@ export default function MortgageBlueprint() {
             background: ppGuessInput ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
             color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
             transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
-           }}>Lock It In 🔒</button>
+           }}>Lock It In {ppSoldMode ? "🎯" : "🔒"}</button>
            <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
-            {ppActiveListings.length - 1} more in queue
+            {ppActiveListings.length - 1} more {ppSoldMode ? "sold homes" : "listings"} in queue
            </div>
           </div>
          </div>
         </div>
        ) : (
         <div style={{ textAlign:"center", padding:"60px 20px" }}>
-         <div style={{ fontSize:48, marginBottom:16 }}>🏡</div>
+         <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "🏆" : "🏡"}</div>
          <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
-         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {PP_LISTINGS.length} listings.</div>
-         <button onClick={ppResetAll} style={{ padding:"12px 24px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:14, fontWeight:600, cursor:"pointer" }}>Reset All</button>
+         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
+         <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
+          Try {ppSoldMode ? "Active Listings" : "Recently Sold"} →
+         </button>
+         <div style={{ marginTop:8 }}>
+          <button onClick={ppResetAll} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:13, fontWeight:600, cursor:"pointer" }}>Reset All</button>
+         </div>
         </div>
        )
       )}
@@ -6038,7 +6252,7 @@ export default function MortgageBlueprint() {
       {ppView === "results" && (
        <div style={{ animation: "ppFadeIn 0.3s ease" }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Your Guesses</div>
-        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>Tap pending guesses to simulate SOLD reveal</div>
+        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>{ppGuesses.some(g => !g.revealed) ? "Tap pending guesses to simulate SOLD reveal" : "All guesses revealed"}</div>
         {ppGuesses.length === 0 ? (
          <div style={{ textAlign:"center", padding:"40px", color:T.textTertiary }}>No guesses yet — go make some!</div>
         ) : [...ppGuesses].reverse().map((g, i) => {
@@ -6048,7 +6262,7 @@ export default function MortgageBlueprint() {
            style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", borderRadius:14, cursor:"pointer", background:T.card, border:`1px solid ${T.cardBorder}`, transition:"all 0.2s", marginBottom:8 }}>
            <div style={{ minWidth:0 }}>
             <div style={{ fontSize:14, fontWeight:600, color:T.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.address}</div>
-            <div style={{ fontSize:11, color:T.textTertiary, marginTop:1 }}>{g.neighborhood} · {g.propertyType}</div>
+            <div style={{ fontSize:11, color:T.textTertiary, marginTop:1 }}>{g.neighborhood} · {g.propertyType}{g.isSoldMode ? <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(232,200,77,0.15)", color:"#e8c84d", fontWeight:700 }}>PRACTICE</span> : ""}</div>
             <div style={{ display:"flex", gap:12, marginTop:4, fontSize:12 }}>
              <span><span style={{ color:T.textTertiary }}>List:</span> <span style={{ color:T.textSecondary }}>{ppFmt(g.listPrice)}</span></span>
              <span><span style={{ color:T.textTertiary }}>You:</span> <span style={{ color:"#38bd7e", fontWeight:700 }}>{ppFmt(g.guess)}</span></span>
@@ -6076,7 +6290,7 @@ export default function MortgageBlueprint() {
       {ppView === "leaderboard" && (
        <div style={{ animation: "ppFadeIn 0.3s ease" }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Leaderboard</div>
-        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>Sunset District · Ranked by avg % off</div>
+        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>{ppDataSource === "live" ? `${ppLocationLabel} · Live data` : "Sunset District · Live listings only (practice excluded)"}</div>
         {PP_LEADERBOARD.map((p,i) => (
          <div key={i} style={{
           display:"flex", alignItems:"center", padding:"14px 16px", borderRadius:14,
@@ -6106,28 +6320,65 @@ export default function MortgageBlueprint() {
       {ppView === "stats" && (
        <div style={{ animation: "ppFadeIn 0.3s ease" }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 16 }}>Your Stats</div>
+
+        {/* Competition Stats */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#38bd7e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+         <span>🏆 Competition</span>
+         <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>counts toward leaderboard</span>
+        </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
-         {[["Avg Accuracy",ppAvgDiff==="—"?"—":ppAvgDiff+"%","#38bd7e"],["Streak","🔥 "+ppCurStreak,"#38bd7e"],["Best","⭐ "+ppBestStreak,T.text],["Total",ppGuesses.length,T.text],["Revealed",ppRevealed.length,T.text],["Pending",ppGuesses.length-ppRevealed.length,"#e8c84d"]].map(([l,v,c],i) => (
+         {[["Avg Accuracy",ppCompAvgDiff==="—"?"—":ppCompAvgDiff+"%","#38bd7e"],["Streak","🔥 "+ppCompCurStreak,"#38bd7e"],["Best","⭐ "+ppCompBestStreak,T.text],["Guesses",ppCompGuesses.length,T.text],["Revealed",ppCompRevealed.length,T.text],["Pending",ppCompGuesses.length-ppCompRevealed.length,"#e8c84d"]].map(([l,v,c],i) => (
           <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20 }}>
            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
            <div style={{ fontSize:24, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
           </div>
          ))}
         </div>
-        {/* Bias bar */}
-        <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:10 }}>
-         <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Pricing Bias</div>
-         {ppRevealed.length > 0 ? (<>
+
+        {/* Competition Bias */}
+        {ppCompRevealed.length > 0 && (
+         <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:18 }}>
+          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Competition Bias</div>
           <div style={{ display:"flex", height:34, borderRadius:10, overflow:"hidden", marginBottom:8 }}>
-           {ppOverCount > 0 && <div style={{ width:`${(ppOverCount/ppRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppOverCount}</div>}
-           {ppUnderCount > 0 && <div style={{ width:`${(ppUnderCount/ppRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppUnderCount}</div>}
+           {ppCompOverCount > 0 && <div style={{ width:`${(ppCompOverCount/ppCompRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppCompOverCount}</div>}
+           {ppCompUnderCount > 0 && <div style={{ width:`${(ppCompUnderCount/ppCompRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppCompUnderCount}</div>}
           </div>
           <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.textTertiary }}>
-           <span><span style={{ color:"#e85d5d" }}>●</span> Over ({ppOverCount})</span>
-           <span><span style={{ color:T.blue }}>●</span> Under ({ppUnderCount})</span>
+           <span><span style={{ color:"#e85d5d" }}>●</span> Over ({ppCompOverCount})</span>
+           <span><span style={{ color:T.blue }}>●</span> Under ({ppCompUnderCount})</span>
           </div>
-         </>) : <div style={{ color:T.textTertiary, fontSize:13 }}>Reveal guesses to see your bias</div>}
+         </div>
+        )}
+
+        {/* Practice Stats */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#e8c84d", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+         <span>🎓 Practice</span>
+         <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>sold homes · not ranked</span>
         </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:14 }}>
+         {[["Avg Accuracy",ppPracticeAvgDiff==="—"?"—":ppPracticeAvgDiff+"%","#e8c84d"],["Streak","🔥 "+ppPracticeCurStreak,"#e8c84d"],["Total",ppPracticeGuesses.length,T.text]].map(([l,v,c],i) => (
+          <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:16 }}>
+           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
+           <div style={{ fontSize:20, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
+          </div>
+         ))}
+        </div>
+
+        {/* Practice Bias */}
+        {ppPracticeRevealed.length > 0 && (
+         <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:10 }}>
+          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Practice Bias</div>
+          <div style={{ display:"flex", height:34, borderRadius:10, overflow:"hidden", marginBottom:8 }}>
+           {ppPracticeOverCount > 0 && <div style={{ width:`${(ppPracticeOverCount/ppPracticeRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppPracticeOverCount}</div>}
+           {ppPracticeUnderCount > 0 && <div style={{ width:`${(ppPracticeUnderCount/ppPracticeRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppPracticeUnderCount}</div>}
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.textTertiary }}>
+           <span><span style={{ color:"#e85d5d" }}>●</span> Over ({ppPracticeOverCount})</span>
+           <span><span style={{ color:T.blue }}>●</span> Under ({ppPracticeUnderCount})</span>
+          </div>
+         </div>
+        )}
+
         {ppGuesses.length > 0 && (
          <button onClick={ppResetAll} style={{ width:"100%", padding:14, borderRadius:14, border:`1px solid rgba(232,93,93,0.2)`, background:"rgba(232,93,93,0.08)", color:"#e85d5d", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:10 }}>Reset All Data</button>
         )}
@@ -6139,7 +6390,7 @@ export default function MortgageBlueprint() {
      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 100, background: T.card, borderTop: `1px solid ${T.cardBorder}`, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: "6px 10px", paddingBottom: "max(6px, env(safe-area-inset-bottom))" }}>
       <div style={{ display: "flex", justifyContent: "space-around", gap: 6 }}>
        {[["cards","🏠","Guess"],["results","📋","Results"],["leaderboard","🏆","Ranks"],["stats","📊","Stats"]].map(([k,icon,label]) => (
-        <button key={k} onClick={() => { setPpView(k); setPpViewIdx(PP_VIEWS.indexOf(k)); }} style={{
+        <button key={k} onClick={() => { setPpView(k); }} style={{
          flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
          padding: "10px 8px 8px", borderRadius: 14, cursor: "pointer",
          background: ppView === k ? "rgba(56,189,126,0.1)" : "transparent",
@@ -6159,7 +6410,7 @@ export default function MortgageBlueprint() {
       <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
        <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
         <div style={{ textAlign:"center" }}>
-         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>🏠 SOLD</div>
+         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "🎓 PRACTICE" : "🏠 SOLD"}</div>
          <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
          <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
          <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24 }}>
@@ -6187,7 +6438,8 @@ export default function MortgageBlueprint() {
            </div>
           );
          })()}
-         <button onClick={ppCloseReveal} style={{ width:"100%", padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", marginTop:20, letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
+         {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Practice mode — not counted toward leaderboard</div>}
+         <button onClick={ppCloseReveal} style={{ width:"100%", padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", marginTop:ppShowReveal.isSoldMode ? 8 : 20, letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
         </div>
        </div>
       </div>
