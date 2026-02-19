@@ -1197,6 +1197,11 @@ export default function MortgageBlueprint() {
  const [refiPurpose, setRefiPurpose] = useState("Rate/Term");
  const [refiClosedDate, setRefiClosedDate] = useState("");
  const [refiExtraPaid, setRefiExtraPaid] = useState(0);
+ const [refiAnnualTax, setRefiAnnualTax] = useState(0);
+ const [refiAnnualIns, setRefiAnnualIns] = useState(0);
+ const [refiHasEscrow, setRefiHasEscrow] = useState(true);
+ const [refiEscrowBalance, setRefiEscrowBalance] = useState(0);
+ const [refiSkipMonths, setRefiSkipMonths] = useState(2);
  const [showFedBrackets, setShowFedBrackets] = useState(true);
  const [showStateBrackets, setShowStateBrackets] = useState(true);
  const [showPrivacy, setShowPrivacy] = useState(false);
@@ -1248,7 +1253,7 @@ export default function MortgageBlueprint() {
   propertyAddress, propertyTBD, propertyZip, propertyCounty,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, borrowerEmail,
   showInvestor, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   darkMode,
@@ -1363,6 +1368,11 @@ export default function MortgageBlueprint() {
   if (s.refiPurpose) setRefiPurpose(s.refiPurpose);
   if (s.refiClosedDate) setRefiClosedDate(s.refiClosedDate);
   if (s.refiExtraPaid !== undefined) setRefiExtraPaid(s.refiExtraPaid);
+  if (s.refiAnnualTax !== undefined) setRefiAnnualTax(s.refiAnnualTax);
+  if (s.refiAnnualIns !== undefined) setRefiAnnualIns(s.refiAnnualIns);
+  if (s.refiHasEscrow !== undefined) setRefiHasEscrow(s.refiHasEscrow);
+  if (s.refiEscrowBalance !== undefined) setRefiEscrowBalance(s.refiEscrowBalance);
+  if (s.refiSkipMonths !== undefined) setRefiSkipMonths(s.refiSkipMonths);
   if (s.darkMode !== undefined) setDarkMode(s.darkMode);
   if (s.showInvestor !== undefined) setShowInvestor(s.showInvestor);
   if (s.invMonthlyRent !== undefined) setInvMonthlyRent(s.invMonthlyRent);
@@ -1439,7 +1449,7 @@ export default function MortgageBlueprint() {
   propertyAddress, propertyTBD, propertyZip, propertyCounty,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, borrowerEmail,
   darkMode, loaded, scenarioName]);
  const switchScenario = async (name) => {
   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
@@ -1643,6 +1653,16 @@ export default function MortgageBlueprint() {
    ln("  Breakeven", c.refiBreakevenMonths + " months");
    ln("  Lifetime Interest Savings", fmt(c.refiIntSavings));
    sep();
+   lines.push("NET CASH OUT");
+   ln("  New Loan Amount", fmt(c.refiNetNewLoan));
+   ln("  Closing Costs", "-" + fmt(c.refiNetClosingCosts));
+   ln("  Prepaids & Escrow", "-" + fmt(c.refiNetPrepaids));
+   ln("  Current Loan Payoff", "-" + fmt(c.refiNetPayoff));
+   ln("  Estimated Cash Out", fmt(c.refiEstCashOut));
+   if (c.refiSkipPmtAmt > 0) ln("  Skip " + refiSkipMonths + " Payment(s)", "+" + fmt(c.refiSkipPmtAmt));
+   if (c.refiEscrowRefund > 0) ln("  Escrow Balance Refund", "+" + fmt(c.refiEscrowRefund));
+   ln("  NET CASH IN HAND", fmt(c.refiNetCashInHand));
+   sep();
    lines.push("3-POINT REFI TEST");
    ln("  1. Rate Drop ≥ 0.50%", `${c.refiRateDrop.toFixed(2)}% → ${c.refiTest1Pass ? "✓ PASS" : "✗ FAIL"}`);
    ln("  2. Breakeven < 2 Years", `${c.refiBreakevenMonths} mos → ${c.refiTest2Pass ? "✓ PASS" : "✗ FAIL"}`);
@@ -1737,6 +1757,7 @@ export default function MortgageBlueprint() {
    html += `<table>${hdr("Current Loan")}${row("Balance",fmt(c.refiEffBalance))}${row("Rate",refiCurrentRate+"%")}${row("P&I Payment",fmt(c.refiEffPI))}${row("Remaining Term",c.refiEffRemaining+" months")}${row("Total PITI",fmt(c.refiCurTotalPmt),true)}</table>`;
    html += `<table>${hdr("Proposed New Loan")}${row("Loan Amount",fmt(c.refiNewLoanAmt))}${row("Rate",rate+"%")}${row("Term",term+" Year "+loanType)}${row("P&I Payment",fmt(c.refiNewPi))}${row("Total PITI",fmt(c.refiNewTotalPmt),true)}</table>`;
    html += `<table>${hdr("Savings Analysis")}${row("Monthly P&I Savings",fmt(c.refiMonthlySavings),false,c.refiMonthlySavings>0?"#16a34a":"#dc2626")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Months to Breakeven",c.refiBreakevenMonths+" months")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings),true,"#16a34a")}</table>`;
+   html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row("Estimated Cash Out",fmt(c.refiEstCashOut),false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row("Net Cash in Hand",fmt(c.refiNetCashInHand),true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
    html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✅":"❌"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✅":"❌"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✅":"❌"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
   } else {
    // PURCHASE HERO
@@ -1925,6 +1946,22 @@ export default function MortgageBlueprint() {
  const saveGameMode = (val) => {
   setGameMode(val);
   try { LS.set("app:gameMode", val ? "true" : "false"); } catch(e) {}
+ };
+
+ // Build Mode: Continue button for bottom of each tab
+ const TAB_DISPLAY_NAMES = { setup:"Setup", calc:"Calculator", costs:"Costs", qualify:"Qualify", debts:"Debts", income:"Income", assets:"Assets", tax:"Tax Savings", amort:"Amortization", learn:"Learn", compare:"Compare", summary:"Share" };
+ const BuildContinue = ({ currentTab }) => {
+  if (!gameMode) return null;
+  const idx = TAB_PROGRESSION.indexOf(currentTab);
+  if (idx < 0 || idx >= TAB_PROGRESSION.length - 1) return null;
+  const nextTab = TAB_PROGRESSION[idx + 1];
+  const nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
+  const stepNum = idx + 2; // +1 for 0-index, +1 because we're going TO the next
+  return (
+   <button onClick={() => setTab(nextTab)} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 12, marginBottom: 8, boxShadow: "0 4px 20px rgba(74,144,217,0.3)" }}>
+    Continue to {nextName} → Step {stepNum} of {TAB_PROGRESSION.length}
+   </button>
+  );
  };
  // Pillar click navigation
  const handlePillarClick = (label) => {
@@ -2297,7 +2334,10 @@ export default function MortgageBlueprint() {
   const refiEffBalance = refiOriginalAmount > 0 && refiClosedDate ? refiCalcBalance : refiCurrentBalance;
   const refiEffRemaining = refiClosedDate ? refiCalcRemainingMonths : refiRemainingMonths;
   const refiCurMr = (refiCurrentRate / 100) / 12;
-  const refiCurTotalPmt = refiEffPI + refiCurrentEscrow + refiCurrentMI;
+  const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : refiCurrentEscrow;
+  const refiCurMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.6 : 0);
+  const refiCurMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.4 : 0);
+  const refiCurTotalPmt = refiEffPI + (refiHasEscrow ? refiCurEscrowEffective : 0) + refiCurrentMI;
   const refiCurIntThisMonth = refiEffBalance * refiCurMr;
   const refiCurPrinThisMonth = refiEffPI - refiCurIntThisMonth;
   const refiCurRemainingInt = (() => { if (!isRefi || refiEffPI <= 0) return 0; let bal = refiEffBalance, total = 0; for (let m = 0; m < refiEffRemaining && bal > 0; m++) { const intPmt = bal * refiCurMr; total += intPmt; bal -= (refiEffPI - intPmt); } return total; })();
@@ -2307,9 +2347,11 @@ export default function MortgageBlueprint() {
   const refiNewLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
   const refiNewMr = mr;
   const refiNewPi = refiNewLoanAmt > 0 ? (refiNewLoanAmt * refiNewMr * Math.pow(1 + refiNewMr, np)) / (Math.pow(1 + refiNewMr, np) - 1) : 0;
-  const refiNewEscrow = yearlyTax / 12 + (salesPrice * 0.0035 / 12);
+  const refiNewMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : yearlyTax / 12;
+  const refiNewMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (salesPrice * 0.0035 / 12);
+  const refiNewEscrow = refiNewMonthlyTax + refiNewMonthlyIns;
   const refiNewMI = (() => { if (refiHomeValue <= 0) return monthlyMI; const ltv = refiNewLoanAmt / refiHomeValue; if (loanType === "Conventional" && ltv <= 0.80) return 0; return monthlyMI; })();
-  const refiNewTotalPmt = refiNewPi + refiNewEscrow + refiNewMI;
+  const refiNewTotalPmt = refiNewPi + (refiHasEscrow ? refiNewEscrow : 0) + refiNewMI;
   const refiNewIntThisMonth = refiNewLoanAmt * refiNewMr;
   const refiNewPrinThisMonth = refiNewPi - refiNewIntThisMonth;
   const refiNewTotalInt = (() => { if (refiNewPi <= 0) return 0; let bal = refiNewLoanAmt, total = 0; for (let m = 0; m < np && bal > 0; m++) { const intPmt = bal * refiNewMr; total += intPmt; bal -= (refiNewPi - intPmt); } return total; })();
@@ -2319,6 +2361,35 @@ export default function MortgageBlueprint() {
   const refiMonthlyTotalSavings = isRefi ? (refiCurTotalPmt - refiNewTotalPmt) : 0;
   const refiIntSavings = refiCurRemainingInt - refiNewTotalInt;
   const refiBreakevenMonths = refiMonthlySavings > 0 ? Math.ceil(totalClosingCosts / refiMonthlySavings) : 0;
+  // ── Net Cash Out ──
+  const refiNetNewLoan = refiNewLoanAmt;
+  const refiNetClosingCosts = totalClosingCosts;
+  const refiNetPrepaids = totalPrepaidExp;
+  const refiNetPayoff = refiEffBalance;
+  const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff;
+  const refiSkipPmtAmt = refiCurTotalPmt * (refiSkipMonths || 0);
+  const refiEscrowRefund = refiEscrowBalance || 0;
+  const refiNetCashInHand = refiEstCashOut + refiSkipPmtAmt + refiEscrowRefund;
+  // ── Cost of Waiting Matrix ──
+  const refiCostOfWaiting = (() => {
+   if (!isRefi || refiMonthlySavings <= 0) return [];
+   const waitYears = [1, 2, 3, 4];
+   const rateDrops = [0.125, 0.25, 0.5, 1.0];
+   return rateDrops.map(drop => {
+    const futureRate = (rate || 0) - drop;
+    const futureMr = futureRate > 0 ? (futureRate / 100) / 12 : 0;
+    const futurePi = refiNewLoanAmt > 0 && futureMr > 0 ? (refiNewLoanAmt * futureMr * Math.pow(1 + futureMr, np)) / (Math.pow(1 + futureMr, np) - 1) : 0;
+    const futureSavings = refiNewPi - futurePi;
+    return {
+     drop,
+     years: waitYears.map(y => {
+      const lostSavings = refiMonthlySavings * y * 12;
+      const breakeven = futureSavings > 0 ? Math.ceil(lostSavings / futureSavings) : 999;
+      return { lostSavings, breakeven };
+     })
+    };
+   });
+  })();
   const refiLifetimeSavings = refiCurTotalCostRemaining - refiNewTotalCost;
   const refiAmortCompare = (() => {
    if (!isRefi || refiNewPi <= 0) return [];
@@ -2424,11 +2495,16 @@ export default function MortgageBlueprint() {
    refiCalcPI, refiMonthsElapsed, refiCalcRemainingMonths, refiCalcBalance, refiMinBalance,
    refiEffPI, refiEffBalance, refiEffRemaining,
    refiCurMr, refiCurTotalPmt, refiCurIntThisMonth, refiCurPrinThisMonth,
+   refiCurMonthlyTax, refiCurMonthlyIns, refiCurEscrowEffective,
+   refiNewMonthlyTax, refiNewMonthlyIns,
    refiCurRemainingInt, refiCurTotalRemaining, refiCurTotalCostRemaining, refiCurLTV,
    refiNewLoanAmt, refiNewPi, refiNewEscrow, refiNewMI, refiNewTotalPmt,
    refiNewIntThisMonth, refiNewPrinThisMonth, refiNewTotalInt, refiNewTotalCost, refiNewLTV,
    refiMonthlySavings, refiMonthlyTotalSavings, refiIntSavings,
    refiBreakevenMonths, refiLifetimeSavings, refiAmortCompare,
+   refiEstCashOut, refiSkipPmtAmt, refiEscrowRefund, refiNetCashInHand,
+   refiNetClosingCosts, refiNetPrepaids, refiNetPayoff, refiNetNewLoan,
+   refiCostOfWaiting,
    refiCalcPI, refiCalcBalance, refiCalcRemainingMonths, refiMonthsElapsed, refiEffPI, refiEffBalance, refiEffRemaining,
    refiRateDrop, refiTest1Pass, refiTest2Pass, refiTest3Pass, refiAccelPayoff, refiTestScore,
    reoTotalValue, reoTotalDebt, reoTotalEquity, reoTotalPayments, reoTotalIncome, reoNetCashFlow,
@@ -2448,7 +2524,7 @@ export default function MortgageBlueprint() {
   incomes, otherIncome, assets, payExtra, extraPayment, creditScore,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid]);
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths]);
  // === INVESTMENT PROPERTY CALCULATIONS ===
  const invCalc = useMemo(() => {
   const annualRent = invMonthlyRent * 12;
@@ -4627,7 +4703,32 @@ export default function MortgageBlueprint() {
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
    </>}
    {!refiOriginalAmount && <Inp label="Current P&I Payment (manual)" value={refiCurrentPayment} onChange={setRefiCurrentPayment} />}
-   <Inp label="Current Escrow (Tax+Ins)" value={refiCurrentEscrow} onChange={setRefiCurrentEscrow} />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Annual Property Tax" value={refiAnnualTax} onChange={setRefiAnnualTax} tip="Annual property tax. Stays the same after refi." />
+    <Inp label="Annual Home Insurance" value={refiAnnualIns} onChange={setRefiAnnualIns} tip="Annual homeowner's insurance premium. Stays the same after refi." />
+   </div>
+   {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
+    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
+     ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
+    </div>
+   )}
+   {refiAnnualTax <= 0 && refiAnnualIns <= 0 && (
+    <Inp label="Current Monthly Escrow (Tax+Ins)" value={refiCurrentEscrow} onChange={setRefiCurrentEscrow} tip="If you don't know the annual amounts, enter your combined monthly escrow here." />
+   )}
+   {/* Escrow included toggle */}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: `1px solid ${T.separator}`, marginBottom: 10 }}>
+    <div>
+     <span style={{ fontSize: 14, color: T.text }}>Tax/Ins included in payment?</span>
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{refiHasEscrow ? "Tax & insurance included in monthly payment" : "Tax & insurance paid separately — excluded from both current & new payment"}</div>
+    </div>
+    <div onClick={() => setRefiHasEscrow(!refiHasEscrow)} style={{ width: 52, height: 30, borderRadius: 99, background: refiHasEscrow ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: refiHasEscrow ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Escrow Account Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} tip="Money sitting in your escrow account — refunded to you when the old loan closes." />
+    <Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"},{value:"3",label:"3 months"}]} tip="Mortgage payments you skip during the refi process. These go back in your pocket." />
+   </div>
    <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} />
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
   </Card>
@@ -4735,12 +4836,7 @@ export default function MortgageBlueprint() {
  </Sec>
 
  {/* ── Continue to Calculator ── */}
- <button onClick={() => setTab("calc")} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginBottom: 8, boxShadow: "0 4px 20px rgba(74,144,217,0.3)" }}>
-  {gameMode ? `Continue to Calculator → Step ${Math.min(houseStagesComplete + 1, TAB_PROGRESSION.length)} of ${TAB_PROGRESSION.length}` : "Continue to Calculator →"}
- </button>
- <div style={{ textAlign: "center", fontSize: 11, color: T.textTertiary, marginBottom: 12 }}>
-  {gameMode ? "Complete each tab to build your house" : "You can always come back to adjust these settings"}
- </div>
+ <BuildContinue currentTab="setup" />
 
  {/* Security */}
  <Card style={{ background: T.pillBg }}>
@@ -4897,29 +4993,73 @@ export default function MortgageBlueprint() {
  {/* Monthly Payment Comparison */}
  <Sec title="Monthly Payment">
   <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
-    <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span>
+   {/* Header */}
+   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `2px solid ${T.separator}`, letterSpacing: 0.5 }}>
+    <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span><span style={{textAlign:"right"}}>Delta</span>
    </div>
-   {[
-    ["P&I", fmt(calc.refiEffPI), fmt(calc.refiNewPi)],
-    ["Escrow (Tax+Ins)", fmt(refiCurrentEscrow), fmt(calc.refiNewEscrow)],
-    ["MI/MIP", fmt(refiCurrentMI), fmt(calc.refiNewMI)],
-   ].map(([l, c, n], i) => (
-    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.textSecondary }}>{l}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{n}</span>
-    </div>
-   ))}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4, fontSize: 14 }}>
-    <span style={{ fontWeight: 700 }}>Total Payment</span>
-    <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.refiCurTotalPmt)}</span>
-    <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(calc.refiNewTotalPmt)}</span>
-   </div>
+   {/* Rows */}
+   {(() => {
+    const curPrin = calc.refiCurPrinThisMonth;
+    const curInt = calc.refiCurIntThisMonth;
+    const newPrin = calc.refiNewPrinThisMonth;
+    const newInt = calc.refiNewIntThisMonth;
+    const curTax = calc.refiCurMonthlyTax;
+    const curIns = calc.refiCurMonthlyIns;
+    const newTax = calc.refiNewMonthlyTax;
+    const newIns = calc.refiNewMonthlyIns;
+    const curMI = refiCurrentMI;
+    const newMI = calc.refiNewMI;
+    const rows = [
+     { label: "Principal", cur: curPrin, nw: newPrin },
+     { label: "Interest", cur: curInt, nw: newInt },
+     ...(refiHasEscrow ? [
+      { label: "Taxes", cur: curTax, nw: newTax },
+      { label: "Insurance", cur: curIns, nw: newIns },
+     ] : (refiAnnualTax > 0 || refiAnnualIns > 0) ? [
+      { label: "Taxes", cur: curTax, nw: curTax, note: "paid separately" },
+      { label: "Insurance", cur: curIns, nw: curIns, note: "paid separately" },
+     ] : []),
+     { label: "MI/MIP", cur: curMI, nw: newMI },
+    ].filter(r => r.cur > 0 || r.nw > 0 || r.note);
+    return rows.map((r, i) => {
+     const delta = r.nw - r.cur;
+     return (
+      <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13, alignItems: "center" }}>
+       <span style={{ color: T.textSecondary }}>
+        {r.label}
+        {r.note && <span style={{ fontSize: 9, color: T.orange, display: "block", marginTop: 1 }}>({r.note})</span>}
+       </span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{fmt(r.nw)}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 12, color: delta < -0.5 ? T.green : delta > 0.5 ? T.red : T.textTertiary }}>
+        {Math.abs(delta) < 0.5 ? "—" : (delta > 0 ? "+" : "") + fmt(delta)}
+       </span>
+      </div>
+     );
+    });
+   })()}
+   {/* Total row */}
+   {(() => {
+    const totalDelta = calc.refiNewTotalPmt - calc.refiCurTotalPmt;
+    return (
+     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4, fontSize: 14 }}>
+      <span style={{ fontWeight: 700 }}>Total Payment</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.refiCurTotalPmt)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(calc.refiNewTotalPmt)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 13, color: totalDelta < -0.5 ? T.green : totalDelta > 0.5 ? T.red : T.textTertiary }}>
+       {Math.abs(totalDelta) < 0.5 ? "—" : (totalDelta > 0 ? "+" : "") + fmt(totalDelta)}
+      </span>
+     </div>
+    );
+   })()}
+   {/* Savings card */}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: "10px 0", marginTop: 4, background: calc.refiMonthlyTotalSavings > 0 ? T.successBg : calc.refiMonthlyTotalSavings < 0 ? T.errorBg : T.pillBg, borderRadius: 8, paddingLeft: 10, paddingRight: 10 }}>
-    <span style={{ fontWeight: 600, fontSize: 13, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>Total Monthly {calc.refiMonthlyTotalSavings >= 0 ? "Savings" : "Increase"}</span>
+    <span style={{ fontWeight: 600, fontSize: 13, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>Monthly {calc.refiMonthlyTotalSavings >= 0 ? "Savings" : "Increase"}</span>
     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 16, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>{fmt(Math.abs(calc.refiMonthlyTotalSavings))}</span>
    </div>
+   {!refiHasEscrow && (refiAnnualTax > 0 || refiAnnualIns > 0) && (
+    <Note color={T.orange} style={{ marginTop: 8 }}>No escrow — tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
+   )}
   </Card>
  </Sec>
  {/* Interest comparison */}
@@ -4966,6 +5106,33 @@ export default function MortgageBlueprint() {
    <MRow label="New: Total Payments + Costs" value={fmt(calc.refiNewTotalCost)} sub={`${term * 12} × ${fmt(calc.refiNewPi)} + ${fmt(calc.totalClosingCosts)}`} />
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Lifetime Savings" value={fmt(calc.refiLifetimeSavings)} color={calc.refiLifetimeSavings > 0 ? T.green : T.red} bold />
+   </div>
+  </Card>
+ </Sec>
+ {/* ── Net Cash Out ── */}
+ <Sec title="Net Cash Out">
+  <Card>
+   <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 10, textTransform: "uppercase" }}>Cash to Close Summary</div>
+   <MRow label="New Loan Amount" value={fmt(calc.refiNetNewLoan)} color={T.blue} />
+   <MRow label="− Closing Costs" value={`-${fmt(calc.refiNetClosingCosts)}`} />
+   <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
+   <MRow label="− Current Loan Payoff" value={`-${fmt(calc.refiNetPayoff)}`} />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Estimated Cash Out" value={fmt(calc.refiEstCashOut)} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
+   </div>
+   {(calc.refiSkipPmtAmt > 0 || calc.refiEscrowRefund > 0) && <>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginTop: 16, marginBottom: 10, textTransform: "uppercase" }}>Money Back in Your Pocket</div>
+    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt)}/mo`} />}
+    {calc.refiEscrowRefund > 0 && <MRow label="Current Escrow Balance Refund" value={`+${fmt(calc.refiEscrowRefund)}`} color={T.green} />}
+   </>}
+   <div style={{ marginTop: 12, padding: "14px 16px", background: calc.refiNetCashInHand >= 0 ? T.successBg : T.errorBg, borderRadius: 14 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+     <span style={{ fontSize: 14, fontWeight: 700, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>Net Cash in Hand</span>
+     <span style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{fmt(calc.refiNetCashInHand)}</span>
+    </div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
+     {calc.refiNetCashInHand >= 0 ? "You receive this amount at or after closing" : "You need to bring this amount to closing"}
+    </div>
    </div>
   </Card>
  </Sec>
@@ -5097,6 +5264,49 @@ export default function MortgageBlueprint() {
  <Card style={{ marginTop: 8, background: T.pillBg }}>
   <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.6, textAlign: "center" }}>The 3-Point Refi Test is a framework by Three Point Thursday. Not all 3 points need to pass — but if they do, the refi is a no-brainer.</div>
  </Card>
+ {/* ── Cost of Waiting / Breakeven Analysis ── */}
+ {calc.refiMonthlySavings > 0 && calc.refiCostOfWaiting.length > 0 && (
+  <Sec title="Cost of Waiting">
+   <Card>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>
+     If you <strong>wait</strong> for rates to drop further, how long would a future lower-rate refi take to <strong>catch up</strong> to the savings you missed by not refinancing now?
+    </div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Breakeven Months to Recoup Lost Savings</div>
+    {/* Header row */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 0, fontSize: 10, fontWeight: 700, color: T.textTertiary, paddingBottom: 6, borderBottom: `2px solid ${T.separator}` }}>
+     <span>Wait for</span>
+     <span style={{ textAlign: "center" }}>1 Year</span>
+     <span style={{ textAlign: "center" }}>2 Years</span>
+     <span style={{ textAlign: "center" }}>3 Years</span>
+     <span style={{ textAlign: "center" }}>4 Years</span>
+    </div>
+    {/* Data rows */}
+    {calc.refiCostOfWaiting.map((row, i) => (
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12, alignItems: "center" }}>
+      <span style={{ fontWeight: 600, color: T.text }}>-{row.drop}%</span>
+      {row.years.map((cell, j) => (
+       <span key={j} style={{ textAlign: "center", fontFamily: FONT, fontWeight: 600, fontSize: 11, color: cell.breakeven >= 120 ? T.red : cell.breakeven >= 60 ? T.orange : T.green }}>
+        {cell.breakeven >= 999 ? "Never" : cell.breakeven >= 120 ? `${Math.round(cell.breakeven / 12)}+ yrs` : `${cell.breakeven} mo`}
+       </span>
+      ))}
+     </div>
+    ))}
+    {/* Legend */}
+    <div style={{ marginTop: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>
+     <strong>How to read:</strong> If you wait <strong>2 years</strong> hoping rates drop <strong>0.50%</strong>, the lost savings during that wait would take the future refi's savings a certain number of months to recoup. High numbers mean <strong>don't wait</strong>.
+    </div>
+    {/* Lost savings summary */}
+    <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+     {[1, 2, 3, 4].map(yr => (
+      <div key={yr} style={{ background: T.inputBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+       <div style={{ fontSize: 14, fontWeight: 700, color: T.red, fontFamily: FONT }}>{fmt(calc.refiMonthlySavings * yr * 12)}</div>
+       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>Lost if wait {yr}yr</div>
+      </div>
+     ))}
+    </div>
+   </Card>
+  </Sec>
+ )}
 </>)}
 {/* ═══ INVESTMENT PROPERTY ═══ */}
 {tab === "invest" && (<>
@@ -6177,7 +6387,7 @@ export default function MortgageBlueprint() {
 </>)}
 {/* ── Build Mode House (Bottom of Tab) ── */}
 {gameMode && tab !== "setup" && (
- <div style={{ marginTop: 24, marginBottom: 16 }}>
+ <div style={{ marginTop: 24, marginBottom: 0 }}>
   <div style={{ background: T.card, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
    <div style={{ maxWidth: 300, margin: "0 auto", padding: "12px 0 0" }}>
     <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
@@ -6194,6 +6404,8 @@ export default function MortgageBlueprint() {
   </div>
  </div>
 )}
+{/* ── Build Mode Continue Button (Below House) ── */}
+{gameMode && tab !== "setup" && <BuildContinue currentTab={tab} />}
    </div>
    </>}
    {/* ═══════════════════════════════════════════ */}
