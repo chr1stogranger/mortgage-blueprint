@@ -116,7 +116,9 @@ async function fetchZillow(location, status, apiKey, apiHost) {
     throw new Error(`Zillow API ${res.status}: ${body.slice(0, 200)}`);
   }
 
-  return res.json();
+  const data = await res.json();
+  console.log(`[PricePoint] Zillow response keys for ${status}: ${Object.keys(data || {}).join(', ')}`);
+  return data;
 }
 
 // ─── Main handler ───
@@ -169,20 +171,37 @@ export default async function handler(req, res) {
 
     // Parse active listings
     let active = [];
-    if (activeData.status === "fulfilled" && activeData.value?.results) {
-      active = activeData.value.results
-        .filter(r => r.zpid && r.price && r.imgSrc) // Must have photo + price
-        .slice(0, 20) // Limit to 20
+    if (activeData.status === "fulfilled") {
+      const val = activeData.value;
+      // Try multiple possible response shapes
+      const results = val?.results || val?.searchResults || val?.props || (Array.isArray(val) ? val : []);
+      console.log(`[PricePoint] Active response keys: ${Object.keys(val || {}).join(', ')}`);
+      console.log(`[PricePoint] Active raw count: ${results.length}`);
+      if (results[0]) {
+        console.log(`[PricePoint] Sample active keys: ${Object.keys(results[0]).join(', ')}`);
+        console.log(`[PricePoint] Sample: zpid=${results[0].zpid}, price=${results[0].price}, imgSrc=${results[0].imgSrc ? 'yes' : 'no'}`);
+      }
+      active = results
+        .filter(r => r.zpid && r.price) // Only require zpid + price (photo optional)
+        .slice(0, 20)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
+    } else {
+      console.log(`[PricePoint] Active fetch failed:`, activeData.reason?.message);
     }
 
     // Parse sold listings
     let sold = [];
-    if (soldData.status === "fulfilled" && soldData.value?.results) {
-      sold = soldData.value.results
-        .filter(r => r.zpid && r.price && r.imgSrc)
+    if (soldData.status === "fulfilled") {
+      const val = soldData.value;
+      const results = val?.results || val?.searchResults || val?.props || (Array.isArray(val) ? val : []);
+      console.log(`[PricePoint] Sold response keys: ${Object.keys(val || {}).join(', ')}`);
+      console.log(`[PricePoint] Sold raw count: ${results.length}`);
+      sold = results
+        .filter(r => r.zpid && r.price)
         .slice(0, 20)
         .map((r, i) => normalizeProperty(r, i, "pps", true));
+    } else {
+      console.log(`[PricePoint] Sold fetch failed:`, soldData.reason?.message);
     }
 
     const result = {
@@ -195,8 +214,10 @@ export default async function handler(req, res) {
       cached: false,
     };
 
-    // Cache the result
-    setCache(cacheKey, result);
+    // Only cache if we got actual results (don't cache empty)
+    if (active.length > 0 || sold.length > 0) {
+      setCache(cacheKey, result);
+    }
 
     // Also set CDN cache headers (Vercel edge cache)
     res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
