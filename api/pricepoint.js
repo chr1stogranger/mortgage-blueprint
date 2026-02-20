@@ -1,186 +1,212 @@
 // /api/pricepoint.js — Vercel Serverless Function
-// Fetches active + recently sold listings from RapidAPI Zillow
-// Caches results for 24 hours per location key
+// Proxies RapidAPI Zillow56 to fetch active + recently sold listings
+// Caches results for 24 hours per location to minimize API calls
 
-const CACHE = new Map(); // In-memory cache (per cold-start instance)
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
+// ─── In-memory cache (persists across warm invocations) ───
+const cache = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-module.exports = async function(req, res) {
+function getCached(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  // Evict old entries if cache gets large (prevent memory bloat)
+  if (cache.size > 100) {
+    const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    for (let i = 0; i < 50; i++) cache.delete(oldest[i][0]);
+  }
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
+// ─── Normalize Zillow result → PricePoint shape ───
+function normalizeProperty(raw, index, prefix, isSold) {
+  const sqft = raw.livingArea || raw.lotAreaValue || 0;
+  const price = raw.price || raw.soldPrice || 0;
+
+  return {
+    id: `${prefix}${index + 1}`,
+    zpid: String(raw.zpid || ""),
+    address: raw.streetAddress || raw.address || "Unknown",
+    city: raw.city || "",
+    state: raw.state || "CA",
+    zip: raw.zipcode || raw.zip || "",
+    beds: raw.bedrooms || 0,
+    baths: raw.bathrooms || 0,
+    sqft: raw.livingArea || 0,
+    lotSqft: raw.lotAreaValue ? Math.round(raw.lotAreaValue) : 0,
+    yearBuilt: raw.yearBuilt || null,
+    propertyType: normalizeHomeType(raw.homeType),
+    listPrice: raw.price || raw.listPrice || 0,
+    zestimate: raw.zestimate || null,
+    soldPrice: isSold ? (raw.soldPrice || raw.price || null) : null,
+    soldDate: isSold ? normalizeSoldDate(raw.dateSold || raw.datePostedString) : null,
+    daysOnMarket: normalizeDaysOnMarket(raw.daysOnZillow, raw.timeOnZillow),
+    status: isSold ? "sold" : "active",
+    photo: raw.imgSrc || raw.hiResImageLink || null,
+    neighborhood: raw.buildingName || "",
+    pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
+    // Extra data useful for PricePoint
+    latitude: raw.latitude || null,
+    longitude: raw.longitude || null,
+    rentZestimate: raw.rentZestimate || null,
+  };
+}
+
+function normalizeHomeType(type) {
+  if (!type) return "Single Family";
+  const map = {
+    SINGLE_FAMILY: "Single Family",
+    MULTI_FAMILY: "Multi Family",
+    CONDO: "Condo",
+    TOWNHOUSE: "Townhouse",
+    MANUFACTURED: "Manufactured",
+    LOT: "Lot/Land",
+    APARTMENT: "Apartment",
+  };
+  return map[type] || type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function normalizeDaysOnMarket(daysOnZillow, timeOnZillow) {
+  if (daysOnZillow && daysOnZillow > 0) return daysOnZillow;
+  if (timeOnZillow && timeOnZillow > 0) return Math.round(timeOnZillow / (1000 * 60 * 60 * 24));
+  return 0;
+}
+
+function normalizeSoldDate(raw) {
+  if (!raw) return null;
+  // Could be epoch ms or date string
+  if (typeof raw === "number") {
+    return new Date(raw).toISOString().split("T")[0];
+  }
+  // Try to parse date string
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  return raw;
+}
+
+// ─── Fetch from RapidAPI ───
+async function fetchZillow(location, status, apiKey, apiHost) {
+  const params = new URLSearchParams({
+    location,
+    output: "json",
+    status, // "forSale" or "recentlySold"
+    sortSelection: "priorityscore",
+    listing_type: "by_agent",
+  });
+
+  const url = `https://${apiHost}/search?${params}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": apiKey,
+      "X-RapidAPI-Host": apiHost,
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Zillow API ${res.status}: ${body.slice(0, 200)}`);
+  }
+
+  return res.json();
+}
+
+// ─── Main handler ───
+export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const { zip, city, state } = req.query;
-
-  if (!zip && !city) {
-    return res.status(400).json({
-      error: "Missing parameter: provide 'zip' or 'city' (with optional 'state')",
-    });
-  }
-
-  const apiKey = process.env.RAPIDAPI_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
-  }
-
-  // Cache key
-  const cacheKey = zip ? `zip:${zip}` : `city:${city}:${state || ""}`;
-  const cached = CACHE.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    res.setHeader("X-Cache", "HIT");
-    return res.status(200).json(cached.data);
-  }
-
   try {
-    // Build search params for active listings
-    const activeParams = new URLSearchParams({
-      status_type: "ForSale",
-      home_type: "Houses,Condos,Townhomes,MultiFamily",
-      sort: "Newest",
-    });
-    if (zip) activeParams.set("zipcode", zip);
-    else {
-      activeParams.set("location", state ? `${city}, ${state}` : city);
-    }
+    const { zip, city, state, location: locParam } = req.query;
 
-    // Build search params for recently sold
-    const soldParams = new URLSearchParams({
-      status_type: "RecentlySold",
-      home_type: "Houses,Condos,Townhomes,MultiFamily",
-      sort: "Newest",
-    });
-    if (zip) soldParams.set("zipcode", zip);
-    else {
-      soldParams.set("location", state ? `${city}, ${state}` : city);
-    }
-
-    const headers = {
-      "x-rapidapi-key": apiKey,
-      "x-rapidapi-host": "zillow-com1.p.rapidapi.com",
-    };
-
-    // Fetch both in parallel
-    const [activeRes, soldRes] = await Promise.all([
-      fetch(
-        `https://zillow-com1.p.rapidapi.com/propertyExtendedSearch?${activeParams}`,
-        { headers }
-      ),
-      fetch(
-        `https://zillow-com1.p.rapidapi.com/propertyExtendedSearch?${soldParams}`,
-        { headers }
-      ),
-    ]);
-
-    if (!activeRes.ok && !soldRes.ok) {
-      const errText = await activeRes.text().catch(() => "Unknown error");
-      return res.status(502).json({
-        error: "Zillow API error",
-        detail: errText,
-        status: activeRes.status,
+    // Build location string — prefer zip, then city+state, then raw location
+    let location;
+    if (zip && /^\d{5}$/.test(zip)) {
+      location = zip;
+    } else if (city && state) {
+      location = `${city}, ${state}`;
+    } else if (city) {
+      location = city;
+    } else if (locParam) {
+      location = locParam;
+    } else {
+      return res.status(400).json({
+        error: "Missing location. Provide ?zip=94122 or ?city=San Francisco&state=CA",
       });
     }
 
-    const activeData = activeRes.ok ? await activeRes.json() : { props: [] };
-    const soldData = soldRes.ok ? await soldRes.json() : { props: [] };
+    // Check cache
+    const cacheKey = location.toLowerCase().trim();
+    const cached = getCached(cacheKey);
+    if (cached) {
+      return res.status(200).json({ ...cached, cached: true });
+    }
 
-    // Normalize active listings
-    const activeListings = (activeData.props || []).slice(0, 15).map((p, i) => ({
-      id: `live-a-${p.zpid || i}`,
-      zpid: String(p.zpid || ""),
-      address: p.streetAddress || p.address || "",
-      city: p.city || "",
-      state: p.state || "",
-      zip: p.zipcode || zip || "",
-      beds: p.bedrooms ?? p.beds ?? null,
-      baths: p.bathrooms ?? p.baths ?? null,
-      sqft: p.livingArea ?? p.area ?? null,
-      lotSqft: p.lotAreaValue ?? p.lotSize ?? null,
-      yearBuilt: p.yearBuilt ?? null,
-      propertyType: normalizePropertyType(p.propertyType || p.homeType),
-      listPrice: p.price ?? p.listPrice ?? null,
-      zestimate: p.zestimate ?? null,
-      soldPrice: null,
-      soldDate: null,
-      daysOnMarket: p.daysOnZillow ?? null,
-      status: "active",
-      photo: pickPhoto(p),
-      neighborhood: p.neighborhood || "",
-      pricePerSqft: calcPricePerSqft(p.price ?? p.listPrice, p.livingArea ?? p.area),
-    }));
+    // API credentials from environment
+    const apiKey = process.env.RAPIDAPI_KEY;
+    const apiHost = process.env.RAPIDAPI_HOST || "zillow56.p.rapidapi.com";
 
-    // Normalize sold listings
-    const soldListings = (soldData.props || []).slice(0, 15).map((p, i) => ({
-      id: `live-s-${p.zpid || i}`,
-      zpid: String(p.zpid || ""),
-      address: p.streetAddress || p.address || "",
-      city: p.city || "",
-      state: p.state || "",
-      zip: p.zipcode || zip || "",
-      beds: p.bedrooms ?? p.beds ?? null,
-      baths: p.bathrooms ?? p.baths ?? null,
-      sqft: p.livingArea ?? p.area ?? null,
-      lotSqft: p.lotAreaValue ?? p.lotSize ?? null,
-      yearBuilt: p.yearBuilt ?? null,
-      propertyType: normalizePropertyType(p.propertyType || p.homeType),
-      listPrice: p.price ?? p.listPrice ?? null,
-      zestimate: p.zestimate ?? null,
-      soldPrice: p.soldPrice ?? p.lastSoldPrice ?? p.price ?? null,
-      soldDate: p.dateSold || p.lastSoldDate || null,
-      daysOnMarket: p.daysOnZillow ?? null,
-      status: "sold",
-      photo: pickPhoto(p),
-      neighborhood: p.neighborhood || "",
-      pricePerSqft: calcPricePerSqft(
-        p.soldPrice ?? p.lastSoldPrice ?? p.price,
-        p.livingArea ?? p.area
-      ),
-    }));
+    if (!apiKey) {
+      return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
+    }
 
-    const payload = {
-      activeListings,
-      soldListings,
-      totalActive: activeData.totalResultCount ?? activeListings.length,
-      totalSold: soldData.totalResultCount ?? soldListings.length,
-      location: zip || `${city}${state ? ", " + state : ""}`,
-      fetchedAt: new Date().toISOString(),
+    // Fetch both active and sold listings in parallel
+    const [activeData, soldData] = await Promise.allSettled([
+      fetchZillow(location, "forSale", apiKey, apiHost),
+      fetchZillow(location, "recentlySold", apiKey, apiHost),
+    ]);
+
+    // Parse active listings
+    let active = [];
+    if (activeData.status === "fulfilled" && activeData.value?.results) {
+      active = activeData.value.results
+        .filter(r => r.zpid && r.price && r.imgSrc) // Must have photo + price
+        .slice(0, 20) // Limit to 20
+        .map((r, i) => normalizeProperty(r, i, "pp", false));
+    }
+
+    // Parse sold listings
+    let sold = [];
+    if (soldData.status === "fulfilled" && soldData.value?.results) {
+      sold = soldData.value.results
+        .filter(r => r.zpid && r.price && r.imgSrc)
+        .slice(0, 20)
+        .map((r, i) => normalizeProperty(r, i, "pps", true));
+    }
+
+    const result = {
+      location,
+      activeListings: active,
+      soldListings: sold,
+      activeCount: active.length,
+      soldCount: sold.length,
+      timestamp: new Date().toISOString(),
+      cached: false,
     };
 
-    // Cache it
-    CACHE.set(cacheKey, { ts: Date.now(), data: payload });
-    res.setHeader("X-Cache", "MISS");
+    // Cache the result
+    setCache(cacheKey, result);
+
+    // Also set CDN cache headers (Vercel edge cache)
     res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
-    return res.status(200).json(payload);
+
+    return res.status(200).json(result);
   } catch (err) {
     console.error("PricePoint API error:", err);
-    return res.status(500).json({ error: "Internal server error", detail: err.message });
+    return res.status(500).json({
+      error: "Failed to fetch listings",
+      detail: err.message,
+    });
   }
-}
-
-// ── Helpers ──
-
-function normalizePropertyType(raw) {
-  if (!raw) return "Single Family";
-  const t = raw.toUpperCase();
-  if (t.includes("SINGLE") || t.includes("HOUSE")) return "Single Family";
-  if (t.includes("CONDO") || t.includes("APARTMENT")) return "Condo";
-  if (t.includes("TOWN")) return "Townhouse";
-  if (t.includes("MULTI")) return "Multi-Family";
-  return raw;
-}
-
-function pickPhoto(p) {
-  // Try multiple Zillow image fields
-  if (p.imgSrc) return p.imgSrc;
-  if (p.image) return p.image;
-  if (p.photos && p.photos.length > 0) return p.photos[0];
-  if (p.miniCardPhotos && p.miniCardPhotos.length > 0) return p.miniCardPhotos[0]?.url || p.miniCardPhotos[0];
-  // Fallback to a generic house photo
-  return "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80";
-}
-
-function calcPricePerSqft(price, sqft) {
-  if (!price || !sqft || sqft === 0) return null;
-  return Math.round(price / sqft);
 }
