@@ -394,7 +394,7 @@ function InfoTip({ text }) {
    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}>
     <div onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.35)" }} />
     <div style={{ position: "relative", zIndex: 1, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14, padding: "18px 20px", fontSize: 13, lineHeight: 1.6, color: T.textSecondary, width: "min(280px, 85vw)", boxShadow: "0 8px 30px rgba(0,0,0,0.25)" }}>
-     <div style={{ fontSize: 13, lineHeight: 1.6 }}>{text}</div>
+     <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-line" }}>{text}</div>
      <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ marginTop: 12, width: "100%", padding: "10px 0", background: T.blue, border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", fontFamily: FONT }}>Got it</button>
     </div>
    </div>
@@ -475,10 +475,10 @@ function Sec({ title, color, children, action, onAction }) {
   {children}
  </>);
 }
-function MRow({ label, value, sub, color, bold, indent }) {
+function MRow({ label, value, sub, color, bold, indent, tip }) {
  return (<div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: indent ? "8px 0 8px 16px" : "10px 0", borderBottom: `1px solid ${T.separator}` }}>
   <span style={{ fontSize: bold ? 15 : 14, fontWeight: bold ? 600 : 400, color: bold ? T.text : T.textSecondary, fontFamily: FONT }}>
-   {label}{sub && <span style={{ color: T.textTertiary, fontSize: 12, marginLeft: 6 }}>{sub}</span>}
+   {label}{tip && <InfoTip text={tip} />}{sub && <span style={{ color: T.textTertiary, fontSize: 12, marginLeft: 6 }}>{sub}</span>}
   </span>
   <span style={{ fontSize: bold ? 16 : 15, fontWeight: 600, fontFamily: FONT, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
  </div>);
@@ -543,6 +543,7 @@ function PayRing({ segments, total }) {
     <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.c }} />
     <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
     <span style={{ fontSize: 12, color: T.text, fontFamily: FONT, fontWeight: 600 }}>{fmt(s.v)}</span>
+    {s.tip && <InfoTip text={s.tip} />}
    </div>))}
   </div>
  </div>);
@@ -731,14 +732,14 @@ const Haptics = {
 };
 
 // ── Tab Progression System ──
-const TAB_PROGRESSION = ["setup","calc","costs","qualify","debts","income","assets","tax","amort","learn","compare","summary"];
+const TAB_PROGRESSION = ["setup","calc","costs","qualify","income","debts","assets","tax","amort","learn","compare","summary"];
 const HOUSE_STAGES = [
  { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
  { tab: "calc", part: "Foundation", desc: "Concrete slab poured" },
  { tab: "costs", part: "Floor Framing", desc: "Joists & subfloor laid" },
  { tab: "qualify", part: "Wall Framing", desc: "Studs going up" },
- { tab: "debts", part: "Roof Trusses", desc: "Trusses set in place" },
- { tab: "income", part: "Exterior Walls", desc: "Sheathing applied" },
+ { tab: "income", part: "Roof Trusses", desc: "Trusses set in place" },
+ { tab: "debts", part: "Exterior Walls", desc: "Sheathing applied" },
  { tab: "assets", part: "Roof Shingles", desc: "Weather-tight!" },
  { tab: "tax", part: "Windows & Doors", desc: "Let there be light" },
  { tab: "amort", part: "Siding & Paint", desc: "Looking sharp" },
@@ -1000,6 +1001,8 @@ export default function MortgageBlueprint() {
  const [autoLockMin, setAutoLockMin] = useState(5);
  const [consentGiven, setConsentGiven] = useState(false);
  const [showClearConfirm, setShowClearConfirm] = useState(false);
+ const [showWelcome, setShowWelcome] = useState(() => { try { return !localStorage.getItem("mb_welcomed"); } catch { return true; } });
+ const [welcomeStep, setWelcomeStep] = useState(0);
  const [clearStep, setClearStep] = useState(0);
  const [showFredKey, setShowFredKey] = useState(false);
  const lastActivity = useRef(Date.now());
@@ -1019,7 +1022,30 @@ export default function MortgageBlueprint() {
  const [ppShowHometownSetup, setPpShowHometownSetup] = useState(false);
  const [ppHometownInput, setPpHometownInput] = useState("");
  const [ppLeaderboardFilter, setPpLeaderboardFilter] = useState("all"); // "all" | "agents" | "buyers"
+ const [ppPublicProfile, setPpPublicProfile] = useState(() => { try { const v = localStorage.getItem("pp-public"); return v === null ? true : v === "true"; } catch(e) { return true; } });
+ useEffect(() => { try { localStorage.setItem("pp-public", String(ppPublicProfile)); } catch(e){} }, [ppPublicProfile]);
+
+ // ── PricePoint XP & Leveling System ──
+ const PP_HOMES = [
+  { level: 1, name: "Studio Condo", icon: "🏢", req: 0 },
+  { level: 2, name: "1BR Condo", icon: "🏬", req: 50 },
+  { level: 3, name: "2BR Condo", icon: "🏙️", req: 150 },
+  { level: 4, name: "Townhouse", icon: "🏘️", req: 300 },
+  { level: 5, name: "Starter Home", icon: "🏠", req: 500 },
+  { level: 6, name: "3BR House", icon: "🏡", req: 800 },
+  { level: 7, name: "4BR House", icon: "🏡", req: 1200 },
+  { level: 8, name: "Craftsman", icon: "🪵", req: 1700 },
+  { level: 9, name: "Victorian", icon: "🏚️", req: 2400 },
+  { level: 10, name: "Modern Farmhouse", icon: "🌾", req: 3200 },
+  { level: 11, name: "Luxury Home", icon: "💎", req: 4200 },
+  { level: 12, name: "Estate", icon: "🏰", req: 5500 },
+  { level: 13, name: "Mega Mansion", icon: "👑", req: 7000 },
+ ];
  const [ppSearchZip, setPpSearchZip] = useState("");
+ const [ppPropertyDetails, setPpPropertyDetails] = useState({}); // cache: { zpid: { photos, description, loading, error } }
+ const [ppPhotoIdx, setPpPhotoIdx] = useState(0); // current photo index in carousel
+ const [ppDescExpanded, setPpDescExpanded] = useState(false);
+ const ppPhotoTouchRef = useRef({ startX: 0, startY: 0 });
  const [ppLiveActive, setPpLiveActive] = useState([]);
  const [ppLiveSold, setPpLiveSold] = useState([]);
  const [ppLoading, setPpLoading] = useState(false);
@@ -1044,6 +1070,7 @@ export default function MortgageBlueprint() {
  const ppViewIdx = PP_VIEWS.indexOf(ppView);
  const [salesPrice, setSalesPrice] = useState(1000000);
  const [downPct, setDownPct] = useState(20);
+ const [downMode, setDownMode] = useState("pct"); // "pct" or "dollar"
  const [rate, setRate] = useState(6.5);
  const [term, setTerm] = useState(30);
  const [loanType, setLoanType] = useState("Conventional");
@@ -2715,11 +2742,11 @@ export default function MortgageBlueprint() {
   return { data, breakEvenYear, yr5, yr10, yr30 };
  }, [rbCurrentRent, rbRentGrowth, rbInvestReturn, salesPrice, appreciationRate, calc]);
  const paySegs = [
-  { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal" },
-  { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest" },
-  ...(includeEscrow ? [{ v: calc.monthlyTax, c: T.orange, l: "Tax" }, { v: calc.ins, c: T.green, l: "Ins" }] : []),
-  { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI" },
-  { v: hoa, c: T.purple, l: "HOA" },
+  { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal", tip: "The portion of your payment that reduces your loan balance. This is equity you're building — like a forced savings account." },
+  { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest", tip: "The cost of borrowing money — this is the lender's profit. Early in the loan, most of your payment goes here. As you pay down the balance, this shrinks." },
+  ...(includeEscrow ? [{ v: calc.monthlyTax, c: T.orange, l: "Tax", tip: "Your annual property tax divided by 12 and collected monthly by your lender. In California, property tax is typically 1.1–1.25% of your home's assessed value." }, { v: calc.ins, c: T.green, l: "Insurance", tip: "Homeowner's insurance protects your home against fire, theft, and natural disasters. Lenders require it. Typical cost: $1,200–$3,000/year depending on location and coverage." }] : []),
+  { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. FHA MIP lasts the life of the loan — you'd need to refinance to remove it. Rate: 0.55% of loan amount annually." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
+  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues — a monthly fee for shared amenities and maintenance in condos, townhomes, and planned communities. Covers things like landscaping, pool, gym, exterior maintenance, and building insurance." },
  ];
  const TAB_DESC = {
   setup: "Start here — enter the subject property address and zip code to auto-fill tax rates and transfer taxes, then set your borrower profile.",
@@ -2736,8 +2763,8 @@ export default function MortgageBlueprint() {
   invest: "Analyze rental properties — cash flow, cap rate, cash-on-cash return, and break-even rent to evaluate investment deals.",
   rentvbuy: "Compare the true cost of renting vs. buying over time, including tax savings, equity buildup, and appreciation.",
   learn: "Interactive courses that teach you how mortgages work — from credit scores to closing day. Earn badges as you complete each module.",
-  compare: "Side-by-side comparison of all your saved scenarios — payment, cash to close, DTI, total interest, and more.",
-  summary: "Share your mortgage scenario via email or PDF — or apply now to start your loan application with your loan officer.",
+  compare: "Side-by-side comparison of all your saved loan options — payment, cash to close, DTI, total interest, and more.",
+  summary: "Share your loan estimate via email or PDF — or get pre-approved to start your loan application with your loan officer.",
   refi: "Compare your current loan to a new refinance — monthly savings, breakeven timeline, and total interest comparison.",
   refi3: "The 3-point refinance test — does the new loan save money, break even fast enough, and accelerate your payoff?",
   settings: "Customize your experience — PIN lock, privacy mode, theme, and data management.",
@@ -2902,12 +2929,18 @@ export default function MortgageBlueprint() {
    setPpGuesses(prev => [...prev, newGuess]);
    setPpGuessInput("");
    setPpCardAnim("");
+   setPpPhotoIdx(0);
+   setPpDescExpanded(false);
    if (isSold) {
     // Instant reveal for sold listings
     setPpShowReveal(newGuess);
     setTimeout(() => setPpRevealAnim(true), 50);
+    // Show XP notification for sold
+    const pctOff = Math.abs((val - ppCurrentListing.soldPrice) / ppCurrentListing.soldPrice) * 100;
+    const bonus = pctOff <= 1 ? 50 : pctOff <= 2 ? 40 : pctOff <= 5 ? 25 : pctOff <= 10 ? 15 : 0;
+    setTimeout(() => { setPpNotif(`+${10 + bonus} XP earned!${bonus > 0 ? ` 🎯 ${pctOff.toFixed(1)}% accuracy bonus` : ""}`); setTimeout(() => setPpNotif(null), 3000); }, 2000);
    } else {
-    setPpNotif(`Locked in ${ppFmt(val)} for ${ppCurrentListing.address}`);
+    setPpNotif(`Locked in ${ppFmt(val)} — +10 XP`);
     setTimeout(() => setPpNotif(null), 3000);
    }
   }, 400);
@@ -2924,7 +2957,32 @@ export default function MortgageBlueprint() {
  };
  const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
  const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
- const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+ const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+
+ // Fetch property details (photos + description) on demand
+ const ppFetchDetails = async (zpid) => {
+  if (!zpid || ppPropertyDetails[zpid]?.photos || ppPropertyDetails[zpid]?.loading) return;
+  setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: true, photos: [], description: "", error: null } }));
+  try {
+   const resp = await fetch(`/api/propertydetails?zpid=${zpid}`);
+   if (!resp.ok) throw new Error(`API ${resp.status}`);
+   const data = await resp.json();
+   if (data.error) throw new Error(data.error);
+   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: data.photos || [], description: data.description || "", error: null } }));
+  } catch (err) {
+   console.error("Detail fetch error:", err);
+   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: [], description: "", error: err.message } }));
+  }
+ };
+
+ // Auto-fetch details when current listing changes
+ useEffect(() => {
+  if (ppCurrentListing?.zpid && ppDataSource === "live") {
+   ppFetchDetails(ppCurrentListing.zpid);
+   setPpPhotoIdx(0);
+   setPpDescExpanded(false);
+  }
+ }, [ppCurrentListing?.zpid]);
 
  const ppRevealed = ppGuesses.filter(g => g.revealed && g.soldPrice);
  const ppCompGuesses = ppGuesses.filter(g => !g.isSoldMode);
@@ -2959,10 +3017,50 @@ export default function MortgageBlueprint() {
  let ppBestStreak = 0, ppTs = 0;
  for (const g of ppRevealed) { if (parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 5) { ppTs++; ppBestStreak = Math.max(ppBestStreak, ppTs); } else ppTs = 0; }
 
+ // ── XP & Level System ──
+ const ppCalcXP = (guesses) => {
+  let xp = 0;
+  guesses.forEach(g => {
+   xp += 10; // base XP per guess
+   if (g.revealed && g.soldPrice) {
+    const pct = Math.abs((g.guess - g.soldPrice) / g.soldPrice) * 100;
+    if (pct <= 1) xp += 50;      // Bullseye
+    else if (pct <= 2) xp += 40;  // Sharpshooter
+    else if (pct <= 5) xp += 25;  // On target
+    else if (pct <= 10) xp += 15; // Close
+   }
+  });
+  // Streak bonus
+  xp += ppBestStreak * 5;
+  return xp;
+ };
+ const ppXP = ppCalcXP(ppGuesses);
+ const ppCurrentHome = [...PP_HOMES].reverse().find(h => ppXP >= h.req) || PP_HOMES[0];
+ const ppNextHome = PP_HOMES.find(h => h.req > ppXP);
+ const ppLevel = ppCurrentHome.level;
+ const ppXPtoNext = ppNextHome ? ppNextHome.req - ppXP : 0;
+ const ppLevelProgress = ppNextHome ? (ppXP - ppCurrentHome.req) / (ppNextHome.req - ppCurrentHome.req) : 1;
+
+ // ── Badges ──
+ const ppBadges = [];
+ if (ppGuesses.length >= 1) ppBadges.push({ id: "first", icon: "🎯", name: "First Guess", desc: "Made your first guess" });
+ if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 1)) ppBadges.push({ id: "bullseye", icon: "🎪", name: "Bullseye", desc: "Within 1% of sold price" });
+ if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 2)) ppBadges.push({ id: "sharp", icon: "🏹", name: "Sharpshooter", desc: "Within 2% of sold price" });
+ if (ppBestStreak >= 3) ppBadges.push({ id: "streak3", icon: "🔥", name: "On Fire", desc: "3+ streak within 5%" });
+ if (ppBestStreak >= 5) ppBadges.push({ id: "streak5", icon: "💥", name: "Blazing", desc: "5+ streak within 5%" });
+ if (ppGuesses.length >= 10) ppBadges.push({ id: "ten", icon: "🔟", name: "Getting Started", desc: "10 total guesses" });
+ if (ppGuesses.length >= 25) ppBadges.push({ id: "twentyfive", icon: "📊", name: "Market Watcher", desc: "25 total guesses" });
+ if (ppGuesses.length >= 50) ppBadges.push({ id: "fifty", icon: "🧠", name: "Market Expert", desc: "50 total guesses" });
+ if (ppGuesses.length >= 100) ppBadges.push({ id: "hundred", icon: "👑", name: "Legend", desc: "100 total guesses" });
+ if (ppLevel >= 5) ppBadges.push({ id: "homeowner", icon: "🏠", name: "Homeowner", desc: "Reached Level 5" });
+ if (ppLevel >= 10) ppBadges.push({ id: "mogul", icon: "🌾", name: "Property Mogul", desc: "Reached Level 10" });
+ if (ppLevel >= 13) ppBadges.push({ id: "mansion", icon: "👑", name: "Mega Mansion", desc: "Reached max level" });
+ if (ppAvgDiff !== "—" && parseFloat(ppAvgDiff) <= 5 && ppRevealed.length >= 5) ppBadges.push({ id: "consistent", icon: "⚡", name: "Consistent", desc: "Under 5% avg with 5+ reveals" });
+
  const PP_LEADERBOARD_ALL = [
   { name:"Sarah K.",role:"Agent · Compass",category:"agent",avgDiff:2.1,streak:7,guesses:34,badge:"🎯" },
   { name:"Mike T.",role:"Lender · First Republic",category:"agent",avgDiff:3.4,streak:4,guesses:28,badge:"🔥" },
-  { name:"You",role:"Lender",category:"agent",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge:"📊" },
+  { name: ppPublicProfile ? "You" : "Anonymous", role:"Lender",category:"agent",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge: PP_HOMES[[...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) >= 0 ? PP_HOMES.length - 1 - [...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) : 0]?.icon || "🏢", isYou: true },
   { name:"Jessica R.",role:"Agent · Coldwell Banker",category:"agent",avgDiff:4.8,streak:2,guesses:41,badge:"⭐" },
   { name:"Rachel M.",role:"Agent · KW",category:"agent",avgDiff:5.6,streak:3,guesses:22,badge:"" },
   { name:"Tom W.",role:"Lender · Chase",category:"agent",avgDiff:6.2,streak:1,guesses:15,badge:"" },
@@ -2975,12 +3073,12 @@ export default function MortgageBlueprint() {
  ].sort((a,b) => a.avgDiff === 99 ? 1 : b.avgDiff === 99 ? -1 : a.avgDiff - b.avgDiff);
 
  const PP_LEADERBOARD = ppLeaderboardFilter === "all" ? PP_LEADERBOARD_ALL
-  : ppLeaderboardFilter === "agents" ? PP_LEADERBOARD_ALL.filter(p => p.category === "agent" || p.name === "You")
-  : PP_LEADERBOARD_ALL.filter(p => p.category === "buyer" || p.name === "You");
+  : ppLeaderboardFilter === "agents" ? PP_LEADERBOARD_ALL.filter(p => p.category === "agent" || p.isYou)
+  : PP_LEADERBOARD_ALL.filter(p => p.category === "buyer" || p.isYou);
 
  const TABS = [["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
-  ["costs","Costs"],["qualify","Qualify"],["debts","Debts"],["income","Income"],["assets","Assets"],
+  ["costs","Costs"],["qualify","Qualify"],["income","Income"],["debts","Debts"],["assets","Assets"],
   ...(ownsProperties ? [["reo","REO"]] : []),
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
@@ -3082,6 +3180,45 @@ export default function MortgageBlueprint() {
     </button>
    </div>
   </div>}
+  {/* ═══ WELCOME TUTORIAL ═══ */}
+  {showWelcome && consentGiven && !isLocked && (() => {
+   const steps = [
+    { emoji: "🏠", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool — designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
+    { emoji: "🧭", title: "How to Navigate", body: "Follow the tabs left to right — each one builds on the last:\n\n📋 Setup — Enter property details\n🧮 Calculator — See your monthly payment\n💰 Costs — Full closing cost breakdown\n✅ Qualify — Check if you're approved\n💵 Income → Debts → Assets — Your full financial picture\n📈 Tax Savings → Amortization — See the long game", color: T.cyan },
+    { emoji: "📖", title: "Quick Glossary", body: "Some terms you'll see:\n\n• Conventional — A standard loan (not government-backed). Most common type.\n• FHA — Government-backed loan with lower down payment (3.5%).\n• VA — Zero-down loan for military veterans.\n• LTV — Loan-to-Value ratio. Below 80% means no PMI.\n• PMI — Mortgage insurance when you put less than 20% down.\n• DTI — Debt-to-Income ratio. Lenders want this below 43-50%.\n\nTap any ⓘ icon throughout the app for more detail.", color: T.orange },
+    { emoji: "📊", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios — try different prices, rates, or loan types — then compare them side-by-side on the Compare tab to find your best fit.", color: T.green },
+    { emoji: "🚀", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time — change anything and watch the whole picture update instantly.", color: T.green },
+    { emoji: "🎯", title: "Bonus: PricePoint", body: "Think you know your local market? PricePoint pulls real listings from your area and challenges you to guess the price.\n\nSwipe through photos, read the MLS description, and lock in your guess — then see how close you were. Earn XP, level up from Studio Condo to Mega Mansion, and unlock achievement badges along the way.\n\nFind it in the top-right corner of the app.", color: T.purple },
+   ];
+   const step = steps[welcomeStep];
+   return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+     <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative" }}>
+      <span onClick={() => { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }} style={{ position: "absolute", top: 16, right: 20, fontSize: 12, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, opacity: 0.6 }}>Skip</span>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>{step.emoji}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>{step.title}</div>
+      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 24, whiteSpace: "pre-line", textAlign: "left" }}>{step.body}</div>
+      {/* Progress dots */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+       {steps.map((_, i) => (
+        <div key={i} style={{ width: i === welcomeStep ? 24 : 8, height: 8, borderRadius: 4, background: i === welcomeStep ? step.color : T.ringTrack, transition: "all 0.3s" }} />
+       ))}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+       {welcomeStep > 0 && (
+        <button onClick={() => setWelcomeStep(s => s - 1)} style={{ flex: 1, padding: "14px 0", background: T.inputBg, border: "none", borderRadius: 14, color: T.textSecondary, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Back</button>
+       )}
+       <button onClick={() => {
+        if (welcomeStep < steps.length - 1) { setWelcomeStep(s => s + 1); }
+        else { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }
+       }} style={{ flex: 2, padding: "14px 0", background: step.color, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>
+        {welcomeStep < steps.length - 1 ? "Next" : "Let's Go!"}
+       </button>
+      </div>
+     </div>
+    </div>
+   );
+  })()}
   {/* ═══ LOCK SCREEN ═══ */}
   {isLocked && consentGiven && <div style={{ position: "fixed", inset: 0, background: T.bg, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
@@ -3252,12 +3389,12 @@ export default function MortgageBlueprint() {
  {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
  {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note>}
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
-  {[{ l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory },
-   { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down` },
-   { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green }
+  {[{ l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee). This is what you're borrowing from the lender." },
+   { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. LTV determines mortgage insurance requirements and pricing. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
+   { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor). This is the check you bring to the closing table." }
   ].map((m, i) => (
    <Card key={i} pad={14}>
-    <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4 }}>{m.l}</div>
+    <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
     <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
     {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
    </Card>
@@ -3271,7 +3408,26 @@ export default function MortgageBlueprint() {
    <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-   <Inp label="Down %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} sm req tip="The percentage of the purchase price you pay upfront. Lower down payment = higher loan amount and possibly mortgage insurance." />
+   <div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+      Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+      <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
+     </div>
+     <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
+      <button onClick={() => setDownMode("pct")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
+      <button onClick={() => setDownMode("dollar")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
+     </div>
+    </div>
+    {downMode === "pct" ? (
+     <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} sm req />
+    ) : (
+     <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} sm req />
+    )}
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 10 }}>
+     {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+    </div>
+   </div>
    <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req tip="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
   </div>
   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
@@ -3307,7 +3463,7 @@ export default function MortgageBlueprint() {
   </>)}
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
    <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[{value:30,label:"30 Year"},{value:25,label:"25 Year"},{value:20,label:"20 Year"},{value:15,label:"15 Year"},{value:10,label:"10 Year"}]} sm req tip="Loan length. Shorter terms have lower rates and less total interest but higher monthly payments." />
-   <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} sm req tip="Your loan program. Each has different rules for down payment, credit score, and maximum DTI. VA and FHA are government-backed." />
+   <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} sm req tip="Conventional — Standard loan, best rates with 20%+ down & 740+ FICO. PMI drops at 80% LTV.\n\nFHA — Government-backed, 3.5% down, 580+ score. Great for first-time buyers with limited savings.\n\nVA — For veterans/active military. 0% down, no PMI, best rates available.\n\nJumbo — For loans above conforming limits ($766K+). Higher rates, 20% down, stricter requirements.\n\nUSDA — 0% down for eligible rural/suburban areas. Income limits apply." />
    {loanType === "VA" && <Sel label="VA Usage" value={vaUsage} onChange={setVaUsage} options={VA_USAGE.map(v => ({value:v,label:v === "First Use" ? "First Use (2.15%)" : v === "Subsequent" ? "Subsequent (3.3%)" : "Disabled (0%)"}))} sm />}
   </div>
   {autoJumboSwitch && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: `${T.orange}12`, borderRadius: 10, marginTop: -4, marginBottom: 8 }}>
@@ -4344,7 +4500,7 @@ export default function MortgageBlueprint() {
  <Sec title="Monthly Breakdown">
   <Card>
    {paySegs.filter(s => s.v > 0).map((s, i) => (
-    <MRow key={i} label={s.l} value={fmt(s.v)} color={s.c} />
+    <MRow key={i} label={s.l} value={fmt(s.v)} color={s.c} tip={s.tip} />
    ))}
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total" value={fmt(calc.displayPayment)} bold />
@@ -4396,10 +4552,20 @@ export default function MortgageBlueprint() {
   <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>📄 Print PDF</button>
  </div>
  {loanOfficer && (
-  <a href={`https://www.arive.com/apply?lo=${encodeURIComponent(loEmail || "")}`} target="_blank" rel="noopener noreferrer"
-   style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: T.green, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", marginBottom: 12, letterSpacing: "0.02em" }}>
-   🚀 Apply Now
-  </a>
+  <div style={{ marginBottom: 12 }}>
+   <a href={`https://www.arive.com/apply?lo=${encodeURIComponent(loEmail || "")}`} target="_blank" rel="noopener noreferrer"
+    style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
+    🚀 Get Pre-Approved Now
+   </a>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
+    {[["⚡", "24hr turnaround"], ["🔒", "No hard credit pull"], ["💬", "Direct LO access"]].map(([icon, text], i) => (
+     <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
+      <div style={{ fontSize: 16, marginBottom: 2 }}>{icon}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
+     </div>
+    ))}
+   </div>
+  </div>
  )}
  {!loanOfficer && (
   <div style={{ padding: "12px 16px", background: T.warningBg, borderRadius: 12, marginBottom: 12 }}>
@@ -4581,7 +4747,7 @@ export default function MortgageBlueprint() {
   <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
    <div>
     <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>📊 Compare tab available!</div>
-    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>You have {scenarioList.length} scenarios. View them side-by-side.</div>
+    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>You have {scenarioList.length} loan options. View them side-by-side.</div>
    </div>
    <div style={{ display: "flex", gap: 6 }}>
     <button onClick={() => { setTab("compare"); setShowCompareHint(false); }} style={{ background: T.green, color: "#FFF", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Compare</button>
@@ -4830,10 +4996,11 @@ export default function MortgageBlueprint() {
  )}
 
  {/* ── Scenarios ── */}
- <Sec title="Scenarios" action="+ New" onAction={() => setNewScenarioName("New Scenario")}>
+ <Sec title="Loan Options" action="+ New" onAction={() => setNewScenarioName("New Scenario")}>
+  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: -8, marginBottom: 10 }}>Save & compare different loan options — try different prices, rates, or loan types to see which works best for you.</div>
   {newScenarioName !== "" && (
    <Card>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Scenario</div>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Loan Option</div>
     <TextInp label="Name" value={newScenarioName} onChange={setNewScenarioName} placeholder="e.g. 3BR Condo Oakland" />
     <div style={{ display: "flex", gap: 8 }}>
      <button onClick={() => createScenario(newScenarioName)} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Create</button>
@@ -4843,10 +5010,10 @@ export default function MortgageBlueprint() {
   )}
   {scenarioList.map((name) => (
    <Card key={name} onClick={() => name !== scenarioName && editingScenarioName !== name ? switchScenario(name) : null}
-    style={{ border: name === scenarioName ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
+    style={{ border: `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
     {editingScenarioName === name ? (
      <div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Scenario</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Loan Option</div>
       <input value={editScenarioValue} onChange={e => setEditScenarioValue(e.target.value)}
        onKeyDown={e => { if (e.key === "Enter") { renameScenario(name, editScenarioValue); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
        autoFocus
@@ -4859,7 +5026,7 @@ export default function MortgageBlueprint() {
     ) : (
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div style={{ flex: 1 }}>
-       <div style={{ fontSize: 15, fontWeight: 600, color: name === scenarioName ? T.blue : T.text }}>{name}</div>
+       <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{name}</div>
        {name === scenarioName && <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active</div>}
       </div>
       {name === scenarioName && (
@@ -4875,7 +5042,7 @@ export default function MortgageBlueprint() {
   ))}
   {scenarioList.length > 1 && (
    <button onClick={() => setTab("compare")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 12, padding: "12px 0", cursor: "pointer", marginTop: 4 }}>
-    <span style={{ fontSize: 14, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length} Scenarios Side-by-Side</span>
+    <span style={{ fontSize: 14, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length} Loan Options Side-by-Side</span>
    </button>
   )}
  </Sec>
@@ -6092,7 +6259,7 @@ export default function MortgageBlueprint() {
 </>)}
 {tab === "compare" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value="📊" label="Scenario Comparison" color={T.blue} sub={`${compareData.length} scenario${compareData.length !== 1 ? "s" : ""}`} />
+  <Hero value="📊" label="Side-by-Side Comparison" color={T.blue} sub={`${compareData.length} loan option${compareData.length !== 1 ? "s" : ""}`} />
  </div>
  {compareLoading ? (
   <Card><div style={{ textAlign: "center", padding: 20, color: T.textSecondary }}>Loading scenarios...</div></Card>
@@ -6100,8 +6267,8 @@ export default function MortgageBlueprint() {
   <Card>
    <div style={{ textAlign: "center", padding: 30 }}>
     <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-    <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>Create More Scenarios to Compare</div>
-    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>Go to Setup → Scenarios to create additional scenarios, then come back here to see them side-by-side.</div>
+    <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>Create More Loan Options to Compare</div>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>Go to Setup → Loan Options to create additional scenarios with different prices, rates, or loan types — then come back here to see them side-by-side.</div>
     <button onClick={() => setTab("setup")} style={{ background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Go to Setup</button>
    </div>
   </Card>
@@ -6285,6 +6452,22 @@ export default function MortgageBlueprint() {
   <Card style={{ marginTop: 8, padding: 14 }}>
    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, textAlign: "center" }}>💡 Current scenario metrics use exact calculations. Other scenarios use simplified estimates for quick comparison. Switch to a scenario in Setup for full detail.</div>
   </Card>
+  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+   <button onClick={() => { setNewScenarioName("New Scenario"); setTab("setup"); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+    <span style={{ fontSize: 18 }}>+</span> Build Another Scenario
+   </button>
+   <button onClick={() => duplicateScenario()} style={{ background: `${T.blue}12`, color: T.blue, border: `1px solid ${T.blue}25`, borderRadius: 14, padding: "14px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
+    Duplicate Current
+   </button>
+  </div>
+  {/* Build Another Scenario CTA */}
+  <Card style={{ marginTop: 12, background: `${T.blue}08`, border: `1px solid ${T.blue}22` }}>
+   <div style={{ textAlign: "center", padding: "8px 0" }}>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 6 }}>Want to explore more options?</div>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>Create another loan option to compare — try a different price, rate, or loan type.</div>
+    <button onClick={() => { setNewScenarioName("New Option"); setTab("setup"); }} style={{ background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>+ Build Another Option</button>
+   </div>
+  </Card>
  </>)}
 </>)}
 {tab === "settings" && (<>
@@ -6413,6 +6596,11 @@ export default function MortgageBlueprint() {
      </div>
     )}
    </div>
+   <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
+    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Welcome Tutorial</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Replay the intro walkthrough for new users</div>
+    <button onClick={() => { setWelcomeStep(0); setShowWelcome(true); }} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>🧭 Replay Tutorial</button>
+   </div>
    <div style={{ padding: "12px 0" }}>
     <div style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 4 }}>Danger Zone</div>
     <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Permanently delete all scenarios, borrower data, and preferences</div>
@@ -6486,6 +6674,10 @@ export default function MortgageBlueprint() {
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
        {ppHometown && <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>📍 {ppHometown.label}</button>}
        <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>🔥 {ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
+       <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 10, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
+        <span style={{ fontSize: 16 }}>{ppCurrentHome.icon}</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</span>
+       </div>
       </div>
      </div>
 
@@ -6638,7 +6830,62 @@ export default function MortgageBlueprint() {
         <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
           <div style={{ position: "relative" }}>
-           <img src={ppCurrentListing.photo} alt="" style={{ width:"100%", height:200, objectFit:"cover", borderRadius: 16, border: `1px solid ${T.cardBorder}` }} onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+           {/* Photo Carousel */}
+           {(() => {
+            const det = ppPropertyDetails[ppCurrentListing.zpid];
+            const hasPhotos = det?.photos?.length > 1;
+            const photos = hasPhotos ? det.photos : [ppCurrentListing.photo];
+            const idx = Math.min(ppPhotoIdx, photos.length - 1);
+            return (
+             <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}` }}
+              onTouchStart={e => { ppPhotoTouchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }; }}
+              onTouchEnd={e => {
+               const dx = e.changedTouches[0].clientX - ppPhotoTouchRef.current.startX;
+               const dy = e.changedTouches[0].clientY - ppPhotoTouchRef.current.startY;
+               if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                e.stopPropagation();
+                if (dx < 0 && idx < photos.length - 1) setPpPhotoIdx(idx + 1);
+                if (dx > 0 && idx > 0) setPpPhotoIdx(idx - 1);
+               }
+              }}>
+              <img src={photos[idx]} alt="" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }}
+               onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+              {/* Dot indicators */}
+              {hasPhotos && (
+               <div style={{ position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, background:"rgba(0,0,0,0.4)", borderRadius:10, padding:"4px 8px" }}>
+                {photos.length <= 15 ? photos.map((_,i) => (
+                 <div key={i} onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(i); }}
+                  style={{ width: i===idx ? 8 : 5, height: 5, borderRadius: 3, background: i===idx ? "#fff" : "rgba(255,255,255,0.4)", transition:"all 0.2s", cursor:"pointer" }} />
+                )) : (
+                 <span style={{ fontSize:10, color:"#fff", fontWeight:600 }}>{idx+1} / {photos.length}</span>
+                )}
+               </div>
+              )}
+              {/* Left/right tap zones (desktop fallback) */}
+              {hasPhotos && idx > 0 && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx-1); }}
+                style={{ position:"absolute", left:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
+              )}
+              {hasPhotos && idx < photos.length - 1 && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx+1); }}
+                style={{ position:"absolute", right:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
+              )}
+              {/* Left/right arrows on hover */}
+              {hasPhotos && idx > 0 && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx-1); }}
+                style={{ position:"absolute", left:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>‹</div>
+              )}
+              {hasPhotos && idx < photos.length - 1 && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx+1); }}
+                style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>›</div>
+              )}
+              {/* Loading shimmer for photos */}
+              {det?.loading && (
+               <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.5)", borderRadius:8, padding:"4px 8px", fontSize:10, color:"#fff" }}>Loading photos...</div>
+              )}
+             </div>
+            );
+           })()}
            {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}>🏷️ Sold</div>}
           </div>
           <div style={{ padding: "14px 0 0" }}>
@@ -6652,6 +6899,35 @@ export default function MortgageBlueprint() {
              </div>
             ))}
            </div>
+           {/* MLS Description */}
+           {(() => {
+            const det = ppPropertyDetails[ppCurrentListing.zpid];
+            const desc = det?.description;
+            if (!desc) return null;
+            // Strip dollar amounts from description to avoid giving away price
+            const cleanDesc = desc.replace(/\$[\d,]+(?:\.\d{2})?/g, "$***").replace(/(?:priced?|offered?|asking|listed?|sold?)\s+(?:at|for)\s+\$?[\d,]+/gi, "").trim();
+            const isLong = cleanDesc.length > 150;
+            const shown = isLong && !ppDescExpanded ? cleanDesc.slice(0, 150).replace(/\s+\S*$/, "…") : cleanDesc;
+            return (
+             <div style={{ marginBottom: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 12, borderLeft: `3px solid ${T.blue}40` }}>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: T.textSecondary }}>{shown}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+               {isLong && (
+                <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
+                 style={{ background:"none", border:"none", color:T.blue, fontSize:11, fontWeight:600, cursor:"pointer", padding:0, fontFamily:FONT }}>
+                 {ppDescExpanded ? "Show less" : "Read more"}
+                </button>
+               )}
+               {ppCurrentListing.detailUrl && (
+                <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
+                 style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:0, fontFamily:FONT, marginLeft:"auto" }}>
+                 View on Zillow ↗
+                </button>
+               )}
+              </div>
+             </div>
+            );
+           })()}
            <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
             <div style={{ flex: 1 }}>
              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
@@ -6772,8 +7048,8 @@ export default function MortgageBlueprint() {
         {PP_LEADERBOARD.map((p,i) => (
          <div key={i} style={{
           display:"flex", alignItems:"center", padding:"14px 16px", borderRadius:14,
-          background: p.name === "You" ? "rgba(56,189,126,0.06)" : T.card,
-          border: `1px solid ${p.name === "You" ? "rgba(56,189,126,0.2)" : T.cardBorder}`,
+          background: p.isYou ? "rgba(56,189,126,0.06)" : T.card,
+          border: `1px solid ${p.isYou ? "rgba(56,189,126,0.2)" : T.cardBorder}`,
           marginBottom:8,
          }}>
           <div style={{
@@ -6783,10 +7059,10 @@ export default function MortgageBlueprint() {
            color: i<3 ? "#fff" : T.textTertiary, marginRight:12, flexShrink:0,
           }}>{i+1}</div>
           <div style={{ flex:1 }}>
-           <div style={{ fontSize:14, fontWeight:600, color: p.name === "You" ? "#38bd7e" : T.text }}>{p.name} {p.badge}</div>
+           <div style={{ fontSize:14, fontWeight:600, color: p.isYou ? "#38bd7e" : T.text }}>{p.name} {p.badge}</div>
            <div style={{ fontSize:11, color:T.textTertiary }}>{p.role} · {p.guesses} guesses · 🔥{p.streak}</div>
           </div>
-          <div style={{ fontSize:20, fontWeight:800, color: p.name === "You" ? "#38bd7e" : T.text }}>
+          <div style={{ fontSize:20, fontWeight:800, color: p.isYou ? "#38bd7e" : T.text }}>
            {p.avgDiff === 99 ? "—" : p.avgDiff + "%"}
           </div>
          </div>
@@ -6797,9 +7073,86 @@ export default function MortgageBlueprint() {
       {/* ── PP STATS VIEW ── */}
       {ppView === "stats" && (
        <div style={{ animation: "ppFadeIn 0.3s ease" }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 16 }}>Your Stats</div>
 
-        {/* Competition Stats */}
+        {/* ── My Home (Progression) ── */}
+        <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: "1px solid rgba(56,189,126,0.2)", borderRadius: 22, padding: "20px 18px", marginBottom: 14 }}>
+         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div>
+           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "#38bd7e", textTransform: "uppercase" }}>MY HOME</div>
+           <div style={{ fontSize: 20, fontWeight: 800, color: T.text, marginTop: 2 }}>{ppCurrentHome.icon} {ppCurrentHome.name}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+           <div style={{ fontSize: 28, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</div>
+           <div style={{ fontSize: 11, color: T.textTertiary }}>{ppXP} XP</div>
+          </div>
+         </div>
+         {ppNextHome && (
+          <div>
+           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.textTertiary, marginBottom: 4 }}>
+            <span>{ppCurrentHome.name}</span>
+            <span>{ppNextHome.icon} {ppNextHome.name} — {ppXPtoNext} XP to go</span>
+           </div>
+           <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${Math.max(ppLevelProgress * 100, 2)}%`, background: "linear-gradient(90deg, #38bd7e, #2d9d68)", borderRadius: 4, transition: "width 0.5s ease" }} />
+           </div>
+          </div>
+         )}
+         {!ppNextHome && (
+          <div style={{ fontSize: 13, color: "#38bd7e", fontWeight: 600, textAlign: "center", padding: "8px 0" }}>👑 MAX LEVEL — You own the Mega Mansion!</div>
+         )}
+        </div>
+
+        {/* ── How XP Works ── */}
+        <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 14 }}>
+         <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>How You Earn XP</div>
+         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {[["Any guess","+10 XP","#888"],["Within 10%","+15 bonus","#aaa"],["Within 5%","+25 bonus",T.blue],["Within 2%","+40 bonus","#38bd7e"],["Bullseye (1%)","+50 bonus","#e8c84d"],["Best streak","×5 per",T.orange]].map(([l,v,c],i) => (
+           <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0" }}>
+            <span style={{ color: T.textTertiary }}>{l}</span>
+            <span style={{ color: c, fontWeight: 700 }}>{v}</span>
+           </div>
+          ))}
+         </div>
+        </div>
+
+        {/* ── Badges ── */}
+        <div style={{ marginBottom: 14 }}>
+         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>🏅 Badges</span>
+          <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>{ppBadges.length} earned</span>
+         </div>
+         {ppBadges.length === 0 ? (
+          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px 16px", textAlign: "center" }}>
+           <div style={{ fontSize: 32, marginBottom: 6 }}>🎯</div>
+           <div style={{ fontSize: 13, color: T.textTertiary }}>Make your first guess to earn badges!</div>
+          </div>
+         ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+           {ppBadges.map(b => (
+            <div key={b.id} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+             <div style={{ fontSize: 26 }}>{b.icon}</div>
+             <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginTop: 4 }}>{b.name}</div>
+             <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{b.desc}</div>
+            </div>
+           ))}
+          </div>
+         )}
+        </div>
+
+        {/* ── Public/Private Toggle ── */}
+        <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 14 }}>
+         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+           <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Public Profile</div>
+           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{ppPublicProfile ? "Your name & stats visible on leaderboard" : "Showing as Anonymous on leaderboard"}</div>
+          </div>
+          <div onClick={() => setPpPublicProfile(!ppPublicProfile)} style={{ width: 48, height: 28, borderRadius: 14, background: ppPublicProfile ? "#38bd7e" : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+           <div style={{ width: 24, height: 24, borderRadius: 12, background: "#fff", transform: ppPublicProfile ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+          </div>
+         </div>
+        </div>
+
+        {/* ── Competition Stats ── */}
         <div style={{ fontSize: 13, fontWeight: 700, color: "#38bd7e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
          <span>🏆 Competition</span>
          <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>counts toward leaderboard</span>
@@ -6856,6 +7209,30 @@ export default function MortgageBlueprint() {
           </div>
          </div>
         )}
+
+        {/* ── Home Progression Roadmap ── */}
+        <div style={{ marginTop: 4, marginBottom: 14 }}>
+         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10 }}>🏘️ Home Roadmap</div>
+         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "12px 14px" }}>
+          {PP_HOMES.map((h, i) => {
+           const unlocked = ppXP >= h.req;
+           const isCurrent = h.level === ppLevel;
+           return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < PP_HOMES.length - 1 ? `1px solid ${T.separator}` : "none", opacity: unlocked ? 1 : 0.35 }}>
+             <div style={{ fontSize: 22, width: 32, textAlign: "center" }}>{h.icon}</div>
+             <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#38bd7e" : unlocked ? T.text : T.textTertiary }}>
+               {h.name} {isCurrent && <span style={{ fontSize: 10, background: "rgba(56,189,126,0.15)", color: "#38bd7e", borderRadius: 6, padding: "1px 6px", marginLeft: 4 }}>YOU</span>}
+              </div>
+              <div style={{ fontSize: 10, color: T.textTertiary }}>Level {h.level} · {h.req} XP</div>
+             </div>
+             {unlocked && <div style={{ fontSize: 14, color: "#38bd7e" }}>✓</div>}
+             {!unlocked && <div style={{ fontSize: 10, color: T.textTertiary }}>🔒</div>}
+            </div>
+           );
+          })}
+         </div>
+        </div>
 
         {ppGuesses.length > 0 && (
          <button onClick={ppResetAll} style={{ width:"100%", padding:14, borderRadius:14, border:`1px solid rgba(232,93,93,0.2)`, background:"rgba(232,93,93,0.08)", color:"#e85d5d", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:10 }}>Reset All Data</button>
