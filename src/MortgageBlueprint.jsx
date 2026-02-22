@@ -2338,6 +2338,38 @@ export default function MortgageBlueprint() {
   }
   const stateSavings = stateTaxBefore - stateTaxAfter;
   const totalTaxSavings = Math.max(0, fedSavings) + Math.max(0, stateSavings);
+  // ── Delta Analysis (Chris's CPA explanation) ──
+  const fedDelta = Math.max(0, fedItemized - fedStdDeduction);
+  const fedItemizes = fedItemized > fedStdDeduction;
+  const stateDelta = Math.max(0, stateItemized - stStdDeduction);
+  const stateItemizes = stateItemized > stStdDeduction;
+  // Bracket waterfall — show which brackets the delta comes off of, top-down
+  const bracketWaterfall = (income, delta, brackets) => {
+   if (delta <= 0 || income <= 0) return [];
+   const taxableBeforeDelta = income; // income after std deduction already applied
+   const result = [];
+   let remaining = delta;
+   // Walk brackets from top down
+   for (let i = brackets.length - 1; i >= 0 && remaining > 0; i--) {
+    const b = brackets[i];
+    const bMax = b.max === Infinity || b.max === null ? taxableBeforeDelta : Math.min(b.max, taxableBeforeDelta);
+    if (taxableBeforeDelta <= b.min) continue;
+    const incomeInBracket = bMax - b.min;
+    const taxableInThisBracket = Math.min(remaining, Math.max(0, taxableBeforeDelta - b.min), incomeInBracket);
+    if (taxableInThisBracket <= 0) continue;
+    result.push({ rate: b.rate, amount: taxableInThisBracket, savings: taxableInThisBracket * b.rate });
+    remaining -= taxableInThisBracket;
+   }
+   return result;
+  };
+  const fedTaxableBeforeDelta = Math.max(0, yearlyInc - fedStdDeduction);
+  const fedWaterfall = bracketWaterfall(fedTaxableBeforeDelta, fedDelta, fedBrackets);
+  const stTaxableBeforeDelta = Math.max(0, yearlyInc - stStdDeduction);
+  const stWaterfall = stInfo.type === "progressive" ? bracketWaterfall(stTaxableBeforeDelta, stateDelta, stBrackets) : [];
+  // Top marginal rate (for the plain-English explanation)
+  const fedTopRate = fedWaterfall.length > 0 ? fedWaterfall[0].rate : 0;
+  const stTopRate = stWaterfall.length > 0 ? stWaterfall[0].rate : (stInfo.type === "flat" ? stFlatRate : 0);
+  const combinedTopRate = fedTopRate + stTopRate;
   const monthlyTaxSavings = totalTaxSavings / 12;
   const afterTaxPayment = housingPayment - monthlyTaxSavings;
   const monthlyPrinReduction = pi - (loan * mr);
@@ -2534,6 +2566,8 @@ export default function MortgageBlueprint() {
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
    stateMortInt, stateItemized, fedTaxBefore, fedTaxAfter, fedSavings,
    stateTaxBefore, stateTaxAfter, stateSavings, totalTaxSavings, monthlyTaxSavings,
+   fedDelta, fedItemizes, stateDelta, stateItemizes, fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
+   fedTaxableBeforeDelta, stTaxableBeforeDelta,
    afterTaxPayment, monthlyPrinReduction, monthlyAppreciation, netPostSaleExpense,
    refiCalcPI, refiMonthsElapsed, refiCalcRemainingMonths, refiCalcBalance, refiMinBalance,
    refiEffPI, refiEffBalance, refiEffRemaining,
@@ -4275,27 +4309,127 @@ export default function MortgageBlueprint() {
   </Card>
  </Sec>
  {calc.yearlyInc > 0 && (<>
-  <Sec title="Write-Offs">
+  <Sec title="Write-Offs Due to Homeownership">
    <Card>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
-     <span></span><span style={{textAlign:"right"}}>Federal</span><span style={{textAlign:"right"}}>{taxState}</span>
+     <span>Item</span><span style={{textAlign:"right"}}>Federal</span><span style={{textAlign:"right"}}>{taxState}</span>
     </div>
     {[["Property Tax (SALT capped)", fmt(calc.fedPropTax), fmt(calc.yearlyTax)],
-     ["Mortgage Interest", fmt(calc.fedMortInt), fmt(calc.stateMortInt)],
-     ["Itemized Total", fmt(calc.fedItemized), fmt(calc.stateItemized)],
-     ["Std Deduction", fmt(calc.fedStdDeduction), fmt(calc.stStdDeduction)]
+     ["Mortgage Interest (Yr 1)", fmt(calc.fedMortInt), fmt(calc.stateMortInt)],
     ].map(([l, f, c], i) => (
      <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-      <span style={{ color: i === 3 ? T.text : T.textSecondary, fontWeight: i >= 2 ? 600 : 400 }}>{l}</span>
+      <span style={{ color: T.textSecondary, fontWeight: 400 }}>{l}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{f}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
      </div>
     ))}
-    {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest deduction limited to interest on first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest ({fmt(calc.fedMortInt)} of {fmt(calc.totalMortInt)}) is deductible federally.</Note>}
-    <Note color={T.blue}>SALT cap: {married === "MFS" ? "$20,000" : "$40,000"} per One Big Beautiful Bill. Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "10px 0", borderBottom: `2px solid ${T.separator}`, fontSize: 13 }}>
+     <span style={{ color: T.text, fontWeight: 700 }}>Itemized Total</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.fedItemized)}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.stateItemized)}</span>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13, background: `${T.blue}06`, margin: "0 -14px", padding: "8px 14px" }}>
+     <span style={{ color: T.textSecondary }}>Std Deduction</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(calc.fedStdDeduction)}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(calc.stStdDeduction)}</span>
+    </div>
+    {/* ── THE DELTA ── */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "10px 0", fontSize: 13, background: calc.fedItemizes || calc.stateItemizes ? `${T.green}08` : `${T.orange}08`, margin: "0 -14px", padding: "10px 14px", borderRadius: "0 0 12px 12px" }}>
+     <span style={{ color: T.text, fontWeight: 700 }}>Delta (Benefit)</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.fedItemizes ? T.green : T.orange }}>{calc.fedItemizes ? fmt(calc.fedDelta) : "$0"}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.stateItemizes ? T.green : T.orange }}>{calc.stateItemizes ? fmt(calc.stateDelta) : "$0"}</span>
+    </div>
+    {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is deductible federally.</Note>}
+    <Note color={T.blue}>SALT cap: {married === "MFS" ? "$20,000" : "$40,000"} (One Big Beautiful Bill). Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
    </Card>
   </Sec>
-  <Sec title="Savings Breakdown">
+  {/* ── THE DELTA EXPLANATION ── */}
+  <Sec title="How the Tax Benefit Works">
+   <Card>
+    {!calc.fedItemizes && !calc.stateItemizes ? (
+     <div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Your itemized deductions don't exceed the standard deduction</div>
+      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
+       Right now, your property tax + mortgage interest ({fmt(calc.fedItemized)}) is less than the standard deduction ({fmt(calc.fedStdDeduction)}). This means there's no additional federal tax benefit from homeownership yet.
+      </div>
+      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginTop: 8 }}>
+       This can change if your income, mortgage amount, or property taxes increase. The standard deduction is the "floor" — you only benefit from the amount ABOVE it.
+      </div>
+     </div>
+    ) : (
+     <div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: T.green, marginBottom: 10 }}>Here's the real benefit</div>
+      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.8, marginBottom: 12 }}>
+       Everyone gets a standard deduction ({fmt(calc.fedStdDeduction)} federal). You'd get that whether you own a home or not. The benefit of homeownership is the <strong style={{ color: T.text }}>delta</strong> — the amount your itemized deductions EXCEED the standard deduction.
+      </div>
+      {calc.fedItemizes && (
+       <div style={{ background: `${T.green}08`, borderRadius: 12, padding: 14, marginBottom: 12, border: `1px solid ${T.green}22` }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 6 }}>Federal Delta: {fmt(calc.fedDelta)}</div>
+        <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
+         Your itemized deductions ({fmt(calc.fedItemized)}) exceed the standard deduction ({fmt(calc.fedStdDeduction)}) by <strong style={{ color: T.green }}>{fmt(calc.fedDelta)}</strong>. This delta comes off your <strong style={{ color: T.text }}>highest tax brackets first</strong>:
+        </div>
+        {calc.fedWaterfall.length > 0 && (
+         <div style={{ marginTop: 10 }}>
+          {calc.fedWaterfall.map((w, i) => (
+           <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < calc.fedWaterfall.length - 1 ? `1px solid ${T.green}15` : "none" }}>
+            <span style={{ fontSize: 13, color: T.text }}>
+             <strong>{(w.rate * 100).toFixed(0)}%</strong> bracket × {fmt(w.amount)}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(w.savings)}</span>
+           </div>
+          ))}
+          <div style={{ borderTop: `2px solid ${T.green}33`, marginTop: 6, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
+           <span style={{ fontSize: 13, fontWeight: 700 }}>Federal Tax Savings</span>
+           <span style={{ fontSize: 15, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(calc.fedSavings)}</span>
+          </div>
+         </div>
+        )}
+       </div>
+      )}
+      {calc.stateItemizes && STATE_TAX[taxState]?.type !== "none" && (
+       <div style={{ background: `${T.green}08`, borderRadius: 12, padding: 14, marginBottom: 12, border: `1px solid ${T.green}22` }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 6 }}>{taxState} Delta: {fmt(calc.stateDelta)}</div>
+        {calc.stWaterfall.length > 0 ? (
+         <div>
+          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
+           State itemized ({fmt(calc.stateItemized)}) exceeds state standard deduction ({fmt(calc.stStdDeduction)}) by <strong style={{ color: T.green }}>{fmt(calc.stateDelta)}</strong>:
+          </div>
+          <div style={{ marginTop: 10 }}>
+           {calc.stWaterfall.map((w, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < calc.stWaterfall.length - 1 ? `1px solid ${T.green}15` : "none" }}>
+             <span style={{ fontSize: 13, color: T.text }}>
+              <strong>{(w.rate * 100).toFixed(2)}%</strong> bracket × {fmt(w.amount)}
+             </span>
+             <span style={{ fontSize: 13, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(w.savings)}</span>
+            </div>
+           ))}
+           <div style={{ borderTop: `2px solid ${T.green}33`, marginTop: 6, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, fontWeight: 700 }}>{taxState} Tax Savings</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(calc.stateSavings)}</span>
+           </div>
+          </div>
+         </div>
+        ) : (
+         <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
+          {taxState} flat rate of {(STATE_TAX[taxState]?.rate * 100).toFixed(2)}% × {fmt(calc.stateDelta)} delta = <strong style={{ color: T.green }}>{fmt(calc.stateSavings)}</strong> savings
+         </div>
+        )}
+       </div>
+      )}
+      {/* Plain English Summary */}
+      <div style={{ background: T.pillBg, borderRadius: 12, padding: 14, marginTop: 4 }}>
+       <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8 }}>
+        <strong>In plain English:</strong> Because you own a home, you are no longer paying <strong style={{ color: T.green }}>{(calc.combinedTopRate * 100).toFixed(1)}%</strong> in taxes on <strong style={{ color: T.green }}>{fmt(Math.max(calc.fedDelta, calc.stateDelta))}</strong> of your income. That's <strong style={{ color: T.green }}>{fmt(calc.totalTaxSavings)}/year</strong> ({fmt(calc.monthlyTaxSavings)}/mo) back in your pocket.
+       </div>
+      </div>
+     </div>
+    )}
+    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>⚠️ This is an estimate for illustration purposes only — not tax advice. Tax situations vary based on individual circumstances. Please confirm with your CPA or tax professional before making financial decisions based on these projections.</div>
+    </div>
+   </Card>
+  </Sec>
+  <Sec title="Savings Summary">
    <Card>
     {[["Federal Savings", calc.fedSavings], [`${taxState} Savings`, calc.stateSavings], ["Total Annual", calc.totalTaxSavings]].map(([l, sv], i) => (
      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: i < 2 ? `1px solid ${T.separator}` : "none" }}>
@@ -4553,7 +4687,7 @@ export default function MortgageBlueprint() {
  </div>
  {loanOfficer && (
   <div style={{ marginBottom: 12 }}>
-   <a href={`https://www.arive.com/apply?lo=${encodeURIComponent(loEmail || "")}`} target="_blank" rel="noopener noreferrer"
+   <a href="https://2179191.my1003app.com/952015/register" target="_blank" rel="noopener noreferrer"
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
     🚀 Get Pre-Approved Now
    </a>
@@ -4996,56 +5130,18 @@ export default function MortgageBlueprint() {
  )}
 
  {/* ── Scenarios ── */}
- <Sec title="Loan Options" action="+ New" onAction={() => setNewScenarioName("New Scenario")}>
-  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: -8, marginBottom: 10 }}>Save & compare different loan options — try different prices, rates, or loan types to see which works best for you.</div>
-  {newScenarioName !== "" && (
-   <Card>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Loan Option</div>
-    <TextInp label="Name" value={newScenarioName} onChange={setNewScenarioName} placeholder="e.g. 3BR Condo Oakland" />
-    <div style={{ display: "flex", gap: 8 }}>
-     <button onClick={() => createScenario(newScenarioName)} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Create</button>
-     <button onClick={() => setNewScenarioName("")} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-    </div>
-   </Card>
-  )}
-  {scenarioList.map((name) => (
-   <Card key={name} onClick={() => name !== scenarioName && editingScenarioName !== name ? switchScenario(name) : null}
-    style={{ border: `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
-    {editingScenarioName === name ? (
-     <div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Loan Option</div>
-      <input value={editScenarioValue} onChange={e => setEditScenarioValue(e.target.value)}
-       onKeyDown={e => { if (e.key === "Enter") { renameScenario(name, editScenarioValue); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
-       autoFocus
-       style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 8, padding: "10px 12px", fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
-      <div style={{ display: "flex", gap: 6 }}>
-       <button onClick={() => { renameScenario(name, editScenarioValue); setEditingScenarioName(null); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Save</button>
-       <button onClick={() => setEditingScenarioName(null)} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-      </div>
-     </div>
-    ) : (
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ flex: 1 }}>
-       <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{name}</div>
-       {name === scenarioName && <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active</div>}
-      </div>
-      {name === scenarioName && (
-       <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
-        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
-        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); }} style={{ background: T.errorBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
-       </div>
-      )}
-     </div>
-    )}
-   </Card>
-  ))}
-  {scenarioList.length > 1 && (
-   <button onClick={() => setTab("compare")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 12, padding: "12px 0", cursor: "pointer", marginTop: 4 }}>
-    <span style={{ fontSize: 14, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length} Loan Options Side-by-Side</span>
+ {/* ── Current Loan Option indicator ── */}
+ {scenarioList.length > 1 && (
+  <Card pad={14} style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+   <div>
+    <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary }}>Active Loan Option</div>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.blue }}>{scenarioName}</div>
+   </div>
+   <button onClick={() => setTab("compare")} style={{ background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer" }}>
+    <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length}</span>
    </button>
-  )}
- </Sec>
+  </Card>
+ )}
 
  {/* ── Continue to Calculator ── */}
  <BuildContinue currentTab="setup" />
@@ -6259,17 +6355,63 @@ export default function MortgageBlueprint() {
 </>)}
 {tab === "compare" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value="📊" label="Side-by-Side Comparison" color={T.blue} sub={`${compareData.length} loan option${compareData.length !== 1 ? "s" : ""}`} />
+  <Hero value="📊" label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
  </div>
+ {/* ── Scenario Manager ── */}
+ <Sec title="Your Loan Options" action="+ New" onAction={() => setNewScenarioName("New Option")}>
+  {newScenarioName !== "" && (
+   <Card>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Loan Option</div>
+    <TextInp label="Name" value={newScenarioName} onChange={setNewScenarioName} placeholder="e.g. 3BR Condo Oakland" />
+    <div style={{ display: "flex", gap: 8 }}>
+     <button onClick={() => { createScenario(newScenarioName); loadCompareData(); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Create</button>
+     <button onClick={() => setNewScenarioName("")} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+    </div>
+   </Card>
+  )}
+  {scenarioList.map((name) => (
+   <Card key={name} onClick={() => name !== scenarioName && editingScenarioName !== name ? switchScenario(name) : null}
+    style={{ border: name === scenarioName ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
+    {editingScenarioName === name ? (
+     <div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Loan Option</div>
+      <input value={editScenarioValue} onChange={e => setEditScenarioValue(e.target.value)}
+       onKeyDown={e => { if (e.key === "Enter") { renameScenario(name, editScenarioValue); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
+       autoFocus
+       style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 8, padding: "10px 12px", fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
+      <div style={{ display: "flex", gap: 6 }}>
+       <button onClick={() => { renameScenario(name, editScenarioValue); setEditingScenarioName(null); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Save</button>
+       <button onClick={() => setEditingScenarioName(null)} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+      </div>
+     </div>
+    ) : (
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ flex: 1 }}>
+       <div style={{ fontSize: 15, fontWeight: 600, color: name === scenarioName ? T.blue : T.text }}>{name}</div>
+       {name === scenarioName ? <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active — editing this one</div> : <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Tap to switch</div>}
+      </div>
+      {name === scenarioName && (
+       <div style={{ display: "flex", gap: 6 }}>
+        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
+        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); setTimeout(loadCompareData, 500); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
+        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); setTimeout(loadCompareData, 500); }} style={{ background: T.errorBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
+       </div>
+      )}
+     </div>
+    )}
+   </Card>
+  ))}
+  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: 4 }}>Tap any option to switch, then go to Setup or Calculator to edit its details. Come back here to see them side-by-side.</div>
+ </Sec>
+ {/* ── Comparison Data ── */}
  {compareLoading ? (
-  <Card><div style={{ textAlign: "center", padding: 20, color: T.textSecondary }}>Loading scenarios...</div></Card>
+  <Card><div style={{ textAlign: "center", padding: 20, color: T.textSecondary }}>Loading comparison...</div></Card>
  ) : compareData.length <= 1 ? (
-  <Card>
-   <div style={{ textAlign: "center", padding: 30 }}>
-    <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-    <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6 }}>Create More Loan Options to Compare</div>
-    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>Go to Setup → Loan Options to create additional scenarios with different prices, rates, or loan types — then come back here to see them side-by-side.</div>
-    <button onClick={() => setTab("setup")} style={{ background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Go to Setup</button>
+  <Card style={{ marginTop: 8 }}>
+   <div style={{ textAlign: "center", padding: 20 }}>
+    <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+    <div style={{ fontSize: 14, fontWeight: 600, color: T.textSecondary }}>Create a second loan option above to see a side-by-side comparison</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 6 }}>Try a different price, rate, loan type, or down payment to see which works best for you.</div>
    </div>
   </Card>
  ) : (<>
@@ -6453,21 +6595,14 @@ export default function MortgageBlueprint() {
    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, textAlign: "center" }}>💡 Current scenario metrics use exact calculations. Other scenarios use simplified estimates for quick comparison. Switch to a scenario in Setup for full detail.</div>
   </Card>
   <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-   <button onClick={() => { setNewScenarioName("New Scenario"); setTab("setup"); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-    <span style={{ fontSize: 18 }}>+</span> Build Another Scenario
+   <button onClick={() => { setNewScenarioName("New Option"); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+    <span style={{ fontSize: 18 }}>+</span> Build Another Option
    </button>
-   <button onClick={() => duplicateScenario()} style={{ background: `${T.blue}12`, color: T.blue, border: `1px solid ${T.blue}25`, borderRadius: 14, padding: "14px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
-    Duplicate Current
+   <button onClick={() => { duplicateScenario(); setTimeout(loadCompareData, 500); }} style={{ background: `${T.blue}12`, color: T.blue, border: `1px solid ${T.blue}25`, borderRadius: 14, padding: "14px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
+    Duplicate
    </button>
   </div>
-  {/* Build Another Scenario CTA */}
-  <Card style={{ marginTop: 12, background: `${T.blue}08`, border: `1px solid ${T.blue}22` }}>
-   <div style={{ textAlign: "center", padding: "8px 0" }}>
-    <div style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 6 }}>Want to explore more options?</div>
-    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>Create another loan option to compare — try a different price, rate, or loan type.</div>
-    <button onClick={() => { setNewScenarioName("New Option"); setTab("setup"); }} style={{ background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>+ Build Another Option</button>
-   </div>
-  </Card>
+  {/* End of Compare tab */}
  </>)}
 </>)}
 {tab === "settings" && (<>
