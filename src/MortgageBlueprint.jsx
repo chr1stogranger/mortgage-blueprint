@@ -1,4 +1,31 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+// ═══ REALTOR PARTNER DIRECTORY ═══
+// To add a new realtor: copy a block, change the fields, deploy. That's it.
+const REALTOR_PARTNERS = {
+ brandonlau: {
+  name: "Brandon Lau",
+  title: "Realtor",
+  brokerage: "Compass",
+  phone: "(415) 555-0100",
+  email: "brandon@example.com",
+  dre: "0XXXXXXX",
+  photo: "",
+  farmZip: "94122",
+  bio: "San Francisco specialist — Sunset, Richmond, & Parkside",
+ },
+ // ── Add new realtors below ──
+ // janedoe: {
+ //  name: "Jane Doe",
+ //  title: "Realtor",
+ //  brokerage: "Keller Williams",
+ //  phone: "(510) 555-0200",
+ //  email: "jane@example.com",
+ //  dre: "0XXXXXXX",
+ //  photo: "",
+ //  farmZip: "94501",
+ //  bio: "East Bay expert — Oakland, Berkeley, Alameda",
+ // },
+};
 const CITY_TAX_RATES = {
  "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
  "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
@@ -991,6 +1018,19 @@ export default function MortgageBlueprint() {
  T = darkMode ? DARK : LIGHT;
  // ── Security State ──
  const [privacyMode, setPrivacyMode] = useState(false);
+ // ── Realtor Partner (co-branding via /r/slug URL) ──
+ const [realtorPartnerSlug, setRealtorPartnerSlug] = useState(() => {
+  try {
+   const path = window.location.pathname;
+   const match = path.match(/^\/r\/([a-zA-Z0-9_-]+)/);
+   if (match && REALTOR_PARTNERS[match[1]]) return match[1];
+   const params = new URLSearchParams(window.location.search);
+   const ref = params.get("ref") || params.get("r");
+   if (ref && REALTOR_PARTNERS[ref]) return ref;
+  } catch(e) {}
+  return null;
+ });
+ const realtorPartner = realtorPartnerSlug ? REALTOR_PARTNERS[realtorPartnerSlug] : null;
  const [isLocked, setIsLocked] = useState(false);
  const [pinCode, setPinCode] = useState("");
  const [pinSet, setPinSet] = useState(false);
@@ -1023,6 +1063,15 @@ export default function MortgageBlueprint() {
  const [ppHometownInput, setPpHometownInput] = useState("");
  const [ppLeaderboardFilter, setPpLeaderboardFilter] = useState("all"); // "all" | "agents" | "buyers"
  const [ppPublicProfile, setPpPublicProfile] = useState(() => { try { const v = localStorage.getItem("pp-public"); return v === null ? true : v === "true"; } catch(e) { return true; } });
+ // ── PricePoint Filters & Swipe ──
+ const [ppShowFilters, setPpShowFilters] = useState(false);
+ const [ppFilterType, setPpFilterType] = useState("All");
+ const [ppFilterBeds, setPpFilterBeds] = useState("Any");
+ const [ppFilterSqft, setPpFilterSqft] = useState("Any");
+ const [ppSkipped, setPpSkipped] = useState([]);
+ const [ppSwipeX, setPpSwipeX] = useState(0);
+ const [ppSwiping, setPpSwiping] = useState(false);
+ const ppCardTouchRef = useRef({ startX: 0, startY: 0, swiping: false });
  useEffect(() => { try { localStorage.setItem("pp-public", String(ppPublicProfile)); } catch(e){} }, [ppPublicProfile]);
 
  // ── PricePoint XP & Leveling System ──
@@ -1088,6 +1137,7 @@ export default function MortgageBlueprint() {
  const [hoa, setHoa] = useState(0);
  const [annualIns, setAnnualIns] = useState(1500);
  const [includeEscrow, setIncludeEscrow] = useState(true);
+ const [subjectRentalIncome, setSubjectRentalIncome] = useState(0);
  const [transferTaxCity, setTransferTaxCity] = useState("Alameda");
  const [discountPts, setDiscountPts] = useState(0);
  const [underwritingFee, setUnderwritingFee] = useState(1195);
@@ -1238,6 +1288,7 @@ export default function MortgageBlueprint() {
  const [compareData, setCompareData] = useState([]);
  const [compareLoading, setCompareLoading] = useState(false);
  const [showCompareHint, setShowCompareHint] = useState(false);
+ const [shareNotif, setShareNotif] = useState(null);
  const [affordIncome, setAffordIncome] = useState(0);
  const [affordDebts, setAffordDebts] = useState(0);
  const [affordDown, setAffordDown] = useState(0);
@@ -1270,7 +1321,7 @@ export default function MortgageBlueprint() {
  const tabBarRef = useRef(null);
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
-  salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow,
+  salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
   prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -1305,6 +1356,7 @@ export default function MortgageBlueprint() {
   if (s.propertyState) setPropertyState(s.propertyState);
   if (s.hoa !== undefined) setHoa(s.hoa);
   if (s.annualIns !== undefined) setAnnualIns(s.annualIns);
+  if (s.subjectRentalIncome !== undefined) setSubjectRentalIncome(s.subjectRentalIncome);
   if (s.includeEscrow !== undefined) setIncludeEscrow(s.includeEscrow);
   if (s.transferTaxCity) {
    const match = TRANSFER_TAX_CITIES.find(t => t.label === s.transferTaxCity);
@@ -1416,6 +1468,88 @@ export default function MortgageBlueprint() {
   if (s.rbRentGrowth !== undefined) setRbRentGrowth(s.rbRentGrowth);
   if (s.rbInvestReturn !== undefined) setRbInvestReturn(s.rbInvestReturn);
  };
+ // ═══ SCENARIO SHARE VIA URL ═══
+ // Encodes the full loan scenario into a compact URL parameter.
+ // Strips fields matching defaults so the URL stays short for simple scenarios.
+ const SHARE_DEFAULTS = {
+  salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
+  vaUsage: "First Use", propType: "Single Family", loanPurpose: "Purchase Primary",
+  city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
+  includeEscrow: true, subjectRentalIncome: 0, transferTaxCity: "Alameda",
+  discountPts: 0, underwritingFee: 1195, processingFee: 400, appraisalFee: 795,
+  creditReportFee: 95, floodCertFee: 8, mersFee: 25, taxServiceFee: 85,
+  titleInsurance: 700, titleSearch: 1261, settlementFee: 502, escrowFee: 2400,
+  recordingFee: 200, lenderCredit: 0, sellerCredit: 0, realtorCredit: 0,
+  emd: 0, sellerTaxBasis: 5000, prepaidDays: 15, coeDays: 30, married: "Single",
+  taxState: "California", appreciationRate: 5, creditScore: 0, extraPayment: 0,
+  payExtra: false, debtFree: false, autoJumboSwitch: false, hasSellProperty: false,
+  ownsProperties: false, isRefi: false, firstTimeBuyer: false, showInvestor: false,
+  propertyTBD: true, darkMode: true, otherIncome: 0, borrowerName: "", borrowerEmail: "",
+  realtorName: "", propertyAddress: "", propertyZip: "", propertyCounty: "",
+  loanOfficer: "Chris Granger", loEmail: "cgranger@xperthomelending.com",
+  loPhone: "(415) 987-8489", loNmls: "952015", companyName: "Xpert Home Lending", companyNmls: "2179191",
+ };
+ const shareScenarioUrl = async () => {
+  try {
+   const state = getState();
+   // Strip fields matching defaults to keep URL compact
+   const compact = {};
+   for (const [k, v] of Object.entries(state)) {
+    if (SHARE_DEFAULTS.hasOwnProperty(k) && JSON.stringify(v) === JSON.stringify(SHARE_DEFAULTS[k])) continue;
+    // Also skip empty arrays (debts, incomes, assets, reos) — they're defaults too
+    if (Array.isArray(v) && v.length === 0) continue;
+    compact[k] = v;
+   }
+   const json = JSON.stringify(compact);
+   // Base64 encode (handles unicode safely)
+   const encoded = btoa(unescape(encodeURIComponent(json)));
+   const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+   // Try native share on mobile first, fall back to clipboard
+   if (navigator.share) {
+    try {
+     await navigator.share({
+      title: `${scenarioName} — Mortgage Blueprint`,
+      text: `Check out this loan scenario: ${borrowerName ? borrowerName + " — " : ""}${salesPrice ? "$" + salesPrice.toLocaleString() : ""}`,
+      url: url,
+     });
+     setShareNotif("Shared!");
+    } catch (shareErr) {
+     // User cancelled share sheet — fall back to clipboard
+     if (shareErr.name !== "AbortError") {
+      await navigator.clipboard.writeText(url);
+      setShareNotif("Link copied!");
+     }
+    }
+   } else {
+    await navigator.clipboard.writeText(url);
+    setShareNotif("Link copied!");
+   }
+   // Auto-dismiss toast
+   setTimeout(() => setShareNotif(null), 3000);
+  } catch (err) {
+   console.error("Share URL error:", err);
+   setShareNotif("Error creating link");
+   setTimeout(() => setShareNotif(null), 3000);
+  }
+ };
+ // On mount: check URL for shared scenario param and hydrate state
+ useEffect(() => {
+  try {
+   const params = new URLSearchParams(window.location.search);
+   const encoded = params.get("s");
+   if (encoded) {
+    const json = decodeURIComponent(escape(atob(encoded)));
+    const shared = JSON.parse(json);
+    loadState(shared);
+    // Clean the URL so it doesn't re-apply on refresh / subsequent saves
+    window.history.replaceState({}, "", window.location.pathname);
+    setShareNotif("Shared scenario loaded!");
+    setTimeout(() => setShareNotif(null), 4000);
+   }
+  } catch (err) {
+   console.error("Failed to load shared scenario:", err);
+  }
+ }, []);
  useEffect(() => {
   (async () => {
    try {
@@ -1474,7 +1608,7 @@ export default function MortgageBlueprint() {
    setTimeout(() => setSaving(false), 600);
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
- }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow,
+ }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
@@ -1663,6 +1797,7 @@ export default function MortgageBlueprint() {
   if (companyName) lines.push(`${companyName}${companyNmls ? " · NMLS #" + companyNmls : ""}`);
   if (loPhone) lines.push(`Phone: ${loPhone}`);
   if (loEmail) lines.push(`Email: ${loEmail}`);
+  if (realtorPartner) { lines.push(`Realtor: ${realtorPartner.name}${realtorPartner.brokerage ? " · " + realtorPartner.brokerage : ""}${realtorPartner.dre ? " · DRE #" + realtorPartner.dre : ""}`); if (realtorPartner.phone) lines.push(`Realtor Phone: ${realtorPartner.phone}`); }
   lines.push(`Date: ${new Date().toLocaleDateString()}`);
   sep();
   if (isRefi) {
@@ -1779,6 +1914,12 @@ export default function MortgageBlueprint() {
   if (loPhone) html += `<div>📞 <a href="tel:${loPhone.replace(/\D/g,"")}">${loPhone}</a></div>`;
   if (loEmail) html += `<div>✉️ <a href="mailto:${loEmail}">${loEmail}</a></div>`;
   html += `</div></div>`;
+  if (realtorPartner) {
+   html += `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15)">`;
+   html += `<div><div style="font-size:14px;font-weight:600">${realtorPartner.name}</div><div style="font-size:11px;opacity:0.85">${realtorPartner.title || "Realtor"}${realtorPartner.brokerage ? " · " + realtorPartner.brokerage : ""}${realtorPartner.dre ? " · DRE #" + realtorPartner.dre : ""}</div></div>`;
+   if (realtorPartner.phone) html += `<div style="margin-left:auto;font-size:12px"><a href="tel:${realtorPartner.phone.replace(/\D/g,"")}" style="color:#fff">${realtorPartner.phone}</a></div>`;
+   html += `</div>`;
+  }
   html += `<div class="prepared-for">Prepared for<strong>${bName}</strong>${dateStr}</div>`;
   html += `</div>`;
   html += `<div class="estimate-banner">⚠️ Hypothetical Estimate — For Illustrative Purposes Only — Not a Loan Offer</div>`;
@@ -2242,7 +2383,18 @@ export default function MortgageBlueprint() {
   }, 0);
   const reoPositiveIncome = reoInvestmentNet > 0 ? reoInvestmentNet : 0;
   const reoNegativeDebt = (reoInvestmentNet < 0 ? Math.abs(reoInvestmentNet) : 0) + reoPrimaryDebt;
-  const qualifyingIncome = monthlyIncome + reoPositiveIncome;
+  // ── Subject Property Rental Income ──
+  // Investment: 75% of rent offsets PITIA of subject property
+  // Multi-unit Primary: 75% of non-occupying unit rents added as income
+  const units = UNIT_COUNT[propType] || 1;
+  const isInvestment = loanPurpose === "Purchase Investment";
+  const isMultiUnitPrimary = loanPurpose === "Purchase Primary" && units > 1;
+  const subjectRent75 = (subjectRentalIncome || 0) * 0.75;
+  // Investment: net = 75% rent - PITIA. Positive = income, negative = debt (already captured in housingPayment)
+  const investRentalOffset = isInvestment ? subjectRent75 : 0;
+  // Multi-unit primary: 75% of non-occupying rents added as qualifying income
+  const multiUnitRentalIncome = isMultiUnitPrimary ? subjectRent75 : 0;
+  const qualifyingIncome = monthlyIncome + reoPositiveIncome + multiUnitRentalIncome + (investRentalOffset > 0 ? investRentalOffset : 0);
   const annualIncome = qualifyingIncome * 12;
   const totalAssetValue = assets.reduce((s, a) => s + (a.value || 0), 0);
   const totalForClosing = assets.reduce((s, a) => s + (a.forClosing || 0), 0);
@@ -2257,7 +2409,9 @@ export default function MortgageBlueprint() {
   const qualifyingDebts = debtFree ? [] : debts.filter(d => d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit" && !reoLinkedDebtIds.has(d.id));
   const totalMonthlyDebts = qualifyingDebts.reduce((s, d) => s + (d.monthly || 0), 0);
   const payoffAtClosing = debtFree ? 0 : debts.filter(d => d.payoff === "Yes - at Escrow").reduce((s, d) => s + (d.balance || 0), 0);
-  const totalPayment = housingPayment + totalMonthlyDebts + reoNegativeDebt;
+  // For investment properties, 75% rent offsets housing payment in DTI
+  const effectiveHousingForDTI = isInvestment ? Math.max(0, housingPayment - subjectRent75) : housingPayment;
+  const totalPayment = effectiveHousingForDTI + totalMonthlyDebts + reoNegativeDebt;
   const confLimit = getConfLimit(propType), highBalLimit = getHighBalLimit(propType);
   const loanCategory = baseLoan <= confLimit ? "Conforming" : baseLoan <= highBalLimit ? "High Balance" : "Jumbo";
   const maxDTI = MAX_DTI[loanType] || 0.50;
@@ -2557,6 +2711,7 @@ export default function MortgageBlueprint() {
   return {
    dp, baseLoan, loan, fhaUp, vaFundingFee, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, monthlyPMI, monthlyMIP, monthlyMI,
    housingPayment, displayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
+   subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
    ttEntry, buyerCityTT, buyerCountyTT, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
@@ -2592,7 +2747,7 @@ export default function MortgageBlueprint() {
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
- }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow,
+ }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
   sellerTaxBasis, prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -2901,29 +3056,29 @@ export default function MortgageBlueprint() {
  // PRICEPOINT — Sample Listings & Logic (fallback)
  // ═══════════════════════════════════════════
  const PP_LISTINGS = [
-  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:956 },
-  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:845 },
-  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Parkside",pricePerSqft:861 },
-  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
-  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:917 },
-  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:875 },
-  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:795 },
-  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:663 },
-  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:852 },
-  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:696 },
+  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:956 },
+  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:845 },
+  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:861 },
+  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905 },
+  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:917 },
+  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:875 },
+  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:795 },
+  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:663 },
+  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:852 },
+  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",photos:["https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:696 },
  ];
 
  const PP_SOLD_LISTINGS = [
-  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:931 },
-  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Parkside",pricePerSqft:977 },
-  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:953 },
-  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
-  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
-  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:692 },
-  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:906 },
-  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:823 },
-  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
-  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909 },
+  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:931 },
+  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:977 },
+  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:953 },
+  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905 },
+  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962 },
+  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:692 },
+  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:906 },
+  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:823 },
+  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962 },
+  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:909 },
  ];
  const ppFmt = n => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) ?? "—";
  const ppAbsPct = (g,a) => (Math.abs((g-a)/a)*100).toFixed(1);
@@ -2932,14 +3087,57 @@ export default function MortgageBlueprint() {
  // Load/save PP guesses
  useEffect(() => { try { const s = localStorage.getItem("pp-guesses"); if (s) setPpGuesses(JSON.parse(s)); } catch(e){} }, []);
  useEffect(() => { try { localStorage.setItem("pp-guesses", JSON.stringify(ppGuesses)); } catch(e){} }, [ppGuesses]);
+ // ── Realtor Partner auto-populate on mount ──
+ useEffect(() => {
+  if (realtorPartner) {
+   if (realtorPartner.name && !realtorName) setRealtorName(realtorPartner.name);
+   if (realtorPartner.farmZip && !ppSearchZip) setPpSearchZip(realtorPartner.farmZip);
+  }
+ }, []);
 
  // Use live data if available, otherwise fall back to hardcoded
  const PP_ACTIVE_SOURCE = ppDataSource === "live" && ppLiveActive.length > 0 ? ppLiveActive : PP_LISTINGS;
  const PP_SOLD_SOURCE = ppDataSource === "live" && ppLiveSold.length > 0 ? ppLiveSold : PP_SOLD_LISTINGS;
 
- const ppActiveListings = ppSoldMode
-  ? PP_SOLD_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id))
-  : PP_ACTIVE_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id));
+ // Filter helper
+ const ppApplyFilters = (list) => {
+  let filtered = list;
+  // Property type filter
+  if (ppFilterType !== "All") {
+   filtered = filtered.filter(l => {
+    const t = (l.propertyType || "").toLowerCase();
+    if (ppFilterType === "Single Family") return t.includes("single") || t.includes("sfr") || t.includes("house");
+    if (ppFilterType === "Condo") return t.includes("condo");
+    if (ppFilterType === "Townhome") return t.includes("town");
+    if (ppFilterType === "Multi-Unit") return t.includes("multi") || t.includes("duplex") || t.includes("triplex");
+    return true;
+   });
+  }
+  // Bedrooms filter
+  if (ppFilterBeds !== "Any") {
+   const minBeds = parseInt(ppFilterBeds);
+   filtered = filtered.filter(l => (l.beds || 0) >= minBeds);
+  }
+  // Sqft filter
+  if (ppFilterSqft !== "Any") {
+   filtered = filtered.filter(l => {
+    const sf = l.sqft || 0;
+    if (ppFilterSqft === "Under 1000") return sf > 0 && sf < 1000;
+    if (ppFilterSqft === "1000-1500") return sf >= 1000 && sf <= 1500;
+    if (ppFilterSqft === "1500-2000") return sf >= 1500 && sf <= 2000;
+    if (ppFilterSqft === "2000+") return sf >= 2000;
+    return true;
+   });
+  }
+  return filtered;
+ };
+
+ const ppActiveListings = ppApplyFilters(
+  ppSoldMode
+   ? PP_SOLD_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id) && !ppSkipped.includes(l.id))
+   : PP_ACTIVE_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id) && !ppSkipped.includes(l.id))
+ );
+ const ppFilteredTotal = ppApplyFilters(ppSoldMode ? PP_SOLD_SOURCE : PP_ACTIVE_SOURCE).length;
  const ppCurrentListing = ppActiveListings[0];
  const ppTotalListings = ppSoldMode ? PP_SOLD_SOURCE.length : PP_ACTIVE_SOURCE.length;
 
@@ -2965,6 +3163,8 @@ export default function MortgageBlueprint() {
    setPpCardAnim("");
    setPpPhotoIdx(0);
    setPpDescExpanded(false);
+   setPpSwipeX(0);
+   setPpSwiping(false);
    if (isSold) {
     // Instant reveal for sold listings
     setPpShowReveal(newGuess);
@@ -2991,7 +3191,71 @@ export default function MortgageBlueprint() {
  };
  const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
  const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
- const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+ const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); setPpSkipped([]); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+
+ // ── Card Swipe (skip left / guess right) ──
+ const ppHandleSkip = () => {
+  if (!ppCurrentListing) return;
+  setPpCardAnim("pp-skipped");
+  setTimeout(() => {
+   setPpSkipped(prev => [...prev, ppCurrentListing.id]);
+   setPpCardAnim("");
+   setPpPhotoIdx(0);
+   setPpDescExpanded(false);
+   setPpSwipeX(0);
+   setPpSwiping(false);
+  }, 400);
+ };
+ const ppCardSwipeStart = (e) => {
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+  ppCardTouchRef.current = { startX: x, startY: y, swiping: false, isMouse: !e.touches };
+ };
+ const ppCardSwipeMove = (e) => {
+  if (!ppCardTouchRef.current.startX) return;
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+  const dx = x - ppCardTouchRef.current.startX;
+  const dy = y - ppCardTouchRef.current.startY;
+  // Only start swiping if horizontal > vertical
+  if (!ppCardTouchRef.current.swiping && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+   ppCardTouchRef.current.swiping = true;
+  }
+  if (ppCardTouchRef.current.swiping) {
+   if (e.preventDefault) e.preventDefault();
+   setPpSwipeX(dx);
+   setPpSwiping(true);
+  }
+ };
+ const ppCardSwipeEnd = () => {
+  if (!ppCardTouchRef.current.swiping) { setPpSwipeX(0); setPpSwiping(false); ppCardTouchRef.current = { startX:0, startY:0, swiping:false, isMouse:false }; return; }
+  const dx = ppSwipeX;
+  if (dx < -80) {
+   // Swipe left = SKIP
+   ppHandleSkip();
+  } else if (dx > 80 && !ppGuessInput) {
+   // Swipe right = focus guess input (visual nudge)
+   setPpSwipeX(0); setPpSwiping(false);
+   const inp = document.getElementById("pp-guess-input");
+   if (inp) inp.focus();
+  } else {
+   setPpSwipeX(0); setPpSwiping(false);
+  }
+  ppCardTouchRef.current = { startX:0, startY:0, swiping:false, isMouse:false };
+ };
+ // Mouse up listener (needed because mouseup may fire outside the card)
+ useEffect(() => {
+  const handleMouseUp = () => {
+   if (ppCardTouchRef.current.isMouse && ppCardTouchRef.current.swiping) {
+    ppCardSwipeEnd();
+   } else if (ppCardTouchRef.current.isMouse) {
+    ppCardTouchRef.current = { startX:0, startY:0, swiping:false, isMouse:false };
+    setPpSwipeX(0); setPpSwiping(false);
+   }
+  };
+  window.addEventListener("mouseup", handleMouseUp);
+  return () => window.removeEventListener("mouseup", handleMouseUp);
+ }, [ppSwipeX, ppGuessInput]);
 
  // Fetch property details (photos + description) on demand
  const ppFetchDetails = async (zpid) => {
@@ -3324,6 +3588,9 @@ export default function MortgageBlueprint() {
      <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
       📋 Copy to Clipboard
      </button>
+     <button onClick={() => { shareScenarioUrl(); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: "rgba(56,189,126,0.08)", border: "1px solid rgba(56,189,126,0.25)", borderRadius: 14, color: "#38bd7e", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      🔗 Copy Share Link
+     </button>
      <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
       👁 Preview Branded Summary
      </button>
@@ -3351,6 +3618,32 @@ export default function MortgageBlueprint() {
      </div>
     </div>
    </div>
+   {/* ── Realtor Partner Co-Brand Bar ── */}
+   {realtorPartner && (
+    <div style={{ padding: "0 16px 8px" }}>
+     <div style={{ display: "flex", alignItems: "center", gap: 12, background: T.card, borderRadius: 14, padding: "10px 14px", border: `1px solid ${T.cardBorder}`, boxShadow: T.cardShadow }}>
+      {realtorPartner.photo ? (
+       <img src={realtorPartner.photo} alt={realtorPartner.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover", flexShrink: 0 }} />
+      ) : (
+       <div style={{ width: 40, height: 40, borderRadius: 20, background: `${T.blue}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: T.blue, flexShrink: 0 }}>
+        {realtorPartner.name.split(" ").map(n => n[0]).join("")}
+       </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+       <div style={{ fontSize: 14, fontWeight: 700, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{realtorPartner.name}</div>
+       <div style={{ fontSize: 11, color: T.textTertiary }}>{realtorPartner.title}{realtorPartner.brokerage ? ` · ${realtorPartner.brokerage}` : ""}{realtorPartner.dre ? ` · DRE #${realtorPartner.dre}` : ""}</div>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+       {realtorPartner.phone && (
+        <a href={`tel:${realtorPartner.phone}`} style={{ background: `${T.green}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}>📞</a>
+       )}
+       {realtorPartner.email && (
+        <a href={`mailto:${realtorPartner.email}`} style={{ background: `${T.blue}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}>✉️</a>
+       )}
+      </div>
+     </div>
+    </div>
+   )}
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Sticky Header ── */}
@@ -3378,6 +3671,9 @@ export default function MortgageBlueprint() {
        </div>
        <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
         {privacyMode ? "🙈" : "👁️"}
+       </button>
+       <button onClick={shareScenarioUrl} title="Share scenario link" style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+        🔗
        </button>
       </div>
      </div>
@@ -3441,9 +3737,9 @@ export default function MortgageBlueprint() {
    <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Look up on Zillow</span>
    <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
    <div>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 28 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
       Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
       <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
@@ -3458,11 +3754,22 @@ export default function MortgageBlueprint() {
     ) : (
      <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} sm req />
     )}
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 10 }}>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
     </div>
    </div>
-   <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req tip="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+   <div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 28 }}>
+     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+      Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+      <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+     </div>
+    </div>
+    <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
+     {fmt(calc.loan)} loan
+    </div>
+   </div>
   </div>
   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
   {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
@@ -3508,7 +3815,46 @@ export default function MortgageBlueprint() {
    </div>
   </div>}
   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req tip="The type of home you're buying. Condos and multi-unit properties have different qualification rules." />
-  <Sel label="Purpose" value={loanPurpose} onChange={setLoanPurpose} options={["Purchase Primary","Purchase 2nd Home","Purchase Investment"]} req tip="How you'll use the property. Investment properties require higher down payments (15-25%) and get higher rates." />
+  <Sel label="Purpose" value={loanPurpose} onChange={v => {
+   // Auto-adjust rate for investment property pricing
+   if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
+    setRate(prev => Math.round((prev + 0.875) * 1000) / 1000);
+   } else if (v !== "Purchase Investment" && loanPurpose === "Purchase Investment") {
+    setRate(prev => Math.round(Math.max(0, prev - 0.875) * 1000) / 1000);
+   }
+   setLoanPurpose(v);
+  }} options={["Purchase Primary","Purchase 2nd Home","Purchase Investment"]} req tip="How you'll use the property. Investment properties typically carry a 0.750–1.000% rate premium and require 15-25% down." />
+  {loanPurpose === "Purchase Investment" && (
+   <Note color={T.orange}>📈 Investment property rate adjustment: +0.875% applied automatically (typical range: 0.750–1.000%). Adjust your rate manually if your lender quotes differently.</Note>
+  )}
+  {(loanPurpose === "Purchase Investment" || (loanPurpose === "Purchase Primary" && (UNIT_COUNT[propType] || 1) > 1)) && (
+   <div>
+    <Inp label={loanPurpose === "Purchase Investment" ? "Expected Monthly Rent" : `Non-Occupying Unit Rent (${(UNIT_COUNT[propType] || 1) - 1} unit${(UNIT_COUNT[propType] || 1) - 1 > 1 ? "s" : ""})`}
+     value={subjectRentalIncome} onChange={setSubjectRentalIncome} prefix="$" suffix="/mo" max={50000}
+     tip={loanPurpose === "Purchase Investment"
+      ? "Expected gross monthly rent. Lenders use 75% of this to offset your PITIA (housing payment) for DTI qualification. If 75% of rent exceeds PITIA, the excess counts as income."
+      : `Total rent from the ${(UNIT_COUNT[propType] || 1) - 1} unit${(UNIT_COUNT[propType] || 1) - 1 > 1 ? "s" : ""} you won't live in. Lenders add 75% of this as qualifying income on top of your regular employment income.`
+     } />
+    {subjectRentalIncome > 0 && (
+     <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 14px", marginTop: -4, marginBottom: 14, border: `1px solid ${T.green}18` }}>
+      {loanPurpose === "Purchase Investment" ? (
+       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
+        <strong style={{ color: T.green }}>75% of rent: {fmt(subjectRentalIncome * 0.75)}/mo</strong>
+        {calc.subjectRent75 >= calc.housingPayment
+         ? <span> — exceeds PITIA ({fmt(calc.housingPayment)}). Net <strong style={{ color: T.green }}>{fmt(calc.subjectRent75 - calc.housingPayment)}</strong> added as qualifying income.</span>
+         : <span> — offsets PITIA ({fmt(calc.housingPayment)}) by {fmt(calc.subjectRent75)}. Net housing cost for DTI: <strong>{fmt(calc.effectiveHousingForDTI)}/mo</strong></span>
+        }
+       </div>
+      ) : (
+       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
+        <strong style={{ color: T.green }}>75% of rent: {fmt(subjectRentalIncome * 0.75)}/mo added as qualifying income</strong>
+        <span> — your total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong></span>
+       </div>
+      )}
+     </div>
+    )}
+   </div>
+  )}
   <Sel label="State (property tax)" value={propertyState} onChange={v => { setPropertyState(v); if (v !== "California") setCity(""); }} options={STATE_NAMES_PROP} req />
   {propertyState === "California" ? (
    <SearchSelect label="City (tax rate)" value={city} onChange={setCity} options={CITY_NAMES} />
@@ -4658,7 +5004,9 @@ export default function MortgageBlueprint() {
    {loPhone && <MRow label="Phone" value={loPhone} />}
    {loNmls && <MRow label="NMLS" value={"#" + loNmls} />}
    {companyName && <MRow label="Company" value={companyName + (companyNmls ? " · NMLS #" + companyNmls : "")} />}
-   {realtorName && <MRow label="Realtor" value={realtorName} />}
+   {realtorName && <MRow label="Realtor" value={realtorName + (realtorPartner?.brokerage ? ` · ${realtorPartner.brokerage}` : "")} />}
+   {realtorPartner?.dre && <MRow label="DRE #" value={realtorPartner.dre} />}
+   {realtorPartner?.phone && <MRow label="Realtor Phone" value={realtorPartner.phone} />}
   </Card>
  </Sec>}
  {ownsProperties && reos.length > 0 && <Sec title="Real Estate Owned">
@@ -4687,7 +5035,7 @@ export default function MortgageBlueprint() {
  </div>
  {loanOfficer && (
   <div style={{ marginBottom: 12 }}>
-   <a href="https://2179191.my1003app.com/952015/register" target="_blank" rel="noopener noreferrer"
+   <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
     🚀 Get Pre-Approved Now
    </a>
@@ -6752,6 +7100,26 @@ export default function MortgageBlueprint() {
  <Card style={{ background: T.pillBg, marginTop: 8 }}>
   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Mortgage Blueprint v5 — 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
  </Card>
+ {realtorPartner && (
+  <Sec title="Realtor Partner Link">
+   <Card>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+     {realtorPartner.photo ? (
+      <img src={realtorPartner.photo} alt={realtorPartner.name} style={{ width: 36, height: 36, borderRadius: 18, objectFit: "cover" }} />
+     ) : (
+      <div style={{ width: 36, height: 36, borderRadius: 18, background: `${T.blue}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: T.blue }}>
+       {realtorPartner.name.split(" ").map(n => n[0]).join("")}
+      </div>
+     )}
+     <div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{realtorPartner.name}</div>
+      <div style={{ fontSize: 11, color: T.textTertiary }}>{realtorPartner.title}{realtorPartner.brokerage ? ` · ${realtorPartner.brokerage}` : ""}{realtorPartner.dre ? ` · DRE #${realtorPartner.dre}` : ""}</div>
+     </div>
+    </div>
+    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5 }}>This app was shared via <strong>{realtorPartner.name}</strong>'s partner link. Source tracking is active — all pre-approval clicks attribute to <strong>{realtorPartnerSlug}</strong>.</div>
+   </Card>
+  </Sec>
+ )}
 </>)}
 {/* ── Build Mode House (Bottom of Tab) ── */}
 {gameMode && tab !== "setup" && (
@@ -6786,8 +7154,10 @@ export default function MortgageBlueprint() {
       @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
       @keyframes ppSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
       @keyframes ppCardExit { to { opacity:0; transform:translateX(120%) rotate(8deg) } }
+      @keyframes ppCardSkip { to { opacity:0; transform:translateX(-120%) rotate(-8deg) } }
       @keyframes ppNotifIn { from { opacity:0; transform:translateY(-20px) } to { opacity:1; transform:translateY(0) } }
       .pp-submitted { animation: ppCardExit 0.4s ease-in forwards }
+      .pp-skipped { animation: ppCardSkip 0.4s ease-in forwards }
       .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(12px) }
       .pp-rvl-ov.vis { opacity:1 }
       .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:420px; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
@@ -6796,6 +7166,7 @@ export default function MortgageBlueprint() {
 
      {/* PP Notification */}
      {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
+     {shareNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background: shareNotif.includes("Error") ? "rgba(232,93,93,0.15)" : "rgba(56,189,126,0.15)",color: shareNotif.includes("Error") ? "#e85d5d" : "#38bd7e",border: shareNotif.includes("Error") ? "1px solid rgba(232,93,93,0.3)" : "1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" }}>{shareNotif}</div>}
 
      {/* PP Header */}
      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -6943,17 +7314,86 @@ export default function MortgageBlueprint() {
          {ppSoldMode ? "Sold Homes" : "Live Listings"}
         </span>
        </div>
-       <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{
-        position: "relative", width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-        background: ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-        transition: "background 0.3s", padding: 0,
-       }}>
-        <div style={{
-         position: "absolute", top: 2, left: ppSoldMode ? 22 : 2,
-         width: 20, height: 20, borderRadius: 10, background: "#fff",
-         transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-        }} />
-       </button>
+       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button onClick={() => setPpShowFilters(!ppShowFilters)} style={{
+         background: (ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? "rgba(56,189,126,0.12)" : T.pillBg,
+         borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600,
+         color: (ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? "#38bd7e" : T.textTertiary,
+         border: (ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? "1px solid rgba(56,189,126,0.25)" : `1px solid ${T.cardBorder}`,
+         cursor: "pointer", transition: "all 0.2s",
+        }}>
+         {ppShowFilters ? "✕" : "⚙️"} Filters{(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? ` (${ppFilteredTotal})` : ""}
+        </button>
+        <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{
+         position: "relative", width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+         background: ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+         transition: "background 0.3s", padding: 0,
+        }}>
+         <div style={{
+          position: "absolute", top: 2, left: ppSoldMode ? 22 : 2,
+          width: 20, height: 20, borderRadius: 10, background: "#fff",
+          transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+         }} />
+        </button>
+       </div>
+      </div>
+     )}
+
+     {/* ── FILTER PANEL ── */}
+     {ppView === "cards" && ppShowFilters && !ppLoading && (
+      <div style={{ padding: "0 18px 12px", animation: "ppFadeIn 0.2s ease" }}>
+       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px" }}>
+        {/* Property Type */}
+        <div style={{ marginBottom: 12 }}>
+         <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Property Type</div>
+         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {["All", "Single Family", "Condo", "Townhome", "Multi-Unit"].map(t => (
+           <button key={t} onClick={() => setPpFilterType(t)} style={{
+            padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+            background: ppFilterType === t ? "rgba(56,189,126,0.15)" : T.pillBg,
+            color: ppFilterType === t ? "#38bd7e" : T.textTertiary,
+            border: ppFilterType === t ? "1px solid rgba(56,189,126,0.3)" : `1px solid transparent`,
+           }}>{t}</button>
+          ))}
+         </div>
+        </div>
+        {/* Bedrooms */}
+        <div style={{ marginBottom: 12 }}>
+         <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Bedrooms</div>
+         <div style={{ display: "flex", gap: 6 }}>
+          {[["Any","Any"],["1","1+"],["2","2+"],["3","3+"],["4","4+"]].map(([v,l]) => (
+           <button key={v} onClick={() => setPpFilterBeds(v)} style={{
+            padding: "6px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+            background: ppFilterBeds === v ? "rgba(56,189,126,0.15)" : T.pillBg,
+            color: ppFilterBeds === v ? "#38bd7e" : T.textTertiary,
+            border: ppFilterBeds === v ? "1px solid rgba(56,189,126,0.3)" : `1px solid transparent`,
+           }}>{l}</button>
+          ))}
+         </div>
+        </div>
+        {/* Square Footage */}
+        <div style={{ marginBottom: 8 }}>
+         <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Square Footage</div>
+         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {["Any", "Under 1000", "1000-1500", "1500-2000", "2000+"].map(s => (
+           <button key={s} onClick={() => setPpFilterSqft(s)} style={{
+            padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
+            background: ppFilterSqft === s ? "rgba(56,189,126,0.15)" : T.pillBg,
+            color: ppFilterSqft === s ? "#38bd7e" : T.textTertiary,
+            border: ppFilterSqft === s ? "1px solid rgba(56,189,126,0.3)" : `1px solid transparent`,
+           }}>{s === "Under 1000" ? "<1K" : s === "1000-1500" ? "1-1.5K" : s === "1500-2000" ? "1.5-2K" : s === "2000+" ? "2K+" : s}</button>
+          ))}
+         </div>
+        </div>
+        {/* Clear filters */}
+        {(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") && (
+         <button onClick={() => { setPpFilterType("All"); setPpFilterBeds("Any"); setPpFilterSqft("Any"); }}
+          style={{ fontSize: 11, color: "#e85d5d", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 0", marginTop: 4 }}>
+          Clear all filters
+         </button>
+        )}
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6 }}>{ppFilteredTotal} {ppSoldMode ? "sold" : "active"} listings match</div>
+       </div>
       </div>
      )}
 
@@ -6962,14 +7402,40 @@ export default function MortgageBlueprint() {
       {/* ── PP CARDS VIEW ── */}
       {ppView === "cards" && !ppLoading && (
        ppCurrentListing ? (
-        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
-         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
+        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out", position: "relative" }}>
+         {/* PASS stamp overlay (visible during left swipe) */}
+         {ppSwiping && ppSwipeX < -20 && (
+          <div style={{ position: "absolute", top: 30, right: 30, zIndex: 10, transform: `rotate(20deg)`, opacity: Math.min(1, Math.abs(ppSwipeX) / 100), pointerEvents: "none" }}>
+           <div style={{ border: "4px solid #e85d5d", borderRadius: 12, padding: "6px 18px", fontSize: 28, fontWeight: 900, color: "#e85d5d", letterSpacing: 4, textTransform: "uppercase" }}>PASS</div>
+          </div>
+         )}
+         {/* GUESS stamp overlay (visible during right swipe) */}
+         {ppSwiping && ppSwipeX > 20 && (
+          <div style={{ position: "absolute", top: 30, left: 30, zIndex: 10, transform: `rotate(-20deg)`, opacity: Math.min(1, ppSwipeX / 100), pointerEvents: "none" }}>
+           <div style={{ border: "4px solid #38bd7e", borderRadius: 12, padding: "6px 18px", fontSize: 28, fontWeight: 900, color: "#38bd7e", letterSpacing: 4, textTransform: "uppercase" }}>GUESS</div>
+          </div>
+         )}
+         <div
+          onTouchStart={(e) => { ppCardSwipeStart(e); }}
+          onTouchMove={(e) => { ppCardSwipeMove(e); if (ppCardTouchRef.current.swiping) e.stopPropagation(); }}
+          onTouchEnd={(e) => { const wasSwiping = ppCardTouchRef.current.swiping; ppCardSwipeEnd(); if (wasSwiping) e.stopPropagation(); }}
+          onMouseDown={ppCardSwipeStart}
+          onMouseMove={(e) => { if (ppCardTouchRef.current.isMouse && ppCardTouchRef.current.startX) { ppCardSwipeMove(e); e.preventDefault(); } }}
+          style={{
+           background: T.card, border: `1px solid ${ppSwiping ? (ppSwipeX < -20 ? "rgba(232,93,93,0.4)" : ppSwipeX > 20 ? "rgba(56,189,126,0.4)" : T.cardBorder) : T.cardBorder}`,
+           borderRadius: 22, padding: 14, transition: ppSwiping ? "none" : "border-color 0.3s, transform 0.3s",
+           transform: ppSwiping ? `translateX(${ppSwipeX}px) rotate(${ppSwipeX * 0.05}deg)` : "none",
+           touchAction: ppSwiping ? "none" : "auto",
+           userSelect: ppSwiping ? "none" : "auto",
+          }}>
           <div style={{ position: "relative" }}>
            {/* Photo Carousel */}
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
-            const hasPhotos = det?.photos?.length > 1;
-            const photos = hasPhotos ? det.photos : [ppCurrentListing.photo];
+            const detPhotos = det?.photos?.length > 1 ? det.photos : null;
+            const listingPhotos = ppCurrentListing.photos?.length > 1 ? ppCurrentListing.photos : null;
+            const hasPhotos = !!(detPhotos || listingPhotos);
+            const photos = detPhotos || listingPhotos || [ppCurrentListing.photo];
             const idx = Math.min(ppPhotoIdx, photos.length - 1);
             return (
              <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}` }}
@@ -7080,7 +7546,7 @@ export default function MortgageBlueprint() {
              </div>
             ) : null}
            </div>
-           <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
+           <input id="pp-guess-input" value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
             placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
             style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 10, boxSizing: "border-box" }} />
            {ppGuessInput && (() => {
@@ -7102,6 +7568,22 @@ export default function MortgageBlueprint() {
            <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
             {ppActiveListings.length - 1} more {ppSoldMode ? "sold homes" : "listings"} in queue
            </div>
+           {/* Desktop action buttons */}
+           <div style={{ display: "flex", gap: 12, marginTop: 12, justifyContent: "center" }}>
+            <button onClick={ppHandleSkip} style={{
+             width: 52, height: 52, borderRadius: 26, border: `2px solid rgba(232,93,93,0.3)`,
+             background: "rgba(232,93,93,0.08)", color: "#e85d5d", fontSize: 22, cursor: "pointer",
+             display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
+            }} title="Skip this listing">✕</button>
+            <button onClick={() => { const inp = document.getElementById("pp-guess-input"); if (inp) inp.focus(); }} style={{
+             width: 52, height: 52, borderRadius: 26, border: `2px solid rgba(56,189,126,0.3)`,
+             background: "rgba(56,189,126,0.08)", color: "#38bd7e", fontSize: 22, cursor: "pointer",
+             display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
+            }} title="Make a guess">💰</button>
+           </div>
+           <div style={{ textAlign:"center", marginTop:6, fontSize:10, color:T.textTertiary, opacity:0.6 }}>
+            ← swipe to skip · swipe to guess →
+           </div>
           </div>
          </div>
         </div>
@@ -7109,10 +7591,24 @@ export default function MortgageBlueprint() {
         <div style={{ textAlign:"center", padding:"60px 20px" }}>
          <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "🏆" : "🏡"}</div>
          <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
-         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
-         <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
+         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>
+          {ppSkipped.length > 0
+           ? `You guessed or skipped all ${ppFilteredTotal} ${ppSoldMode ? "sold" : ""} listings.`
+           : `You guessed on all ${ppTotalListings} ${ppSoldMode ? "sold" : ""} listings.`}
+         </div>
+         {ppSkipped.length > 0 && (
+          <button onClick={() => setPpSkipped([])} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
+           Replay Skipped ({ppSkipped.length}) →
+          </button>
+         )}
+         <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10, display:"block", margin:"0 auto 10px" }}>
           Try {ppSoldMode ? "Active Listings" : "Recently Sold"} →
          </button>
+         {(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") && (
+          <button onClick={() => { setPpFilterType("All"); setPpFilterBeds("Any"); setPpFilterSqft("Any"); }} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid rgba(232,200,77,0.3)`, background:"rgba(232,200,77,0.08)", color:"#e8c84d", fontSize:13, fontWeight:600, cursor:"pointer", display:"block", margin:"0 auto 10px" }}>
+           Clear Filters — Show All
+          </button>
+         )}
          <div style={{ marginTop:8 }}>
           <button onClick={ppResetAll} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:13, fontWeight:600, cursor:"pointer" }}>Reset All</button>
          </div>
