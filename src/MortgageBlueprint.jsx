@@ -1072,6 +1072,11 @@ export default function MortgageBlueprint() {
  const [ppSwipeX, setPpSwipeX] = useState(0);
  const [ppSwiping, setPpSwiping] = useState(false);
  const ppCardTouchRef = useRef({ startX: 0, startY: 0, swiping: false });
+ const [ppShowMap, setPpShowMap] = useState(false);
+ const [ppMapDrawn, setPpMapDrawn] = useState(null); // array of [lat,lng] polygon points or null
+ const ppMapRef = useRef(null);
+ const ppMapInstanceRef = useRef(null);
+ const ppDrawLayerRef = useRef(null);
  useEffect(() => { try { localStorage.setItem("pp-public", String(ppPublicProfile)); } catch(e){} }, [ppPublicProfile]);
 
  // ── PricePoint XP & Leveling System ──
@@ -3056,29 +3061,29 @@ export default function MortgageBlueprint() {
  // PRICEPOINT — Sample Listings & Logic (fallback)
  // ═══════════════════════════════════════════
  const PP_LISTINGS = [
-  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:956 },
-  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:845 },
-  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:861 },
-  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905 },
-  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:917 },
-  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:875 },
-  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:795 },
-  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:663 },
-  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:852 },
-  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",photos:["https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:696 },
+  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:956,lat:37.7529,lng:-122.4867,description:"Charming 3-bedroom Sunset District home on a quiet tree-lined block. Original hardwood floors throughout, updated kitchen with quartz countertops, and a spacious backyard perfect for entertaining. Detached garage with extra storage. Steps to Irving St shops and N-Judah." },
+  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:845,lat:37.7604,lng:-122.5035,description:"Beautifully expanded home in the Outer Sunset with ocean views from the upper level. Open floor plan with vaulted ceilings, renovated bathrooms, and a chef's kitchen featuring stainless steel appliances. Full basement with separate entrance — ideal for in-law or rental income." },
+  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:861,lat:37.7452,lng:-122.4767,description:"Spacious 4-bed/3-bath family home near Stern Grove. Two levels of living space with large bedrooms, modern finishes, and an eat-in kitchen. Landscaped backyard with mature fruit trees. Attached 2-car garage. Walk to Stonestown Galleria and SFSU." },
+  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905,lat:37.7556,lng:-122.4945,description:"Cozy starter home in the heart of the Outer Sunset. Two bedrooms, one bath, sunny living room with bay windows. Original period details with modern updates in kitchen and bath. Large lot with development potential. Close to Ocean Beach and Golden Gate Park." },
+  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:917,lat:37.7619,lng:-122.4687,description:"Stunning Inner Sunset gem just blocks from Golden Gate Park. Three generous bedrooms, two full baths, and a sun-drenched living/dining combo. Gourmet kitchen with marble counters and custom cabinetry. Finished lower level with media room. Premium N-Judah location." },
+  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:875,lat:37.7537,lng:-122.4982,description:"Well-maintained 3-bedroom home on popular Noriega corridor. Open living/dining area, updated kitchen, and two full baths. Bonus room downstairs could be office or 4th bedroom. Sunny south-facing backyard. Easy access to L-Taraval line and neighborhood restaurants." },
+  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:795,lat:37.7567,lng:-122.4812,description:"Large 4-bedroom family home in the Central Sunset with tons of natural light. Formal living and dining rooms, remodeled kitchen with breakfast nook, and two full baths. Hardwood floors, crown molding, and built-in bookshelves. Garage plus additional parking." },
+  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:663,lat:37.7612,lng:-122.4706,description:"Bright corner unit condo in the Inner Sunset with 2 bedrooms and 2 full baths. In-unit laundry, deeded parking, and shared roof deck with park views. Modern open kitchen, oversized windows, and ample closet space. HOA includes water, garbage, and common area maintenance. One block to UCSF shuttle." },
+  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:852,lat:37.7438,lng:-122.5048,description:"Classic Parkside 3-bedroom with great bones and a huge backyard. Vintage charm meets modern convenience — updated electrical, copper plumbing, and newer roof. Eat-in kitchen opens to yard. Detached garage with workshop potential. Two blocks to Stern Grove concerts." },
+  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",photos:["https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:696,lat:37.7635,lng:-122.4659,description:"Rare 5-bedroom trophy home steps from Golden Gate Park. Three full baths, grand living room with fireplace, formal dining, and a chef's kitchen with island. Top floor primary suite with park views. Full finished basement with separate entrance — perfect for au pair or rental. Oversized lot." },
  ];
 
  const PP_SOLD_LISTINGS = [
-  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:931 },
-  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:977 },
-  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:953 },
-  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905 },
-  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962 },
-  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:692 },
-  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:906 },
-  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:823 },
-  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962 },
-  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:909 },
+  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:931,lat:37.7541,lng:-122.4838,description:"Move-in ready 3-bed/2-bath in the Central Sunset. Bright open floor plan, renovated kitchen with quartz island, and spa-like primary bath. Hardwood floors, dual-pane windows, and fresh interior paint. Landscaped yard with patio. Walk to Irving St restaurants and shops." },
+  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:977,lat:37.7463,lng:-122.5012,description:"Sweet 2-bedroom bungalow in the Parkside neighborhood. Sunny south-facing rooms, refinished hardwood floors, and updated plumbing. Detached garage and generous backyard. Ideal starter home or investment opportunity. Short walk to Stern Grove and Lake Merced." },
+  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:953,lat:37.7598,lng:-122.4725,description:"Highly coveted 4-bedroom Inner Sunset home sold well above asking. Fully renovated with designer finishes throughout. Open-concept main level, skylit stairwell, and a stunning primary suite. Chef's kitchen with Wolf range and Sub-Zero fridge. Professionally landscaped garden." },
+  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905,lat:37.7533,lng:-122.4965,description:"Solid 3-bed/1-bath on Noriega with excellent upside potential. Original layout with large rooms and storage throughout. Needs cosmetic updating but structurally sound — newer foundation and roof. Garage with interior access. Great location near shops and transit." },
+  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962,lat:37.7514,lng:-122.4892,description:"Turnkey 3-bed/2-bath that flew off the market. Tastefully remodeled with open living area, recessed lighting, and hardwood floors. Updated kitchen with breakfast bar opens to a private deck. Both bathrooms renovated. Full basement with laundry and bonus room." },
+  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:692,lat:37.7608,lng:-122.4713,description:"Top-floor 2-bed/2-bath condo in a well-managed 6-unit building. Abundant natural light, in-unit washer/dryer, and one deeded parking spot. Low HOA includes earthquake insurance. Updated kitchen with stainless appliances. Close to UCSF, GGP, and 9th Ave dining." },
+  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:906,lat:37.7445,lng:-122.5055,description:"Charming Parkside 3-bedroom with period details and a large backyard. Coved ceilings, archways, and original built-ins give this home character. Updated kitchen and bathroom. Side yard access and extra-deep lot. Quiet block near Lake Merced bike path." },
+  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:823,lat:37.7627,lng:-122.4672,description:"Premium Inner Sunset 4-bed/3-bath with legal in-law suite. Main level features open entertaining space, gourmet kitchen, and two bedrooms. Upper level primary with walk-in closet and ensuite. Lower level in-law with separate entrance, full kitchen, and bath. Exceptional value." },
+  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962,lat:37.7525,lng:-122.4968,description:"Affordable entry into SF homeownership. This 2-bed/1-bath Outer Sunset gem features a sunny living room, eat-in kitchen, and one-car garage. Hardwood floors under carpet. Large backyard with room to expand. Steps to Noriega shops and the L-Taraval line." },
+  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:909,lat:37.7555,lng:-122.4815,description:"Beautifully updated 3-bed/2-bath Central Sunset home. Open concept main floor with modern kitchen, quartz counters, and custom tile backsplash. New bathrooms, recessed lighting throughout, and fresh paint inside and out. Garage plus additional off-street parking. Walk score 85." },
  ];
  const ppFmt = n => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) ?? "—";
  const ppAbsPct = (g,a) => (Math.abs((g-a)/a)*100).toFixed(1);
@@ -3128,6 +3133,10 @@ export default function MortgageBlueprint() {
     if (ppFilterSqft === "2000+") return sf >= 2000;
     return true;
    });
+  }
+  // Geo filter (drawn polygon on map)
+  if (ppMapDrawn && ppMapDrawn.length > 2) {
+   filtered = filtered.filter(l => l.lat && l.lng && ppPointInPolygon([l.lat, l.lng], ppMapDrawn));
   }
   return filtered;
  };
@@ -3191,7 +3200,149 @@ export default function MortgageBlueprint() {
  };
  const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
  const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
- const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); setPpSkipped([]); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+ const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); setPpSkipped([]); setPpMapDrawn(null); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
+
+ // ── Point-in-polygon (ray casting) ──
+ const ppPointInPolygon = (point, polygon) => {
+  if (!polygon || polygon.length < 3) return true;
+  const [px, py] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+   const [ix, iy] = polygon[i];
+   const [jx, jy] = polygon[j];
+   if (((iy > py) !== (jy > py)) && (px < (jx - ix) * (py - iy) / (jy - iy) + ix)) {
+    inside = !inside;
+   }
+  }
+  return inside;
+ };
+
+ // ── Load Leaflet dynamically ──
+ const ppLoadLeaflet = () => {
+  return new Promise((resolve) => {
+   if (window.L) { resolve(window.L); return; }
+   const css = document.createElement("link");
+   css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+   document.head.appendChild(css);
+   const drawCss = document.createElement("link");
+   drawCss.rel = "stylesheet"; drawCss.href = "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css";
+   document.head.appendChild(drawCss);
+   const js = document.createElement("script");
+   js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+   js.onload = () => {
+    const drawJs = document.createElement("script");
+    drawJs.src = "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js";
+    drawJs.onload = () => resolve(window.L);
+    document.head.appendChild(drawJs);
+   };
+   document.head.appendChild(js);
+  });
+ };
+
+ // ── Initialize map when overlay opens ──
+ const ppInitMap = async () => {
+  const L = await ppLoadLeaflet();
+  if (!ppMapRef.current) return;
+  // Cleanup old map
+  if (ppMapInstanceRef.current) { ppMapInstanceRef.current.remove(); ppMapInstanceRef.current = null; }
+  // Get all listings with coordinates
+  const allListings = ppSoldMode ? PP_SOLD_SOURCE : PP_ACTIVE_SOURCE;
+  const withCoords = allListings.filter(l => l.lat && l.lng);
+  // Default center: mean of all coordinates, or SF
+  const centerLat = withCoords.length > 0 ? withCoords.reduce((s, l) => s + l.lat, 0) / withCoords.length : 37.7549;
+  const centerLng = withCoords.length > 0 ? withCoords.reduce((s, l) => s + l.lng, 0) / withCoords.length : -122.4844;
+  const map = L.map(ppMapRef.current, { zoomControl: false }).setView([centerLat, centerLng], 14);
+  L.control.zoom({ position: "topright" }).addTo(map);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+   attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
+  }).addTo(map);
+  // Add markers
+  withCoords.forEach(l => {
+   const isGuessed = ppGuesses.find(g => g.listingId === l.id);
+   const isSkipped = ppSkipped.includes(l.id);
+   const priceLabel = (l.listPrice / 1000).toFixed(0) + "K";
+   const icon = L.divIcon({
+    className: "",
+    html: `<div style="background:${isGuessed ? '#666' : isSkipped ? '#555' : '#38bd7e'};color:#fff;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;border:2px solid ${isGuessed ? '#888' : isSkipped ? '#777' : '#2d9d68'};box-shadow:0 2px 6px rgba(0,0,0,0.4);${isGuessed || isSkipped ? 'opacity:0.5;' : ''}">${priceLabel}</div>`,
+    iconSize: [0, 0], iconAnchor: [25, 15]
+   });
+   const marker = L.marker([l.lat, l.lng], { icon }).addTo(map);
+   marker.bindPopup(`<div style="font-family:system-ui;min-width:180px"><strong>${l.address}</strong><br><span style="color:#38bd7e;font-weight:700">$${l.listPrice.toLocaleString()}</span><br>${l.beds}bd/${l.baths}ba · ${(l.sqft||0).toLocaleString()} SF<br><span style="color:#888">${l.neighborhood}</span></div>`, { closeButton: false });
+  });
+  // Draw controls
+  const drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+  ppDrawLayerRef.current = drawnItems;
+  const drawControl = new L.Control.Draw({
+   position: "topleft",
+   draw: {
+    polygon: { allowIntersection: false, shapeOptions: { color: "#38bd7e", weight: 2, fillOpacity: 0.1 } },
+    rectangle: { shapeOptions: { color: "#38bd7e", weight: 2, fillOpacity: 0.1 } },
+    circle: false, circlemarker: false, marker: false, polyline: false
+   },
+   edit: { featureGroup: drawnItems, remove: true }
+  });
+  map.addControl(drawControl);
+  map.on(L.Draw.Event.CREATED, (e) => {
+   drawnItems.clearLayers();
+   drawnItems.addLayer(e.layer);
+   const latlngs = e.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
+   setPpMapDrawn(latlngs);
+  });
+  map.on(L.Draw.Event.DELETED, () => {
+   setPpMapDrawn(null);
+  });
+  // If there's an existing drawn polygon, re-add it
+  if (ppMapDrawn && ppMapDrawn.length > 2) {
+   const poly = L.polygon(ppMapDrawn, { color: "#38bd7e", weight: 2, fillOpacity: 0.1 });
+   drawnItems.addLayer(poly);
+  }
+  ppMapInstanceRef.current = map;
+  // Fix tile rendering (Leaflet needs a resize after mount)
+  setTimeout(() => map.invalidateSize(), 100);
+ };
+
+ // ── Import listing to Blueprint as new scenario ──
+ const ppImportToBlueprint = async (listing) => {
+  if (!listing) return;
+  // Save current scenario first
+  try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
+  // Create scenario name from address
+  const addr = listing.address || "PricePoint Import";
+  let newName = addr;
+  let i = 2;
+  while (scenarioList.includes(newName)) { newName = addr + " (" + i + ")"; i++; }
+  const newList = [...scenarioList, newName];
+  setScenarioList(newList);
+  setScenarioName(newName);
+  // Set property details from listing
+  setSalesPrice(listing.listPrice || 1000000);
+  setPropertyAddress(listing.address || "");
+  setPropertyTBD(false);
+  setPropertyZip(listing.zip || "");
+  setCity(listing.city === "San Francisco" ? "San Francisco" : listing.city || "Alameda");
+  setTransferTaxCity(listing.city === "San Francisco" ? "San Francisco" : listing.city || "Alameda");
+  setPropertyState(listing.state === "CA" ? "California" : listing.state || "California");
+  // Map property type
+  const pt = (listing.propertyType || "").toLowerCase();
+  if (pt.includes("condo")) setPropType("Condo");
+  else if (pt.includes("town")) setPropType("Townhome");
+  else if (pt.includes("multi") || pt.includes("duplex")) setPropType("Duplex (2 Unit)");
+  else setPropType("Single Family");
+  // Reset financial fields to defaults (keep user's income/debts/assets from current scenario)
+  setDownPct(20); setRate(6.5); setTerm(30); setLoanType("Conventional");
+  userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false);
+  setLoanPurpose("Purchase Primary"); setHoa(pt.includes("condo") ? 400 : 0);
+  setDiscountPts(0); setSellerCredit(0); setRealtorCredit(0); setEmd(0);
+  // Keep income, debts, assets, credit score as-is (user's existing financial profile)
+  // Auto-save useEffect will persist this scenario 1.5s after state updates
+  try { await LS.set("active-scenario", newName); } catch(e) {}
+  // Switch to Blueprint mode, Calculator tab
+  setAppMode("blueprint");
+  setTab("calc");
+  // Show confirmation (use shareNotif since ppNotif only renders in PricePoint mode)
+  setTimeout(() => { setShareNotif(`Imported ${addr} into Blueprint!`); setTimeout(() => setShareNotif(null), 4000); }, 300);
+ };
 
  // ── Card Swipe (skip left / guess right) ──
  const ppHandleSkip = () => {
@@ -7179,6 +7330,7 @@ export default function MortgageBlueprint() {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
        {ppHometown && <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>📍 {ppHometown.label}</button>}
+       <button onClick={() => { setPpShowMap(true); setTimeout(ppInitMap, 100); }} style={{ background: ppMapDrawn ? "rgba(56,189,126,0.12)" : T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: ppMapDrawn ? "#38bd7e" : T.textTertiary, border: ppMapDrawn ? "1px solid rgba(56,189,126,0.25)" : "none", cursor: "pointer" }}>🗺️{ppMapDrawn ? " ✓" : ""}</button>
        <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>🔥 {ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
        <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 10, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
         <span style={{ fontSize: 16 }}>{ppCurrentHome.icon}</span>
@@ -7392,6 +7544,13 @@ export default function MortgageBlueprint() {
           Clear all filters
          </button>
         )}
+        {/* Map area indicator */}
+        {ppMapDrawn && (
+         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, padding: "8px 10px", background: "rgba(56,189,126,0.06)", borderRadius: 10, border: "1px solid rgba(56,189,126,0.15)" }}>
+          <span style={{ fontSize: 11, color: "#38bd7e", fontWeight: 600 }}>🗺️ Map area active</span>
+          <button onClick={() => setPpMapDrawn(null)} style={{ fontSize: 11, color: "#e85d5d", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Clear area</button>
+         </div>
+        )}
         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6 }}>{ppFilteredTotal} {ppSoldMode ? "sold" : "active"} listings match</div>
        </div>
       </div>
@@ -7503,7 +7662,7 @@ export default function MortgageBlueprint() {
            {/* MLS Description */}
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
-            const desc = det?.description;
+            const desc = det?.description || ppCurrentListing.description;
             if (!desc) return null;
             // Strip dollar amounts from description to avoid giving away price
             const cleanDesc = desc.replace(/\$[\d,]+(?:\.\d{2})?/g, "$***").replace(/(?:priced?|offered?|asking|listed?|sold?)\s+(?:at|for)\s+\$?[\d,]+/gi, "").trim();
@@ -7584,6 +7743,15 @@ export default function MortgageBlueprint() {
            <div style={{ textAlign:"center", marginTop:6, fontSize:10, color:T.textTertiary, opacity:0.6 }}>
             ← swipe to skip · swipe to guess →
            </div>
+           {/* Import to Blueprint */}
+           <button onClick={() => ppImportToBlueprint(ppCurrentListing)} style={{
+            width: "100%", marginTop: 10, padding: "12px", borderRadius: 14, border: `1px solid ${T.blue}30`,
+            background: `${T.blue}08`, color: T.blue, fontSize: 13, fontWeight: 700, cursor: "pointer",
+            fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "all 0.2s",
+           }}>
+            🏗️ Run the Numbers in Blueprint
+           </button>
           </div>
          </div>
         </div>
@@ -7604,9 +7772,9 @@ export default function MortgageBlueprint() {
          <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10, display:"block", margin:"0 auto 10px" }}>
           Try {ppSoldMode ? "Active Listings" : "Recently Sold"} →
          </button>
-         {(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") && (
-          <button onClick={() => { setPpFilterType("All"); setPpFilterBeds("Any"); setPpFilterSqft("Any"); }} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid rgba(232,200,77,0.3)`, background:"rgba(232,200,77,0.08)", color:"#e8c84d", fontSize:13, fontWeight:600, cursor:"pointer", display:"block", margin:"0 auto 10px" }}>
-           Clear Filters — Show All
+         {(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any" || ppMapDrawn) && (
+          <button onClick={() => { setPpFilterType("All"); setPpFilterBeds("Any"); setPpFilterSqft("Any"); setPpMapDrawn(null); }} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid rgba(232,200,77,0.3)`, background:"rgba(232,200,77,0.08)", color:"#e8c84d", fontSize:13, fontWeight:600, cursor:"pointer", display:"block", margin:"0 auto 10px" }}>
+           Clear Filters{ppMapDrawn ? " & Map Area" : ""} — Show All
           </button>
          )}
          <div style={{ marginTop:8 }}>
@@ -7890,6 +8058,44 @@ export default function MortgageBlueprint() {
        ))}
       </div>
      </div>
+
+     {/* PP MAP OVERLAY */}
+     {ppShowMap && (
+      <div style={{ position: "fixed", inset: 0, zIndex: 250, background: T.bg, display: "flex", flexDirection: "column" }}>
+       {/* Map Header */}
+       <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", background: T.card, borderBottom: `1px solid ${T.cardBorder}`, flexShrink: 0 }}>
+        <div>
+         <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>🗺️ Draw Your Search Area</div>
+         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
+          {ppMapDrawn ? `${ppFilteredTotal} listings in drawn area` : "Use the draw tools (top-left) to select an area"}
+         </div>
+        </div>
+        <button onClick={() => { setPpShowMap(false); if (ppMapInstanceRef.current) { ppMapInstanceRef.current.remove(); ppMapInstanceRef.current = null; } }}
+         style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer", color: T.textTertiary, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+       </div>
+       {/* Map Container */}
+       <div ref={ppMapRef} style={{ flex: 1, width: "100%", minHeight: 0 }} />
+       {/* Map Footer */}
+       <div style={{ padding: "12px 18px", background: T.card, borderTop: `1px solid ${T.cardBorder}`, display: "flex", gap: 10, flexShrink: 0, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+        {ppMapDrawn ? (
+         <>
+          <button onClick={() => { setPpMapDrawn(null); if (ppDrawLayerRef.current) ppDrawLayerRef.current.clearLayers(); }}
+           style={{ flex: 1, padding: "12px", borderRadius: 14, border: `1px solid ${T.cardBorder}`, background: T.pillBg, color: T.textSecondary, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+           Clear Drawing
+          </button>
+          <button onClick={() => { setPpShowMap(false); if (ppMapInstanceRef.current) { ppMapInstanceRef.current.remove(); ppMapInstanceRef.current = null; } }}
+           style={{ flex: 1, padding: "12px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#38bd7e,#2d9d68)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+           Show {ppFilteredTotal} Listings →
+          </button>
+         </>
+        ) : (
+         <div style={{ flex: 1, textAlign: "center", fontSize: 13, color: T.textTertiary, padding: "8px 0" }}>
+          Tap the <strong style={{ color: T.text }}>polygon</strong> or <strong style={{ color: T.text }}>rectangle</strong> tool in the top-left corner, then draw on the map
+         </div>
+        )}
+       </div>
+      </div>
+     )}
 
      {/* PP SOLD REVEAL MODAL */}
      {ppShowReveal && ppShowReveal.soldPrice && (
