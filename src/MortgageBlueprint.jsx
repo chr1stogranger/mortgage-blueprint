@@ -3313,30 +3313,47 @@ export default function MortgageBlueprint() {
   let i = 2;
   while (scenarioList.includes(newName)) { newName = addr + " (" + i + ")"; i++; }
   const newList = [...scenarioList, newName];
+  // Build scenario data explicitly with listing values + current financial profile
+  const currentState = getState();
+  const pt = (listing.propertyType || "").toLowerCase();
+  const mappedPropType = pt.includes("condo") ? "Condo" : pt.includes("town") ? "Townhome" : pt.includes("multi") || pt.includes("duplex") ? "Duplex (2 Unit)" : "Single Family";
+  const mappedCity = listing.city === "San Francisco" ? "San Francisco" : listing.city || "Alameda";
+  const mappedState = listing.state === "CA" ? "California" : listing.state || "California";
+  const scenarioData = {
+   ...currentState,
+   salesPrice: listing.listPrice || 1000000,
+   propertyAddress: listing.address || "",
+   propertyTBD: false,
+   propertyZip: listing.zip || "",
+   city: mappedCity,
+   transferTaxCity: mappedCity,
+   propertyState: mappedState,
+   propType: mappedPropType,
+   downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
+   loanPurpose: "Purchase Primary",
+   hoa: pt.includes("condo") ? 400 : 0,
+   discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0,
+   // Keep: incomes, debts, assets, creditScore, borrowerName, etc from currentState
+  };
+  // Save the new scenario data directly (avoids React state timing issues)
+  try { await LS.set("scenario:" + newName, JSON.stringify(scenarioData)); } catch(e) {}
+  try { await LS.set("active-scenario", newName); } catch(e) {}
+  try { await LS.set("scenarios", JSON.stringify(newList)); } catch(e) {}
+  // Now update React state to match
   setScenarioList(newList);
   setScenarioName(newName);
-  // Set property details from listing
   setSalesPrice(listing.listPrice || 1000000);
   setPropertyAddress(listing.address || "");
   setPropertyTBD(false);
   setPropertyZip(listing.zip || "");
-  setCity(listing.city === "San Francisco" ? "San Francisco" : listing.city || "Alameda");
-  setTransferTaxCity(listing.city === "San Francisco" ? "San Francisco" : listing.city || "Alameda");
-  setPropertyState(listing.state === "CA" ? "California" : listing.state || "California");
-  // Map property type
-  const pt = (listing.propertyType || "").toLowerCase();
-  if (pt.includes("condo")) setPropType("Condo");
-  else if (pt.includes("town")) setPropType("Townhome");
-  else if (pt.includes("multi") || pt.includes("duplex")) setPropType("Duplex (2 Unit)");
-  else setPropType("Single Family");
-  // Reset financial fields to defaults (keep user's income/debts/assets from current scenario)
+  setCity(mappedCity);
+  setTransferTaxCity(mappedCity);
+  setPropertyState(mappedState);
+  setPropType(mappedPropType);
   setDownPct(20); setRate(6.5); setTerm(30); setLoanType("Conventional");
   userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false);
   setLoanPurpose("Purchase Primary"); setHoa(pt.includes("condo") ? 400 : 0);
   setDiscountPts(0); setSellerCredit(0); setRealtorCredit(0); setEmd(0);
-  // Keep income, debts, assets, credit score as-is (user's existing financial profile)
-  // Auto-save useEffect will persist this scenario 1.5s after state updates
-  try { await LS.set("active-scenario", newName); } catch(e) {}
   // Switch to Blueprint mode, Calculator tab
   setAppMode("blueprint");
   setTab("calc");
@@ -7556,7 +7573,7 @@ export default function MortgageBlueprint() {
       </div>
      )}
 
-     <div style={{ padding: "0 18px", paddingBottom: 80, overflow: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
+     <div style={{ padding: "0 18px", paddingBottom: 80, overflowX: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
 
       {/* ── PP CARDS VIEW ── */}
       {ppView === "cards" && !ppLoading && (
@@ -7610,6 +7627,12 @@ export default function MortgageBlueprint() {
               }}>
               <img src={photos[idx]} alt="" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }}
                onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+              {/* Photo counter badge (top-right) */}
+              {hasPhotos && (
+               <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.6)", borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:700, color:"#fff", backdropFilter:"blur(4px)" }}>
+                📷 {idx+1}/{photos.length}
+               </div>
+              )}
               {/* Dot indicators */}
               {hasPhotos && (
                <div style={{ position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, background:"rgba(0,0,0,0.4)", borderRadius:10, padding:"4px 8px" }}>
@@ -7666,25 +7689,24 @@ export default function MortgageBlueprint() {
             if (!desc) return null;
             // Strip dollar amounts from description to avoid giving away price
             const cleanDesc = desc.replace(/\$[\d,]+(?:\.\d{2})?/g, "$***").replace(/(?:priced?|offered?|asking|listed?|sold?)\s+(?:at|for)\s+\$?[\d,]+/gi, "").trim();
-            const isLong = cleanDesc.length > 150;
-            const shown = isLong && !ppDescExpanded ? cleanDesc.slice(0, 150).replace(/\s+\S*$/, "…") : cleanDesc;
             return (
-             <div style={{ marginBottom: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 12, borderLeft: `3px solid ${T.blue}40` }}>
-              <div style={{ fontSize: 12, lineHeight: 1.5, color: T.textSecondary }}>{shown}</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
-               {isLong && (
-                <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
-                 style={{ background:"none", border:"none", color:T.blue, fontSize:11, fontWeight:600, cursor:"pointer", padding:0, fontFamily:FONT }}>
-                 {ppDescExpanded ? "Show less" : "Read more"}
-                </button>
-               )}
-               {ppCurrentListing.detailUrl && (
-                <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
-                 style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:0, fontFamily:FONT, marginLeft:"auto" }}>
-                 View on Zillow ↗
-                </button>
-               )}
-              </div>
+             <div style={{ marginBottom: 12, borderRadius: 12, border: `1px solid ${T.cardBorder}`, overflow: "hidden" }}>
+              <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
+               style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: T.pillBg, border: "none", cursor: "pointer", fontFamily: FONT }}>
+               <span style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary }}>📋 MLS Description</span>
+               <span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 600 }}>{ppDescExpanded ? "▲ Hide" : "▼ Show"}</span>
+              </button>
+              {ppDescExpanded && (
+               <div style={{ padding: "10px 12px", borderTop: `1px solid ${T.cardBorder}`, background: `${T.pillBg}80` }}>
+                <div style={{ fontSize: 12, lineHeight: 1.6, color: T.textSecondary }}>{cleanDesc}</div>
+                {ppCurrentListing.detailUrl && (
+                 <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
+                  style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:"6px 0 0", fontFamily:FONT }}>
+                  View on Zillow ↗
+                 </button>
+                )}
+               </div>
+              )}
              </div>
             );
            })()}
