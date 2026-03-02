@@ -66,7 +66,7 @@ module.exports = function handler(req, res) {
           neighborhood: getNeighborhood(d),
         };
 
-        return res.status(200).json({ property: property });
+        return res.status(200).json({ photos: property.photos, description: property.description, zpid: property.zpid });
       } catch (e) {
         return res.status(500).json({ error: "Parse error: " + e.message });
       }
