@@ -1,7 +1,8 @@
-// /api/property — Get property details + photos by zpid (RapidAPI)
-var https = require("https");
+// api/propertydetails.js
+// Vercel Serverless Function — fetches property photos + description from RapidAPI
+// Endpoint: /api/propertydetails?zpid=12345678
 
-module.exports = function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET");
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -16,69 +17,41 @@ module.exports = function handler(req, res) {
     return res.status(400).json({ error: "zpid required" });
   }
 
-  var options = {
-    hostname: "real-time-real-estate-data.p.rapidapi.com",
-    path: "/property-details?zpid=" + zpid,
-    method: "GET",
-    headers: {
-      "X-RapidAPI-Key": apiKey,
-      "X-RapidAPI-Host": "real-time-real-estate-data.p.rapidapi.com",
-    },
-  };
-
-  var apiReq = https.request(options, function (apiRes) {
-    var body = "";
-    apiRes.on("data", function (chunk) { body += chunk; });
-    apiRes.on("end", function () {
-      try {
-        if (apiRes.statusCode !== 200) {
-          return res.status(apiRes.statusCode).json({ error: body });
-        }
-
-        var raw = JSON.parse(body);
-        var d = raw.data || raw;
-
-        var property = {
-          id: String(d.zpid || zpid),
-          zpid: String(d.zpid || zpid),
-          address: d.streetAddress || (d.address && d.address.streetAddress) || "",
-          city: d.city || (d.address && d.address.city) || "San Francisco",
-          state: d.state || (d.address && d.address.state) || "CA",
-          zip: d.zipcode || (d.address && d.address.zipcode) || "",
-          beds: d.bedrooms || 0,
-          baths: d.bathrooms || 0,
-          sqft: d.livingArea || 0,
-          lotSqft: d.lotAreaValue || d.lotSize || null,
-          yearBuilt: d.yearBuilt || null,
-          propertyType: normalizeType(d.homeType),
-          listPrice: d.price || d.listPrice || 0,
-          soldPrice: d.lastSoldPrice || null,
-          soldDate: d.lastSoldDate || d.dateSold || null,
-          daysOnMarket: d.daysOnZillow || 0,
-          status: d.homeStatus === "RECENTLY_SOLD" ? "sold" : "active",
-          photo: d.imgSrc || d.hiResImageLink || null,
-          photos: extractPhotos(d),
-          description: d.description || "",
-          zestimate: d.zestimate || null,
-          latitude: d.latitude || null,
-          longitude: d.longitude || null,
-          pricePerSqft: d.livingArea && d.price ? Math.round(d.price / d.livingArea) : null,
-          neighborhood: getNeighborhood(d),
-        };
-
-        return res.status(200).json({ photos: property.photos, description: property.description, zpid: property.zpid });
-      } catch (e) {
-        return res.status(500).json({ error: "Parse error: " + e.message });
-      }
+  try {
+    var url = "https://real-time-real-estate-data.p.rapidapi.com/property-details?zpid=" + zpid;
+    var response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": "real-time-real-estate-data.p.rapidapi.com",
+      },
     });
-  });
 
-  apiReq.on("error", function (err) {
-    return res.status(500).json({ error: err.message });
-  });
+    if (!response.ok) {
+      var errText = await response.text();
+      console.error("RapidAPI error:", response.status, errText);
+      return res.status(response.status).json({ error: "RapidAPI returned " + response.status });
+    }
 
-  apiReq.end();
-};
+    var raw = await response.json();
+    var d = raw.data || raw;
+
+    // Extract photos
+    var photos = extractPhotos(d);
+
+    // Extract description
+    var description = d.description || "";
+
+    return res.status(200).json({
+      photos: photos,
+      description: description,
+      zpid: String(d.zpid || zpid),
+    });
+  } catch (err) {
+    console.error("Property details error:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch property details" });
+  }
+}
 
 function extractPhotos(d) {
   var urls = [];
@@ -106,26 +79,4 @@ function extractPhotos(d) {
   }
   if (d.imgSrc) return [d.imgSrc];
   return [];
-}
-
-function normalizeType(t) {
-  if (!t) return "Other";
-  if (t.indexOf("SINGLE") >= 0) return "Single Family";
-  if (t.indexOf("CONDO") >= 0) return "Condo";
-  if (t.indexOf("TOWN") >= 0) return "Townhouse";
-  if (t.indexOf("MULTI") >= 0) return "Multi-Family";
-  return t;
-}
-
-function getNeighborhood(item) {
-  var addr = (item.streetAddress || "").toLowerCase();
-  var m = addr.match(/(\d+)(st|nd|rd|th)\s+ave/);
-  if (m) {
-    var n = parseInt(m[1]);
-    if (n <= 15) return "Inner Sunset";
-    if (n <= 30) return "Central Sunset";
-    return "Outer Sunset";
-  }
-  if (item.zipcode === "94116") return "Parkside";
-  return "Sunset District";
 }
