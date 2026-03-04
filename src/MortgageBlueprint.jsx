@@ -1040,6 +1040,13 @@ function ConstructionHouse({ stagesComplete, total }) {
 export default function MortgageBlueprint() {
  const [darkMode, setDarkMode] = useState(true);
  T = darkMode ? DARK : LIGHT;
+ // ── iOS Safe Area: ensure viewport-fit=cover ──
+ useEffect(() => {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta && !meta.content.includes("viewport-fit=cover")) {
+   meta.content = meta.content + ", viewport-fit=cover";
+  }
+ }, []);
  // ── Security State ──
  const [privacyMode, setPrivacyMode] = useState(false);
  // ── Realtor Partner (co-branding via /r/slug URL) ──
@@ -2078,7 +2085,12 @@ export default function MortgageBlueprint() {
  // Turns active (blue) ONLY when: (1) all required fields on this tab are filled AND (2) user scrolled 90%+ down.
  // isTabFieldsComplete checks actual field values, NOT the scroll-based completedTabs flag.
  const isTabFieldsComplete = (t) => {
-  if (t === "setup") return isRefi !== null && propertyZip.length >= 5 && creditScore > 0 && salesPrice > 0;
+  if (t === "setup") {
+   const baseComplete = isRefi !== null && propertyZip.length >= 5 && creditScore > 0 && salesPrice > 0;
+   if (!baseComplete) return false;
+   if (isRefi) return refiOriginalAmount > 0 && refiCurrentRate > 0;
+   return true;
+  }
   if (t === "calc") return salesPrice > 0 && rate > 0;
   if (t === "costs") return true; // costs have defaults, always "complete"
   if (t === "income") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
@@ -2132,7 +2144,7 @@ export default function MortgageBlueprint() {
   const barFirstShow = !floatBarShownRef.current;
   if (barFirstShow) floatBarShownRef.current = true;
   return (
-   <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none" }}>
+   <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
     <div style={{ margin: "0 8px 8px", borderRadius: 20, overflow: "hidden", pointerEvents: "auto", border: isReady ? `2px solid ${T.blue}` : "2px solid transparent", boxShadow: isReady ? `0 0 20px rgba(74,144,217,0.4), 0 -4px 30px rgba(0,0,0,0.15)` : "0 -4px 30px rgba(0,0,0,0.15)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", transition: "all 0.4s ease" }}>
      {/* Progress bar */}
      <div style={{ height: 3, background: T.separator }}>
@@ -2249,13 +2261,13 @@ export default function MortgageBlueprint() {
    if (propertyZip.length < 5) return "zip-code";
    if (creditScore === 0) return "fico-input";
    if (salesPrice === 0) return "price-input";
-   if (!guideTouched.has("down-payment")) return "down-payment";
-   if (!guideTouched.has("fthb")) return "fthb";
+   if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
+   if (!isRefi && !guideTouched.has("fthb")) return "fthb";
    return null;
   }
   if (tab === "calc") {
    if (salesPrice === 0) return "calc-price";
-   if (!guideTouched.has("calc-down")) return "calc-down";
+   if (!isRefi && !guideTouched.has("calc-down")) return "calc-down";
    if (rate === 0) return "calc-rate";
    if (!guideTouched.has("calc-term")) return "calc-term";
    if (!guideTouched.has("calc-loantype")) return "calc-loantype";
@@ -2433,6 +2445,8 @@ export default function MortgageBlueprint() {
   }
  }, [propertyZip]);
  // Auto-switch to Jumbo when loan amount exceeds high-balance limit for unit count
+ // Auto-sync refiHomeValue from salesPrice when in refi mode
+ useEffect(() => { if (isRefi) setRefiHomeValue(salesPrice); }, [isRefi, salesPrice]);
  useEffect(() => {
   const baseLoan = salesPrice * (1 - downPct / 100);
   const hbl = getHighBalLimit(propType);
@@ -3491,6 +3505,9 @@ export default function MortgageBlueprint() {
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
     *, *::before, *::after { box-sizing: border-box; }
     @viewport { width: device-width; }
+    @supports (padding-top: env(safe-area-inset-top)) {
+     .mb-safe-top { padding-top: env(safe-area-inset-top) !important; }
+    }
     @keyframes buildGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(74,144,217,0.5), 0 0 20px rgba(74,144,217,0.15); } 50% { box-shadow: 0 0 0 2px rgba(74,144,217,0.8), 0 0 30px rgba(74,144,217,0.25); } }
     @keyframes pulseBlue { 0%, 100% { box-shadow: 0 0 0 3px rgba(74,144,217,0.3), 0 0 12px rgba(74,144,217,0.1); } 50% { box-shadow: 0 0 0 3px rgba(74,144,217,0.7), 0 0 24px rgba(74,144,217,0.25); } }
     @keyframes floatBarSlide { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
@@ -3643,7 +3660,7 @@ export default function MortgageBlueprint() {
    </div>
   </div>}
    {/* ── App Mode Toggle ── */}
-   <div style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
       {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
@@ -3786,11 +3803,45 @@ export default function MortgageBlueprint() {
  </div>
  {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
  {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note>}
+ {/* ── Refi: Current vs New comparison ── */}
+ {isRefi && calc.refiEffPI > 0 && (
+  <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 16 }}>
+   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW</div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+    <div style={{ textAlign: "center" }}>
+     <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
+     <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurTotalPmt)}</div>
+     <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
+    </div>
+    <div style={{ fontSize: 20, color: T.green }}>→</div>
+    <div style={{ textAlign: "center" }}>
+     <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>New</div>
+     <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
+     <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
+    </div>
+   </div>
+   {calc.refiMonthlyTotalSavings > 0 ? (
+    <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
+     <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiMonthlyTotalSavings)}/mo savings</span>
+     {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
+    </div>
+   ) : calc.refiMonthlyTotalSavings < 0 ? (
+    <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
+     <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiMonthlyTotalSavings))}/mo higher</span>
+    </div>
+   ) : null}
+  </div>
+ )}
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
-  {[{ l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee). This is what you're borrowing from the lender." },
+  {(isRefi ? [
+   { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
+   { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
+   { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
+  ] : [
+   { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee). This is what you're borrowing from the lender." },
    { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. LTV determines mortgage insurance requirements and pricing. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
    { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor). This is the check you bring to the closing table." }
-  ].map((m, i) => (
+  ]).map((m, i) => (
    <Card key={i} pad={14}>
     <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
     <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
@@ -3802,11 +3853,46 @@ export default function MortgageBlueprint() {
  <div data-field="down-pct-input">
  <Card>
   <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+  {!isRefi && (
   <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14, marginTop: -6 }}>
    <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Look up on Zillow</span>
    <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
+  )}
+  {isRefi ? (<>
+   {/* ── Refi: Equity & Balance display + Rate input ── */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+    <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
+     <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>CURRENT BALANCE</div>
+     <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
+     <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
+    </div>
+    <div style={{ background: `${T.green}10`, borderRadius: 12, padding: "10px 12px" }}>
+     <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginBottom: 2 }}>EQUITY</div>
+     <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
+     <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
+    </div>
+   </div>
+   {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
+   <div data-field="calc-rate" className={isPulse("calc-rate")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+    <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+      New Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+      <InfoTip text="The interest rate on your new loan. Compare this to your current rate to see your savings." />
+     </div>
+     {refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
+    </div>
+    <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+    {refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
+     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
+    )}
+    {refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
+    )}
+   </div>
+  </>) : (<>
+   {/* ── Purchase: Down Payment + Rate ── */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
    <div data-field="calc-down" className={isPulse("calc-down")} onClick={() => markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -3837,8 +3923,9 @@ export default function MortgageBlueprint() {
     <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
    </div>
   </div>
-  {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
-  {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
+  </>)}
+  {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
+  {!isRefi && loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
   {/* Live Rates */}
   <button onClick={fetchRates} disabled={ratesLoading} style={{ width: "100%", background: liveRates ? T.successBg : `${T.blue}18`, border: `1px solid ${liveRates ? T.green + "33" : T.blue + "33"}`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
    <span style={{ fontSize: 13, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: FONT }}>
@@ -4550,7 +4637,7 @@ export default function MortgageBlueprint() {
     </div>
    </div>
   </div>
-  <button onClick={() => window.open("https://xperthomelending.com", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+  <button onClick={() => window.open("https://2179191.my1003app.com/952015/register", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
   </button>
@@ -4640,7 +4727,7 @@ export default function MortgageBlueprint() {
   </Card>
  </Sec>
  {(() => {
-  const confLimit = getConfLimit(propType);
+  const confLimit = getHighBalLimit(propType);
   const maxHousingPayment = affordIncome * (affordTargetDTI / 100) - affordDebts;
   if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
   const r = (affordRate / 100) / 12;
@@ -4726,7 +4813,7 @@ export default function MortgageBlueprint() {
       {hitsJumbo && (
        <div style={{ marginTop: 8, padding: "8px 14px", background: `${T.orange}12`, borderRadius: 10, display: "inline-block" }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: T.orange }}>⚠ Jumbo Loan Territory</div>
-        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>Loan exceeds {fmt(confLimit)} conforming limit — requires 20% down + 43% max DTI</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>Loan exceeds {fmt(confLimit)} high-balance limit — requires 20% down + 43% max DTI</div>
        </div>
       )}
      </div>
@@ -4735,8 +4822,8 @@ export default function MortgageBlueprint() {
      <Card style={{ marginTop: 8, background: `${T.blue}08` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
        <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: T.blue }}>Max Conforming Price</div>
-        <div style={{ fontSize: 11, color: T.textTertiary }}>Stay under {fmt(confLimit)} loan limit · {affordLoanType} guidelines</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.blue }}>Max Before Jumbo</div>
+        <div style={{ fontSize: 11, color: T.textTertiary }}>Stay under {fmt(confLimit)} high-balance limit · {affordLoanType} guidelines</div>
        </div>
        <div style={{ fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{fmt(maxConfPrice)}</div>
       </div>
@@ -5151,22 +5238,30 @@ export default function MortgageBlueprint() {
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value={fmt(calc.displayPayment)} label={includeEscrow ? "Monthly Payment" : "Monthly Payment (No Escrow)"} sub={propertyTBD ? "TBD" : (propertyAddress ? propertyAddress : fmt(calc.cashToClose) + " to close")} />
+  <Hero value={fmt(calc.displayPayment)} label={includeEscrow ? "Monthly Payment" : "Monthly Payment (No Escrow)"} sub={propertyTBD ? "TBD" : (propertyAddress ? propertyAddress : (isRefi ? (calc.refiMonthlyTotalSavings > 0 ? `Save ${fmt(calc.refiMonthlyTotalSavings)}/mo` : `${fmt(calc.totalClosingCosts)} refi costs`) : fmt(calc.cashToClose) + " to close"))} />
   {!propertyTBD && propertyAddress && <div style={{ textAlign: "center", marginTop: -8, marginBottom: 8, fontSize: 12, color: T.textTertiary }}>{fmt(calc.cashToClose)} to close · {city}{propertyCounty ? `, ${propertyCounty} Co.` : ""}</div>}
  </div>
  <Sec title="Loan Overview">
   <Card>
    {[...(propertyTBD ? [["Property", "TBD"]] : (propertyAddress ? [["Property", propertyAddress]] : [])),
     ...(city && propertyState ? [[" ", `${city}, ${propertyState}${propertyZip ? " " + propertyZip : ""}`]] : []),
-    [isRefi ? "Home Value" : "Purchase Price", fmt(salesPrice)], ["Down Payment", `${fmt(calc.dp)} (${downPct}%)`],
-    ["Base Loan", fmt(calc.baseLoan)],
+    [isRefi ? "Home Value" : "Purchase Price", fmt(salesPrice)],
+    ...(isRefi ? [
+     ["Current Balance", fmt(calc.refiEffBalance || 0)],
+     ["Equity", fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))],
+     ...(refiPurpose === "Cash-Out" && refiCashOut > 0 ? [["Cash-Out Amount", fmt(refiCashOut)]] : []),
+     ["New Loan Amount", fmt(calc.refiNewLoanAmt || 0)],
+    ] : [
+     ["Down Payment", `${fmt(calc.dp)} (${downPct}%)`],
+     ["Base Loan", fmt(calc.baseLoan)],
+    ]),
     ...(calc.fhaUp > 0 ? [["FHA UFMIP (1.75%)", fmt(calc.fhaUp)]] : []),
     ...(calc.vaFundingFee > 0 ? [[`VA Funding Fee (${(calc.vaFundingFee / calc.baseLoan * 100).toFixed(2)}%)`, fmt(calc.vaFundingFee)]] : []),
     ...(calc.usdaFee > 0 ? [["USDA Guarantee Fee", fmt(calc.usdaFee)]] : []),
-    ...(calc.fhaUp > 0 || calc.vaFundingFee > 0 || calc.usdaFee > 0 ? [["Total Loan Amount", fmt(calc.loan)]] : [["Loan Amount", fmt(calc.loan)]]),
+    ...(!isRefi && (calc.fhaUp > 0 || calc.vaFundingFee > 0 || calc.usdaFee > 0) ? [["Total Loan Amount", fmt(calc.loan)]] : (!isRefi ? [["Loan Amount", fmt(calc.loan)]] : [])),
     ["Loan Type", `${loanType}${loanType === "VA" ? " - " + vaUsage : ""} · ${term}yr`],
-    ["Interest Rate", `${rate}%`], ["Category", calc.loanCategory],
-    ...(isRefi ? [["Refi Purpose", refiPurpose], ["Current Rate", refiCurrentRate + "%"]] : []),
+    [isRefi ? "New Rate" : "Interest Rate", `${rate}%`], ["Category", calc.loanCategory],
+    ...(isRefi ? [["Current Rate", refiCurrentRate + "%"], ["Refi Purpose", refiPurpose]] : []),
    ].map(([l, v], i) => (
     <MRow key={i} label={l} value={v} />
    ))}
@@ -5390,7 +5485,8 @@ export default function MortgageBlueprint() {
     <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
    </div>
 
-   {/* 6) Down Payment with %/$ toggle */}
+   {/* 6) Down Payment with %/$ toggle — purchase only */}
+   {!isRefi && (
    <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -5410,9 +5506,11 @@ export default function MortgageBlueprint() {
      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
     </div>
    </div>
-   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
+   )}
+   {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
 
-   {/* 7) First-Time Homebuyer — Yes / No buttons */}
+   {/* 7) First-Time Homebuyer — purchase only */}
+   {!isRefi && (
    <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
     <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 4 }}>First-Time Homebuyer?</div>
     <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10, lineHeight: 1.4 }}>Have you owned a home in the last 3 years? If not, you're a FTHB — unlocks 3% down conventional.</div>
@@ -5422,10 +5520,12 @@ export default function MortgageBlueprint() {
     </div>
     {firstTimeBuyer && <Note color={T.green}>FTHB unlocked! 3% down conventional available (income limits apply). Rent vs Buy tab enabled.</Note>}
    </div>
+   )}
   </Card>
  </Sec>
 
- {/* ── Live Estimate ── */}
+ {/* ── Live Estimate — purchase only ── */}
+ {!isRefi && (
  <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 18, padding: "18px 16px", marginBottom: 12 }}>
   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: T.green, textTransform: "uppercase", marginBottom: 8 }}>LIVE ESTIMATE</div>
   <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
@@ -5446,9 +5546,10 @@ export default function MortgageBlueprint() {
    ))}
   </div>
   <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, textAlign: "center" }}>
-   {fmt(salesPrice)} {isRefi ? "value" : "purchase"} · {downPct}% down · {rate}% rate · {loanType}
+   {fmt(salesPrice)} purchase · {downPct}% down · {rate}% rate · {loanType}
   </div>
  </div>
+ )}
 
  {/* ── Property & Borrower Details (slimmed — no address/city/state/tax state) ── */}
  <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
@@ -5532,11 +5633,17 @@ export default function MortgageBlueprint() {
  )}
 
  {/* Setup Complete celebration */}
- {gameMode && completedTabs["setup"] && (
+ {gameMode && completedTabs["setup"] && isTabFieldsComplete("setup") && (
   <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: `${T.green}10`, border: `1px solid ${T.green}30`, borderRadius: 18 }}>
    <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
    <div style={{ fontSize: 16, fontWeight: 700, color: T.green, marginBottom: 4 }}>Setup Complete!</div>
-   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>Your mortgage blueprint is ready. Explore the tabs below to dive deeper.</div>
+   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>{isRefi ? "Your refi details are locked in. Head to the Refi Summary tab to see your savings." : "Your mortgage blueprint is ready. Explore the tabs below to dive deeper."}</div>
+  </div>
+ )}
+ {/* Refi: nudge to fill in loan details if base setup is done but refi fields are empty */}
+ {isRefi && !isTabFieldsComplete("setup") && propertyZip.length >= 5 && salesPrice > 0 && creditScore > 0 && (
+  <div style={{ textAlign: "center", padding: "14px 16px", margin: "12px 0", background: `${T.orange}10`, border: `1px solid ${T.orange}30`, borderRadius: 18 }}>
+   <div style={{ fontSize: 13, color: T.orange, fontWeight: 600 }}>👇 Fill in your current loan details below to complete setup</div>
   </div>
  )}
 
@@ -5550,17 +5657,9 @@ export default function MortgageBlueprint() {
    </div>
   </Card>
  </Sec>}
- {isRefi && <Sec title="Current Property">
-  <Card>
-   <Inp label="Home Value (Current)" value={refiHomeValue} onChange={setRefiHomeValue} req />
-   <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10, marginTop: -6 }}>
-    <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Look up Zestimate on Zillow</span>
-   </button>
-   <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
-  </Card>
- </Sec>}
  {isRefi && <Sec title="Current Loan Details">
   <Card>
+   <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
    <Inp label="Original Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm req />
