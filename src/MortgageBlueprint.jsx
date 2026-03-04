@@ -783,7 +783,7 @@ const Haptics = {
 };
 
 // ── Tab Progression System ──
-const TAB_PROGRESSION = ["setup","calc","costs","income","assets","debts","qualify","tax","amort","learn","compare","summary"];
+const TAB_PROGRESSION = ["setup","calc","costs","income","debts","assets","qualify","tax","amort","learn","compare","summary"];
 const HOUSE_STAGES = [
  { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
  { tab: "calc", part: "Foundation", desc: "Concrete slab poured" },
@@ -2072,7 +2072,7 @@ export default function MortgageBlueprint() {
  };
 
  // Build Mode: Tab display names for floating bar
- const TAB_DISPLAY_NAMES = { setup:"Setup", calc:"Calculator", costs:"Costs", qualify:"Qualify", debts:"Debts", income:"Income", assets:"Assets", tax:"Tax Savings", amort:"Amortization", learn:"Learn", compare:"Compare", summary:"Share" };
+ const TAB_DISPLAY_NAMES = { setup:"Setup", calc:"Calculator", costs:"Costs", qualify:"Qualify", debts:"Debts", income:"Income", assets:"Assets", tax:"Tax Savings", amort:"Amortization", learn:"Learn", compare:"Compare", summary:"Share", reo:"REO", refi:"Refi Summary", refi3:"3-Point Test", sell:"Seller Net", invest:"Investor", rentvbuy:"Rent vs Buy" };
  // ═══ FLOATING "NEXT STEP" BAR ═══
  // Sticky bottom bar that guides user to the next section.
  // Turns active (blue) ONLY when: (1) all required fields on this tab are filled AND (2) user scrolled 90%+ down.
@@ -2082,27 +2082,49 @@ export default function MortgageBlueprint() {
   if (t === "calc") return salesPrice > 0 && rate > 0;
   if (t === "costs") return true; // costs have defaults, always "complete"
   if (t === "income") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
-  if (t === "assets") return assets.length > 0 && assets.some(a => a.value > 0);
-  if (t === "debts") return debtFree || debts.length > 0;
+  if (t === "assets") return assets.length > 0 && assets.some(a => a.value > 0 && a.forClosing > 0);
+  if (t === "debts") return (debtFree || debts.length > 0) && guideTouched.has("owns-properties-toggle");
   if (t === "qualify") return creditScore > 0 && incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
   if (t === "tax") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
   if (t === "amort") return true; // display-only, always complete
   if (t === "reo") return true; // optional tab
+  if (t === "learn") return true; // display-only
   if (t === "refi") return refiCurrentRate > 0 && refiCurrentBalance > 0;
   return true;
  };
  const FloatingNextBar = () => {
-  const idx = TAB_PROGRESSION.indexOf(tab);
-  if (idx < 0 || idx >= TAB_PROGRESSION.length - 1) return null;
-  if (tab === "settings" || tab === "compare" || tab === "summary" || tab === "learn") return null;
+  let idx = TAB_PROGRESSION.indexOf(tab);
+  let nextTab, nextName, stepNum, totalSteps, progressPct;
+  // Conditional tabs not in TAB_PROGRESSION — find next visible tab
+  const conditionalTabs = ["reo","refi","refi3","sell","invest","rentvbuy"];
+  if (conditionalTabs.includes(tab)) {
+   const vIdx = visibleTabs.indexOf(tab);
+   if (vIdx < 0 || vIdx >= visibleTabs.length - 1) return null;
+   nextTab = visibleTabs[vIdx + 1];
+   nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
+   // Use parent position for progress display
+   const parentIdx = tab === "reo" ? TAB_PROGRESSION.indexOf("assets") : tab === "sell" ? TAB_PROGRESSION.indexOf("amort") : TAB_PROGRESSION.indexOf("calc");
+   stepNum = parentIdx + 1;
+   totalSteps = TAB_PROGRESSION.length;
+   progressPct = (stepNum / totalSteps) * 100;
+  } else {
+   if (idx < 0 || idx >= TAB_PROGRESSION.length - 1) return null;
+   nextTab = TAB_PROGRESSION[idx + 1];
+   // If there are conditional tabs between current and next, use visibleTabs to find true next
+   const vIdx = visibleTabs.indexOf(tab);
+   if (vIdx >= 0 && vIdx < visibleTabs.length - 1) {
+    const trueNext = visibleTabs[vIdx + 1];
+    if (trueNext !== nextTab && conditionalTabs.includes(trueNext)) nextTab = trueNext;
+   }
+   nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
+   stepNum = idx + 1;
+   totalSteps = TAB_PROGRESSION.length;
+   progressPct = (stepNum / totalSteps) * 100;
+  }
+  if (tab === "settings" || tab === "compare" || tab === "summary") return null;
   if (!gameMode) return null;
-  const nextTab = TAB_PROGRESSION[idx + 1];
-  const nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
   const fieldsComplete = isTabFieldsComplete(tab);
-  const isReady = fieldsComplete && scrolledPast80; // Both: fields filled + scrolled 90%
-  const stepNum = idx + 1;
-  const totalSteps = TAB_PROGRESSION.length;
-  const progressPct = (stepNum / totalSteps) * 100;
+  const isReady = fieldsComplete && scrolledPast80;
   const handleNext = () => {
    markTabComplete(tab);
    setTab(nextTab);
@@ -2254,10 +2276,12 @@ export default function MortgageBlueprint() {
    if (assets.length === 0) return "add-asset";
    const firstAsset = assets[0];
    if (firstAsset && firstAsset.value === 0) return "asset-value";
+   if (firstAsset && firstAsset.forClosing === 0) return "asset-closing";
    return null;
   }
   if (tab === "debts") {
    if (!guideTouched.has("debt-free-toggle")) return "debt-free-toggle";
+   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
    return null;
   }
   if (tab === "qualify") {
@@ -2276,6 +2300,7 @@ export default function MortgageBlueprint() {
   }
   if (tab === "amort") {
    if (!guideTouched.has("amort-section")) return "amort-section";
+   if (payExtra && extraPayment === 0) return "amort-extra";
    return null;
   }
   if (tab === "reo") {
@@ -2290,15 +2315,28 @@ export default function MortgageBlueprint() {
   return null;
  })();
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
- // Auto-focus zip code input when pulse guide reaches it — pops open the number pad
+ // Auto-advance: when a required field is completed, scroll to next field and focus its input
+ const prevGuideRef = useRef(guideField);
  useEffect(() => {
-  if (guideField === "zip-code") {
-   const timer = setTimeout(() => {
-    const el = document.querySelector('[data-field="zip-code"] input');
-    if (el) el.focus();
-   }, 400); // slight delay so pulse animation plays first
-   return () => clearTimeout(timer);
-  }
+  if (!guideField || guideField === prevGuideRef.current) { prevGuideRef.current = guideField; return; }
+  const prev = prevGuideRef.current;
+  prevGuideRef.current = guideField;
+  // Only auto-advance if the previous field was on the same tab (user just completed something)
+  if (!prev) return;
+  const inputFields = ["zip-code","fico-input","price-input","calc-price","calc-rate","income-amount","asset-value","asset-closing","refi-current-rate","refi-current-balance","qualify-fico","amort-extra"];
+  const timer = setTimeout(() => {
+   const el = document.querySelector(`[data-field="${guideField}"]`);
+   if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (inputFields.includes(guideField)) {
+     setTimeout(() => {
+      const inp = el.querySelector("input");
+      if (inp) inp.focus();
+     }, 300);
+    }
+   }
+  }, 200);
+  return () => clearTimeout(timer);
  }, [guideField]);
  // Scroll-to-bottom detection — marks current tab as complete + tracks 80% scroll for floating bar
  useEffect(() => {
@@ -3715,7 +3753,12 @@ export default function MortgageBlueprint() {
      <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
      <div style={{ fontSize: 10, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
     </div>
-    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+     <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
+     <div onClick={() => saveGameMode(false)} style={{ width: 36, height: 20, borderRadius: 99, background: T.green, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0, opacity: 0.7 }}>
+      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", marginLeft: 18, transition: "all 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+     </div>
+    </div>
    </div>
   </div>
  </div>
@@ -3753,7 +3796,7 @@ export default function MortgageBlueprint() {
    <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Look up on Zillow</span>
    <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
    <div data-field="calc-down" className={isPulse("calc-down")} onClick={() => markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -3774,7 +3817,15 @@ export default function MortgageBlueprint() {
      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
     </div>
    </div>
-   <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req tip="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+   <div data-field="calc-rate" className={isPulse("calc-rate")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, minHeight: 28 }}>
+     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+      Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+      <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+     </div>
+    </div>
+    <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+   </div>
   </div>
   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
   {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
@@ -3915,7 +3966,7 @@ export default function MortgageBlueprint() {
   </Card>
   </div>
  </div>
- {payExtra && <Card><Inp label="Monthly Extra Payment" value={extraPayment} onChange={setExtraPayment} tip="Additional principal paid each month beyond your required payment. Reduces total interest and shortens your loan term." /></Card>}
+ {payExtra && <div data-field="amort-extra" className={isPulse("amort-extra")} style={{ borderRadius: 18, transition: "all 0.3s" }}><Card><Inp label="Monthly Extra Payment" value={extraPayment} onChange={setExtraPayment} tip="Additional principal paid each month beyond your required payment. Reduces total interest and shortens your loan term." /></Card></div>}
  {payExtra && calc.intSaved > 100 && (
   <Card style={{ background: T.successBg }}>
    <div style={{ fontSize: 13, fontWeight: 600, color: T.green, marginBottom: 4 }}>With Extra Payments</div>
@@ -4261,17 +4312,19 @@ export default function MortgageBlueprint() {
   <Card pad={14}>
    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Cash to Close</div>
    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.totalForClosing >= calc.cashToClose ? T.green : T.text, letterSpacing: "-0.02em" }}>{fmt(calc.totalForClosing)}</div>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, marginBottom: 4 }}>of {fmt(calc.cashToClose)} needed</div>
    <Progress value={calc.totalForClosing} max={calc.cashToClose} color={calc.totalForClosing >= calc.cashToClose ? T.green : T.orange} />
    <div style={{ fontSize: 11, color: calc.totalForClosing >= calc.cashToClose ? T.green : T.orange, fontWeight: 500 }}>
-    {calc.totalForClosing >= calc.cashToClose ? "Fully funded" : `Need ${fmt(calc.cashToClose - calc.totalForClosing)} more`}
+    {calc.totalForClosing >= calc.cashToClose ? `✓ Funded — ${fmt(calc.totalForClosing - calc.cashToClose)} surplus` : `Need ${fmt(calc.cashToClose - calc.totalForClosing)} more`}
    </div>
   </Card>
   <Card pad={14}>
    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Reserves</div>
    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.totalReserves >= calc.reservesReq ? T.green : T.text, letterSpacing: "-0.02em" }}>{fmt(calc.totalReserves)}</div>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, marginBottom: 4 }}>of {fmt(calc.reservesReq)} needed ({calc.reserveMonths} mo)</div>
    <Progress value={calc.totalReserves} max={calc.reservesReq} color={calc.totalReserves >= calc.reservesReq ? T.green : T.orange} />
    <div style={{ fontSize: 11, color: calc.totalReserves >= calc.reservesReq ? T.green : T.orange, fontWeight: 500 }}>
-    {calc.totalReserves >= calc.reservesReq ? "Fully funded" : `Need ${fmt(calc.reservesReq - calc.totalReserves)} more`}
+    {calc.totalReserves >= calc.reservesReq ? `✓ Funded — ${fmt(calc.totalReserves - calc.reservesReq)} surplus` : `Need ${fmt(calc.reservesReq - calc.totalReserves)} more`}
    </div>
   </Card>
  </div>
@@ -4281,7 +4334,7 @@ export default function MortgageBlueprint() {
    const rfLabel = rf === null ? "TBD" : `${(rf * 100).toFixed(0)}%`;
    const reserveAmt = rf === null ? 0 : (a.value - (a.forClosing || 0)) * rf;
    return (
-    <div key={a.id} className={aIdx === 0 ? isPulse("asset-value") : ""} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+    <div key={a.id} data-field={aIdx === 0 ? (guideField === "asset-closing" ? "asset-closing" : "asset-value") : undefined} className={aIdx === 0 ? (isPulse("asset-value") || isPulse("asset-closing")) : ""} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <Card>
      <div data-asset-card style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
       <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary }}>Asset Account</span>
@@ -4350,6 +4403,27 @@ export default function MortgageBlueprint() {
   )}
  </Card>
  </div>
+ {/* Own Properties toggle — required, unlocks REO tab */}
+ <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} onClick={() => markTouched("owns-properties-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+ <Card style={{ marginBottom: 14 }}>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+   <div>
+    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Do you own any properties?</span>
+    <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Current home, investment properties, second homes</div>
+   </div>
+   <div onClick={() => { setOwnsProperties(!ownsProperties); markTouched("owns-properties-toggle"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   </div>
+  </div>
+  {ownsProperties && (
+   <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.blue}10`, borderRadius: 12 }}>
+    <div style={{ fontSize: 12, fontWeight: 600, color: T.blue, marginBottom: 3 }}>REO tab unlocked</div>
+    <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>Add your properties in the REO tab. Mortgage & HELOC debts below can be linked to specific properties so payments aren't counted twice in DTI.</div>
+   </div>
+  )}
+ </Card>
+ </div>
  {!debtFree && <>
  {calc.reoNegativeDebt > 0 && <Note color={T.orange}>{calc.reoPrimaryDebt > 0 && calc.reoInvestmentNet < 0 ? `+${fmt(calc.reoPrimaryDebt)}/mo primary/2nd home PITIA + ${fmt(Math.abs(calc.reoInvestmentNet))}/mo investment shortfall` : calc.reoPrimaryDebt > 0 ? `+${fmt(calc.reoPrimaryDebt)}/mo primary/2nd home PITIA` : `+${fmt(Math.abs(calc.reoInvestmentNet))}/mo investment property shortfall (75% rule)`} added as debt in DTI. Total DTI obligations: {fmt(calc.totalMonthlyDebts + calc.reoNegativeDebt)}/mo.</Note>}
  <Sec title="Liabilities" action="+ Add" onAction={() => calc.addDebt("Revolving")}>
@@ -4382,8 +4456,11 @@ export default function MortgageBlueprint() {
       }
      }} options={[{value: "", label: "— Not linked —"}, ...reos.map((r, i) => ({value: String(r.id), label: r.address || `Property ${i + 1}`}))]} sm />
     )}
-    {(d.type === "Mortgage" || d.type === "HELOC") && reos.length === 0 && (
-     <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8, lineHeight: 1.4 }}>Enable "Own Properties?" in Settings → add REO properties to link this debt.</div>
+    {(d.type === "Mortgage" || d.type === "HELOC") && reos.length === 0 && ownsProperties && (
+     <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8, lineHeight: 1.4 }}>Add properties on the REO tab to link this debt and avoid counting the payment twice in DTI.</div>
+    )}
+    {(d.type === "Mortgage" || d.type === "HELOC") && !ownsProperties && (
+     <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8, lineHeight: 1.4 }}>Toggle "Do you own any properties?" above to unlock the REO tab and link this debt to a property.</div>
     )}
     {d.linkedReoId && <div style={{ fontSize: 11, color: T.blue, marginBottom: 8, fontWeight: 500 }}>✓ Linked to REO — payment handled via 75% rental offset in DTI, not counted as standalone debt.</div>}
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -4447,7 +4524,26 @@ export default function MortgageBlueprint() {
   <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
   <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>PRE-QUALIFIED</div>
   <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>All 5 pillars cleared — based on the information you provided.</div>
-  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, fontStyle: "italic" }}>Pre-qualification is not a commitment to lend. Get pre-approved to start your loan application.</div>
+  <div style={{ marginTop: 16, padding: "14px 16px", background: T.card, borderRadius: 12, textAlign: "left" }}>
+   <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+    <span style={{ fontSize: 22, flexShrink: 0 }}>🗣️</span>
+    <div>
+     <div style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 2 }}>Pre-Qualified</div>
+     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>tell</strong> the lender — income, assets, and debts as self-reported. A good starting point, but not verified.</div>
+    </div>
+   </div>
+   <div style={{ display: "flex", gap: 10 }}>
+    <span style={{ fontSize: 22, flexShrink: 0 }}>📄</span>
+    <div>
+     <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 2 }}>Pre-Approved</div>
+     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>show</strong> the lender — verified paystubs, bank statements, tax returns, and credit pull. Sellers take this seriously.</div>
+    </div>
+   </div>
+  </div>
+  <button onClick={() => window.open("https://xperthomelending.com", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+   <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
+   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
+  </button>
  </Card>}
  {calc.qualifyingIncome <= 0 && (
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
@@ -4491,7 +4587,7 @@ export default function MortgageBlueprint() {
    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Auto-synced from your entries. Tap a row to edit in the source tab.</div>
    {[
     { label: "Monthly Gross Income", value: affordIncome, source: "Income", tab: "income", hasData: calc.qualifyingIncome > 0 },
-    { label: "Total Monthly Debts", value: affordDebts, source: "Debts", tab: "debts", hasData: (calc.totalMonthlyDebts + calc.reoNegativeDebt) > 0 },
+    { label: "Total Monthly Debts", value: affordDebts, source: "Debts", tab: "debts", hasData: debtFree || (calc.totalMonthlyDebts + calc.reoNegativeDebt) > 0 || debts.length > 0, debtFreeNote: debtFree ? "✓ Debt free" : null },
     { label: "Cash for Down Payment", value: affordDown, source: "Assets", tab: "assets", hasData: calc.totalForClosing > 0 },
    ].map((row, i) => {
     const unlocked = isTabUnlocked(row.tab);
@@ -4500,11 +4596,11 @@ export default function MortgageBlueprint() {
      <div>
       <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{row.label}</div>
       <div style={{ fontSize: 11, color: row.hasData ? T.green : unlocked ? T.orange : T.textTertiary, fontWeight: 500 }}>
-       {row.hasData ? `✓ From ${row.source} tab` : unlocked ? `⚠ Enter in ${row.source} tab →` : `🔒 Unlock ${row.source} tab first`}
+       {row.hasData ? (row.debtFreeNote || `✓ From ${row.source} tab`) : unlocked ? `⚠ Enter in ${row.source} tab →` : `🔒 Unlock ${row.source} tab first`}
       </div>
      </div>
      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <span style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: row.hasData ? T.text : T.textTertiary }}>{row.value > 0 ? fmt(row.value) : "—"}</span>
+      <span style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: row.hasData ? T.text : T.textTertiary }}>{row.value > 0 ? fmt(row.value) : row.hasData ? "$0" : "—"}</span>
       {unlocked && <span style={{ fontSize: 14, color: T.blue }}>›</span>}
      </div>
     </div>
@@ -4534,34 +4630,55 @@ export default function MortgageBlueprint() {
   </Card>
  </Sec>
  {(() => {
+  const confLimit = getConfLimit(propType);
   const maxHousingPayment = affordIncome * (affordTargetDTI / 100) - affordDebts;
   if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
   const r = (affordRate / 100) / 12;
   const n = affordTerm * 12;
-  const minDPpct = affordLoanType === "VA" ? 0 : affordLoanType === "FHA" ? 3.5 : affordLoanType === "Conventional" ? 5 : 20;
+  // Dynamic loan program: if loan > conforming limit, switch to Jumbo rules
+  const getProgram = (price, dpAmt) => {
+   const loan = price - dpAmt;
+   const isJumbo = loan > confLimit && affordLoanType !== "Jumbo";
+   if (isJumbo || affordLoanType === "Jumbo") return { type: "Jumbo", minDPpct: 20, maxDTI: 43, fhaUp: 0, vaFF: 0, miRate: 0 };
+   if (affordLoanType === "FHA") return { type: "FHA", minDPpct: 3.5, maxDTI: affordTargetDTI, fhaUp: 0.0175, vaFF: 0, miRate: 0.0055 };
+   if (affordLoanType === "VA") return { type: "VA", minDPpct: 0, maxDTI: affordTargetDTI, fhaUp: 0, vaFF: 0.023, miRate: 0 };
+   return { type: "Conventional", minDPpct: 5, maxDTI: affordTargetDTI, fhaUp: 0, vaFF: 0, miRate: 0 };
+  };
   const calcPmt = (price) => {
-   const reqDP = price * minDPpct / 100;
-   if (minDPpct > 0 && affordDown < reqDP) return null;
+   // First pass: estimate DP with base program
+   const baseProg = getProgram(price, Math.min(affordDown, price));
+   const reqDP = price * baseProg.minDPpct / 100;
+   if (baseProg.minDPpct > 0 && affordDown < reqDP) return null;
    const dp = Math.min(affordDown, price);
    const loan = price - dp;
-   const ltv = price > 0 ? loan / price : 0;
-   const fhaUp = affordLoanType === "FHA" ? loan * 0.0175 : 0;
-   const vaFF = affordLoanType === "VA" ? loan * 0.023 : 0;
-   const totalLoan = loan + fhaUp + vaFF;
+   // Re-check program with actual loan amount
+   const prog = getProgram(price, dp);
+   const progReqDP = price * prog.minDPpct / 100;
+   if (prog.minDPpct > 0 && affordDown < progReqDP) return null;
+   const actualDP = Math.max(dp, progReqDP);
+   const actualLoan = price - actualDP;
+   const ltv = price > 0 ? actualLoan / price : 0;
+   const fhaUp = prog.fhaUp * actualLoan;
+   const vaFF = prog.vaFF * actualLoan;
+   const totalLoan = actualLoan + fhaUp + vaFF;
    const pi = r > 0 ? totalLoan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : totalLoan / n;
    const tax = price * 0.0125 / 12;
    const ins = Math.max(1200, price * 0.0035) / 12;
    let mi = 0;
-   if (affordLoanType === "FHA") mi = totalLoan * 0.0055 / 12;
-   else if (affordLoanType !== "VA" && ltv > 0.8) mi = totalLoan * 0.005 / 12;
-   return { dp, loan, totalLoan, ltv, pi, tax, ins, mi, fhaUp, vaFF, total: pi + tax + ins + mi };
+   if (prog.type === "FHA") mi = totalLoan * prog.miRate / 12;
+   else if (prog.type !== "VA" && prog.type !== "Jumbo" && ltv > 0.8) mi = totalLoan * 0.005 / 12;
+   const maxPmt = affordIncome * (prog.maxDTI / 100) - affordDebts;
+   return { dp: actualDP, loan: actualLoan, totalLoan, ltv, pi, tax, ins, mi, fhaUp, vaFF, total: pi + tax + ins + mi, prog, maxPmt, isJumbo: prog.type === "Jumbo" && affordLoanType !== "Jumbo" };
   };
-  const maxPriceFromDP = minDPpct > 0 ? Math.floor(affordDown / (minDPpct / 100)) : 20000000;
-  let lo = 0, hi = Math.min(maxPriceFromDP, 20000000);
+  // Binary search: max price where total payment fits within the program's DTI limit
+  const jumboDPmax = Math.floor(affordDown / 0.20);
+  const baseDPpct = affordLoanType === "VA" ? 0 : affordLoanType === "FHA" ? 3.5 : affordLoanType === "Conventional" ? 5 : 20;
+  const baseDPmax = baseDPpct > 0 ? Math.floor(affordDown / (baseDPpct / 100)) : 20000000;
+  let lo = 0, hi = Math.min(Math.max(baseDPmax, jumboDPmax), 20000000);
   for (let i = 0; i < 80; i++) {
    const mid = Math.round((lo + hi) / 2);
    const pmt = calcPmt(mid);
-   if (!pmt || pmt.total > maxHousingPayment) hi = mid;
+   if (!pmt || pmt.total > pmt.maxPmt) hi = mid;
    else lo = mid;
    if (hi - lo < 500) break;
   }
@@ -4569,10 +4686,26 @@ export default function MortgageBlueprint() {
   if (maxPrice < 10000) maxPrice = 0;
   const result = calcPmt(maxPrice);
   if (!result) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Not enough cash for minimum down payment at any viable price.</div></Card>;
-  const { dp: actualDP, pi, tax, ins, mi, ltv, loan: loanAmt, totalLoan, fhaUp, vaFF } = result;
+  const { dp: actualDP, pi, tax, ins, mi, ltv, loan: loanAmt, totalLoan, fhaUp, vaFF, prog: finalProg, isJumbo: hitsJumbo } = result;
   const totalPmt = result.total;
   const dpPct = maxPrice > 0 ? (actualDP / maxPrice * 100) : 0;
   const actualDTI = affordIncome > 0 ? (totalPmt + affordDebts) / affordIncome : 0;
+  // Also find max conforming price (before Jumbo kicks in)
+  let maxConfPrice = 0;
+  if (hitsJumbo) {
+   let cLo = 0, cHi = Math.min(baseDPmax, 20000000);
+   for (let i = 0; i < 80; i++) {
+    const mid = Math.round((cLo + cHi) / 2);
+    const dp2 = Math.min(affordDown, mid);
+    const loan2 = mid - dp2;
+    if (loan2 > confLimit) { cHi = mid; continue; }
+    const pmt = calcPmt(mid);
+    if (!pmt || pmt.total > (affordIncome * (affordTargetDTI / 100) - affordDebts)) cHi = mid;
+    else cLo = mid;
+    if (cHi - cLo < 500) break;
+   }
+   maxConfPrice = Math.floor(cLo / 1000) * 1000;
+  }
   return (<>
    <Sec title="Your Maximum Purchase Price">
     <Card style={{ background: `linear-gradient(135deg, ${T.green}15, ${T.blue}10)`, border: `1px solid ${T.green}30` }}>
@@ -4580,22 +4713,40 @@ export default function MortgageBlueprint() {
       <div style={{ fontSize: 11, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1 }}>You Can Afford Up To</div>
       <div style={{ fontSize: 36, fontWeight: 800, color: T.green, fontFamily: FONT, margin: "6px 0" }}>{fmt(maxPrice)}</div>
       <div style={{ fontSize: 13, color: T.textSecondary }}>with {fmt(actualDP)} down ({dpPct.toFixed(1)}%) · {fmt(loanAmt)} loan</div>
+      {hitsJumbo && (
+       <div style={{ marginTop: 8, padding: "8px 14px", background: `${T.orange}12`, borderRadius: 10, display: "inline-block" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.orange }}>⚠ Jumbo Loan Territory</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>Loan exceeds {fmt(confLimit)} conforming limit — requires 20% down + 43% max DTI</div>
+       </div>
+      )}
      </div>
     </Card>
+    {hitsJumbo && maxConfPrice > 0 && (
+     <Card style={{ marginTop: 8, background: `${T.blue}08` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+       <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.blue }}>Max Conforming Price</div>
+        <div style={{ fontSize: 11, color: T.textTertiary }}>Stay under {fmt(confLimit)} loan limit · {affordLoanType} guidelines</div>
+       </div>
+       <div style={{ fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{fmt(maxConfPrice)}</div>
+      </div>
+     </Card>
+    )}
    </Sec>
    <Sec title="Estimated Monthly Payment">
     <Card>
+     {hitsJumbo && <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 8 }}>Calculated using Jumbo guidelines (auto-switched from {affordLoanType})</div>}
      <MRow label="Principal & Interest" value={fmt(pi)} />
      <MRow label="Property Tax (est.)" value={fmt(tax)} sub="~1.25% of value" />
      <MRow label="Insurance (est.)" value={fmt(ins)} sub="~0.35% of value" />
-     {mi > 0 && <MRow label="Mortgage Insurance" value={fmt(mi)} sub={affordLoanType === "FHA" ? "FHA MIP 0.55%" : "PMI ~0.5%"} />}
+     {mi > 0 && <MRow label="Mortgage Insurance" value={fmt(mi)} sub={finalProg.type === "FHA" ? "FHA MIP 0.55%" : "PMI ~0.5%"} />}
      {fhaUp > 0 && <MRow label="FHA UFMIP (financed)" value={fmt(fhaUp)} sub="1.75% of base loan" />}
      {vaFF > 0 && <MRow label="VA Funding Fee (financed)" value={fmt(vaFF)} sub="2.3% of base loan" />}
      <MRow label="Total Housing Payment" value={fmt(totalPmt)} bold color={T.blue} />
      <MRow label="+ Existing Debts" value={fmt(affordDebts)} />
      <MRow label="Total Monthly Obligations" value={fmt(totalPmt + affordDebts)} bold />
      <div style={{ height: 1, background: T.separator, margin: "8px 0" }} />
-     <MRow label="Your DTI" value={(actualDTI * 100).toFixed(1) + "%"} bold color={actualDTI <= (affordTargetDTI / 100) ? T.green : T.red} />
+     <MRow label="Your DTI" value={(actualDTI * 100).toFixed(1) + "%"} bold color={actualDTI <= (finalProg.maxDTI / 100) ? T.green : T.red} />
      <MRow label="Remaining Budget" value={fmt(Math.max(0, affordIncome - totalPmt - affordDebts))} color={T.green} />
     </Card>
    </Sec>
@@ -4608,22 +4759,25 @@ export default function MortgageBlueprint() {
      ].map((sc, si) => {
       const mhp = affordIncome * (sc.dti / 100) - affordDebts;
       if (mhp <= 0) return null;
-      let qLo = 0, qHi = Math.min(maxPriceFromDP, 20000000);
+      let qLo = 0, qHi = Math.min(Math.max(baseDPmax, jumboDPmax), 20000000);
       for (let i = 0; i < 80; i++) {
        const mid = Math.round((qLo + qHi) / 2);
        const pmt = calcPmt(mid);
-       if (!pmt || pmt.total > mhp) qHi = mid;
+       // Use the lower of scenario DTI and program max DTI
+       const effMaxPmt = affordIncome * (Math.min(sc.dti, pmt ? (pmt.prog.type === "Jumbo" ? 43 : sc.dti) : sc.dti) / 100) - affordDebts;
+       if (!pmt || pmt.total > effMaxPmt) qHi = mid;
        else qLo = mid;
        if (qHi - qLo < 500) break;
       }
       const qPrice = Math.floor(qLo / 1000) * 1000;
       const qResult = calcPmt(qPrice);
       if (!qResult || qPrice < 10000) return null;
+      const isQJumbo = qResult.isJumbo;
       return (
        <div key={si} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: si < 2 ? `1px solid ${T.separator}` : "none" }}>
         <div>
          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{sc.label}</div>
-         <div style={{ fontSize: 11, color: T.textTertiary }}>Max housing: {fmt(mhp)}/mo · Pmt: {fmt(qResult.total)}/mo</div>
+         <div style={{ fontSize: 11, color: T.textTertiary }}>Max housing: {fmt(mhp)}/mo · Pmt: {fmt(qResult.total)}/mo{isQJumbo ? " · Jumbo" : ""}</div>
         </div>
         <div style={{ fontSize: 17, fontWeight: 700, color: sc.dti <= 43 ? T.green : sc.dti <= 50 ? T.orange : T.red, fontFamily: FONT }}>{fmt(qPrice)}</div>
        </div>
@@ -4646,12 +4800,12 @@ export default function MortgageBlueprint() {
         <div>Down Payment: {downPct}% → <strong style={{ color: T.text }}>{Math.round(dpPct)}%</strong></div>
         <div>Rate: {rate}% → <strong style={{ color: T.text }}>{affordRate}%</strong></div>
         <div>Term: {term}yr → <strong style={{ color: T.text }}>{affordTerm}yr</strong></div>
-        <div>Loan Type: {loanType} → <strong style={{ color: T.text }}>{affordLoanType}</strong></div>
+        <div>Loan Type: {loanType} → <strong style={{ color: hitsJumbo ? T.orange : T.text }}>{hitsJumbo ? "Jumbo" : affordLoanType}</strong>{hitsJumbo ? <span style={{ fontSize: 10, color: T.orange }}> (auto-switched)</span> : null}</div>
        </div>
        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
         <button onClick={() => setConfirmAffordApply(false)}
          style={{ background: T.pillBg, color: T.textSecondary, border: `1px solid ${T.separator}`, borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-        <button onClick={() => { setSalesPrice(maxPrice); setDownPct(Math.round(dpPct)); setRate(affordRate); setTerm(affordTerm); setLoanType(affordLoanType); userLoanTypeRef.current = affordLoanType; setAutoJumboSwitch(false); setConfirmAffordApply(false); setTab("calc"); }}
+        <button onClick={() => { setSalesPrice(maxPrice); setDownPct(Math.round(dpPct)); setRate(affordRate); setTerm(affordTerm); const effType = hitsJumbo ? "Jumbo" : affordLoanType; setLoanType(effType); userLoanTypeRef.current = effType; setAutoJumboSwitch(false); setConfirmAffordApply(false); setTab("calc"); }}
          style={{ background: T.green, color: "#FFF", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Confirm & Apply</button>
        </div>
       </div>
@@ -4793,7 +4947,10 @@ export default function MortgageBlueprint() {
       {/* Plain English Summary */}
       <div style={{ background: T.pillBg, borderRadius: 12, padding: 14, marginTop: 4 }}>
        <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8 }}>
-        <strong>In plain English:</strong> Because you own a home, you are no longer paying <strong style={{ color: T.green }}>{(calc.combinedTopRate * 100).toFixed(1)}%</strong> in taxes on <strong style={{ color: T.green }}>{fmt(Math.max(calc.fedDelta, calc.stateDelta))}</strong> of your income. That's <strong style={{ color: T.green }}>{fmt(calc.totalTaxSavings)}/year</strong> ({fmt(calc.monthlyTaxSavings)}/mo) back in your pocket.
+        <strong>In plain English:</strong> As a renter, you'd take the standard deduction. As a homeowner, you can itemize — and your deductions are <strong style={{ color: T.green }}>{fmt(calc.fedDelta)}</strong> higher on your federal return{calc.stateDelta > 0 ? <> and <strong style={{ color: T.green }}>{fmt(calc.stateDelta)}</strong> higher on your state return</> : null}. That extra deduction lowers your tax bill by <strong style={{ color: T.green }}>{fmt(calc.totalTaxSavings)}/year</strong> ({fmt(calc.monthlyTaxSavings)}/mo).
+       </div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8, lineHeight: 1.6, borderTop: `1px solid ${T.separator}`, paddingTop: 8 }}>
+        <strong style={{ color: T.textSecondary }}>Important:</strong> This assumes you're currently renting or taking the standard deduction. If you already own a home and your existing deductions exceed the standard deduction, your actual tax benefit from this purchase would be smaller — only the <em>additional</em> mortgage interest and property taxes above what you already deduct.
        </div>
       </div>
      </div>
@@ -5510,18 +5667,41 @@ export default function MortgageBlueprint() {
    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Net Cash Flow</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: calc.reoNetCashFlow >= 0 ? T.green : T.red }}>{fmt(calc.reoNetCashFlow)}/mo</div></div>
   </div>
  </Card>
- {/* Selling a property? toggle (moved from Setup) */}
+ {/* Planning to sell? — select which property */}
  <Card>
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
-   <div>
-    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Selling a property?</span>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Opens Seller Net tab for net proceeds calculation</div>
-   </div>
-   <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-   </div>
+  <div style={{ marginBottom: 4 }}>
+   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Planning to sell a property?</span>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Select which property to open the Seller Net tab</div>
   </div>
-  {hasSellProperty && <Note color={T.green}>Seller Net tab unlocked — calculate your proceeds from selling.</Note>}
+  <Sel label="" value={hasSellProperty ? (sellLinkedReoId || "__yes__") : ""} onChange={v => {
+   if (v === "" ) {
+    setHasSellProperty(false);
+    setSellLinkedReoId("");
+   } else if (v === "__yes__") {
+    setHasSellProperty(true);
+    setSellLinkedReoId("");
+   } else {
+    setHasSellProperty(true);
+    setSellLinkedReoId(v);
+    const reo = reos.find(r => String(r.id) === v);
+    if (reo) {
+     setSellPrice(Number(reo.value) || 0);
+     const linked = debts.filter(d => d.linkedReoId === v && (d.type === "Mortgage" || d.type === "HELOC"));
+     const totalBal = linked.length > 0 ? linked.reduce((s, d) => s + (Number(d.balance) || 0), 0) : (Number(reo.mortgageBalance) || 0);
+     setSellMortgagePayoff(totalBal);
+     setSellPrimaryRes(reo.propUse === "Primary");
+    }
+   }
+  }} options={[
+   {value: "", label: "— Not selling —"},
+   ...reos.map((r, i) => ({value: String(r.id), label: r.address || `Property ${i + 1} (${fmt(r.value)})`})),
+   {value: "__yes__", label: "Yes — I'll enter details manually"}
+  ]} sm />
+  {hasSellProperty && sellLinkedReoId && (() => {
+   const reo = reos.find(r => String(r.id) === sellLinkedReoId);
+   return reo ? <div style={{ fontSize: 11, color: T.green, marginTop: 2, marginBottom: 4, fontWeight: 500 }}>✓ Seller Net tab unlocked — linked to {reo.address || "selected property"}</div> : null;
+  })()}
+  {hasSellProperty && !sellLinkedReoId && <div style={{ fontSize: 11, color: T.green, marginTop: 2, marginBottom: 4, fontWeight: 500 }}>✓ Seller Net tab unlocked — manual entry mode</div>}
  </Card>
  {reos.map((r, i) => (
   <Sec key={r.id} title={r.address || `Property ${i + 1}`}>
@@ -5562,24 +5742,52 @@ export default function MortgageBlueprint() {
      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: -4, marginBottom: 8 }}>Monthly amounts · Total: {fmt((Number(r.reoTax)||0)+(Number(r.reoIns)||0)+(Number(r.reoHoa)||0))}/mo</div>
     </>}
     <Inp label="Monthly Rental Income" value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} />
-    {/* Show linked debts from Debts tab */}
+    {/* Link debts from REO side */}
     {(() => {
-     const linked = debts.filter(d => d.linkedReoId === String(r.id));
-     if (linked.length === 0) return null;
+     const reoIdStr = String(r.id);
+     const linked = debts.filter(d => d.linkedReoId === reoIdStr);
+     const unlinkable = debts.filter(d => (d.type === "Mortgage" || d.type === "HELOC") && d.linkedReoId !== reoIdStr && !d.linkedReoId);
      const totalLinked = linked.reduce((s, d) => s + (Number(d.monthly) || 0), 0);
      return (
       <div style={{ background: `${T.blue}08`, borderRadius: 10, padding: "10px 12px", marginBottom: 8, marginTop: 4 }}>
-       <div style={{ fontSize: 12, fontWeight: 600, color: T.blue, marginBottom: 4 }}>Linked Debts ({linked.length})</div>
+       <div style={{ fontSize: 12, fontWeight: 600, color: T.blue, marginBottom: 6 }}>Linked Debts{linked.length > 0 ? ` (${linked.length})` : ""}</div>
+       {linked.length === 0 && <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 6 }}>No debts linked yet. Link mortgage or HELOC debts below, or from the Debts tab.</div>}
        {linked.map(d => (
-        <div key={d.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.textSecondary, padding: "3px 0" }}>
-         <span>{d.type}{d.name ? ` — ${d.name}` : ""}</span>
-         <span style={{ fontWeight: 600, fontFamily: FONT }}>{fmt(d.monthly)}/mo</span>
+        <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: T.textSecondary, padding: "4px 0" }}>
+         <span>{d.type}{d.name ? ` — ${d.name}` : ""} · {fmt(d.monthly)}/mo</span>
+         <button onClick={() => {
+          calc.updateDebt(d.id, "linkedReoId", "");
+         }} style={{ background: `${T.red}15`, border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 10, color: T.red, cursor: "pointer", fontWeight: 600 }}>Unlink</button>
         </div>
        ))}
-       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: T.text, borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
-        <span>Total PITIA from debts</span>
-        <span style={{ fontFamily: FONT }}>{fmt(totalLinked + (r.includesTI ? 0 : ((Number(r.reoTax)||0)+(Number(r.reoIns)||0)+(Number(r.reoHoa)||0))))}/mo</span>
-       </div>
+       {linked.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: T.text, borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+         <span>Total from linked debts</span>
+         <span style={{ fontFamily: FONT }}>{fmt(totalLinked + (r.includesTI ? 0 : ((Number(r.reoTax)||0)+(Number(r.reoIns)||0)+(Number(r.reoHoa)||0))))}/mo</span>
+        </div>
+       )}
+       {unlinkable.length > 0 && (
+        <div style={{ borderTop: linked.length > 0 ? `1px solid ${T.separator}` : "none", marginTop: linked.length > 0 ? 6 : 0, paddingTop: linked.length > 0 ? 6 : 0 }}>
+         <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 4 }}>Available to link:</div>
+         {unlinkable.map(d => (
+          <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: T.textSecondary, padding: "4px 0" }}>
+           <span>{d.type}{d.name ? ` — ${d.name}` : ""} · {fmt(d.monthly)}/mo</span>
+           <button onClick={() => {
+            calc.updateDebt(d.id, "linkedReoId", reoIdStr);
+            const pmt = Number(d.monthly) || 0;
+            const bal = Number(d.balance) || 0;
+            const otherLinked = debts.filter(dd => dd.linkedReoId === reoIdStr && (dd.type === "Mortgage" || dd.type === "HELOC"));
+            const newPmtTotal = otherLinked.reduce((s, dd) => s + (Number(dd.monthly) || 0), 0) + pmt;
+            const newBalTotal = otherLinked.reduce((s, dd) => s + (Number(dd.balance) || 0), 0) + bal;
+            setReos(prev => prev.map(rr => rr.id === r.id ? { ...rr, payment: newPmtTotal, mortgageBalance: newBalTotal } : rr));
+           }} style={{ background: `${T.blue}15`, border: "none", borderRadius: 6, padding: "3px 8px", fontSize: 10, color: T.blue, cursor: "pointer", fontWeight: 600 }}>Link</button>
+          </div>
+         ))}
+        </div>
+       )}
+       {linked.length === 0 && unlinkable.length === 0 && !debtFree && (
+        <div style={{ fontSize: 11, color: T.textTertiary }}>Add Mortgage or HELOC debts on the Debts tab first, then link them here.</div>
+       )}
       </div>
      );
     })()}
