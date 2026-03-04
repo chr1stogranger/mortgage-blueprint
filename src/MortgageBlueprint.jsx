@@ -3764,6 +3764,15 @@ export default function MortgageBlueprint() {
   </div>
  </div>
 )}
+{!gameMode && tab !== "setup" && (
+ <div onClick={() => saveGameMode(true)} style={{ marginTop: 8, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "6px 14px", cursor: "pointer", opacity: 0.5, transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.5}>
+  <span style={{ fontSize: 12, color: T.textTertiary }}>🏠</span>
+  <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>Turn on Build Mode</span>
+  <div style={{ width: 28, height: 16, borderRadius: 99, background: T.inputBg, padding: 1, flexShrink: 0 }}>
+   <div style={{ width: 14, height: 14, borderRadius: "50%", background: T.textTertiary, transition: "all 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+  </div>
+ </div>
+)}
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && (<>
  <div style={{ marginTop: 20 }}>
@@ -3799,7 +3808,7 @@ export default function MortgageBlueprint() {
   </button>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
    <div data-field="calc-down" className={isPulse("calc-down")} onClick={() => markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
       Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
       <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
@@ -3819,7 +3828,7 @@ export default function MortgageBlueprint() {
     </div>
    </div>
    <div data-field="calc-rate" className={isPulse("calc-rate")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, minHeight: 28 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
       Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
       <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
@@ -5253,17 +5262,29 @@ export default function MortgageBlueprint() {
 
  {/* ── Build Mode (TOP of setup) — pulses until user toggles it ── */}
  <div className={isPulse("build-mode")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+ {gameMode ? (
  <Card>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
    <div style={{ flex: 1, marginRight: 12 }}>
     <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Build Mode</div>
-    <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Guided progression — tabs unlock as you go. A house builds as you learn.</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Guided progression — tabs unlock as you go.</div>
    </div>
-   <div onClick={() => saveGameMode(!gameMode)} style={{ width: 52, height: 30, borderRadius: 99, background: gameMode ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: gameMode ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   <div onClick={() => saveGameMode(false)} style={{ width: 52, height: 30, borderRadius: 99, background: T.green, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: "translateX(22px)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
    </div>
   </div>
  </Card>
+ ) : (
+ <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: T.card, borderRadius: 18, border: `1px solid ${T.cardBorder}`, opacity: 0.7 }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+   <span style={{ fontSize: 14 }}>🏠</span>
+   <span style={{ fontSize: 13, color: T.textTertiary }}>Build Mode off</span>
+  </div>
+  <div onClick={() => saveGameMode(true)} style={{ width: 44, height: 24, borderRadius: 99, background: T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+   <div style={{ width: 20, height: 20, borderRadius: "50%", background: T.textTertiary, transition: "transform 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+  </div>
+ </div>
+ )}
  </div>
  {gameMode && (
   <Card style={{ padding: 0, overflow: "hidden" }}>
