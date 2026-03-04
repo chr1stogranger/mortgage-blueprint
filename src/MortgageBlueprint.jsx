@@ -2411,6 +2411,8 @@ export default function MortgageBlueprint() {
    await LS.delete("app:unlockAll");
    await LS.delete("app:gameMode");
    await LS.delete("course:progress");
+   await LS.delete("has-seen-welcome");
+   try { localStorage.removeItem("mb_welcomed"); } catch(e) {}
   } catch(e) {}
   setPinCode(""); setPinSet(false); setConsentGiven(false); setShowClearConfirm(false); setClearStep(0);
   window.location.reload();
@@ -6468,6 +6470,12 @@ export default function MortgageBlueprint() {
    <button key={v} onClick={() => setCourseView(v)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", background: courseView === v ? T.card : "transparent", color: courseView === v ? T.blue : T.textTertiary, boxShadow: courseView === v ? "0 1px 4px rgba(0,0,0,0.12)" : "none", transition: "all 0.2s" }}>{l}</button>
   ))}
  </div>
+ {/* Subscribe CTA — always visible at top */}
+ <Card style={{ marginTop: 12, background: `linear-gradient(135deg, ${T.blue}15, ${T.purple}10)`, border: `1px solid ${T.blue}25`, textAlign: "center", padding: "16px 20px" }}>
+  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>📬 Three Point Thursday</div>
+  <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>3 actionable mortgage insights delivered to your inbox every Thursday.</div>
+  <a href="https://chrisgranger.substack.com/subscribe" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, padding: "10px 24px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", borderRadius: 12, display: "inline-block", fontWeight: 600, fontSize: 14, fontFamily: FONT, cursor: "pointer", textDecoration: "none", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>Subscribe Free →</a>
+ </Card>
 
  {courseView === "course" && (<>
   {/* ── SVG HOUSE ILLUSTRATION ── */}
@@ -6797,11 +6805,6 @@ export default function MortgageBlueprint() {
     { title: "House Hacking with FHA", icon: "🔑", desc: "Live in one unit, rent the other — build wealth from day one", body: "House hacking means buying a multi-unit property, living in one unit, and renting the others to offset your mortgage.\n\nWith an FHA loan, you can buy a duplex with just 3.5% down. The rental income from the other unit can dramatically reduce your effective housing cost.\n\nThe math: $1M duplex → $35K down → $7,500/mo PITI. Rent the other unit for $2,000/mo → your net cost is $5,500/mo for a million-dollar appreciating, income-producing asset.\n\nAfter 12 months of occupancy, you can move out and keep it as a full rental property. Then repeat with your next primary residence.\n\nThis is one of the most reliable paths to building a real estate portfolio starting from scratch." },
    ]},
   ].map((section, si) => <LearnSec key={si} cat={section.cat} items={section.items} />)}
-  <Card style={{ marginTop: 12, background: `${T.blue}10`, textAlign: "center", padding: 20 }}>
-   <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.blue }}>📬 Three Point Thursday</div>
-   <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 6, lineHeight: 1.5 }}>Subscribe to get 3 actionable mortgage insights delivered to your inbox every Thursday.</div>
-   <a href="https://chrisgranger.substack.com/subscribe" target="_blank" rel="noopener noreferrer" style={{ marginTop: 12, padding: "10px 20px", background: T.blue, color: "#fff", borderRadius: 12, display: "inline-block", fontWeight: 600, fontSize: 14, fontFamily: FONT, cursor: "pointer", textDecoration: "none" }}>Subscribe →</a>
-  </Card>
  </>)}
 
  {courseView === "guidelines" && (<>
