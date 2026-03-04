@@ -514,6 +514,7 @@ function MRow({ label, value, sub, color, bold, indent, tip }) {
 function StopLight({ checks, onPillarClick }) {
  const allGreen = checks.every(c => c.ok === true);
  const anyGreen = checks.some(c => c.ok === true);
+ const [expanded, setExpanded] = React.useState(null);
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   {/* Main status badge */}
   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20 }}>
@@ -529,8 +530,9 @@ function StopLight({ checks, onPillarClick }) {
    {checks.map((c, i) => {
     const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
     const glow = c.ok === true ? `0 0 12px ${T.green}60` : "none";
-    const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
-    return (<div key={i} onClick={() => { if (onPillarClick) { onPillarClick(c.label); Haptics.light(); } }} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 8px 12px", background: bg, borderRadius: 16, transition: "all 0.4s", cursor: onPillarClick ? "pointer" : "default" }}>
+    const isExp = expanded === i;
+    const bg = isExp ? `${T.blue}18` : c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
+    return (<div key={i} onClick={() => { setExpanded(isExp ? null : i); Haptics.light(); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 8px 12px", background: bg, borderRadius: 16, transition: "all 0.4s", cursor: "pointer", border: isExp ? `1px solid ${T.blue}40` : "1px solid transparent" }}>
      {/* The light */}
      <div style={{ position: "relative", width: 44, height: 44, marginBottom: 10 }}>
       <div style={{ width: 44, height: 44, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, boxShadow: glow, transition: "all 0.5s", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -543,6 +545,26 @@ function StopLight({ checks, onPillarClick }) {
     </div>);
    })}
   </div>
+  {/* Expanded detail panel — shows below the circles */}
+  {expanded !== null && checks[expanded] && (() => {
+   const c = checks[expanded];
+   const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
+   const statusText = c.ok === true ? "Good!" : c.ok === null ? "Needs Data" : "Needs Work";
+   return (
+    <div style={{ width: "100%", marginTop: 12, background: T.card, borderRadius: 16, border: `1px solid ${T.cardBorder}`, padding: "14px 16px", animation: "fadeSlide 0.2s ease-out" }}>
+     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 36, height: 36, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+       <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}</span>
+      </div>
+      <div style={{ flex: 1 }}>
+       <div style={{ fontSize: 14, fontWeight: 700, color }}>{c.icon || ""} {c.fullLabel || c.label} — {statusText}</div>
+       <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{c.detail}</div>
+      </div>
+     </div>
+     {c.action && <div onClick={(e) => { e.stopPropagation(); if (onPillarClick) onPillarClick(c.label); }} style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer" }}>{c.action} ›</div>}
+    </div>
+   );
+  })()}
  </div>);
 }
 function RefiTestLight({ passed, label, detail }) {
@@ -761,7 +783,7 @@ const Haptics = {
 };
 
 // ── Tab Progression System ──
-const TAB_PROGRESSION = ["setup","calc","costs","qualify","income","debts","assets","tax","amort","learn","compare","summary"];
+const TAB_PROGRESSION = ["setup","calc","costs","income","assets","debts","qualify","tax","amort","learn","compare","summary"];
 const HOUSE_STAGES = [
  { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
  { tab: "calc", part: "Foundation", desc: "Concrete slab poured" },
@@ -3353,8 +3375,9 @@ export default function MortgageBlueprint() {
 
  const TABS = [["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
-  ["costs","Costs"],["qualify","Qualify"],["income","Income"],["debts","Debts"],["assets","Assets"],
+  ["costs","Costs"],["income","Income"],["debts","Debts"],["assets","Assets"],
   ...(ownsProperties ? [["reo","REO"]] : []),
+  ["qualify","Qualify"],
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
   ...(showInvestor ? [["invest","Investor"]] : []),
@@ -3432,6 +3455,7 @@ export default function MortgageBlueprint() {
     @keyframes buildGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(74,144,217,0.5), 0 0 20px rgba(74,144,217,0.15); } 50% { box-shadow: 0 0 0 2px rgba(74,144,217,0.8), 0 0 30px rgba(74,144,217,0.25); } }
     @keyframes pulseBlue { 0%, 100% { box-shadow: 0 0 0 3px rgba(74,144,217,0.3), 0 0 12px rgba(74,144,217,0.1); } 50% { box-shadow: 0 0 0 3px rgba(74,144,217,0.7), 0 0 24px rgba(74,144,217,0.25); } }
     @keyframes floatBarSlide { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+    @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
     .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; }
    `}</style>
@@ -4384,11 +4408,11 @@ export default function MortgageBlueprint() {
 {tab === "qualify" && (<>
  <div style={{ marginTop: 20 }}>
   <StopLight onPillarClick={handlePillarClick} checks={[
-   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score" },
-   { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+` },
-   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income" },
-   { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets" },
-   { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets" },
+   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "📊", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
+   { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "🏠", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
+   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "⚖️", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
+   { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "💰", fullLabel: "Cash to Close", detail: `Need ${fmt(calc.cashToClose)} (down payment + closing costs – credits). ${calc.totalForClosing > 0 ? `Have ${fmt(calc.totalForClosing)} verified. ${calc.totalForClosing >= calc.cashToClose ? "Fully funded!" : `Short ${fmt(calc.cashToClose - calc.totalForClosing)}.`}` : "Add assets to verify funds."}`, action: "Edit assets" },
+   { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "🏦", fullLabel: "Reserves", detail: `${calc.reserveMonths} months required (${loanType === "Jumbo" ? "Jumbo" : "standard"}) = ${fmt(calc.reservesReq)}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
   ]} />
  </div>
  {/* Progress bar - how many pillars cleared */}
@@ -4410,29 +4434,6 @@ export default function MortgageBlueprint() {
    {creditScore >= calc.ficoMin && creditScore < 740 && <Note color={T.orange}>Meets minimum. 740+ unlocks better pricing tiers.</Note>}
   </Card>
   </div>
- </Sec>
- <Sec title="5 Pillars of Qualifying">
-  <Card>
-   {[{ l: "Credit Score (FICO)", s: calc.ficoCheck, d: `Min ${calc.ficoMin} · Yours: ${creditScore || "—"}`, icon: "📊" },
-    { l: "Down Payment", s: calc.dpWarning === null ? "Good!" : "Too Low", d: `Min ${calc.minDPpct}%${loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : ""} · Yours: ${downPct}%`, icon: "🏠" },
-    { l: "DTI Ratio", s: calc.dtiCheck, d: `Max ${pct(calc.maxDTI, 0)} · Yours: ${calc.qualifyingIncome > 0 ? pct(calc.yourDTI, 1) : "—"}`, icon: "⚖️" },
-    { l: "Cash to Close", s: calc.cashCheck, d: `Need ${fmt(calc.cashToClose)} · Have ${fmt(calc.totalForClosing)}`, icon: "💰" },
-    { l: "Reserves", s: calc.resCheck, d: `${calc.reserveMonths} mo = ${fmt(calc.reservesReq)} · Have ${fmt(calc.totalReserves)}`, icon: "🏦" },
-   ].map((item, i) => {
-    const isGreen = item.s === "Good!";
-    const isWarn = item.s === "Warning";
-    const isRed = !isGreen && !isWarn && item.s !== "—";
-    return (<div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderBottom: i < 4 ? `1px solid ${T.separator}` : "none" }}>
-     <div style={{ width: 36, height: 36, borderRadius: "50%", background: isGreen ? T.green : isWarn ? T.orange : isRed ? T.red : T.ringTrack, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: isGreen ? `0 0 10px ${T.green}50` : "none", transition: "all 0.4s" }}>
-      <span style={{ fontSize: 14, color: "#fff", fontWeight: 800 }}>{isGreen ? "✓" : isWarn ? "!" : isRed ? "✗" : "?"}</span>
-     </div>
-     <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: isGreen ? T.green : isWarn ? T.orange : isRed ? T.red : T.textTertiary }}>{item.icon} {item.l}</div>
-      <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{item.d}</div>
-     </div>
-    </div>);
-   })}
-  </Card>
  </Sec>
  {calc.qualifyingIncome > 0 && (
   <Card>
