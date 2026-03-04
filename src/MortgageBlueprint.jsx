@@ -2447,6 +2447,33 @@ export default function MortgageBlueprint() {
  // Auto-switch to Jumbo when loan amount exceeds high-balance limit for unit count
  // Auto-sync refiHomeValue from salesPrice when in refi mode
  useEffect(() => { if (isRefi) setRefiHomeValue(salesPrice); }, [isRefi, salesPrice]);
+ // Auto-fill refi tax and insurance from setup values
+ useEffect(() => {
+  if (!isRefi) return;
+  const taxRate = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
+  const yearlyTax = salesPrice * taxRate;
+  if (refiAnnualTax === 0 && yearlyTax > 0) setRefiAnnualTax(Math.round(yearlyTax));
+  if (refiAnnualIns === 0 && annualIns > 0) setRefiAnnualIns(annualIns);
+ }, [isRefi, salesPrice, city, propertyState, annualIns]);
+ // Auto-set skip months based on closing day: ≤15th = skip 2, >15th = skip 1
+ useEffect(() => {
+  if (!isRefi) return;
+  setRefiSkipMonths(closingDay <= 15 ? 2 : 1);
+ }, [isRefi, closingDay]);
+ // Auto-set Section C defaults for refi: flat escrow fee, zero title/search/settlement
+ useEffect(() => {
+  if (isRefi) {
+   setTitleInsurance(0);
+   setTitleSearch(0);
+   setSettlementFee(0);
+   setEscrowFee(1995);
+  } else {
+   setTitleInsurance(700);
+   setTitleSearch(1261);
+   setSettlementFee(502);
+   setEscrowFee(2400);
+  }
+ }, [isRefi]);
  useEffect(() => {
   const baseLoan = salesPrice * (1 - downPct / 100);
   const hbl = getHighBalLimit(propType);
@@ -2578,7 +2605,7 @@ export default function MortgageBlueprint() {
   const origCharges = underwritingFee + processingFee + pointsCost;
   const hoaCert = (!isRefi && (propType === "Condo" || propType === "Townhouse")) ? 500 : 0;
   const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + taxServiceFee;
-  const titleEscrowTotal = isRefi ? 1995 : (titleInsurance + titleSearch + settlementFee + escrowFee);
+  const titleEscrowTotal = titleInsurance + titleSearch + settlementFee + escrowFee;
   const canShop = titleEscrowTotal + hoaCert;
   const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
   const totalClosingCosts = origCharges + cannotShop + canShop + govCharges;
@@ -2598,8 +2625,8 @@ export default function MortgageBlueprint() {
   const escrowInsMonths = 3;
   const initialEscrow = includeEscrow ? (monthlyTax * escrowTaxMonths) + (ins * escrowInsMonths) : 0;
   const totalPrepaidExp = totalPrepaids + initialEscrow;
-  const totalCredits = sellerCredit + realtorCredit + emd + lenderCredit;
-  const cashToClose = dp + totalClosingCosts + totalPrepaidExp + payoffAtClosing - totalCredits;
+  const totalCredits = isRefi ? lenderCredit : (sellerCredit + realtorCredit + emd + lenderCredit);
+  const cashToClose = (isRefi ? 0 : dp) + totalClosingCosts + totalPrepaidExp + payoffAtClosing - totalCredits;
   const ficoMin = loanType === "FHA" ? 580 : loanType === "Jumbo" ? 700 : loanType === "VA" ? 580 : 620;
   const ficoCheck = creditScore > 0 ? (creditScore >= ficoMin ? "Good!" : "Too Low") : "—";
   const minDPpct = loanType === "VA" ? 0 : loanType === "FHA" ? 3.5 : loanType === "Jumbo" ? 20 : (firstTimeBuyer && loanCategory === "Conforming") ? 3 : 5;
@@ -3972,7 +3999,7 @@ export default function MortgageBlueprint() {
   <div data-field="calc-proptype" className={isPulse("calc-proptype")} onClick={() => markTouched("calc-proptype")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req tip="The type of home you're buying. Condos and multi-unit properties have different qualification rules." />
   </div>
-  <Sel label="Purpose" value={loanPurpose} onChange={v => {
+  <Sel label="Occupancy" value={loanPurpose} onChange={v => {
    // Auto-adjust rate for investment property pricing
    if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
     setRate(prev => Math.round((prev + 0.875) * 1000) / 1000);
@@ -3980,7 +4007,7 @@ export default function MortgageBlueprint() {
     setRate(prev => Math.round(Math.max(0, prev - 0.875) * 1000) / 1000);
    }
    setLoanPurpose(v);
-  }} options={["Purchase Primary","Purchase 2nd Home","Purchase Investment"]} req tip="How you'll use the property. Investment properties typically carry a 0.750–1.000% rate premium and require 15-25% down." />
+  }} options={[{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]} req tip="How you'll use the property. Investment properties typically carry a 0.750–1.000% rate premium and require 15-25% down." />
   {loanPurpose === "Purchase Investment" && (
    <Note color={T.orange}>📈 Investment property rate adjustment: +0.875% applied automatically (typical range: 0.750–1.000%). Adjust your rate manually if your lender quotes differently.</Note>
   )}
@@ -4112,8 +4139,14 @@ export default function MortgageBlueprint() {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value={fmt(calc.cashToClose)} label="Estimated Cash to Close" color={T.green} />
+  <Hero value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp : calc.cashToClose)} label={isRefi ? "Estimated Refi Costs" : "Estimated Cash to Close"} color={T.green} />
  </div>
+ {isRefi ? (
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0 16px" }}>
+  <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em" }}>{fmt(calc.totalClosingCosts)}</div></Card>
+  <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Prepaids</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.orange, letterSpacing: "-0.03em" }}>{fmt(calc.totalPrepaidExp)}</div></Card>
+ </div>
+ ) : (<>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Down Payment</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em" }}>{fmt(calc.dp)}</div><div style={{ fontSize: 10, color: T.textTertiary }}>{downPct}%</div></Card>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em" }}>{fmt(calc.totalClosingCosts)}</div></Card>
@@ -4122,6 +4155,7 @@ export default function MortgageBlueprint() {
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Prepaids & Escrow</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.orange, letterSpacing: "-0.03em" }}>{fmt(calc.totalPrepaidExp)}</div></Card>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Credits</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green, letterSpacing: "-0.03em" }}>-{fmt(calc.totalCredits)}</div></Card>
  </div>
+ </>)}
 
  {/* ── A. LENDER FEES ── */}
  <Sec title="A. Lender Fees">
@@ -4159,19 +4193,24 @@ export default function MortgageBlueprint() {
  {/* ── C. SERVICES YOU CAN SHOP FOR ── */}
  <Sec title="C. Services You Can Shop For">
   <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Title Insurance" value={titleInsurance} onChange={setTitleInsurance} sm />
-    <Inp label="Title Search" value={titleSearch} onChange={setTitleSearch} sm />
-   </div>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Settlement Agent" value={settlementFee} onChange={setSettlementFee} sm />
+   {isRefi ? (<>
     <Inp label="Escrow/Closing Fee" value={escrowFee} onChange={setEscrowFee} sm />
-   </div>
-   {calc.hoaCert > 0 && <MRow label="HOA Certification" value={fmt2(calc.hoaCert)} sub="Condo/Townhouse" />}
+    <Note color={T.blue}>Refinances use a flat title/escrow fee. Default $1,995 — adjust if your title company quotes differently.</Note>
+   </>) : (<>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+     <Inp label="Title Insurance" value={titleInsurance} onChange={setTitleInsurance} sm />
+     <Inp label="Title Search" value={titleSearch} onChange={setTitleSearch} sm />
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+     <Inp label="Settlement Agent" value={settlementFee} onChange={setSettlementFee} sm />
+     <Inp label="Escrow/Closing Fee" value={escrowFee} onChange={setEscrowFee} sm />
+    </div>
+    {calc.hoaCert > 0 && <MRow label="HOA Certification" value={fmt2(calc.hoaCert)} sub="Condo/Townhouse" />}
+   </>)}
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total Can Shop" value={fmt2(calc.canShop)} bold />
    </div>
-   <Note color={T.blue}>Title and escrow fees are negotiable. Shop around for the best rates — you have the right to choose your own providers.</Note>
+   {!isRefi && <Note color={T.blue}>Title and escrow fees are negotiable. Shop around for the best rates — you have the right to choose your own providers.</Note>}
   </Card>
  </Sec>
 
@@ -4231,7 +4270,6 @@ export default function MortgageBlueprint() {
    <MRow label={`Property Tax Reserve (${calc.escrowTaxMonths} mo)`} value={fmt2(calc.monthlyTax * calc.escrowTaxMonths)} sub={`${fmt(calc.monthlyTax)}/mo × ${calc.escrowTaxMonths}`} />
    <MRow label={`Hazard Insurance Reserve (${calc.escrowInsMonths} mo)`} value={fmt2(calc.ins * calc.escrowInsMonths)} sub={`${fmt(calc.ins)}/mo × ${calc.escrowInsMonths}`} />
    {calc.monthlyMI > 0 && <MRow label="Mortgage Insurance Reserve" value={fmt2(calc.monthlyMI * 2)} sub={`${fmt(calc.monthlyMI)}/mo × 2`} />}
-   <MRow label="Aggregate Adjustment" value="$0.00" />
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total Initial Escrow" value={fmt2(calc.initialEscrow)} bold />
    </div>
@@ -4266,10 +4304,14 @@ export default function MortgageBlueprint() {
  {/* ── G. CREDITS ── */}
  <Sec title="G. Credits">
   <Card>
-   <Inp label="Seller Credit" value={sellerCredit} onChange={setSellerCredit} sm tip="Money the seller agrees to pay toward your closing costs. Negotiate this in your purchase offer. Max allowed varies by loan type." />
-   <Inp label="Lender Credit" value={lenderCredit} onChange={setLenderCredit} sm tip="Credit from the lender, usually in exchange for a slightly higher interest rate. Reduces your out-of-pocket closing costs." />
-   <Inp label="Realtor Credit" value={realtorCredit} onChange={setRealtorCredit} sm tip="Commission rebate from your buyer's agent applied toward your closing costs." />
-   <Inp label="EMD (Earnest Money Deposit)" value={emd} onChange={setEmd} sm tip="Good-faith deposit submitted with your offer. Credited back to you at closing — reduces cash needed." />
+   {isRefi ? (<>
+    <Inp label="Lender Credit" value={lenderCredit} onChange={setLenderCredit} sm tip="Credit from the lender, usually in exchange for a slightly higher interest rate. Reduces your out-of-pocket closing costs." />
+   </>) : (<>
+    <Inp label="Seller Credit" value={sellerCredit} onChange={setSellerCredit} sm tip="Money the seller agrees to pay toward your closing costs. Negotiate this in your purchase offer. Max allowed varies by loan type." />
+    <Inp label="Lender Credit" value={lenderCredit} onChange={setLenderCredit} sm tip="Credit from the lender, usually in exchange for a slightly higher interest rate. Reduces your out-of-pocket closing costs." />
+    <Inp label="Realtor Credit" value={realtorCredit} onChange={setRealtorCredit} sm tip="Commission rebate from your buyer's agent applied toward your closing costs." />
+    <Inp label="EMD (Earnest Money Deposit)" value={emd} onChange={setEmd} sm tip="Good-faith deposit submitted with your offer. Credited back to you at closing — reduces cash needed." />
+   </>)}
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total Credits" value={`-${fmt(calc.totalCredits)}`} color={T.green} bold />
    </div>
@@ -4278,13 +4320,13 @@ export default function MortgageBlueprint() {
 
  {/* ── ESTIMATED FUNDS TO CLOSE ── */}
  <Card style={{ background: T.successBg, border: `1px solid ${T.green}30` }}>
-  <div style={{ fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Estimated Funds to Close</div>
-  <MRow label="Down Payment" value={fmt(calc.dp)} />
+  <div style={{ fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>{isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}</div>
+  {!isRefi && <MRow label="Down Payment" value={fmt(calc.dp)} />}
   <MRow label="A–D. Total Closing Costs" value={fmt(calc.totalClosingCosts)} />
-  <MRow label="E–F. Prepaids & Escrow" value={fmt(calc.totalPrepaidExp)} />
-  <MRow label="G. Credits Applied" value={`-${fmt(calc.totalCredits)}`} color={T.green} />
+  <MRow label={includeEscrow ? "E–F. Prepaids & Escrow" : "E. Prepaids"} value={fmt(calc.totalPrepaidExp)} />
+  {calc.totalCredits > 0 && <MRow label="G. Credits Applied" value={`-${fmt(calc.totalCredits)}`} color={T.green} />}
   <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
-   <MRow label="ESTIMATED CASH FROM BORROWER" value={fmt(calc.cashToClose)} color={T.green} bold />
+   <MRow label={isRefi ? "TOTAL REFI COSTS" : "ESTIMATED CASH FROM BORROWER"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)} color={T.green} bold />
   </div>
  </Card>
 </>)}
@@ -5686,8 +5728,8 @@ export default function MortgageBlueprint() {
    </>}
    {!refiOriginalAmount && <Inp label="Current P&I Payment (manual)" value={refiCurrentPayment} onChange={setRefiCurrentPayment} />}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Annual Property Tax" value={refiAnnualTax} onChange={setRefiAnnualTax} tip="Annual property tax. Stays the same after refi." />
-    <Inp label="Annual Home Insurance" value={refiAnnualIns} onChange={setRefiAnnualIns} tip="Annual homeowner's insurance premium. Stays the same after refi." />
+    <Inp label="Annual Prop Tax" value={refiAnnualTax} onChange={setRefiAnnualTax} sm tip="Annual property tax. Stays the same after refi." />
+    <Inp label="Annual Home Ins" value={refiAnnualIns} onChange={setRefiAnnualIns} sm tip="Annual homeowner's insurance premium. Stays the same after refi." />
    </div>
    {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
@@ -5708,8 +5750,8 @@ export default function MortgageBlueprint() {
     </div>
    </div>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Escrow Account Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} tip="Money sitting in your escrow account — refunded to you when the old loan closes." />
-    <Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"},{value:"3",label:"3 months"}]} tip="Mortgage payments you skip during the refi process. These go back in your pocket." />
+    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm tip="Money sitting in your escrow account — refunded to you when the old loan closes." />
+    <Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"}]} sm tip="Mortgage payments you skip during the refi process. Auto-set based on closing day — close by the 15th = skip 2, after the 15th = skip 1." />
    </div>
    <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} />
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
