@@ -2122,7 +2122,6 @@ export default function MortgageBlueprint() {
    progressPct = (stepNum / totalSteps) * 100;
   }
   if (tab === "settings" || tab === "compare" || tab === "summary") return null;
-  if (!gameMode) return null;
   const fieldsComplete = isTabFieldsComplete(tab);
   const isReady = fieldsComplete && scrolledPast80;
   const handleNext = () => {
@@ -5462,6 +5461,15 @@ export default function MortgageBlueprint() {
    </div>
    {toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
     {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
+   </div>}
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
+    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   {toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
    </div>}
 
    {/* Zip-derived summary */}
