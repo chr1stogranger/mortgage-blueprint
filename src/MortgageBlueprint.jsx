@@ -462,10 +462,11 @@ function Sel({ label, value, onChange, options, sm, tip, req }) {
   </select>
  </div>);
 }
-function TextInp({ label, value, onChange, placeholder, sm, tip, req }) {
+function TextInp({ label, value, onChange, placeholder, sm, tip, req, inputMode, pattern }) {
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} />
   <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+   inputMode={inputMode} pattern={pattern}
    style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, outline: "none", fontFamily: FONT }} />
  </div>);
 }
@@ -518,8 +519,9 @@ function StopLight({ checks, onPillarClick }) {
   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20 }}>
    <span style={{ fontSize: 28 }}>{allGreen ? "🏆" : anyGreen ? "🔓" : "🔒"}</span>
    <div>
-    <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: allGreen ? T.green : anyGreen ? T.orange : T.red, letterSpacing: "-0.03em" }}>{allGreen ? "PRE-APPROVED" : anyGreen ? "ALMOST THERE" : "NOT YET"}</div>
+    <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: allGreen ? T.green : anyGreen ? T.orange : T.red, letterSpacing: "-0.03em" }}>{allGreen ? "PRE-QUALIFIED" : anyGreen ? "ALMOST THERE" : "NOT YET"}</div>
     <div style={{ fontSize: 12, color: T.textTertiary }}>{allGreen ? `All ${checks.length} pillars cleared!` : `${checks.filter(c => c.ok).length} of ${checks.length} pillars cleared`}</div>
+    {allGreen && <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, fontStyle: "italic" }}>Based on the information you provided. Click below to get pre-approved.</div>}
    </div>
   </div>
   {/* Traffic light row */}
@@ -1063,20 +1065,6 @@ export default function MortgageBlueprint() {
  const [ppHometownInput, setPpHometownInput] = useState("");
  const [ppLeaderboardFilter, setPpLeaderboardFilter] = useState("all"); // "all" | "agents" | "buyers"
  const [ppPublicProfile, setPpPublicProfile] = useState(() => { try { const v = localStorage.getItem("pp-public"); return v === null ? true : v === "true"; } catch(e) { return true; } });
- // ── PricePoint Filters & Swipe ──
- const [ppShowFilters, setPpShowFilters] = useState(false);
- const [ppFilterType, setPpFilterType] = useState("All");
- const [ppFilterBeds, setPpFilterBeds] = useState("Any");
- const [ppFilterSqft, setPpFilterSqft] = useState("Any");
- const [ppSkipped, setPpSkipped] = useState([]);
- const [ppSwipeX, setPpSwipeX] = useState(0);
- const [ppSwiping, setPpSwiping] = useState(false);
- const ppCardTouchRef = useRef({ startX: 0, startY: 0, swiping: false });
- const [ppShowMap, setPpShowMap] = useState(false);
- const [ppMapDrawn, setPpMapDrawn] = useState(null); // array of [lat,lng] polygon points or null
- const ppMapRef = useRef(null);
- const ppMapInstanceRef = useRef(null);
- const ppDrawLayerRef = useRef(null);
  useEffect(() => { try { localStorage.setItem("pp-public", String(ppPublicProfile)); } catch(e){} }, [ppPublicProfile]);
 
  // ── PricePoint XP & Leveling System ──
@@ -1168,7 +1156,7 @@ export default function MortgageBlueprint() {
  const [debtFree, setDebtFree] = useState(false);
  const [married, setMarried] = useState("Single");
  const [taxState, setTaxState] = useState("California");
- const [appreciationRate, setAppreciationRate] = useState(5);
+ const [appreciationRate, setAppreciationRate] = useState(3);
  const [sellPrice, setSellPrice] = useState(1000000);
  const [sellMortgagePayoff, setSellMortgagePayoff] = useState(0);
  const [sellCommission, setSellCommission] = useState(5);
@@ -1194,7 +1182,7 @@ export default function MortgageBlueprint() {
  const [scenarioList, setScenarioList] = useState([]);
  const [hasSellProperty, setHasSellProperty] = useState(false);
  const [ownsProperties, setOwnsProperties] = useState(false);
- const [isRefi, setIsRefi] = useState(false);
+ const [isRefi, setIsRefi] = useState(null);
  const [firstTimeBuyer, setFirstTimeBuyer] = useState(false);
  const [loanOfficer, setLoanOfficer] = useState("Chris Granger");
  const [loEmail, setLoEmail] = useState("cgranger@xperthomelending.com");
@@ -1293,7 +1281,6 @@ export default function MortgageBlueprint() {
  const [compareData, setCompareData] = useState([]);
  const [compareLoading, setCompareLoading] = useState(false);
  const [showCompareHint, setShowCompareHint] = useState(false);
- const [shareNotif, setShareNotif] = useState(null);
  const [affordIncome, setAffordIncome] = useState(0);
  const [affordDebts, setAffordDebts] = useState(0);
  const [affordDown, setAffordDown] = useState(0);
@@ -1312,10 +1299,14 @@ export default function MortgageBlueprint() {
  const [courseQuizSubmitted, setCourseQuizSubmitted] = useState(false);
  const [showCourseComplete, setShowCourseComplete] = useState(false);
  // ── Skill Level & Tab Progression ──
- const [skillLevel, setSkillLevel] = useState("beginner");
+ const [skillLevel, setSkillLevel] = useState(null);
  const [completedTabs, setCompletedTabs] = useState({});
+ const [scrolledPast80, setScrolledPast80] = useState(false);
+ const scrolledPast80Ref = useRef(false);
+ const floatBarShownRef = useRef(false);
  const [unlockAll, setUnlockAll] = useState(false);
- const [gameMode, setGameMode] = useState(true);
+ const [gameMode, setGameMode] = useState(false);
+ const [gameModeEverToggled, setGameModeEverToggled] = useState(false);
  const [toggleHint, setToggleHint] = useState(null);
  const [setupAdvancedOpen, setSetupAdvancedOpen] = useState(false);
  const [buildStep, setBuildStep] = useState(0); // 0=Quick Start, 1=Property & Borrower (refi only), 3=done
@@ -1473,88 +1464,6 @@ export default function MortgageBlueprint() {
   if (s.rbRentGrowth !== undefined) setRbRentGrowth(s.rbRentGrowth);
   if (s.rbInvestReturn !== undefined) setRbInvestReturn(s.rbInvestReturn);
  };
- // ═══ SCENARIO SHARE VIA URL ═══
- // Encodes the full loan scenario into a compact URL parameter.
- // Strips fields matching defaults so the URL stays short for simple scenarios.
- const SHARE_DEFAULTS = {
-  salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
-  vaUsage: "First Use", propType: "Single Family", loanPurpose: "Purchase Primary",
-  city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
-  includeEscrow: true, subjectRentalIncome: 0, transferTaxCity: "Alameda",
-  discountPts: 0, underwritingFee: 1195, processingFee: 400, appraisalFee: 795,
-  creditReportFee: 95, floodCertFee: 8, mersFee: 25, taxServiceFee: 85,
-  titleInsurance: 700, titleSearch: 1261, settlementFee: 502, escrowFee: 2400,
-  recordingFee: 200, lenderCredit: 0, sellerCredit: 0, realtorCredit: 0,
-  emd: 0, sellerTaxBasis: 5000, prepaidDays: 15, coeDays: 30, married: "Single",
-  taxState: "California", appreciationRate: 5, creditScore: 0, extraPayment: 0,
-  payExtra: false, debtFree: false, autoJumboSwitch: false, hasSellProperty: false,
-  ownsProperties: false, isRefi: false, firstTimeBuyer: false, showInvestor: false,
-  propertyTBD: true, darkMode: true, otherIncome: 0, borrowerName: "", borrowerEmail: "",
-  realtorName: "", propertyAddress: "", propertyZip: "", propertyCounty: "",
-  loanOfficer: "Chris Granger", loEmail: "cgranger@xperthomelending.com",
-  loPhone: "(415) 987-8489", loNmls: "952015", companyName: "Xpert Home Lending", companyNmls: "2179191",
- };
- const shareScenarioUrl = async () => {
-  try {
-   const state = getState();
-   // Strip fields matching defaults to keep URL compact
-   const compact = {};
-   for (const [k, v] of Object.entries(state)) {
-    if (SHARE_DEFAULTS.hasOwnProperty(k) && JSON.stringify(v) === JSON.stringify(SHARE_DEFAULTS[k])) continue;
-    // Also skip empty arrays (debts, incomes, assets, reos) — they're defaults too
-    if (Array.isArray(v) && v.length === 0) continue;
-    compact[k] = v;
-   }
-   const json = JSON.stringify(compact);
-   // Base64 encode (handles unicode safely)
-   const encoded = btoa(unescape(encodeURIComponent(json)));
-   const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
-   // Try native share on mobile first, fall back to clipboard
-   if (navigator.share) {
-    try {
-     await navigator.share({
-      title: `${scenarioName} — Mortgage Blueprint`,
-      text: `Check out this loan scenario: ${borrowerName ? borrowerName + " — " : ""}${salesPrice ? "$" + salesPrice.toLocaleString() : ""}`,
-      url: url,
-     });
-     setShareNotif("Shared!");
-    } catch (shareErr) {
-     // User cancelled share sheet — fall back to clipboard
-     if (shareErr.name !== "AbortError") {
-      await navigator.clipboard.writeText(url);
-      setShareNotif("Link copied!");
-     }
-    }
-   } else {
-    await navigator.clipboard.writeText(url);
-    setShareNotif("Link copied!");
-   }
-   // Auto-dismiss toast
-   setTimeout(() => setShareNotif(null), 3000);
-  } catch (err) {
-   console.error("Share URL error:", err);
-   setShareNotif("Error creating link");
-   setTimeout(() => setShareNotif(null), 3000);
-  }
- };
- // On mount: check URL for shared scenario param and hydrate state
- useEffect(() => {
-  try {
-   const params = new URLSearchParams(window.location.search);
-   const encoded = params.get("s");
-   if (encoded) {
-    const json = decodeURIComponent(escape(atob(encoded)));
-    const shared = JSON.parse(json);
-    loadState(shared);
-    // Clean the URL so it doesn't re-apply on refresh / subsequent saves
-    window.history.replaceState({}, "", window.location.pathname);
-    setShareNotif("Shared scenario loaded!");
-    setTimeout(() => setShareNotif(null), 4000);
-   }
-  } catch (err) {
-   console.error("Failed to load shared scenario:", err);
-  }
- }, []);
  useEffect(() => {
   (async () => {
    try {
@@ -1645,13 +1554,15 @@ export default function MortgageBlueprint() {
   setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
   setSellerCredit(0); setRealtorCredit(0); setEmd(0); setDebts([]); setIncomes([]);
   setOtherIncome(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
-  setHasSellProperty(false); setOwnsProperties(false); setIsRefi(false); setShowInvestor(false);
+  setHasSellProperty(false); setOwnsProperties(false); setIsRefi(null); setShowInvestor(false);
+  // Reset completed tabs so new scenario starts fresh (fixes checkbox bug)
+  saveCompletedTabs({});
   // Save the new scenario defaults immediately so Compare can read them
   const defaults = { salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
    propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
    includeEscrow: true, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
    otherIncome: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
-   hasSellProperty: false, ownsProperties: false, isRefi: false, showInvestor: false, darkMode };
+   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, darkMode };
   try { await LS.set("scenario:" + name, JSON.stringify(defaults)); } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
   setNewScenarioName("");
@@ -1776,7 +1687,7 @@ export default function MortgageBlueprint() {
  };
  // Auto-load compare data when switching to compare tab
  React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab]);
- React.useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [tab]);
+ React.useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [tab]);
  React.useEffect(() => { if (loanType === "FHA" || loanType === "VA") setIncludeEscrow(true); }, [loanType]);
  React.useEffect(() => {
   if (tab === "qualify") {
@@ -2092,7 +2003,7 @@ export default function MortgageBlueprint() {
    try { const sl = await LS.get("app:skillLevel"); if (sl?.value) setSkillLevel(sl.value); } catch(e) {}
    try { const ct = await LS.get("app:completedTabs"); if (ct?.value) setCompletedTabs(JSON.parse(ct.value)); } catch(e) {}
    try { const ua = await LS.get("app:unlockAll"); if (ua?.value === "true") setUnlockAll(true); } catch(e) {}
-   try { const gm = await LS.get("app:gameMode"); if (gm?.value === "false") setGameMode(false); } catch(e) {}
+   try { const gm = await LS.get("app:gameMode"); if (gm?.value === "true") setGameMode(true); } catch(e) {}
    try { const bs = await LS.get("app:buildStepV2"); if (bs?.value) setBuildStep(parseInt(bs.value) || 0); else {
     // Existing users who already completed setup should skip the guided flow
     const ct = await LS.get("app:completedTabs"); if (ct?.value) { const parsed = JSON.parse(ct.value); if (parsed.setup) setBuildStep(3); }
@@ -2130,6 +2041,7 @@ export default function MortgageBlueprint() {
  };
  const saveGameMode = (val) => {
   setGameMode(val);
+  setGameModeEverToggled(true);
   try { LS.set("app:gameMode", val ? "true" : "false"); } catch(e) {}
  };
  const saveBuildStep = (step) => {
@@ -2137,19 +2049,76 @@ export default function MortgageBlueprint() {
   try { LS.set("app:buildStepV2", String(step)); } catch(e) {}
  };
 
- // Build Mode: Continue button for bottom of each tab
+ // Build Mode: Tab display names for floating bar
  const TAB_DISPLAY_NAMES = { setup:"Setup", calc:"Calculator", costs:"Costs", qualify:"Qualify", debts:"Debts", income:"Income", assets:"Assets", tax:"Tax Savings", amort:"Amortization", learn:"Learn", compare:"Compare", summary:"Share" };
- const BuildContinue = ({ currentTab }) => {
-  if (!gameMode) return null;
-  const idx = TAB_PROGRESSION.indexOf(currentTab);
+ // ═══ FLOATING "NEXT STEP" BAR ═══
+ // Sticky bottom bar that guides user to the next section.
+ // Turns active (blue) ONLY when: (1) all required fields on this tab are filled AND (2) user scrolled 90%+ down.
+ // isTabFieldsComplete checks actual field values, NOT the scroll-based completedTabs flag.
+ const isTabFieldsComplete = (t) => {
+  if (t === "setup") return isRefi !== null && propertyZip.length >= 5 && creditScore > 0 && salesPrice > 0;
+  if (t === "calc") return salesPrice > 0 && rate > 0;
+  if (t === "costs") return true; // costs have defaults, always "complete"
+  if (t === "income") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
+  if (t === "assets") return assets.length > 0 && assets.some(a => a.value > 0);
+  if (t === "debts") return debtFree || debts.length > 0;
+  if (t === "qualify") return creditScore > 0 && calc.qualifyingIncome > 0;
+  if (t === "tax") return calc.yearlyInc > 0;
+  if (t === "amort") return true; // display-only, always complete
+  if (t === "reo") return true; // optional tab
+  if (t === "refi") return refiCurrentRate > 0 && refiCurrentBalance > 0;
+  return true;
+ };
+ const FloatingNextBar = () => {
+  const idx = TAB_PROGRESSION.indexOf(tab);
   if (idx < 0 || idx >= TAB_PROGRESSION.length - 1) return null;
+  if (tab === "settings" || tab === "compare" || tab === "summary" || tab === "learn") return null;
+  if (!gameMode) return null;
   const nextTab = TAB_PROGRESSION[idx + 1];
   const nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
-  const stepNum = idx + 2; // +1 for 0-index, +1 because we're going TO the next
+  const fieldsComplete = isTabFieldsComplete(tab);
+  const isReady = fieldsComplete && scrolledPast80; // Both: fields filled + scrolled 90%
+  const stepNum = idx + 1;
+  const totalSteps = TAB_PROGRESSION.length;
+  const progressPct = (stepNum / totalSteps) * 100;
+  const handleNext = () => {
+   markTabComplete(tab);
+   setTab(nextTab);
+   window.scrollTo({ top: 0, behavior: "instant" });
+  };
+  const barFirstShow = !floatBarShownRef.current;
+  if (barFirstShow) floatBarShownRef.current = true;
   return (
-   <button onClick={() => setTab(nextTab)} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 12, marginBottom: 8, boxShadow: "0 4px 20px rgba(74,144,217,0.3)" }}>
-    Continue to {nextName} → Step {stepNum} of {TAB_PROGRESSION.length}
-   </button>
+   <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none" }}>
+    <div style={{ margin: "0 8px 8px", borderRadius: 20, overflow: "hidden", pointerEvents: "auto", border: isReady ? `2px solid ${T.blue}` : "2px solid transparent", boxShadow: isReady ? `0 0 20px rgba(74,144,217,0.4), 0 -4px 30px rgba(0,0,0,0.15)` : "0 -4px 30px rgba(0,0,0,0.15)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", transition: "all 0.4s ease" }}>
+     {/* Progress bar */}
+     <div style={{ height: 3, background: T.separator }}>
+      <div style={{ height: "100%", width: `${progressPct}%`, background: isReady ? T.blue : `${T.blue}50`, borderRadius: 99, transition: "width 0.5s ease" }} />
+     </div>
+     <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? `${T.blue}12` : `${T.card}F0`, gap: 12, transition: "background 0.4s" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+       <div style={{ fontSize: 11, color: isReady ? T.blue : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
+       <div style={{ fontSize: 14, fontWeight: 700, color: isReady ? T.blue : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+        {isReady ? `✓ ${TAB_DISPLAY_NAMES[tab]} complete` : fieldsComplete ? `${TAB_DISPLAY_NAMES[tab]} ✓ — scroll down` : TAB_DISPLAY_NAMES[tab]}
+       </div>
+      </div>
+      <button
+       onClick={isReady ? handleNext : undefined}
+       disabled={!isReady}
+       style={{
+        padding: "10px 20px", borderRadius: 14, border: "none", fontFamily: FONT, fontSize: 14, fontWeight: 700,
+        cursor: isReady ? "pointer" : "default", letterSpacing: "0.01em", transition: "all 0.3s",
+        background: isReady ? "linear-gradient(135deg, #4a90d9, #3a7dc4)" : `${T.blue}18`,
+        color: isReady ? "#fff" : `${T.blue}60`,
+        boxShadow: isReady ? "0 4px 16px rgba(74,144,217,0.35)" : "none",
+        opacity: isReady ? 1 : 0.6,
+       }}
+      >
+       {isReady ? `${nextName} →` : nextName}
+      </button>
+     </div>
+    </div>
+   </div>
   );
  };
  // Pillar click navigation
@@ -2157,27 +2126,28 @@ export default function MortgageBlueprint() {
   const targetMap = {
    "FICO": { tab: "qualify", field: "fico-input" },
    "Down": { tab: "calc", field: "down-pct-input" },
-   "DTI": { tab: "debts", field: "debts-section" },
+   "DTI": { tab: (incomes.length === 0 && debts.length > 0) ? "income" : "debts", field: (incomes.length === 0 && debts.length > 0) ? "income-section" : "debts-section" },
    "Cash": { tab: "assets", field: "assets-section" },
    "Reserves": { tab: "assets", field: "assets-section" },
   };
   const target = targetMap[label];
   if (!target) return;
+  // Don't navigate to locked tabs — this prevents the qualify loop
+  if (!isTabUnlocked(target.tab)) {
+   Haptics.light();
+   return;
+  }
   setTab(target.tab);
   setHighlightField(target.field);
   setTimeout(() => {
    const el = document.querySelector(`[data-field="${target.field}"]`);
    if (el) {
     el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.style.transition = "box-shadow 0.3s ease, outline 0.3s ease";
-    el.style.boxShadow = `0 0 0 3px ${T.blue}50, 0 0 20px ${T.blue}30`;
-    el.style.outline = `2px solid ${T.blue}`;
-    el.style.borderRadius = "14px";
+    el.classList.add("pulse-next");
     setTimeout(() => {
-     el.style.boxShadow = "none";
-     el.style.outline = "none";
+     el.classList.remove("pulse-next");
      setHighlightField(null);
-    }, 2000);
+    }, 3000);
    }
   }, 400);
  };
@@ -2216,16 +2186,117 @@ export default function MortgageBlueprint() {
  };
  // Count completed stages for house graphic
  const houseStagesComplete = TAB_PROGRESSION.filter(t => completedTabs[t]).length;
- // Scroll-to-bottom detection — marks current tab as complete
+
+ // ═══ SEQUENTIAL PULSE GUIDE ═══
+ // Tracks which fields with defaults have been explicitly interacted with.
+ const [guideTouched, setGuideTouched] = useState(new Set());
+ const markTouched = (field) => setGuideTouched(prev => {
+  if (prev.has(field)) return prev;
+  const next = new Set(prev);
+  next.add(field);
+  return next;
+ });
+ // Computes which single field should pulse on the current tab.
+ // Returns a string matching a data-field attribute, or null if all fields are filled.
+ const guideField = (() => {
+  if (tab === "setup") {
+   if (!gameModeEverToggled) return "build-mode";
+   if (!skillLevel) return "experience-level";
+   if (isRefi === null) return "transaction-type";
+   if (propertyZip.length < 5) return "zip-code";
+   if (creditScore === 0) return "fico-input";
+   if (salesPrice === 0) return "price-input";
+   if (!guideTouched.has("down-payment")) return "down-payment";
+   if (!guideTouched.has("fthb")) return "fthb";
+   return null;
+  }
+  if (tab === "calc") {
+   if (salesPrice === 0) return "calc-price";
+   if (!guideTouched.has("calc-down")) return "calc-down";
+   if (rate === 0) return "calc-rate";
+   if (!guideTouched.has("calc-term")) return "calc-term";
+   if (!guideTouched.has("calc-loantype")) return "calc-loantype";
+   if (!guideTouched.has("calc-proptype")) return "calc-proptype";
+   return null;
+  }
+  if (tab === "costs") {
+   return null;
+  }
+  if (tab === "income") {
+   if (incomes.filter(i => i.borrower === 1).length === 0) return "add-income-1";
+   const firstInc = incomes.find(i => i.borrower === 1);
+   if (firstInc && firstInc.amount === 0 && firstInc.py1 === 0) return "income-amount";
+   return null;
+  }
+  if (tab === "assets") {
+   if (assets.length === 0) return "add-asset";
+   const firstAsset = assets[0];
+   if (firstAsset && firstAsset.value === 0) return "asset-value";
+   return null;
+  }
+  if (tab === "debts") {
+   if (!guideTouched.has("debt-free-toggle")) return "debt-free-toggle";
+   return null;
+  }
+  if (tab === "qualify") {
+   if (creditScore === 0) return "qualify-fico";
+   if (calc.qualifyingIncome <= 0) return "qualify-needs-income";
+   if (calc.totalForClosing <= 0) return "qualify-needs-assets";
+   return null;
+  }
+  if (tab === "tax") {
+   if (!guideTouched.has("tax-filing")) return "tax-filing";
+   if (calc.yearlyInc <= 0) return "tax-needs-income";
+   return null;
+  }
+  if (tab === "amort") {
+   if (!guideTouched.has("amort-section")) return "amort-section";
+   return null;
+  }
+  if (tab === "reo") {
+   if (reos.length === 0) return "add-reo";
+   return null;
+  }
+  if (tab === "refi") {
+   if (refiCurrentRate === 0) return "refi-current-rate";
+   if (refiCurrentBalance === 0) return "refi-current-balance";
+   return null;
+  }
+  return null;
+ })();
+ const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
+ // Auto-focus zip code input when pulse guide reaches it — pops open the number pad
  useEffect(() => {
+  if (guideField === "zip-code") {
+   const timer = setTimeout(() => {
+    const el = document.querySelector('[data-field="zip-code"] input');
+    if (el) el.focus();
+   }, 400); // slight delay so pulse animation plays first
+   return () => clearTimeout(timer);
+  }
+ }, [guideField]);
+ // Scroll-to-bottom detection — marks current tab as complete + tracks 80% scroll for floating bar
+ useEffect(() => {
+  setScrolledPast80(false);
+  scrolledPast80Ref.current = false;
+  floatBarShownRef.current = false;
   const handleScroll = () => {
+   if (scrolledPast80Ref.current) return; // Already past threshold, stop checking
    const el = document.documentElement;
+   const scrollable = el.scrollHeight - el.clientHeight;
+   if (scrollable < 100) { scrolledPast80Ref.current = true; setScrolledPast80(true); return; }
+   const scrollPct = scrollable > 0 ? el.scrollTop / scrollable : 1;
    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+   if (scrollPct >= 0.9 || atBottom) {
+    scrolledPast80Ref.current = true;
+    setScrolledPast80(true);
+   }
    if (atBottom && tab !== "settings") markTabComplete(tab);
   };
+  setTimeout(handleScroll, 200);
   window.addEventListener("scroll", handleScroll, { passive: true });
   return () => window.removeEventListener("scroll", handleScroll);
- }, [tab, completedTabs]);
+ }, [tab]); // Only reset on tab change, NOT on completedTabs change
  // ── Security: Auto-lock on inactivity ──
  useEffect(() => {
   if (!pinSet) return;
@@ -2958,7 +3029,7 @@ export default function MortgageBlueprint() {
   rentvbuy: "Compare the true cost of renting vs. buying over time, including tax savings, equity buildup, and appreciation.",
   learn: "Interactive courses that teach you how mortgages work — from credit scores to closing day. Earn badges as you complete each module.",
   compare: "Side-by-side comparison of all your saved loan options — payment, cash to close, DTI, total interest, and more.",
-  summary: "Share your loan estimate via email or PDF — or get pre-approved to start your loan application with your loan officer.",
+  summary: "Share your loan estimate via email or PDF. Pre-qualified based on what you entered — click Get Pre-Approved to start your official loan application.",
   refi: "Compare your current loan to a new refinance — monthly savings, breakeven timeline, and total interest comparison.",
   refi3: "The 3-point refinance test — does the new loan save money, break even fast enough, and accelerate your payoff?",
   settings: "Customize your experience — PIN lock, privacy mode, theme, and data management.",
@@ -3061,29 +3132,29 @@ export default function MortgageBlueprint() {
  // PRICEPOINT — Sample Listings & Logic (fallback)
  // ═══════════════════════════════════════════
  const PP_LISTINGS = [
-  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:956,lat:37.7529,lng:-122.4867,description:"Charming 3-bedroom Sunset District home on a quiet tree-lined block. Original hardwood floors throughout, updated kitchen with quartz countertops, and a spacious backyard perfect for entertaining. Detached garage with extra storage. Steps to Irving St shops and N-Judah." },
-  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:845,lat:37.7604,lng:-122.5035,description:"Beautifully expanded home in the Outer Sunset with ocean views from the upper level. Open floor plan with vaulted ceilings, renovated bathrooms, and a chef's kitchen featuring stainless steel appliances. Full basement with separate entrance — ideal for in-law or rental income." },
-  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:861,lat:37.7452,lng:-122.4767,description:"Spacious 4-bed/3-bath family home near Stern Grove. Two levels of living space with large bedrooms, modern finishes, and an eat-in kitchen. Landscaped backyard with mature fruit trees. Attached 2-car garage. Walk to Stonestown Galleria and SFSU." },
-  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905,lat:37.7556,lng:-122.4945,description:"Cozy starter home in the heart of the Outer Sunset. Two bedrooms, one bath, sunny living room with bay windows. Original period details with modern updates in kitchen and bath. Large lot with development potential. Close to Ocean Beach and Golden Gate Park." },
-  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:917,lat:37.7619,lng:-122.4687,description:"Stunning Inner Sunset gem just blocks from Golden Gate Park. Three generous bedrooms, two full baths, and a sun-drenched living/dining combo. Gourmet kitchen with marble counters and custom cabinetry. Finished lower level with media room. Premium N-Judah location." },
-  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:875,lat:37.7537,lng:-122.4982,description:"Well-maintained 3-bedroom home on popular Noriega corridor. Open living/dining area, updated kitchen, and two full baths. Bonus room downstairs could be office or 4th bedroom. Sunny south-facing backyard. Easy access to L-Taraval line and neighborhood restaurants." },
-  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:795,lat:37.7567,lng:-122.4812,description:"Large 4-bedroom family home in the Central Sunset with tons of natural light. Formal living and dining rooms, remodeled kitchen with breakfast nook, and two full baths. Hardwood floors, crown molding, and built-in bookshelves. Garage plus additional parking." },
-  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:663,lat:37.7612,lng:-122.4706,description:"Bright corner unit condo in the Inner Sunset with 2 bedrooms and 2 full baths. In-unit laundry, deeded parking, and shared roof deck with park views. Modern open kitchen, oversized windows, and ample closet space. HOA includes water, garbage, and common area maintenance. One block to UCSF shuttle." },
-  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:852,lat:37.7438,lng:-122.5048,description:"Classic Parkside 3-bedroom with great bones and a huge backyard. Vintage charm meets modern convenience — updated electrical, copper plumbing, and newer roof. Eat-in kitchen opens to yard. Detached garage with workshop potential. Two blocks to Stern Grove concerts." },
-  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",photos:["https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:696,lat:37.7635,lng:-122.4659,description:"Rare 5-bedroom trophy home steps from Golden Gate Park. Three full baths, grand living room with fireplace, formal dining, and a chef's kitchen with island. Top floor primary suite with park views. Full finished basement with separate entrance — perfect for au pair or rental. Oversized lot." },
+  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:956 },
+  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:845 },
+  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Parkside",pricePerSqft:861 },
+  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
+  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:917 },
+  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:875 },
+  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:795 },
+  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:663 },
+  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:852 },
+  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:696 },
  ];
 
  const PP_SOLD_LISTINGS = [
-  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80","https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:931,lat:37.7541,lng:-122.4838,description:"Move-in ready 3-bed/2-bath in the Central Sunset. Bright open floor plan, renovated kitchen with quartz island, and spa-like primary bath. Hardwood floors, dual-pane windows, and fresh interior paint. Landscaped yard with patio. Walk to Irving St restaurants and shops." },
-  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",photos:["https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:977,lat:37.7463,lng:-122.5012,description:"Sweet 2-bedroom bungalow in the Parkside neighborhood. Sunny south-facing rooms, refinished hardwood floors, and updated plumbing. Detached garage and generous backyard. Ideal starter home or investment opportunity. Short walk to Stern Grove and Lake Merced." },
-  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",photos:["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:953,lat:37.7598,lng:-122.4725,description:"Highly coveted 4-bedroom Inner Sunset home sold well above asking. Fully renovated with designer finishes throughout. Open-concept main level, skylit stairwell, and a stunning primary suite. Chef's kitchen with Wolf range and Sub-Zero fridge. Professionally landscaped garden." },
-  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:905,lat:37.7533,lng:-122.4965,description:"Solid 3-bed/1-bath on Noriega with excellent upside potential. Original layout with large rooms and storage throughout. Needs cosmetic updating but structurally sound — newer foundation and roof. Garage with interior access. Great location near shops and transit." },
-  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",photos:["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962,lat:37.7514,lng:-122.4892,description:"Turnkey 3-bed/2-bath that flew off the market. Tastefully remodeled with open living area, recessed lighting, and hardwood floors. Updated kitchen with breakfast bar opens to a private deck. Both bathrooms renovated. Full basement with laundry and bonus room." },
-  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",photos:["https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80","https://images.unsplash.com/photo-1616137466211-f939a16be5a5?w=800&q=80","https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:692,lat:37.7608,lng:-122.4713,description:"Top-floor 2-bed/2-bath condo in a well-managed 6-unit building. Abundant natural light, in-unit washer/dryer, and one deeded parking spot. Low HOA includes earthquake insurance. Updated kitchen with stainless appliances. Close to UCSF, GGP, and 9th Ave dining." },
-  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",photos:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80","https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&q=80","https://images.unsplash.com/photo-1556909211-36987daf7b4d?w=800&q=80"],neighborhood:"Parkside",pricePerSqft:906,lat:37.7445,lng:-122.5055,description:"Charming Parkside 3-bedroom with period details and a large backyard. Coved ceilings, archways, and original built-ins give this home character. Updated kitchen and bathroom. Side yard access and extra-deep lot. Quiet block near Lake Merced bike path." },
-  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",photos:["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80","https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80","https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80"],neighborhood:"Inner Sunset",pricePerSqft:823,lat:37.7627,lng:-122.4672,description:"Premium Inner Sunset 4-bed/3-bath with legal in-law suite. Main level features open entertaining space, gourmet kitchen, and two bedrooms. Upper level primary with walk-in closet and ensuite. Lower level in-law with separate entrance, full kitchen, and bath. Exceptional value." },
-  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",photos:["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&q=80","https://images.unsplash.com/photo-1522771739844-6a9f6d6c8e11?w=800&q=80"],neighborhood:"Outer Sunset",pricePerSqft:962,lat:37.7525,lng:-122.4968,description:"Affordable entry into SF homeownership. This 2-bed/1-bath Outer Sunset gem features a sunny living room, eat-in kitchen, and one-car garage. Hardwood floors under carpet. Large backyard with room to expand. Steps to Noriega shops and the L-Taraval line." },
-  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",photos:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80","https://images.unsplash.com/photo-1600210491369-e753d80a41f3?w=800&q=80","https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80","https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=800&q=80"],neighborhood:"Central Sunset",pricePerSqft:909,lat:37.7555,lng:-122.4815,description:"Beautifully updated 3-bed/2-bath Central Sunset home. Open concept main floor with modern kitchen, quartz counters, and custom tile backsplash. New bathrooms, recessed lighting throughout, and fresh paint inside and out. Garage plus additional off-street parking. Walk score 85." },
+  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:931 },
+  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Parkside",pricePerSqft:977 },
+  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:953 },
+  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
+  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
+  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:692 },
+  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:906 },
+  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:823 },
+  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
+  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909 },
  ];
  const ppFmt = n => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) ?? "—";
  const ppAbsPct = (g,a) => (Math.abs((g-a)/a)*100).toFixed(1);
@@ -3104,49 +3175,9 @@ export default function MortgageBlueprint() {
  const PP_ACTIVE_SOURCE = ppDataSource === "live" && ppLiveActive.length > 0 ? ppLiveActive : PP_LISTINGS;
  const PP_SOLD_SOURCE = ppDataSource === "live" && ppLiveSold.length > 0 ? ppLiveSold : PP_SOLD_LISTINGS;
 
- // Filter helper
- const ppApplyFilters = (list) => {
-  let filtered = list;
-  // Property type filter
-  if (ppFilterType !== "All") {
-   filtered = filtered.filter(l => {
-    const t = (l.propertyType || "").toLowerCase();
-    if (ppFilterType === "Single Family") return t.includes("single") || t.includes("sfr") || t.includes("house");
-    if (ppFilterType === "Condo") return t.includes("condo");
-    if (ppFilterType === "Townhome") return t.includes("town");
-    if (ppFilterType === "Multi-Unit") return t.includes("multi") || t.includes("duplex") || t.includes("triplex");
-    return true;
-   });
-  }
-  // Bedrooms filter
-  if (ppFilterBeds !== "Any") {
-   const minBeds = parseInt(ppFilterBeds);
-   filtered = filtered.filter(l => (l.beds || 0) >= minBeds);
-  }
-  // Sqft filter
-  if (ppFilterSqft !== "Any") {
-   filtered = filtered.filter(l => {
-    const sf = l.sqft || 0;
-    if (ppFilterSqft === "Under 1000") return sf > 0 && sf < 1000;
-    if (ppFilterSqft === "1000-1500") return sf >= 1000 && sf <= 1500;
-    if (ppFilterSqft === "1500-2000") return sf >= 1500 && sf <= 2000;
-    if (ppFilterSqft === "2000+") return sf >= 2000;
-    return true;
-   });
-  }
-  // Geo filter (drawn polygon on map)
-  if (ppMapDrawn && ppMapDrawn.length > 2) {
-   filtered = filtered.filter(l => l.lat && l.lng && ppPointInPolygon([l.lat, l.lng], ppMapDrawn));
-  }
-  return filtered;
- };
-
- const ppActiveListings = ppApplyFilters(
-  ppSoldMode
-   ? PP_SOLD_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id) && !ppSkipped.includes(l.id))
-   : PP_ACTIVE_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id) && !ppSkipped.includes(l.id))
- );
- const ppFilteredTotal = ppApplyFilters(ppSoldMode ? PP_SOLD_SOURCE : PP_ACTIVE_SOURCE).length;
+ const ppActiveListings = ppSoldMode
+  ? PP_SOLD_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id))
+  : PP_ACTIVE_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id));
  const ppCurrentListing = ppActiveListings[0];
  const ppTotalListings = ppSoldMode ? PP_SOLD_SOURCE.length : PP_ACTIVE_SOURCE.length;
 
@@ -3172,8 +3203,6 @@ export default function MortgageBlueprint() {
    setPpCardAnim("");
    setPpPhotoIdx(0);
    setPpDescExpanded(false);
-   setPpSwipeX(0);
-   setPpSwiping(false);
    if (isSold) {
     // Instant reveal for sold listings
     setPpShowReveal(newGuess);
@@ -3200,230 +3229,7 @@ export default function MortgageBlueprint() {
  };
  const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
  const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
- const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); setPpSkipped([]); setPpMapDrawn(null); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
-
- // ── Point-in-polygon (ray casting) ──
- const ppPointInPolygon = (point, polygon) => {
-  if (!polygon || polygon.length < 3) return true;
-  const [px, py] = point;
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-   const [ix, iy] = polygon[i];
-   const [jx, jy] = polygon[j];
-   if (((iy > py) !== (jy > py)) && (px < (jx - ix) * (py - iy) / (jy - iy) + ix)) {
-    inside = !inside;
-   }
-  }
-  return inside;
- };
-
- // ── Load Leaflet dynamically ──
- const ppLoadLeaflet = () => {
-  return new Promise((resolve) => {
-   if (window.L) { resolve(window.L); return; }
-   const css = document.createElement("link");
-   css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-   document.head.appendChild(css);
-   const drawCss = document.createElement("link");
-   drawCss.rel = "stylesheet"; drawCss.href = "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css";
-   document.head.appendChild(drawCss);
-   const js = document.createElement("script");
-   js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-   js.onload = () => {
-    const drawJs = document.createElement("script");
-    drawJs.src = "https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js";
-    drawJs.onload = () => resolve(window.L);
-    document.head.appendChild(drawJs);
-   };
-   document.head.appendChild(js);
-  });
- };
-
- // ── Initialize map when overlay opens ──
- const ppInitMap = async () => {
-  const L = await ppLoadLeaflet();
-  if (!ppMapRef.current) return;
-  // Cleanup old map
-  if (ppMapInstanceRef.current) { ppMapInstanceRef.current.remove(); ppMapInstanceRef.current = null; }
-  // Get all listings with coordinates
-  const allListings = ppSoldMode ? PP_SOLD_SOURCE : PP_ACTIVE_SOURCE;
-  const withCoords = allListings.filter(l => l.lat && l.lng);
-  // Default center: mean of all coordinates, or SF
-  const centerLat = withCoords.length > 0 ? withCoords.reduce((s, l) => s + l.lat, 0) / withCoords.length : 37.7549;
-  const centerLng = withCoords.length > 0 ? withCoords.reduce((s, l) => s + l.lng, 0) / withCoords.length : -122.4844;
-  const map = L.map(ppMapRef.current, { zoomControl: false }).setView([centerLat, centerLng], 14);
-  L.control.zoom({ position: "topright" }).addTo(map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-   attribution: '&copy; OSM &copy; CARTO', maxZoom: 19
-  }).addTo(map);
-  // Add markers
-  withCoords.forEach(l => {
-   const isGuessed = ppGuesses.find(g => g.listingId === l.id);
-   const isSkipped = ppSkipped.includes(l.id);
-   const priceLabel = (l.listPrice / 1000).toFixed(0) + "K";
-   const icon = L.divIcon({
-    className: "",
-    html: `<div style="background:${isGuessed ? '#666' : isSkipped ? '#555' : '#38bd7e'};color:#fff;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;border:2px solid ${isGuessed ? '#888' : isSkipped ? '#777' : '#2d9d68'};box-shadow:0 2px 6px rgba(0,0,0,0.4);${isGuessed || isSkipped ? 'opacity:0.5;' : ''}">${priceLabel}</div>`,
-    iconSize: [0, 0], iconAnchor: [25, 15]
-   });
-   const marker = L.marker([l.lat, l.lng], { icon }).addTo(map);
-   marker.bindPopup(`<div style="font-family:system-ui;min-width:180px"><strong>${l.address}</strong><br><span style="color:#38bd7e;font-weight:700">$${l.listPrice.toLocaleString()}</span><br>${l.beds}bd/${l.baths}ba · ${(l.sqft||0).toLocaleString()} SF<br><span style="color:#888">${l.neighborhood}</span></div>`, { closeButton: false });
-  });
-  // Draw controls
-  const drawnItems = new L.FeatureGroup();
-  map.addLayer(drawnItems);
-  ppDrawLayerRef.current = drawnItems;
-  const drawControl = new L.Control.Draw({
-   position: "topleft",
-   draw: {
-    polygon: { allowIntersection: false, shapeOptions: { color: "#38bd7e", weight: 2, fillOpacity: 0.1 } },
-    rectangle: { shapeOptions: { color: "#38bd7e", weight: 2, fillOpacity: 0.1 } },
-    circle: false, circlemarker: false, marker: false, polyline: false
-   },
-   edit: { featureGroup: drawnItems, remove: true }
-  });
-  map.addControl(drawControl);
-  map.on(L.Draw.Event.CREATED, (e) => {
-   drawnItems.clearLayers();
-   drawnItems.addLayer(e.layer);
-   const latlngs = e.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
-   setPpMapDrawn(latlngs);
-  });
-  map.on(L.Draw.Event.DELETED, () => {
-   setPpMapDrawn(null);
-  });
-  // If there's an existing drawn polygon, re-add it
-  if (ppMapDrawn && ppMapDrawn.length > 2) {
-   const poly = L.polygon(ppMapDrawn, { color: "#38bd7e", weight: 2, fillOpacity: 0.1 });
-   drawnItems.addLayer(poly);
-  }
-  ppMapInstanceRef.current = map;
-  // Fix tile rendering (Leaflet needs a resize after mount)
-  setTimeout(() => map.invalidateSize(), 100);
- };
-
- // ── Import listing to Blueprint as new scenario ──
- const ppImportToBlueprint = async (listing) => {
-  if (!listing) return;
-  // Save current scenario first
-  try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
-  // Create scenario name from address
-  const addr = listing.address || "PricePoint Import";
-  let newName = addr;
-  let i = 2;
-  while (scenarioList.includes(newName)) { newName = addr + " (" + i + ")"; i++; }
-  const newList = [...scenarioList, newName];
-  // Build scenario data explicitly with listing values + current financial profile
-  const currentState = getState();
-  const pt = (listing.propertyType || "").toLowerCase();
-  const mappedPropType = pt.includes("condo") ? "Condo" : pt.includes("town") ? "Townhome" : pt.includes("multi") || pt.includes("duplex") ? "Duplex (2 Unit)" : "Single Family";
-  const mappedCity = listing.city === "San Francisco" ? "San Francisco" : listing.city || "Alameda";
-  const mappedState = listing.state === "CA" ? "California" : listing.state || "California";
-  const scenarioData = {
-   ...currentState,
-   salesPrice: listing.listPrice || 1000000,
-   propertyAddress: listing.address || "",
-   propertyTBD: false,
-   propertyZip: listing.zip || "",
-   city: mappedCity,
-   transferTaxCity: mappedCity,
-   propertyState: mappedState,
-   propType: mappedPropType,
-   downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
-   loanPurpose: "Purchase Primary",
-   hoa: pt.includes("condo") ? 400 : 0,
-   discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0,
-   // Keep: incomes, debts, assets, creditScore, borrowerName, etc from currentState
-  };
-  // Save the new scenario data directly (avoids React state timing issues)
-  try { await LS.set("scenario:" + newName, JSON.stringify(scenarioData)); } catch(e) {}
-  try { await LS.set("active-scenario", newName); } catch(e) {}
-  try { await LS.set("scenarios", JSON.stringify(newList)); } catch(e) {}
-  // Now update React state to match
-  setScenarioList(newList);
-  setScenarioName(newName);
-  setSalesPrice(listing.listPrice || 1000000);
-  setPropertyAddress(listing.address || "");
-  setPropertyTBD(false);
-  setPropertyZip(listing.zip || "");
-  setCity(mappedCity);
-  setTransferTaxCity(mappedCity);
-  setPropertyState(mappedState);
-  setPropType(mappedPropType);
-  setDownPct(20); setRate(6.5); setTerm(30); setLoanType("Conventional");
-  userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false);
-  setLoanPurpose("Purchase Primary"); setHoa(pt.includes("condo") ? 400 : 0);
-  setDiscountPts(0); setSellerCredit(0); setRealtorCredit(0); setEmd(0);
-  // Switch to Blueprint mode, Calculator tab
-  setAppMode("blueprint");
-  setTab("calc");
-  // Show confirmation (use shareNotif since ppNotif only renders in PricePoint mode)
-  setTimeout(() => { setShareNotif(`Imported ${addr} into Blueprint!`); setTimeout(() => setShareNotif(null), 4000); }, 300);
- };
-
- // ── Card Swipe (skip left / guess right) ──
- const ppHandleSkip = () => {
-  if (!ppCurrentListing) return;
-  setPpCardAnim("pp-skipped");
-  setTimeout(() => {
-   setPpSkipped(prev => [...prev, ppCurrentListing.id]);
-   setPpCardAnim("");
-   setPpPhotoIdx(0);
-   setPpDescExpanded(false);
-   setPpSwipeX(0);
-   setPpSwiping(false);
-  }, 400);
- };
- const ppCardSwipeStart = (e) => {
-  const x = e.touches ? e.touches[0].clientX : e.clientX;
-  const y = e.touches ? e.touches[0].clientY : e.clientY;
-  ppCardTouchRef.current = { startX: x, startY: y, swiping: false, isMouse: !e.touches };
- };
- const ppCardSwipeMove = (e) => {
-  if (!ppCardTouchRef.current.startX) return;
-  const x = e.touches ? e.touches[0].clientX : e.clientX;
-  const y = e.touches ? e.touches[0].clientY : e.clientY;
-  const dx = x - ppCardTouchRef.current.startX;
-  const dy = y - ppCardTouchRef.current.startY;
-  // Only start swiping if horizontal > vertical
-  if (!ppCardTouchRef.current.swiping && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-   ppCardTouchRef.current.swiping = true;
-  }
-  if (ppCardTouchRef.current.swiping) {
-   if (e.preventDefault) e.preventDefault();
-   setPpSwipeX(dx);
-   setPpSwiping(true);
-  }
- };
- const ppCardSwipeEnd = () => {
-  if (!ppCardTouchRef.current.swiping) { setPpSwipeX(0); setPpSwiping(false); ppCardTouchRef.current = { startX:0, startY:0, swiping:false, isMouse:false }; return; }
-  const dx = ppSwipeX;
-  if (dx < -80) {
-   // Swipe left = SKIP
-   ppHandleSkip();
-  } else if (dx > 80 && !ppGuessInput) {
-   // Swipe right = focus guess input (visual nudge)
-   setPpSwipeX(0); setPpSwiping(false);
-   const inp = document.getElementById("pp-guess-input");
-   if (inp) inp.focus();
-  } else {
-   setPpSwipeX(0); setPpSwiping(false);
-  }
-  ppCardTouchRef.current = { startX:0, startY:0, swiping:false, isMouse:false };
- };
- // Mouse up listener (needed because mouseup may fire outside the card)
- useEffect(() => {
-  const handleMouseUp = () => {
-   if (ppCardTouchRef.current.isMouse && ppCardTouchRef.current.swiping) {
-    ppCardSwipeEnd();
-   } else if (ppCardTouchRef.current.isMouse) {
-    ppCardTouchRef.current = { startX:0, startY:0, swiping:false, isMouse:false };
-    setPpSwipeX(0); setPpSwiping(false);
-   }
-  };
-  window.addEventListener("mouseup", handleMouseUp);
-  return () => window.removeEventListener("mouseup", handleMouseUp);
- }, [ppSwipeX, ppGuessInput]);
+ const ppResetAll = () => { setPpGuesses([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
 
  // Fetch property details (photos + description) on demand
  const ppFetchDetails = async (zpid) => {
@@ -3616,12 +3422,15 @@ export default function MortgageBlueprint() {
  const someGood = calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || calc.cashCheck === "Good!" || calc.resCheck === "Good!" || dpOk;
  const qualStatus = allGood ? "approved" : someGood ? "almost" : "none";
  return (
-  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 50, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 90, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
     *, *::before, *::after { box-sizing: border-box; }
     @viewport { width: device-width; }
     @keyframes buildGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(74,144,217,0.5), 0 0 20px rgba(74,144,217,0.15); } 50% { box-shadow: 0 0 0 2px rgba(74,144,217,0.8), 0 0 30px rgba(74,144,217,0.25); } }
+    @keyframes pulseBlue { 0%, 100% { box-shadow: 0 0 0 3px rgba(74,144,217,0.3), 0 0 12px rgba(74,144,217,0.1); } 50% { box-shadow: 0 0 0 3px rgba(74,144,217,0.7), 0 0 24px rgba(74,144,217,0.25); } }
+    @keyframes floatBarSlide { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
+    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; }
    `}</style>
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -3756,9 +3565,6 @@ export default function MortgageBlueprint() {
      <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
       📋 Copy to Clipboard
      </button>
-     <button onClick={() => { shareScenarioUrl(); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: "rgba(56,189,126,0.08)", border: "1px solid rgba(56,189,126,0.25)", borderRadius: 14, color: "#38bd7e", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      🔗 Copy Share Link
-     </button>
      <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
       👁 Preview Branded Summary
      </button>
@@ -3840,16 +3646,13 @@ export default function MortgageBlueprint() {
        <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
         {privacyMode ? "🙈" : "👁️"}
        </button>
-       <button onClick={shareScenarioUrl} title="Share scenario link" style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
-        🔗
-       </button>
       </div>
      </div>
      {/* ── Qualification Pillars Strip ── */}
      <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
        <span style={{ fontSize: 14 }}>{allGood ? "🏆" : someGood ? "🔓" : "🔒"}</span>
-       <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? "Pre-Approved" : someGood ? `${[calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0)}/5 Pillars` : "5 Qualification Pillars"}</span>
+       <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? "Pre-Qualified" : someGood ? `${[calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0)}/5 Pillars` : "5 Qualification Pillars"}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
        {[
@@ -3873,6 +3676,23 @@ export default function MortgageBlueprint() {
    </div>
    <div style={{ padding: "0 20px" }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
+{/* ── Build Mode House (Top of Tab) ── */}
+{gameMode && tab !== "setup" && (
+ <div style={{ marginTop: 8, marginBottom: 16 }}>
+  <div style={{ background: T.card, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+   <div style={{ maxWidth: 240, margin: "0 auto", padding: "8px 0 0" }}>
+    <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
+   </div>
+   <div style={{ padding: "6px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div>
+     <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
+     <div style={{ fontSize: 10, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
+    </div>
+    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
+   </div>
+  </div>
+ </div>
+)}
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && (<>
  <div style={{ marginTop: 20 }}>
@@ -3898,6 +3718,7 @@ export default function MortgageBlueprint() {
    </Card>
   ))}
  </div>
+ <div data-field="calc-price" className={isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <div data-field="down-pct-input">
  <Card>
   <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
@@ -3905,9 +3726,9 @@ export default function MortgageBlueprint() {
    <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Look up on Zillow</span>
    <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
-   <div>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 28 }}>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+   <div data-field="calc-down" className={isPulse("calc-down")} onClick={() => markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
       Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
       <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
@@ -3922,22 +3743,11 @@ export default function MortgageBlueprint() {
     ) : (
      <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} sm req />
     )}
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 10 }}>
      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
     </div>
    </div>
-   <div>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 28 }}>
-     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-      Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-      <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
-     </div>
-    </div>
-    <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
-     {fmt(calc.loan)} loan
-    </div>
-   </div>
+   <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req tip="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
   </div>
   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
   {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
@@ -3970,6 +3780,7 @@ export default function MortgageBlueprint() {
    </div>
    {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: -8, marginBottom: 8 }}>Source: {liveRates.source}</div>}
   </>)}
+  <div data-field="calc-term" className={isPulse("calc-term")} onClick={() => { markTouched("calc-term"); markTouched("calc-loantype"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
    <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[{value:30,label:"30 Year"},{value:25,label:"25 Year"},{value:20,label:"20 Year"},{value:15,label:"15 Year"},{value:10,label:"10 Year"}]} sm req tip="Loan length. Shorter terms have lower rates and less total interest but higher monthly payments." />
    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} sm req tip="Conventional — Standard loan, best rates with 20%+ down & 740+ FICO. PMI drops at 80% LTV.\n\nFHA — Government-backed, 3.5% down, 580+ score. Great for first-time buyers with limited savings.\n\nVA — For veterans/active military. 0% down, no PMI, best rates available.\n\nJumbo — For loans above conforming limits ($766K+). Higher rates, 20% down, stricter requirements.\n\nUSDA — 0% down for eligible rural/suburban areas. Income limits apply." />
@@ -3982,7 +3793,10 @@ export default function MortgageBlueprint() {
     <span onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }} style={{ color: T.blue, cursor: "pointer", fontWeight: 600, marginLeft: 4 }}>Override →</span>
    </div>
   </div>}
+  </div>
+  <div data-field="calc-proptype" className={isPulse("calc-proptype")} onClick={() => markTouched("calc-proptype")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req tip="The type of home you're buying. Condos and multi-unit properties have different qualification rules." />
+  </div>
   <Sel label="Purpose" value={loanPurpose} onChange={v => {
    // Auto-adjust rate for investment property pricing
    if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -4051,6 +3865,7 @@ export default function MortgageBlueprint() {
   })()}
  </Card>
  </div>
+ </div>
 </>)}
 {tab === "amort" && (<>
  <div style={{ marginTop: 20 }}>
@@ -4062,14 +3877,16 @@ export default function MortgageBlueprint() {
    <div style={{ fontSize: 22, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em" }}>{calc.amortSchedule.length} <span style={{ fontSize: 13, color: T.textTertiary }}>mo</span></div>
    {calc.monthsSaved > 0 && <div style={{ fontSize: 11, color: T.green, fontWeight: 600 }}>{calc.monthsSaved} months saved</div>}
   </Card>
+  <div data-field="amort-section" className={isPulse("amort-section")} onClick={() => markTouched("amort-section")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
   <Card pad={14}>
    <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>Extra Payment</div>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-    <button onClick={() => setPayExtra(!payExtra)} style={{ width: 44, height: 26, borderRadius: 13, background: payExtra ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+    <button onClick={() => { setPayExtra(!payExtra); markTouched("amort-section"); }} style={{ width: 44, height: 26, borderRadius: 13, background: payExtra ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: payExtra ? 21 : 3, transition: "left 0.3s" }} />
     </button>
    </div>
   </Card>
+  </div>
  </div>
  {payExtra && <Card><Inp label="Monthly Extra Payment" value={extraPayment} onChange={setExtraPayment} tip="Additional principal paid each month beyond your required payment. Reduces total interest and shortens your loan term." /></Card>}
  {payExtra && calc.intSaved > 100 && (
@@ -4303,7 +4120,7 @@ export default function MortgageBlueprint() {
  </div>
  {calc.reoPositiveIncome > 0 && <Note color={T.blue}>+{fmt(calc.reoPositiveIncome)}/mo investment property rental income added to qualifying income (75% rule). DTI uses {fmt(calc.qualifyingIncome)}/mo total.</Note>}
  <Sec title="Borrower 1" action="+ Add" onAction={() => addIncome(1)}>
-  {incomes.filter(i => i.borrower === 1).map((inc) => {
+  {incomes.filter(i => i.borrower === 1).map((inc, idx) => {
    const isVar = VARIABLE_PAY_TYPES.includes(inc.payType);
    const ytd = Number(inc.ytd) || 0;
    const yr1 = Number(inc.py1) || 0;
@@ -4311,7 +4128,8 @@ export default function MortgageBlueprint() {
    const declining = yr1 > 0 && yr2 > 0 && yr1 < yr2;
    const varMonthly = (yr1 > 0 && yr2 > 0) ? (declining ? yr1 / 12 : (yr1 + yr2) / 24) : (yr1 > 0 ? yr1 / 12 : (yr2 > 0 ? yr2 / 12 : (ytd > 0 ? ytd / 12 : 0)));
    return (
-   <Card key={inc.id}>
+   <div key={inc.id} className={idx === 0 ? isPulse("income-amount") : ""} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+   <Card>
     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
      <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary }}>Income Source</span>
      <button onClick={() => removeIncome(inc.id)} style={{ background: "none", border: "none", color: T.red, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Remove</button>
@@ -4343,12 +4161,15 @@ export default function MortgageBlueprint() {
      {yr1 > 0 && yr2 === 0 && <Note color={T.blue}>Enter 2024 income to calculate 2-year average. Using 2025 only: {fmt(yr1 / 12)}/mo</Note>}
      {yr1 === 0 && yr2 === 0 && ytd > 0 && <Note color={T.orange}>Need full-year figures (2025 + 2024) for qualifying. YTD alone is insufficient for most lenders.</Note>}
     </>}
-   </Card>);
+   </Card>
+   </div>);
   })}
   {incomes.filter(i => i.borrower === 1).length === 0 && (
+   <div data-field="add-income-1" className={isPulse("add-income-1")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
    <Card style={{ border: `2px dashed ${T.separator}`, background: "transparent", boxShadow: "none", textAlign: "center", padding: 24 }}>
     <button onClick={() => addIncome(1)} style={{ background: "none", border: "none", color: T.blue, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>+ Add Income Source</button>
    </Card>
+   </div>
   )}
  </Sec>
  <Sec title="Borrower 2" action="+ Add" onAction={() => addIncome(2)}>
@@ -4428,12 +4249,13 @@ export default function MortgageBlueprint() {
   </Card>
  </div>
  <Sec title="Accounts" action="+ Add" onAction={() => { addAsset(); setTimeout(() => { const cards = document.querySelectorAll('[data-asset-card]'); if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100); }}>
-  {assets.map((a) => {
+  {assets.map((a, aIdx) => {
    const rf = RESERVE_FACTORS[a.type];
    const rfLabel = rf === null ? "TBD" : `${(rf * 100).toFixed(0)}%`;
    const reserveAmt = rf === null ? 0 : (a.value - (a.forClosing || 0)) * rf;
    return (
-    <Card key={a.id}>
+    <div key={a.id} className={aIdx === 0 ? isPulse("asset-value") : ""} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+    <Card>
      <div data-asset-card style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
       <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary }}>Asset Account</span>
       <button onClick={() => removeAsset(a.id)} style={{ background: "none", border: "none", color: T.red, fontSize: 13, cursor: "pointer" }}>Remove</button>
@@ -4441,7 +4263,7 @@ export default function MortgageBlueprint() {
      <TextInp label="Bank / Institution" value={a.bank} onChange={v => updateAsset(a.id, "bank", v)} sm />
      <Sel label="Account Type" value={a.type} onChange={v => updateAsset(a.id, "type", v)} options={ASSET_TYPES} sm req tip="Where the funds are held. Different account types have different liquidity factors for reserve calculations." />
      <Inp label="Current Value" value={a.value} onChange={v => updateAsset(a.id, "value", v)} sm req />
-     <Inp label="Funds for Closing" value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm tip="How much from this account you'll use for down payment and closing costs. Must be sourced and seasoned (in the account for 2+ months)." />
+     <Inp label="Funds Used for Closing" value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm tip="How much from this account you'll use for down payment and closing costs. Must be sourced and seasoned (in the account for 2+ months)." />
      <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
       <span style={{ color: T.textSecondary }}>Reserve Factor</span>
       <span style={{ fontWeight: 600, color: rf === null ? T.orange : T.text }}>{rfLabel}</span>
@@ -4451,12 +4273,15 @@ export default function MortgageBlueprint() {
       <span style={{ fontWeight: 600, fontFamily: FONT, color: T.green }}>{fmt(reserveAmt)}</span>
      </div>}
     </Card>
+    </div>
    );
   })}
   {assets.length === 0 && (
+   <div data-field="add-asset" className={isPulse("add-asset")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
    <Card style={{ border: `2px dashed ${T.separator}`, background: "transparent", boxShadow: "none", textAlign: "center", padding: 24 }}>
     <button onClick={addAsset} style={{ background: "none", border: "none", color: T.blue, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>+ Add Asset Account</button>
    </Card>
+   </div>
   )}
  </Sec>
  {assets.length > 0 && (
@@ -4472,13 +4297,14 @@ export default function MortgageBlueprint() {
  <div data-field="debts-section" style={{ marginTop: 20 }}>
   <Hero value={debtFree ? "$0" : fmt(calc.totalMonthlyDebts)} label="Monthly Debts" color={debtFree ? T.green : T.red} sub={debtFree ? "Debt free!" : `${calc.qualifyingDebts.length} qualifying`} />
  </div>
+ <div data-field="debt-free-toggle" className={isPulse("debt-free-toggle")} onClick={() => markTouched("debt-free-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <Card style={{ marginBottom: 14 }}>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
    <div>
     <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>No monthly debts</span>
     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>No credit cards, auto, student loans, or installments</div>
    </div>
-   <div onClick={() => setDebtFree(!debtFree)} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+   <div onClick={() => { setDebtFree(!debtFree); markTouched("debt-free-toggle"); }} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: debtFree ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
    </div>
   </div>
@@ -4496,6 +4322,7 @@ export default function MortgageBlueprint() {
    </div>
   )}
  </Card>
+ </div>
  {!debtFree && <>
  {calc.reoNegativeDebt > 0 && <Note color={T.orange}>{calc.reoPrimaryDebt > 0 && calc.reoInvestmentNet < 0 ? `+${fmt(calc.reoPrimaryDebt)}/mo primary/2nd home PITIA + ${fmt(Math.abs(calc.reoInvestmentNet))}/mo investment shortfall` : calc.reoPrimaryDebt > 0 ? `+${fmt(calc.reoPrimaryDebt)}/mo primary/2nd home PITIA` : `+${fmt(Math.abs(calc.reoInvestmentNet))}/mo investment property shortfall (75% rule)`} added as debt in DTI. Total DTI obligations: {fmt(calc.totalMonthlyDebts + calc.reoNegativeDebt)}/mo.</Note>}
  <Sec title="Liabilities" action="+ Add" onAction={() => calc.addDebt("Revolving")}>
@@ -4572,7 +4399,7 @@ export default function MortgageBlueprint() {
   </div>
  </Card>
  <Sec title="Credit Score">
-  <div data-field="fico-input">
+  <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
   <Card>
    <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus (Equifax, Experian, TransUnion). Lenders use the middle score, not the highest or lowest." />
    {creditScore > 0 && creditScore < calc.ficoMin && <Note color={T.red}>Min score for {loanType}: <strong>{calc.ficoMin}</strong>. Need {calc.ficoMin - creditScore} more points.</Note>}
@@ -4614,9 +4441,36 @@ export default function MortgageBlueprint() {
  )}
  {allGood && <Card style={{ marginTop: 12, background: `${T.green}15`, textAlign: "center", padding: 20 }}>
   <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
-  <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>PRE-APPROVED</div>
-  <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>All 5 pillars cleared. Subject to lender verification.</div>
+  <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>PRE-QUALIFIED</div>
+  <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>All 5 pillars cleared — based on the information you provided.</div>
+  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, fontStyle: "italic" }}>Pre-qualification is not a commitment to lend. Get pre-approved to start your loan application.</div>
  </Card>}
+ {calc.qualifyingIncome <= 0 && (
+  <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
+   <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+     <span style={{ fontSize: 20 }}>💰</span>
+     <div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add income to see DTI</div>
+      <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Income tab</div>
+     </div>
+    </div>
+   </Card>
+  </div>
+ )}
+ {calc.qualifyingIncome > 0 && calc.totalForClosing <= 0 && (
+  <div data-field="qualify-needs-assets" className={isPulse("qualify-needs-assets")} onClick={() => setTab("assets")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
+   <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+     <span style={{ fontSize: 20 }}>🏦</span>
+     <div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add assets to verify cash to close</div>
+      <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Assets tab</div>
+     </div>
+    </div>
+   </Card>
+  </div>
+ )}
  {/* ── AFFORD SECTION (merged) ── */}
  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}40, transparent)`, margin: "20px 0 8px" }} />
  <div style={{ marginTop: 12 }}>
@@ -4814,13 +4668,15 @@ export default function MortgageBlueprint() {
   <div style={{ fontSize: 24, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em" }}>{fmt(calc.afterTaxPayment)}<span style={{ fontSize: 13, color: T.textTertiary }}>/mo</span></div>
  </Card>
  <Sec title="Your Info">
+  <div data-field="tax-filing" className={isPulse("tax-filing")} onClick={() => markTouched("tax-filing")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
   <Card>
    <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects standard deduction, tax brackets, and SALT cap. Married Filing Jointly gets the largest deductions." />
-   <Sel label="State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} req />
+   <Sel label="Tax State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} req tip="The state where you file taxes. Affects state income tax calculations and deductions." />
    <Inp label="Appreciation Rate" value={appreciationRate} onChange={setAppreciationRate} prefix="" suffix="% / yr" step={0.5} max={50} tip="Estimated annual home value increase. National historical average is ~3-4%. Used for wealth-building and equity projections." />
-   {calc.yearlyInc <= 0 && <Note color={T.orange}>Add income on the Income tab to see tax savings.</Note>}
+   {calc.yearlyInc <= 0 && <div data-field="tax-needs-income" className={isPulse("tax-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 12, transition: "all 0.3s", cursor: "pointer" }}><Note color={T.orange}>Tap here to add income on the Income tab to see tax savings.</Note></div>}
    {STATE_TAX[taxState]?.type === "none" && <Note color={T.blue}>{taxState} has no state income tax.</Note>}
   </Card>
+  </div>
  </Sec>
  {calc.yearlyInc > 0 && (<>
   <Sec title="Write-Offs Due to Homeownership">
@@ -5208,7 +5064,7 @@ export default function MortgageBlueprint() {
     🚀 Get Pre-Approved Now
    </a>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
-    {[["⚡", "24hr turnaround"], ["🔒", "No hard credit pull"], ["💬", "Direct LO access"]].map(([icon, text], i) => (
+    {[["⚡", "48hr turnaround"], ["🔒", "No hard credit pull"], ["💬", "Direct LO access"]].map(([icon, text], i) => (
      <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
       <div style={{ fontSize: 16, marginBottom: 2 }}>{icon}</div>
       <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
@@ -5230,142 +5086,11 @@ export default function MortgageBlueprint() {
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value={isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
+  <Hero value={isRefi === null ? "New Loan" : isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
  </div>
 
- {/* ── Step Indicator (during guided flow) ── */}
- {gameMode && buildStep < 3 && (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 4px 0" }}>
-   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-    {(isRefi ? [0,1] : [0]).map((i, idx, arr) => (
-     <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-      <div style={{ width: 22, height: 22, borderRadius: 11, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
-       background: i < buildStep ? T.green : i === buildStep ? T.blue : T.inputBg,
-       color: i <= buildStep ? "#fff" : T.textTertiary, transition: "all 0.4s" }}>
-       {i < buildStep ? "✓" : idx + 1}
-      </div>
-      {idx < arr.length - 1 && <div style={{ width: 16, height: 2, borderRadius: 1, background: i < buildStep ? T.green : T.inputBg, transition: "all 0.4s" }} />}
-     </div>
-    ))}
-   </div>
-   <button onClick={() => { saveBuildStep(3); markTabComplete("setup"); }} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT, textDecoration: "underline", padding: "4px 0" }}>Skip intro</button>
-  </div>
- )}
-
- {/* ── Quick Start (blue glow during guided flow) ── */}
- <div className={gameMode && buildStep === 0 && buildStep < 3 ? "build-active" : ""} style={gameMode && buildStep < 3 ? { opacity: buildStep === 0 ? 1 : 0.5, transition: "all 0.5s ease", position: "relative", borderRadius: 20 } : {}}>
- <Sec title="Quick Start">
-  <Card>
-   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-    <div style={{ fontSize: 16 }}>⚡</div>
-    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Quick Start</div>
-    <div style={{ fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 8px", borderRadius: 6, marginLeft: "auto" }}>REQUIRED</div>
-   </div>
-
-   {/* Transaction Type */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-    {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-     <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "12px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{label}</button>
-    ))}
-   </div>
-
-   {/* Zip Code */}
-   <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="94501" req />
-   {lookupZip(propertyZip) && (
-    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
-   )}
-   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
-    <div style={{ fontSize: 11, color: T.orange, marginTop: -8, marginBottom: 10 }}>Zip not in database — select city and state in Property Details below</div>
-   )}
-
-   {/* FICO */}
-   <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
-   {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
-    <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
-    <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
-     {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
-    </span>
-   </div>}
-
-   {/* Sales Price & Down Payment */}
-   <div style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
-    <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
-    <Inp label="Down Payment %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req tip="The percentage of the purchase price you pay upfront. Minimum varies by loan type." />
-    {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
-   </div>
-
-   {/* First-Time Buyer */}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>First-Time Homebuyer?</span>
-    <div onClick={() => { setFirstTimeBuyer(!firstTimeBuyer); setToggleHint(toggleHint === "firstTimeBuyer" ? null : "firstTimeBuyer"); }} style={{ width: 52, height: 30, borderRadius: 99, background: firstTimeBuyer ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: firstTimeBuyer ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "firstTimeBuyer" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${firstTimeBuyer ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5, transition: "all 0.3s" }}>
-    {firstTimeBuyer ? TOGGLE_DESCRIPTIONS.firstTimeBuyer.on : TOGGLE_DESCRIPTIONS.firstTimeBuyer.off}
-   </div>}
-
-   {/* Experience Level */}
-   <div style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-     Experience Level
-     <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>tailors your experience</span>
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-     {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
-      <button key={key} onClick={() => saveSkillLevel(key)}
-       style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-       <div style={{ fontSize: 22 }}>{preset.icon}</div>
-       <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
-       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
-      </button>
-     ))}
-    </div>
-    <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-     {SKILL_PRESETS[skillLevel].desc}
-    </div>
-   </div>
-  </Card>
- </Sec>
- {gameMode && buildStep === 0 && buildStep < 3 && (
-  isRefi ? (
-   <button onClick={() => { saveBuildStep(1); setSetupAdvancedOpen(true); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 8, boxShadow: "0 4px 16px rgba(74,144,217,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-    Next: Property & Borrower Details →
-   </button>
-  ) : (
-   <button onClick={() => { saveBuildStep(3); markTabComplete("setup"); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #38bd7e, #2d9d68)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 8, boxShadow: "0 4px 16px rgba(56,189,126,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-    ✓ Complete Setup
-   </button>
-  )
- )}
- </div>{/* end Quick Start wrapper */}
-
- {/* ── Live Estimate ── */}
- <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 18, padding: "18px 16px", marginBottom: 12 }}>
-  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: T.green, textTransform: "uppercase", marginBottom: 8 }}>LIVE ESTIMATE</div>
-  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
-   <span style={{ fontSize: 36, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
-   <span style={{ fontSize: 14, color: T.textTertiary }}>/mo</span>
-  </div>
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-   {[
-    ["P&I", fmt(calc.pi), T.blue],
-    ["Tax", fmt(calc.monthlyTax), T.orange],
-    ["Ins", fmt(calc.ins), T.green],
-    ["MI", calc.monthlyMI > 0 ? fmt(calc.monthlyMI) : "—", calc.monthlyMI > 0 ? T.red : T.textTertiary],
-   ].map(([label, val, color], i) => (
-    <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-     <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: FONT }}>{val}</div>
-     <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{label}</div>
-    </div>
-   ))}
-  </div>
-  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, textAlign: "center" }}>
-   {fmt(salesPrice)} {isRefi ? "value" : "purchase"} · {downPct}% down · {rate}% rate · {loanType}
-  </div>
- </div>
-
- {/* ── Build Mode ── */}
+ {/* ── Build Mode (TOP of setup) — pulses until user toggles it ── */}
+ <div className={isPulse("build-mode")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <Card>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
    <div style={{ flex: 1, marginRight: 12 }}>
@@ -5377,6 +5102,7 @@ export default function MortgageBlueprint() {
    </div>
   </div>
  </Card>
+ </div>
  {gameMode && (
   <Card style={{ padding: 0, overflow: "hidden" }}>
    <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
@@ -5406,52 +5132,154 @@ export default function MortgageBlueprint() {
   </div>
  )}
 
- {/* ── Property & Borrower Details (collapsible) ── */}
- <div className={gameMode && buildStep === 1 && buildStep < 3 ? "build-active" : ""} style={gameMode && buildStep < 3 ? { opacity: buildStep === 1 ? 1 : buildStep > 1 ? 0.5 : 0.3, transition: "all 0.5s ease", pointerEvents: buildStep >= 1 ? "auto" : "none", position: "relative", borderRadius: 20 } : {}}>
- <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: (setupAdvancedOpen || (gameMode && buildStep === 1)) ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: (setupAdvancedOpen || (gameMode && buildStep === 1)) ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}>⚙️</span>
-   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Property & Borrower Details</span>
-  </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: (setupAdvancedOpen || (gameMode && buildStep === 1)) ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
- </div>
- {(setupAdvancedOpen || (gameMode && buildStep === 1)) && (
-  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
-   {/* Property Address */}
-   <div style={{ marginBottom: 14 }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Property Address</div>
-     <div style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} onClick={() => { setPropertyTBD(!propertyTBD); if (!propertyTBD) setPropertyAddress(""); }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: propertyTBD ? T.orange : T.textTertiary }}>TBD</span>
-      <div style={{ width: 36, height: 20, borderRadius: 10, background: propertyTBD ? T.orange : T.inputBorder, padding: 2, transition: "background 0.2s" }}>
-       <div style={{ width: 16, height: 16, borderRadius: 8, background: "#fff", transform: propertyTBD ? "translateX(16px)" : "translateX(0)", transition: "transform 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
-      </div>
-     </div>
+ {/* ── Quick Start (with pulsing blue guide) ── */}
+ <Sec title="Quick Start">
+  <Card>
+   {/* Sequential pulse guide — only ONE field pulses at a time */}
+   {/* Guide: experience → transaction → fico → price → down → fthb */}
+   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+    <div style={{ fontSize: 16 }}>⚡</div>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Quick Start</div>
+    <div style={{ fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 8px", borderRadius: 6, marginLeft: "auto" }}>REQUIRED</div>
+   </div>
+
+   {/* 1) Experience Level */}
+   <div data-field="experience-level" className={isPulse("experience-level")} style={{ marginBottom: 14, borderRadius: 14, transition: "all 0.3s" }}>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+     Experience Level
+     <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>tailors your experience</span>
     </div>
-    {propertyTBD ? (
-     <div style={{ background: T.inputBg, borderRadius: 12, padding: "12px 14px", border: `1px solid ${T.inputBorder}`, color: T.textTertiary, fontSize: 15, fontStyle: "italic", opacity: 0.5 }}>TBD — address not yet determined</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+     {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
+      <button key={key} onClick={() => saveSkillLevel(key)}
+       style={{ padding: "12px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+       <div style={{ fontSize: 22 }}>{preset.icon}</div>
+       <div style={{ fontSize: 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 4 }}>{preset.label}</div>
+       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{preset.sub}</div>
+      </button>
+     ))}
+    </div>
+    {skillLevel ? (
+     <div style={{ marginTop: 10, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+      {SKILL_PRESETS[skillLevel].desc}
+     </div>
     ) : (
-     <input value={propertyAddress} onChange={e => setPropertyAddress(e.target.value)} placeholder="123 Main St, Oakland, CA"
-      style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
+     <div style={{ marginTop: 10, padding: "10px 12px", background: `${T.blue}08`, border: `1px dashed ${T.blue}30`, borderRadius: 10, fontSize: 12, color: T.blue, lineHeight: 1.5, textAlign: "center" }}>
+      ☝️ Select your experience level to get started
+     </div>
     )}
    </div>
-   {/* City / State / County */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <div>
-     {propertyState === "California" ? (
-      <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
-     ) : (
-      <TextInp label="City" value={city} onChange={setCity} />
-     )}
-    </div>
-    <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
-   </div>
-   {propertyCounty && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 8 }}>County: {propertyCounty}</div>}
 
-   {/* Filing Status + Tax State */}
+   {/* 2) Transaction Type — Purchase or Refinance (pulses after skill chosen, when no transaction selected) */}
+   <div data-field="transaction-type" className={isPulse("transaction-type")} style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}`, marginBottom: 14, borderRadius: 14, transition: "all 0.3s" }}>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Transaction Type</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+     {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
+      <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "12px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+     ))}
+    </div>
+   </div>
+
+   {/* 3) Zip Code */}
+   <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+    <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Enter zip code" req inputMode="numeric" pattern="[0-9]*" />
+   </div>
+   {lookupZip(propertyZip) && (
+    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
+   )}
+   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
+    <div style={{ fontSize: 11, color: T.orange, marginTop: -8, marginBottom: 10 }}>Zip not in database — select city and state in Property Details below</div>
+   )}
+
+   {/* 4) FICO */}
+   <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+    <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
+    {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
+     <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
+     <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
+      {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
+     </span>
+    </div>}
+   </div>
+
+   {/* 5) Sales Price */}
+   <div data-field="price-input" className={isPulse("price-input")} style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
+    <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+   </div>
+
+   {/* 6) Down Payment with %/$ toggle */}
+   <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+      Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+     </div>
+     <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
+      <button onClick={() => setDownMode("pct")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
+      <button onClick={() => setDownMode("dollar")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
+     </div>
+    </div>
+    {downMode === "pct" ? (
+     <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+    ) : (
+     <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
+    )}
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
+     {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+    </div>
+   </div>
+   {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
+
+   {/* 7) First-Time Homebuyer — Yes / No buttons */}
+   <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 4 }}>First-Time Homebuyer?</div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10, lineHeight: 1.4 }}>Have you owned a home in the last 3 years? If not, you're a FTHB — unlocks 3% down conventional.</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+     <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "12px 0", background: firstTimeBuyer ? `${T.green}22` : T.inputBg, border: firstTimeBuyer ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 12, color: firstTimeBuyer ? T.green : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>Yes — FTHB</button>
+     <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "12px 0", background: !firstTimeBuyer ? `${T.blue}22` : T.inputBg, border: !firstTimeBuyer ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: !firstTimeBuyer ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>No</button>
+    </div>
+    {firstTimeBuyer && <Note color={T.green}>FTHB unlocked! 3% down conventional available (income limits apply). Rent vs Buy tab enabled.</Note>}
+   </div>
+  </Card>
+ </Sec>
+
+ {/* ── Live Estimate ── */}
+ <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 18, padding: "18px 16px", marginBottom: 12 }}>
+  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: T.green, textTransform: "uppercase", marginBottom: 8 }}>LIVE ESTIMATE</div>
+  <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
+   <span style={{ fontSize: 36, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
+   <span style={{ fontSize: 14, color: T.textTertiary }}>/mo</span>
+  </div>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+   {[
+    ["P&I", fmt(calc.pi), T.blue],
+    ["Tax", fmt(calc.monthlyTax), T.orange],
+    ["Ins", fmt(calc.ins), T.green],
+    ["MI", calc.monthlyMI > 0 ? fmt(calc.monthlyMI) : "—", calc.monthlyMI > 0 ? T.red : T.textTertiary],
+   ].map(([label, val, color], i) => (
+    <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+     <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: FONT }}>{val}</div>
+     <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{label}</div>
+    </div>
+   ))}
+  </div>
+  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, textAlign: "center" }}>
+   {fmt(salesPrice)} {isRefi ? "value" : "purchase"} · {downPct}% down · {rate}% rate · {loanType}
+  </div>
+ </div>
+
+ {/* ── Property & Borrower Details (slimmed — no address/city/state/tax state) ── */}
+ <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
+  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+   <span style={{ fontSize: 14 }}>⚙️</span>
+   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Advanced Settings</span>
+  </div>
+  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
+ </div>
+ {setupAdvancedOpen && (
+  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
+   {/* Filing Status */}
    <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
-   <Sel label="Tax State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} req />
 
    {/* Property Toggles */}
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
@@ -5464,15 +5292,6 @@ export default function MortgageBlueprint() {
     {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
    </div>}
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
-   </div>}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
     <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
     <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
      <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
@@ -5482,10 +5301,12 @@ export default function MortgageBlueprint() {
     {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
    </div>}
 
-   {/* Tax Details Summary */}
+   {/* Zip-derived summary */}
    <div style={{ marginTop: 12, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>AUTO-FILLED FROM ZIP</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
+     <span style={{ color: T.textTertiary }}>Location</span>
+     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{city}, {propertyState}</span>
      <span style={{ color: T.textTertiary }}>Tax Rate</span>
      <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
       {propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%
@@ -5500,17 +5321,26 @@ export default function MortgageBlueprint() {
      </>}
     </div>
    </div>
+
+   {/* Manual city/state override (only if zip not found) */}
+   {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
+    <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Zip not found — set location manually:</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+     <div>
+      {propertyState === "California" ? (
+       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
+      ) : (
+       <TextInp label="City" value={city} onChange={setCity} />
+      )}
+     </div>
+     <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+    </div>
+   </>)}
   </Card>
  )}
- {gameMode && buildStep === 1 && (
-  <button onClick={() => { saveBuildStep(3); markTabComplete("setup"); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg, #38bd7e, #2d9d68)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, letterSpacing: "0.02em", marginTop: 8, boxShadow: "0 4px 16px rgba(56,189,126,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-   ✓ Complete Setup
-  </button>
- )}
- </div>{/* end Property & Borrower wrapper */}
 
  {/* Setup Complete celebration */}
- {gameMode && buildStep >= 3 && completedTabs["setup"] && (
+ {gameMode && completedTabs["setup"] && (
   <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: `${T.green}10`, border: `1px solid ${T.green}30`, borderRadius: 18 }}>
    <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
    <div style={{ fontSize: 16, fontWeight: 700, color: T.green, marginBottom: 4 }}>Setup Complete!</div>
@@ -5659,9 +5489,6 @@ export default function MortgageBlueprint() {
   </Card>
  )}
 
- {/* ── Continue to Calculator ── */}
- <BuildContinue currentTab="setup" />
-
  {/* Security */}
  <Card style={{ background: T.pillBg }}>
   <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>🔒 Your data is stored locally on this device. No account required.</div>
@@ -5678,6 +5505,19 @@ export default function MortgageBlueprint() {
    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Total Debt</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.reoTotalDebt)}</div></div>
    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Net Cash Flow</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: calc.reoNetCashFlow >= 0 ? T.green : T.red }}>{fmt(calc.reoNetCashFlow)}/mo</div></div>
   </div>
+ </Card>
+ {/* Selling a property? toggle (moved from Setup) */}
+ <Card>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
+   <div>
+    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Selling a property?</span>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Opens Seller Net tab for net proceeds calculation</div>
+   </div>
+   <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   </div>
+  </div>
+  {hasSellProperty && <Note color={T.green}>Seller Net tab unlocked — calculate your proceeds from selling.</Note>}
  </Card>
  {reos.map((r, i) => (
   <Sec key={r.id} title={r.address || `Property ${i + 1}`}>
@@ -5766,7 +5606,9 @@ export default function MortgageBlueprint() {
    </Card>
   </Sec>
  ))}
+ <div data-field="add-reo" className={isPulse("add-reo")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
  <button onClick={addReo} style={{ width: "100%", padding: 14, background: `${T.blue}15`, border: `1px dashed ${T.blue}44`, borderRadius: 12, color: T.blue, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT, marginTop: 10 }}>+ Add Property</button>
+ </div>
 </>)}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && (<>
@@ -5774,14 +5616,16 @@ export default function MortgageBlueprint() {
   <Hero value={fmt(Math.abs(calc.refiMonthlySavings))} label={calc.refiMonthlySavings >= 0 ? "Monthly P&I Savings" : "Monthly P&I Increase"} color={calc.refiMonthlySavings > 0 ? T.green : calc.refiMonthlySavings < 0 ? T.red : T.textSecondary} sub={calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiMonthlySavings <= 0 ? "No P&I savings" : ""} />
  </div>
  {/* Quick verdict card */}
+ <div data-field="refi-current-rate" className={isPulse("refi-current-rate") || isPulse("refi-current-balance")} onClick={() => { if (refiCurrentRate === 0 || refiCurrentBalance === 0) setTab("setup"); }} style={{ borderRadius: 18, transition: "all 0.3s", cursor: (refiCurrentRate === 0 || refiCurrentBalance === 0) ? "pointer" : "default" }}>
  <Card pad={14} style={{ marginTop: 12, background: calc.refiMonthlySavings > 0 ? T.successBg : calc.refiMonthlySavings < 0 ? T.errorBg : T.pillBg }}>
   <div style={{ fontSize: 13, fontWeight: 600, color: calc.refiMonthlySavings > 0 ? T.green : calc.refiMonthlySavings < 0 ? T.red : T.textSecondary }}>
    {calc.refiMonthlySavings > 0 ? `✓ ${refiPurpose} refinance saves ${fmt(calc.refiMonthlySavings)}/mo on P&I. Closing costs recovered in ${calc.refiBreakevenMonths} months.` :
     calc.refiMonthlySavings < 0 && refiPurpose === "Cash-Out" ? `Cash-out refinance adds ${fmt(Math.abs(calc.refiMonthlySavings))}/mo to P&I, but provides ${fmt(refiCashOut)} in cash proceeds.` :
     calc.refiMonthlySavings < 0 ? `New payment is ${fmt(Math.abs(calc.refiMonthlySavings))}/mo higher. Consider if shorter term or other benefits justify the increase.` :
-    "Enter current loan details on the Setup tab to see comparison."}
+    "Tap here → Enter current loan details on Setup to see comparison."}
   </div>
  </Card>
+ </div>
  {/* Side-by-side comparison */}
  <Sec title="Loan Comparison">
   <Card>
@@ -7289,27 +7133,6 @@ export default function MortgageBlueprint() {
   </Sec>
  )}
 </>)}
-{/* ── Build Mode House (Bottom of Tab) ── */}
-{gameMode && tab !== "setup" && (
- <div style={{ marginTop: 24, marginBottom: 0 }}>
-  <div style={{ background: T.card, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-   <div style={{ maxWidth: 300, margin: "0 auto", padding: "12px 0 0" }}>
-    <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
-   </div>
-   <div style={{ padding: "8px 14px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <div>
-     <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
-     <div style={{ fontSize: 11, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
-     {!completedTabs[tab] && <div style={{ fontSize: 11, color: T.blue, fontWeight: 600, marginTop: 2 }}>↓ Scroll to bottom to complete this tab</div>}
-     {completedTabs[tab] && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 2 }}>✓ Tab complete!</div>}
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
-   </div>
-  </div>
- </div>
-)}
-{/* ── Build Mode Continue Button (Below House) ── */}
-{gameMode && tab !== "setup" && <BuildContinue currentTab={tab} />}
    </div>
    </>}
    {/* ═══════════════════════════════════════════ */}
@@ -7322,10 +7145,8 @@ export default function MortgageBlueprint() {
       @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
       @keyframes ppSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
       @keyframes ppCardExit { to { opacity:0; transform:translateX(120%) rotate(8deg) } }
-      @keyframes ppCardSkip { to { opacity:0; transform:translateX(-120%) rotate(-8deg) } }
       @keyframes ppNotifIn { from { opacity:0; transform:translateY(-20px) } to { opacity:1; transform:translateY(0) } }
       .pp-submitted { animation: ppCardExit 0.4s ease-in forwards }
-      .pp-skipped { animation: ppCardSkip 0.4s ease-in forwards }
       .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(12px) }
       .pp-rvl-ov.vis { opacity:1 }
       .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:420px; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
@@ -7334,7 +7155,6 @@ export default function MortgageBlueprint() {
 
      {/* PP Notification */}
      {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
-     {shareNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background: shareNotif.includes("Error") ? "rgba(232,93,93,0.15)" : "rgba(56,189,126,0.15)",color: shareNotif.includes("Error") ? "#e85d5d" : "#38bd7e",border: shareNotif.includes("Error") ? "1px solid rgba(232,93,93,0.3)" : "1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" }}>{shareNotif}</div>}
 
      {/* PP Header */}
      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -7347,7 +7167,6 @@ export default function MortgageBlueprint() {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
        {ppHometown && <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>📍 {ppHometown.label}</button>}
-       <button onClick={() => { setPpShowMap(true); setTimeout(ppInitMap, 100); }} style={{ background: ppMapDrawn ? "rgba(56,189,126,0.12)" : T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: ppMapDrawn ? "#38bd7e" : T.textTertiary, border: ppMapDrawn ? "1px solid rgba(56,189,126,0.25)" : "none", cursor: "pointer" }}>🗺️{ppMapDrawn ? " ✓" : ""}</button>
        <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>🔥 {ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
        <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 10, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
         <span style={{ fontSize: 16 }}>{ppCurrentHome.icon}</span>
@@ -7483,135 +7302,33 @@ export default function MortgageBlueprint() {
          {ppSoldMode ? "Sold Homes" : "Live Listings"}
         </span>
        </div>
-       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button onClick={() => setPpShowFilters(!ppShowFilters)} style={{
-         background: (ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? "rgba(56,189,126,0.12)" : T.pillBg,
-         borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600,
-         color: (ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? "#38bd7e" : T.textTertiary,
-         border: (ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? "1px solid rgba(56,189,126,0.25)" : `1px solid ${T.cardBorder}`,
-         cursor: "pointer", transition: "all 0.2s",
-        }}>
-         {ppShowFilters ? "✕" : "⚙️"} Filters{(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") ? ` (${ppFilteredTotal})` : ""}
-        </button>
-        <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{
-         position: "relative", width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-         background: ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-         transition: "background 0.3s", padding: 0,
-        }}>
-         <div style={{
-          position: "absolute", top: 2, left: ppSoldMode ? 22 : 2,
-          width: 20, height: 20, borderRadius: 10, background: "#fff",
-          transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-         }} />
-        </button>
-       </div>
+       <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{
+        position: "relative", width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+        background: ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+        transition: "background 0.3s", padding: 0,
+       }}>
+        <div style={{
+         position: "absolute", top: 2, left: ppSoldMode ? 22 : 2,
+         width: 20, height: 20, borderRadius: 10, background: "#fff",
+         transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+        }} />
+       </button>
       </div>
      )}
 
-     {/* ── FILTER PANEL ── */}
-     {ppView === "cards" && ppShowFilters && !ppLoading && (
-      <div style={{ padding: "0 18px 12px", animation: "ppFadeIn 0.2s ease" }}>
-       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px" }}>
-        {/* Property Type */}
-        <div style={{ marginBottom: 12 }}>
-         <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Property Type</div>
-         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {["All", "Single Family", "Condo", "Townhome", "Multi-Unit"].map(t => (
-           <button key={t} onClick={() => setPpFilterType(t)} style={{
-            padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-            background: ppFilterType === t ? "rgba(56,189,126,0.15)" : T.pillBg,
-            color: ppFilterType === t ? "#38bd7e" : T.textTertiary,
-            border: ppFilterType === t ? "1px solid rgba(56,189,126,0.3)" : `1px solid transparent`,
-           }}>{t}</button>
-          ))}
-         </div>
-        </div>
-        {/* Bedrooms */}
-        <div style={{ marginBottom: 12 }}>
-         <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Bedrooms</div>
-         <div style={{ display: "flex", gap: 6 }}>
-          {[["Any","Any"],["1","1+"],["2","2+"],["3","3+"],["4","4+"]].map(([v,l]) => (
-           <button key={v} onClick={() => setPpFilterBeds(v)} style={{
-            padding: "6px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-            background: ppFilterBeds === v ? "rgba(56,189,126,0.15)" : T.pillBg,
-            color: ppFilterBeds === v ? "#38bd7e" : T.textTertiary,
-            border: ppFilterBeds === v ? "1px solid rgba(56,189,126,0.3)" : `1px solid transparent`,
-           }}>{l}</button>
-          ))}
-         </div>
-        </div>
-        {/* Square Footage */}
-        <div style={{ marginBottom: 8 }}>
-         <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Square Footage</div>
-         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {["Any", "Under 1000", "1000-1500", "1500-2000", "2000+"].map(s => (
-           <button key={s} onClick={() => setPpFilterSqft(s)} style={{
-            padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-            background: ppFilterSqft === s ? "rgba(56,189,126,0.15)" : T.pillBg,
-            color: ppFilterSqft === s ? "#38bd7e" : T.textTertiary,
-            border: ppFilterSqft === s ? "1px solid rgba(56,189,126,0.3)" : `1px solid transparent`,
-           }}>{s === "Under 1000" ? "<1K" : s === "1000-1500" ? "1-1.5K" : s === "1500-2000" ? "1.5-2K" : s === "2000+" ? "2K+" : s}</button>
-          ))}
-         </div>
-        </div>
-        {/* Clear filters */}
-        {(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any") && (
-         <button onClick={() => { setPpFilterType("All"); setPpFilterBeds("Any"); setPpFilterSqft("Any"); }}
-          style={{ fontSize: 11, color: "#e85d5d", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 0", marginTop: 4 }}>
-          Clear all filters
-         </button>
-        )}
-        {/* Map area indicator */}
-        {ppMapDrawn && (
-         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, padding: "8px 10px", background: "rgba(56,189,126,0.06)", borderRadius: 10, border: "1px solid rgba(56,189,126,0.15)" }}>
-          <span style={{ fontSize: 11, color: "#38bd7e", fontWeight: 600 }}>🗺️ Map area active</span>
-          <button onClick={() => setPpMapDrawn(null)} style={{ fontSize: 11, color: "#e85d5d", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>Clear area</button>
-         </div>
-        )}
-        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6 }}>{ppFilteredTotal} {ppSoldMode ? "sold" : "active"} listings match</div>
-       </div>
-      </div>
-     )}
-
-     <div style={{ padding: "0 18px", paddingBottom: 80, overflowX: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
+     <div style={{ padding: "0 18px", paddingBottom: 80, overflow: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
 
       {/* ── PP CARDS VIEW ── */}
       {ppView === "cards" && !ppLoading && (
        ppCurrentListing ? (
-        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out", position: "relative" }}>
-         {/* PASS stamp overlay (visible during left swipe) */}
-         {ppSwiping && ppSwipeX < -20 && (
-          <div style={{ position: "absolute", top: 30, right: 30, zIndex: 10, transform: `rotate(20deg)`, opacity: Math.min(1, Math.abs(ppSwipeX) / 100), pointerEvents: "none" }}>
-           <div style={{ border: "4px solid #e85d5d", borderRadius: 12, padding: "6px 18px", fontSize: 28, fontWeight: 900, color: "#e85d5d", letterSpacing: 4, textTransform: "uppercase" }}>PASS</div>
-          </div>
-         )}
-         {/* GUESS stamp overlay (visible during right swipe) */}
-         {ppSwiping && ppSwipeX > 20 && (
-          <div style={{ position: "absolute", top: 30, left: 30, zIndex: 10, transform: `rotate(-20deg)`, opacity: Math.min(1, ppSwipeX / 100), pointerEvents: "none" }}>
-           <div style={{ border: "4px solid #38bd7e", borderRadius: 12, padding: "6px 18px", fontSize: 28, fontWeight: 900, color: "#38bd7e", letterSpacing: 4, textTransform: "uppercase" }}>GUESS</div>
-          </div>
-         )}
-         <div
-          onTouchStart={(e) => { ppCardSwipeStart(e); }}
-          onTouchMove={(e) => { ppCardSwipeMove(e); if (ppCardTouchRef.current.swiping) e.stopPropagation(); }}
-          onTouchEnd={(e) => { const wasSwiping = ppCardTouchRef.current.swiping; ppCardSwipeEnd(); if (wasSwiping) e.stopPropagation(); }}
-          onMouseDown={ppCardSwipeStart}
-          onMouseMove={(e) => { if (ppCardTouchRef.current.isMouse && ppCardTouchRef.current.startX) { ppCardSwipeMove(e); e.preventDefault(); } }}
-          style={{
-           background: T.card, border: `1px solid ${ppSwiping ? (ppSwipeX < -20 ? "rgba(232,93,93,0.4)" : ppSwipeX > 20 ? "rgba(56,189,126,0.4)" : T.cardBorder) : T.cardBorder}`,
-           borderRadius: 22, padding: 14, transition: ppSwiping ? "none" : "border-color 0.3s, transform 0.3s",
-           transform: ppSwiping ? `translateX(${ppSwipeX}px) rotate(${ppSwipeX * 0.05}deg)` : "none",
-           touchAction: ppSwiping ? "none" : "auto",
-           userSelect: ppSwiping ? "none" : "auto",
-          }}>
+        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
+         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
           <div style={{ position: "relative" }}>
            {/* Photo Carousel */}
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
-            const detPhotos = det?.photos?.length > 1 ? det.photos : null;
-            const listingPhotos = ppCurrentListing.photos?.length > 1 ? ppCurrentListing.photos : null;
-            const hasPhotos = !!(detPhotos || listingPhotos);
-            const photos = detPhotos || listingPhotos || [ppCurrentListing.photo];
+            const hasPhotos = det?.photos?.length > 1;
+            const photos = hasPhotos ? det.photos : [ppCurrentListing.photo];
             const idx = Math.min(ppPhotoIdx, photos.length - 1);
             return (
              <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}` }}
@@ -7627,12 +7344,6 @@ export default function MortgageBlueprint() {
               }}>
               <img src={photos[idx]} alt="" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }}
                onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
-              {/* Photo counter badge (top-right) */}
-              {hasPhotos && (
-               <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.6)", borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:700, color:"#fff", backdropFilter:"blur(4px)" }}>
-                📷 {idx+1}/{photos.length}
-               </div>
-              )}
               {/* Dot indicators */}
               {hasPhotos && (
                <div style={{ position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, background:"rgba(0,0,0,0.4)", borderRadius:10, padding:"4px 8px" }}>
@@ -7685,28 +7396,29 @@ export default function MortgageBlueprint() {
            {/* MLS Description */}
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
-            const desc = det?.description || ppCurrentListing.description;
+            const desc = det?.description;
             if (!desc) return null;
             // Strip dollar amounts from description to avoid giving away price
             const cleanDesc = desc.replace(/\$[\d,]+(?:\.\d{2})?/g, "$***").replace(/(?:priced?|offered?|asking|listed?|sold?)\s+(?:at|for)\s+\$?[\d,]+/gi, "").trim();
+            const isLong = cleanDesc.length > 150;
+            const shown = isLong && !ppDescExpanded ? cleanDesc.slice(0, 150).replace(/\s+\S*$/, "…") : cleanDesc;
             return (
-             <div style={{ marginBottom: 12, borderRadius: 12, border: `1px solid ${T.cardBorder}`, overflow: "hidden" }}>
-              <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
-               style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: T.pillBg, border: "none", cursor: "pointer", fontFamily: FONT }}>
-               <span style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary }}>📋 MLS Description</span>
-               <span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 600 }}>{ppDescExpanded ? "▲ Hide" : "▼ Show"}</span>
-              </button>
-              {ppDescExpanded && (
-               <div style={{ padding: "10px 12px", borderTop: `1px solid ${T.cardBorder}`, background: `${T.pillBg}80` }}>
-                <div style={{ fontSize: 12, lineHeight: 1.6, color: T.textSecondary }}>{cleanDesc}</div>
-                {ppCurrentListing.detailUrl && (
-                 <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
-                  style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:"6px 0 0", fontFamily:FONT }}>
-                  View on Zillow ↗
-                 </button>
-                )}
-               </div>
-              )}
+             <div style={{ marginBottom: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 12, borderLeft: `3px solid ${T.blue}40` }}>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: T.textSecondary }}>{shown}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+               {isLong && (
+                <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
+                 style={{ background:"none", border:"none", color:T.blue, fontSize:11, fontWeight:600, cursor:"pointer", padding:0, fontFamily:FONT }}>
+                 {ppDescExpanded ? "Show less" : "Read more"}
+                </button>
+               )}
+               {ppCurrentListing.detailUrl && (
+                <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
+                 style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:0, fontFamily:FONT, marginLeft:"auto" }}>
+                 View on Zillow ↗
+                </button>
+               )}
+              </div>
              </div>
             );
            })()}
@@ -7727,7 +7439,7 @@ export default function MortgageBlueprint() {
              </div>
             ) : null}
            </div>
-           <input id="pp-guess-input" value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
+           <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
             placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
             style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 10, boxSizing: "border-box" }} />
            {ppGuessInput && (() => {
@@ -7749,31 +7461,6 @@ export default function MortgageBlueprint() {
            <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
             {ppActiveListings.length - 1} more {ppSoldMode ? "sold homes" : "listings"} in queue
            </div>
-           {/* Desktop action buttons */}
-           <div style={{ display: "flex", gap: 12, marginTop: 12, justifyContent: "center" }}>
-            <button onClick={ppHandleSkip} style={{
-             width: 52, height: 52, borderRadius: 26, border: `2px solid rgba(232,93,93,0.3)`,
-             background: "rgba(232,93,93,0.08)", color: "#e85d5d", fontSize: 22, cursor: "pointer",
-             display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
-            }} title="Skip this listing">✕</button>
-            <button onClick={() => { const inp = document.getElementById("pp-guess-input"); if (inp) inp.focus(); }} style={{
-             width: 52, height: 52, borderRadius: 26, border: `2px solid rgba(56,189,126,0.3)`,
-             background: "rgba(56,189,126,0.08)", color: "#38bd7e", fontSize: 22, cursor: "pointer",
-             display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
-            }} title="Make a guess">💰</button>
-           </div>
-           <div style={{ textAlign:"center", marginTop:6, fontSize:10, color:T.textTertiary, opacity:0.6 }}>
-            ← swipe to skip · swipe to guess →
-           </div>
-           {/* Import to Blueprint */}
-           <button onClick={() => ppImportToBlueprint(ppCurrentListing)} style={{
-            width: "100%", marginTop: 10, padding: "12px", borderRadius: 14, border: `1px solid ${T.blue}30`,
-            background: `${T.blue}08`, color: T.blue, fontSize: 13, fontWeight: 700, cursor: "pointer",
-            fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            transition: "all 0.2s",
-           }}>
-            🏗️ Run the Numbers in Blueprint
-           </button>
           </div>
          </div>
         </div>
@@ -7781,24 +7468,10 @@ export default function MortgageBlueprint() {
         <div style={{ textAlign:"center", padding:"60px 20px" }}>
          <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "🏆" : "🏡"}</div>
          <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
-         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>
-          {ppSkipped.length > 0
-           ? `You guessed or skipped all ${ppFilteredTotal} ${ppSoldMode ? "sold" : ""} listings.`
-           : `You guessed on all ${ppTotalListings} ${ppSoldMode ? "sold" : ""} listings.`}
-         </div>
-         {ppSkipped.length > 0 && (
-          <button onClick={() => setPpSkipped([])} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
-           Replay Skipped ({ppSkipped.length}) →
-          </button>
-         )}
-         <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10, display:"block", margin:"0 auto 10px" }}>
+         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
+         <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
           Try {ppSoldMode ? "Active Listings" : "Recently Sold"} →
          </button>
-         {(ppFilterType !== "All" || ppFilterBeds !== "Any" || ppFilterSqft !== "Any" || ppMapDrawn) && (
-          <button onClick={() => { setPpFilterType("All"); setPpFilterBeds("Any"); setPpFilterSqft("Any"); setPpMapDrawn(null); }} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid rgba(232,200,77,0.3)`, background:"rgba(232,200,77,0.08)", color:"#e8c84d", fontSize:13, fontWeight:600, cursor:"pointer", display:"block", margin:"0 auto 10px" }}>
-           Clear Filters{ppMapDrawn ? " & Map Area" : ""} — Show All
-          </button>
-         )}
          <div style={{ marginTop:8 }}>
           <button onClick={ppResetAll} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:13, fontWeight:600, cursor:"pointer" }}>Reset All</button>
          </div>
@@ -8081,44 +7754,6 @@ export default function MortgageBlueprint() {
       </div>
      </div>
 
-     {/* PP MAP OVERLAY */}
-     {ppShowMap && (
-      <div style={{ position: "fixed", inset: 0, zIndex: 250, background: T.bg, display: "flex", flexDirection: "column" }}>
-       {/* Map Header */}
-       <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", background: T.card, borderBottom: `1px solid ${T.cardBorder}`, flexShrink: 0 }}>
-        <div>
-         <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>🗺️ Draw Your Search Area</div>
-         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
-          {ppMapDrawn ? `${ppFilteredTotal} listings in drawn area` : "Use the draw tools (top-left) to select an area"}
-         </div>
-        </div>
-        <button onClick={() => { setPpShowMap(false); if (ppMapInstanceRef.current) { ppMapInstanceRef.current.remove(); ppMapInstanceRef.current = null; } }}
-         style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 36, height: 36, fontSize: 18, cursor: "pointer", color: T.textTertiary, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-       </div>
-       {/* Map Container */}
-       <div ref={ppMapRef} style={{ flex: 1, width: "100%", minHeight: 0 }} />
-       {/* Map Footer */}
-       <div style={{ padding: "12px 18px", background: T.card, borderTop: `1px solid ${T.cardBorder}`, display: "flex", gap: 10, flexShrink: 0, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-        {ppMapDrawn ? (
-         <>
-          <button onClick={() => { setPpMapDrawn(null); if (ppDrawLayerRef.current) ppDrawLayerRef.current.clearLayers(); }}
-           style={{ flex: 1, padding: "12px", borderRadius: 14, border: `1px solid ${T.cardBorder}`, background: T.pillBg, color: T.textSecondary, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-           Clear Drawing
-          </button>
-          <button onClick={() => { setPpShowMap(false); if (ppMapInstanceRef.current) { ppMapInstanceRef.current.remove(); ppMapInstanceRef.current = null; } }}
-           style={{ flex: 1, padding: "12px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#38bd7e,#2d9d68)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-           Show {ppFilteredTotal} Listings →
-          </button>
-         </>
-        ) : (
-         <div style={{ flex: 1, textAlign: "center", fontSize: 13, color: T.textTertiary, padding: "8px 0" }}>
-          Tap the <strong style={{ color: T.text }}>polygon</strong> or <strong style={{ color: T.text }}>rectangle</strong> tool in the top-left corner, then draw on the map
-         </div>
-        )}
-       </div>
-      </div>
-     )}
-
      {/* PP SOLD REVEAL MODAL */}
      {ppShowReveal && ppShowReveal.soldPrice && (
       <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
@@ -8160,6 +7795,7 @@ export default function MortgageBlueprint() {
      )}
     </div>
    )}
+   <FloatingNextBar />
   </div>
  );
 }
