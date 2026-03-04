@@ -2062,8 +2062,8 @@ export default function MortgageBlueprint() {
   if (t === "income") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
   if (t === "assets") return assets.length > 0 && assets.some(a => a.value > 0);
   if (t === "debts") return debtFree || debts.length > 0;
-  if (t === "qualify") return creditScore > 0 && calc.qualifyingIncome > 0;
-  if (t === "tax") return calc.yearlyInc > 0;
+  if (t === "qualify") return creditScore > 0 && incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
+  if (t === "tax") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
   if (t === "amort") return true; // display-only, always complete
   if (t === "reo") return true; // optional tab
   if (t === "refi") return refiCurrentRate > 0 && refiCurrentBalance > 0;
@@ -2240,13 +2240,16 @@ export default function MortgageBlueprint() {
   }
   if (tab === "qualify") {
    if (creditScore === 0) return "qualify-fico";
-   if (calc.qualifyingIncome <= 0) return "qualify-needs-income";
-   if (calc.totalForClosing <= 0) return "qualify-needs-assets";
+   const hasIncome = incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
+   if (!hasIncome) return "qualify-needs-income";
+   const hasAssets = assets.length > 0 && assets.some(a => a.forClosing > 0);
+   if (!hasAssets) return "qualify-needs-assets";
    return null;
   }
   if (tab === "tax") {
    if (!guideTouched.has("tax-filing")) return "tax-filing";
-   if (calc.yearlyInc <= 0) return "tax-needs-income";
+   const hasTaxIncome = incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
+   if (!hasTaxIncome) return "tax-needs-income";
    return null;
   }
   if (tab === "amort") {
