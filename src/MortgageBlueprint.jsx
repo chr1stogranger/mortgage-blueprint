@@ -470,6 +470,93 @@ function TextInp({ label, value, onChange, placeholder, sm, tip, req, inputMode,
    style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, outline: "none", fontFamily: FONT }} />
  </div>);
 }
+// ═══ ADDRESS AUTOCOMPLETE (Google Places) ═══
+// Provides address typeahead. When user selects a suggestion, fires onSelect
+// with { address, city, state, zip, county }. Falls back to plain text input
+// if the Google Maps script hasn't loaded yet.
+function AddressAutocomplete({ onSelect, value, onChange, placeholder }) {
+ const inputRef = useRef(null);
+ const autocompleteRef = useRef(null);
+ const [ready, setReady] = useState(false);
+
+ // Wait for Google Maps script, then attach Autocomplete
+ useEffect(() => {
+  let attempts = 0;
+  const maxAttempts = 40; // 40 × 500ms = 20s
+  function tryInit() {
+   if (window.google && window.google.maps && window.google.maps.places) {
+    if (inputRef.current && !autocompleteRef.current) {
+     const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
+      types: ["address"],
+      componentRestrictions: { country: "us" },
+      fields: ["address_components", "formatted_address"],
+     });
+     ac.addListener("place_changed", () => {
+      const place = ac.getPlace();
+      if (!place || !place.address_components) return;
+      const get = (type) => {
+       const comp = place.address_components.find(c => c.types.includes(type));
+       return comp ? comp.long_name : "";
+      };
+      const getShort = (type) => {
+       const comp = place.address_components.find(c => c.types.includes(type));
+       return comp ? comp.short_name : "";
+      };
+      // Build full street address from components
+      const streetNum = get("street_number");
+      const route = get("route");
+      const street = [streetNum, route].filter(Boolean).join(" ");
+      const result = {
+       address: street || place.formatted_address || "",
+       city: get("locality") || get("sublocality_level_1") || get("administrative_area_level_3") || "",
+       state: get("administrative_area_level_1") || "",
+       zip: get("postal_code") || "",
+       county: (get("administrative_area_level_2") || "").replace(/ County$/i, ""),
+      };
+      // Convert state abbreviation to full name if needed
+      const STATE_MAP = {"AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut","DE":"Delaware","DC":"District of Columbia","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa","KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan","MN":"Minnesota","MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire","NJ":"New Jersey","NM":"New Mexico","NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio","OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina","SD":"South Dakota","TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington","WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming"};
+      if (result.state.length === 2) result.state = STATE_MAP[result.state] || result.state;
+      onSelect(result);
+     });
+     autocompleteRef.current = ac;
+     setReady(true);
+    }
+    return;
+   }
+   attempts++;
+   if (attempts < maxAttempts) setTimeout(tryInit, 500);
+  }
+  tryInit();
+  return () => {
+   if (autocompleteRef.current) {
+    window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+    autocompleteRef.current = null;
+   }
+  };
+ }, []);
+
+ return (
+  <div style={{ marginBottom: 14 }}>
+   <FieldLabel label="Property Address" req filled={value !== ""} />
+   <div style={{ position: "relative" }}>
+    <input
+     ref={inputRef}
+     value={value}
+     onChange={e => onChange(e.target.value)}
+     placeholder={placeholder || "Start typing an address..."}
+     autoComplete="off"
+     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", paddingRight: 36, color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }}
+    />
+    <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16, opacity: 0.35, pointerEvents: "none" }}>
+     {ready ? "📍" : "🔍"}
+    </span>
+   </div>
+   {!ready && window.__GOOGLE_PLACES_KEY__ && (
+    <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Loading address suggestions...</div>
+   )}
+  </div>
+ );
+}
 function SearchSelect({ label, value, onChange, options, tip, req }) {
  const [open, setOpen] = useState(false);
  const [search, setSearch] = useState("");
@@ -1155,6 +1242,8 @@ export default function MortgageBlueprint() {
  const [propertyAddress, setPropertyAddress] = useState("");
  const [propertyTBD, setPropertyTBD] = useState(true);
  const [propertyZip, setPropertyZip] = useState("");
+ const [addressMode, setAddressMode] = useState("address"); // "address" or "zip"
+ const [addressInput, setAddressInput] = useState(""); // display value for autocomplete
  const [propertyCounty, setPropertyCounty] = useState("");
  const [hoa, setHoa] = useState(0);
  const [annualIns, setAnnualIns] = useState(1500);
@@ -1354,7 +1443,7 @@ export default function MortgageBlueprint() {
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
   incomes, otherIncome, assets, creditScore, extraPayment, payExtra, debtFree, autoJumboSwitch,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
-  propertyAddress, propertyTBD, propertyZip, propertyCounty,
+  propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, borrowerEmail,
@@ -1453,6 +1542,8 @@ export default function MortgageBlueprint() {
   if (s.propertyTBD !== undefined) setPropertyTBD(s.propertyTBD);
   if (s.propertyZip !== undefined) setPropertyZip(s.propertyZip);
   if (s.propertyCounty !== undefined) setPropertyCounty(s.propertyCounty);
+  if (s.addressMode !== undefined) setAddressMode(s.addressMode);
+  if (s.addressInput !== undefined) setAddressInput(s.addressInput);
   if (s.borrowerEmail !== undefined) setBorrowerEmail(s.borrowerEmail);
   if (s.reos) setReos(s.reos.map(r => {
    // Migrate old taxIns field to separate reoTax/reoIns/reoHoa
@@ -1558,7 +1649,7 @@ export default function MortgageBlueprint() {
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
   incomes, otherIncome, assets, creditScore, extraPayment, payExtra,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
-  propertyAddress, propertyTBD, propertyZip, propertyCounty,
+  propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, borrowerEmail,
@@ -3213,10 +3304,20 @@ export default function MortgageBlueprint() {
   setPpLoading(true);
   setPpError(null);
   try {
-   const isZip = /^\d{5}$/.test(searchValue.trim());
-   const params = isZip
-    ? `zip=${searchValue.trim()}`
-    : `city=${encodeURIComponent(searchValue.trim())}&state=CA`;
+   const sv = searchValue.trim();
+   const isZip = /^\d{5}$/.test(sv);
+   let params;
+   if (isZip) {
+    params = `zip=${sv}`;
+   } else {
+    // Parse "City, State" or "City State" or just "City" (defaults to CA)
+    const cityStateMatch = sv.match(/^(.+?)[,\s]+([A-Za-z]{2})$/);
+    if (cityStateMatch) {
+     params = `city=${encodeURIComponent(cityStateMatch[1].trim())}&state=${encodeURIComponent(cityStateMatch[2].trim().toUpperCase())}`;
+    } else {
+     params = `city=${encodeURIComponent(sv)}&state=CA`;
+    }
+   }
    const resp = await fetch(`/api/pricepoint?${params}`);
    if (!resp.ok) throw new Error(`API returned ${resp.status}`);
    const data = await resp.json();
@@ -3274,7 +3375,16 @@ export default function MortgageBlueprint() {
   const val = ppHometownInput.trim();
   if (!val) return;
   const isZip = /^\d{5}$/.test(val);
-  const ht = isZip ? { zip: val, label: val } : { city: val, label: val };
+  // Parse "City, ST" format for better labeling
+  const cityStateMatch = val.match(/^(.+?)[,\s]+([A-Za-z]{2})$/);
+  let ht;
+  if (isZip) {
+   ht = { zip: val, label: val };
+  } else if (cityStateMatch) {
+   ht = { city: cityStateMatch[1].trim(), state: cityStateMatch[2].trim().toUpperCase(), label: cityStateMatch[1].trim() + ", " + cityStateMatch[2].trim().toUpperCase() };
+  } else {
+   ht = { city: val, label: val };
+  }
   setPpHometown(ht);
   setPpShowHometownSetup(false);
   setPpSearchZip(val);
@@ -5582,9 +5692,52 @@ export default function MortgageBlueprint() {
     </div>
    </div>
 
-   {/* 3) Zip Code */}
+   {/* 3) Property Address / Zip Code — dual mode */}
    <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-    <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Enter zip code" req inputMode="numeric" pattern="[0-9]*" />
+    {addressMode === "address" ? (
+     <>
+      <AddressAutocomplete
+       value={addressInput}
+       onChange={setAddressInput}
+       placeholder="123 Main St, City, CA"
+       onSelect={({ address, city: ac_city, state: ac_state, zip: ac_zip, county: ac_county }) => {
+        setAddressInput(address ? (address + (ac_city ? ", " + ac_city : "") + (ac_state ? ", " + ac_state : "") + (ac_zip ? " " + ac_zip : "")) : "");
+        setPropertyAddress(address || "");
+        setPropertyTBD(false);
+        if (ac_zip) setPropertyZip(ac_zip);
+        if (ac_city) setCity(ac_city);
+        if (ac_state) setPropertyState(ac_state);
+        if (ac_county) setPropertyCounty(ac_county);
+        // If zip resolves in our lookup, use that city/county for tax rate accuracy
+        if (ac_zip) {
+         const match = lookupZip(ac_zip);
+         if (match) {
+          setCity(match.city);
+          setPropertyCounty(match.county);
+          setPropertyState(match.state);
+         }
+        }
+       }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: -8, marginBottom: 10 }}>
+       <button onClick={() => setAddressMode("zip")} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>
+        Search by zip only →
+       </button>
+       {!window.__GOOGLE_PLACES_KEY__ && (
+        <span style={{ fontSize: 10, color: T.textTertiary }}>Tip: Add Google Places API key for suggestions</span>
+       )}
+      </div>
+     </>
+    ) : (
+     <>
+      <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Enter zip code" req inputMode="numeric" pattern="[0-9]*" />
+      <div style={{ marginTop: -8, marginBottom: 10 }}>
+       <button onClick={() => setAddressMode("address")} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>
+        ← Search by address
+       </button>
+      </div>
+     </>
+    )}
    </div>
    {lookupZip(propertyZip) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
@@ -7661,7 +7814,7 @@ export default function MortgageBlueprint() {
          value={ppSearchZip}
          onChange={e => setPpSearchZip(e.target.value)}
          onKeyDown={e => e.key === "Enter" && ppHandleSearch()}
-         placeholder="ZIP code or city..."
+         placeholder="City, State (e.g. Oakland, CA)"
          style={{
           flex: 1, background: T.pillBg, border: `1px solid ${T.cardBorder}`, borderRadius: 12,
           padding: "10px 14px", fontSize: 14, color: T.text, outline: "none", boxSizing: "border-box",
@@ -7728,7 +7881,7 @@ export default function MortgageBlueprint() {
          value={ppHometownInput}
          onChange={e => setPpHometownInput(e.target.value)}
          onKeyDown={e => e.key === "Enter" && ppSaveHometown()}
-         placeholder="ZIP code or city name..."
+         placeholder="City, State (e.g. San Francisco, CA)"
          autoFocus
          style={{
           width: "100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.3)`, borderRadius: 14,
@@ -7820,8 +7973,8 @@ export default function MortgageBlueprint() {
                 if (dx > 0 && idx > 0) setPpPhotoIdx(idx - 1);
                }
               }}>
-              <img src={photos[idx]} alt="" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }}
-               onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+              <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }}
+               onError={e => { if (!e.target.dataset.retried) { e.target.dataset.retried = "1"; e.target.src = photos[idx] + (photos[idx].includes("?") ? "&" : "?") + "t=" + Date.now(); } else { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }}} />
               {/* Dot indicators */}
               {hasPhotos && (
                <div style={{ position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, background:"rgba(0,0,0,0.4)", borderRadius:10, padding:"4px 8px" }}>

@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 
 window.__FRED_API_KEY__ = import.meta.env.VITE_FRED_API_KEY || "";
+window.__GOOGLE_PLACES_KEY__ = import.meta.env.VITE_GOOGLE_PLACES_KEY || "";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
