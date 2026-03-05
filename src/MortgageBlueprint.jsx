@@ -541,11 +541,12 @@ function AddressAutocomplete({ onSelect, value, onChange, placeholder }) {
    <div style={{ position: "relative" }}>
     <input
      ref={inputRef}
-     value={value}
+     type="text"
+     value={typeof value === "string" ? value : ""}
      onChange={e => onChange(e.target.value)}
      placeholder={placeholder || "Start typing an address..."}
      autoComplete="off"
-     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", paddingRight: 36, color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }}
+     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", paddingRight: 36, color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
     />
     <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16, opacity: 0.35, pointerEvents: "none" }}>
      {ready ? "📍" : "🔍"}
@@ -1543,6 +1544,7 @@ export default function MortgageBlueprint() {
   if (s.propertyZip !== undefined) setPropertyZip(s.propertyZip);
   if (s.propertyCounty !== undefined) setPropertyCounty(s.propertyCounty);
   if (s.addressMode !== undefined) setAddressMode(s.addressMode);
+  else if (s.propertyZip && !s.addressInput) setAddressMode("zip"); // legacy scenario: had zip, no address — stay in zip mode
   if (s.addressInput !== undefined) setAddressInput(s.addressInput);
   if (s.borrowerEmail !== undefined) setBorrowerEmail(s.borrowerEmail);
   if (s.reos) setReos(s.reos.map(r => {
