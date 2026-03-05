@@ -54,7 +54,7 @@ function normalizeProperty(raw, index, prefix, isSold) {
     soldPrice: isSold ? (raw.price || null) : null,
     soldDate: isSold ? normalizeSoldDate(raw.dateSold) : null,
     daysOnMarket: raw.daysOnZillow || 0,
-    status: isSold ? "sold" : "active",
+    status: isSold ? "sold" : (raw.homeStatus === "PENDING" || raw.homeStatus === "PENDING_UNDER_CONTRACT") ? "pending" : "active",
     photo: raw.imgSrc || raw.hiResImageLink || null,
     neighborhood: raw.buildingName || "",
     pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
@@ -62,6 +62,7 @@ function normalizeProperty(raw, index, prefix, isSold) {
     longitude: raw.longitude || null,
     rentZestimate: raw.rentZestimate || null,
     detailUrl: raw.detailUrl || null,
+    listingAgent: raw.attributionInfo?.agentName || raw.listingAgent?.name || raw.agentName || raw.brokerName || raw.attributionInfo?.brokerName || null,
   };
 }
 
@@ -162,9 +163,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    // Fetch both active and sold in parallel
-    const [activeData, soldData] = await Promise.allSettled([
+    // Fetch active, pending, and sold in parallel
+    const [activeData, pendingData, soldData] = await Promise.allSettled([
       fetchListings(location, "FOR_SALE", apiKey, apiHost),
+      fetchListings(location, "PENDING", apiKey, apiHost),
       fetchListings(location, "RECENTLY_SOLD", apiKey, apiHost),
     ]);
 
@@ -178,11 +180,22 @@ export default async function handler(req, res) {
       }
       active = results
         .filter(r => r.zpid && r.price)
-        .slice(0, 20)
+        .slice(0, 15)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
     } else {
       const reason = activeData.status === "rejected" ? activeData.reason?.message : "no data";
       console.log(`[PricePoint] Active failed: ${reason}`);
+    }
+
+    // Merge pending listings into active pool
+    if (pendingData.status === "fulfilled" && pendingData.value?.data) {
+      const pendingResults = pendingData.value.data;
+      console.log(`[PricePoint] Pending listings: ${pendingResults.length}`);
+      const pendingNormalized = pendingResults
+        .filter(r => r.zpid && r.price)
+        .slice(0, 5)
+        .map((r, i) => normalizeProperty(r, active.length + i, "ppp", false));
+      active = [...active, ...pendingNormalized];
     }
 
     // Parse sold listings
