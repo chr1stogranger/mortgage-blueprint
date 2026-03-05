@@ -54,6 +54,32 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Google Places Autocomplete dropdown styling */
+.pac-container {
+  border-radius: 12px;
+  border: 1px solid #333;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  margin-top: 4px;
+  z-index: 10000;
+}
+.pac-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(128,128,128,0.15);
+  line-height: 1.4;
+}
+.pac-item:hover {
+  background: rgba(59,130,246,0.1);
+}
+.pac-item-query {
+  font-weight: 600;
+  font-size: 14px;
+}
+.pac-icon { display: none; }
+.pac-logo::after { display: none; }
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
