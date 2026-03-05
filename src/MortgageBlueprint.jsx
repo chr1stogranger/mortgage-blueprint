@@ -2260,7 +2260,7 @@ export default function MortgageBlueprint() {
    if (isRefi === null) return "transaction-type";
    if (propertyZip.length < 5) return "zip-code";
    if (creditScore === 0) return "fico-input";
-   if (salesPrice === 0) return "price-input";
+   if (!isRefi && salesPrice === 0) return "price-input";
    if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
    if (!isRefi && !guideTouched.has("fthb")) return "fthb";
    return null;
@@ -5561,10 +5561,12 @@ export default function MortgageBlueprint() {
     </div>}
    </div>
 
-   {/* 5) Sales Price */}
+   {/* 5) Sales Price — purchase only in Quick Start; refi moves to Current Loan */}
+   {!isRefi && (
    <div data-field="price-input" className={isPulse("price-input")} style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
-    <Inp label={isRefi ? "Home Value" : "Sales Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+    <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
    </div>
+   )}
 
    {/* 6) Down Payment with %/$ toggle — purchase only */}
    {!isRefi && (
@@ -5632,87 +5634,6 @@ export default function MortgageBlueprint() {
  </div>
  )}
 
- {/* ── Property & Borrower Details (slimmed — no address/city/state/tax state) ── */}
- <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}>⚙️</span>
-   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Advanced Settings</span>
-  </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
- </div>
- {setupAdvancedOpen && (
-  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
-   {/* Filing Status */}
-   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
-
-   {/* Property Toggles */}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
-    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
-   </div>}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
-    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
-   </div>}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
-   </div>}
-
-   {/* Zip-derived summary */}
-   <div style={{ marginTop: 12, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>AUTO-FILLED FROM ZIP</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
-     <span style={{ color: T.textTertiary }}>Location</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{city}, {propertyState}</span>
-     <span style={{ color: T.textTertiary }}>Tax Rate</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
-      {propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%
-     </span>
-     <span style={{ color: T.textTertiary }}>Transfer Tax</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
-      {getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County only ($1.10/$1K)"}
-     </span>
-     {propertyCounty && COUNTY_AMI[propertyCounty] && <>
-      <span style={{ color: T.textTertiary }}>Area Median Income</span>
-      <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{fmt(COUNTY_AMI[propertyCounty])}</span>
-     </>}
-    </div>
-   </div>
-
-   {/* Manual city/state override (only if zip not found) */}
-   {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
-    <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Zip not found — set location manually:</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-     <div>
-      {propertyState === "California" ? (
-       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
-      ) : (
-       <TextInp label="City" value={city} onChange={setCity} />
-      )}
-     </div>
-     <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
-    </div>
-   </>)}
-  </Card>
- )}
-
  {/* Setup Complete celebration */}
  {gameMode && completedTabs["setup"] && isTabFieldsComplete("setup") && (
   <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: `${T.green}10`, border: `1px solid ${T.green}30`, borderRadius: 18 }}>
@@ -5722,7 +5643,7 @@ export default function MortgageBlueprint() {
   </div>
  )}
  {/* Refi: nudge to fill in loan details if base setup is done but refi fields are empty */}
- {isRefi && !isTabFieldsComplete("setup") && propertyZip.length >= 5 && salesPrice > 0 && creditScore > 0 && (
+ {isRefi && !isTabFieldsComplete("setup") && propertyZip.length >= 5 && creditScore > 0 && (
   <div style={{ textAlign: "center", padding: "14px 16px", margin: "12px 0", background: `${T.orange}10`, border: `1px solid ${T.orange}30`, borderRadius: 18 }}>
    <div style={{ fontSize: 13, color: T.orange, fontWeight: 600 }}>👇 Fill in your current loan details below to complete setup</div>
   </div>
@@ -5736,10 +5657,18 @@ export default function MortgageBlueprint() {
      <button key={p} onClick={() => setRefiPurpose(p)} style={{ padding: "14px 0", background: refiPurpose === p ? `${T.blue}22` : T.inputBg, border: refiPurpose === p ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 12, color: refiPurpose === p ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{p}</button>
     ))}
    </div>
+   <div style={{ marginTop: 12, padding: "12px 14px", background: T.pillBg, borderRadius: 12, fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
+    {refiPurpose === "Rate/Term" ? (
+     <><strong style={{ color: T.blue }}>Rate/Term Refi</strong> — Lower your rate, shorten your term, or both. You can receive up to 1% of the new loan amount back in cash. Anything above that threshold reclassifies the loan as a cash-out refi with stricter guidelines.</>
+    ) : (
+     <><strong style={{ color: T.blue }}>Cash-Out Refi</strong> — Pull equity from your home as cash. This includes receiving more than 1% of the loan amount, or paying off non-mortgage debt (credit cards, auto loans, etc.) through the refi. Typically requires ≤80% LTV and may carry a slightly higher rate.</>
+    )}
+   </div>
   </Card>
  </Sec>}
- {isRefi && <Sec title="Current Loan Details">
+ {isRefi && <Sec title="Your Current Loan">
   <Card>
+   <Inp label="Home Value" value={salesPrice} onChange={setSalesPrice} max={100000000} req tip="Current estimated market value of your home. This determines your LTV and equity position." />
    <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
    <Inp label="Original Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -5844,6 +5773,80 @@ export default function MortgageBlueprint() {
    </div>
    <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
    <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
+  </Card>
+ )}
+
+ {/* ── Advanced Settings (collapsed) ── */}
+ <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
+  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+   <span style={{ fontSize: 14 }}>⚙️</span>
+   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Advanced Settings</span>
+  </div>
+  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
+ </div>
+ {setupAdvancedOpen && (
+  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
+   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
+    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>
+   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
+   </div>}
+   {!isRefi && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
+    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>}
+   {!isRefi && toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
+   </div>}
+   {!isRefi && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
+    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
+    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+    </div>
+   </div>}
+   {!isRefi && toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
+    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
+   </div>}
+   <div style={{ marginTop: 12, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>AUTO-FILLED FROM ZIP</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
+     <span style={{ color: T.textTertiary }}>Location</span>
+     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{city}, {propertyState}</span>
+     <span style={{ color: T.textTertiary }}>Tax Rate</span>
+     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
+      {propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%
+     </span>
+     {!isRefi && <><span style={{ color: T.textTertiary }}>Transfer Tax</span>
+     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
+      {getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County only ($1.10/$1K)"}
+     </span></>}
+     {propertyCounty && COUNTY_AMI[propertyCounty] && <>
+      <span style={{ color: T.textTertiary }}>Area Median Income</span>
+      <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{fmt(COUNTY_AMI[propertyCounty])}</span>
+     </>}
+    </div>
+   </div>
+   {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
+    <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Zip not found — set location manually:</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+     <div>
+      {propertyState === "California" ? (
+       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
+      ) : (
+       <TextInp label="City" value={city} onChange={setCity} />
+      )}
+     </div>
+     <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+    </div>
+   </>)}
   </Card>
  )}
 
