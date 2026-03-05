@@ -2203,7 +2203,8 @@ export default function MortgageBlueprint() {
  // isTabFieldsComplete checks actual field values, NOT the scroll-based completedTabs flag.
  const isTabFieldsComplete = (t) => {
   if (t === "setup") {
-   const baseComplete = isRefi !== null && propertyZip.length >= 5 && creditScore > 0 && salesPrice > 0;
+   const hasLocation = propertyZip.length >= 5 || (city && propertyState);
+   const baseComplete = isRefi !== null && hasLocation && creditScore > 0 && salesPrice > 0;
    if (!baseComplete) return false;
    if (isRefi) return refiOriginalAmount > 0 && refiCurrentRate > 0;
    return true;
@@ -2375,7 +2376,7 @@ export default function MortgageBlueprint() {
    if (!gameModeEverToggled) return "build-mode";
    if (!skillLevel) return "experience-level";
    if (isRefi === null) return "transaction-type";
-   if (propertyZip.length < 5) return "zip-code";
+   if (propertyZip.length < 5 && !(city && propertyState)) return "zip-code";
    if (creditScore === 0) return "fico-input";
    if (!isRefi && salesPrice === 0) return "price-input";
    if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
@@ -5694,58 +5695,25 @@ export default function MortgageBlueprint() {
     </div>
    </div>
 
-   {/* 3) Property Address / Zip Code — dual mode */}
+   {/* 3) Property Location — State + City dropdowns + optional Zip */}
    <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-    {addressMode === "address" ? (
-     <>
-      <AddressAutocomplete
-       value={addressInput}
-       onChange={setAddressInput}
-       placeholder="123 Main St, City, CA"
-       onSelect={({ address, city: ac_city, state: ac_state, zip: ac_zip, county: ac_county }) => {
-        setAddressInput(address ? (address + (ac_city ? ", " + ac_city : "") + (ac_state ? ", " + ac_state : "") + (ac_zip ? " " + ac_zip : "")) : "");
-        setPropertyAddress(address || "");
-        setPropertyTBD(false);
-        if (ac_zip) setPropertyZip(ac_zip);
-        if (ac_city) setCity(ac_city);
-        if (ac_state) setPropertyState(ac_state);
-        if (ac_county) setPropertyCounty(ac_county);
-        // If zip resolves in our lookup, use that city/county for tax rate accuracy
-        if (ac_zip) {
-         const match = lookupZip(ac_zip);
-         if (match) {
-          setCity(match.city);
-          setPropertyCounty(match.county);
-          setPropertyState(match.state);
-         }
-        }
-       }}
-      />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: -8, marginBottom: 10 }}>
-       <button onClick={() => setAddressMode("zip")} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>
-        Search by zip only →
-       </button>
-       {!window.__GOOGLE_PLACES_KEY__ && (
-        <span style={{ fontSize: 10, color: T.textTertiary }}>Tip: Add Google Places API key for suggestions</span>
-       )}
-      </div>
-     </>
-    ) : (
-     <>
-      <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Enter zip code" req inputMode="numeric" pattern="[0-9]*" />
-      <div style={{ marginTop: -8, marginBottom: 10 }}>
-       <button onClick={() => setAddressMode("address")} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>
-        ← Search by address
-       </button>
-      </div>
-     </>
-    )}
+    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Property Location <span style={{ color: T.red, fontSize: 13, fontWeight: 700 }}>*</span></div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+     <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); if (v !== "California") { /* reset city for non-CA states */ if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+     <div>
+      {propertyState === "California" ? (
+       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} req />
+      ) : (
+       <TextInp label="City" value={city} onChange={setCity} placeholder="Enter city" req />
+      )}
+     </div>
+    </div>
+    <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Optional — auto-fills county" inputMode="numeric" pattern="[0-9]*" sm />
    </div>
-   {lookupZip(propertyZip) && (
-    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
-   )}
-   {!lookupZip(propertyZip) && propertyZip.length >= 5 && (
-    <div style={{ fontSize: 11, color: T.orange, marginTop: -8, marginBottom: 10 }}>Zip not in database — select city and state in Property Details below</div>
+   {(city && propertyState) && (
+    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
+     ✓ {city}, {propertyCounty ? propertyCounty + " County, " : ""}{propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%
+    </div>
    )}
 
    {/* 4) FICO */}
