@@ -2455,11 +2455,23 @@ export default function MortgageBlueprint() {
   if (refiAnnualTax === 0 && yearlyTax > 0) setRefiAnnualTax(Math.round(yearlyTax));
   if (refiAnnualIns === 0 && annualIns > 0) setRefiAnnualIns(annualIns);
  }, [isRefi, salesPrice, city, propertyState, annualIns]);
+ // Sync refi insurance to annualIns so Calculator and Costs tabs pick it up
+ useEffect(() => {
+  if (isRefi && refiAnnualIns > 0) setAnnualIns(refiAnnualIns);
+ }, [isRefi, refiAnnualIns]);
  // Auto-set skip months based on closing day: ≤15th = skip 2, >15th = skip 1
  useEffect(() => {
   if (!isRefi) return;
   setRefiSkipMonths(closingDay <= 15 ? 2 : 1);
  }, [isRefi, closingDay]);
+ // Auto-set closing date to today + 30 days for refi
+ useEffect(() => {
+  if (!isRefi) return;
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  setClosingMonth(d.getMonth() + 1);
+  setClosingDay(d.getDate());
+ }, [isRefi]);
  // Auto-set Section C defaults for refi: flat escrow fee, zero title/search/settlement
  useEffect(() => {
   if (isRefi) {
@@ -2467,11 +2479,13 @@ export default function MortgageBlueprint() {
    setTitleSearch(0);
    setSettlementFee(0);
    setEscrowFee(1995);
+   setAppraisalFee(595);
   } else {
    setTitleInsurance(700);
    setTitleSearch(1261);
    setSettlementFee(502);
    setEscrowFee(2400);
+   setAppraisalFee(795);
   }
  }, [isRefi]);
  useEffect(() => {
@@ -2634,7 +2648,7 @@ export default function MortgageBlueprint() {
   const dpWarning = downPct < minDPpct ? "fail" : null;
   const dtiCheck = qualifyingIncome > 0 ? (yourDTI <= maxDTI ? "Good!" : "Too High") : "—";
   const cashCheck = totalForClosing > 0 ? (totalForClosing >= cashToClose ? "Good!" : "Short") : "—";
-  const reserveMonths = loanType === "Jumbo" ? 12 : 3;
+  const reserveMonths = loanType === "Jumbo" ? 12 : (isRefi ? 0 : 3);
   const reservesReq = totalPayment * reserveMonths;
   const resCheck = totalReserves > 0 ? (totalReserves >= reservesReq ? "Good!" : "Short") : "—";
   const yearlyInc = annualIncome;
@@ -3523,10 +3537,18 @@ export default function MortgageBlueprint() {
    </svg>
   );
  };
- const dpOk = calc.dpWarning === null;
- const allGood = calc.ficoCheck === "Good!" && calc.dtiCheck === "Good!" && calc.cashCheck === "Good!" && calc.resCheck === "Good!" && dpOk;
- const someGood = calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || calc.cashCheck === "Good!" || calc.resCheck === "Good!" || dpOk;
+ const dpOk = isRefi ? true : calc.dpWarning === null;
+ const refiLtvOk = isRefi ? (calc.refiNewLTV > 0 ? calc.refiNewLTV <= (refiPurpose === "Cash-Out" ? 0.80 : 0.95) : null) : true;
+ const refiLtvCheck = refiLtvOk === true ? "Good!" : refiLtvOk === false ? "High" : "—";
+ const allGood = isRefi
+  ? calc.ficoCheck === "Good!" && calc.dtiCheck === "Good!" && refiLtvCheck === "Good!"
+  : calc.ficoCheck === "Good!" && calc.dtiCheck === "Good!" && calc.cashCheck === "Good!" && calc.resCheck === "Good!" && dpOk;
+ const someGood = isRefi
+  ? calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || refiLtvCheck === "Good!"
+  : calc.ficoCheck === "Good!" || calc.dtiCheck === "Good!" || calc.cashCheck === "Good!" || calc.resCheck === "Good!" || dpOk;
  const qualStatus = allGood ? "approved" : someGood ? "almost" : "none";
+ const refiPillarCount = [calc.ficoCheck, calc.dtiCheck, refiLtvCheck].filter(c => c === "Good!").length;
+ const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
   <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 90, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
@@ -3762,16 +3784,20 @@ export default function MortgageBlueprint() {
      <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
        <span style={{ fontSize: 14 }}>{allGood ? "🏆" : someGood ? "🔓" : "🔒"}</span>
-       <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? "Pre-Qualified" : someGood ? `${[calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0)}/5 Pillars` : "5 Qualification Pillars"}</span>
+       <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? (isRefi ? "Refi Qualified" : "Pre-Qualified") : someGood ? `${isRefi ? refiPillarCount : purchPillarCount}/${isRefi ? 3 : 5} Pillars` : `${isRefi ? 3 : 5} Qualification Pillars`}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
-       {[
+       {(isRefi ? [
+        { label: "FICO", c: calc.ficoCheck === "Good!" ? "g" : calc.ficoCheck === "—" ? "n" : "r" },
+        { label: "DTI", c: calc.dtiCheck === "Good!" ? "g" : calc.dtiCheck === "—" ? "n" : "r" },
+        { label: "LTV", c: refiLtvCheck === "Good!" ? "g" : refiLtvCheck === "—" ? "n" : "r" },
+       ] : [
         { label: "FICO", c: calc.ficoCheck === "Good!" ? "g" : calc.ficoCheck === "—" ? "n" : "r" },
         { label: "Down", c: dpOk ? "g" : calc.dpWarning === "—" ? "n" : "r" },
         { label: "DTI", c: calc.dtiCheck === "Good!" ? "g" : calc.dtiCheck === "—" ? "n" : "r" },
         { label: "Cash", c: calc.cashCheck === "Good!" ? "g" : calc.cashCheck === "—" ? "n" : "r" },
         { label: "Reserves", c: calc.resCheck === "Good!" ? "g" : calc.resCheck === "—" ? "n" : "r" },
-       ].map((p, i) => (
+       ]).map((p, i) => (
         <div key={i} style={{ flex: 1, textAlign: "center" }}>
          <div style={{ width: 10, height: 10, borderRadius: "50%", background: p.c === "g" ? T.green : p.c === "w" ? T.orange : p.c === "n" ? T.ringTrack : T.red, boxShadow: p.c === "g" ? `0 0 4px ${T.green}60` : "none", transition: "all 0.3s", margin: "0 auto 3px" }} />
          <div style={{ fontSize: 9, fontWeight: 600, color: p.c === "g" ? T.green : p.c === "n" ? T.textTertiary : p.c === "w" ? T.orange : T.red, letterSpacing: "0.02em" }}>{p.label}</div>
@@ -4623,7 +4649,11 @@ export default function MortgageBlueprint() {
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && (<>
  <div style={{ marginTop: 20 }}>
-  <StopLight onPillarClick={handlePillarClick} checks={[
+  <StopLight onPillarClick={handlePillarClick} checks={isRefi ? [
+   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "📊", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
+   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "⚖️", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
+   { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan details", icon: "🏠", fullLabel: "Loan-to-Value", detail: calc.refiNewLTV > 0 ? `New LTV: ${pct(calc.refiNewLTV, 1)}. Max ${refiPurpose === "Cash-Out" ? "80%" : "95%"} for ${refiPurpose} refi. ${calc.refiNewLTV <= 0.80 ? "Below 80% — no PMI required." : ""}` : "Enter your current loan details in Setup to calculate LTV.", action: "Edit loan details" },
+  ] : [
    { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "📊", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
    { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "🏠", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
    { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "⚖️", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
@@ -4635,10 +4665,10 @@ export default function MortgageBlueprint() {
  <Card pad={14}>
   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
    <span style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary }}>Approval Progress</span>
-   <span style={{ fontSize: 12, fontWeight: 700, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, fontFamily: FONT }}>{[calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0)} / 5</span>
+   <span style={{ fontSize: 12, fontWeight: 700, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, fontFamily: FONT }}>{isRefi ? refiPillarCount : purchPillarCount} / {isRefi ? 3 : 5}</span>
   </div>
   <div style={{ height: 12, background: T.ringTrack, borderRadius: 99, overflow: "hidden" }}>
-   <div style={{ height: "100%", width: `${([calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0)) * 20}%`, background: allGood ? T.green : someGood ? T.orange : T.ringTrack, borderRadius: 99, transition: "all 0.6s ease" }} />
+   <div style={{ height: "100%", width: `${(isRefi ? refiPillarCount / 3 : purchPillarCount / 5) * 100}%`, background: allGood ? T.green : someGood ? T.orange : T.ringTrack, borderRadius: 99, transition: "all 0.6s ease" }} />
   </div>
  </Card>
  <Sec title="Credit Score">
@@ -4661,8 +4691,14 @@ export default function MortgageBlueprint() {
  )}
  {allGood && <Card style={{ marginTop: 12, background: `${T.green}15`, textAlign: "center", padding: 20 }}>
   <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
-  <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>PRE-QUALIFIED</div>
-  <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>All 5 pillars cleared — based on the information you provided.</div>
+  <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>{isRefi ? "REFI QUALIFIED" : "PRE-QUALIFIED"}</div>
+  <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>{isRefi ? "All 3 pillars cleared — your refi looks good to go." : "All 5 pillars cleared — based on the information you provided."}</div>
+  {isRefi ? (
+   <button onClick={() => setTab("refi")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>View Refi Summary →</div>
+    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>See your savings breakdown</div>
+   </button>
+  ) : (<>
   <div style={{ marginTop: 16, padding: "14px 16px", background: T.card, borderRadius: 12, textAlign: "left" }}>
    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
     <span style={{ fontSize: 22, flexShrink: 0 }}>🗣️</span>
@@ -4683,6 +4719,7 @@ export default function MortgageBlueprint() {
    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
   </button>
+  </>)}
  </Card>}
  {calc.qualifyingIncome <= 0 && (
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
@@ -4697,7 +4734,7 @@ export default function MortgageBlueprint() {
    </Card>
   </div>
  )}
- {calc.qualifyingIncome > 0 && calc.totalForClosing <= 0 && (
+ {!isRefi && calc.qualifyingIncome > 0 && calc.totalForClosing <= 0 && (
   <div data-field="qualify-needs-assets" className={isPulse("qualify-needs-assets")} onClick={() => setTab("assets")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4710,7 +4747,8 @@ export default function MortgageBlueprint() {
    </Card>
   </div>
  )}
- {/* ── AFFORD SECTION (merged) ── */}
+ {/* ── AFFORD SECTION (merged) — purchase only ── */}
+ {!isRefi && <>
  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}40, transparent)`, margin: "20px 0 8px" }} />
  <div style={{ marginTop: 12 }}>
   <Hero value="🎯" label="What Can I Afford?" color={T.green} sub="Reverse-engineer your max purchase price" />
@@ -4954,6 +4992,7 @@ export default function MortgageBlueprint() {
    </Card>
   </>);
  })()}
+ </>}
 </>)}
 {/* ═══ TAX SAVINGS ═══ */}
 {tab === "tax" && (<>
