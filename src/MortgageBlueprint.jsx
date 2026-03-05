@@ -1876,25 +1876,33 @@ export default function MortgageBlueprint() {
 
    html += `<div class="body-content">`;
    // Monthly Payment side-by-side comparison table
-   const delta = (cur, nw) => {
+   const pdelta = (cur, nw) => {
     const d = Math.round(nw - cur);
     if (Math.abs(d) < 1) return '<span style="color:#888">—</span>';
     const color = d < 0 ? "#16a34a" : "#dc2626";
     const sign = d < 0 ? "-" : "+";
     return '<span style="color:' + color + '">' + sign + "$" + Math.abs(d).toLocaleString() + "</span>";
    };
-   const pmtRow = (label, cur, nw) => '<tr style="border-bottom:1px solid #2a2a2a"><td style="padding:10px 12px;color:#999">' + label + '</td><td style="text-align:right;padding:10px 12px">' + fmt(cur) + '</td><td style="text-align:right;padding:10px 12px;color:#4a90d9">' + fmt(nw) + '</td><td style="text-align:right;padding:10px 12px">' + delta(cur, nw) + '</td></tr>';
-   html += '<table style="width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:14px;overflow:hidden;margin-bottom:16px">';
-   html += '<thead><tr><th style="text-align:left;padding:10px 12px;font-size:12px;color:#888;border-bottom:1px solid #333">Monthly Payment</th><th style="text-align:right;padding:10px 12px;font-size:12px;color:#888;border-bottom:1px solid #333">Current</th><th style="text-align:right;padding:10px 12px;font-size:12px;color:#4a90d9;border-bottom:1px solid #333">New</th><th style="text-align:right;padding:10px 12px;font-size:12px;color:#888;border-bottom:1px solid #333">Delta</th></tr></thead><tbody>';
-   html += pmtRow("Principal", c.refiCurPrinThisMonth, c.refiNewPrinThisMonth);
-   html += pmtRow("Interest", c.refiCurIntThisMonth, c.refiNewIntThisMonth);
-   if (c.refiNewMonthlyTax > 0) html += pmtRow("Taxes", c.refiCurMonthlyTax, c.refiNewMonthlyTax);
-   if (c.refiNewMonthlyIns > 0) html += pmtRow("Insurance", c.refiCurMonthlyIns, c.refiNewMonthlyIns);
-   html += '<tr style="border-top:2px solid #444"><td style="padding:12px;font-weight:700">Total Payment</td><td style="text-align:right;padding:12px;font-weight:700">' + fmt(c.refiCurTotalPmt) + '</td><td style="text-align:right;padding:12px;font-weight:700;color:#4a90d9">' + fmt(c.refiNewTotalPmt) + '</td><td style="text-align:right;padding:12px;font-weight:700;color:#16a34a">-' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
-   html += '<tr style="background:rgba(22,163,74,0.1)"><td colspan="3" style="padding:12px;font-weight:700;color:#16a34a">Monthly Savings</td><td style="text-align:right;padding:12px;font-weight:700;color:#16a34a">' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
-   html += '</tbody></table>';
+   const pmtRow4 = (label, cur, nw, bold) => {
+    const style = bold ? "padding:10px 16px;font-size:13px;font-weight:700;color:#1a202c;border-top:2px solid #e2e8f0" : "padding:8px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0";
+    return '<tr><td style="' + style + '">' + label + '</td><td style="' + style + ';text-align:right;font-family:system-ui">' + fmt(cur) + '</td><td style="' + style + ';text-align:right;font-family:system-ui;color:#2563eb">' + fmt(nw) + '</td><td style="' + style + ';text-align:right;font-family:system-ui">' + pdelta(cur, nw) + '</td></tr>';
+   };
+   html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
+   html += '<tr><td colspan="4" style="padding:14px 16px 6px;font-weight:700;font-size:13px;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #2563eb">Monthly Payment</td></tr>';
+   html += '<tr style="background:#f8fafc"><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase"></td><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#888;text-align:right;text-transform:uppercase">Current</td><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#2563eb;text-align:right;text-transform:uppercase">New</td><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#888;text-align:right;text-transform:uppercase">Delta</td></tr>';
+   html += pmtRow4("Principal", c.refiCurPrinThisMonth, c.refiNewPrinThisMonth);
+   html += pmtRow4("Interest", c.refiCurIntThisMonth, c.refiNewIntThisMonth);
+   if (c.refiNewMonthlyTax > 0) html += pmtRow4("Taxes", c.refiCurMonthlyTax, c.refiNewMonthlyTax);
+   if (c.refiNewMonthlyIns > 0) html += pmtRow4("Insurance", c.refiCurMonthlyIns, c.refiNewMonthlyIns);
+   html += pmtRow4("Total Payment", c.refiCurTotalPmt, c.refiNewTotalPmt, true);
+   html += '<tr style="background:#f0fdf4"><td colspan="3" style="padding:10px 16px;font-size:13px;font-weight:700;color:#16a34a">Monthly Savings</td><td style="padding:10px 16px;text-align:right;font-size:13px;font-weight:700;color:#16a34a;font-family:system-ui">' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
+   html += '</table>';
    html += `<table>${hdr("Savings Analysis")}${row("Monthly P&I Savings",fmt(c.refiMonthlySavings),false,c.refiMonthlySavings>0?"#16a34a":"#dc2626")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Months to Breakeven",c.refiBreakevenMonths+" months")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings),true,"#16a34a")}</table>`;
-   html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row("Estimated Cash Out",fmt(c.refiEstCashOut),false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row("Net Cash in Hand",fmt(c.refiNetCashInHand),true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
+   const cashOutLabel = c.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Cash to Close";
+   const cashOutValue = c.refiEstCashOut >= 0 ? fmt(c.refiEstCashOut) : fmt(Math.abs(c.refiEstCashOut));
+   const cashInHandLabel = c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing";
+   const cashInHandValue = c.refiNetCashInHand >= 0 ? fmt(c.refiNetCashInHand) : fmt(Math.abs(c.refiNetCashInHand));
+   html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row(cashOutLabel,cashOutValue,false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row(cashInHandLabel,cashInHandValue,true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
    html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✅":"❌"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✅":"❌"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✅":"❌"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
   } else {
    // PURCHASE HERO
@@ -4063,14 +4071,14 @@ export default function MortgageBlueprint() {
   <Sel label="Occupancy" value={loanPurpose} onChange={v => {
    // Auto-adjust rate for investment property pricing
    if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
-    setRate(prev => Math.round((prev + 0.875) * 1000) / 1000);
+    setRate(prev => Math.round((prev + 1.0) * 1000) / 1000);
    } else if (v !== "Purchase Investment" && loanPurpose === "Purchase Investment") {
-    setRate(prev => Math.round(Math.max(0, prev - 0.875) * 1000) / 1000);
+    setRate(prev => Math.round(Math.max(0, prev - 1.0) * 1000) / 1000);
    }
    setLoanPurpose(v);
   }} options={[{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]} req tip="How you'll use the property. Investment properties typically carry a 0.750–1.000% rate premium and require 15-25% down." />
   {loanPurpose === "Purchase Investment" && (
-   <Note color={T.orange}>📈 Investment property rate adjustment: +0.875% applied automatically (typical range: 0.750–1.000%). Adjust your rate manually if your lender quotes differently.</Note>
+   <Note color={T.orange}>📈 Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
   )}
   {(loanPurpose === "Purchase Investment" || (loanPurpose === "Purchase Primary" && (UNIT_COUNT[propType] || 1) > 1)) && (
    <div>
@@ -5711,7 +5719,7 @@ export default function MortgageBlueprint() {
     <Inp label="Current Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} sm req />
    </div>
    <div style={{ marginBottom: 14 }}>
-    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Closed On</label>
+    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Closed In</label>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
      <select value={refiClosedDate ? refiClosedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; const y = refiClosedDate ? refiClosedDate.slice(0, 4) : new Date().getFullYear(); if (m && y) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
       <option value="">Month</option>
@@ -5762,7 +5770,7 @@ export default function MortgageBlueprint() {
    </div>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm tip="Money sitting in your escrow account — refunded to you when the old loan closes." />
-    <Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"}]} sm tip="Mortgage payments you skip during the refi process. Auto-set based on closing day — close by the 15th = skip 2, after the 15th = skip 1." />
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}><Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"}]} sm tip="Mortgage payments you skip during the refi process. Auto-set based on closing day — close by the 15th = skip 2, after the 15th = skip 1." /></div>
    </div>
    <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} />
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
@@ -6255,7 +6263,7 @@ export default function MortgageBlueprint() {
    <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
    <MRow label="− Current Loan Payoff" value={`-${fmt(calc.refiNetPayoff)}`} />
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label="Estimated Cash Out" value={fmt(calc.refiEstCashOut)} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
+    <MRow label={calc.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Cash to Close"} value={calc.refiEstCashOut >= 0 ? fmt(calc.refiEstCashOut) : fmt(Math.abs(calc.refiEstCashOut))} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
    </div>
    {(calc.refiSkipPmtAmt > 0 || calc.refiEscrowRefund > 0) && <>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginTop: 16, marginBottom: 10, textTransform: "uppercase" }}>Money Back in Your Pocket</div>
@@ -6264,8 +6272,8 @@ export default function MortgageBlueprint() {
    </>}
    <div style={{ marginTop: 12, padding: "14px 16px", background: calc.refiNetCashInHand >= 0 ? T.successBg : T.errorBg, borderRadius: 14 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-     <span style={{ fontSize: 14, fontWeight: 700, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>Net Cash in Hand</span>
-     <span style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{fmt(calc.refiNetCashInHand)}</span>
+     <span style={{ fontSize: 14, fontWeight: 700, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{calc.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing"}</span>
+     <span style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{calc.refiNetCashInHand >= 0 ? fmt(calc.refiNetCashInHand) : fmt(Math.abs(calc.refiNetCashInHand))}</span>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
      {calc.refiNetCashInHand >= 0 ? "You receive this amount at or after closing" : "You need to bring this amount to closing"}
