@@ -8222,7 +8222,7 @@ export default function MortgageBlueprint() {
      )}
     </div>
    )}
-   <FloatingNextBar />
+   {appMode === "blueprint" && <FloatingNextBar />}
   </div>
  );
 }
