@@ -432,10 +432,10 @@ function FieldLabel({ label, tip, req, filled }) {
  if (!label) return null;
  return (<div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</div>);
 }
-function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, externalRef, onAdvance }) {
+function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req }) {
  const [focused, setFocused] = useState(false);
  const [editStr, setEditStr] = useState(null);
- const inputRef = externalRef || useRef(null);
+ const inputRef = useRef(null);
  const cursorRef = useRef(null);
  const isText = type === "text";
  const filled = isText ? (value !== "") : (value !== 0 && value !== "");
@@ -579,14 +579,14 @@ function RefiTestLight({ passed, label, detail }) {
   </div>
  </div>);
 }
-function PayRing({ segments, total, label }) {
+function PayRing({ segments, total }) {
  const sz = 200, sw = 22, r = (sz - sw) / 2, c = 2 * Math.PI * r;
  let cum = 0;
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={sw} />
    {segments.filter(s => s.v > 0).map((s, i) => { const p = total > 0 ? s.v / total : 0; const dash = p * c, gap = c - dash, off = -cum * c + c * 0.25; cum += p; return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={off} style={{ transition: "all 0.6s ease" }} />; })}
-   <text x={sz/2} y={sz/2 - 12} textAnchor="middle" fill={T.textTertiary} fontSize="12" fontWeight="500" fontFamily={FONT}>{label || "MONTHLY"}</text>
+   <text x={sz/2} y={sz/2 - 12} textAnchor="middle" fill={T.textTertiary} fontSize="12" fontWeight="500" fontFamily={FONT}>MONTHLY</text>
    <text x={sz/2} y={sz/2 + 14} textAnchor="middle" fill={T.text} fontSize="28" fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
   </svg>
   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>
@@ -1333,10 +1333,6 @@ export default function MortgageBlueprint() {
  const [scrolledPast80, setScrolledPast80] = useState(false);
  const scrolledPast80Ref = useRef(false);
  const floatBarShownRef = useRef(false);
- // Setup auto-advance refs
- const setupFicoRef = useRef(null);
- const setupPriceRef = useRef(null);
- const setupDownRef = useRef(null);
  const [unlockAll, setUnlockAll] = useState(false);
  const [gameMode, setGameMode] = useState(false);
  const [gameModeEverToggled, setGameModeEverToggled] = useState(false);
@@ -3713,7 +3709,7 @@ export default function MortgageBlueprint() {
    </div>
   </div>}
    {/* ── App Mode Toggle ── */}
-   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", paddingTop: "env(safe-area-inset-top, 0px)" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
       {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
@@ -3757,7 +3753,7 @@ export default function MortgageBlueprint() {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Sticky Header ── */}
-   <div style={{ position: "sticky", top: 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+   <div style={{ position: "sticky", top: "calc(44px + env(safe-area-inset-top, 0px))", zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ padding: "16px 20px 8px" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
@@ -3850,7 +3846,7 @@ export default function MortgageBlueprint() {
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && (<>
  <div style={{ marginTop: 20 }}>
-  <PayRing segments={paySegs} total={isRefi ? calc.refiNewTotalPmt : calc.displayPayment} label={isRefi ? "NEW PMT" : "MONTHLY"} />
+  <PayRing segments={paySegs} total={calc.displayPayment} />
  </div>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px 12px" }}>
   <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Include Escrow (Tax & Ins)</span>
@@ -5545,11 +5541,7 @@ export default function MortgageBlueprint() {
 
    {/* 3) Zip Code */}
    <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-    <TextInp label="Zip Code" value={propertyZip} onChange={v => {
-     const clean = v.replace(/\D/g,"").slice(0,5);
-     setPropertyZip(clean);
-     if (clean.length === 5) setTimeout(() => setupFicoRef.current?.focus(), 80);
-    }} placeholder="Enter zip code" req inputMode="numeric" pattern="[0-9]*" />
+    <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Enter zip code" req inputMode="numeric" pattern="[0-9]*" />
    </div>
    {lookupZip(propertyZip) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -8, marginBottom: 10 }}>✓ {city}, {propertyCounty} County, {propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%</div>
@@ -5560,10 +5552,7 @@ export default function MortgageBlueprint() {
 
    {/* 4) FICO */}
    <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-    <Inp label="Middle FICO Score" value={creditScore} onChange={v => {
-     setCreditScore(v);
-     if (String(v).length === 3 && !isRefi) setTimeout(() => { setupPriceRef.current?.focus(); setupPriceRef.current?.select(); }, 80);
-    }} prefix="" suffix="pts" min={300} max={850} step={1} req externalRef={setupFicoRef} tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
+    <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
      <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
      <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
@@ -5575,7 +5564,7 @@ export default function MortgageBlueprint() {
    {/* 5) Sales Price — purchase only in Quick Start; refi moves to Current Loan */}
    {!isRefi && (
    <div data-field="price-input" className={isPulse("price-input")} style={{ paddingTop: 14, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
-    <Inp label="Sales Price" value={salesPrice} onChange={v => { setSalesPrice(v); }} max={100000000} req externalRef={setupPriceRef} />
+    <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
    </div>
    )}
 
@@ -5731,10 +5720,8 @@ export default function MortgageBlueprint() {
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm tip="Money sitting in your escrow account — refunded to you when the old loan closes." />
     <Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"}]} sm tip="Mortgage payments you skip during the refi process. Auto-set based on closing day — close by the 15th = skip 2, after the 15th = skip 1." />
-    <div style={{ gridColumn: "1 / -1" }}>
-     <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} sm />
-    </div>
    </div>
+   <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} />
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
   </Card>
  </Sec>}
@@ -7594,7 +7581,7 @@ export default function MortgageBlueprint() {
      `}</style>
 
      {/* PP Notification */}
-     {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
+     {ppNotif && <div style={{ position:"fixed",top:"calc(env(safe-area-inset-top, 16px) + 8px)",left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
 
      {/* PP Header */}
      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
