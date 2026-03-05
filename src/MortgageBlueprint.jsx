@@ -1875,8 +1875,24 @@ export default function MortgageBlueprint() {
    html += `<div class="hero-bar"><div class="big" style="color:${savColor}">${fmt(c.refiMonthlySavings)}<span style="font-size:18px;font-weight:400">/mo savings</span></div><div class="sub">Monthly P&I Savings · Breakeven in ${c.refiBreakevenMonths} months</div></div>`;
 
    html += `<div class="body-content">`;
-   html += `<table>${hdr("Current Loan")}${row("Balance",fmt(c.refiEffBalance))}${row("Rate",refiCurrentRate+"%")}${row("P&I Payment",fmt(c.refiEffPI))}${row("Remaining Term",c.refiEffRemaining+" months")}${row("Total PITI",fmt(c.refiCurTotalPmt),true)}</table>`;
-   html += `<table>${hdr("Proposed New Loan")}${row("Loan Amount",fmt(c.refiNewLoanAmt))}${row("Rate",rate+"%")}${row("Term",term+" Year "+loanType)}${row("P&I Payment",fmt(c.refiNewPi))}${row("Total PITI",fmt(c.refiNewTotalPmt),true)}</table>`;
+   // Monthly Payment side-by-side comparison table
+   const delta = (cur, nw) => {
+    const d = Math.round(nw - cur);
+    if (Math.abs(d) < 1) return '<span style="color:#888">—</span>';
+    const color = d < 0 ? "#16a34a" : "#dc2626";
+    const sign = d < 0 ? "-" : "+";
+    return '<span style="color:' + color + '">' + sign + "$" + Math.abs(d).toLocaleString() + "</span>";
+   };
+   const pmtRow = (label, cur, nw) => '<tr style="border-bottom:1px solid #2a2a2a"><td style="padding:10px 12px;color:#999">' + label + '</td><td style="text-align:right;padding:10px 12px">' + fmt(cur) + '</td><td style="text-align:right;padding:10px 12px;color:#4a90d9">' + fmt(nw) + '</td><td style="text-align:right;padding:10px 12px">' + delta(cur, nw) + '</td></tr>';
+   html += '<table style="width:100%;border-collapse:collapse;background:#1a1a1a;border-radius:14px;overflow:hidden;margin-bottom:16px">';
+   html += '<thead><tr><th style="text-align:left;padding:10px 12px;font-size:12px;color:#888;border-bottom:1px solid #333">Monthly Payment</th><th style="text-align:right;padding:10px 12px;font-size:12px;color:#888;border-bottom:1px solid #333">Current</th><th style="text-align:right;padding:10px 12px;font-size:12px;color:#4a90d9;border-bottom:1px solid #333">New</th><th style="text-align:right;padding:10px 12px;font-size:12px;color:#888;border-bottom:1px solid #333">Delta</th></tr></thead><tbody>';
+   html += pmtRow("Principal", c.refiCurPrinThisMonth, c.refiNewPrinThisMonth);
+   html += pmtRow("Interest", c.refiCurIntThisMonth, c.refiNewIntThisMonth);
+   if (c.refiNewMonthlyTax > 0) html += pmtRow("Taxes", c.refiCurMonthlyTax, c.refiNewMonthlyTax);
+   if (c.refiNewMonthlyIns > 0) html += pmtRow("Insurance", c.refiCurMonthlyIns, c.refiNewMonthlyIns);
+   html += '<tr style="border-top:2px solid #444"><td style="padding:12px;font-weight:700">Total Payment</td><td style="text-align:right;padding:12px;font-weight:700">' + fmt(c.refiCurTotalPmt) + '</td><td style="text-align:right;padding:12px;font-weight:700;color:#4a90d9">' + fmt(c.refiNewTotalPmt) + '</td><td style="text-align:right;padding:12px;font-weight:700;color:#16a34a">-' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
+   html += '<tr style="background:rgba(22,163,74,0.1)"><td colspan="3" style="padding:12px;font-weight:700;color:#16a34a">Monthly Savings</td><td style="text-align:right;padding:12px;font-weight:700;color:#16a34a">' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
+   html += '</tbody></table>';
    html += `<table>${hdr("Savings Analysis")}${row("Monthly P&I Savings",fmt(c.refiMonthlySavings),false,c.refiMonthlySavings>0?"#16a34a":"#dc2626")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Months to Breakeven",c.refiBreakevenMonths+" months")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings),true,"#16a34a")}</table>`;
    html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row("Estimated Cash Out",fmt(c.refiEstCashOut),false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row("Net Cash in Hand",fmt(c.refiNetCashInHand),true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
    html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✅":"❌"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✅":"❌"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✅":"❌"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
@@ -2447,6 +2463,25 @@ export default function MortgageBlueprint() {
  // Auto-switch to Jumbo when loan amount exceeds high-balance limit for unit count
  // Auto-sync refiHomeValue from salesPrice when in refi mode
  useEffect(() => { if (isRefi) setRefiHomeValue(salesPrice); }, [isRefi, salesPrice]);
+ // Auto-inject current mortgage into Debts when switching to refi mode
+ useEffect(() => {
+  if (!isRefi) return;
+  // Only add if no mortgage debt already exists
+  const hasMortgage = debts.some(d => d.type === "Mortgage");
+  if (!hasMortgage && (refiCurrentBalance > 0 || refiCurrentPayment > 0)) {
+   setDebts(prev => [...prev, {
+    id: Date.now(),
+    name: "Current Mortgage",
+    type: "Mortgage",
+    balance: refiCurrentBalance || 0,
+    monthly: refiCurrentPayment || 0,
+    rate: refiCurrentRate || 0,
+    months: refiRemainingMonths || 0,
+    payoff: "Yes - at Escrow",
+    linkedReoId: ""
+   }]);
+  }
+ }, [isRefi]);
  // Auto-fill refi tax and insurance from setup values
  useEffect(() => {
   if (!isRefi) return;
@@ -2932,7 +2967,7 @@ export default function MortgageBlueprint() {
    refiEstCashOut, refiSkipPmtAmt, refiEscrowRefund, refiNetCashInHand,
    refiNetClosingCosts, refiNetPrepaids, refiNetPayoff, refiNetNewLoan,
    refiCostOfWaiting,
-   refiCalcPI, refiCalcBalance, refiCalcRemainingMonths, refiMonthsElapsed, refiEffPI, refiEffBalance, refiEffRemaining,
+
    refiRateDrop, refiTest1Pass, refiTest2Pass, refiTest3Pass, refiAccelPayoff, refiTestScore,
    reoTotalValue, reoTotalDebt, reoTotalEquity, reoTotalPayments, reoTotalIncome, reoNetCashFlow,
    sellTTEntry, sellTotalTT, sellCommAmt, sellTotalCosts, sellNetProceeds,
@@ -3475,7 +3510,7 @@ export default function MortgageBlueprint() {
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
   ...(showInvestor ? [["invest","Investor"]] : []),
-  ...(firstTimeBuyer ? [["rentvbuy","Rent vs Buy"]] : []),
+  ...(firstTimeBuyer && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
   ["compare","Compare"],
   ["summary","Share"],
@@ -3709,7 +3744,7 @@ export default function MortgageBlueprint() {
    </div>
   </div>}
    {/* ── App Mode Toggle ── */}
-   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
       {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
@@ -3753,7 +3788,7 @@ export default function MortgageBlueprint() {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Sticky Header ── */}
-   <div style={{ position: "sticky", top: "calc(44px + env(safe-area-inset-top, 0px))", zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+   <div style={{ position: "sticky", top: 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ padding: "16px 20px 8px" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
@@ -5034,13 +5069,13 @@ export default function MortgageBlueprint() {
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.fedItemized)}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.stateItemized)}</span>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13, background: `${T.blue}06`, margin: "0 -14px", padding: "8px 14px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, borderBottom: `1px solid ${T.separator}`, fontSize: 13, background: `${T.blue}06`, margin: "0 -14px", padding: "8px 14px" }}>
      <span style={{ color: T.textSecondary }}>Std Deduction</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(calc.fedStdDeduction)}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(calc.stStdDeduction)}</span>
     </div>
     {/* ── THE DELTA ── */}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "10px 0", fontSize: 13, background: calc.fedItemizes || calc.stateItemizes ? `${T.green}08` : `${T.orange}08`, margin: "0 -14px", padding: "10px 14px", borderRadius: "0 0 12px 12px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 13, background: calc.fedItemizes || calc.stateItemizes ? `${T.green}08` : `${T.orange}08`, margin: "0 -14px", padding: "10px 14px", borderRadius: "0 0 12px 12px" }}>
      <span style={{ color: T.text, fontWeight: 700 }}>Delta (Benefit)</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.fedItemizes ? T.green : T.orange }}>{calc.fedItemizes ? fmt(calc.fedDelta) : "$0"}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.stateItemizes ? T.green : T.orange }}>{calc.stateItemizes ? fmt(calc.stateDelta) : "$0"}</span>
@@ -5677,8 +5712,16 @@ export default function MortgageBlueprint() {
    </div>
    <div style={{ marginBottom: 14 }}>
     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Closed On</label>
-    <input type="date" value={refiClosedDate} onChange={e => setRefiClosedDate(e.target.value)}
-     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT }} />
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+     <select value={refiClosedDate ? refiClosedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; const y = refiClosedDate ? refiClosedDate.slice(0, 4) : new Date().getFullYear(); if (m && y) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+      <option value="">Month</option>
+      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+     </select>
+     <select value={refiClosedDate ? refiClosedDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiClosedDate ? refiClosedDate.slice(5, 7) : "01"; if (y && m) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+      <option value="">Year</option>
+      {Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+     </select>
+    </div>
    </div>
    {refiOriginalAmount > 0 && refiCurrentRate > 0 && (<div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.blue, marginBottom: 6 }}>AUTO-CALCULATED</div>
@@ -7581,7 +7624,7 @@ export default function MortgageBlueprint() {
      `}</style>
 
      {/* PP Notification */}
-     {ppNotif && <div style={{ position:"fixed",top:"calc(env(safe-area-inset-top, 16px) + 8px)",left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
+     {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
 
      {/* PP Header */}
      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
