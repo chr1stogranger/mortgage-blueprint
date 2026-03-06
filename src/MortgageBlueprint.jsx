@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -26,7 +27,12 @@ const REALTOR_PARTNERS = {
  //  bio: "East Bay expert — Oakland, Berkeley, Alameda",
  // },
 };
-const CITY_TAX_RATES = {
+// CA city tax rates and city names now imported from citiesData.js
+// CITY_TAX_RATES alias for backward compatibility
+const CITY_TAX_RATES = CA_CITY_TAX_RATES;
+const CITY_NAMES = CA_CITY_NAMES;
+/* OLD INLINE DATA REMOVED — replaced by import
+const _CITY_TAX_RATES_OLD = {
  "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
  "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
  "Atherton": 0.010913, "Bay Point": 0.011023, "Bayview": 0.011023, "Belmont": 0.011247,
@@ -58,7 +64,7 @@ const CITY_TAX_RATES = {
  "Sunnyvale": 0.012018, "Tiburon": 0.010931, "Union City": 0.012081, "Vacaville": 0.011558,
  "Vallejo": 0.011558, "Walnut Creek": 0.011023, "Windsor": 0.010989, "Woodside": 0.01086,
 };
-const CITY_NAMES = Object.keys(CITY_TAX_RATES).sort();
+END OF OLD INLINE DATA */
 // Average effective property tax rates by state (2024/2025 data — actual taxes paid as % of home value)
 const STATE_PROPERTY_TAX_RATES = {
  "Alabama": 0.0040, "Alaska": 0.0118, "Arizona": 0.0062, "Arkansas": 0.0061,
@@ -1811,6 +1817,9 @@ export default function MortgageBlueprint() {
  React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab]);
  React.useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [tab]);
  React.useEffect(() => { if (loanType === "FHA" || loanType === "VA") setIncludeEscrow(true); }, [loanType]);
+ // Sync escrow toggles between purchase flow (includeEscrow) and refi flow (refiHasEscrow)
+ React.useEffect(() => { setRefiHasEscrow(includeEscrow); }, [includeEscrow]);
+ React.useEffect(() => { if (isRefi) setIncludeEscrow(refiHasEscrow); }, [refiHasEscrow]);
  React.useEffect(() => {
   if (tab === "qualify") {
    setConfirmAffordApply(false);
@@ -4225,9 +4234,12 @@ export default function MortgageBlueprint() {
   {propertyState === "California" ? (
    <SearchSelect label="City (tax rate)" value={city} onChange={setCity} options={CITY_NAMES} />
   ) : (
-   <div style={{ background: `${T.blue}08`, borderRadius: 12, padding: "10px 14px", marginBottom: 14 }}>
-    <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Using {propertyState} average effective rate of {((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(2)}%. For a precise rate, check your county assessor.</div>
-   </div>
+   <>
+    <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
+    <div style={{ background: `${T.blue}08`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, marginTop: -6 }}>
+     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Using {propertyState} average effective rate of {((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(2)}%. For a precise rate, check your county assessor.</div>
+    </div>
+   </>
   )}
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
    <Inp label="Insurance" value={annualIns} onChange={setAnnualIns} suffix="/yr" max={50000} sm tip="Annual homeowner's insurance premium. Required by all lenders. Typically 0.3-1% of home value per year." />
