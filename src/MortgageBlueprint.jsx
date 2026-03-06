@@ -1390,6 +1390,7 @@ export default function MortgageBlueprint() {
  const [refiOriginalAmount, setRefiOriginalAmount] = useState(0);
  const [refiOriginalTerm, setRefiOriginalTerm] = useState(30);
  const [refiPurpose, setRefiPurpose] = useState("Rate/Term");
+ const [refiNewLoanAmtOverride, setRefiNewLoanAmtOverride] = useState(0);
  const [refiClosedDate, setRefiClosedDate] = useState("");
  const [refiExtraPaid, setRefiExtraPaid] = useState(0);
  const [refiAnnualTax, setRefiAnnualTax] = useState(0);
@@ -1453,7 +1454,7 @@ export default function MortgageBlueprint() {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
   showInvestor, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   darkMode,
@@ -1577,6 +1578,7 @@ export default function MortgageBlueprint() {
   if (s.refiHasEscrow !== undefined) setRefiHasEscrow(s.refiHasEscrow);
   if (s.refiEscrowBalance !== undefined) setRefiEscrowBalance(s.refiEscrowBalance);
   if (s.refiSkipMonths !== undefined) setRefiSkipMonths(s.refiSkipMonths);
+  if (s.refiNewLoanAmtOverride !== undefined) setRefiNewLoanAmtOverride(s.refiNewLoanAmtOverride);
   if (s.darkMode !== undefined) setDarkMode(s.darkMode);
   if (s.showInvestor !== undefined) setShowInvestor(s.showInvestor);
   if (s.invMonthlyRent !== undefined) setInvMonthlyRent(s.invMonthlyRent);
@@ -1660,7 +1662,7 @@ export default function MortgageBlueprint() {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
   darkMode, loaded, scenarioName]);
  const switchScenario = async (name) => {
   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
@@ -2914,7 +2916,8 @@ export default function MortgageBlueprint() {
   const refiCurTotalRemaining = refiCurRemainingInt + refiEffBalance;
   const refiCurTotalCostRemaining = refiEffPI * refiEffRemaining;
   const refiCurLTV = refiHomeValue > 0 ? refiEffBalance / refiHomeValue : 0;
-  const refiNewLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
+  const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
+  const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   const refiNewMr = mr;
   const refiNewPi = refiNewLoanAmt > 0 ? (refiNewLoanAmt * refiNewMr * Math.pow(1 + refiNewMr, np)) / (Math.pow(1 + refiNewMr, np) - 1) : 0;
   const refiNewMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : yearlyTax / 12;
@@ -3075,7 +3078,7 @@ export default function MortgageBlueprint() {
    refiCurMonthlyTax, refiCurMonthlyIns, refiCurEscrowEffective,
    refiNewMonthlyTax, refiNewMonthlyIns,
    refiCurRemainingInt, refiCurTotalRemaining, refiCurTotalCostRemaining, refiCurLTV,
-   refiNewLoanAmt, refiNewPi, refiNewEscrow, refiNewMI, refiNewTotalPmt,
+   refiAutoLoanAmt, refiNewLoanAmt, refiNewPi, refiNewEscrow, refiNewMI, refiNewTotalPmt,
    refiNewIntThisMonth, refiNewPrinThisMonth, refiNewTotalInt, refiNewTotalCost, refiNewLTV,
    refiMonthlySavings, refiMonthlyTotalSavings, refiIntSavings,
    refiBreakevenMonths, refiLifetimeSavings, refiAmortCompare,
@@ -3101,7 +3104,7 @@ export default function MortgageBlueprint() {
   incomes, otherIncome, assets, payExtra, extraPayment, creditScore,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths]);
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
  // === INVESTMENT PROPERTY CALCULATIONS ===
  const invCalc = useMemo(() => {
   const annualRent = invMonthlyRent * 12;
@@ -5919,6 +5922,13 @@ export default function MortgageBlueprint() {
    </div>
    <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} />
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
+   <Inp label="New Loan Amount" value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} tip="Defaults to your payoff balance. Override if your new loan amount differs (e.g., rolling in closing costs)." />
+   {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -8, marginBottom: 10 }}>
+     <div style={{ fontSize: 11, color: T.textTertiary }}>Payoff balance: {fmt(calc.refiAutoLoanAmt)}</div>
+     <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+    </div>
+   )}
   </Card>
  </Sec>}
  {isRefi && refiClosedDate && <Sec title="Extra Payments">
