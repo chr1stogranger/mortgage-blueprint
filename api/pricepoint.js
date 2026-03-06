@@ -37,12 +37,16 @@ function normalizeProperty(raw, index, prefix, isSold) {
   }
 
   // For sold listings, raw.price is the SOLD price. The original list price
-  // may be in raw.listPrice (some API versions) — if not, leave null so the
-  // frontend can handle it gracefully instead of showing sold price as list price.
+  // may be in various fields depending on the API version. Try all known fields.
+  // If none available, fall back to null so the frontend can use Zestimate.
   const soldPrice = isSold ? (raw.price || null) : null;
   const listPrice = isSold
-    ? (raw.listPrice || raw.originalListPrice || null)
+    ? (raw.listPrice || raw.originalListPrice || raw.priceForHDP?.listing || raw.attributionInfo?.listingPrice || null)
     : (raw.price || 0);
+  // Log sold listing fields to help debug what's available
+  if (isSold && index < 2) {
+    console.log(`[PricePoint] Sold listing fields: price=${raw.price}, listPrice=${raw.listPrice}, originalListPrice=${raw.originalListPrice}, zestimate=${raw.zestimate}, keys=${Object.keys(raw).slice(0,20).join(',')}`);
+  }
 
   return {
     id: `${prefix}${index + 1}`,
