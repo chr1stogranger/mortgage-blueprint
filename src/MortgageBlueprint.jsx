@@ -3728,12 +3728,17 @@ export default function MortgageBlueprint() {
  const refiPillarCount = [calc.ficoCheck, calc.dtiCheck, refiLtvCheck].filter(c => c === "Good!").length;
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
-  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: 90, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))", fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
     *, *::before, *::after { box-sizing: border-box; }
     @viewport { width: device-width; }
     @supports (padding-top: env(safe-area-inset-top)) {
      .mb-safe-top { padding-top: env(safe-area-inset-top) !important; }
+     .mb-safe-bottom { padding-bottom: env(safe-area-inset-bottom) !important; }
+    }
+    /* Standalone PWA / Capacitor — extra safe area for status bar */
+    @media all and (display-mode: standalone) {
+     .mb-safe-top { padding-top: env(safe-area-inset-top, 20px) !important; }
     }
     @keyframes buildGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(74,144,217,0.5), 0 0 20px rgba(74,144,217,0.15); } 50% { box-shadow: 0 0 0 2px rgba(74,144,217,0.8), 0 0 30px rgba(74,144,217,0.25); } }
     @keyframes pulseBlue { 0%, 100% { box-shadow: 0 0 0 3px rgba(74,144,217,0.3), 0 0 12px rgba(74,144,217,0.1); } 50% { box-shadow: 0 0 0 3px rgba(74,144,217,0.7), 0 0 24px rgba(74,144,217,0.25); } }
