@@ -3546,7 +3546,7 @@ export default function MortgageBlueprint() {
  const ppPracticeGuesses = ppGuesses.filter(g => g.isSoldMode);
  const ppPracticeRevealed = ppPracticeGuesses.filter(g => g.revealed && g.soldPrice);
 
- // Competition stats (for leaderboard)
+ // Live mode stats (for leaderboard)
  const ppCompAvgDiff = ppCompRevealed.length > 0 ? (ppCompRevealed.reduce((s,g) => s + Math.abs((g.guess-g.soldPrice)/g.soldPrice)*100, 0)/ppCompRevealed.length).toFixed(1) : "—";
  const ppCompOverCount = ppCompRevealed.filter(g => g.guess > g.soldPrice).length;
  const ppCompUnderCount = ppCompRevealed.filter(g => g.guess < g.soldPrice).length;
@@ -7774,7 +7774,7 @@ export default function MortgageBlueprint() {
       <div>
        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
        <div style={{ fontSize: 12, color: T.textTertiary }}>
-        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Sold Homes" : "Active Listings"}` : ppSoldMode ? "Practice · Sold Homes" : "Competition · Sunset District"}
+        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Sold Homes" : "Active Listings"}` : ppSoldMode ? "Practice · Sold Homes" : "Live · Sunset District"}
         {ppDataSource === "live" && <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(56,189,126,0.15)", color:"#38bd7e", fontWeight:700 }}>LIVE</span>}
        </div>
       </div>
@@ -7909,7 +7909,7 @@ export default function MortgageBlueprint() {
       <div style={{ padding: "0 18px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: ppSoldMode ? "#e8c84d" : "#38bd7e" }}>
-         {ppSoldMode ? "🎓 Practice Mode" : "🏆 Competition"}
+         {ppSoldMode ? "🎓 Practice Mode" : "🏆 Live Mode"}
         </span>
         <span style={{ fontSize: 10, color: T.textTertiary, background: T.pillBg, borderRadius: 6, padding: "2px 6px" }}>
          {ppSoldMode ? "Sold Homes" : "Live Listings"}
@@ -8036,16 +8036,23 @@ export default function MortgageBlueprint() {
             );
            })()}
            <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-            <div style={{ flex: 1 }}>
-             <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
-             <div style={{ fontSize: 22, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
-            </div>
+            {ppCurrentListing.listPrice ? (
+             <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
+             </div>
+            ) : ppCurrentListing.zestimate ? (
+             <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+             </div>
+            ) : null}
             {ppSoldMode && ppCurrentListing.soldDate ? (
              <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Sold Date</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
              </div>
-            ) : ppCurrentListing.zestimate ? (
+            ) : !ppCurrentListing.listPrice && ppCurrentListing.zestimate ? null : ppCurrentListing.zestimate ? (
              <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
@@ -8058,10 +8065,12 @@ export default function MortgageBlueprint() {
            {ppGuessInput && (() => {
             const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
             if (!v) return null;
-            const d = ((v - ppCurrentListing.listPrice)/ppCurrentListing.listPrice*100).toFixed(1);
+            const comparePrice = ppCurrentListing.listPrice || ppCurrentListing.zestimate;
+            const compareLabel = ppCurrentListing.listPrice ? "list" : "Zestimate";
+            const d = comparePrice ? ((v - comparePrice)/comparePrice*100).toFixed(1) : null;
             const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
             return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
-             {d > 0 ? "+" : ""}{d}% vs list{pp ? ` · $${pp}/SF` : ""}
+             {d !== null ? <>{d > 0 ? "+" : ""}{d}% vs {compareLabel}</> : null}{pp ? `${d !== null ? " · " : ""}$${pp}/SF` : ""}
              {!ppSoldMode && ppCurrentListing.zestimate ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
             </div>;
            })()}
@@ -8260,9 +8269,9 @@ export default function MortgageBlueprint() {
          </div>
         </div>
 
-        {/* ── Competition Stats ── */}
+        {/* ── Live Mode Stats ── */}
         <div style={{ fontSize: 13, fontWeight: 700, color: "#38bd7e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-         <span>🏆 Competition</span>
+         <span>🏆 Live</span>
          <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>counts toward leaderboard</span>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
@@ -8274,10 +8283,10 @@ export default function MortgageBlueprint() {
          ))}
         </div>
 
-        {/* Competition Bias */}
+        {/* Live Mode Bias */}
         {ppCompRevealed.length > 0 && (
          <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:18 }}>
-          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Competition Bias</div>
+          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Live Mode Bias</div>
           <div style={{ display:"flex", height:34, borderRadius:10, overflow:"hidden", marginBottom:8 }}>
            {ppCompOverCount > 0 && <div style={{ width:`${(ppCompOverCount/ppCompRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppCompOverCount}</div>}
            {ppCompUnderCount > 0 && <div style={{ width:`${(ppCompUnderCount/ppCompRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppCompUnderCount}</div>}

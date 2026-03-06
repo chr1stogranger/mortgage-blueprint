@@ -36,6 +36,14 @@ function normalizeProperty(raw, index, prefix, isSold) {
       : Math.round(raw.lotAreaValue);
   }
 
+  // For sold listings, raw.price is the SOLD price. The original list price
+  // may be in raw.listPrice (some API versions) — if not, leave null so the
+  // frontend can handle it gracefully instead of showing sold price as list price.
+  const soldPrice = isSold ? (raw.price || null) : null;
+  const listPrice = isSold
+    ? (raw.listPrice || raw.originalListPrice || null)
+    : (raw.price || 0);
+
   return {
     id: `${prefix}${index + 1}`,
     zpid: String(raw.zpid || ""),
@@ -49,9 +57,9 @@ function normalizeProperty(raw, index, prefix, isSold) {
     lotSqft,
     yearBuilt: raw.yearBuilt || null,
     propertyType: normalizeHomeType(raw.homeType),
-    listPrice: raw.price || 0,
+    listPrice,
     zestimate: raw.zestimate || null,
-    soldPrice: isSold ? (raw.price || null) : null,
+    soldPrice,
     soldDate: isSold ? normalizeSoldDate(raw.dateSold) : null,
     daysOnMarket: raw.daysOnZillow || 0,
     status: isSold ? "sold" : (raw.homeStatus === "PENDING" || raw.homeStatus === "PENDING_UNDER_CONTRACT") ? "pending" : "active",
