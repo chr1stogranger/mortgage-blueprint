@@ -3049,9 +3049,13 @@ export default function MortgageBlueprint() {
   const monthsSaved = amortStandard.length - amortSchedule.length;
   const lastPayDate = amortSchedule.length > 0 ? new Date(new Date().getFullYear(), new Date().getMonth() + amortSchedule.length, 1) : null;
   const firstPayDate = new Date(closeDate.getFullYear(), closeDate.getMonth() + 2, 1);
+  // In refi mode, override displayPayment to use the new refi P&I so donut matches "New" box
+  const finalDisplayPayment = (isRefi && refiNewLoanAmt > 0)
+   ? (includeEscrow ? (refiNewPi + refiNewMonthlyTax + refiNewMonthlyIns + refiNewMI + hoa) : (refiNewPi + refiNewMI + hoa))
+   : displayPayment;
   return {
    dp, baseLoan, loan, fhaUp, vaFundingFee, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, monthlyPMI, monthlyMIP, monthlyMI,
-   housingPayment, displayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
+   housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
@@ -3271,7 +3275,13 @@ export default function MortgageBlueprint() {
   const yr30 = data[30] || {};
   return { data, breakEvenYear, yr5, yr10, yr30 };
  }, [rbCurrentRent, rbRentGrowth, rbInvestReturn, salesPrice, appreciationRate, calc]);
- const paySegs = [
+ const paySegs = (isRefi && calc.refiNewLoanAmt > 0) ? [
+  { v: calc.refiNewPrinThisMonth, c: T.cyan, l: "Principal", tip: "The portion of your new refi payment that reduces your loan balance. This is equity you're building." },
+  { v: calc.refiNewIntThisMonth, c: T.blue, l: "Interest", tip: "The interest cost on your new refinanced loan. Lower rate = less interest each month." },
+  ...(includeEscrow ? [{ v: calc.refiNewMonthlyTax, c: T.orange, l: "Tax", tip: "Property tax escrowed monthly on your new loan." }, { v: calc.refiNewMonthlyIns, c: T.green, l: "Insurance", tip: "Homeowner's insurance escrowed monthly on your new loan." }] : []),
+  { v: calc.refiNewMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: "Mortgage insurance on your new refinanced loan. Drops off at 80% LTV for conventional loans." },
+  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues remain the same after refinancing." },
+ ] : [
   { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal", tip: "The portion of your payment that reduces your loan balance. This is equity you're building — like a forced savings account." },
   { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest", tip: "The cost of borrowing money — this is the lender's profit. Early in the loan, most of your payment goes here. As you pay down the balance, this shrinks." },
   ...(includeEscrow ? [{ v: calc.monthlyTax, c: T.orange, l: "Tax", tip: "Your annual property tax divided by 12 and collected monthly by your lender. In California, property tax is typically 1.1–1.25% of your home's assessed value." }, { v: calc.ins, c: T.green, l: "Insurance", tip: "Homeowner's insurance protects your home against fire, theft, and natural disasters. Lenders require it. Typical cost: $1,200–$3,000/year depending on location and coverage." }] : []),
@@ -5716,7 +5726,7 @@ export default function MortgageBlueprint() {
       {propertyState === "California" ? (
        <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} req />
       ) : (
-       <TextInp label="City" value={city} onChange={setCity} placeholder="Enter city" req />
+       <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} req />
       )}
      </div>
     </div>
@@ -6027,7 +6037,7 @@ export default function MortgageBlueprint() {
       {propertyState === "California" ? (
        <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
       ) : (
-       <TextInp label="City" value={city} onChange={setCity} />
+       <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
       )}
      </div>
      <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
