@@ -1173,8 +1173,70 @@ export default function MortgageBlueprint() {
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("setup");
- // ── App Mode: Blueprint or PricePoint ──
+ // ── App Mode: Blueprint, PricePoint, or Refi Hunter ──
  const [appMode, setAppMode] = useState("blueprint");
+ // ── Refi Hunter State ──
+ const [rhLoans, setRhLoans] = useState(() => { try { const s = localStorage.getItem("rh:loans"); return s ? JSON.parse(s) : []; } catch(e) { return []; } });
+ const [rhView, setRhView] = useState("dashboard"); // dashboard | addloan | proposal | digest | settings
+ const [rhSelectedLoan, setRhSelectedLoan] = useState(null);
+ const [rhMarketRate, setRhMarketRate] = useState(() => { try { return parseFloat(localStorage.getItem("rh:marketRate")) || 6.25; } catch(e) { return 6.25; } });
+ const [rhClosingCosts, setRhClosingCosts] = useState(() => { try { return parseFloat(localStorage.getItem("rh:closingCosts")) || 5000; } catch(e) { return 5000; } });
+ const [rhShowForm, setRhShowForm] = useState(false);
+ const rhTeamEmails = ["cgranger@xperthomelending.com", "pnoerr@gmail.com", "gina@tsdmtg.com"];
+ // Save Refi Hunter data
+ useEffect(() => { try { localStorage.setItem("rh:loans", JSON.stringify(rhLoans)); } catch(e) {} }, [rhLoans]);
+ useEffect(() => { try { localStorage.setItem("rh:marketRate", rhMarketRate); } catch(e) {} }, [rhMarketRate]);
+ useEffect(() => { try { localStorage.setItem("rh:closingCosts", rhClosingCosts); } catch(e) {} }, [rhClosingCosts]);
+ // ── Refi Hunter 3-Point Test Engine ──
+ function rhRunTest(loan) {
+  const mRate = rhMarketRate;
+  const cc = rhClosingCosts;
+  const curRate = loan.rate;
+  const newRate = mRate;
+  const rateDrop = curRate - newRate;
+  const monthsElapsed = Math.max(0, Math.floor((Date.now() - new Date(loan.closeDate).getTime()) / (30.44*24*60*60*1000)));
+  const mR = curRate / 100 / 12;
+  const totalPmts = (loan.term || 30) * 12;
+  const origPmt = loan.amount * (mR * Math.pow(1+mR, totalPmts)) / (Math.pow(1+mR, totalPmts) - 1);
+  let bal = loan.amount;
+  for (let i = 0; i < monthsElapsed && i < totalPmts; i++) { bal -= (origPmt - bal * mR); }
+  bal = Math.max(bal, 0);
+  const remPmts = totalPmts - monthsElapsed;
+  const nR = newRate / 100 / 12;
+  const newPmt = nR > 0 ? bal * (nR * Math.pow(1+nR, 360)) / (Math.pow(1+nR, 360) - 1) : 0;
+  const piSavings = origPmt - newPmt;
+  const moTax = (loan.annualTax || 12000) / 12;
+  const moIns = (loan.annualInsurance || 1500) / 12;
+  const t1 = rateDrop >= 0.50;
+  const beMo = piSavings > 0 ? Math.ceil(cc / piSavings) : 999;
+  const t2 = beMo <= 24;
+  let acMo = 0;
+  if (piSavings > 0 && nR > 0) { let tb = bal; while (tb > 0 && acMo < 600) { tb -= ((newPmt + piSavings) - tb * nR); acMo++; } }
+  const accelMo = 360 - acMo;
+  const t3 = accelMo >= 12;
+  const score = (t1?1:0) + (t2?1:0) + (t3?1:0);
+  const curRemInt = (origPmt * remPmts) - bal;
+  const newTotInt = (newPmt * 360) - bal;
+  const timing = monthsElapsed >= 5 ? "ready" : monthsElapsed >= 4 ? "soon" : "waiting";
+  const canStart = new Date(loan.closeDate); canStart.setMonth(canStart.getMonth() + 5);
+  const canClose = new Date(loan.closeDate); canClose.setMonth(canClose.getMonth() + 6); canClose.setDate(canClose.getDate() + 1);
+  return { curRate, newRate, rateDrop, bal: Math.round(bal), remPmts, origPmt: Math.round(origPmt*100)/100, newPmt: Math.round(newPmt*100)/100, piSavings: Math.round(piSavings*100)/100, moTax, moIns, totCurPmt: Math.round((origPmt+moTax+moIns)*100)/100, totNewPmt: Math.round((newPmt+moTax+moIns)*100)/100, cc, beMo, accelMo, accelYrs: Math.round(accelMo/12*10)/10, intSavings: Math.round(curRemInt - newTotInt), t1, t2, t3, score, timing, monthsElapsed, canStart, canClose, isHot: score===3 && timing==="ready" };
+ }
+ function rhAddLoan(loan) { setRhLoans(prev => [...prev, { ...loan, id: Date.now() }]); setRhShowForm(false); }
+ function rhDeleteLoan(id) { setRhLoans(prev => prev.filter(l => l.id !== id)); if (rhSelectedLoan && rhSelectedLoan.id === id) setRhSelectedLoan(null); }
+ function rhLoadSampleData() {
+  setRhLoans([
+   { id: 1, firstName:"Jason", lastName:"Yurasek", email:"jason.yurasek@gmail.com", phone:"(415) 595-1506", address:"50445 Via Amante, La Quinta, CA", homeValue:1350000, amount:1026027, rate:6.750, loanType:"Conventional", term:30, closeDate:"2025-06-15", annualTax:16600, annualInsurance:3478, fico:760 },
+   { id: 2, firstName:"Sarah", lastName:"Mitchell", email:"sarah.m@email.com", phone:"(510) 555-0142", address:"1245 Park Ave, Alameda, CA 94501", homeValue:1100000, amount:880000, rate:7.125, loanType:"Conventional", term:30, closeDate:"2025-07-01", annualTax:13343, annualInsurance:1800, fico:745 },
+   { id: 3, firstName:"Marcus", lastName:"Chen", email:"mchen@email.com", phone:"(415) 555-0198", address:"782 Dolores St, San Francisco, CA 94110", homeValue:1500000, amount:1125000, rate:6.875, loanType:"Jumbo", term:30, closeDate:"2025-08-20", annualTax:18195, annualInsurance:2400, fico:780 },
+   { id: 4, firstName:"David", lastName:"Patel", email:"dpatel@email.com", phone:"(925) 555-0167", address:"3421 Central Pkwy, Dublin, CA 94568", homeValue:950000, amount:760000, rate:7.250, loanType:"Conventional", term:30, closeDate:"2025-09-10", annualTax:11524, annualInsurance:1400, fico:720 },
+   { id: 5, firstName:"Emily", lastName:"Rodriguez", email:"erod@email.com", phone:"(510) 555-0234", address:"567 Grand Ave, Oakland, CA 94610", homeValue:850000, amount:637500, rate:6.625, loanType:"Conventional", term:30, closeDate:"2025-10-05", annualTax:10310, annualInsurance:1200, fico:755 },
+   { id: 6, firstName:"Tom", lastName:"Nakamura", email:"tnakamura@email.com", phone:"(415) 555-0311", address:"2100 Pacific Ave, SF, CA 94115", homeValue:2200000, amount:1650000, rate:7.000, loanType:"Jumbo", term:30, closeDate:"2025-05-01", annualTax:26686, annualInsurance:3200, fico:790 },
+   { id: 7, firstName:"Jessica", lastName:"Owens", email:"jowens@email.com", phone:"(510) 555-0422", address:"890 Bay Farm Island Rd, Alameda, CA", homeValue:1050000, amount:787500, rate:6.500, loanType:"Conventional", term:30, closeDate:"2025-11-15", annualTax:12736, annualInsurance:1500, fico:740 },
+   { id: 8, firstName:"Kevin", lastName:"Thompson", email:"kthompson@email.com", phone:"(925) 555-0539", address:"456 Main St, Walnut Creek, CA 94596", homeValue:1200000, amount:960000, rate:7.375, loanType:"Conventional", term:30, closeDate:"2025-06-28", annualTax:14556, annualInsurance:1800, fico:735 },
+  ]);
+ }
+ const rhFmt = (v) => typeof v === "number" ? "$" + Math.round(v).toLocaleString() : v;
  const [ppGuessInput, setPpGuessInput] = useState("");
  const [ppGuesses, setPpGuesses] = useState([]);
  const [ppView, setPpView] = useState("cards"); // cards | results | leaderboard | stats
@@ -3895,13 +3957,13 @@ export default function MortgageBlueprint() {
    <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
-      {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
+      {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"],["refi-hunter","🔥 Refi Hunter"]].map(([k,l]) => (
        <button key={k} onClick={() => setAppMode(k)} style={{
-        padding: "8px 20px", borderRadius: 12, border: "none", fontSize: 13, fontWeight: 700,
+        padding: "8px 16px", borderRadius: 12, border: "none", fontSize: 12, fontWeight: 700,
         fontFamily: "'SF Pro Display','Inter',sans-serif", cursor: "pointer", transition: "all 0.25s",
-        background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
+        background: appMode === k ? (k === "blueprint" ? T.blue : k === "refi-hunter" ? "#e85d5d" : "#38bd7e") : "transparent",
         color: appMode === k ? "#fff" : T.textTertiary,
-        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : "0 2px 12px rgba(56,189,126,0.3)") : "none",
+        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : k === "refi-hunter" ? "0 2px 12px rgba(232,93,93,0.3)" : "0 2px 12px rgba(56,189,126,0.3)") : "none",
        }}>{l}</button>
       ))}
      </div>
@@ -8423,6 +8485,416 @@ export default function MortgageBlueprint() {
          {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Practice mode — not counted toward leaderboard</div>}
          <button onClick={ppCloseReveal} style={{ width:"100%", padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", marginTop:ppShowReveal.isSoldMode ? 8 : 20, letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
         </div>
+       </div>
+      </div>
+     )}
+    </div>
+   )}
+   {/* ═══════════════════════════════════════════ */}
+   {/* REFI HUNTER MODE */}
+   {/* ═══════════════════════════════════════════ */}
+   {appMode === "refi-hunter" && (
+    <div style={{ maxWidth: 600, margin: "0 auto", width: "100%", padding: "0 16px 100px", boxSizing: "border-box" }}>
+     {/* Header */}
+     <div style={{ padding: "20px 0 16px" }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>🔥 Refi Hunter</div>
+      <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 2 }}>Closed loans scored against the 3-Point Refi Test</div>
+     </div>
+     {/* View Tabs */}
+     <div style={{ display: "flex", gap: 4, marginBottom: 16, background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}` }}>
+      {[["dashboard","Dashboard"],["addloan","Add Loan"],["digest","Digest"],["settings","Settings"]].map(([k,l]) => (
+       <button key={k} onClick={() => { setRhView(k); setRhSelectedLoan(null); }} style={{
+        flex: 1, padding: "8px 6px", borderRadius: 11, border: "none", fontSize: 12, fontWeight: 600,
+        background: rhView === k ? T.card : "transparent", color: rhView === k ? T.text : T.textTertiary,
+        cursor: "pointer", transition: "all 0.2s", boxShadow: rhView === k ? T.cardShadow : "none",
+       }}>{l}</button>
+      ))}
+     </div>
+
+     {/* Market Rate Input */}
+     {rhView === "dashboard" && (
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+       <div style={{ flex: 1, background: T.card, borderRadius: 14, padding: "12px 16px", border: `1px solid ${T.cardBorder}` }}>
+        <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>Today's Rate</div>
+        <input type="number" step="0.125" value={rhMarketRate} onChange={e => setRhMarketRate(parseFloat(e.target.value) || 0)} style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 8, padding: "8px 10px", color: T.text, fontSize: 18, fontWeight: 700, fontFamily: FONT }} />
+       </div>
+       <div style={{ flex: 1, background: T.card, borderRadius: 14, padding: "12px 16px", border: `1px solid ${T.cardBorder}` }}>
+        <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>Est. Closing Costs</div>
+        <input type="number" step="100" value={rhClosingCosts} onChange={e => setRhClosingCosts(parseFloat(e.target.value) || 0)} style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 8, padding: "8px 10px", color: T.text, fontSize: 18, fontWeight: 700, fontFamily: FONT }} />
+       </div>
+      </div>
+     )}
+
+     {/* DASHBOARD VIEW */}
+     {rhView === "dashboard" && !rhSelectedLoan && (<>
+      {/* Stats Row */}
+      {(() => {
+       const results = rhLoans.map(l => ({ loan: l, r: rhRunTest(l) }));
+       const hot = results.filter(x => x.r.score === 3 && x.r.timing === "ready");
+       const soon = results.filter(x => x.r.score >= 2 && x.r.timing === "soon");
+       const totalSavings = hot.reduce((s, x) => s + x.r.piSavings, 0);
+       return (<>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+         <div style={{ background: T.card, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}`, textAlign: "center" }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.green }}>{hot.length}</div>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 0.5 }}>HOT (3/3)</div>
+         </div>
+         <div style={{ background: T.card, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}`, textAlign: "center" }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.orange }}>{soon.length}</div>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 0.5 }}>COMING SOON</div>
+         </div>
+         <div style={{ background: T.card, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}`, textAlign: "center" }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.blue }}>{rhLoans.length}</div>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 0.5 }}>PIPELINE</div>
+         </div>
+        </div>
+        {totalSavings > 0 && (
+         <div style={{ background: `${T.green}12`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "14px 18px", marginBottom: 16, textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: T.green, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Potential Monthly Savings Across Hot Refis</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: T.green, marginTop: 4 }}>{rhFmt(totalSavings)}/mo</div>
+         </div>
+        )}
+
+        {/* Hot Refis */}
+        {hot.length > 0 && (
+         <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.green, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>🔥 Hot Refis — Ready to Go <span style={{ background: `${T.green}20`, padding: "2px 8px", borderRadius: 20, fontSize: 12 }}>{hot.length}</span></div>
+          {hot.map(({ loan, r }) => (
+           <div key={loan.id} onClick={() => setRhSelectedLoan(loan)} style={{ background: T.card, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}`, marginBottom: 8, cursor: "pointer", borderLeft: `4px solid ${T.green}`, transition: "transform 0.15s" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+             <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{loan.firstName} {loan.lastName}</div>
+              <div style={{ fontSize: 12, color: T.textTertiary }}>{loan.loanType} · {loan.rate}% → {r.newRate}% · {r.monthsElapsed}mo</div>
+             </div>
+             <div style={{ background: `${T.green}18`, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, color: T.green }}>{r.score}/3</div>
+            </div>
+            <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+             <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 700, color: T.green }}>{rhFmt(r.piSavings)}</div><div style={{ fontSize: 10, color: T.textTertiary }}>Monthly</div></div>
+             <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{r.beMo}mo</div><div style={{ fontSize: 10, color: T.textTertiary }}>Breakeven</div></div>
+             <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{r.accelYrs}yr</div><div style={{ fontSize: 10, color: T.textTertiary }}>Faster</div></div>
+             <div style={{ textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 700, color: T.green }}>✓ Ready</div><div style={{ fontSize: 10, color: T.textTertiary }}>Status</div></div>
+            </div>
+           </div>
+          ))}
+         </div>
+        )}
+
+        {/* Coming Soon */}
+        {soon.length > 0 && (
+         <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.orange, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>⏳ Coming Soon <span style={{ background: `${T.orange}20`, padding: "2px 8px", borderRadius: 20, fontSize: 12 }}>{soon.length}</span></div>
+          {soon.map(({ loan, r }) => (
+           <div key={loan.id} onClick={() => setRhSelectedLoan(loan)} style={{ background: T.card, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}`, marginBottom: 8, cursor: "pointer", borderLeft: `4px solid ${T.orange}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+             <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{loan.firstName} {loan.lastName}</div>
+              <div style={{ fontSize: 12, color: T.textTertiary }}>{loan.loanType} · {loan.rate}% → {r.newRate}% · {r.monthsElapsed}mo</div>
+             </div>
+             <div style={{ background: `${T.orange}18`, padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, color: T.orange }}>{r.score}/3</div>
+            </div>
+           </div>
+          ))}
+         </div>
+        )}
+
+        {/* All Other Loans */}
+        {(() => {
+         const other = results.filter(x => !hot.includes(x) && !soon.includes(x));
+         return other.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+           <div style={{ fontSize: 14, fontWeight: 700, color: T.textSecondary, marginBottom: 10 }}>📋 Full Pipeline</div>
+           {other.map(({ loan, r }) => (
+            <div key={loan.id} onClick={() => setRhSelectedLoan(loan)} style={{ background: T.card, borderRadius: 14, padding: "12px 16px", border: `1px solid ${T.cardBorder}`, marginBottom: 6, cursor: "pointer", opacity: 0.7 }}>
+             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+               <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{loan.firstName} {loan.lastName}</div>
+               <div style={{ fontSize: 11, color: T.textTertiary }}>{loan.rate}% · {rhFmt(r.bal)} bal · {r.monthsElapsed}mo</div>
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: r.score >= 2 ? T.orange : T.textTertiary }}>{r.score}/3</div>
+             </div>
+            </div>
+           ))}
+          </div>
+         );
+        })()}
+
+        {/* Empty State */}
+        {rhLoans.length === 0 && (
+         <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎯</div>
+          <div style={{ fontSize: 15, color: T.textSecondary, marginBottom: 20 }}>No loans in the pipeline yet.</div>
+          <button onClick={() => setRhView("addloan")} style={{ padding: "12px 24px", borderRadius: 14, border: "none", background: T.blue, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginRight: 8 }}>Add Loan</button>
+          <button onClick={rhLoadSampleData} style={{ padding: "12px 24px", borderRadius: 14, border: `1px solid ${T.cardBorder}`, background: T.card, color: T.text, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Load Sample Data</button>
+         </div>
+        )}
+       </>);
+      })()}
+     </>)}
+
+     {/* PROPOSAL VIEW */}
+     {rhView === "dashboard" && rhSelectedLoan && (() => {
+      const loan = rhSelectedLoan;
+      const r = rhRunTest(loan);
+      const skipPmts = 2;
+      const skipAmt = r.totCurPmt * skipPmts;
+      const cashToClose = r.cc + 3500;
+      const netCash = skipAmt - cashToClose;
+      return (
+       <div>
+        <button onClick={() => setRhSelectedLoan(null)} style={{ background: T.pillBg, border: `1px solid ${T.cardBorder}`, borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: T.textSecondary, cursor: "pointer", marginBottom: 16 }}>← Back to Dashboard</button>
+
+        {/* Header */}
+        <div style={{ background: T.card, borderRadius: 16, border: `1px solid ${T.cardBorder}`, overflow: "hidden", marginBottom: 16 }}>
+         <div style={{ padding: "20px 20px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+           <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: T.text }}>Chris Granger</div>
+            <div style={{ fontSize: 12, color: T.textTertiary }}>Loan Officer · NMLS #952015</div>
+           </div>
+           <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 12, color: T.textTertiary }}>(415) 987-8489</div>
+            <div style={{ fontSize: 12, color: T.textTertiary }}>cgranger@xperthomelending.com</div>
+           </div>
+          </div>
+          <div style={{ marginTop: 12, paddingBottom: 16 }}>
+           <div style={{ fontSize: 11, color: T.textTertiary }}>Prepared for</div>
+           <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>{loan.firstName} {loan.lastName}</div>
+          </div>
+         </div>
+         <div style={{ background: "#fffbeb", borderTop: `1px solid #fde68a`, padding: "8px 16px", fontSize: 10, fontWeight: 600, color: "#92400e", textAlign: "center" }}>⚠️ HYPOTHETICAL ESTIMATE — FOR ILLUSTRATIVE PURPOSES ONLY</div>
+        </div>
+
+        {/* Big Savings Number */}
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+         <div style={{ fontSize: 48, fontWeight: 800, color: T.green, lineHeight: 1 }}>{rhFmt(r.piSavings)}<span style={{ fontSize: 18 }}>/mo</span></div>
+         <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 4 }}>Monthly P&I Savings · Breakeven in {r.beMo} months</div>
+        </div>
+
+        {/* Monthly Payment Comparison */}
+        <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, overflow: "hidden", marginBottom: 12 }}>
+         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.cardBorder}`, fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: 1, textTransform: "uppercase" }}>Monthly Payment</div>
+         <div style={{ padding: "0 16px" }}>
+          {[["Principal & Interest", r.origPmt, r.newPmt, -r.piSavings], ["Taxes", r.moTax, r.moTax, 0], ["Insurance", r.moIns, r.moIns, 0]].map(([label, cur, nw, delta], i) => (
+           <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+            <span style={{ color: T.textSecondary, flex: 2 }}>{label}</span>
+            <span style={{ flex: 1, textAlign: "right", color: T.textTertiary }}>{rhFmt(cur)}</span>
+            <span style={{ flex: 1, textAlign: "right", color: T.blue, fontWeight: 600 }}>{rhFmt(nw)}</span>
+            <span style={{ flex: 1, textAlign: "right", color: delta < 0 ? T.green : T.textTertiary, fontWeight: 600 }}>{delta !== 0 ? (delta < 0 ? "-" : "+") + rhFmt(Math.abs(delta)) : "—"}</span>
+           </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", fontSize: 14, fontWeight: 700 }}>
+           <span style={{ flex: 2, color: T.text }}>Total Payment</span>
+           <span style={{ flex: 1, textAlign: "right", color: T.textTertiary }}>{rhFmt(r.totCurPmt)}</span>
+           <span style={{ flex: 1, textAlign: "right", color: T.blue }}>{rhFmt(r.totNewPmt)}</span>
+           <span style={{ flex: 1, textAlign: "right", color: T.green }}>-{rhFmt(r.piSavings)}</span>
+          </div>
+         </div>
+        </div>
+
+        {/* Savings Analysis */}
+        <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, overflow: "hidden", marginBottom: 12 }}>
+         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.cardBorder}`, fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: 1, textTransform: "uppercase" }}>Savings Analysis</div>
+         <div style={{ padding: "0 16px" }}>
+          {[["Monthly P&I Savings", rhFmt(r.piSavings), T.green], ["Est. Closing Costs", rhFmt(r.cc), T.text], ["Months to Breakeven", r.beMo + " months", T.text], ["Lifetime Interest Savings", rhFmt(r.intSavings), T.green]].map(([label, val, col], i) => (
+           <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+            <span style={{ color: T.textSecondary }}>{label}</span>
+            <span style={{ fontWeight: 700, color: col }}>{val}</span>
+           </div>
+          ))}
+         </div>
+        </div>
+
+        {/* Net Cash Out */}
+        <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, overflow: "hidden", marginBottom: 12 }}>
+         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.cardBorder}`, fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: 1, textTransform: "uppercase" }}>Net Cash Out</div>
+         <div style={{ padding: "0 16px" }}>
+          {[["New Loan Amount", rhFmt(r.bal), T.blue], ["Closing Costs", "-" + rhFmt(r.cc), T.text], ["Current Loan Payoff", "-" + rhFmt(r.bal), T.text], ["Cash to Close", rhFmt(cashToClose), T.red], ["Skip " + skipPmts + " Payment(s)", "+" + rhFmt(skipAmt), T.green], ["Net Cash in Hand", (netCash >= 0 ? "" : "-") + rhFmt(Math.abs(netCash)), netCash >= 0 ? T.green : T.red]].map(([label, val, col], i, arr) => (
+           <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: i < arr.length-1 ? `1px solid ${T.separator}` : "none", fontSize: 13, fontWeight: i === arr.length-1 ? 700 : 400, borderTop: i === arr.length-1 ? `2px solid ${T.cardBorder}` : "none" }}>
+            <span style={{ color: T.textSecondary }}>{label}</span>
+            <span style={{ fontWeight: 700, color: col }}>{val}</span>
+           </div>
+          ))}
+         </div>
+        </div>
+
+        {/* 3-Point Refi Test */}
+        <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, overflow: "hidden", marginBottom: 16 }}>
+         <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.cardBorder}`, fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: 1, textTransform: "uppercase" }}>3-Point Refi Test</div>
+         {[["Rate Drop ≥ 0.50%", r.rateDrop.toFixed(2) + "%", r.t1], ["Breakeven < 24 Months", r.beMo + " mo", r.t2], ["Payoff 1+ Year Faster", r.accelYrs + " yrs", r.t3]].map(([label, val, pass], i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${T.separator}` }}>
+           <span style={{ fontSize: 13, color: T.textSecondary }}>{label}</span>
+           <span style={{ fontSize: 14, fontWeight: 700, color: pass ? T.green : T.red }}>{val} {pass ? "✅" : "❌"}</span>
+          </div>
+         ))}
+         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: r.score === 3 ? `${T.green}12` : r.score >= 2 ? `${T.orange}12` : `${T.red}12` }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: T.text }}>Score</span>
+          <span style={{ fontWeight: 800, fontSize: 20, color: r.score === 3 ? T.green : r.score >= 2 ? T.orange : T.red }}>{r.score}/3</span>
+         </div>
+        </div>
+
+        {/* CTA */}
+        <div style={{ textAlign: "center", padding: "16px 20px", background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, marginBottom: 16 }}>
+         <div style={{ fontSize: 15, color: T.textSecondary }}>Ready to save <strong style={{ color: T.green }}>{rhFmt(r.piSavings)}/month</strong>?</div>
+         <div style={{ fontSize: 14, color: T.textTertiary, marginTop: 4 }}>Just reply "Go" and we'll handle the rest.</div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8 }}>
+         <button onClick={() => {
+          const subj = `Save ${rhFmt(r.piSavings)} per month — Refinance Work-Up for ${loan.firstName}`;
+          const body = `Hey ${loan.firstName},\n\nIt's time to save some $$$. Interest rates have moved since we closed your loan, and we have a window of opportunity to lower your rate and save you some money. I've run the numbers — here is where we are at:\n\nYour current rate: ${loan.rate.toFixed(3)}%\nNew estimated rate: ${r.newRate.toFixed(3)}%\nMonthly savings: ${rhFmt(r.piSavings)}/mo\nBreakeven: ${r.beMo} months\nLifetime interest savings: ${rhFmt(r.intSavings)}\n\nThe refinance passes all 3 points of my Refi Test (${r.score}/3)${r.score === 3 ? ", which means this is a no-brainer" : ""}.\n\nIf you want to move forward, just reply "Go" — I'll handle everything from there.\n\nYou know where to find me.\n\nChris Granger\nNMLS #952015 | (415) 987-8489\nXpert Home Lending`;
+          try { navigator.clipboard.writeText("Subject: " + subj + "\n\n" + body); alert("Email copied!"); } catch(e) { alert("Copy failed — try again"); }
+         }} style={{ flex: 1, padding: "14px 16px", borderRadius: 14, border: "none", background: T.green, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>📧 Copy Client Email</button>
+         <button onClick={() => {
+          setAppMode("blueprint");
+          setTab("refi");
+         }} style={{ flex: 1, padding: "14px 16px", borderRadius: 14, border: `1px solid ${T.cardBorder}`, background: T.card, color: T.text, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>🏗️ Open in Calculator</button>
+        </div>
+
+        {/* Disclaimer */}
+        <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 16, lineHeight: 1.4 }}>
+         Xpert Home Lending · NMLS #2179191 · This is a hypothetical estimate for educational purposes only. Not a loan offer, pre-approval, or commitment to lend.
+        </div>
+       </div>
+      );
+     })()}
+
+     {/* ADD LOAN VIEW */}
+     {rhView === "addloan" && (
+      <div>
+       <div style={{ background: T.card, borderRadius: 16, border: `1px solid ${T.cardBorder}`, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.cardBorder}` }}>
+         <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>Add Closed Loan</div>
+         <div style={{ fontSize: 12, color: T.textTertiary }}>The 3-Point Test runs automatically once saved.</div>
+        </div>
+        <form onSubmit={e => {
+         e.preventDefault();
+         const f = e.target;
+         rhAddLoan({
+          firstName: f.firstName.value, lastName: f.lastName.value,
+          email: f.email.value, phone: f.phone.value, address: f.address.value,
+          homeValue: parseFloat(f.homeValue.value) || 0, amount: parseFloat(f.loanAmount.value) || 0,
+          rate: parseFloat(f.currentRate.value) || 0, loanType: f.loanType.value,
+          term: parseInt(f.term.value) || 30, closeDate: f.closeDate.value,
+          annualTax: parseFloat(f.annualTax.value) || 12000, annualInsurance: parseFloat(f.annualIns.value) || 1500,
+          fico: parseInt(f.fico.value) || 750,
+         });
+         f.reset();
+         setRhView("dashboard");
+        }} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+         {[
+          [["firstName","First Name *","text",""],["lastName","Last Name *","text",""]],
+          [["email","Email","email",""],["phone","Phone","tel",""]],
+          [["address","Property Address","text","123 Main St, City, CA"]],
+          [["homeValue","Home Value *","number","1000000"],["loanAmount","Loan Amount *","number","800000"]],
+          [["currentRate","Current Rate (%) *","number","7.000"],["closeDate","Close Date *","date",""]],
+          [["loanType","Loan Type","select","Conventional"],["term","Term (years)","number","30"]],
+          [["annualTax","Annual Prop Tax","number","12000"],["annualIns","Annual Insurance","number","1500"]],
+          [["fico","FICO Score","number","750"]],
+         ].map((row, ri) => (
+          <div key={ri} style={{ display: "flex", gap: 10 }}>
+           {row.map(([name, label, type, placeholder]) => (
+            <div key={name} style={{ flex: 1 }}>
+             <label style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.3 }}>{label}</label>
+             {type === "select" ? (
+              <select name={name} defaultValue={placeholder} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.cardBorder}`, background: T.inputBg, color: T.text, fontSize: 14 }}>
+               {["Conventional","FHA","VA","USDA","Jumbo"].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+             ) : (
+              <input name={name} type={type} placeholder={placeholder} step={type === "number" ? (name === "currentRate" ? "0.125" : "1") : undefined} required={label.includes("*")} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.cardBorder}`, background: T.inputBg, color: T.text, fontSize: 14, boxSizing: "border-box" }} />
+             )}
+            </div>
+           ))}
+          </div>
+         ))}
+         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button type="submit" style={{ flex: 1, padding: "14px", borderRadius: 14, border: "none", background: T.blue, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Add Loan & Run Test</button>
+          <button type="button" onClick={rhLoadSampleData} style={{ padding: "14px 20px", borderRadius: 14, border: `1px solid ${T.cardBorder}`, background: T.card, color: T.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Load Samples</button>
+         </div>
+        </form>
+       </div>
+      </div>
+     )}
+
+     {/* DIGEST VIEW */}
+     {rhView === "digest" && (() => {
+      const results = rhLoans.map(l => ({ loan: l, r: rhRunTest(l) }));
+      const hot = results.filter(x => x.r.score >= 2 && (x.r.timing === "ready" || x.r.timing === "soon")).sort((a,b) => b.r.score - a.r.score);
+      const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+      return (
+       <div>
+        <button onClick={() => {
+         let txt = `🔥 REFI HUNTER — DAILY DIGEST\n${today}\n${"=".repeat(40)}\n\n${hot.filter(x => x.r.score===3).length} hot refi(s) in the money.\n\n`;
+         hot.forEach(({ loan, r }) => {
+          txt += `${r.score===3?"🟢":"🟡"} ${loan.firstName} ${loan.lastName} — ${r.score}/3\n   ${loan.rate}% → ${r.newRate}% | Save ${rhFmt(r.piSavings)}/mo | Breakeven ${r.beMo}mo | ${r.accelYrs}yr faster\n   Status: ${r.timing==="ready"?"✓ Ready":"⏳ "+r.monthsElapsed+"mo"}\n   ${loan.email||""} | ${loan.phone||""}\n\n`;
+         });
+         txt += `---\nTeam: ${rhTeamEmails.join(", ")}\nTotal pipeline: ${rhLoans.length} loans\nGenerated by Refi Hunter · Xpert Home Lending`;
+         try { navigator.clipboard.writeText(txt); alert("Digest copied! Paste into email."); } catch(e) {}
+        }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: T.green, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 16 }}>📧 Copy Digest to Clipboard</button>
+
+        <div style={{ background: T.card, borderRadius: 16, border: `1px solid ${T.cardBorder}`, overflow: "hidden" }}>
+         <div style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", padding: "20px 20px", borderRadius: "16px 16px 0 0" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>🔥 Refi Hunter — Daily Digest</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{today}</div>
+         </div>
+         <div style={{ padding: 20 }}>
+          <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 16 }}>{hot.length > 0 ? <><strong style={{ color: T.green }}>{hot.filter(x => x.r.score===3).length} hot refi(s)</strong> in the money today.</> : "No hot refis today. Keep watching."}</div>
+          {hot.map(({ loan, r }) => (
+           <div key={loan.id} style={{ border: `1px solid ${T.cardBorder}`, borderLeft: `4px solid ${r.score===3 ? T.green : T.orange}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+             <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{loan.firstName} {loan.lastName}</div>
+             <span style={{ fontSize: 12, fontWeight: 700, color: r.score===3 ? T.green : T.orange }}>{r.score}/3</span>
+            </div>
+            <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 8 }}>{loan.loanType} · {loan.rate}% → {r.newRate}% · {r.monthsElapsed}mo since close</div>
+            <div style={{ display: "flex", gap: 12 }}>
+             {[["Save", rhFmt(r.piSavings)+"/mo"], ["Breakeven", r.beMo+"mo"], ["Faster", r.accelYrs+"yr"], ["Status", r.timing==="ready"?"✓ Ready":"⏳ Soon"]].map(([lbl, val], i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+               <div style={{ fontSize: 14, fontWeight: 700, color: i===0 ? T.green : T.text }}>{val}</div>
+               <div style={{ fontSize: 10, color: T.textTertiary }}>{lbl}</div>
+              </div>
+             ))}
+            </div>
+           </div>
+          ))}
+          <div style={{ textAlign: "center", fontSize: 11, color: T.textTertiary, marginTop: 16 }}>Team: {rhTeamEmails.join(" · ")}<br/>Pipeline: {rhLoans.length} loans tracked</div>
+         </div>
+        </div>
+       </div>
+      );
+     })()}
+
+     {/* SETTINGS VIEW */}
+     {rhView === "settings" && (
+      <div style={{ background: T.card, borderRadius: 16, border: `1px solid ${T.cardBorder}`, overflow: "hidden" }}>
+       <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.cardBorder}` }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.text }}>Refi Hunter Settings</div>
+       </div>
+       <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div>
+         <div style={{ fontSize: 12, fontWeight: 700, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }}>3-Point Test Thresholds</div>
+         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {[["Min Rate Drop", "0.50%"], ["Max Breakeven", "24 months"], ["Min Payoff Accel", "12 months"], ["Min Months to Start", "5 months"]].map(([lbl, val], i) => (
+           <div key={i} style={{ flex: 1, minWidth: 120, background: T.inputBg, borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 4 }}>{lbl}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{val}</div>
+           </div>
+          ))}
+         </div>
+        </div>
+        <div>
+         <div style={{ fontSize: 12, fontWeight: 700, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }}>Daily Digest Team</div>
+         {rhTeamEmails.map((email, i) => (
+          <div key={i} style={{ background: T.inputBg, borderRadius: 10, padding: "10px 14px", marginBottom: 6, fontSize: 13, color: T.text }}>{["Christo", "Peter", "Gina"][i]}: {email}</div>
+         ))}
+        </div>
+        <div>
+         <div style={{ fontSize: 12, fontWeight: 700, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }}>Data</div>
+         <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={rhLoadSampleData} style={{ flex: 1, padding: "12px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card, color: T.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Load Sample Data</button>
+          <button onClick={() => { if (confirm("Clear all Refi Hunter loans?")) setRhLoans([]); }} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid rgba(232,93,93,0.3)", background: "rgba(232,93,93,0.08)", color: "#e85d5d", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear All Loans</button>
+         </div>
+        </div>
+        <div style={{ fontSize: 11, color: T.textTertiary }}>Timing rules: Can start refi process after 5 months from close. Can close refi at 6 months + 1 day. Daily digest runs weekdays at 7am PT.</div>
        </div>
       </div>
      )}
