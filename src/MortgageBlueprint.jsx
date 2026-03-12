@@ -4347,8 +4347,8 @@ export default function MortgageBlueprint({ initialState }) {
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && (<>
  <div style={isDesktop ? { display: "flex", gap: 32, marginTop: 20, alignItems: "flex-start" } : {}}>
- {/* ── Desktop: Right column (PayRing + summary) rendered first for mobile, wrapped for desktop ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: 340, minWidth: 340, flexShrink: 0, order: 2 } : {}}>
+ {/* ── Desktop: Left column (PayRing + summary) — sticky so always visible ── */}
+ <div style={isDesktop ? { position: "sticky", top: 20, width: 340, minWidth: 340, flexShrink: 0, order: 1 } : {}}>
  <div className={changedFields.size > 0 ? "field-updated" : ""} style={isDesktop ? {} : { marginTop: 20 }}>
   <PayRing segments={paySegs} total={calc.displayPayment} />
  </div>
@@ -4417,8 +4417,8 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   ))}
  </div>
- </div>{/* end desktop right column / sticky summary */}
- <div style={isDesktop ? { flex: 1, minWidth: 0, order: 1 } : {}}>
+ </div>{/* end desktop left column / sticky summary */}
+ <div style={isDesktop ? { flex: 1, minWidth: 0, order: 2 } : {}}>
  <div data-field="calc-price" className={isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <div data-field="down-pct-input">
  <Card>
