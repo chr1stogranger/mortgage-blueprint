@@ -1150,8 +1150,36 @@ export default function MortgageBlueprint({ initialState }) {
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
  const supabaseSaveTimer = useRef(null);
 
- const [darkMode, setDarkMode] = useState(true);
+ // ── Desktop Detection ──
+ const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 900);
+ useEffect(() => {
+  const handleResize = () => setIsDesktop(window.innerWidth >= 900);
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+ }, []);
+ // ── Auto Theme (light by day, dark by night, with manual override) ──
+ const [themeMode, setThemeMode] = useState(() => {
+  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved) return saved; } catch {}
+  return 'auto';
+ });
+ const getAutoTheme = () => { const h = new Date().getHours(); return (h >= 7 && h < 19) ? false : true; };
+ const [darkMode, setDarkMode] = useState(() => {
+  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark') return true; if (saved === 'light') return false; } catch {}
+  return getAutoTheme();
+ });
+ useEffect(() => {
+  if (themeMode === 'auto') { setDarkMode(getAutoTheme()); const iv = setInterval(() => setDarkMode(getAutoTheme()), 60000); return () => clearInterval(iv); }
+  else if (themeMode === 'dark') setDarkMode(true);
+  else setDarkMode(false);
+ }, [themeMode]);
+ const cycleTheme = () => {
+  const next = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  setThemeMode(next);
+  try { localStorage.setItem('bp_theme_mode', next); } catch {}
+ };
  T = darkMode ? DARK : LIGHT;
+ // ── Desktop sidebar collapsed state ──
+ const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
  // ── iOS Safe Area: ensure viewport-fit=cover ──
  useEffect(() => {
   const meta = document.querySelector('meta[name="viewport"]');
@@ -1475,7 +1503,7 @@ export default function MortgageBlueprint({ initialState }) {
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
   showInvestor, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
-  darkMode,
+  darkMode, themeMode,
  });
  const loadState = (s) => {
   if (!s) return;
@@ -1597,7 +1625,8 @@ export default function MortgageBlueprint({ initialState }) {
   if (s.refiEscrowBalance !== undefined) setRefiEscrowBalance(s.refiEscrowBalance);
   if (s.refiSkipMonths !== undefined) setRefiSkipMonths(s.refiSkipMonths);
   if (s.refiNewLoanAmtOverride !== undefined) setRefiNewLoanAmtOverride(s.refiNewLoanAmtOverride);
-  if (s.darkMode !== undefined) setDarkMode(s.darkMode);
+  if (s.themeMode) { setThemeMode(s.themeMode); try { localStorage.setItem('bp_theme_mode', s.themeMode); } catch {} }
+  else if (s.darkMode !== undefined) { setThemeMode(s.darkMode ? 'dark' : 'light'); try { localStorage.setItem('bp_theme_mode', s.darkMode ? 'dark' : 'light'); } catch {} }
   if (s.showInvestor !== undefined) setShowInvestor(s.showInvestor);
   if (s.invMonthlyRent !== undefined) setInvMonthlyRent(s.invMonthlyRent);
   if (s.invVacancy !== undefined) setInvVacancy(s.invVacancy);
@@ -1814,7 +1843,7 @@ export default function MortgageBlueprint({ initialState }) {
    propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
    includeEscrow: true, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
    otherIncome: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
-   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, darkMode };
+   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, darkMode, themeMode };
   try { await LS.set("scenario:" + name, JSON.stringify(defaults)); } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
   setNewScenarioName("");
@@ -2577,6 +2606,22 @@ export default function MortgageBlueprint({ initialState }) {
   return null;
  })();
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
+ // ── Real-time update highlighting ──
+ const [changedFields, setChangedFields] = useState(new Set());
+ const prevValsRef = useRef({});
+ useEffect(() => {
+  const vals = { salesPrice, downPct, rate, term, loanType, creditScore, hoa, annualIns };
+  const changed = new Set();
+  for (const [k, v] of Object.entries(vals)) {
+   if (prevValsRef.current[k] !== undefined && prevValsRef.current[k] !== v) changed.add(k);
+  }
+  prevValsRef.current = vals;
+  if (changed.size > 0) {
+   setChangedFields(changed);
+   const t = setTimeout(() => setChangedFields(new Set()), 1500);
+   return () => clearTimeout(t);
+  }
+ }, [salesPrice, downPct, rate, term, loanType, creditScore, hoa, annualIns]);
  // Auto-advance: when a required field is completed, scroll to next field and focus its input
  const prevGuideRef = useRef(guideField);
  useEffect(() => {
@@ -3850,7 +3895,7 @@ export default function MortgageBlueprint({ initialState }) {
  const refiPillarCount = [calc.ficoCheck, calc.dtiCheck, refiLtvCheck].filter(c => c === "Good!").length;
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
-  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, maxWidth: 480, margin: "0 auto", paddingBottom: "calc(90px + env(safe-area-inset-bottom, 0px))", fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box" }}>
+  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
     *, *::before, *::after { box-sizing: border-box; }
     @viewport { width: device-width; }
@@ -3858,7 +3903,6 @@ export default function MortgageBlueprint({ initialState }) {
      .mb-safe-top { padding-top: env(safe-area-inset-top) !important; }
      .mb-safe-bottom { padding-bottom: env(safe-area-inset-bottom) !important; }
     }
-    /* Standalone PWA / Capacitor — extra safe area for status bar */
     @media all and (display-mode: standalone) {
      .mb-safe-top { padding-top: env(safe-area-inset-top, 20px) !important; }
     }
@@ -3866,9 +3910,98 @@ export default function MortgageBlueprint({ initialState }) {
     @keyframes pulseBlue { 0%, 100% { box-shadow: 0 0 0 3px rgba(74,144,217,0.3), 0 0 12px rgba(74,144,217,0.1); } 50% { box-shadow: 0 0 0 3px rgba(74,144,217,0.7), 0 0 24px rgba(74,144,217,0.25); } }
     @keyframes floatBarSlide { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
+    @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
     .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; }
+    .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
+    /* Desktop sidebar styles */
+    .bp-sidebar { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
+    .bp-sidebar::-webkit-scrollbar { width: 4px; }
+    .bp-sidebar::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 2px; }
+    .bp-sidebar-item { transition: all 0.15s ease; }
+    .bp-sidebar-item:hover { background: ${T.tabActiveBg}; }
+    /* Desktop smooth scrollbar for main content */
+    .bp-main-content { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
+    .bp-main-content::-webkit-scrollbar { width: 6px; }
+    .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
    `}</style>
+   {/* ═══ DESKTOP SIDEBAR ═══ */}
+   {isDesktop && appMode === "blueprint" && (
+    <div className="bp-sidebar" style={{
+     width: sidebarCollapsed ? 64 : 240, minWidth: sidebarCollapsed ? 64 : 240, height: "100vh", position: "sticky", top: 0,
+     background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
+     display: "flex", flexDirection: "column", transition: "width 0.2s, min-width 0.2s", overflow: "hidden", zIndex: 60, flexShrink: 0
+    }}>
+     {/* Sidebar Header */}
+     <div style={{ padding: sidebarCollapsed ? "20px 12px" : "20px 18px", borderBottom: `1px solid ${T.separator}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+       {!sidebarCollapsed && <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.03em", color: T.text }}>Blueprint</div>}
+       <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{ background: T.pillBg, border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: T.textSecondary, flexShrink: 0 }}>
+        {sidebarCollapsed ? "→" : "←"}
+       </button>
+      </div>
+      {/* Monthly payment summary */}
+      {!sidebarCollapsed && (
+       <div style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.03em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 14, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
+        <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>{fmt(calc.cashToClose)} to close · {rate}% rate</div>
+       </div>
+      )}
+      {sidebarCollapsed && (
+       <div style={{ textAlign: "center", marginTop: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.blue }}>{fmt(calc.housingPayment)}</div>
+       </div>
+      )}
+     </div>
+     {/* Sidebar Nav Items */}
+     <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+      {TABS.map(([k, l]) => {
+       const locked = !isTabUnlocked(k);
+       const completed = !!completedTabs[k];
+       const active = tab === k;
+       const icons = { setup: "📋", calc: "🧮", costs: "💰", income: "💵", debts: "💳", assets: "🏦", qualify: "✅", tax: "📊", amort: "📈", invest: "🏘️", rentvbuy: "⚖️", learn: "📚", compare: "📊", summary: "🔗", settings: "⚙️", reo: "🏠", sell: "💲", refi: "🔄", refi3: "🎯" };
+       return (
+        <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) setTab(k); }}
+         style={{
+          padding: sidebarCollapsed ? "10px 0" : "9px 18px", cursor: locked ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", gap: 10, margin: "1px 8px", borderRadius: 10,
+          background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
+          borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
+         }}>
+         <span style={{ fontSize: sidebarCollapsed ? 18 : 15, textAlign: "center", width: sidebarCollapsed ? "100%" : "auto" }}>{icons[k] || "📄"}</span>
+         {!sidebarCollapsed && (
+          <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
+         )}
+         {!sidebarCollapsed && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+        </div>
+       );
+      })}
+     </div>
+     {/* Sidebar Footer — Theme + Mode */}
+     <div style={{ padding: sidebarCollapsed ? "12px 8px" : "12px 18px", borderTop: `1px solid ${T.separator}` }}>
+      {!sidebarCollapsed && (
+       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: T.textTertiary }}>{themeMode === 'auto' ? '🌗 Auto' : themeMode === 'light' ? '☀️ Light' : '🌙 Dark'}</span>
+        <button onClick={cycleTheme} style={{ background: T.pillBg, border: "none", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: T.textSecondary, cursor: "pointer", fontFamily: FONT, fontWeight: 500 }}>Switch</button>
+       </div>
+      )}
+      {sidebarCollapsed && (
+       <button onClick={cycleTheme} style={{ background: T.pillBg, border: "none", borderRadius: 8, width: "100%", padding: "6px 0", fontSize: 14, cursor: "pointer", color: T.textSecondary }}>
+        {themeMode === 'auto' ? '🌗' : themeMode === 'light' ? '☀️' : '🌙'}
+       </button>
+      )}
+      {!sidebarCollapsed && (
+       <div style={{ display: "flex", gap: 4 }}>
+        {[["blueprint","🏗️"],["pricepoint","🎯"]].map(([k,e]) => (
+         <button key={k} onClick={() => setAppMode(k)} style={{ flex: 1, background: appMode === k ? T.tabActiveBg : "transparent", border: `1px solid ${appMode === k ? T.blue : T.separator}`, borderRadius: 8, padding: "6px 0", fontSize: 12, fontWeight: appMode === k ? 700 : 500, color: appMode === k ? T.blue : T.textSecondary, cursor: "pointer", fontFamily: FONT }}>{e} {k === "blueprint" ? "Blueprint" : "PricePoint"}</button>
+        ))}
+       </div>
+      )}
+     </div>
+    </div>
+   )}
+   {/* ═══ MAIN CONTENT AREA ═══ */}
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: isDesktop ? "auto" : "visible", height: isDesktop ? "100vh" : "auto", width: "100%" }}>
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -4013,8 +4146,8 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </div>
   </div>}
-   {/* ── App Mode Toggle ── */}
-   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+   {/* ── App Mode Toggle (mobile only — desktop uses sidebar) ── */}
+   <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
       {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
@@ -4058,7 +4191,7 @@ export default function MortgageBlueprint({ initialState }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Sticky Header ── */}
-   <div style={{ position: "sticky", top: 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+   <div style={{ position: "sticky", top: isDesktop ? 0 : 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ padding: "16px 20px 8px" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
@@ -4172,11 +4305,13 @@ export default function MortgageBlueprint({ initialState }) {
       </div>
      </div>
     </div>
-    <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
-     {TABS.map(([k, l]) => <Tab key={k} tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} />)}
-    </div>
+    {!isDesktop && (
+     <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
+      {TABS.map(([k, l]) => <Tab key={k} tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} />)}
+     </div>
+    )}
    </div>
-   <div style={{ padding: "0 20px" }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+   <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
 {gameMode && tab !== "setup" && (
@@ -4211,7 +4346,10 @@ export default function MortgageBlueprint({ initialState }) {
 )}
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 32, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* ── Desktop: Right column (PayRing + summary) rendered first for mobile, wrapped for desktop ── */}
+ <div style={isDesktop ? { position: "sticky", top: 20, width: 340, minWidth: 340, flexShrink: 0, order: 2 } : {}}>
+ <div className={changedFields.size > 0 ? "field-updated" : ""} style={isDesktop ? {} : { marginTop: 20 }}>
   <PayRing segments={paySegs} total={calc.displayPayment} />
  </div>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px 12px" }}>
@@ -4262,7 +4400,7 @@ export default function MortgageBlueprint({ initialState }) {
    )}
   </div>
  )}
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+ <div className={changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
   {(isRefi ? [
    { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
    { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
@@ -4279,6 +4417,8 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   ))}
  </div>
+ </div>{/* end desktop right column / sticky summary */}
+ <div style={isDesktop ? { flex: 1, minWidth: 0, order: 1 } : {}}>
  <div data-field="calc-price" className={isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <div data-field="down-pct-input">
  <Card>
@@ -4474,6 +4614,8 @@ export default function MortgageBlueprint({ initialState }) {
  </Card>
  </div>
  </div>
+ </div>{/* end desktop left column */}
+ </div>{/* end desktop flex wrapper */}
 </>)}
 {tab === "amort" && (<>
  <div style={{ marginTop: 20 }}>
@@ -4563,6 +4705,8 @@ export default function MortgageBlueprint({ initialState }) {
  </div>
  </>)}
 
+ {/* ── Fee Sections: 2-col on desktop ── */}
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" } : {}}>
  {/* ── A. LENDER FEES ── */}
  <Sec title="A. Lender Fees">
   <Card>
@@ -4639,6 +4783,7 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
  </Sec>
 
+ </div>{/* end desktop 2-col fee sections */}
  {/* ── CLOSING COSTS SUBTOTAL ── */}
  <Card style={{ background: `${T.blue}10`, border: `1px solid ${T.blue}25` }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
@@ -5051,6 +5196,7 @@ export default function MortgageBlueprint({ initialState }) {
    <div style={{ height: "100%", width: `${(isRefi ? refiPillarCount / 3 : purchPillarCount / 5) * 100}%`, background: allGood ? T.green : someGood ? T.orange : T.ringTrack, borderRadius: 99, transition: "all 0.6s ease" }} />
   </div>
  </Card>
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" } : {}}>
  <Sec title="Credit Score">
   <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
   <Card>
@@ -5069,6 +5215,7 @@ export default function MortgageBlueprint({ initialState }) {
    {(calc.reoPositiveIncome > 0 || calc.reoNegativeDebt > 0) && <Note color={T.blue}>REO adjusted: {calc.reoPositiveIncome > 0 ? `+${fmt(calc.reoPositiveIncome)}/mo investment income` : ""}{calc.reoPositiveIncome > 0 && calc.reoNegativeDebt > 0 ? " · " : ""}{calc.reoNegativeDebt > 0 ? `+${fmt(calc.reoNegativeDebt)}/mo debt (${calc.reoPrimaryDebt > 0 ? "PITIA" : ""}${calc.reoPrimaryDebt > 0 && calc.reoInvestmentNet < 0 ? " + " : ""}${calc.reoInvestmentNet < 0 ? "inv. shortfall" : ""})` : ""}</Note>}
   </Card>
  )}
+ </div>
  {allGood && <Card style={{ marginTop: 12, background: `${T.green}15`, textAlign: "center", padding: 20 }}>
   <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
   <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>{isRefi ? "REFI QUALIFIED" : "PRE-QUALIFIED"}</div>
@@ -5376,7 +5523,9 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ TAX SAVINGS ═══ */}
 {tab === "tax" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ <div style={isDesktop ? { width: 320, minWidth: 320, flexShrink: 0 } : {}}>
+ <div style={isDesktop ? {} : { marginTop: 20 }}>
   <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.purple} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
  </div>
  <Card pad={14} style={{ marginTop: 16 }}>
@@ -5394,6 +5543,8 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
   </div>
  </Sec>
+ </div>{/* end desktop tax left column */}
+ <div style={isDesktop ? { flex: 1, minWidth: 0 } : {}}>
  {calc.yearlyInc > 0 && (<>
   <Sec title="Write-Offs Due to Homeownership">
    <Card>
@@ -5587,6 +5738,8 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   </Sec>
  </>)}
+ </div>{/* end desktop tax right column */}
+ </div>{/* end desktop tax flex wrapper */}
 </>)}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && (<>
@@ -7600,9 +7753,9 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
   </Card>
  ) : (<>
-  {/* Scrollable comparison cards */}
-  <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "12px -6px", padding: "0 6px" }}>
-   <div style={{ display: "flex", gap: 10, minWidth: "max-content" }}>
+  {/* Comparison cards — side-by-side on desktop, scrollable on mobile */}
+  <div style={isDesktop ? { display: "grid", gridTemplateColumns: `repeat(${Math.min(compareData.length, 4)}, 1fr)`, gap: 14, margin: "12px 0" } : { overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "12px -6px", padding: "0 6px" }}>
+   <div style={isDesktop ? { display: "contents" } : { display: "flex", gap: 10, minWidth: "max-content" }}>
     {compareData.map((sc, i) => {
      const m = sc.metrics;
      const best = (field, dir = "low") => {
@@ -7610,7 +7763,7 @@ export default function MortgageBlueprint({ initialState }) {
       return dir === "low" ? m[field] <= Math.min(...vals) : m[field] >= Math.max(...vals);
      };
      return (
-      <div key={i} style={{ minWidth: 200, maxWidth: 240, flex: "0 0 auto", background: T.card, borderRadius: 16, border: sc.isCurrent ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, padding: 14, boxShadow: T.cardShadow }}>
+      <div key={i} style={isDesktop ? { background: T.card, borderRadius: 16, border: sc.isCurrent ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, padding: 16, boxShadow: T.cardShadow } : { minWidth: 200, maxWidth: 240, flex: "0 0 auto", background: T.card, borderRadius: 16, border: sc.isCurrent ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, padding: 14, boxShadow: T.cardShadow }}>
        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
         {sc.isCurrent && <div style={{ width: 8, height: 8, borderRadius: 4, background: T.blue, flexShrink: 0 }} />}
         <div style={{ fontSize: 14, fontWeight: 700, color: sc.isCurrent ? T.blue : T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sc.name}</div>
@@ -7798,12 +7951,14 @@ export default function MortgageBlueprint({ initialState }) {
   <Card>
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
     <div>
-     <div style={{ fontSize: 15, fontWeight: 600 }}>Dark Mode</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>Switch between light and dark themes</div>
+     <div style={{ fontSize: 15, fontWeight: 600 }}>Theme</div>
+     <div style={{ fontSize: 13, color: T.textTertiary }}>{themeMode === 'auto' ? 'Auto — light by day, dark by night' : themeMode === 'light' ? 'Always light' : 'Always dark'}</div>
     </div>
-    <button onClick={() => { setDarkMode(!darkMode); Haptics.light(); }} style={{ width: 52, height: 30, borderRadius: 15, background: darkMode ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
-     <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: darkMode ? 25 : 3, transition: "left 0.3s", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{darkMode ? "🌙" : "☀️"}</div>
-    </button>
+    <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 10, padding: 3 }}>
+     {[['auto','🌗'],['light','☀️'],['dark','🌙']].map(([k,e]) => (
+      <button key={k} onClick={() => { setThemeMode(k); try { localStorage.setItem('bp_theme_mode', k); } catch {} Haptics.light(); }} style={{ padding: "5px 10px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: themeMode === k ? 700 : 500, background: themeMode === k ? T.tabActiveBg : "transparent", color: themeMode === k ? T.text : T.textTertiary, cursor: "pointer" }}>{e}</button>
+     ))}
+    </div>
    </div>
   </Card>
  </Sec>
@@ -7964,7 +8119,7 @@ export default function MortgageBlueprint({ initialState }) {
    {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "pricepoint" && (
-    <div style={{ maxWidth: 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+    <div style={{ maxWidth: isDesktop ? 720 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
      <style>{`
       html, body { background: ${T.bg} !important; overflow-x: hidden; }
       @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
@@ -7974,7 +8129,7 @@ export default function MortgageBlueprint({ initialState }) {
       .pp-submitted { animation: ppCardExit 0.4s ease-in forwards }
       .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(12px) }
       .pp-rvl-ov.vis { opacity:1 }
-      .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:420px; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
+      .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:${isDesktop ? "540px" : "420px"}; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
       .pp-rvl-ov.vis .pp-rvl-cd { transform:translateY(0) }
      `}</style>
 
@@ -8167,7 +8322,7 @@ export default function MortgageBlueprint({ initialState }) {
                 if (dx > 0 && idx > 0) setPpPhotoIdx(idx - 1);
                }
               }}>
-              <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height:200, objectFit:"cover", display:"block" }}
+              <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 360 : 200, objectFit:"cover", display:"block" }}
                onError={e => { if (!e.target.dataset.retried) { e.target.dataset.retried = "1"; e.target.src = photos[idx] + (photos[idx].includes("?") ? "&" : "?") + "t=" + Date.now(); } else { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }}} />
               {/* Dot indicators */}
               {hasPhotos && (
@@ -8612,6 +8767,7 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    )}
    <FloatingNextBar />
+  </div>{/* end main content wrapper */}
   </div>
  );
 }
