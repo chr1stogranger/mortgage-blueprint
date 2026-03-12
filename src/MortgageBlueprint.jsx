@@ -8199,7 +8199,7 @@ export default function MortgageBlueprint({ initialState }) {
    {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "pricepoint" && (
-    <div style={{ maxWidth: isDesktop ? 720 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+    <div style={{ maxWidth: isDesktop ? 1100 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
      <style>{`
       html, body { background: ${T.bg} !important; overflow-x: hidden; }
       @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
@@ -8232,6 +8232,20 @@ export default function MortgageBlueprint({ initialState }) {
         <span style={{ fontSize: 16 }}>{ppCurrentHome.icon}</span>
         <span style={{ fontSize: 11, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</span>
        </div>
+      </div>
+     </div>
+
+     {/* PP View Navigation Tabs */}
+     <div style={{ padding: "0 18px 10px" }}>
+      <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
+       {[["cards","🏠 Play"],["results","📊 Results"],["leaderboard","🏆 Board"],["stats","📈 Stats"]].map(([k,l]) => (
+        <button key={k} onClick={() => setPpView(k)} style={{
+         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
+         background: ppView === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
+         color: ppView === k ? "#fff" : T.textTertiary,
+         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
+        }}>{l}</button>
+       ))}
       </div>
      </div>
 
@@ -8383,7 +8397,8 @@ export default function MortgageBlueprint({ initialState }) {
        ppCurrentListing ? (
         <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
-          <div style={{ position: "relative" }}>
+          <div style={{ display: isDesktop ? "flex" : "block", gap: isDesktop ? 20 : 0 }}>
+          <div style={{ position: "relative", flex: isDesktop ? "0 0 50%" : undefined, maxWidth: isDesktop ? "50%" : undefined }}>
            {/* Photo Carousel */}
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
@@ -8398,8 +8413,8 @@ export default function MortgageBlueprint({ initialState }) {
                const dy = e.changedTouches[0].clientY - ppPhotoTouchRef.current.startY;
                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
                 e.stopPropagation();
-                if (dx < 0 && idx < photos.length - 1) setPpPhotoIdx(idx + 1);
-                if (dx > 0 && idx > 0) setPpPhotoIdx(idx - 1);
+                if (dx < 0) setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0);
+                if (dx > 0) setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1);
                }
               }}>
               <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 360 : 200, objectFit:"cover", display:"block" }}
@@ -8415,22 +8430,22 @@ export default function MortgageBlueprint({ initialState }) {
                 )}
                </div>
               )}
-              {/* Left/right tap zones (desktop fallback) */}
-              {hasPhotos && idx > 0 && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx-1); }}
+              {/* Left/right tap zones (desktop fallback) — loops around */}
+              {hasPhotos && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1); }}
                 style={{ position:"absolute", left:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
               )}
-              {hasPhotos && idx < photos.length - 1 && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx+1); }}
+              {hasPhotos && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0); }}
                 style={{ position:"absolute", right:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
               )}
-              {/* Left/right arrows on hover */}
-              {hasPhotos && idx > 0 && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx-1); }}
+              {/* Left/right arrows on hover — always visible, loops around */}
+              {hasPhotos && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1); }}
                 style={{ position:"absolute", left:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>‹</div>
               )}
-              {hasPhotos && idx < photos.length - 1 && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx+1); }}
+              {hasPhotos && (
+               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0); }}
                 style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>›</div>
               )}
               {/* Loading shimmer for photos */}
@@ -8442,7 +8457,8 @@ export default function MortgageBlueprint({ initialState }) {
            })()}
            {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}>🏷️ Sold</div>}
           </div>
-          <div style={{ padding: "14px 0 0" }}>
+          {/* Right column on desktop: details + guess */}
+          <div style={{ padding: "14px 0 0", flex: isDesktop ? 1 : undefined }}>
            <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>{ppCurrentListing.address}</div>
            <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{ppCurrentListing.neighborhood} · {ppCurrentListing.city}, {ppCurrentListing.state} {ppCurrentListing.zip}</div>
            <div style={{ display: "flex", gap: 6, margin: "12px 0", flexWrap: "wrap" }}>
@@ -8532,6 +8548,7 @@ export default function MortgageBlueprint({ initialState }) {
            </div>
            <div style={{ textAlign:"center", marginTop:6, fontSize:10, color:T.textTertiary, opacity:0.5, letterSpacing:0.3 }}>← swipe for results & stats →</div>
           </div>
+          </div>{/* close desktop flex wrapper */}
          </div>
         </div>
        ) : (
@@ -8556,7 +8573,7 @@ export default function MortgageBlueprint({ initialState }) {
         <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16 }}>{ppGuesses.some(g => !g.revealed) ? "Tap pending guesses to simulate SOLD reveal" : "All guesses revealed"}</div>
         {ppGuesses.length === 0 ? (
          <div style={{ textAlign:"center", padding:"40px", color:T.textTertiary }}>No guesses yet — go make some!</div>
-        ) : [...ppGuesses].reverse().map((g, i) => {
+        ) : <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: isDesktop ? "1fr 1fr" : undefined, gap: isDesktop ? 8 : 0 }}>{[...ppGuesses].reverse().map((g, i) => {
          const realIdx = ppGuesses.length - 1 - i;
          return (
           <div key={realIdx} onClick={() => ppSimulateSold(realIdx)}
@@ -8583,7 +8600,7 @@ export default function MortgageBlueprint({ initialState }) {
            </div>
           </div>
          );
-        })}
+        })}</div>}
        </div>
       )}
 
@@ -8609,6 +8626,7 @@ export default function MortgageBlueprint({ initialState }) {
          ))}
         </div>
 
+        <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: isDesktop ? "1fr 1fr" : undefined, gap: isDesktop ? 8 : 0 }}>
         {PP_LEADERBOARD.map((p,i) => (
          <div key={i} style={{
           display:"flex", alignItems:"center", padding:"14px 16px", borderRadius:14,
@@ -8631,6 +8649,7 @@ export default function MortgageBlueprint({ initialState }) {
           </div>
          </div>
         ))}
+        </div>{/* close leaderboard grid */}
        </div>
       )}
 
