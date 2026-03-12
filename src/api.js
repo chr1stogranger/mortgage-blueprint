@@ -1,0 +1,120 @@
+/**
+ * API helper for Blueprint ↔ Pipeline Supabase communication.
+ * All authenticated calls go through Pipeline's API routes at loanpipeline.app.
+ * Share link calls are public (no auth needed).
+ */
+
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://loanpipeline.app';
+
+// ─── Authenticated API calls (LO only) ─────────────────────────────────────
+
+function getToken() {
+  return localStorage.getItem('bp_token');
+}
+
+async function authFetch(path, options = {}) {
+  const token = getToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (res.status === 401) {
+    // Token expired — clear and signal re-auth needed
+    localStorage.removeItem('bp_token');
+    throw new Error('Session expired — please sign in again');
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error || `API error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// ─── Borrowers ──────────────────────────────────────────────────────────────
+
+export async function fetchBorrowers(filter = {}) {
+  const params = new URLSearchParams();
+  if (filter.id) params.set('id', filter.id);
+  if (filter.email) params.set('email', filter.email);
+  if (filter.status) params.set('status', filter.status);
+  const qs = params.toString();
+  return authFetch(`/api/borrowers${qs ? '?' + qs : ''}`);
+}
+
+export async function createBorrower(data) {
+  return authFetch('/api/borrowers', { method: 'POST', body: data });
+}
+
+export async function updateBorrower(data) {
+  return authFetch('/api/borrowers', { method: 'PATCH', body: data });
+}
+
+// ─── Scenarios ──────────────────────────────────────────────────────────────
+
+export async function fetchScenarios(borrowerId) {
+  return authFetch(`/api/scenarios?borrower_id=${borrowerId}`);
+}
+
+export async function fetchScenario(id) {
+  return authFetch(`/api/scenarios?id=${id}`);
+}
+
+export async function createScenario(data) {
+  return authFetch('/api/scenarios', { method: 'POST', body: data });
+}
+
+export async function updateScenario(data) {
+  return authFetch('/api/scenarios', { method: 'PATCH', body: data });
+}
+
+export async function deleteScenarioAPI(id) {
+  return authFetch('/api/scenarios', { method: 'DELETE', body: { id } });
+}
+
+// ─── Share (public, no auth) ────────────────────────────────────────────────
+
+export async function fetchSharedData(shareToken) {
+  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error || 'Share link not found');
+  }
+  return res.json();
+}
+
+export async function saveSharedScenario(shareToken, data) {
+  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error || 'Could not save scenario');
+  }
+  return res.json();
+}
+
+// ─── Auth helpers ───────────────────────────────────────────────────────────
+
+export function isAuthenticated() {
+  return !!getToken();
+}
+
+export function setToken(token) {
+  localStorage.setItem('bp_token', token);
+}
+
+export function clearToken() {
+  localStorage.removeItem('bp_token');
+}
