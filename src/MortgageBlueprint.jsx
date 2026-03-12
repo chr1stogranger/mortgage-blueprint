@@ -1137,7 +1137,7 @@ function ConstructionHouse({ stagesComplete, total }) {
   </svg>
  );
 }
-export default function MortgageBlueprint() {
+export default function MortgageBlueprint({ initialState }) {
  // ── Auth context (from BlueprintAuth wrapper) ──
  const auth = useBlueprintAuth();
  const isCloud = auth?.isAuthenticated && !auth?.localMode;
