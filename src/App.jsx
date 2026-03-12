@@ -1,7 +1,12 @@
 import MortgageBlueprint from './MortgageBlueprint'
+import BlueprintAuth from './BlueprintAuth'
 
 function App() {
-  return <MortgageBlueprint />
+  return (
+    <BlueprintAuth>
+      <MortgageBlueprint />
+    </BlueprintAuth>
+  )
 }
 
 export default App

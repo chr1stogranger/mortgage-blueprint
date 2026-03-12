@@ -1,5 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
+import { useBlueprintAuth } from "./BlueprintAuth";
+import {
+  fetchBorrowers, createBorrower, updateBorrower,
+  fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
+  updateScenario as apiUpdateScenario, deleteScenarioAPI,
+} from "./api";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -1132,6 +1138,18 @@ function ConstructionHouse({ stagesComplete, total }) {
  );
 }
 export default function MortgageBlueprint() {
+ // ── Auth context (from BlueprintAuth wrapper) ──
+ const auth = useBlueprintAuth();
+ const isCloud = auth?.isAuthenticated && !auth?.localMode;
+
+ // ── Borrower state (Supabase-synced when authenticated) ──
+ const [activeBorrower, setActiveBorrower] = useState(null);    // { id, name, email, ... }
+ const [borrowerList, setBorrowerList] = useState([]);           // [ { id, name, email, status }, ... ]
+ const [borrowerLoading, setBorrowerLoading] = useState(false);
+ const [activeScenarioId, setActiveScenarioId] = useState(null); // Supabase UUID for current scenario
+ const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
+ const supabaseSaveTimer = useRef(null);
+
  const [darkMode, setDarkMode] = useState(true);
  T = darkMode ? DARK : LIGHT;
  // ── iOS Safe Area: ensure viewport-fit=cover ──
@@ -1621,6 +1639,104 @@ export default function MortgageBlueprint() {
    try { if (window.__FRED_API_KEY__) { setFredApiKey(window.__FRED_API_KEY__); } } catch(e) {}
   })();
  }, []);
+
+ // ── Load borrower list from Supabase when authenticated ──
+ useEffect(() => {
+  if (!isCloud) return;
+  let cancelled = false;
+  (async () => {
+   setBorrowerLoading(true);
+   try {
+    const list = await fetchBorrowers({ status: 'active' });
+    if (!cancelled) setBorrowerList(Array.isArray(list) ? list : []);
+   } catch (e) {
+    console.warn('[Blueprint] Failed to load borrowers:', e.message);
+   } finally {
+    if (!cancelled) setBorrowerLoading(false);
+   }
+  })();
+  return () => { cancelled = true; };
+ }, [isCloud]);
+
+ // ── Build calc_summary from current computed values (called on save) ──
+ const buildCalcSummary = useCallback(() => {
+  // Access the computed `calc` object which is a useMemo below
+  // We'll build a lightweight summary with the key metrics Pipeline needs
+  try {
+   const dp = salesPrice * downPct / 100;
+   const baseLoan = salesPrice - dp;
+   const ltv = salesPrice > 0 ? baseLoan / salesPrice : 0;
+   const totalIncomeCalc = incomes.reduce((s, i) => {
+    if (i.selection === "YTD") return s + (i.ytdCalc || 0);
+    if (i.selection === "1Y") return s + (i.oneYCalc || 0);
+    if (i.selection === "2Y") return s + (i.twoYCalc || 0);
+    let mo = i.amount || 0;
+    if (i.frequency === "Annual") mo = mo / 12;
+    else if (i.frequency === "Bi-Weekly") mo = mo * 26 / 12;
+    else if (i.frequency === "Weekly") mo = mo * 52 / 12;
+    else if (i.frequency === "Hourly") mo = mo * 2080 / 12;
+    return s + mo;
+   }, 0);
+   const monthlyInc = totalIncomeCalc + otherIncome;
+   const monthlyDebts = debts.filter(d => d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit").reduce((s, d) => s + (d.monthly || 0), 0);
+   const mr = rate / 100 / 12, np = term * 12;
+   const fhaUp = loanType === "FHA" ? baseLoan * 0.0175 : 0;
+   const loan = baseLoan + fhaUp;
+   const pi = mr > 0 ? (loan * mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1) : loan / np;
+   return {
+    salesPrice,
+    downPayment: dp,
+    downPct,
+    loanAmount: loan,
+    rate,
+    term,
+    loanType,
+    ltv: Math.round(ltv * 10000) / 100,
+    monthlyPI: Math.round(pi),
+    monthlyIncome: Math.round(monthlyInc),
+    monthlyDebts: Math.round(monthlyDebts),
+    creditScore,
+    loanPurpose,
+    city,
+    propertyState,
+    borrowerName,
+   };
+  } catch (e) {
+   return { salesPrice, rate, term, loanType, borrowerName };
+  }
+ }, [salesPrice, downPct, rate, term, loanType, incomes, otherIncome, debts, creditScore, loanPurpose, city, propertyState, borrowerName]);
+
+ // ── Supabase write-through: save scenario to cloud ──
+ const saveToCloud = useCallback(async (stateData, scenarioId) => {
+  if (!isCloud || !activeBorrower) return;
+  setCloudSyncStatus('saving');
+  try {
+   const summary = buildCalcSummary();
+   if (scenarioId) {
+    // Update existing
+    await apiUpdateScenario({ id: scenarioId, state_data: stateData, calc_summary: summary, name: scenarioName });
+   } else {
+    // Create new
+    const result = await apiCreateScenario({
+     borrower_id: activeBorrower.id,
+     name: scenarioName,
+     type: isRefi ? 'refi' : 'purchase',
+     status: 'draft',
+     created_by: 'lo',
+     state_data: stateData,
+     calc_summary: summary,
+    });
+    if (result?.[0]?.id) setActiveScenarioId(result[0].id);
+   }
+   setCloudSyncStatus('saved');
+   setTimeout(() => setCloudSyncStatus(''), 2000);
+  } catch (e) {
+   console.warn('[Blueprint] Cloud save failed:', e.message);
+   setCloudSyncStatus('error');
+   setTimeout(() => setCloudSyncStatus(''), 3000);
+  }
+ }, [isCloud, activeBorrower, buildCalcSummary, scenarioName, isRefi]);
+
  const saveTimer = useRef(null);
  // Set status bar / theme-color meta tag to match theme
  useEffect(() => {
@@ -1645,10 +1761,16 @@ export default function MortgageBlueprint() {
   if (saveTimer.current) clearTimeout(saveTimer.current);
   saveTimer.current = setTimeout(async () => {
    setSaving(true);
+   const stateData = getState();
    try {
-    await LS.set("scenario:" + scenarioName, JSON.stringify(getState()));
+    await LS.set("scenario:" + scenarioName, JSON.stringify(stateData));
     await LS.set("active-scenario", scenarioName);
    } catch(e) {}
+   // ── Write-through to Supabase when authenticated + borrower selected ──
+   if (isCloud && activeBorrower) {
+    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+    supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
+   }
    setTimeout(() => setSaving(false), 600);
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
@@ -3951,6 +4073,9 @@ export default function MortgageBlueprint() {
         {scenarioList.length > 1 && <span onClick={() => setTab("compare")} style={{ fontSize: 10, fontWeight: 700, color: T.blue, background: `${T.blue}15`, borderRadius: 6, padding: "2px 6px", cursor: "pointer", whiteSpace: "nowrap", marginLeft: 2 }}>Compare</span>}
         {saving && <span style={{ fontSize: 10, color: T.textTertiary, fontStyle: "italic" }}>saving...</span>}
         {!saving && loaded && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+        {cloudSyncStatus === 'saving' && <span style={{ fontSize: 10, color: T.blue, fontStyle: "italic" }}>☁️</span>}
+        {cloudSyncStatus === 'saved' && <span style={{ fontSize: 10, color: T.green }}>☁️✓</span>}
+        {cloudSyncStatus === 'error' && <span style={{ fontSize: 10, color: T.red }}>☁️✗</span>}
        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -3963,6 +4088,64 @@ export default function MortgageBlueprint() {
        </button>
       </div>
      </div>
+     {/* ── Borrower Picker (only when authenticated + borrowers exist) ── */}
+     {isCloud && (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+       {auth?.userPill}
+       <select
+        value={activeBorrower?.id || ''}
+        onChange={async (e) => {
+         const id = e.target.value;
+         if (id === '__new__') {
+          const name = prompt("New borrower name:");
+          if (!name) return;
+          try {
+           const result = await createBorrower({ name, status: 'active' });
+           const newB = result?.[0] || result;
+           if (newB?.id) {
+            setBorrowerList(prev => [...prev, newB]);
+            setActiveBorrower(newB);
+            setActiveScenarioId(null);
+           }
+          } catch (err) { alert('Failed to create borrower: ' + err.message); }
+          return;
+         }
+         if (!id) { setActiveBorrower(null); setActiveScenarioId(null); return; }
+         const b = borrowerList.find(b => b.id === id);
+         setActiveBorrower(b || null);
+         setActiveScenarioId(null);
+         // Load first scenario for this borrower if exists
+         if (b) {
+          try {
+           const scenarios = await apiFetchScenarios(b.id);
+           if (scenarios?.length) {
+            const first = scenarios[0];
+            if (first.state_data) loadState(first.state_data);
+            setActiveScenarioId(first.id);
+            setScenarioName(first.name || 'Scenario 1');
+           }
+          } catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); }
+         }
+        }}
+        style={{ flex: 1, maxWidth: 220, fontSize: 12, padding: "5px 8px", background: T.inputBg || T.pillBg, color: T.text, border: `1px solid ${T.border || '#30363d'}`, borderRadius: 8, fontFamily: "Inter, system-ui, sans-serif", cursor: "pointer" }}
+       >
+        <option value="">— Select Borrower —</option>
+        {borrowerList.map(b => (
+         <option key={b.id} value={b.id}>{b.name}{b.email ? ` (${b.email})` : ''}</option>
+        ))}
+        <option value="__new__">+ New Borrower</option>
+       </select>
+       {borrowerLoading && <span style={{ fontSize: 10, color: T.textTertiary }}>Loading...</span>}
+      </div>
+     )}
+     {/* ── Sign-in prompt when not authenticated ── */}
+     {!isCloud && !auth?.localMode && auth?.requestLogin && (
+      <div style={{ marginTop: 6 }}>
+       <button onClick={auth.requestLogin} style={{ fontSize: 11, color: T.blue, background: "none", border: `1px solid ${T.blue}30`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "Inter, system-ui, sans-serif" }}>
+        Sign in to sync across devices
+       </button>
+      </div>
+     )}
      {/* ── Qualification Pillars Strip ── */}
      <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
