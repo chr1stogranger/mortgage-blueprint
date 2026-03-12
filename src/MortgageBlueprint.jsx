@@ -2424,16 +2424,16 @@ export default function MortgageBlueprint({ initialState }) {
   const barFirstShow = !floatBarShownRef.current;
   if (barFirstShow) floatBarShownRef.current = true;
   return (
-   <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-    <div style={{ margin: "0 8px 8px", borderRadius: 20, overflow: "hidden", pointerEvents: "auto", border: isReady ? `2px solid ${T.blue}` : "2px solid transparent", boxShadow: isReady ? `0 0 20px rgba(74,144,217,0.4), 0 -4px 30px rgba(0,0,0,0.15)` : "0 -4px 30px rgba(0,0,0,0.15)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", transition: "all 0.4s ease" }}>
-     {/* Progress bar */}
-     <div style={{ height: 3, background: T.separator }}>
-      <div style={{ height: "100%", width: `${progressPct}%`, background: isReady ? T.blue : `${T.blue}50`, borderRadius: 99, transition: "width 0.5s ease" }} />
-     </div>
-     <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? `${T.blue}12` : `${T.card}F0`, gap: 12, transition: "background 0.4s" }}>
+   <div style={{ position: "fixed", bottom: 0, left: isDesktop ? "auto" : "50%", right: isDesktop ? 0 : "auto", transform: isDesktop ? "none" : "translateX(-50%)", width: isDesktop ? "calc(100% - 240px)" : "100%", maxWidth: isDesktop ? "none" : 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <div style={{ margin: "0 8px 8px", borderRadius: 20, overflow: "hidden", pointerEvents: "auto", border: isReady ? "none" : "2px solid transparent", boxShadow: isReady ? "0 0 24px rgba(10,132,255,0.5), 0 -4px 30px rgba(0,0,0,0.15)" : "0 -4px 30px rgba(0,0,0,0.15)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", transition: "all 0.4s ease" }}>
+     {/* Progress bar — hidden when ready (entire bar is blue) */}
+     {!isReady && <div style={{ height: 3, background: T.separator }}>
+      <div style={{ height: "100%", width: `${progressPct}%`, background: `${T.blue}50`, borderRadius: 99, transition: "width 0.5s ease" }} />
+     </div>}
+     <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, gap: 12, transition: "background 0.4s" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-       <div style={{ fontSize: 11, color: isReady ? T.blue : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
-       <div style={{ fontSize: 14, fontWeight: 700, color: isReady ? T.blue : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+       <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.75)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
+       <div style={{ fontSize: 14, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
         {isReady ? `✓ ${TAB_DISPLAY_NAMES[tab]} complete` : fieldsComplete ? `${TAB_DISPLAY_NAMES[tab]} ✓ — scroll down` : TAB_DISPLAY_NAMES[tab]}
        </div>
       </div>
@@ -2441,11 +2441,11 @@ export default function MortgageBlueprint({ initialState }) {
        onClick={isReady ? handleNext : undefined}
        disabled={!isReady}
        style={{
-        padding: "10px 20px", borderRadius: 14, border: "none", fontFamily: FONT, fontSize: 14, fontWeight: 700,
+        padding: "10px 20px", borderRadius: 14, border: isReady ? "2px solid rgba(255,255,255,0.3)" : "none", fontFamily: FONT, fontSize: 14, fontWeight: 700,
         cursor: isReady ? "pointer" : "default", letterSpacing: "0.01em", transition: "all 0.3s",
-        background: isReady ? "linear-gradient(135deg, #4a90d9, #3a7dc4)" : `${T.blue}18`,
-        color: isReady ? "#fff" : `${T.blue}60`,
-        boxShadow: isReady ? "0 4px 16px rgba(74,144,217,0.35)" : "none",
+        background: isReady ? "rgba(255,255,255,0.2)" : `${T.blue}18`,
+        color: isReady ? "#FFFFFF" : `${T.blue}60`,
+        boxShadow: "none",
         opacity: isReady ? 1 : 0.6,
        }}
       >
