@@ -4357,9 +4357,9 @@ export default function MortgageBlueprint({ initialState }) {
   <div>
   <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
   {!isRefi && (
-  <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14, marginTop: -6 }}>
-   <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Look up on Zillow</span>
-   <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
+  <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}08`, border: `1px solid ${T.blue}18`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10, marginTop: -4 }}>
+   <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Zillow</span>
+   <span style={{ fontSize: 10, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
   )}
   </div>
