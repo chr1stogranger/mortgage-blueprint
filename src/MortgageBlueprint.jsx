@@ -1331,7 +1331,7 @@ export default function MortgageBlueprint({ initialState }) {
  const [loEmail, setLoEmail] = useState("cgranger@xperthomelending.com");
  const [loPhone, setLoPhone] = useState("(415) 987-8489");
  const [loNmls, setLoNmls] = useState("952015");
- const [companyName, setCompanyName] = useState("Xpert Home Lending");
+ const [companyName, setCompanyName] = useState("Chris Granger Mortgage");
  const [companyNmls, setCompanyNmls] = useState("2179191");
  const [borrowerName, setBorrowerName] = useState("");
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
@@ -3885,7 +3885,7 @@ export default function MortgageBlueprint({ initialState }) {
      <div>⚖️ <strong>Not a commitment to lend</strong> — estimates only</div>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 16 }}>
-     Xpert Home Lending · NMLS# — Chris Granger, Loan Officer
+     Chris Granger Mortgage · NMLS #952015
     </div>
     <button onClick={handleConsent} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
      I Understand — Continue
@@ -7912,7 +7912,7 @@ export default function MortgageBlueprint({ initialState }) {
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>FRED API:</strong> If you enable live rate fetching, your device makes direct requests to the Federal Reserve Economic Data (FRED) API to retrieve current mortgage rates. No personal or financial data is included in these requests — only your API key and the rate series ID.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Accounts:</strong> Mortgage Blueprint does not require account creation, login, or any personal identification to use.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Deletion:</strong> You can permanently delete all stored data at any time using the "Clear All Data" button in Settings.</div>
-      <div><strong style={{ color: T.text }}>Contact:</strong> For questions about this privacy policy, contact Chris Granger at Xpert Home Lending (NMLS #952015).</div>
+      <div><strong style={{ color: T.text }}>Contact:</strong> For questions about this privacy policy, contact Chris Granger (NMLS #952015).</div>
      </div>
     )}
    </div>
