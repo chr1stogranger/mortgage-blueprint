@@ -22,6 +22,7 @@ const ALLOWED_EMAILS = [
   "peternoerrmortgage@gmail.com",
   "gina@tsdmtg.com",
   "myprocess@tsdmtg.com",
+  "gmcnavarro0637@gmail.com",
 ];
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
