@@ -261,7 +261,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📐</div>
           <div style={{ fontSize: 16, color: T.text, fontWeight: 600 }}>Loading your Blueprint...</div>
-          <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 4 }}>Powered by Xpert Home Lending</div>
+          <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 4 }}>Mortgage Blueprint</div>
         </div>
       </div>
     );
@@ -279,7 +279,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
               ? "This share link may have expired or been deactivated. Please contact your loan officer for a new link."
               : error}
           </div>
-          <div style={{ marginTop: 24, fontSize: 12, color: T.textTertiary }}>Mortgage Blueprint by Xpert Home Lending</div>
+          <div style={{ marginTop: 24, fontSize: 12, color: T.textTertiary }}>Mortgage Blueprint</div>
         </div>
       </div>
     );
@@ -306,7 +306,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
               Mortgage Blueprint
             </div>
             <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 1 }}>
-              Xpert Home Lending
+              Mortgage Blueprint
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -395,7 +395,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         textAlign: "center",
       }}>
         <div style={{ fontSize: 11, color: T.textTertiary }}>
-          Powered by <span style={{ color: T.accent, fontWeight: 600 }}>Xpert Home Lending</span> &middot; Mortgage Blueprint
+          <span style={{ color: T.accent, fontWeight: 600 }}>Mortgage Blueprint</span>
         </div>
       </div>
     </div>
