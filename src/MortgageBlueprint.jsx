@@ -679,15 +679,15 @@ function RefiTestLight({ passed, label, detail }) {
   </div>
  </div>);
 }
-function PayRing({ segments, total }) {
- const sz = 200, sw = 22, r = (sz - sw) / 2, c = 2 * Math.PI * r;
+function PayRing({ segments, total, size }) {
+ const sz = size || 200, sw = size ? Math.max(18, Math.round(size / 10)) : 22, r = (sz - sw) / 2, c = 2 * Math.PI * r;
  let cum = 0;
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={sw} />
    {segments.filter(s => s.v > 0).map((s, i) => { const p = total > 0 ? s.v / total : 0; const dash = p * c, gap = c - dash, off = -cum * c + c * 0.25; cum += p; return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={off} style={{ transition: "all 0.6s ease" }} />; })}
-   <text x={sz/2} y={sz/2 - 12} textAnchor="middle" fill={T.textTertiary} fontSize="12" fontWeight="500" fontFamily={FONT}>MONTHLY</text>
-   <text x={sz/2} y={sz/2 + 14} textAnchor="middle" fill={T.text} fontSize="28" fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
+   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="500" fontFamily={FONT}>MONTHLY</text>
+   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
   </svg>
   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>
    {segments.filter(s => s.v > 0).map((s, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -4346,9 +4346,9 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "calc" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── Desktop: Left column (PayRing + summary) — fixed 50% so always visible ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, order: 1, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
- <div className={changedFields.size > 0 ? "field-updated" : ""} style={isDesktop ? {} : { marginTop: 20 }}>
-  <PayRing segments={paySegs} total={calc.displayPayment} />
+ <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, order: 1, maxHeight: "calc(100vh - 40px)", overflow: "auto", display: "flex", flexDirection: "column" } : {}}>
+ <div className={changedFields.size > 0 ? "field-updated" : ""} style={isDesktop ? { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" } : { marginTop: 20 }}>
+  <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} />
  </div>
  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px 12px" }}>
   <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Include Escrow (Tax & Ins)</span>
@@ -4398,7 +4398,7 @@ export default function MortgageBlueprint({ initialState }) {
    )}
   </div>
  )}
- <div className={changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+ <div className={changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: isDesktop ? 8 : 16, marginTop: isDesktop ? "auto" : 0 }}>
   {(isRefi ? [
    { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
    { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
@@ -4537,6 +4537,7 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
   </div>}
   </div>
+  <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
   <div data-field="calc-proptype" className={isPulse("calc-proptype")} onClick={() => markTouched("calc-proptype")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req tip="The type of home you're buying. Condos and multi-unit properties have different qualification rules." />
   </div>
@@ -4549,6 +4550,7 @@ export default function MortgageBlueprint({ initialState }) {
    }
    setLoanPurpose(v);
   }} options={[{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]} req tip="How you'll use the property. Investment properties typically carry a 0.750–1.000% rate premium and require 15-25% down." />
+  </div>{/* end proptype+occupancy 2-col grid */}
   {loanPurpose === "Purchase Investment" && (
    <Note color={T.orange}>📈 Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
   )}
@@ -4580,6 +4582,7 @@ export default function MortgageBlueprint({ initialState }) {
     )}
    </div>
   )}
+  <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
   <Sel label="State (property tax)" value={propertyState} onChange={v => { setPropertyState(v); if (v !== "California") setCity(""); }} options={STATE_NAMES_PROP} req />
   {propertyState === "California" ? (
    <SearchSelect label="City (tax rate)" value={city} onChange={setCity} options={CITY_NAMES} />
@@ -4591,6 +4594,7 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </>
   )}
+  </div>{/* end state+city 2-col grid */}
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
    <Inp label="Insurance" value={annualIns} onChange={setAnnualIns} suffix="/yr" max={50000} sm tip="Annual homeowner's insurance premium. Required by all lenders. Typically 0.3-1% of home value per year." />
    <Inp label="HOA" value={hoa} onChange={setHoa} suffix="/mo" max={10000} sm tip="Monthly Homeowners Association fee. Common in condos and planned communities. This counts toward your DTI." />
