@@ -4353,6 +4353,8 @@ export default function MortgageBlueprint({ initialState }) {
  <div data-field="calc-price" className={isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <div data-field="down-pct-input">
  <Card>
+  <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" } : {}}>
+  <div>
   <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
   {!isRefi && (
   <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14, marginTop: -6 }}>
@@ -4360,8 +4362,9 @@ export default function MortgageBlueprint({ initialState }) {
    <span style={{ fontSize: 11, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
   )}
+  </div>
   {isRefi ? (<>
-   {/* ── Refi: Equity & Balance display + Rate input ── */}
+   {/* ── Refi: Equity & Balance display ── */}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
     <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
      <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>CURRENT BALANCE</div>
@@ -4375,25 +4378,8 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </div>
    {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
-   <div data-field="calc-rate" className={isPulse("calc-rate")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-    <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-      New Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-      <InfoTip text="The interest rate on your new loan. Compare this to your current rate to see your savings." />
-     </div>
-     {refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
-    </div>
-    <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
-    {refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
-    )}
-    {refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
-    )}
-   </div>
   </>) : (<>
-   {/* ── Purchase: Down Payment + Rate ── */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
+   {/* ── Purchase: Down Payment ── */}
    <div data-field="calc-down" className={isPulse("calc-down")} onClick={() => markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -4414,17 +4400,8 @@ export default function MortgageBlueprint({ initialState }) {
      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
     </div>
    </div>
-   <div data-field="calc-rate" className={isPulse("calc-rate")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
-     <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-      Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-      <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
-     </div>
-    </div>
-    <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
-   </div>
-  </div>
   </>)}
+  </div>
   {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
   {!isRefi && loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
  </Card>
@@ -4498,6 +4475,33 @@ export default function MortgageBlueprint({ initialState }) {
  </div>{/* end desktop left column / sticky summary */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0, order: 2 } : {}}>
  <Card>
+  {/* Rate */}
+  <div data-field="calc-rate" className={isPulse("calc-rate")} style={{ borderRadius: 12, transition: "all 0.3s", marginBottom: 14 }}>
+  {isRefi ? (<>
+   <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+    <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+     New Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+     <InfoTip text="The interest rate on your new loan. Compare this to your current rate to see your savings." />
+    </div>
+    {refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
+   </div>
+   <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+   {refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
+    <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
+   )}
+   {refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
+    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
+   )}
+  </>) : (<>
+   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
+    <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+     Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+     <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+    </div>
+   </div>
+   <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+  </>)}
+  </div>
   {/* Live Rates */}
   <button onClick={fetchRates} disabled={ratesLoading} style={{ width: "100%", background: liveRates ? T.successBg : `${T.blue}18`, border: `1px solid ${liveRates ? T.green + "33" : T.blue + "33"}`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
    <span style={{ fontSize: 13, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: FONT }}>
