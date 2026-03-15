@@ -3990,26 +3990,8 @@ export default function MortgageBlueprint({ initialState }) {
        );
       })}
      </div>
-     {/* Sidebar Footer — Theme + Mode */}
+     {/* Sidebar Footer */}
      <div style={{ padding: sidebarCollapsed ? "12px 8px" : "12px 18px", borderTop: `1px solid ${T.separator}` }}>
-      {!sidebarCollapsed && (
-       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: T.textTertiary }}>{themeMode === 'auto' ? '🌗 Auto' : themeMode === 'light' ? '☀️ Light' : '🌙 Dark'}</span>
-        <button onClick={cycleTheme} style={{ background: T.pillBg, border: "none", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: T.textSecondary, cursor: "pointer", fontFamily: FONT, fontWeight: 500 }}>Switch</button>
-       </div>
-      )}
-      {sidebarCollapsed && (
-       <button onClick={cycleTheme} style={{ background: T.pillBg, border: "none", borderRadius: 8, width: "100%", padding: "6px 0", fontSize: 14, cursor: "pointer", color: T.textSecondary }}>
-        {themeMode === 'auto' ? '🌗' : themeMode === 'light' ? '☀️' : '🌙'}
-       </button>
-      )}
-      {!sidebarCollapsed && (
-       <div style={{ display: "flex", gap: 4 }}>
-        {[["blueprint","🏗️"],["pricepoint","🎯"]].map(([k,e]) => (
-         <button key={k} onClick={() => setAppMode(k)} style={{ flex: 1, background: appMode === k ? T.tabActiveBg : "transparent", border: `1px solid ${appMode === k ? T.blue : T.separator}`, borderRadius: 8, padding: "6px 0", fontSize: 12, fontWeight: appMode === k ? 700 : 500, color: appMode === k ? T.blue : T.textSecondary, cursor: "pointer", fontFamily: FONT }}>{e} {k === "blueprint" ? "Blueprint" : "PricePoint"}</button>
-        ))}
-       </div>
-      )}
      </div>
     </div>
    )}
@@ -4208,7 +4190,20 @@ export default function MortgageBlueprint({ initialState }) {
     <div style={{ padding: "16px 20px 8px" }}>
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
-       <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Mortgage Blueprint</div>
+       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Mortgage Blueprint</span>
+        {/* ── Blueprint / PricePoint segmented toggle ── */}
+        <div style={{ display: "flex", background: T.pillBg, borderRadius: 10, padding: 2 }}>
+         {[["blueprint","🏗️","Blueprint"],["pricepoint","🎯","PricePoint"]].map(([k,e,l]) => (
+          <button key={k} onClick={() => setAppMode(k)} style={{
+           padding: "4px 10px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: appMode === k ? 700 : 500,
+           background: appMode === k ? T.blue : "transparent",
+           color: appMode === k ? "#fff" : T.textTertiary,
+           cursor: "pointer", transition: "all 0.2s", fontFamily: FONT, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3,
+          }}>{e} {l}</button>
+         ))}
+        </div>
+       </div>
        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, flexWrap: "nowrap", overflow: "hidden" }}>
         {scenarioList.length > 1 ? scenarioList.map(name => (
          <span key={name} onClick={() => name !== scenarioName ? switchScenario(name) : null}
