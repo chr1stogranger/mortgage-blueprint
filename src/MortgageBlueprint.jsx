@@ -6330,7 +6330,7 @@ export default function MortgageBlueprint({ initialState }) {
 
    {/* ── Live Estimate — purchase only ── */}
    {!isRefi && (
-   <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 10 }}>
+   <div style={{ background: darkMode ? "linear-gradient(135deg, #1a2a1f, #162030)" : `linear-gradient(135deg, ${T.green}08, ${T.blue}06)`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 10 }}>
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
       <span style={{ fontSize: 28, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
