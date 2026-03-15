@@ -4748,7 +4748,7 @@ export default function MortgageBlueprint({ initialState }) {
  {/* ── RIGHT: Schedule table (scrollable on desktop) ── */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
-  {["monthly","yearly","chart","equity"].map(v => <Tab key={v} label={v === "equity" ? "Equity" : v.charAt(0).toUpperCase() + v.slice(1)} active={amortView === v} onClick={() => setAmortView(v)} />)}
+  {["monthly","yearly","equity"].map(v => <Tab key={v} label={v === "equity" ? "Equity" : v.charAt(0).toUpperCase() + v.slice(1)} active={amortView === v} onClick={() => setAmortView(v)} />)}
   <button onClick={() => {
    const rows = [["Month","Payment","Interest","Principal","Extra","Balance"]];
    calc.amortSchedule.forEach(d => rows.push([d.m, (d.int + d.prin + (d.extra||0)).toFixed(2), d.int.toFixed(2), d.prin.toFixed(2), (d.extra||0).toFixed(2), d.bal.toFixed(2)]));
