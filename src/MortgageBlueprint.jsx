@@ -8655,28 +8655,35 @@ export default function MortgageBlueprint({ initialState }) {
              </div>
             );
            })()}
-           {/* Reference prices: List Price, Zestimate, Sold/DOM */}
-           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            {ppCurrentListing.listPrice ? (
-             <div style={{ flex: 1, minWidth: 80 }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
+           {/* List Price — hero pill */}
+           {ppCurrentListing.listPrice ? (
+            <div style={{ background: "rgba(56,189,126,0.08)", border: "1px solid rgba(56,189,126,0.2)", borderRadius: 14, padding: "12px 16px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+             <div>
+              <div style={{ fontSize: 10, color: "#38bd7e", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Listed at</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#38bd7e", marginTop: 2, letterSpacing: "-0.02em" }}>{ppFmt(ppCurrentListing.listPrice)}</div>
              </div>
-            ) : null}
+             {ppCurrentListing.sqft > 0 && <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: T.textSecondary }}>${Math.round(ppCurrentListing.listPrice / ppCurrentListing.sqft)}</div>
+              <div style={{ fontSize: 10, color: T.textTertiary }}>per SF</div>
+             </div>}
+            </div>
+           ) : null}
+           {/* Secondary refs: Zestimate, Sold Date / DOM */}
+           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
             {ppCurrentListing.zestimate ? (
-             <div style={{ flex: 1, minWidth: 80 }}>
+             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
              </div>
             ) : null}
             {ppSoldMode && ppCurrentListing.soldDate ? (
-             <div style={{ flex: 1, minWidth: 80 }}>
+             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Sold Date</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
              </div>
             ) : null}
             {!ppSoldMode && ppCurrentListing.daysOnMarket ? (
-             <div style={{ flex: 1, minWidth: 80 }}>
+             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Days on Market</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#38bd7e", marginTop: 4 }}>{ppCurrentListing.daysOnMarket}</div>
              </div>
