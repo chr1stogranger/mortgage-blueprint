@@ -3686,20 +3686,18 @@ export default function MortgageBlueprint({ initialState }) {
   const val = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
   if (!val || !ppCurrentListing) return;
   const isSold = ppSoldMode && ppCurrentListing.soldPrice;
-  const isOnMarket = !ppSoldMode;
-  const revealPrice = isSold ? ppCurrentListing.soldPrice : isOnMarket ? ppCurrentListing.listPrice : null;
   setPpCardAnim("pp-submitted");
   setTimeout(() => {
    const newGuess = {
     listingId:ppCurrentListing.id, zpid:ppCurrentListing.zpid, guess:val,
     soldPrice: isSold ? ppCurrentListing.soldPrice : null,
     listPrice:ppCurrentListing.listPrice, zestimate:ppCurrentListing.zestimate,
-    revealPrice: revealPrice,
+    revealPrice: isSold ? ppCurrentListing.soldPrice : null,
     address:ppCurrentListing.address, city:ppCurrentListing.city, state:ppCurrentListing.state, zip:ppCurrentListing.zip,
     propertyType:ppCurrentListing.propertyType, neighborhood:ppCurrentListing.neighborhood,
     sqft:ppCurrentListing.sqft, beds:ppCurrentListing.beds, baths:ppCurrentListing.baths,
     photo:ppCurrentListing.photo, timestamp:Date.now(),
-    revealed: !!(isSold || isOnMarket),
+    revealed: isSold ? true : false,
     isSoldMode: !!isSold,
    };
    setPpGuesses(prev => [...prev, newGuess]);
@@ -3707,12 +3705,15 @@ export default function MortgageBlueprint({ initialState }) {
    setPpCardAnim("");
    setPpPhotoIdx(0);
    setPpDescExpanded(false);
-   if (isSold || isOnMarket) {
+   if (isSold) {
     setPpShowReveal(newGuess);
     setTimeout(() => setPpRevealAnim(true), 50);
-    const pctOff = revealPrice ? Math.abs((val - revealPrice) / revealPrice) * 100 : 99;
+    const pctOff = Math.abs((val - ppCurrentListing.soldPrice) / ppCurrentListing.soldPrice) * 100;
     const bonus = pctOff <= 1 ? 50 : pctOff <= 2 ? 40 : pctOff <= 5 ? 25 : pctOff <= 10 ? 15 : 0;
     setTimeout(() => { setPpNotif(`+${10 + bonus} XP earned!${bonus > 0 ? ` 🎯 ${pctOff.toFixed(1)}% accuracy bonus` : ""}`); setTimeout(() => setPpNotif(null), 3000); }, 2000);
+   } else {
+    setPpNotif(`Locked in ${ppFmt(val)} — +10 XP`);
+    setTimeout(() => setPpNotif(null), 3000);
    }
   }, 400);
  };
@@ -8642,9 +8643,9 @@ export default function MortgageBlueprint({ initialState }) {
              </div>
             );
            })()}
-           {/* Reference prices — On Market hides list price (that's the guess!) */}
+           {/* Reference prices: List Price, Zestimate, Sold/DOM */}
            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            {ppSoldMode && ppCurrentListing.listPrice ? (
+            {ppCurrentListing.listPrice ? (
              <div style={{ flex: 1, minWidth: 80 }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
@@ -8670,17 +8671,16 @@ export default function MortgageBlueprint({ initialState }) {
             ) : null}
            </div>
            <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
-            placeholder={ppSoldMode ? "What did it sell for?" : "What's the list price?"}
+            placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
             style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 6, boxSizing: "border-box" }} />
            {/* Quick-guess shortcut pills */}
            {(() => {
             const lp = ppCurrentListing.listPrice;
             const ze = ppCurrentListing.zestimate;
             const pills = [];
-            if (ppSoldMode && lp) pills.push({ label: "List", val: lp });
+            if (lp) pills.push({ label: "List", val: lp });
             if (ze) pills.push({ label: "Zest", val: ze });
             if (lp && ze) pills.push({ label: "Mid", val: Math.round((lp + ze) / 2) });
-            if (!ppSoldMode && lp) pills.push({ label: "±5%", val: Math.round(lp * 0.95) }, { label: "+5%", val: Math.round(lp * 1.05) });
             if (pills.length === 0) return null;
             return (
              <div style={{ display: "flex", gap: 6, marginBottom: 8, justifyContent: "center", flexWrap: "wrap" }}>
@@ -8697,20 +8697,13 @@ export default function MortgageBlueprint({ initialState }) {
             const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
             if (!v) return null;
             const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
-            if (ppSoldMode) {
-             const comparePrice = ppCurrentListing.listPrice || ppCurrentListing.zestimate;
-             const compareLabel = ppCurrentListing.listPrice ? "list" : "Zestimate";
-             const d = comparePrice ? ((v - comparePrice)/comparePrice*100).toFixed(1) : null;
-             return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
-              {d !== null ? <>{d > 0 ? "+" : ""}{d}% vs {compareLabel}</> : null}{pp ? `${d !== null ? " · " : ""}$${pp}/SF` : ""}
-             </div>;
-            } else {
-             const ze = ppCurrentListing.zestimate;
-             const zd = ze ? ((v - ze)/ze*100).toFixed(1) : null;
-             return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
-              {zd !== null ? <>{zd > 0 ? "+" : ""}{zd}% vs Zestimate</> : null}{pp ? `${zd !== null ? " · " : ""}$${pp}/SF` : ""}
-             </div>;
-            }
+            const comparePrice = ppCurrentListing.listPrice || ppCurrentListing.zestimate;
+            const compareLabel = ppCurrentListing.listPrice ? "list" : "Zestimate";
+            const d = comparePrice ? ((v - comparePrice)/comparePrice*100).toFixed(1) : null;
+            return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
+             {d !== null ? <>{d > 0 ? "+" : ""}{d}% vs {compareLabel}</> : null}{pp ? `${d !== null ? " · " : ""}$${pp}/SF` : ""}
+             {!ppSoldMode && ppCurrentListing.zestimate && ppCurrentListing.listPrice ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
+            </div>;
            })()}
            <div style={{ display: "flex", gap: 8 }}>
            <button onClick={ppSkipListing} style={{
@@ -9043,7 +9036,7 @@ export default function MortgageBlueprint({ initialState }) {
       <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
        <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
         <div style={{ textAlign:"center" }}>
-         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "🏠 RECENTLY SOLD" : "📋 ON MARKET REVEAL"}</div>
+         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "🏠 RECENTLY SOLD" : "🏠 SOLD"}</div>
          <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
          <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
          <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24, flexWrap:"wrap", gap:8 }}>
@@ -9067,9 +9060,9 @@ export default function MortgageBlueprint({ initialState }) {
           </div>
           <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />
           <div style={{ textAlign:"center", minWidth:80 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>{ppShowReveal.isSoldMode ? "Sold Price" : "List Price"}</div>
-           <div style={{ fontSize:22, fontWeight:800, color:"#38bd7e" }}>{ppFmt(ppShowReveal.isSoldMode ? ppShowReveal.soldPrice : ppShowReveal.listPrice)}</div>
-           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round((ppShowReveal.isSoldMode ? ppShowReveal.soldPrice : ppShowReveal.listPrice)/ppShowReveal.sqft)}/SF</div>}
+           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Sold Price</div>
+           <div style={{ fontSize:22, fontWeight:800, color:"#38bd7e" }}>{ppFmt(ppShowReveal.soldPrice)}</div>
+           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.soldPrice/ppShowReveal.sqft)}/SF</div>}
           </div>
          </div>
          {(() => {
@@ -9085,7 +9078,7 @@ export default function MortgageBlueprint({ initialState }) {
            </div>
           );
          })()}
-         <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>{ppShowReveal.isSoldMode ? "Recently sold — your guess vs actual sale price" : "On Market — your guess vs actual list price"}</div>
+         {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Recently sold — compare your guess against the actual sale price</div>}
          <div style={{ display:"flex", gap:8, marginTop: ppShowReveal.isSoldMode ? 8 : 20 }}>
           <button onClick={() => {
            const price = ppShowReveal.revealPrice || ppShowReveal.soldPrice || ppShowReveal.listPrice || ppShowReveal.zestimate;
