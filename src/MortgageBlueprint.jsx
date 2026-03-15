@@ -37,40 +37,6 @@ const REALTOR_PARTNERS = {
 // CITY_TAX_RATES alias for backward compatibility
 const CITY_TAX_RATES = CA_CITY_TAX_RATES;
 const CITY_NAMES = CA_CITY_NAMES;
-/* OLD INLINE DATA REMOVED — replaced by import
-const _CITY_TAX_RATES_OLD = {
- "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
- "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
- "Atherton": 0.010913, "Bay Point": 0.011023, "Bayview": 0.011023, "Belmont": 0.011247,
- "Belvedere": 0.010931, "Benicia": 0.01157, "Berkeley": 0.012323, "Bethel Island": 0.010876,
- "Blackhawk": 0.010876, "Bolinas": 0.010911, "Brentwood": 0.011045, "Briones": 0.011556,
- "Brisbane": 0.010921, "Broadmoor": 0.011494, "Burlingame": 0.011196, "Byron": 0.010964,
- "Calistoga": 0.000309, "Camino Tassajara": 0.010824, "Campbell": 0.011973, "Castro Valley": 0.011946,
- "Clayton": 0.010994, "Cloverdale": 0.010989, "Colma": 0.01116, "Concord": 0.011161,
- "Corte Madera": 0.011084, "Cotati": 0.011148, "Cupertino": 0.012076, "Daly City": 0.011369,
- "Danville": 0.010826, "Discovery Bay": 0.010964, "Dublin": 0.011515, "East Palo Alto": 0.011534,
- "El Cerrito": 0.013033, "El Sobrante": 0.012161, "Emeryville": 0.012469, "Fairfax": 0.010963,
- "Fairfield": 0.011558, "Foster City": 0.011274, "Fremont": 0.011987, "Gilroy": 0.011919,
- "Half Moon Bay": 0.011126, "Hayward": 0.012265, "Healdsburg": 0.010989, "Hercules": 0.011556,
- "Hillsborough": 0.010901, "Kensington": 0.013033, "Knightsen": 0.010964, "Lafayette": 0.011081,
- "Lagunitas": 0.010911, "Larkspur": 0.011089, "Livermore": 0.011752, "Los Altos": 0.011519,
- "Los Altos Hills": 0.011369, "Los Gatos": 0.011813, "Martinez": 0.011224, "Menlo Park": 0.011199,
- "Mill Valley": 0.011065, "Millbrae": 0.011274, "Milpitas": 0.012193, "Monte Sereno": 0.011813,
- "Moraga": 0.011203, "Morgan Hill": 0.01186, "Mountain View": 0.012018, "Napa": 0.011387,
- "Newark": 0.012081, "Nicasio": 0.010911, "Novato": 0.011233, "Oakland": 0.013671,
- "Oakley": 0.011045, "Orinda": 0.011081, "Pacifica": 0.011369, "Palo Alto": 0.011762,
- "Petaluma": 0.010989, "Piedmont": 0.013362, "Pinole": 0.011671, "Pittsburg": 0.011023,
- "Pleasant Hill": 0.011161, "Pleasanton": 0.01158, "Portola Valley": 0.01086, "Redwood City": 0.011534,
- "Richmond": 0.012161, "Rodeo": 0.011556, "Rohnert Park": 0.011148, "Ross": 0.010956,
- "St. Helena": 0.000217, "San Anselmo": 0.010963, "San Bruno": 0.011369, "San Carlos": 0.011274,
- "San Francisco": 0.011800, "San Jose": 0.012234, "San Leandro": 0.012103, "San Lorenzo": 0.011946,
- "San Mateo": 0.011274, "San Pablo": 0.012161, "San Rafael": 0.011233, "San Ramon": 0.010826,
- "Santa Clara": 0.012076, "Santa Rosa": 0.010989, "Saratoga": 0.011813, "Sausalito": 0.011065,
- "Sebastopol": 0.010989, "Sonoma": 0.011148, "South San Francisco": 0.011369,
- "Sunnyvale": 0.012018, "Tiburon": 0.010931, "Union City": 0.012081, "Vacaville": 0.011558,
- "Vallejo": 0.011558, "Walnut Creek": 0.011023, "Windsor": 0.010989, "Woodside": 0.01086,
-};
-END OF OLD INLINE DATA */
 // Average effective property tax rates by state (2024/2025 data — actual taxes paid as % of home value)
 const STATE_PROPERTY_TAX_RATES = {
  "Alabama": 0.0040, "Alaska": 0.0118, "Arizona": 0.0062, "Arkansas": 0.0061,
@@ -390,9 +356,74 @@ function progressiveTax(taxableIncome, brackets) {
  for (const b of brackets) { if (taxableIncome <= b.min) break; tax += (Math.min(taxableIncome, b.max) - b.min) * b.rate; }
  return tax;
 }
-function fmt(v, compact) { if (PRIVACY) return "$•••••"; if (isNaN(v) || v == null) return "$0"; if (compact && Math.abs(v) >= 1e6) return "$" + (v/1e6).toFixed(1) + "M"; if (compact && Math.abs(v) >= 1e4) return "$" + (v/1e3).toFixed(0) + "K"; return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v); }
-function fmt2(v) { if (PRIVACY) return "$•••••"; return isNaN(v) || v == null ? "$0.00" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v); }
+function fmt(v, compact) { if (PRIVACY) return "$•••••"; if (v == null || !isFinite(v) || isNaN(v)) return "$0"; if (compact && Math.abs(v) >= 1e6) return "$" + (v/1e6).toFixed(1) + "M"; if (compact && Math.abs(v) >= 1e4) return "$" + (v/1e3).toFixed(0) + "K"; return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v); }
+function fmt2(v) { if (PRIVACY) return "$•••••"; return v == null || !isFinite(v) || isNaN(v) ? "$0.00" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v); }
 function pct(v, d = 1) { if (PRIVACY) return "••.•%"; return ((v || 0) * 100).toFixed(d) + "%"; }
+// ── DRY Helpers ──────────────────────────────────────────────────────────────
+/** Convert income amount to monthly based on pay frequency */
+function toMonthly(amount, frequency) {
+ const a = Number(amount) || 0;
+ if (frequency === "Annual") return a / 12;
+ if (frequency === "Bi-Weekly") return a * 26 / 12;
+ if (frequency === "Weekly") return a * 52 / 12;
+ if (frequency === "Hourly") return a * 2080 / 12;
+ return a; // Monthly or unrecognized
+}
+/** Standard amortizing P&I payment */
+function calcPI(loanAmt, annualRate, termYears) {
+ if (!loanAmt || loanAmt <= 0) return 0;
+ const mr = (annualRate / 100) / 12;
+ const np = termYears * 12;
+ if (mr <= 0 || np <= 0) return loanAmt / (np || 1);
+ return (loanAmt * mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1);
+}
+/** Remaining balance after N payments on a standard amortizing loan */
+function calcBalance(loanAmt, annualRate, termYears, paidMonths) {
+ const mr = (annualRate / 100) / 12;
+ const np = termYears * 12;
+ if (mr <= 0 || np <= 0) return Math.max(0, loanAmt * (1 - paidMonths / np));
+ return loanAmt * (Math.pow(1 + mr, np) - Math.pow(1 + mr, paidMonths)) / (Math.pow(1 + mr, np) - 1);
+}
+/** APR calculation — effective annual rate including fees amortized over the loan term */
+function calcAPR(loanAmt, annualRate, termYears, totalFees) {
+ if (!loanAmt || loanAmt <= 0 || !annualRate || annualRate <= 0) return 0;
+ const monthlyPmt = calcPI(loanAmt, annualRate, termYears);
+ const np = termYears * 12;
+ const netProceeds = loanAmt - totalFees; // what borrower actually receives
+ if (netProceeds <= 0) return annualRate;
+ // Newton's method to find monthly rate where PV of payments = netProceeds
+ let r = annualRate / 100 / 12; // initial guess
+ for (let i = 0; i < 100; i++) {
+  const pvFactor = (1 - Math.pow(1 + r, -np)) / r;
+  const pv = monthlyPmt * pvFactor;
+  const pvPrime = monthlyPmt * ((-np * Math.pow(1 + r, -np - 1) * r - (1 - Math.pow(1 + r, -np))) / (r * r));
+  const diff = pv - netProceeds;
+  if (Math.abs(diff) < 0.01) break;
+  r = r - diff / pvPrime;
+  if (r <= 0) { r = annualRate / 100 / 12; break; }
+ }
+ return r * 12 * 100; // convert monthly rate back to annual percentage
+}
+/** PMI rate lookup — Radian-based matrix by LTV and FICO (>20yr, Purchase/Rate-Term, Non-Refundable) */
+function getPMIRate(ltv, fico) {
+ // LTV buckets: 97%, 95%, 90%, 85% — with standard required coverage
+ // Rates are annual % of loan amount (monthly = rate * loanAmt / 12)
+ // Source: Radian PMI Rate Card (Nov 2021 effective), Primary Res, Fixed, >20yr term
+ const matrix = {
+  97: { 760: 0.0058, 740: 0.0070, 720: 0.0087, 700: 0.0099, 680: 0.0121, 660: 0.0154, 640: 0.0165, 620: 0.0186 },
+  95: { 760: 0.0038, 740: 0.0048, 720: 0.0059, 700: 0.0068, 680: 0.0087, 660: 0.0111, 640: 0.0119, 620: 0.0138 },
+  90: { 760: 0.0030, 740: 0.0039, 720: 0.0046, 700: 0.0056, 680: 0.0067, 660: 0.0087, 640: 0.0096, 620: 0.0111 },
+  85: { 760: 0.0019, 740: 0.0020, 720: 0.0023, 700: 0.0025, 680: 0.0028, 660: 0.0038, 640: 0.0042, 620: 0.0044 },
+ };
+ // Determine LTV bucket
+ const ltvPct = ltv * 100;
+ const bucket = ltvPct > 95 ? 97 : ltvPct > 90 ? 95 : ltvPct > 85 ? 90 : 85;
+ const rates = matrix[bucket];
+ // Determine FICO bucket (find highest threshold <= fico)
+ const score = fico || 700; // default to 700 if not provided
+ const ficoBucket = score >= 760 ? 760 : score >= 740 ? 740 : score >= 720 ? 720 : score >= 700 ? 700 : score >= 680 ? 680 : score >= 660 ? 660 : score >= 640 ? 640 : 620;
+ return rates[ficoBucket] || rates[700];
+}
 let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 const DARK = {
@@ -851,7 +882,6 @@ const PHASE_INFO = [
 
 // ── localStorage adapter (drop-in replacement for window.storage) ──
 // Storage abstraction — swap to @capacitor/preferences for native app
-// TODO: Replace with @capacitor/preferences for native app
 const Storage = {
  async get(key) { try { const v = localStorage.getItem(key); if (v === null) throw new Error("Key not found: " + key); return { key, value: v }; } catch(e) { throw e; } },
  async set(key, value) { try { localStorage.setItem(key, value); return { key, value }; } catch(e) { return null; } },
@@ -1354,7 +1384,7 @@ export default function MortgageBlueprint({ initialState }) {
  const [creditScore, setCreditScore] = useState(0);
  const [extraPayment, setExtraPayment] = useState(0);
  const [payExtra, setPayExtra] = useState(false);
- const [amortView, setAmortView] = useState("chart");
+ const [amortView, setAmortView] = useState("monthly");
  const [scenarioName, setScenarioName] = useState("Scenario 1");
  const [scenarioList, setScenarioList] = useState([]);
  const [hasSellProperty, setHasSellProperty] = useState(false);
@@ -1705,19 +1735,13 @@ export default function MortgageBlueprint({ initialState }) {
     if (i.selection === "YTD") return s + (i.ytdCalc || 0);
     if (i.selection === "1Y") return s + (i.oneYCalc || 0);
     if (i.selection === "2Y") return s + (i.twoYCalc || 0);
-    let mo = i.amount || 0;
-    if (i.frequency === "Annual") mo = mo / 12;
-    else if (i.frequency === "Bi-Weekly") mo = mo * 26 / 12;
-    else if (i.frequency === "Weekly") mo = mo * 52 / 12;
-    else if (i.frequency === "Hourly") mo = mo * 2080 / 12;
-    return s + mo;
+    return s + toMonthly(i.amount, i.frequency);
    }, 0);
    const monthlyInc = totalIncomeCalc + otherIncome;
    const monthlyDebts = debts.filter(d => d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit").reduce((s, d) => s + (d.monthly || 0), 0);
-   const mr = rate / 100 / 12, np = term * 12;
    const fhaUp = loanType === "FHA" ? baseLoan * 0.0175 : 0;
    const loan = baseLoan + fhaUp;
-   const pi = mr > 0 ? (loan * mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1) : loan / np;
+   const pi = calcPI(loan, rate, term);
    return {
     salesPrice,
     downPayment: dp,
@@ -2684,8 +2708,7 @@ export default function MortgageBlueprint({ initialState }) {
   return () => { events.forEach(e => window.removeEventListener(e, handleActivity)); if (lockTimer.current) clearInterval(lockTimer.current); };
  }, [pinSet, autoLockMin, isLocked]);
  // Auth abstraction — swap to @capgo/capacitor-native-biometric for native
- // TODO: Add biometric auth option when Capacitor is integrated
- const Auth = useRef({
+  const Auth = useRef({
   type: 'pin', // Future: 'biometric' | 'pin' | 'none'
   async verify(pin, storedPin) { return pin === storedPin; },
   async isAvailable() { return true; }
@@ -2831,13 +2854,13 @@ export default function MortgageBlueprint({ initialState }) {
   const usdaFee = loanType === "USDA" ? baseLoan * 0.01 : 0;
   const loan = baseLoan + fhaUp + vaFundingFee + usdaFee;
   const mr = rate / 100 / 12, np = term * 12;
-  const pi = mr > 0 ? (loan * mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1) : loan / np;
+  const pi = calcPI(loan, rate, term);
   const taxRate = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
   const yearlyTax = salesPrice * taxRate;
   const exemption = loanPurpose === "Purchase Primary" ? 7000 : 0;
   const monthlyTax = (yearlyTax - exemption * taxRate) / 12;
   const ins = annualIns / 12;
-  const pmiRate = ltv > 0.95 ? 0.0115 : ltv > 0.90 ? 0.0078 : ltv > 0.85 ? 0.0052 : ltv > 0.80 ? 0.0032 : 0;
+  const pmiRate = ltv > 0.80 ? getPMIRate(ltv, creditScore) : 0;
   const monthlyPMI = loanType === "Conventional" ? (baseLoan * pmiRate) / 12 : 0;
   const monthlyMIP = loanType === "FHA" ? (loan * 0.0055) / 12 : 0;
   const usdaMI = loanType === "USDA" ? (baseLoan * 0.0035) / 12 : 0;
@@ -2863,12 +2886,7 @@ export default function MortgageBlueprint({ initialState }) {
    if (i.selection === "YTD") return s + (i.ytdCalc || 0);
    if (i.selection === "1Y") return s + (i.oneYCalc || 0);
    if (i.selection === "2Y") return s + (i.twoYCalc || 0);
-   let mo = i.amount;
-   if (i.frequency === "Annual") mo = i.amount / 12;
-   else if (i.frequency === "Bi-Weekly") mo = i.amount * 26 / 12;
-   else if (i.frequency === "Weekly") mo = i.amount * 52 / 12;
-   else if (i.frequency === "Hourly") mo = i.amount * 2080 / 12;
-   return s + mo;
+   return s + toMonthly(i.amount, i.frequency);
   }, 0);
   const monthlyIncome = totalIncomeFromEntries + otherIncome;
   // REO DTI: Investment properties use 75% rental netting; Primary/Second Home full PITIA counted as debt
@@ -2930,7 +2948,7 @@ export default function MortgageBlueprint({ initialState }) {
   const confLimit = getConfLimit(propType), highBalLimit = getHighBalLimit(propType);
   const loanCategory = baseLoan <= confLimit ? "Conforming" : baseLoan <= highBalLimit ? "High Balance" : "Jumbo";
   const maxDTI = MAX_DTI[loanType] || 0.50;
-  const yourDTI = qualifyingIncome > 0 ? totalPayment / qualifyingIncome : 0;
+  const yourDTI = qualifyingIncome > 0 ? totalPayment / qualifyingIncome : null;
   const ttEntry = getTTForCity(transferTaxCity, salesPrice);
   const isSF = ttEntry.sfSeller === true;
   const buyerCityTT = isRefi ? 0 : (isSF ? 0 : (salesPrice / 1000 * ttEntry.rate) * 0.5);
@@ -2966,7 +2984,7 @@ export default function MortgageBlueprint({ initialState }) {
   const minDPpct = loanType === "VA" ? 0 : loanType === "FHA" ? 3.5 : loanType === "Jumbo" ? 20 : (firstTimeBuyer && loanCategory === "Conforming") ? 3 : 5;
   const recDPpct = minDPpct;
   const dpWarning = downPct < minDPpct ? "fail" : null;
-  const dtiCheck = qualifyingIncome > 0 ? (yourDTI <= maxDTI ? "Good!" : "Too High") : "—";
+  const dtiCheck = qualifyingIncome > 0 && yourDTI !== null ? (yourDTI <= maxDTI ? "Good!" : "Too High") : "—";
   const cashCheck = totalForClosing > 0 ? (totalForClosing >= cashToClose ? "Good!" : "Short") : "—";
   const reserveMonths = loanType === "Jumbo" ? 12 : (isRefi ? 0 : 3);
   const reservesReq = totalPayment * reserveMonths;
@@ -3058,7 +3076,7 @@ export default function MortgageBlueprint({ initialState }) {
   const netPostSaleExpense = afterTaxPayment - monthlyPrinReduction - monthlyAppreciation;
   const refiOrigNp = refiOriginalTerm * 12;
   const refiOrigMr = (refiCurrentRate / 100) / 12;
-  const refiCalcPI = (refiOriginalAmount > 0 && refiOrigMr > 0) ? (refiOriginalAmount * refiOrigMr * Math.pow(1 + refiOrigMr, refiOrigNp)) / (Math.pow(1 + refiOrigMr, refiOrigNp) - 1) : 0;
+  const refiCalcPI = calcPI(refiOriginalAmount, refiCurrentRate, refiOriginalTerm);
   const refiMonthsElapsed = (() => {
    if (!refiClosedDate) return 0;
    const cd = new Date(refiClosedDate + "T00:00:00");
@@ -3103,7 +3121,7 @@ export default function MortgageBlueprint({ initialState }) {
   const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   const refiNewMr = mr;
-  const refiNewPi = refiNewLoanAmt > 0 ? (refiNewLoanAmt * refiNewMr * Math.pow(1 + refiNewMr, np)) / (Math.pow(1 + refiNewMr, np) - 1) : 0;
+  const refiNewPi = calcPI(refiNewLoanAmt, rate, term);
   const refiNewMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : yearlyTax / 12;
   const refiNewMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (salesPrice * 0.0035 / 12);
   const refiNewEscrow = refiNewMonthlyTax + refiNewMonthlyIns;
@@ -3135,7 +3153,7 @@ export default function MortgageBlueprint({ initialState }) {
    return rateDrops.map(drop => {
     const futureRate = (rate || 0) - drop;
     const futureMr = futureRate > 0 ? (futureRate / 100) / 12 : 0;
-    const futurePi = refiNewLoanAmt > 0 && futureMr > 0 ? (refiNewLoanAmt * futureMr * Math.pow(1 + futureMr, np)) / (Math.pow(1 + futureMr, np) - 1) : 0;
+    const futurePi = calcPI(refiNewLoanAmt, futureRate, term);
     const futureSavings = refiNewPi - futurePi;
     return {
      drop,
@@ -3221,6 +3239,11 @@ export default function MortgageBlueprint({ initialState }) {
   const sellStateCapGainsTax = sellTaxableGain * sellStateCapGainsRate;
   const sellTotalCapGainsTax = sellFedCapGainsTax + sellStateCapGainsTax;
   const sellNetAfterTax = sellNetProceeds - sellTotalCapGainsTax;
+  // ── APR Calculation ──
+  // APR includes all finance charges: origination, discount points, MI upfront, prepaid interest
+  // Excluded per TILA: appraisal, title, escrow, recording, credit report, flood cert
+  const aprFinanceCharges = (pointsCost || 0) + (fhaUp || 0) + (vaFundingFee || 0) + (usdaFee || 0) + (underwritingFee || 0) + (processingFee || 0);
+  const apr = calcAPR(loan, rate, term, aprFinanceCharges);
   const extra = payExtra ? extraPayment : 0;
   const amortSchedule = [], amortStandard = [];
   let bal = loan, stdBal = loan;
@@ -3278,6 +3301,7 @@ export default function MortgageBlueprint({ initialState }) {
    sellAdjBasis, sellGrossGain, sellExclusionLimit, sellTaxableGain, sellIsLongTerm,
    fedLTCGRate, sellNIIT, sellFedCapGainsTax, sellStateCapGainsRate, sellStateCapGainsTax,
    sellTotalCapGainsTax, sellNetAfterTax,
+   apr, aprFinanceCharges,
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
@@ -3510,7 +3534,13 @@ export default function MortgageBlueprint({ initialState }) {
  // ═══════════════════════════════════════════
  // PRICEPOINT — Live Data Fetching
  // ═══════════════════════════════════════════
- const ppFetchListings = async (searchValue) => {
+ const ppFetchTimer = useRef(null);
+ const ppFetchListings = (searchValue) => {
+  if (!searchValue || searchValue.trim().length < 2) return;
+  clearTimeout(ppFetchTimer.current);
+  ppFetchTimer.current = setTimeout(() => ppFetchListingsNow(searchValue), 500);
+ };
+ const ppFetchListingsNow = async (searchValue) => {
   if (!searchValue || searchValue.trim().length < 2) return;
   setPpLoading(true);
   setPpError(null);
@@ -4518,6 +4548,16 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   ))}
  </div>
+ {/* ── APR Display ── */}
+ {calc.apr > 0 && calc.apr !== rate && (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", marginBottom: 12, background: `${T.blue}08`, borderRadius: 12, border: `1px solid ${T.blue}15` }}>
+   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <span style={{ fontSize: 12, color: T.textSecondary }}>APR</span>
+    <InfoTip text={`Annual Percentage Rate (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. APR fees on this loan: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, discount points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", FHA UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}). APR is always ≥ your note rate because it includes these finance charges.`} />
+   </div>
+   <span style={{ fontSize: 14, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{calc.apr.toFixed(3)}%</span>
+  </div>
+ )}
  </div>{/* end desktop left column / sticky summary */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0, order: 2 } : {}}>
  <Card>
@@ -4707,8 +4747,17 @@ export default function MortgageBlueprint({ initialState }) {
  </div>{/* end amort left column */}
  {/* ── RIGHT: Schedule table (scrollable on desktop) ── */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
- <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-  {["chart","yearly","monthly"].map(v => <Tab key={v} label={v.charAt(0).toUpperCase() + v.slice(1)} active={amortView === v} onClick={() => setAmortView(v)} />)}
+ <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
+  {["monthly","yearly","chart","equity"].map(v => <Tab key={v} label={v === "equity" ? "Equity" : v.charAt(0).toUpperCase() + v.slice(1)} active={amortView === v} onClick={() => setAmortView(v)} />)}
+  <button onClick={() => {
+   const rows = [["Month","Payment","Interest","Principal","Extra","Balance"]];
+   calc.amortSchedule.forEach(d => rows.push([d.m, (d.int + d.prin + (d.extra||0)).toFixed(2), d.int.toFixed(2), d.prin.toFixed(2), (d.extra||0).toFixed(2), d.bal.toFixed(2)]));
+   const csv = rows.map(r => r.join(",")).join("\n");
+   const blob = new Blob([csv], { type: "text/csv" });
+   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `amortization-${term}yr-${rate}pct.csv`; a.click();
+  }} style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 10, padding: "6px 10px", fontSize: 11, color: T.textSecondary, cursor: "pointer", fontFamily: FONT, marginLeft: "auto" }}>
+   ⬇ CSV
+  </button>
  </div>
  {amortView === "yearly" && (
   <Card pad={12}>
@@ -4743,6 +4792,65 @@ export default function MortgageBlueprint({ initialState }) {
    ))}
   </Card>
  )}
+ {amortView === "equity" && (() => {
+  const appRate = (appreciationRate || 3) / 100;
+  const data = calc.yearlyData.map((d, i) => {
+   const homeVal = salesPrice * Math.pow(1 + appRate, d.year);
+   const equity = homeVal - d.bal;
+   const prinPaid = calc.loan - d.bal;
+   const appreciation = homeVal - salesPrice;
+   return { year: d.year, homeVal, equity, bal: d.bal, prinPaid, appreciation, dp: calc.dp };
+  });
+  if (data.length === 0) return null;
+  const maxVal = Math.max(...data.map(d => d.homeVal));
+  const W = 440, H = 260, pad = { t: 16, r: 16, b: 32, l: 52 };
+  const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+  const xStep = cW / (data.length - 1 || 1);
+  const y = v => pad.t + cH - (maxVal > 0 ? (v / maxVal) * cH : 0);
+  const valPath = data.map((d, i) => `${i === 0 ? "M" : "L"}${pad.l + i * xStep},${y(d.homeVal)}`).join(" ");
+  const balPath = data.map((d, i) => `${i === 0 ? "M" : "L"}${pad.l + i * xStep},${y(d.bal)}`).join(" ");
+  const eqArea = valPath + " " + data.slice().reverse().map((d, i) => `L${pad.l + (data.length - 1 - i) * xStep},${y(d.bal)}`).join(" ") + " Z";
+  const ticks = [0, 1, 2, 3, 4].map(i => maxVal * i / 4);
+  const yr5 = data.find(d => d.year === 5);
+  const yr10 = data.find(d => d.year === 10);
+  const last = data[data.length - 1];
+  return (<>
+   <Card pad={14}>
+    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Equity Growth ({appreciationRate || 3}% appreciation)</div>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }}>
+     {ticks.map((t, i) => (<g key={i}><line x1={pad.l} y1={y(t)} x2={W - pad.r} y2={y(t)} stroke={T.separator} strokeWidth="0.5" />
+      <text x={pad.l - 6} y={y(t) + 3} textAnchor="end" fill={T.textTertiary} fontSize="8" fontFamily={FONT}>{t >= 1e6 ? `${(t/1e6).toFixed(1)}M` : t >= 1000 ? `${(t/1000).toFixed(0)}k` : t.toFixed(0)}</text></g>))}
+     <path d={eqArea} fill={T.green} opacity="0.15" />
+     <path d={valPath} fill="none" stroke={T.green} strokeWidth="2" />
+     <path d={balPath} fill="none" stroke={T.orange} strokeWidth="2" strokeDasharray="4,3" />
+     {data.filter((_, i) => i % Math.max(1, Math.floor(data.length / 6)) === 0 || i === data.length - 1).map((d, idx) => (
+      <text key={idx} x={pad.l + data.indexOf(d) * xStep} y={H - 8} textAnchor="middle" fill={T.textTertiary} fontSize="9" fontFamily={FONT}>Yr {d.year}</text>
+     ))}
+     <rect x={W - 140} y={pad.t} width={124} height={42} rx={8} fill={T.card} opacity="0.95" />
+     <circle cx={W - 128} cy={pad.t + 12} r={4} fill={T.green} /><text x={W - 120} y={pad.t + 16} fill={T.textSecondary} fontSize="9" fontFamily={FONT}>Home Value</text>
+     <circle cx={W - 128} cy={pad.t + 26} r={4} fill={T.orange} /><text x={W - 120} y={pad.t + 30} fill={T.textSecondary} fontSize="9" fontFamily={FONT}>Loan Balance</text>
+     <text x={W - 120} y={pad.t + 40} fill={T.green} fontSize="8" fontFamily={FONT} opacity="0.7">Shaded = Equity</text>
+    </svg>
+   </Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
+    {[yr5 && { label: "Year 5", eq: yr5.equity }, yr10 && { label: "Year 10", eq: yr10.equity }, last && { label: `Year ${last.year}`, eq: last.equity }].filter(Boolean).map((d, i) => (
+     <Card key={i} pad={12}>
+      <div style={{ fontSize: 10, color: T.textTertiary }}>{d.label}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(d.eq, true)}</div>
+     </Card>
+    ))}
+   </div>
+   {last && (
+    <Card style={{ marginTop: 8, background: `${T.green}08`, border: `1px solid ${T.green}15` }}>
+     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: T.green }}>Equity Breakdown at Payoff</div>
+     <MRow label="Down Payment" value={fmt(calc.dp)} />
+     <MRow label="Principal Paid" value={fmt(last.prinPaid)} />
+     <MRow label="Appreciation" value={fmt(last.appreciation)} color={T.green} />
+     <MRow label="Total Equity" value={fmt(last.equity)} bold color={T.green} />
+    </Card>
+   )}
+  </>);
+ })()}
  </div>{/* end amort right column */}
  </div>{/* end amort desktop flex wrapper */}
 </>)}
@@ -7992,7 +8100,7 @@ export default function MortgageBlueprint({ initialState }) {
         ["Down Payment", `${m.downPct}%`, null],
         ["Loan Amount", fmt(m.loan), null],
         ["Cash to Close", fmt(m.cashToClose), best("cashToClose") ? T.green : null],
-        ["DTI", (m.dti * 100).toFixed(1) + "%", m.dti <= 0.43 ? T.green : m.dti <= 0.5 ? T.yellow : T.red],
+        ["DTI", m.dti != null ? (m.dti * 100).toFixed(1) + "%" : "—", m.dti != null ? (m.dti <= 0.43 ? T.green : m.dti <= 0.5 ? T.yellow : T.red) : null],
         ["LTV", (m.ltv * 100).toFixed(1) + "%", null],
         ["Total Interest", fmt(m.totalInt), best("totalInt") ? T.green : null],
        ].map(([label, val, color], ri) => (
@@ -8087,7 +8195,7 @@ export default function MortgageBlueprint({ initialState }) {
         ["Term", d => d.term + " yr"],
         ["Type", d => d.loanType],
         ["LTV", d => (d.ltv * 100).toFixed(1) + "%"],
-        ["DTI", d => (d.dti * 100).toFixed(1) + "%"],
+        ["DTI", d => d.dti != null ? (d.dti * 100).toFixed(1) + "%" : "—"],
         ["Cash to Close", d => fmt(d.cashToClose)],
        ].map(([label, fn], ri) => {
         const vals = compareData.map(sc => fn(sc.metrics));
