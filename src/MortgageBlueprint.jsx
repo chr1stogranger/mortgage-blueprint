@@ -4094,11 +4094,11 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </div>
   </div>}
-  {/* ═══ EMAIL / SHARE MODAL ═══ */}
+  {/* ═══ SHARE MODAL ═══ */}
   {showEmailModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowEmailModal(false)}>
    <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={e => e.stopPropagation()}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-     <div style={{ fontSize: 18, fontWeight: 700 }}>Share {isRefi ? "Refi" : "Purchase"} Estimate</div>
+     <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>Share {isRefi ? "Refi" : "Purchase"} Estimate</div>
      <button onClick={() => setShowEmailModal(false)} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 16, cursor: "pointer", color: T.textSecondary }}>✕</button>
     </div>
     <div style={{ marginBottom: 12 }}>
@@ -4111,33 +4111,23 @@ export default function MortgageBlueprint({ initialState }) {
      <input value={borrowerEmail} onChange={e => setBorrowerEmail(e.target.value)} placeholder="borrower@email.com"
       style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
     </div>
-    {loEmail && <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 16, padding: "8px 12px", background: T.pillBg, borderRadius: 8 }}>
-     BCC: {loEmail} <span style={{ color: T.textTertiary, fontSize: 11 }}>(LO copy)</span>
+    {loEmail && <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 12, padding: "8px 12px", background: T.pillBg, borderRadius: 8 }}>
+     BCC: {loEmail} <span style={{ fontSize: 11 }}>(you\'ll get a copy)</span>
     </div>}
-    {!loEmail && <Note color={T.orange}>Add your LO Email in Settings to auto-BCC yourself on every email.</Note>}
-    {/* Action buttons */}
-    <div style={{ background: `${T.orange}15`, border: `1px solid ${T.orange}33`, borderRadius: 10, padding: "10px 12px", marginBottom: 8, marginTop: 12 }}>
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600 }}>⚠️ SECURITY NOTICE</div>
-     <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2, lineHeight: 1.5 }}>Email is not encrypted. This estimate contains financial data. Only send to verified recipients. This is not an official loan quote.</div>
-    </div>
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-     <button onClick={() => { handleEmailSummary(); setShowEmailModal(false); }} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      ✉️ Email Estimate
+    {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself.</Note>}
+    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+     <button onClick={() => { handleEmailSummary(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      ✉️ Email
      </button>
-     <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ width: "100%", padding: 16, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      📄 Print / Save PDF
-     </button>
-     <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
-      📋 Copy to Clipboard
-     </button>
-     <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); setShowEmailModal(false); }} style={{ width: "100%", padding: 14, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>
-      👁 Preview Branded Summary
+     <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      📄 Save PDF
      </button>
     </div>
-    {/* Preview */}
-    <div style={{ marginTop: 16, borderTop: `1px solid ${T.separator}`, paddingTop: 12 }}>
-     <div style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary, marginBottom: 8 }}>Preview</div>
-     <pre style={{ fontSize: 10, color: T.textSecondary, background: T.pillBg, padding: 12, borderRadius: 10, overflow: "auto", maxHeight: 200, whiteSpace: "pre-wrap", fontFamily: "monospace", lineHeight: 1.5, margin: 0 }}>{generateSummaryText()}</pre>
+    <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 12, background: "transparent", border: "none", color: T.textTertiary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
+     📋 Copy to Clipboard
+    </button>
+    <div style={{ background: `${T.orange}10`, borderRadius: 10, padding: "8px 12px", marginTop: 8 }}>
+     <div style={{ fontSize: 10, color: T.textTertiary, lineHeight: 1.5 }}>⚠️ Email is not encrypted. This is not an official loan quote. Only send to verified recipients.</div>
     </div>
    </div>
   </div>}
@@ -6116,22 +6106,10 @@ export default function MortgageBlueprint({ initialState }) {
    <MRow label="Net Cash Flow" value={`${fmt(calc.reoNetCashFlow)}/mo`} color={calc.reoNetCashFlow >= 0 ? T.green : T.red} />
   </Card>
  </Sec>}
- <Sec title="Share">
-  <Card>
-   <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
-   <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📧 Email</button>
-    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📄 PDF</button>
-    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>👁 Preview</button>
-   </div>
-   {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself on all emails.</Note>}
-   {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
-  </Card>
- </Sec>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12, marginBottom: 12 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ padding: 14, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>✉️ Email</button>
-  <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>📄 Print PDF</button>
+ <div style={{ marginTop: 12, marginBottom: 12 }}>
+  <button onClick={() => setShowEmailModal(true)} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
+   📤 Share Blueprint
+  </button>
  </div>
  {loanOfficer && (
   <div style={{ marginBottom: 12 }}>
