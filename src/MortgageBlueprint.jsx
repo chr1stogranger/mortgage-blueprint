@@ -8652,6 +8652,20 @@ export default function MortgageBlueprint({ initialState }) {
             color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
             transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
            }}>Lock It In {ppSoldMode ? "🎯" : "🔒"}</button>
+           {/* Run the Numbers — feed listing into Blueprint calculator */}
+           <button onClick={() => {
+            const price = ppCurrentListing.soldPrice || ppCurrentListing.listPrice || ppCurrentListing.zestimate;
+            if (price) setSalesPrice(price);
+            if (ppCurrentListing.state) setPropertyState(ppCurrentListing.state);
+            if (ppCurrentListing.city) setCity(ppCurrentListing.city);
+            if (ppCurrentListing.zip) setPropertyZip(ppCurrentListing.zip);
+            setAppMode("blueprint");
+            setTab("calc");
+           }} style={{
+            width:"100%", padding: "12px", borderRadius: 14, border: `1px solid ${T.blue}40`, fontSize: 13, fontWeight: 700,
+            background: `${T.blue}10`, color: T.blue, cursor: "pointer", transition: "all 0.2s",
+            marginTop: 10, fontFamily: FONT, letterSpacing: 0.3, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+           }}>🧮 Run the Numbers in Blueprint</button>
            <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
             {ppActiveListings.length - 1} more {ppSoldMode ? "recently sold" : "on market"} in queue
            </div>
@@ -8980,14 +8994,23 @@ export default function MortgageBlueprint({ initialState }) {
           );
          })()}
          {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Recently sold — compare your guess against the actual sale price</div>}
-         <button onClick={ppCloseReveal} style={{ width:"100%", padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", marginTop:ppShowReveal.isSoldMode ? 8 : 20, letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
+         <div style={{ display:"flex", gap:8, marginTop: ppShowReveal.isSoldMode ? 8 : 20 }}>
+          <button onClick={() => {
+           const price = ppShowReveal.soldPrice || ppShowReveal.listPrice || ppShowReveal.zestimate;
+           if (price) setSalesPrice(price);
+           ppCloseReveal();
+           setAppMode("blueprint");
+           setTab("calc");
+          }} style={{ flex:1, padding:14, borderRadius:16, border:`1px solid ${T.blue}40`, fontSize:14, fontWeight:700, background:`${T.blue}12`, color:T.blue, cursor:"pointer", letterSpacing:0.3, fontFamily:FONT }}>🧮 Run the Numbers</button>
+          <button onClick={ppCloseReveal} style={{ flex:1, padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
+         </div>
         </div>
        </div>
       </div>
      )}
     </div>
    )}
-   <FloatingNextBar />
+   {appMode === "blueprint" && <FloatingNextBar />}
   </div>{/* end main content wrapper */}
   </div>
  );
