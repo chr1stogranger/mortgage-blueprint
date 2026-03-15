@@ -1968,7 +1968,7 @@ export default function MortgageBlueprint({ initialState }) {
  };
  // Auto-load compare data when switching to compare tab
  React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab]);
- React.useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [tab]);
+ React.useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; }, [tab]);
  React.useEffect(() => { if (loanType === "FHA" || loanType === "VA") setIncludeEscrow(true); }, [loanType]);
  // Sync escrow toggles between purchase flow (includeEscrow) and refi flow (refiHasEscrow)
  React.useEffect(() => { setRefiHasEscrow(includeEscrow); }, [includeEscrow]);
@@ -2426,10 +2426,10 @@ export default function MortgageBlueprint({ initialState }) {
   return (
    <div style={{ position: "fixed", bottom: 0, left: isDesktop ? "auto" : "50%", right: isDesktop ? 0 : "auto", transform: isDesktop ? "none" : "translateX(-50%)", width: isDesktop ? "calc(100% - 240px)" : "100%", maxWidth: isDesktop ? "none" : 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
     <div style={{ margin: "0 8px 8px", borderRadius: 20, overflow: "hidden", pointerEvents: "auto", border: isReady ? "none" : "2px solid transparent", boxShadow: isReady ? "0 0 24px rgba(10,132,255,0.5), 0 -4px 30px rgba(0,0,0,0.15)" : "0 -4px 30px rgba(0,0,0,0.15)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", transition: "all 0.4s ease" }}>
-     {/* Progress bar — hidden when ready (entire bar is blue) */}
-     {!isReady && <div style={{ height: 3, background: T.separator }}>
-      <div style={{ height: "100%", width: `${progressPct}%`, background: `${T.blue}50`, borderRadius: 99, transition: "width 0.5s ease" }} />
-     </div>}
+     {/* Progress bar — subtle/translucent until complete, then pops solid */}
+     <div style={{ height: 3, background: T.separator }}>
+      <div style={{ height: "100%", width: isReady ? "100%" : `${progressPct}%`, background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : fieldsComplete ? `${T.blue}40` : `${T.blue}18`, borderRadius: 99, transition: "width 0.5s ease, background 0.4s ease" }} />
+     </div>
      <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, gap: 12, transition: "background 0.4s" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
        <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.75)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
@@ -3037,6 +3037,18 @@ export default function MortgageBlueprint({ initialState }) {
   const afterTaxPayment = housingPayment - monthlyTaxSavings;
   const monthlyPrinReduction = pi - (loan * mr);
   const monthlyAppreciation = salesPrice * (appreciationRate / 100) / 12;
+  // ── Schedule E (Investment Property) Pro Forma ──
+  const schedEGrossRent = subjectRentalIncome * 12;
+  const schedEVacancy = Math.round(schedEGrossRent * 0.05);
+  const schedEGrossIncome = schedEGrossRent - schedEVacancy;
+  const schedEDepreciation = Math.round((salesPrice * 0.8) / 27.5); // 80% building / 27.5yr
+  const schedEMgmt = Math.round(schedEGrossIncome * 0.10); // 10% management + maintenance
+  const yearlyMortInt = totalMortInt;
+  const yearlyIns = ins * 12;
+  const schedECashExpenses = yearlyTax + yearlyIns + (hoa * 12) + (monthlyMI * 12) + schedEMgmt;
+  const schedETotalExpenses = schedECashExpenses + yearlyMortInt + schedEDepreciation;
+  const schedENetIncome = schedEGrossIncome - schedETotalExpenses;
+  const schedECashFlow = schedEGrossIncome - schedECashExpenses - (pi * 12);
   const netPostSaleExpense = afterTaxPayment - monthlyPrinReduction - monthlyAppreciation;
   const refiOrigNp = refiOriginalTerm * 12;
   const refiOrigMr = (refiCurrentRate / 100) / 12;
@@ -3238,6 +3250,8 @@ export default function MortgageBlueprint({ initialState }) {
    fedDelta, fedItemizes, stateDelta, stateItemizes, fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
    fedTaxableBeforeDelta, stTaxableBeforeDelta,
    afterTaxPayment, monthlyPrinReduction, monthlyAppreciation, netPostSaleExpense,
+   schedEGrossIncome, schedEDepreciation, schedEMgmt, schedECashExpenses, schedETotalExpenses, schedENetIncome, schedECashFlow,
+   yearlyMortInt, yearlyIns, monthlyHOA: hoa,
    refiCalcPI, refiMonthsElapsed, refiCalcRemainingMonths, refiCalcBalance, refiMinBalance,
    refiEffPI, refiEffBalance, refiEffRemaining,
    refiCurMr, refiCurTotalPmt, refiCurIntThisMonth, refiCurPrinThisMonth,
@@ -3960,7 +3974,7 @@ export default function MortgageBlueprint({ initialState }) {
        const active = tab === k;
        const icons = { setup: "📋", calc: "🧮", costs: "💰", income: "💵", debts: "💳", assets: "🏦", qualify: "✅", tax: "📊", amort: "📈", invest: "🏘️", rentvbuy: "⚖️", learn: "📚", compare: "📊", summary: "🔗", settings: "⚙️", reo: "🏠", sell: "💲", refi: "🔄", refi3: "🎯" };
        return (
-        <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) setTab(k); }}
+        <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; } }}
          style={{
           padding: sidebarCollapsed ? "10px 0" : "9px 18px", cursor: locked ? "not-allowed" : "pointer",
           display: "flex", alignItems: "center", gap: 10, margin: "1px 8px", borderRadius: 10,
@@ -5164,24 +5178,36 @@ export default function MortgageBlueprint({ initialState }) {
   )}
  </Card>
  </div>
- {/* Own Properties toggle — required, unlocks REO tab */}
- <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} onClick={() => markTouched("owns-properties-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+ {/* Own Properties — Yes / No buttons (required, unlocks REO tab) */}
+ <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <Card style={{ marginBottom: 14 }}>
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-   <div>
-    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Do you own any properties?</span>
-    <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Current home, investment properties, second homes</div>
-   </div>
-   <div onClick={() => { setOwnsProperties(!ownsProperties); markTouched("owns-properties-toggle"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-   </div>
+  <div>
+   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Do you own any properties?</span>
+   <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Current home, investment properties, second homes</div>
   </div>
-  {ownsProperties && (
+  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+   <button onClick={() => { setOwnsProperties(true); markTouched("owns-properties-toggle"); }} style={{
+    flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.3s", fontFamily: FONT,
+    background: ownsProperties === true && guideTouched.has("owns-properties-toggle") ? T.green : "transparent",
+    color: ownsProperties === true && guideTouched.has("owns-properties-toggle") ? "#fff" : T.textSecondary,
+    border: `2px solid ${ownsProperties === true && guideTouched.has("owns-properties-toggle") ? T.green : T.separator}`,
+   }}>Yes</button>
+   <button onClick={() => { setOwnsProperties(false); markTouched("owns-properties-toggle"); }} style={{
+    flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.3s", fontFamily: FONT,
+    background: ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.pillBg : "transparent",
+    color: ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.text : T.textSecondary,
+    border: `2px solid ${ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.textTertiary : T.separator}`,
+   }}>No</button>
+  </div>
+  {ownsProperties && guideTouched.has("owns-properties-toggle") && (
    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.blue}10`, borderRadius: 12 }}>
     <div style={{ fontSize: 12, fontWeight: 600, color: T.blue, marginBottom: 3 }}>REO tab unlocked</div>
     <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>Add your properties in the REO tab. Mortgage & HELOC debts below can be linked to specific properties so payments aren't counted twice in DTI.</div>
    </div>
+  )}
+  {ownsProperties === false && guideTouched.has("owns-properties-toggle") && (
+   <div style={{ marginTop: 10, fontSize: 11, color: T.textTertiary }}>No existing properties — DTI will only include credit-report liabilities.</div>
   )}
  </Card>
  </div>
@@ -5603,8 +5629,97 @@ export default function MortgageBlueprint({ initialState }) {
  </div>{/* end qualify right column */}
  </div>{/* end qualify desktop flex wrapper */}
 </>)}
-{/* ═══ TAX SAVINGS ═══ */}
+{/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
 {tab === "tax" && (<>
+{/* ── SECOND HOME: No tax savings applicable ── */}
+{loanPurpose === "Purchase 2nd Home" ? (
+ <div style={{ marginTop: 20 }}>
+  <Card pad={20}>
+   <div style={{ textAlign: "center", padding: "30px 20px" }}>
+    <div style={{ fontSize: 40, marginBottom: 12 }}>🏖️</div>
+    <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Second Home — No Additional Tax Benefit</div>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
+     Second homes do not qualify for the same tax deductions as a primary residence. Mortgage interest may still be deductible if your total mortgage debt (primary + second home) is under the {married === "MFS" ? "$375K" : "$750K"} TCJA cap, but property taxes are subject to the {married === "MFS" ? "$20K" : "$40K"} SALT cap across all properties combined.
+    </div>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "12px auto 0" }}>
+     If you rent the property out for more than 14 days/year, it becomes a rental property and IRS rules change significantly. Consult your CPA for your specific situation.
+    </div>
+    <div style={{ marginTop: 20, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>⚠️ This is general information only — not tax advice. Tax situations vary. Please confirm with your CPA or tax professional.</div>
+    </div>
+   </div>
+  </Card>
+ </div>
+) : loanPurpose === "Purchase Investment" ? (
+ /* ── INVESTMENT: Schedule E Pro Forma ── */
+ <div style={{ marginTop: 20 }}>
+  <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
+  <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
+   <Hero value={fmt(calc.schedENetIncome)} label="Schedule E — Net Rental Income" color={calc.schedENetIncome >= 0 ? T.green : T.red} sub={`${fmt(calc.schedENetIncome / 12)}/mo`} />
+   <Card pad={14} style={{ marginTop: 16 }}>
+    <div style={{ fontSize: 11, color: T.textTertiary }}>Annual Cash Flow</div>
+    <div style={{ fontSize: 24, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em", color: calc.schedECashFlow >= 0 ? T.green : T.red }}>{fmt(calc.schedECashFlow)}<span style={{ fontSize: 13, color: T.textTertiary }}>/yr</span></div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{fmt(calc.schedECashFlow / 12)}/mo before taxes</div>
+   </Card>
+  </div>
+  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+   <Sec title="Schedule E Pro Forma">
+    <Card>
+     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 14 }}>
+      Investment property income and expenses reported on IRS Schedule E. This projects your annual rental income against deductible expenses.
+     </div>
+     {/* Income */}
+     <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Gross Rental Income</div>
+     <MRow label="Monthly Rent" value={fmt(subjectRentalIncome)} />
+     <MRow label="Annual Gross Rent" value={fmt(subjectRentalIncome * 12)} bold />
+     <MRow label="Vacancy (5%)" value={`-${fmt(Math.round(subjectRentalIncome * 12 * 0.05))}`} color={T.red} />
+     <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 16 }}>
+      <MRow label="Effective Gross Income" value={fmt(calc.schedEGrossIncome)} bold />
+     </div>
+     {/* Expenses */}
+     <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Deductible Expenses</div>
+     <MRow label="Mortgage Interest (Yr 1)" value={fmt(calc.yearlyMortInt)} />
+     <MRow label="Property Tax" value={fmt(calc.yearlyTax)} />
+     <MRow label="Insurance" value={fmt(calc.yearlyIns)} />
+     {calc.monthlyHOA > 0 && <MRow label="HOA" value={fmt(calc.monthlyHOA * 12)} />}
+     {calc.monthlyMI > 0 && <MRow label="Mortgage Insurance" value={fmt(calc.monthlyMI * 12)} />}
+     <MRow label="Depreciation (27.5 yr)" value={fmt(calc.schedEDepreciation)} tip="Only the building value is depreciated — land is excluded. Estimated at 80% of purchase price ÷ 27.5 years." />
+     <MRow label="Mgmt & Maintenance (10%)" value={fmt(calc.schedEMgmt)} />
+     <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 16 }}>
+      <MRow label="Total Expenses" value={fmt(calc.schedETotalExpenses)} bold />
+     </div>
+     {/* Net */}
+     <div style={{ background: calc.schedENetIncome < 0 ? `${T.green}08` : `${T.orange}08`, borderRadius: 12, padding: 14 }}>
+      <MRow label="Net Rental Income (Loss)" value={fmt(calc.schedENetIncome)} color={calc.schedENetIncome < 0 ? T.green : T.text} bold />
+      {calc.schedENetIncome < 0 && (
+       <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, marginTop: 8 }}>
+        A paper loss of <strong style={{ color: T.green }}>{fmt(Math.abs(calc.schedENetIncome))}</strong> may be deductible against other income if your AGI is under $150K (up to $25K passive loss allowance). This can reduce your tax bill even though the property generates positive cash flow after adding back depreciation.
+       </div>
+      )}
+     </div>
+    </Card>
+   </Sec>
+   <Sec title="Cash Flow vs Tax Loss">
+    <Card>
+     <MRow label="Effective Gross Income" value={fmt(calc.schedEGrossIncome)} />
+     <MRow label="Operating Expenses (excl. depreciation)" value={`-${fmt(calc.schedECashExpenses)}`} color={T.red} />
+     <MRow label="Debt Service (P&I)" value={`-${fmt(calc.pi * 12)}`} color={T.red} />
+     <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+      <MRow label="Annual Cash Flow" value={fmt(calc.schedECashFlow)} color={calc.schedECashFlow >= 0 ? T.green : T.red} bold />
+     </div>
+     <div style={{ marginTop: 12, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>
+      Cash flow is what you actually receive. Schedule E net income includes non-cash deductions (depreciation) that create a "paper loss" for tax purposes — so you can have positive cash flow and a tax loss simultaneously.
+     </div>
+    </Card>
+   </Sec>
+   <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>⚠️ This is an estimate for illustration purposes only — not tax advice. Depreciation recapture, passive activity limits, and other rules apply. Please confirm with your CPA.</div>
+   </div>
+  </div>
+  </div>
+ </div>
+) : (
+ /* ── PRIMARY RESIDENCE: Schedule A Tax Savings (original) ── */
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <div style={isDesktop ? {} : { marginTop: 20 }}>
@@ -5820,8 +5935,9 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   </Sec>
  </>)}
- </div>{/* end desktop tax right column */}
- </div>{/* end desktop tax flex wrapper */}
+ </div>
+ </div>
+)}
 </>)}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && (<>
@@ -8219,9 +8335,12 @@ export default function MortgageBlueprint({ initialState }) {
      {/* PP Header */}
      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
+       <button onClick={() => setAppMode("blueprint")} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 4, fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
+        ← Blueprint
+       </button>
        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
        <div style={{ fontSize: 12, color: T.textTertiary }}>
-        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Sold Homes" : "Active Listings"}` : ppSoldMode ? "Practice · Sold Homes" : "Live · Sunset District"}
+        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Recently Sold" : "On Market"}` : ppSoldMode ? "Recently Sold" : "On Market"}
         {ppDataSource === "live" && <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(56,189,126,0.15)", color:"#38bd7e", fontWeight:700 }}>LIVE</span>}
        </div>
       </div>
@@ -8365,28 +8484,23 @@ export default function MortgageBlueprint({ initialState }) {
       </div>
      )}
 
-     {/* Sold Mode Toggle */}
+     {/* Mode Toggle: Recently Sold vs Currently On Market */}
      {ppView === "cards" && !ppLoading && (
-      <div style={{ padding: "0 18px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: ppSoldMode ? "#e8c84d" : "#38bd7e" }}>
-         {ppSoldMode ? "🎓 Practice Mode" : "🏆 Live Mode"}
-        </span>
-        <span style={{ fontSize: 10, color: T.textTertiary, background: T.pillBg, borderRadius: 6, padding: "2px 6px" }}>
-         {ppSoldMode ? "Sold Homes" : "Live Listings"}
-        </span>
+      <div style={{ padding: "0 18px 8px" }}>
+       <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
+        <button onClick={() => setPpSoldMode(true)} style={{
+         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
+         background: ppSoldMode ? "linear-gradient(135deg,#e8c84d,#d4a843)" : "transparent",
+         color: ppSoldMode ? "#1a1a1a" : T.textTertiary,
+         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
+        }}>🏠 Recently Sold</button>
+        <button onClick={() => setPpSoldMode(false)} style={{
+         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
+         background: !ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
+         color: !ppSoldMode ? "#fff" : T.textTertiary,
+         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
+        }}>📋 On Market</button>
        </div>
-       <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{
-        position: "relative", width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-        background: ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-        transition: "background 0.3s", padding: 0,
-       }}>
-        <div style={{
-         position: "absolute", top: 2, left: ppSoldMode ? 22 : 2,
-         width: 20, height: 20, borderRadius: 10, background: "#fff",
-         transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-        }} />
-       </button>
       </div>
      )}
 
@@ -8498,27 +8612,24 @@ export default function MortgageBlueprint({ initialState }) {
              </div>
             );
            })()}
-           <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+           {/* Reference prices: List Price, Zestimate, Sold Date */}
+           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
             {ppCurrentListing.listPrice ? (
-             <div style={{ flex: 1 }}>
+             <div style={{ flex: 1, minWidth: 80 }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>List Price</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#38bd7e", marginTop: 2 }}>{ppFmt(ppCurrentListing.listPrice)}</div>
              </div>
-            ) : ppCurrentListing.zestimate ? (
-             <div style={{ flex: 1 }}>
+            ) : null}
+            {ppCurrentListing.zestimate ? (
+             <div style={{ flex: 1, minWidth: 80 }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
              </div>
             ) : null}
             {ppSoldMode && ppCurrentListing.soldDate ? (
-             <div style={{ flex: 1 }}>
+             <div style={{ flex: 1, minWidth: 80 }}>
               <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Sold Date</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
-             </div>
-            ) : !ppCurrentListing.listPrice && ppCurrentListing.zestimate ? null : ppCurrentListing.zestimate ? (
-             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
              </div>
             ) : null}
            </div>
@@ -8544,7 +8655,7 @@ export default function MortgageBlueprint({ initialState }) {
             transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
            }}>Lock It In {ppSoldMode ? "🎯" : "🔒"}</button>
            <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
-            {ppActiveListings.length - 1} more {ppSoldMode ? "sold homes" : "listings"} in queue
+            {ppActiveListings.length - 1} more {ppSoldMode ? "recently sold" : "on market"} in queue
            </div>
            <div style={{ textAlign:"center", marginTop:6, fontSize:10, color:T.textTertiary, opacity:0.5, letterSpacing:0.3 }}>← swipe for results & stats →</div>
           </div>
@@ -8557,7 +8668,7 @@ export default function MortgageBlueprint({ initialState }) {
          <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
          <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
          <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
-          Try {ppSoldMode ? "Active Listings" : "Recently Sold"} →
+          Try {ppSoldMode ? "Currently On Market" : "Recently Sold"} →
          </button>
          <div style={{ marginTop:8 }}>
           <button onClick={ppResetAll} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:13, fontWeight:600, cursor:"pointer" }}>Reset All</button>
@@ -8829,17 +8940,30 @@ export default function MortgageBlueprint({ initialState }) {
       <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
        <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
         <div style={{ textAlign:"center" }}>
-         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "🎓 PRACTICE" : "🏠 SOLD"}</div>
+         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "🏠 RECENTLY SOLD" : "🏠 SOLD"}</div>
          <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
          <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
-         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24 }}>
-          <div>
+         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24, flexWrap:"wrap", gap:8 }}>
+          {ppShowReveal.listPrice ? (
+           <div style={{ textAlign:"center", minWidth:80 }}>
+            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>List Price</div>
+            <div style={{ fontSize:18, fontWeight:700, color:T.textSecondary }}>{ppFmt(ppShowReveal.listPrice)}</div>
+           </div>
+          ) : null}
+          {ppShowReveal.zestimate ? (
+           <div style={{ textAlign:"center", minWidth:80 }}>
+            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Zestimate</div>
+            <div style={{ fontSize:18, fontWeight:700, color:T.blue }}>{ppFmt(ppShowReveal.zestimate)}</div>
+           </div>
+          ) : null}
+          {(ppShowReveal.listPrice || ppShowReveal.zestimate) && <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />}
+          <div style={{ textAlign:"center", minWidth:80 }}>
            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Your Guess</div>
            <div style={{ fontSize:22, fontWeight:800, color:T.text }}>{ppFmt(ppShowReveal.guess)}</div>
            {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.guess/ppShowReveal.sqft)}/SF</div>}
           </div>
-          <div style={{ width:1, background:T.cardBorder }} />
-          <div>
+          <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />
+          <div style={{ textAlign:"center", minWidth:80 }}>
            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Sold Price</div>
            <div style={{ fontSize:22, fontWeight:800, color:"#38bd7e" }}>{ppFmt(ppShowReveal.soldPrice)}</div>
            {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.soldPrice/ppShowReveal.sqft)}/SF</div>}
@@ -8857,7 +8981,7 @@ export default function MortgageBlueprint({ initialState }) {
            </div>
           );
          })()}
-         {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Practice mode — not counted toward leaderboard</div>}
+         {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Recently sold — compare your guess against the actual sale price</div>}
          <button onClick={ppCloseReveal} style={{ width:"100%", padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", marginTop:ppShowReveal.isSoldMode ? 8 : 20, letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
         </div>
        </div>
