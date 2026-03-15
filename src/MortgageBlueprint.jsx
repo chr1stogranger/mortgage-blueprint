@@ -4548,16 +4548,6 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   ))}
  </div>
- {/* ── APR Display ── */}
- {calc.apr > 0 && calc.apr !== rate && (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", marginBottom: 12, background: `${T.blue}08`, borderRadius: 12, border: `1px solid ${T.blue}15` }}>
-   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <span style={{ fontSize: 12, color: T.textSecondary }}>APR</span>
-    <InfoTip text={`Annual Percentage Rate (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. APR fees on this loan: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, discount points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", FHA UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}). APR is always ≥ your note rate because it includes these finance charges.`} />
-   </div>
-   <span style={{ fontSize: 14, fontWeight: 700, color: T.blue, fontFamily: FONT }}>{calc.apr.toFixed(3)}%</span>
-  </div>
- )}
  </div>{/* end desktop left column / sticky summary */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0, order: 2 } : {}}>
  <Card>
@@ -4579,13 +4569,26 @@ export default function MortgageBlueprint({ initialState }) {
     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
    )}
   </>) : (<>
-   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
-    <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-     Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-     <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+   <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+    <div style={{ flex: 1 }}>
+     <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+       Rate<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+       <InfoTip text="Your annual interest rate. Rate depends on loan type, FICO score, down payment %, loan amount, property type, and market conditions. Even a 0.25% difference can change your payment by hundreds per month." />
+      </div>
+     </div>
+     <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
     </div>
+    {calc.apr > 0 && calc.apr !== rate && (
+     <div style={{ flex: 1, marginBottom: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
+       <InfoTip text={`Annual Percentage Rate (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. APR fees: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}). APR ≥ note rate because it includes finance charges.`} />
+      </div>
+      <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
+     </div>
+    )}
    </div>
-   <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
   </>)}
   </div>
   {/* Live Rates */}
