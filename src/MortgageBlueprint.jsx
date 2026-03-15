@@ -4816,7 +4816,17 @@ export default function MortgageBlueprint({ initialState }) {
   const last = data[data.length - 1];
   return (<>
    <Card pad={14}>
-    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Equity Growth ({appreciationRate || 3}% appreciation)</div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+     <div style={{ fontSize: 13, fontWeight: 600 }}>Equity Growth</div>
+     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{ fontSize: 11, color: T.textSecondary }}>Appreciation</span>
+      <div style={{ display: "flex", alignItems: "center", background: T.bgAccent, borderRadius: 8, overflow: "hidden" }}>
+       <button onClick={() => setAppreciationRate(Math.max(0, (appreciationRate || 3) - 0.5))} style={{ background: "none", border: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "4px 8px", fontFamily: FONT }}>−</button>
+       <span style={{ fontSize: 13, fontWeight: 700, color: T.green, minWidth: 36, textAlign: "center", fontFamily: FONT }}>{appreciationRate || 3}%</span>
+       <button onClick={() => setAppreciationRate(Math.min(15, (appreciationRate || 3) + 0.5))} style={{ background: "none", border: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "4px 8px", fontFamily: FONT }}>+</button>
+      </div>
+     </div>
+    </div>
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }}>
      {ticks.map((t, i) => (<g key={i}><line x1={pad.l} y1={y(t)} x2={W - pad.r} y2={y(t)} stroke={T.separator} strokeWidth="0.5" />
       <text x={pad.l - 6} y={y(t) + 3} textAnchor="end" fill={T.textTertiary} fontSize="8" fontFamily={FONT}>{t >= 1e6 ? `${(t/1e6).toFixed(1)}M` : t >= 1000 ? `${(t/1000).toFixed(0)}k` : t.toFixed(0)}</text></g>))}
