@@ -42,10 +42,32 @@ export default async function handler(req, res) {
     // Extract description
     var description = d.description || "";
 
+    // Extract list price (critical for sold listings where search API doesn't include it)
+    var listPrice = d.price || d.listPrice || null;
+    // For sold properties, price is the sold price — look for original list price in history
+    var priceHistory = d.priceHistory || [];
+    var originalListPrice = null;
+    if (priceHistory.length > 0) {
+      // Find "Listed for sale" or first listing event
+      for (var ph = 0; ph < priceHistory.length; ph++) {
+        var evt = priceHistory[ph];
+        if (evt.event && (evt.event === "Listed for sale" || evt.event === "Listed" || evt.event.includes("list"))) {
+          originalListPrice = evt.price || null;
+          break;
+        }
+      }
+      // If no listing event found, use the last price history entry price
+      if (!originalListPrice && priceHistory[priceHistory.length - 1]?.price) {
+        originalListPrice = priceHistory[priceHistory.length - 1].price;
+      }
+    }
+
     return res.status(200).json({
       photos: photos,
       description: description,
       zpid: String(d.zpid || zpid),
+      listPrice: originalListPrice || listPrice,
+      zestimate: d.zestimate || null,
     });
   } catch (err) {
     console.error("Property details error:", err);

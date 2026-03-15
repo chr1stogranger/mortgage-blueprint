@@ -3738,14 +3738,26 @@ export default function MortgageBlueprint({ initialState }) {
 
  // Fetch property details (photos + description) on demand
  const ppFetchDetails = async (zpid) => {
-  if (!zpid || ppPropertyDetails[zpid]?.photos || ppPropertyDetails[zpid]?.loading) return;
+  if (!zpid || ppPropertyDetails[zpid]?.loading) return;
+  // Skip if we already have photos loaded (length > 0)
+  if (ppPropertyDetails[zpid]?.photos?.length > 0) return;
   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: true, photos: [], description: "", error: null } }));
   try {
    const resp = await fetch(`/api/propertydetails?zpid=${zpid}`);
    if (!resp.ok) throw new Error(`API ${resp.status}`);
    const data = await resp.json();
    if (data.error) throw new Error(data.error);
-   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: data.photos || [], description: data.description || "", error: null } }));
+   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: data.photos || [], description: data.description || "", error: null, listPrice: data.listPrice || null, zestimate: data.zestimate || null } }));
+   // Backfill listPrice on current listing if the search API didn't have it
+   if (data.listPrice && ppCurrentListing?.zpid === String(zpid)) {
+    const src = ppSoldMode ? ppLiveSold : ppLiveActive;
+    const idx = src.findIndex(l => String(l.zpid) === String(zpid));
+    if (idx >= 0 && !src[idx].listPrice) {
+     const updated = [...src];
+     updated[idx] = { ...updated[idx], listPrice: data.listPrice };
+     if (ppSoldMode) setPpLiveSold(updated); else setPpLiveActive(updated);
+    }
+   }
   } catch (err) {
    console.error("Detail fetch error:", err);
    setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: [], description: "", error: err.message } }));
