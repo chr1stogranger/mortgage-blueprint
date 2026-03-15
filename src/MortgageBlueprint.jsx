@@ -428,34 +428,34 @@ function getPMIRate(ltv, fico) {
 let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 const DARK = {
- bg: "#000000", bg2: "#000000", card: "#1C1C1E", cardBorder: "rgba(255,255,255,0.06)",
- cardShadow: "0 1px 3px rgba(0,0,0,0.5)", cardHover: "#2C2C2E",
- accent: "#FF9F0A", blue: "#0A84FF", green: "#30D158", red: "#FF453A",
- purple: "#BF5AF2", orange: "#FF9F0A", cyan: "#64D2FF", pink: "#FF375F", teal: "#6AC4DC",
- text: "#FFFFFF", textSecondary: "rgba(255,255,255,0.55)", textTertiary: "rgba(255,255,255,0.3)",
- separator: "rgba(255,255,255,0.08)", inputBg: "#2C2C2E", inputBorder: "rgba(255,255,255,0.1)",
- headerBg: "rgba(0,0,0,0.85)", tabActiveBg: "rgba(255,255,255,0.12)", tabActiveText: "#FFFFFF",
- successBg: "rgba(48,209,88,0.12)", successBorder: "rgba(48,209,88,0.2)",
- errorBg: "rgba(255,69,58,0.12)", errorBorder: "rgba(255,69,58,0.2)",
- warningBg: "rgba(255,159,10,0.12)", warningBorder: "rgba(255,159,10,0.2)",
+ bg: "#050505", bg2: "#0A0A0A", card: "#0F0F0F", cardBorder: "rgba(255,255,255,0.06)",
+ cardShadow: "0 1px 3px rgba(0,0,0,0.5)", cardHover: "#141414",
+ accent: "#6366F1", blue: "#3B82F6", green: "#10B981", red: "#EF4444",
+ purple: "#8B5CF6", orange: "#F59E0B", cyan: "#06B6D4", pink: "#EC4899", teal: "#06B6D4",
+ text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#666666",
+ separator: "rgba(255,255,255,0.06)", inputBg: "#1A1A1A", inputBorder: "rgba(255,255,255,0.12)",
+ headerBg: "rgba(5,5,5,0.7)", tabActiveBg: "rgba(255,255,255,0.08)", tabActiveText: "#EDEDED",
+ successBg: "rgba(16,185,129,0.12)", successBorder: "rgba(16,185,129,0.2)",
+ errorBg: "rgba(239,68,68,0.12)", errorBorder: "rgba(239,68,68,0.2)",
+ warningBg: "rgba(245,158,11,0.12)", warningBorder: "rgba(245,158,11,0.2)",
  ringTrack: "rgba(255,255,255,0.06)", pillBg: "rgba(255,255,255,0.06)",
 };
 const LIGHT = {
- bg: "#F2F1F6", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(0,0,0,0.04)",
- cardShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)", cardHover: "#F8F8FA",
- accent: "#F5A623", blue: "#007AFF", green: "#34C759", red: "#FF3B30",
- purple: "#AF52DE", orange: "#FF9500", cyan: "#32ADE6", pink: "#FF2D55", teal: "#5AC8D8",
- text: "#000000", textSecondary: "rgba(0,0,0,0.5)", textTertiary: "rgba(0,0,0,0.25)",
- separator: "rgba(0,0,0,0.06)", inputBg: "#F2F1F6", inputBorder: "rgba(0,0,0,0.08)",
- headerBg: "rgba(242,241,246,0.85)", tabActiveBg: "rgba(0,0,0,0.06)", tabActiveText: "#000000",
- successBg: "rgba(52,199,89,0.1)", successBorder: "rgba(52,199,89,0.2)",
- errorBg: "rgba(255,59,48,0.1)", errorBorder: "rgba(255,59,48,0.2)",
- warningBg: "rgba(255,149,0,0.1)", warningBorder: "rgba(255,149,0,0.2)",
+ bg: "#FAFAFA", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(0,0,0,0.06)",
+ cardShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)", cardHover: "#F5F5F5",
+ accent: "#6366F1", blue: "#3B82F6", green: "#10B981", red: "#EF4444",
+ purple: "#8B5CF6", orange: "#F59E0B", cyan: "#06B6D4", pink: "#EC4899", teal: "#06B6D4",
+ text: "#171717", textSecondary: "#525252", textTertiary: "#737373",
+ separator: "rgba(0,0,0,0.06)", inputBg: "#F0F0F0", inputBorder: "rgba(0,0,0,0.12)",
+ headerBg: "rgba(250,250,250,0.85)", tabActiveBg: "rgba(0,0,0,0.06)", tabActiveText: "#171717",
+ successBg: "rgba(16,185,129,0.08)", successBorder: "rgba(16,185,129,0.15)",
+ errorBg: "rgba(239,68,68,0.08)", errorBorder: "rgba(239,68,68,0.15)",
+ warningBg: "rgba(245,158,11,0.08)", warningBorder: "rgba(245,158,11,0.15)",
  ringTrack: "rgba(0,0,0,0.06)", pillBg: "rgba(0,0,0,0.04)",
 };
 let T = DARK;
-const FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif";
-const MONO = "'SF Mono', 'Menlo', 'Consolas', monospace";
+const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
  return (<span style={{ position: "relative", display: "inline-flex", marginLeft: 5, verticalAlign: "middle" }}

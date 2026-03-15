@@ -10,15 +10,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchSharedData, saveSharedScenario } from "./api";
 
-const FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif";
-const MONO = "'SF Mono', 'Menlo', 'Consolas', monospace";
+const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // Simplified theme (dark only for portal)
 const T = {
-  bg: "#000000", card: "#1C1C1E", cardBorder: "rgba(255,255,255,0.06)",
-  accent: "#FF9F0A", blue: "#0A84FF", green: "#30D158", red: "#FF453A",
-  text: "#FFFFFF", textSecondary: "rgba(255,255,255,0.55)", textTertiary: "rgba(255,255,255,0.3)",
-  separator: "rgba(255,255,255,0.08)", inputBg: "#2C2C2E", inputBorder: "rgba(255,255,255,0.1)",
+  bg: "#050505", card: "#0F0F0F", cardBorder: "rgba(255,255,255,0.06)",
+  accent: "#6366F1", blue: "#3B82F6", green: "#10B981", red: "#EF4444",
+  text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#666666",
+  separator: "rgba(255,255,255,0.06)", inputBg: "#1A1A1A", inputBorder: "rgba(255,255,255,0.12)",
 };
 
 function fmt(v) {
