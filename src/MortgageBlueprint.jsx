@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
+import Icon from "./Icon";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
@@ -592,7 +593,7 @@ function AddressAutocomplete({ onSelect, value, onChange, placeholder }) {
      style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", paddingRight: 36, color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
     />
     <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16, opacity: 0.35, pointerEvents: "none" }}>
-     {ready ? "📍" : "🔍"}
+     {ready ? "map-pin" : "search"}
     </span>
    </div>
    {!ready && window.__GOOGLE_PLACES_KEY__ && (
@@ -649,7 +650,7 @@ function StopLight({ checks, onPillarClick }) {
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   {/* Main status badge */}
   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20 }}>
-   <span style={{ fontSize: 28 }}>{allGreen ? "🏆" : anyGreen ? "🔓" : "🔒"}</span>
+   <span style={{ fontSize: 28 }}>{allGreen ? "trophy" : anyGreen ? "unlock" : "lock"}</span>
    <div>
     <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: allGreen ? T.green : anyGreen ? T.orange : T.red, letterSpacing: "-0.03em" }}>{allGreen ? "PRE-QUALIFIED" : anyGreen ? "ALMOST THERE" : "NOT YET"}</div>
     <div style={{ fontSize: 12, color: T.textTertiary }}>{allGreen ? `All ${checks.length} pillars cleared!` : `${checks.filter(c => c.ok).length} of ${checks.length} pillars cleared`}</div>
@@ -732,7 +733,7 @@ function PayRing({ segments, total, size }) {
 }
 function Tab({ label, active, onClick, locked, completed, tabId }) {
  return (<button data-tab={tabId} onClick={locked ? undefined : onClick} style={{ background: active ? T.tabActiveBg : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
-  {locked && <span style={{ marginRight: 3, fontSize: 10 }}>🔒</span>}{label}{completed && !active && <span style={{ marginLeft: 3, fontSize: 9 }}>✓</span>}
+  {locked && <span style={{ marginRight: 3, fontSize: 10 }}></span>}{label}{completed && !active && <span style={{ marginLeft: 3, fontSize: 9 }}>✓</span>}
  </button>);
 }
 function Progress({ value, max, color, height }) {
@@ -791,7 +792,7 @@ function LearnSec({ cat, items }) {
 // ═══ GAMIFIED COURSE DATA ═══
 const COURSE_CHAPTERS = [
  // ── PHASE 1: THE FOUNDATION ──
- { id: 1, phase: 1, phaseLabel: "The Foundation", title: "Your Monthly Payment", icon: "🧱", housePart: "foundation",
+ { id: 1, phase: 1, phaseLabel: "The Foundation", title: "Your Monthly Payment", icon: "home", housePart: "foundation",
   tabLink: "calc", tabLabel: "Calculator",
   lesson: "Every mortgage payment has 4 parts — we call it PITI:\n\n**Principal** — the chunk that actually pays down your loan balance. This is the equity-building part.\n\n**Interest** — the cost of borrowing money. This is the lender's profit. Early in the loan, most of your payment goes here.\n\n**Taxes** — your annual property tax divided by 12. In California, it's roughly 1.1–1.25% of your home's value.\n\n**Insurance** — homeowners insurance protects your home against fire, theft, and disasters. Lenders require it.\n\nOn a $800K home with 20% down at 6.5%, your P&I alone is about $4,043/mo. Add taxes (~$833) and insurance (~$125), and your total PITI is roughly $5,000/mo.\n\nThe key insight: **your rate matters more than your price.** A 0.5% rate difference on a $640K loan = $200/month — that's $72,000 over 30 years.",
   quiz: [
@@ -799,7 +800,7 @@ const COURSE_CHAPTERS = [
    { q: "Early in your loan, most of your payment goes toward:", opts: ["Principal (equity building)", "Interest (lender's profit)", "Property taxes", "Insurance"], a: 1 },
    { q: "A 0.5% rate drop on a $640K loan saves roughly:", opts: ["$50/month", "$100/month", "$200/month", "$500/month"], a: 2 },
   ]},
- { id: 2, phase: 1, phaseLabel: "The Foundation", title: "Down Payment Decoded", icon: "💰", housePart: "walls_lower",
+ { id: 2, phase: 1, phaseLabel: "The Foundation", title: "Down Payment Decoded", icon: "dollar", housePart: "walls_lower",
   tabLink: "calc", tabLabel: "Calculator",
   lesson: "Your down payment is the cash you bring to the table. It determines your loan amount, your monthly payment, and whether you'll pay mortgage insurance.\n\n**Minimum down payments by loan type:**\n• Conventional: 5% (or 3% for first-time buyers)\n• FHA: 3.5% with 580+ credit\n• VA: 0% — the only true zero-down option\n• Jumbo: 20% typically required\n\n**The 20% myth:** You do NOT need 20% down to buy a home. Most first-time buyers put down 3.5–10%. The trade-off? You'll pay mortgage insurance (PMI or MIP) until you reach 20% equity.\n\n**PMI costs:** Conventional PMI runs about 0.5% of your loan annually. On a $640K loan, that's ~$267/month. FHA MIP is 0.55% annually but lasts the life of the loan — meaning you'd need to refinance to remove it.\n\n**The real question:** How much should you put down? More down = lower payment, but you also want cash reserves. Don't drain your savings just to avoid PMI — having 3–6 months of reserves after closing is more important.",
   quiz: [
@@ -807,7 +808,7 @@ const COURSE_CHAPTERS = [
    { q: "FHA mortgage insurance (MIP) lasts:", opts: ["Until you reach 20% equity", "5 years", "The life of the loan", "Until you refinance automatically"], a: 2 },
    { q: "What's generally more important than maximizing your down payment?", opts: ["Getting the lowest rate possible", "Keeping cash reserves after closing", "Paying zero closing costs", "Choosing a 15-year term"], a: 1 },
   ]},
- { id: 3, phase: 1, phaseLabel: "The Foundation", title: "Closing Costs Explained", icon: "📋", housePart: "foundation_done",
+ { id: 3, phase: 1, phaseLabel: "The Foundation", title: "Closing Costs Explained", icon: "clipboard", housePart: "foundation_done",
   tabLink: "costs", tabLabel: "Costs",
   lesson: "Closing costs are the fees you pay to finalize your mortgage — typically 2–3% of the loan amount. They cover everything from the appraisal to title insurance.\n\n**Common closing costs:**\n• Origination fee (lender fee): 0–1% of loan\n• Appraisal: $500–800\n• Title insurance: ~$1,500–3,000\n• Escrow fee: ~$2,000–3,500\n• Recording fees: ~$100–200\n• Transfer tax: varies wildly by city (Oakland charges 1.5%!)\n\n**Prepaids (not fees, but due at closing):**\n• Prepaid interest: daily interest from closing to month-end\n• Escrow setup: 2–8 months of taxes & insurance held by servicer\n• Homeowners insurance: first year premium upfront\n\n**Ways to reduce closing costs:**\n• Negotiate seller credits (seller pays part of your costs)\n• Lender credits (slightly higher rate = lender covers costs)\n• Shop title & escrow — these are negotiable!\n\n**Cash to close = Down payment + Closing costs + Prepaids – Credits – EMD**\n\nThis is the real number that matters — not just the down payment.",
   quiz: [
@@ -816,7 +817,7 @@ const COURSE_CHAPTERS = [
    { q: "Cash to close equals:", opts: ["Down payment only", "Down payment + closing costs", "Down payment + costs + prepaids – credits – EMD", "Purchase price minus loan amount"], a: 2 },
   ]},
  // ── PHASE 2: THE FRAME ──
- { id: 4, phase: 2, phaseLabel: "The Frame", title: "Credit: Your Financial GPA", icon: "📊", housePart: "frame_floor",
+ { id: 4, phase: 2, phaseLabel: "The Frame", title: "Credit: Your Financial GPA", icon: "bar-chart", housePart: "frame_floor",
   tabLink: "qualify", tabLabel: "Qualify",
   lesson: "Your credit score is the single most influential factor in your mortgage rate. Think of it as your financial GPA — it tells lenders how reliable you are with borrowed money.\n\n**Credit score tiers:**\n• 740+ → Best rates (\"top tier\" pricing)\n• 700–739 → Great rates, small adjustments\n• 660–699 → Good rates, moderate adjustments\n• 620–659 → Conventional minimum, higher rates\n• 580–619 → FHA territory only\n• Below 580 → Very limited options\n\n**What makes up your score:**\n• 35% — Payment history (never miss a payment!)\n• 30% — Credit utilization (keep cards under 30%)\n• 15% — Length of credit history\n• 10% — Credit mix (cards + installment loans)\n• 10% — New credit inquiries\n\n**Quick wins before applying:**\n• Pay down credit card balances below 10% of limits\n• Don't open new accounts in the 6 months before applying\n• Don't close old cards — history length matters\n• Dispute any errors on your report (free at annualcreditreport.com)\n\nA 40-point FICO improvement can save you 0.25–0.50% on your rate — that's tens of thousands over the life of the loan.",
   quiz: [
@@ -824,7 +825,7 @@ const COURSE_CHAPTERS = [
    { q: "The largest factor in your credit score is:", opts: ["Credit utilization (30%)", "Payment history (35%)", "Length of history (15%)", "Credit mix (10%)"], a: 1 },
    { q: "Before applying for a mortgage, you should:", opts: ["Close old credit cards", "Open several new cards for more credit", "Pay down card balances below 10% of limits", "Take out a personal loan for down payment"], a: 2 },
   ]},
- { id: 5, phase: 2, phaseLabel: "The Frame", title: "Income & DTI", icon: "💼", housePart: "frame_walls",
+ { id: 5, phase: 2, phaseLabel: "The Frame", title: "Income & DTI", icon: "banknote", housePart: "frame_walls",
   tabLink: "income", tabLabel: "Income",
   lesson: "Debt-to-Income ratio (DTI) is how lenders measure whether you can handle the monthly payment. It's your total monthly debts divided by your gross monthly income.\n\n**Two types of DTI:**\n• Front-end (housing) DTI = just your housing payment ÷ income\n• Back-end (total) DTI = ALL debts + housing ÷ income ← this is what matters most\n\n**Max DTI by loan type:**\n• Conventional: up to 50%\n• FHA: up to 56.99%\n• VA: up to 60% (most flexible)\n• Jumbo: 43% max (strictest)\n\n**How lenders calculate income:**\nSalaried W-2: Use your gross monthly pay (before taxes).\nSelf-employed: Average your last 2 years of tax returns.\nCommission/bonus: 2-year average, must be consistent.\nPart-time/side gig: Must have 2-year history.\n\n**What counts as a debt:**\n• Car payments, student loans, credit card minimums\n• Any installment loan with 10+ months remaining\n• Child support, alimony\n• Other property payments (if applicable)\n\n**Pro tip:** Paying off a debt with <10 months remaining can dramatically improve your DTI. A $400/mo car payment going away = $400 more in qualifying capacity.",
   quiz: [
@@ -832,7 +833,7 @@ const COURSE_CHAPTERS = [
    { q: "Which loan program allows the highest DTI?", opts: ["Conventional (50%)", "FHA (56.99%)", "VA (60%)", "Jumbo (43%)"], a: 2 },
    { q: "A debt with fewer than ___ months remaining can often be excluded:", opts: ["6 months", "10 months", "12 months", "24 months"], a: 1 },
   ]},
- { id: 6, phase: 2, phaseLabel: "The Frame", title: "Assets & Reserves", icon: "🏦", housePart: "frame_roof",
+ { id: 6, phase: 2, phaseLabel: "The Frame", title: "Assets & Reserves", icon: "landmark", housePart: "frame_roof",
   tabLink: "assets", tabLabel: "Assets",
   lesson: "Assets and reserves are the cash and savings you have — both to close the deal and as a safety net after closing.\n\n**Cash to close** = your down payment + closing costs + prepaids – credits. This comes from your liquid assets.\n\n**Reserves** = the savings you keep AFTER closing. Lenders want to see you won't be broke on day one of homeownership.\n\n**Reserve requirements:**\n• Conventional: 2–3 months of PITI\n• FHA: 2–3 months of PITI\n• VA: 2–3 months of PITI\n• Jumbo: 12+ months of PITI\n\n**What counts as reserves:**\n• Checking & savings accounts (100%)\n• 401(k), IRA, retirement (60% of vested balance)\n• Stocks & investments (70% of value)\n• Gift funds for down payment (with proper documentation)\n\n**What does NOT count:**\n• Cash in a safe (can't document it)\n• Borrowed money (unless gift documented properly)\n• Crypto (most lenders still won't accept it)\n\n**The 3-month rule:** Large deposits in the last 2–3 months will need to be \"sourced\" — you'll need to show where the money came from. This is anti-money-laundering compliance, not personal judgment.",
   quiz: [
@@ -840,7 +841,7 @@ const COURSE_CHAPTERS = [
    { q: "A $100K 401(k) counts as ___ in reserves:", opts: ["$100,000", "$70,000", "$60,000", "$50,000"], a: 2 },
    { q: "Large recent deposits need to be:", opts: ["Hidden from the lender", "Sourced and documented", "Moved to cash", "Spent before closing"], a: 1 },
   ]},
- { id: 7, phase: 2, phaseLabel: "The Frame", title: "Loan Programs", icon: "🗂️", housePart: "windows_doors",
+ { id: 7, phase: 2, phaseLabel: "The Frame", title: "Loan Programs", icon: "file", housePart: "windows_doors",
   tabLink: "qualify", tabLabel: "Qualify",
   lesson: "Choosing the right loan program is like choosing the right tool for the job. Each has different rules, rates, and benefits.\n\n**Conventional** — The workhorse. Best rates for 740+ FICO and 20%+ down. Conforming limit: $832,750 (higher in expensive areas). PMI drops off at 80% LTV.\n\n**FHA** — The starter. 3.5% down, 580 FICO minimum. Government-backed with mortgage insurance for life. Great for lower credit scores or limited savings. FHA duplex is a powerful house-hacking move.\n\n**VA** — The best loan in America. 0% down, no PMI, lower rates, up to 60% DTI. For veterans and active-duty only. VA funding fee (1.25–3.3%) can be rolled in. Disabled vets are exempt.\n\n**Jumbo** — For loan amounts above conforming limits. Higher rates, 700+ FICO, 20% down, max 43–50% DTI. Stricter on reserves (12+ months).\n\n**USDA** — Zero down for rural and suburban areas. Income limits apply. Not just farms — many suburban towns qualify.\n\n**The real play:** Don't just pick the program with the lowest down payment. Compare total cost over the first 5 years: payment + MI + fees. Sometimes 5% down conventional beats 3.5% FHA because of the MIP difference.",
   quiz: [
@@ -849,7 +850,7 @@ const COURSE_CHAPTERS = [
    { q: "The best way to compare loan programs is:", opts: ["Lowest down payment", "Lowest rate", "Total cost over first 5 years", "Which has the coolest name"], a: 2 },
   ]},
  // ── PHASE 3: THE FINISH ──
- { id: 8, phase: 3, phaseLabel: "The Finish", title: "Tax Savings & Deductions", icon: "📄", housePart: "siding",
+ { id: 8, phase: 3, phaseLabel: "The Finish", title: "Tax Savings & Deductions", icon: "file", housePart: "siding",
   tabLink: "tax", tabLabel: "Tax Savings",
   lesson: "Homeownership comes with real tax benefits that renters don't get. Understanding them changes the true \"cost\" of owning.\n\n**Mortgage Interest Deduction:** You can deduct interest paid on up to $750K of mortgage debt ($375K if married filing separately). On a $640K loan at 6.5%, that's ~$41K in year-one interest — a significant deduction.\n\n**Property Tax Deduction:** Deductible up to the SALT cap of $40,000 (as of 2026). Combined with state income tax, this cap matters in high-tax states like California.\n\n**How it actually saves you money:**\nYour tax savings = (mortgage interest + property tax deduction) × your marginal tax rate.\n\nIf you're in the 24% federal bracket + 9.3% CA state bracket, your effective rate is ~33%. A $41K interest deduction saves you about $13,500 in taxes in year one.\n\n**The net cost of homeownership:** Monthly payment $5,000 minus ~$1,125/mo in tax savings = effective cost of $3,875/mo. Compare THAT number to your rent, not the full payment.\n\n**Standard deduction note:** You only benefit if your itemized deductions exceed the standard deduction ($32,200 MFJ in 2026). Most homeowners in expensive markets will itemize.",
   quiz: [
@@ -857,7 +858,7 @@ const COURSE_CHAPTERS = [
    { q: "To benefit from mortgage interest deduction, you must:", opts: ["Own for at least 5 years", "Put 20% down", "Itemize deductions exceeding the standard deduction", "Have an FHA loan"], a: 2 },
    { q: "If you're in a 33% combined tax bracket and pay $40K in mortgage interest, you save roughly:", opts: ["$4,000/year", "$8,000/year", "$13,200/year", "$40,000/year"], a: 2 },
   ]},
- { id: 9, phase: 3, phaseLabel: "The Finish", title: "Amortization & Equity", icon: "📈", housePart: "roof_shingles",
+ { id: 9, phase: 3, phaseLabel: "The Finish", title: "Amortization & Equity", icon: "trending-up", housePart: "roof_shingles",
   tabLink: "amort", tabLabel: "Amortization",
   lesson: "Amortization is how your loan balance decreases over time. Understanding it reveals the hidden wealth-building engine inside every mortgage.\n\n**How it works:** Early payments are mostly interest. Over time, more goes to principal. On a $640K loan at 6.5%:\n• Year 1: ~$10K to principal, ~$41K to interest\n• Year 15: ~$22K to principal, ~$22K to interest (the crossover!)\n• Year 30: ~$47K to principal, ~$3K to interest\n\n**Equity = what you own.** It grows two ways:\n1. Principal paydown (forced savings — happens automatically)\n2. Appreciation (market value increases — historically 3–5%/year)\n\nOn a $1M home with 20% down: after 7 years at 3% appreciation, your home is worth ~$1.23M. Your loan balance dropped to ~$550K. Your equity: ~$680K from a $200K investment. That's leverage.\n\n**Extra payments are powerful:** Adding just $200/month to a $640K loan at 6.5% saves ~$115K in interest and pays off 4+ years early. The Amortization tab in your calculator shows this side-by-side.\n\n**The refinance ladder:** Every time rates drop 0.5%+, refinance and keep the same payment. You'll shave years off your loan while locking in savings.",
   quiz: [
@@ -865,9 +866,9 @@ const COURSE_CHAPTERS = [
    { q: "Home equity grows through:", opts: ["Principal paydown only", "Appreciation only", "Both principal paydown and appreciation", "Tax deductions"], a: 2 },
    { q: "Adding $200/month extra to a $640K loan at 6.5% saves roughly:", opts: ["$25,000 in interest", "$55,000 in interest", "$115,000 in interest", "$200,000 in interest"], a: 2 },
   ]},
- { id: 10, phase: 3, phaseLabel: "The Finish", title: "The Big Picture", icon: "🏠", housePart: "complete",
+ { id: 10, phase: 3, phaseLabel: "The Finish", title: "The Big Picture", icon: "home", housePart: "complete",
   tabLink: "qualify", tabLabel: "Qualify",
-  lesson: "You've learned the pieces. Now let's put it all together — because buying a home isn't just a transaction, it's a wealth-building strategy.\n\n**The true cost of homeownership (monthly):**\nPITI + HOA + maintenance (~1%/year) – tax savings – principal paydown = actual cost.\n\nWhen you subtract tax savings and principal paydown, the effective cost of owning is often LESS than renting the same home — especially after 3–5 years.\n\n**Affordability is personal.** The lender's max DTI isn't YOUR comfort zone. Use the Afford tab to find the purchase price that fits your real budget, not just what you qualify for.\n\n**The wealth equation over 7 years on a $1M home:**\n• Down payment: $200K\n• Appreciation (3%/yr): +$230K\n• Principal paydown: +$90K\n• Tax savings: +$60K\n• Total return: ~$380K on $200K invested = 90% total return\n\n**The homeownership advantage:**\n• Leverage (control $1M asset with $200K)\n• Forced savings (principal paydown happens automatically)\n• Tax benefits (interest + property tax deductions)\n• Inflation hedge (your payment is fixed, rent rises)\n• Generational wealth (your biggest asset grows tax-advantaged)\n\nYou didn't just learn about mortgages — you learned how to build wealth. Now go use the tools. You're ready. 🏠",
+  lesson: "You've learned the pieces. Now let's put it all together — because buying a home isn't just a transaction, it's a wealth-building strategy.\n\n**The true cost of homeownership (monthly):**\nPITI + HOA + maintenance (~1%/year) – tax savings – principal paydown = actual cost.\n\nWhen you subtract tax savings and principal paydown, the effective cost of owning is often LESS than renting the same home — especially after 3–5 years.\n\n**Affordability is personal.** The lender's max DTI isn't YOUR comfort zone. Use the Afford tab to find the purchase price that fits your real budget, not just what you qualify for.\n\n**The wealth equation over 7 years on a $1M home:**\n• Down payment: $200K\n• Appreciation (3%/yr): +$230K\n• Principal paydown: +$90K\n• Tax savings: +$60K\n• Total return: ~$380K on $200K invested = 90% total return\n\n**The homeownership advantage:**\n• Leverage (control $1M asset with $200K)\n• Forced savings (principal paydown happens automatically)\n• Tax benefits (interest + property tax deductions)\n• Inflation hedge (your payment is fixed, rent rises)\n• Generational wealth (your biggest asset grows tax-advantaged)\n\nYou didn't just learn about mortgages — you learned how to build wealth. Now go use the tools. You're ready. ",
   quiz: [
    { q: "The true monthly cost of homeownership should factor in:", opts: ["Just PITI", "PITI + maintenance", "PITI + maintenance – tax savings – principal paydown", "Just the mortgage payment"], a: 2 },
    { q: "A fixed mortgage payment protects you from:", opts: ["Property tax increases", "Rising insurance costs", "Rising rent (inflation hedge)", "HOA increases"], a: 2 },
@@ -929,9 +930,9 @@ const HOUSE_STAGES = [
  { tab: "summary", part: "Move-In Ready!", desc: "Welcome home!" },
 ];
 const SKILL_PRESETS = {
- beginner: { label: "Beginner", sub: "First-Time Homebuyer", icon: "🏠", desc: "Guided step-by-step. Complete each tab to unlock the next. Perfect if this is your first time.", unlockedThrough: 1 },
- experienced: { label: "Experienced", sub: "Repeat Buyer", icon: "🔑", desc: "Core tabs unlocked. Advanced analysis tabs unlock as you go.", unlockedThrough: 7 },
- expert: { label: "Expert", sub: "Investor / Pro", icon: "🏗️", desc: "Full access to every tool from the start. No restrictions.", unlockedThrough: 11 },
+ beginner: { label: "Beginner", sub: "First-Time Homebuyer", icon: "home", desc: "Guided step-by-step. Complete each tab to unlock the next. Perfect if this is your first time.", unlockedThrough: 1 },
+ experienced: { label: "Experienced", sub: "Repeat Buyer", icon: "key", desc: "Core tabs unlocked. Advanced analysis tabs unlock as you go.", unlockedThrough: 7 },
+ expert: { label: "Expert", sub: "Investor / Pro", icon: "settings", desc: "Full access to every tool from the start. No restrictions.", unlockedThrough: 11 },
 };
 const TOGGLE_DESCRIPTIONS = {
  firstTimeBuyer: { on: "Enables 3% down conventional (income limits apply). Also unlocks Rent vs Buy analysis.", off: "Standard down payment minimums (5% conv, 3.5% FHA, 0% VA)." },
@@ -1274,19 +1275,19 @@ export default function MortgageBlueprint({ initialState }) {
 
  // ── PricePoint XP & Leveling System ──
  const PP_HOMES = [
-  { level: 1, name: "Studio Condo", icon: "🏢", req: 0 },
-  { level: 2, name: "1BR Condo", icon: "🏬", req: 50 },
-  { level: 3, name: "2BR Condo", icon: "🏙️", req: 150 },
-  { level: 4, name: "Townhouse", icon: "🏘️", req: 300 },
-  { level: 5, name: "Starter Home", icon: "🏠", req: 500 },
-  { level: 6, name: "3BR House", icon: "🏡", req: 800 },
-  { level: 7, name: "4BR House", icon: "🏡", req: 1200 },
+  { level: 1, name: "Studio Condo", icon: "landmark", req: 0 },
+  { level: 2, name: "1BR Condo", icon: "landmark", req: 50 },
+  { level: 3, name: "2BR Condo", icon: "landmark", req: 150 },
+  { level: 4, name: "Townhouse", icon: "grid", req: 300 },
+  { level: 5, name: "Starter Home", icon: "home", req: 500 },
+  { level: 6, name: "3BR House", icon: "home", req: 800 },
+  { level: 7, name: "4BR House", icon: "home", req: 1200 },
   { level: 8, name: "Craftsman", icon: "🪵", req: 1700 },
-  { level: 9, name: "Victorian", icon: "🏚️", req: 2400 },
-  { level: 10, name: "Modern Farmhouse", icon: "🌾", req: 3200 },
-  { level: 11, name: "Luxury Home", icon: "💎", req: 4200 },
-  { level: 12, name: "Estate", icon: "🏰", req: 5500 },
-  { level: 13, name: "Mega Mansion", icon: "👑", req: 7000 },
+  { level: 9, name: "Victorian", icon: "home", req: 2400 },
+  { level: 10, name: "Modern Farmhouse", icon: "trending-up", req: 3200 },
+  { level: 11, name: "Luxury Home", icon: "diamond", req: 4200 },
+  { level: 12, name: "Estate", icon: "crown", req: 5500 },
+  { level: 13, name: "Mega Mansion", icon: "crown", req: 7000 },
  ];
  const [ppSearchZip, setPpSearchZip] = useState("");
  const [ppPropertyDetails, setPpPropertyDetails] = useState({}); // cache: { zpid: { photos, description, loading, error } }
@@ -2020,7 +2021,7 @@ export default function MortgageBlueprint({ initialState }) {
   const ln = (t, v) => lines.push(`${t}: ${v || ""}`);
   const sep = () => lines.push("─".repeat(40));
   lines.push(isRefi ? "REFINANCE ESTIMATE" : "PURCHASE ESTIMATE");
-  lines.push("⚠️ FOR ILLUSTRATIVE PURPOSES ONLY — NOT AN OFFICIAL QUOTE");
+  lines.push("FOR ILLUSTRATIVE PURPOSES ONLY — NOT AN OFFICIAL QUOTE");
   lines.push(`Scenario: ${scenarioName}`);
   if (borrowerName) lines.push(`Prepared for: ${borrowerName}`);
   lines.push(`Prepared by: ${loanOfficer || "Loan Officer"}${loNmls ? " · NMLS #" + loNmls : ""}`);
@@ -2141,8 +2142,8 @@ export default function MortgageBlueprint({ initialState }) {
 
   // HEADER
   html += `<div class="header"><div class="header-top"><div class="lo-info"><h2>${loName}</h2><div class="title">Loan Officer${loNmls ? " · NMLS #" + loNmls : ""}</div></div><div class="lo-contact">`;
-  if (loPhone) html += `<div>📞 <a href="tel:${loPhone.replace(/\D/g,"")}">${loPhone}</a></div>`;
-  if (loEmail) html += `<div>✉️ <a href="mailto:${loEmail}">${loEmail}</a></div>`;
+  if (loPhone) html += `<div><a href="tel:${loPhone.replace(/\D/g,"")}">${loPhone}</a></div>`;
+  if (loEmail) html += `<div><a href="mailto:${loEmail}">${loEmail}</a></div>`;
   html += `</div></div>`;
   if (realtorPartner) {
    html += `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15)">`;
@@ -2152,7 +2153,7 @@ export default function MortgageBlueprint({ initialState }) {
   }
   html += `<div class="prepared-for">Prepared for<strong>${bName}</strong>${dateStr}</div>`;
   html += `</div>`;
-  html += `<div class="estimate-banner">⚠️ Hypothetical Estimate — For Illustrative Purposes Only — Not a Loan Offer</div>`;
+  html += `<div class="estimate-banner">Hypothetical Estimate — For Illustrative Purposes Only — Not a Loan Offer</div>`;
 
   if (isRefi) {
    // REFI HERO
@@ -2188,7 +2189,7 @@ export default function MortgageBlueprint({ initialState }) {
    const cashInHandLabel = c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing";
    const cashInHandValue = c.refiNetCashInHand >= 0 ? fmt(c.refiNetCashInHand) : fmt(Math.abs(c.refiNetCashInHand));
    html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row(cashOutLabel,cashOutValue,false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row(cashInHandLabel,cashInHandValue,true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
-   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✅":"❌"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✅":"❌"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✅":"❌"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
+   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"check":"✗"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"check":"✗"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"check":"✗"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
   } else {
    // PURCHASE HERO
    html += `<div class="hero-bar"><div class="big">${fmt(c.housingPayment)}<span style="font-size:18px;font-weight:400">/mo</span></div><div class="sub">${propAddr !== "TBD" && propAddr ? propAddr + " · " : ""}${fmt(c.cashToClose)} cash to close</div></div>`;
@@ -2213,7 +2214,7 @@ export default function MortgageBlueprint({ initialState }) {
    }
   }
 
-  html += `<div class="section-note">💡 This is a hypothetical estimate for educational purposes only. It is not a loan offer, commitment to lend, or official rate quote. Actual rates, terms, and costs may vary significantly. Contact a licensed loan officer for a personalized quote based on your specific financial situation.</div>`;
+  html += `<div class="section-note">This is a hypothetical estimate for educational purposes only. It is not a loan offer, commitment to lend, or official rate quote. Actual rates, terms, and costs may vary significantly. Contact a licensed loan officer for a personalized quote based on your specific financial situation.</div>`;
   html += `</div>`;
 
   // FOOTER
@@ -3740,7 +3741,7 @@ export default function MortgageBlueprint({ initialState }) {
     setTimeout(() => setPpRevealAnim(true), 50);
     const pctOff = Math.abs((val - ppCurrentListing.soldPrice) / ppCurrentListing.soldPrice) * 100;
     const bonus = pctOff <= 1 ? 50 : pctOff <= 2 ? 40 : pctOff <= 5 ? 25 : pctOff <= 10 ? 15 : 0;
-    setTimeout(() => { setPpNotif(`+${10 + bonus} XP earned!${bonus > 0 ? ` 🎯 ${pctOff.toFixed(1)}% accuracy bonus` : ""}`); setTimeout(() => setPpNotif(null), 3000); }, 2000);
+    setTimeout(() => { setPpNotif(`+${10 + bonus} XP earned!${bonus > 0 ? ` ${pctOff.toFixed(1)}% accuracy bonus` : ""}`); setTimeout(() => setPpNotif(null), 3000); }, 2000);
    } else {
     setPpNotif(`Locked in ${ppFmt(val)} — +10 XP`);
     setTimeout(() => setPpNotif(null), 3000);
@@ -3856,41 +3857,41 @@ export default function MortgageBlueprint({ initialState }) {
 
  // ── Badges ──
  const ppBadges = [];
- if (ppGuesses.length >= 1) ppBadges.push({ id: "first", icon: "🎯", name: "First Guess", desc: "Made your first guess" });
- if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 1)) ppBadges.push({ id: "bullseye", icon: "🎪", name: "Bullseye", desc: "Within 1% of sold price" });
- if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 2)) ppBadges.push({ id: "sharp", icon: "🏹", name: "Sharpshooter", desc: "Within 2% of sold price" });
- if (ppBestStreak >= 3) ppBadges.push({ id: "streak3", icon: "🔥", name: "On Fire", desc: "3+ streak within 5%" });
- if (ppBestStreak >= 5) ppBadges.push({ id: "streak5", icon: "💥", name: "Blazing", desc: "5+ streak within 5%" });
- if (ppGuesses.length >= 10) ppBadges.push({ id: "ten", icon: "🔟", name: "Getting Started", desc: "10 total guesses" });
- if (ppGuesses.length >= 25) ppBadges.push({ id: "twentyfive", icon: "📊", name: "Market Watcher", desc: "25 total guesses" });
- if (ppGuesses.length >= 50) ppBadges.push({ id: "fifty", icon: "🧠", name: "Market Expert", desc: "50 total guesses" });
- if (ppGuesses.length >= 100) ppBadges.push({ id: "hundred", icon: "👑", name: "Legend", desc: "100 total guesses" });
- if (ppLevel >= 5) ppBadges.push({ id: "homeowner", icon: "🏠", name: "Homeowner", desc: "Reached Level 5" });
- if (ppLevel >= 10) ppBadges.push({ id: "mogul", icon: "🌾", name: "Property Mogul", desc: "Reached Level 10" });
- if (ppLevel >= 13) ppBadges.push({ id: "mansion", icon: "👑", name: "Mega Mansion", desc: "Reached max level" });
- if (ppAvgDiff !== "—" && parseFloat(ppAvgDiff) <= 5 && ppRevealed.length >= 5) ppBadges.push({ id: "consistent", icon: "⚡", name: "Consistent", desc: "Under 5% avg with 5+ reveals" });
+ if (ppGuesses.length >= 1) ppBadges.push({ id: "first", icon: "target", name: "First Guess", desc: "Made your first guess" });
+ if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 1)) ppBadges.push({ id: "bullseye", icon: "target", name: "Bullseye", desc: "Within 1% of sold price" });
+ if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 2)) ppBadges.push({ id: "sharp", icon: "target", name: "Sharpshooter", desc: "Within 2% of sold price" });
+ if (ppBestStreak >= 3) ppBadges.push({ id: "streak3", icon: "zap", name: "On Fire", desc: "3+ streak within 5%" });
+ if (ppBestStreak >= 5) ppBadges.push({ id: "streak5", icon: "zap", name: "Blazing", desc: "5+ streak within 5%" });
+ if (ppGuesses.length >= 10) ppBadges.push({ id: "ten", icon: "bar-chart", name: "Getting Started", desc: "10 total guesses" });
+ if (ppGuesses.length >= 25) ppBadges.push({ id: "twentyfive", icon: "bar-chart", name: "Market Watcher", desc: "25 total guesses" });
+ if (ppGuesses.length >= 50) ppBadges.push({ id: "fifty", icon: "star", name: "Market Expert", desc: "50 total guesses" });
+ if (ppGuesses.length >= 100) ppBadges.push({ id: "hundred", icon: "crown", name: "Legend", desc: "100 total guesses" });
+ if (ppLevel >= 5) ppBadges.push({ id: "homeowner", icon: "home", name: "Homeowner", desc: "Reached Level 5" });
+ if (ppLevel >= 10) ppBadges.push({ id: "mogul", icon: "trending-up", name: "Property Mogul", desc: "Reached Level 10" });
+ if (ppLevel >= 13) ppBadges.push({ id: "mansion", icon: "crown", name: "Mega Mansion", desc: "Reached max level" });
+ if (ppAvgDiff !== "—" && parseFloat(ppAvgDiff) <= 5 && ppRevealed.length >= 5) ppBadges.push({ id: "consistent", icon: "zap", name: "Consistent", desc: "Under 5% avg with 5+ reveals" });
 
  // Badge toast notification
  React.useEffect(() => {
   if (ppBadges.length > ppPrevBadgeCount && ppPrevBadgeCount > 0) {
    const newBadge = ppBadges[ppBadges.length - 1];
-   setPpNotif(`🏆 New Badge: ${newBadge.icon} ${newBadge.name}!`);
+   setPpNotif(`New Badge: ${newBadge.icon} ${newBadge.name}!`);
    setTimeout(() => setPpNotif(null), 4000);
   }
   setPpPrevBadgeCount(ppBadges.length);
  }, [ppBadges.length]);
 
  const PP_LEADERBOARD_ALL = [
-  { name:"Sarah K.",role:"Agent · Compass",category:"agent",avgDiff:2.1,streak:7,guesses:34,badge:"🎯" },
-  { name:"Mike T.",role:"Lender · First Republic",category:"agent",avgDiff:3.4,streak:4,guesses:28,badge:"🔥" },
-  { name: ppPublicProfile ? "You" : "Anonymous", role:"Lender",category:"agent",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge: PP_HOMES[[...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) >= 0 ? PP_HOMES.length - 1 - [...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) : 0]?.icon || "🏢", isYou: true },
-  { name:"Jessica R.",role:"Agent · Coldwell Banker",category:"agent",avgDiff:4.8,streak:2,guesses:41,badge:"⭐" },
+  { name:"Sarah K.",role:"Agent · Compass",category:"agent",avgDiff:2.1,streak:7,guesses:34,badge:"target" },
+  { name:"Mike T.",role:"Lender · First Republic",category:"agent",avgDiff:3.4,streak:4,guesses:28,badge:"zap" },
+  { name: ppPublicProfile ? "You" : "Anonymous", role:"Lender",category:"agent",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge: PP_HOMES[[...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) >= 0 ? PP_HOMES.length - 1 - [...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) : 0]?.icon || "landmark", isYou: true },
+  { name:"Jessica R.",role:"Agent · Coldwell Banker",category:"agent",avgDiff:4.8,streak:2,guesses:41,badge:"star" },
   { name:"Rachel M.",role:"Agent · KW",category:"agent",avgDiff:5.6,streak:3,guesses:22,badge:"" },
   { name:"Tom W.",role:"Lender · Chase",category:"agent",avgDiff:6.2,streak:1,guesses:15,badge:"" },
   { name:"David L.",role:"Investor",category:"buyer",avgDiff:5.1,streak:1,guesses:19,badge:"" },
-  { name:"Emily C.",role:"First-Time Buyer",category:"buyer",avgDiff:6.8,streak:2,guesses:12,badge:"🏡" },
+  { name:"Emily C.",role:"First-Time Buyer",category:"buyer",avgDiff:6.8,streak:2,guesses:12,badge:"home" },
   { name:"Jason P.",role:"Buyer · Relocating",category:"buyer",avgDiff:7.3,streak:0,guesses:9,badge:"" },
-  { name:"Karen S.",role:"Investor · Flipper",category:"buyer",avgDiff:3.9,streak:5,guesses:31,badge:"💰" },
+  { name:"Karen S.",role:"Investor · Flipper",category:"buyer",avgDiff:3.9,streak:5,guesses:31,badge:"dollar" },
   { name:"Alex N.",role:"Buyer · Move-Up",category:"buyer",avgDiff:8.1,streak:0,guesses:7,badge:"" },
   { name:"Brian H.",role:"Buyer · Downsizer",category:"buyer",avgDiff:5.5,streak:1,guesses:16,badge:"" },
  ].sort((a,b) => a.avgDiff === 99 ? 1 : b.avgDiff === 99 ? -1 : a.avgDiff - b.avgDiff);
@@ -4046,7 +4047,7 @@ export default function MortgageBlueprint({ initialState }) {
        const locked = !isTabUnlocked(k);
        const completed = !!completedTabs[k];
        const active = tab === k;
-       const icons = { setup: "📋", calc: "🧮", costs: "💰", income: "💵", debts: "💳", assets: "🏦", qualify: "✅", tax: "📊", amort: "📈", invest: "🏘️", rentvbuy: "⚖️", learn: "📚", compare: "📊", summary: "🔗", settings: "⚙️", reo: "🏠", sell: "💲", refi: "🔄", refi3: "🎯" };
+       const icons = { setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; } }}
          style={{
@@ -4055,7 +4056,7 @@ export default function MortgageBlueprint({ initialState }) {
           background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
          }}>
-         <span style={{ fontSize: sidebarCollapsed ? 18 : 15, textAlign: "center", width: sidebarCollapsed ? "100%" : "auto" }}>{icons[k] || "📄"}</span>
+         <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
          {!sidebarCollapsed && (
           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
          )}
@@ -4074,17 +4075,17 @@ export default function MortgageBlueprint({ initialState }) {
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
-    <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>🔒</div>
+    <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}></div>
     <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 8 }}>Secure Financial Tool</div>
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
      This mortgage calculator processes sensitive financial information including income, debts, credit scores, and assets. By continuing, you acknowledge:
     </div>
     <div style={{ background: T.pillBg, borderRadius: 14, padding: 14, marginBottom: 16, fontSize: 12, color: T.textSecondary, lineHeight: 1.8 }}>
-     <div style={{ marginBottom: 6 }}>🔐 <strong>Data is stored locally</strong> on this device via secure storage</div>
-     <div style={{ marginBottom: 6 }}>👁️ <strong>Privacy Mode</strong> available to mask sensitive numbers</div>
-     <div style={{ marginBottom: 6 }}>📧 <strong>Emailed summaries</strong> are not encrypted — use caution</div>
-     <div style={{ marginBottom: 6 }}>🗑️ <strong>You can delete all data</strong> at any time in Settings</div>
-     <div>⚖️ <strong>Not a commitment to lend</strong> — estimates only</div>
+     <div style={{ marginBottom: 6 }}><strong>Data is stored locally</strong> on this device via secure storage</div>
+     <div style={{ marginBottom: 6 }}><strong>Privacy Mode</strong> available to mask sensitive numbers</div>
+     <div style={{ marginBottom: 6 }}><strong>Emailed summaries</strong> are not encrypted — use caution</div>
+     <div style={{ marginBottom: 6 }}> <strong>You can delete all data</strong> at any time in Settings</div>
+     <div><strong>Not a commitment to lend</strong> — estimates only</div>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 16 }}>
      Chris Granger Mortgage · NMLS #952015
@@ -4097,12 +4098,12 @@ export default function MortgageBlueprint({ initialState }) {
   {/* ═══ WELCOME TUTORIAL ═══ */}
   {showWelcome && consentGiven && !isLocked && (() => {
    const steps = [
-    { emoji: "🏠", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool — designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
-    { emoji: "🧭", title: "How to Navigate", body: "Follow the tabs left to right — each one builds on the last:\n\n📋 Setup — Enter property details\n🧮 Calculator — See your monthly payment\n💰 Costs — Full closing cost breakdown\n🤑 Income → Debts → Assets — Your full financial picture\n✅ Qualify — Check if you're approved\n📈 Tax Savings → Amortization — See the long game", color: T.cyan },
-    { emoji: "📖", title: "Quick Glossary", body: "Some terms you'll see:\n\n• Conventional — A standard loan (not government-backed). Most common type.\n• FHA — Government-backed loan with lower down payment (3.5%).\n• VA — Zero-down loan for military veterans.\n• LTV — Loan-to-Value ratio. Below 80% means no PMI.\n• PMI — Mortgage insurance when you put less than 20% down.\n• DTI — Debt-to-Income ratio. Lenders want this below 43-50%.\n\nTap any ⓘ icon throughout the app for more detail.", color: T.orange },
-    { emoji: "📊", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios — try different prices, rates, or loan types — then compare them side-by-side on the Compare tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch — it copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
-    { emoji: "🚀", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time — change anything and watch the whole picture update instantly.", color: T.green },
-    { emoji: "🎯", title: "Bonus: PricePoint", body: "Think you know your local market? PricePoint pulls real listings from your area and challenges you to guess the price.\n\nSwipe through photos, read the MLS description, and lock in your guess — then see how close you were. Earn XP, level up from Studio Condo to Mega Mansion, and unlock achievement badges along the way.\n\nFind it in the top-right corner of the app.", color: T.purple },
+    { emoji: "home", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool — designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
+    { emoji: "", title: "How to Navigate", body: "Follow the tabs left to right — each one builds on the last:\n\nSetup — Enter property details\nCalculator — See your monthly payment\nCosts — Full closing cost breakdown\n Income → Debts → Assets — Your full financial picture\nQualify — Check if you're approved\nTax Savings → Amortization — See the long game", color: T.cyan },
+    { emoji: "", title: "Quick Glossary", body: "Some terms you'll see:\n\n• Conventional — A standard loan (not government-backed). Most common type.\n• FHA — Government-backed loan with lower down payment (3.5%).\n• VA — Zero-down loan for military veterans.\n• LTV — Loan-to-Value ratio. Below 80% means no PMI.\n• PMI — Mortgage insurance when you put less than 20% down.\n• DTI — Debt-to-Income ratio. Lenders want this below 43-50%.\n\nTap any ⓘ icon throughout the app for more detail.", color: T.orange },
+    { emoji: "bar-chart", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios — try different prices, rates, or loan types — then compare them side-by-side on the Compare tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch — it copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
+    { emoji: "", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time — change anything and watch the whole picture update instantly.", color: T.green },
+    { emoji: "target", title: "Bonus: PricePoint", body: "Think you know your local market? PricePoint pulls real listings from your area and challenges you to guess the price.\n\nSwipe through photos, read the MLS description, and lock in your guess — then see how close you were. Earn XP, level up from Studio Condo to Mega Mansion, and unlock achievement badges along the way.\n\nFind it in the top-right corner of the app.", color: T.purple },
    ];
    const step = steps[welcomeStep];
    return (
@@ -4135,7 +4136,7 @@ export default function MortgageBlueprint({ initialState }) {
   })()}
   {/* ═══ LOCK SCREEN ═══ */}
   {isLocked && consentGiven && <div style={{ position: "fixed", inset: 0, background: T.bg, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
-   <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+   <div style={{ fontSize: 48, marginBottom: 16 }}></div>
    <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>App Locked</div>
    <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 24 }}>Enter your PIN to unlock</div>
    <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
@@ -4153,7 +4154,7 @@ export default function MortgageBlueprint({ initialState }) {
   {/* ═══ CLEAR DATA CONFIRMATION ═══ */}
   {showClearConfirm && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 20, maxWidth: 380, width: "100%", padding: "24px 20px" }}>
-    <div style={{ fontSize: 28, textAlign: "center", marginBottom: 8 }}>⚠️</div>
+    <div style={{ fontSize: 28, textAlign: "center", marginBottom: 8 }}></div>
     <div style={{ fontSize: 18, fontWeight: 700, textAlign: "center", marginBottom: 8, color: T.red }}>
      {clearStep === 0 ? "Clear All Data?" : "Are You ABSOLUTELY Sure?"}
     </div>
@@ -4191,17 +4192,17 @@ export default function MortgageBlueprint({ initialState }) {
     {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself.</Note>}
     <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
      <button onClick={() => { handleEmailSummary(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      ✉️ Email
+      Email
      </button>
      <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      📄 Save PDF
+      Save PDF
      </button>
     </div>
     <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 12, background: "transparent", border: "none", color: T.textTertiary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
-     📋 Copy to Clipboard
+     Copy to Clipboard
     </button>
     <div style={{ background: `${T.orange}10`, borderRadius: 10, padding: "8px 12px", marginTop: 8 }}>
-     <div style={{ fontSize: 10, color: T.textTertiary, lineHeight: 1.5 }}>⚠️ Email is not encrypted. This is not an official loan quote. Only send to verified recipients.</div>
+     <div style={{ fontSize: 10, color: T.textTertiary, lineHeight: 1.5 }}>Email is not encrypted. This is not an official loan quote. Only send to verified recipients.</div>
     </div>
    </div>
   </div>}
@@ -4209,7 +4210,7 @@ export default function MortgageBlueprint({ initialState }) {
    <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
-      {[["blueprint","🏗️ Blueprint"],["pricepoint","🎯 PricePoint"]].map(([k,l]) => (
+      {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
        <button key={k} onClick={() => setAppMode(k)} style={{
         padding: "8px 20px", borderRadius: 12, border: "none", fontSize: 13, fontWeight: 700,
         fontFamily: "'SF Pro Display','Inter',sans-serif", cursor: "pointer", transition: "all 0.25s",
@@ -4238,10 +4239,10 @@ export default function MortgageBlueprint({ initialState }) {
       </div>
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
        {realtorPartner.phone && (
-        <a href={`tel:${realtorPartner.phone}`} style={{ background: `${T.green}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}>📞</a>
+        <a href={`tel:${realtorPartner.phone}`} style={{ background: `${T.green}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}></a>
        )}
        {realtorPartner.email && (
-        <a href={`mailto:${realtorPartner.email}`} style={{ background: `${T.blue}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}>✉️</a>
+        <a href={`mailto:${realtorPartner.email}`} style={{ background: `${T.blue}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}></a>
        )}
       </div>
      </div>
@@ -4258,7 +4259,7 @@ export default function MortgageBlueprint({ initialState }) {
         <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Mortgage Blueprint</span>
         {/* ── Blueprint / PricePoint segmented toggle ── */}
         <div style={{ display: "flex", background: T.pillBg, borderRadius: 10, padding: 2 }}>
-         {[["blueprint","🏗️","Blueprint"],["pricepoint","🎯","PricePoint"]].map(([k,e,l]) => (
+         {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"]].map(([k,e,l]) => (
           <button key={k} onClick={() => setAppMode(k)} style={{
            padding: "4px 10px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: appMode === k ? 700 : 500,
            background: appMode === k ? T.blue : "transparent",
@@ -4278,9 +4279,9 @@ export default function MortgageBlueprint({ initialState }) {
         {scenarioList.length > 1 && <span onClick={() => setTab("compare")} style={{ fontSize: 10, fontWeight: 700, color: T.blue, background: `${T.blue}15`, borderRadius: 6, padding: "2px 6px", cursor: "pointer", whiteSpace: "nowrap", marginLeft: 2 }}>Compare</span>}
         {saving && <span style={{ fontSize: 10, color: T.textTertiary, fontStyle: "italic" }}>saving...</span>}
         {!saving && loaded && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
-        {cloudSyncStatus === 'saving' && <span style={{ fontSize: 10, color: T.blue, fontStyle: "italic" }}>☁️</span>}
-        {cloudSyncStatus === 'saved' && <span style={{ fontSize: 10, color: T.green }}>☁️✓</span>}
-        {cloudSyncStatus === 'error' && <span style={{ fontSize: 10, color: T.red }}>☁️✗</span>}
+        {cloudSyncStatus === 'saving' && <span style={{ fontSize: 10, color: T.blue, fontStyle: "italic" }}></span>}
+        {cloudSyncStatus === 'saved' && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+        {cloudSyncStatus === 'error' && <span style={{ fontSize: 10, color: T.red }}>✗</span>}
        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -4296,10 +4297,10 @@ export default function MortgageBlueprint({ initialState }) {
         <div style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary }}>{fmt(calc.cashToClose)} to close</div>
        </div>
        <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
-        {themeMode === 'auto' ? '🌗' : themeMode === 'light' ? '☀️' : '🌙'}
+        {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
        <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
-        {privacyMode ? "🙈" : "👁️"}
+        {privacyMode ? "⊘" : "eye"}
        </button>
       </div>
      </div>
@@ -4364,7 +4365,7 @@ export default function MortgageBlueprint({ initialState }) {
      {/* ── Qualification Pillars Strip ── */}
      <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-       <span style={{ fontSize: 14 }}>{allGood ? "🏆" : someGood ? "🔓" : "🔒"}</span>
+       <span style={{ fontSize: 14 }}>{allGood ? "trophy" : someGood ? "unlock" : "lock"}</span>
        <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? (isRefi ? "Refi Qualified" : "Pre-Qualified") : someGood ? `${isRefi ? refiPillarCount : purchPillarCount}/${isRefi ? 3 : 5} Pillars` : `${isRefi ? 3 : 5} Qualification Pillars`}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
@@ -4434,7 +4435,7 @@ export default function MortgageBlueprint({ initialState }) {
   <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
   {!isRefi && (
   <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}08`, border: `1px solid ${T.blue}18`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10, marginTop: -4 }}>
-   <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>🔍 Zillow</span>
+   <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>Zillow</span>
    <span style={{ fontSize: 10, color: T.textTertiary }}>{city}, {taxState}</span>
   </button>
   )}
@@ -4594,7 +4595,7 @@ export default function MortgageBlueprint({ initialState }) {
   {/* Live Rates */}
   <button onClick={fetchRates} disabled={ratesLoading} style={{ width: "100%", background: liveRates ? T.successBg : `${T.blue}18`, border: `1px solid ${liveRates ? T.green + "33" : T.blue + "33"}`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
    <span style={{ fontSize: 13, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: FONT }}>
-    {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "📡 Get Today's Rates"}
+    {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "◉ Get Today's Rates"}
    </span>
    {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || "Today"}</span>}
    {!liveRates && !ratesLoading && fredApiKey && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>FRED (Freddie Mac PMMS)</span>}
@@ -4627,7 +4628,7 @@ export default function MortgageBlueprint({ initialState }) {
    {loanType === "VA" && <Sel label="VA Usage" value={vaUsage} onChange={setVaUsage} options={VA_USAGE.map(v => ({value:v,label:v === "First Use" ? "First Use (2.15%)" : v === "Subsequent" ? "Subsequent (3.3%)" : "Disabled (0%)"}))} sm />}
   </div>
   {autoJumboSwitch && <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: `${T.orange}12`, borderRadius: 10, marginTop: -4, marginBottom: 8 }}>
-   <span style={{ fontSize: 14 }}>⚠️</span>
+   <span style={{ fontSize: 14 }}></span>
    <div style={{ fontSize: 11, color: T.orange, lineHeight: 1.4 }}>
     <strong>Auto-switched to Jumbo</strong> — loan amount ({fmt(Math.round(salesPrice * (1 - downPct / 100)))}) exceeds the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` for ${propType.toLowerCase()} properties` : ""}. Jumbo requires 20% down, 700+ FICO, and max 43–50% DTI.
     <span onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }} style={{ color: T.blue, cursor: "pointer", fontWeight: 600, marginLeft: 4 }}>Override →</span>
@@ -4649,7 +4650,7 @@ export default function MortgageBlueprint({ initialState }) {
   }} options={[{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]} req tip="How you'll use the property. Investment properties typically carry a 0.750–1.000% rate premium and require 15-25% down." />
   </div>{/* end proptype+occupancy 2-col grid */}
   {loanPurpose === "Purchase Investment" && (
-   <Note color={T.orange}>📈 Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
+   <Note color={T.orange}>Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
   )}
   {(loanPurpose === "Purchase Investment" || (loanPurpose === "Purchase Primary" && (UNIT_COUNT[propType] || 1) > 1)) && (
    <div>
@@ -5055,13 +5056,13 @@ export default function MortgageBlueprint({ initialState }) {
    const firstPmtMo = mos[(cm + 2) % 12];
    const daysRemaining = calc.autoPrepaidDays - 1;
    return <Card style={{ background: `${T.blue}08`, border: `1px solid ${T.blue}18` }}>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.blue, marginBottom: 8 }}>💡 When Is My First Payment?</div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: T.blue, marginBottom: 8 }}>When Is My First Payment?</div>
     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
      <div style={{ marginBottom: 6 }}>You close on <strong>{shortMos[cm]} {closingDay}</strong>. We collect {daysRemaining} days remaining in {mos[cm]} + 1 day in {mos[(cm + 1) % 12]} = <strong>{calc.autoPrepaidDays} days</strong> of prepaid interest.</div>
      <div style={{ marginBottom: 6 }}>You have <strong>no mortgage payment in {skipMo}</strong> — your first full month of ownership.</div>
      <div style={{ marginBottom: 6 }}>Your first payment is due <strong>{firstPmtMo} 1st</strong>, and isn't considered late until after <strong>{firstPmtMo} 15th</strong>.</div>
      <div style={{ background: `${T.green}12`, borderRadius: 8, padding: "8px 10px", marginTop: 8 }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: T.green }}>🎉 That's ~{closingDay <= 15 ? "1.5 to 2" : "1 to 1.5"} months with no mortgage payment after closing!</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: T.green }}>That's ~{closingDay <= 15 ? "1.5 to 2" : "1 to 1.5"} months with no mortgage payment after closing!</span>
      </div>
     </div>
    </Card>;
@@ -5318,7 +5319,7 @@ export default function MortgageBlueprint({ initialState }) {
   </div>
   {debtFree && (
    <div style={{ marginTop: 12, padding: "14px 16px", background: T.successBg, borderRadius: 12, textAlign: "center" }}>
-    <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
+    <div style={{ fontSize: 28, marginBottom: 6 }}></div>
     <div style={{ fontSize: 15, fontWeight: 700, color: T.green }}>Great work — no consumer debt!</div>
     <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>This means more of your DTI capacity goes toward your new mortgage, maximizing your purchasing power.</div>
    </div>
@@ -5430,15 +5431,15 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "qualify" && (<>
  <div style={{ marginTop: 20 }}>
   <StopLight onPillarClick={handlePillarClick} checks={isRefi ? [
-   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "📊", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
-   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "⚖️", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
-   { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan details", icon: "🏠", fullLabel: "Loan-to-Value", detail: calc.refiNewLTV > 0 ? `New LTV: ${pct(calc.refiNewLTV, 1)}. Max ${refiPurpose === "Cash-Out" ? "80%" : "95%"} for ${refiPurpose} refi. ${calc.refiNewLTV <= 0.80 ? "Below 80% — no PMI required." : ""}` : "Enter your current loan details in Setup to calculate LTV.", action: "Edit loan details" },
+   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
+   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
+   { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan details", icon: "home", fullLabel: "Loan-to-Value", detail: calc.refiNewLTV > 0 ? `New LTV: ${pct(calc.refiNewLTV, 1)}. Max ${refiPurpose === "Cash-Out" ? "80%" : "95%"} for ${refiPurpose} refi. ${calc.refiNewLTV <= 0.80 ? "Below 80% — no PMI required." : ""}` : "Enter your current loan details in Setup to calculate LTV.", action: "Edit loan details" },
   ] : [
-   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "📊", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
-   { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "🏠", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
-   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "⚖️", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
-   { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "💰", fullLabel: "Cash to Close", detail: `Need ${fmt(calc.cashToClose)} (down payment + closing costs – credits). ${calc.totalForClosing > 0 ? `Have ${fmt(calc.totalForClosing)} verified. ${calc.totalForClosing >= calc.cashToClose ? "Fully funded!" : `Short ${fmt(calc.cashToClose - calc.totalForClosing)}.`}` : "Add assets to verify funds."}`, action: "Edit assets" },
-   { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "🏦", fullLabel: "Reserves", detail: `${calc.reserveMonths} months required (${loanType === "Jumbo" ? "Jumbo" : "standard"}) = ${fmt(calc.reservesReq)}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
+   { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
+   { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "home", fullLabel: "Down Payment", detail: `Min ${calc.minDPpct}%${loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : ""} for ${loanType}. Yours: ${downPct}% = ${fmt(calc.dp)}. ${downPct >= 20 ? "No mortgage insurance required!" : `PMI required until 80% LTV.`}`, action: "Adjust down payment" },
+   { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
+   { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "dollar", fullLabel: "Cash to Close", detail: `Need ${fmt(calc.cashToClose)} (down payment + closing costs – credits). ${calc.totalForClosing > 0 ? `Have ${fmt(calc.totalForClosing)} verified. ${calc.totalForClosing >= calc.cashToClose ? "Fully funded!" : `Short ${fmt(calc.cashToClose - calc.totalForClosing)}.`}` : "Add assets to verify funds."}`, action: "Edit assets" },
+   { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark", fullLabel: "Reserves", detail: `${calc.reserveMonths} months required (${loanType === "Jumbo" ? "Jumbo" : "standard"}) = ${fmt(calc.reservesReq)}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
   ]} />
  </div>
  {/* Progress bar - how many pillars cleared */}
@@ -5459,7 +5460,7 @@ export default function MortgageBlueprint({ initialState }) {
   <Card>
    <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus (Equifax, Experian, TransUnion). Lenders use the middle score, not the highest or lowest." />
    {creditScore > 0 && creditScore < calc.ficoMin && <Note color={T.red}>Min score for {loanType}: <strong>{calc.ficoMin}</strong>. Need {calc.ficoMin - creditScore} more points.</Note>}
-   {creditScore >= 740 && <Note color={T.green}>🏆 Excellent credit — qualifies for best pricing!</Note>}
+   {creditScore >= 740 && <Note color={T.green}>Excellent credit — qualifies for best pricing!</Note>}
    {creditScore >= calc.ficoMin && creditScore < 740 && <Note color={T.orange}>Meets minimum. 740+ unlocks better pricing tiers.</Note>}
   </Card>
   </div>
@@ -5473,7 +5474,7 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
  )}
  {allGood && <Card style={{ marginTop: 12, background: `${T.green}15`, textAlign: "center", padding: 20 }}>
-  <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
+  <div style={{ fontSize: 40, marginBottom: 8 }}></div>
   <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>{isRefi ? "REFI QUALIFIED" : "PRE-QUALIFIED"}</div>
   <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>{isRefi ? "All 3 pillars cleared — your refi looks good to go." : "All 5 pillars cleared — based on the information you provided."}</div>
   {isRefi ? (
@@ -5484,14 +5485,14 @@ export default function MortgageBlueprint({ initialState }) {
   ) : (<>
   <div style={{ marginTop: 16, padding: "14px 16px", background: T.card, borderRadius: 12, textAlign: "left" }}>
    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-    <span style={{ fontSize: 22, flexShrink: 0 }}>🗣️</span>
+    <span style={{ fontSize: 22, flexShrink: 0 }}></span>
     <div>
      <div style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 2 }}>Pre-Qualified</div>
      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>tell</strong> the lender — income, assets, and debts as self-reported. A good starting point, but not verified.</div>
     </div>
    </div>
    <div style={{ display: "flex", gap: 10 }}>
-    <span style={{ fontSize: 22, flexShrink: 0 }}>📄</span>
+    <span style={{ fontSize: 22, flexShrink: 0 }}></span>
     <div>
      <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 2 }}>Pre-Approved</div>
      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>show</strong> the lender — verified paystubs, bank statements, tax returns, and credit pull. Sellers take this seriously.</div>
@@ -5508,7 +5509,7 @@ export default function MortgageBlueprint({ initialState }) {
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-     <span style={{ fontSize: 20 }}>💰</span>
+     <span style={{ fontSize: 20 }}></span>
      <div>
       <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add income to see DTI</div>
       <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Income tab</div>
@@ -5521,7 +5522,7 @@ export default function MortgageBlueprint({ initialState }) {
   <div data-field="qualify-needs-assets" className={isPulse("qualify-needs-assets")} onClick={() => setTab("assets")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-     <span style={{ fontSize: 20 }}>🏦</span>
+     <span style={{ fontSize: 20 }}></span>
      <div>
       <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add assets to verify cash to close</div>
       <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Assets tab</div>
@@ -5537,7 +5538,7 @@ export default function MortgageBlueprint({ initialState }) {
  {!isRefi && <>
  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}40, transparent)`, margin: "20px 0 8px" }} />
  <div style={{ marginTop: 12 }}>
-  <Hero value="🎯" label="What Can I Afford?" color={T.green} sub="Reverse-engineer your max purchase price" />
+  <Hero value="target" label="What Can I Afford?" color={T.green} sub="Reverse-engineer your max purchase price" />
  </div>
  {calc.qualifyingIncome > 0 && (
   <div style={{ background: `${T.green}10`, border: `1px solid ${T.green}22`, borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
@@ -5559,7 +5560,7 @@ export default function MortgageBlueprint({ initialState }) {
      <div>
       <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{row.label}</div>
       <div style={{ fontSize: 11, color: row.hasData ? T.green : unlocked ? T.orange : T.textTertiary, fontWeight: 500 }}>
-       {row.hasData ? (row.debtFreeNote || `✓ From ${row.source} tab`) : unlocked ? `⚠ Enter in ${row.source} tab →` : `🔒 Unlock ${row.source} tab first`}
+       {row.hasData ? (row.debtFreeNote || `✓ From ${row.source} tab`) : unlocked ? `⚠ Enter in ${row.source} tab →` : `Unlock ${row.source} tab first`}
       </div>
      </div>
      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -5757,7 +5758,7 @@ export default function MortgageBlueprint({ initialState }) {
       </button>
      ) : (
       <div>
-       <div style={{ fontSize: 13, fontWeight: 600, color: T.orange, marginBottom: 10 }}>⚠️ This will overwrite your current calculator inputs:</div>
+       <div style={{ fontSize: 13, fontWeight: 600, color: T.orange, marginBottom: 10 }}>This will overwrite your current calculator inputs:</div>
        <div style={{ textAlign: "left", background: T.pillBg, borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 12, lineHeight: 1.8, color: T.textSecondary }}>
         <div>Purchase Price: {fmt(salesPrice)} → <strong style={{ color: T.text }}>{fmt(maxPrice)}</strong></div>
         <div>Down Payment: {downPct}% → <strong style={{ color: T.text }}>{Math.round(dpPct)}%</strong></div>
@@ -5789,7 +5790,7 @@ export default function MortgageBlueprint({ initialState }) {
  <div style={{ marginTop: 20 }}>
   <Card pad={20}>
    <div style={{ textAlign: "center", padding: "30px 20px" }}>
-    <div style={{ fontSize: 40, marginBottom: 12 }}>🏖️</div>
+    <div style={{ fontSize: 40, marginBottom: 12 }}></div>
     <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Second Home — No Additional Tax Benefit</div>
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
      Second homes do not qualify for the same tax deductions as a primary residence. Mortgage interest may still be deductible if your total mortgage debt (primary + second home) is under the {married === "MFS" ? "$375K" : "$750K"} TCJA cap, but property taxes are subject to the {married === "MFS" ? "$20K" : "$40K"} SALT cap across all properties combined.
@@ -5798,7 +5799,7 @@ export default function MortgageBlueprint({ initialState }) {
      If you rent the property out for more than 14 days/year, it becomes a rental property and IRS rules change significantly. Consult your CPA for your specific situation.
     </div>
     <div style={{ marginTop: 20, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>⚠️ This is general information only — not tax advice. Tax situations vary. Please confirm with your CPA or tax professional.</div>
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is general information only — not tax advice. Tax situations vary. Please confirm with your CPA or tax professional.</div>
     </div>
    </div>
   </Card>
@@ -5866,7 +5867,7 @@ export default function MortgageBlueprint({ initialState }) {
     </Card>
    </Sec>
    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
-    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>⚠️ This is an estimate for illustration purposes only — not tax advice. Depreciation recapture, passive activity limits, and other rules apply. Please confirm with your CPA.</div>
+    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is an estimate for illustration purposes only — not tax advice. Depreciation recapture, passive activity limits, and other rules apply. Please confirm with your CPA.</div>
    </div>
   </div>
   </div>
@@ -6015,7 +6016,7 @@ export default function MortgageBlueprint({ initialState }) {
      </div>
     )}
     <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>⚠️ This is an estimate for illustration purposes only — not tax advice. Tax situations vary based on individual circumstances. Please confirm with your CPA or tax professional before making financial decisions based on these projections.</div>
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is an estimate for illustration purposes only — not tax advice. Tax situations vary based on individual circumstances. Please confirm with your CPA or tax professional before making financial decisions based on these projections.</div>
     </div>
    </Card>
   </Sec>
@@ -6184,7 +6185,7 @@ export default function MortgageBlueprint({ initialState }) {
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total Est. Tax" value={fmt(calc.sellTotalCapGainsTax)} color={T.red} bold />
    </div>
-   <Note color={T.orange}>⚠️ This is an estimate only — not tax advice. Consult a CPA for your specific situation. Depreciation recapture, installment sales, 1031 exchanges, and AMT may apply.</Note>
+   <Note color={T.orange}>This is an estimate only — not tax advice. Consult a CPA for your specific situation. Depreciation recapture, installment sales, 1031 exchanges, and AMT may apply.</Note>
   </Card>
  </Sec>}
  <Card style={{ background: calc.sellNetAfterTax >= 0 ? T.successBg : T.errorBg }}>
@@ -6273,17 +6274,17 @@ export default function MortgageBlueprint({ initialState }) {
  </Sec>}
  <div style={{ marginTop: 12, marginBottom: 12 }}>
   <button onClick={() => setShowEmailModal(true)} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
-   📤 Share Blueprint
+   Share Blueprint
   </button>
  </div>
  {loanOfficer && (
   <div style={{ marginBottom: 12 }}>
    <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
-    🚀 Get Pre-Approved Now
+     Get Pre-Approved Now
    </a>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
-    {[["⚡", "48hr turnaround"], ["🔒", "No hard credit pull"], ["💬", "Direct LO access"]].map(([icon, text], i) => (
+    {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
      <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
       <div style={{ fontSize: 16, marginBottom: 2 }}>{icon}</div>
       <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
@@ -6328,7 +6329,7 @@ export default function MortgageBlueprint({ initialState }) {
  {showCompareHint && scenarioList.length > 1 && (
   <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
    <div>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>📊 Compare tab available!</div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>Compare tab available!</div>
     <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>You have {scenarioList.length} loan options. View them side-by-side.</div>
    </div>
    <div style={{ display: "flex", gap: 6 }}>
@@ -6345,7 +6346,7 @@ export default function MortgageBlueprint({ initialState }) {
   <div>
    <Card>
     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-     <div style={{ fontSize: 14 }}>⚡</div>
+     <div style={{ fontSize: 14 }}></div>
      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Quick Start</div>
      <div style={{ fontSize: 9, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 6px", borderRadius: 5, marginLeft: "auto" }}>REQUIRED</div>
     </div>
@@ -6501,7 +6502,7 @@ export default function MortgageBlueprint({ initialState }) {
  {/* Setup Complete celebration */}
  {gameMode && completedTabs["setup"] && isTabFieldsComplete("setup") && (
   <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: `${T.green}10`, border: `1px solid ${T.green}30`, borderRadius: 18 }}>
-   <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
+   <div style={{ fontSize: 28, marginBottom: 6 }}></div>
    <div style={{ fontSize: 16, fontWeight: 700, color: T.green, marginBottom: 4 }}>Setup Complete!</div>
    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>{isRefi ? "Your refi details are locked in. Head to the Refi Summary tab to see your savings." : "Your mortgage blueprint is ready. Explore the tabs below to dive deeper."}</div>
   </div>
@@ -6509,7 +6510,7 @@ export default function MortgageBlueprint({ initialState }) {
  {/* Refi: nudge to fill in loan details if base setup is done but refi fields are empty */}
  {isRefi && !isTabFieldsComplete("setup") && propertyZip.length >= 5 && creditScore > 0 && (
   <div style={{ textAlign: "center", padding: "14px 16px", margin: "12px 0", background: `${T.orange}10`, border: `1px solid ${T.orange}30`, borderRadius: 18 }}>
-   <div style={{ fontSize: 13, color: T.orange, fontWeight: 600 }}>👇 Fill in your current loan details below to complete setup</div>
+   <div style={{ fontSize: 13, color: T.orange, fontWeight: 600 }}>↓ Fill in your current loan details below to complete setup</div>
   </div>
  )}
 
@@ -6625,7 +6626,7 @@ export default function MortgageBlueprint({ initialState }) {
  <div onClick={() => setSetupTeamOpen(!setupTeamOpen)}
   style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupTeamOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupTeamOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}>👥</span>
+   <span style={{ fontSize: 14 }}></span>
    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Your Team</span>
    <span style={{ fontSize: 11, color: T.textTertiary }}>(LO, Realtor, Borrower)</span>
   </div>
@@ -6652,7 +6653,7 @@ export default function MortgageBlueprint({ initialState }) {
  <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
   style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}>⚙️</span>
+   <span style={{ fontSize: 14 }}></span>
    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Advanced Settings</span>
   </div>
   <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
@@ -6731,14 +6732,14 @@ export default function MortgageBlueprint({ initialState }) {
     <div style={{ fontSize: 15, fontWeight: 700, color: T.blue }}>{scenarioName}</div>
    </div>
    <button onClick={() => setTab("compare")} style={{ background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer" }}>
-    <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>📊 Compare {scenarioList.length}</span>
+    <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>Compare {scenarioList.length}</span>
    </button>
   </Card>
  )}
 
  {/* Security */}
  <Card style={{ background: T.pillBg }}>
-  <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>🔒 Your data is stored locally on this device. No account required.</div>
+  <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
  </Card>
 </>)}
 {/* ═══ REO - Real Estate Owned ═══ */}
@@ -7128,16 +7129,16 @@ export default function MortgageBlueprint({ initialState }) {
    <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
    <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📧 Email</button>
-    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>📄 PDF</button>
-    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>👁 Preview</button>
+    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Email</button>
+    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>PDF</button>
+    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}> Preview</button>
    </div>
    {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
   </Card>
  </Sec>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4, marginBottom: 12 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ padding: 14, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>✉️ Email</button>
-  <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>📄 Print PDF</button>
+  <button onClick={() => setShowEmailModal(true)} style={{ padding: 14, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Email</button>
+  <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Print PDF</button>
  </div>
  <Sec title="">
   <Card style={{ background: T.pillBg }}>
@@ -7155,7 +7156,7 @@ export default function MortgageBlueprint({ initialState }) {
  {/* Score badge */}
  <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
   <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 28px", borderRadius: 99, background: calc.refiTestScore === 3 ? `${T.green}18` : calc.refiTestScore >= 2 ? `${T.orange}18` : `${T.red}18` }}>
-   <span style={{ fontSize: 28 }}>{calc.refiTestScore === 3 ? "🟢" : calc.refiTestScore >= 2 ? "🟡" : "🔴"}</span>
+   <span style={{ fontSize: 28 }}>{calc.refiTestScore === 3 ? "●" : calc.refiTestScore >= 2 ? "●" : "●"}</span>
    <div>
     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiTestScore === 3 ? T.green : calc.refiTestScore >= 2 ? T.orange : T.red }}>{calc.refiTestScore} / 3</div>
     <div style={{ fontSize: 11, color: T.textTertiary }}>{calc.refiTestScore === 3 ? "ALL CLEAR — Refi makes sense!" : calc.refiTestScore === 2 ? "Close — worth discussing" : calc.refiTestScore === 1 ? "Proceed with caution" : "Refi may not be advisable"}</div>
@@ -7562,7 +7563,7 @@ export default function MortgageBlueprint({ initialState }) {
 {/* ═══ LEARNING CENTER ═══ */}
 {tab === "learn" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value="🏠" label="Homebuyer Academy" color={T.blue} sub={courseComplete ? "Course Complete!" : `${completedCount}/${COURSE_CHAPTERS.length} chapters`} />
+  <Hero value="home" label="Homebuyer Academy" color={T.blue} sub={courseComplete ? "Course Complete!" : `${completedCount}/${COURSE_CHAPTERS.length} chapters`} />
  </div>
  {/* Toggle: Course / Library / Guidelines */}
  <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 12, padding: 3, marginTop: 12 }}>
@@ -7572,7 +7573,7 @@ export default function MortgageBlueprint({ initialState }) {
  </div>
  {/* Subscribe CTA — always visible at top */}
  <Card style={{ marginTop: 12, background: `linear-gradient(135deg, ${T.blue}15, ${T.purple}10)`, border: `1px solid ${T.blue}25`, textAlign: "center", padding: "16px 20px" }}>
-  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>📬 Three Point Thursday</div>
+  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}> Three Point Thursday</div>
   <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>3 actionable mortgage insights delivered to your inbox every Thursday.</div>
   <a href="https://chrisgranger.substack.com/subscribe" target="_blank" rel="noopener noreferrer" style={{ marginTop: 10, padding: "10px 24px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", color: "#fff", borderRadius: 12, display: "inline-block", fontWeight: 600, fontSize: 14, fontFamily: FONT, cursor: "pointer", textDecoration: "none", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>Subscribe Free →</a>
  </Card>
@@ -7699,7 +7700,7 @@ export default function MortgageBlueprint({ initialState }) {
          <div style={{ width: `${(phaseCount/phaseChapters.length)*100}%`, height: "100%", background: phase.color, borderRadius: 2, transition: "width 0.4s" }}/>
         </div>
        </div>
-       {phaseComplete && <div style={{ fontSize: 20 }}>✅</div>}
+       {phaseComplete && <div style={{ fontSize: 20 }}></div>}
       </div>
       {phaseChapters.map((ch, ci) => {
        const done = courseProgress[ch.id];
@@ -7709,7 +7710,7 @@ export default function MortgageBlueprint({ initialState }) {
         <div key={ch.id} onClick={() => !locked && (setCourseChapter(ch.id), setCourseQuizAnswers({}), setCourseQuizSubmitted(false))}
          style={{ display: "flex", gap: 12, padding: "12px 0", borderTop: ci > 0 ? `1px solid ${T.separator}` : "none", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.4 : 1 }}>
          <div style={{ width: 44, height: 44, borderRadius: 14, background: done ? `${T.green}20` : locked ? T.inputBg : `${phase.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, border: done ? `2px solid ${T.green}` : `2px solid transparent` }}>
-          {done ? "✅" : locked ? "🔒" : ch.icon}
+          {done ? "check" : locked ? "lock" : ch.icon}
          </div>
          <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: done ? T.green : locked ? T.textTertiary : T.text }}>Ch. {ch.id}: {ch.title}</div>
@@ -7777,12 +7778,12 @@ export default function MortgageBlueprint({ initialState }) {
         <div style={{ fontSize: 12, fontWeight: 700, color: T.blue }}>Try it yourself →</div>
         <div style={{ fontSize: 11, color: T.textTertiary }}>Open the {ch.tabLabel} tab</div>
        </div>
-       <div style={{ fontSize: 20 }}>🔗</div>
+       <div style={{ fontSize: 20 }}></div>
       </div>
      </Card>
     </Sec>
     {/* Quiz */}
-    <Sec title={done ? "Quiz ✅" : "Quiz — Pass to Build"}>
+    <Sec title={done ? "Quiz " : "Quiz — Pass to Build"}>
      <Card>
       {ch.quiz.map((q, qi) => {
        const answered = courseQuizAnswers[qi] !== undefined;
@@ -7823,15 +7824,15 @@ export default function MortgageBlueprint({ initialState }) {
       {courseQuizSubmitted && !done && (
        <div style={{ marginTop: 12, textAlign: "center", padding: 16, borderRadius: 12, background: allCorrect ? `${T.green}12` : `${T.red}08` }}>
         {allCorrect ? (<>
-         <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+         <div style={{ fontSize: 32, marginBottom: 8 }}></div>
          <div style={{ fontSize: 16, fontWeight: 800, color: T.green, fontFamily: FONT }}>Perfect Score!</div>
          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4, marginBottom: 12 }}>You just built the {ch.title.toLowerCase()} of your home!</div>
          <button onClick={() => { const np = {...courseProgress, [ch.id]: true}; saveCourseProgress(np); const next = COURSE_CHAPTERS.find(c => c.id === ch.id + 1); if (next) { setCourseChapter(next.id); setCourseQuizAnswers({}); setCourseQuizSubmitted(false); } else { setCourseChapter(null); setShowCourseComplete(true); } }}
           style={{ padding: "12px 28px", borderRadius: 12, border: "none", fontSize: 15, fontWeight: 700, fontFamily: FONT, cursor: "pointer", background: T.green, color: "#FFF" }}>
-          {ch.id < 10 ? "Next Chapter →" : "Complete Course 🏠"}
+          {ch.id < 10 ? "Next Chapter →" : "Complete Course "}
          </button>
         </>) : (<>
-         <div style={{ fontSize: 32, marginBottom: 8 }}>🔨</div>
+         <div style={{ fontSize: 32, marginBottom: 8 }}></div>
          <div style={{ fontSize: 16, fontWeight: 700, color: T.red, fontFamily: FONT }}>Not Quite — Try Again</div>
          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4, marginBottom: 12 }}>Review the lesson and fix the red answers.</div>
          <button onClick={() => { setCourseQuizAnswers({}); setCourseQuizSubmitted(false); }}
@@ -7843,7 +7844,7 @@ export default function MortgageBlueprint({ initialState }) {
       )}
       {done && (
        <div style={{ marginTop: 12, textAlign: "center", padding: 12, borderRadius: 12, background: `${T.green}10` }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: T.green }}>✅ Chapter completed — house piece built!</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.green }}>Chapter completed — house piece built!</div>
        </div>
       )}
      </Card>
@@ -7861,7 +7862,7 @@ export default function MortgageBlueprint({ initialState }) {
    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20 }}
     onClick={() => setShowCourseComplete(false)}>
     <div onClick={e => e.stopPropagation()} style={{ background: T.card, borderRadius: 24, padding: 32, maxWidth: 340, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-     <div style={{ fontSize: 60, marginBottom: 16 }}>🏠🎉</div>
+     <div style={{ fontSize: 60, marginBottom: 16 }}></div>
      <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.text }}>Welcome Home!</div>
      <div style={{ fontSize: 15, color: T.textSecondary, marginTop: 8, lineHeight: 1.6 }}>You completed all 10 chapters and built your home from the ground up. You went from "where do I start?" to "I can totally do this."</div>
      <div style={{ fontSize: 13, color: T.blue, fontWeight: 600, marginTop: 12 }}>You're ready. Let's find you a home.</div>
@@ -7879,30 +7880,30 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
   {[
    { cat: "Getting Started", items: [
-    { title: "The 5 Pillars of Qualifying", icon: "🏛️", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO) — Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment — VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI) — Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close — Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves — Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
-    { title: "How Mortgage Rates Work", icon: "📈", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow — usually within days." },
-    { title: "Conforming vs High Balance vs Jumbo", icon: "📊", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into — and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket — saving you thousands over the life of the loan." },
+    { title: "The 5 Pillars of Qualifying", icon: "", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO) — Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment — VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI) — Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close — Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves — Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
+    { title: "How Mortgage Rates Work", icon: "trending-up", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow — usually within days." },
+    { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into — and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket — saving you thousands over the life of the loan." },
    ]},
    { cat: "Loan Programs", items: [
-    { title: "VA Loans: The Best Loan in America", icon: "🎖️", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment — Buy a home with nothing down.\n• No PMI — Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates — VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits — With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI — Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
-    { title: "FHA Loans & The FHA Duplex", icon: "🏠", desc: "3.5% down, 580 FICO — and a house-hacking cheat code", body: "FHA loans are government-backed mortgages designed for buyers who need a lower barrier to entry: 3.5% down with a 580+ credit score.\n\nThe trade-off: FHA requires both upfront (1.75%) and monthly mortgage insurance (MIP) for the life of the loan. If you put 20%+ down, conventional is usually the better play.\n\nThe Power Move — FHA Duplex:\nBuy a duplex with 3.5% down, live in one unit, rent the other. A $1M duplex requires just $35K down. If rent covers $2,000/mo of your $7,500 payment, your net housing cost is $5,500 — for a million-dollar income-producing asset.\n\nFHA duplex limits are higher than single-family: up to $1,032,650 (standard) or $1,548,975 (high-cost areas like the Bay Area).\n\nOccupancy rule: You must live in one unit for at least 12 months. After that, you can move out and keep it as an investment." },
-    { title: "ARMs: Lower Rates for Strategic Buyers", icon: "🔀", desc: "~0.50% lower starting rate — but have a game plan", body: "An Adjustable-Rate Mortgage (ARM) gives you a lower starting rate — typically about 0.50% below a 30-year fixed. On a $600K loan, that can save ~$300+/month.\n\nHow it works: Your rate is fixed for an initial period (3, 5, 7, or 10 years), then adjusts annually based on market conditions.\n\nARMs make sense when you:\n• Plan to sell before the adjustment period\n• Expect to refinance when rates drop\n• Want to maximize cash flow in the short term\n\nARMs do NOT make sense when:\n• This is your forever home\n• You have no exit strategy\n• You can't absorb a potential payment increase\n\nAvailable on Conventional, FHA, and VA loans. Always have a game plan before going adjustable." },
-    { title: "1% Down Programs", icon: "💡", desc: "Bring 1%, get a 2% grant — 3% total down from you", body: "Some lenders offer programs where you bring just 1% down and receive a 2% grant — giving you 3% total down payment with only 1% out of pocket. The grant does not need to be repaid.\n\nWho qualifies:\n• First-time homebuyers\n• Income caps apply (varies by area — check AMI limits)\n• Must be a primary residence\n• Conforming loan amounts\n\nThis is one of the most powerful affordability tools available right now for buyers who have income but limited savings." },
+    { title: "VA Loans: The Best Loan in America", icon: "", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment — Buy a home with nothing down.\n• No PMI — Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates — VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits — With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI — Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
+    { title: "FHA Loans & The FHA Duplex", icon: "home", desc: "3.5% down, 580 FICO — and a house-hacking cheat code", body: "FHA loans are government-backed mortgages designed for buyers who need a lower barrier to entry: 3.5% down with a 580+ credit score.\n\nThe trade-off: FHA requires both upfront (1.75%) and monthly mortgage insurance (MIP) for the life of the loan. If you put 20%+ down, conventional is usually the better play.\n\nThe Power Move — FHA Duplex:\nBuy a duplex with 3.5% down, live in one unit, rent the other. A $1M duplex requires just $35K down. If rent covers $2,000/mo of your $7,500 payment, your net housing cost is $5,500 — for a million-dollar income-producing asset.\n\nFHA duplex limits are higher than single-family: up to $1,032,650 (standard) or $1,548,975 (high-cost areas like the Bay Area).\n\nOccupancy rule: You must live in one unit for at least 12 months. After that, you can move out and keep it as an investment." },
+    { title: "ARMs: Lower Rates for Strategic Buyers", icon: "", desc: "~0.50% lower starting rate — but have a game plan", body: "An Adjustable-Rate Mortgage (ARM) gives you a lower starting rate — typically about 0.50% below a 30-year fixed. On a $600K loan, that can save ~$300+/month.\n\nHow it works: Your rate is fixed for an initial period (3, 5, 7, or 10 years), then adjusts annually based on market conditions.\n\nARMs make sense when you:\n• Plan to sell before the adjustment period\n• Expect to refinance when rates drop\n• Want to maximize cash flow in the short term\n\nARMs do NOT make sense when:\n• This is your forever home\n• You have no exit strategy\n• You can't absorb a potential payment increase\n\nAvailable on Conventional, FHA, and VA loans. Always have a game plan before going adjustable." },
+    { title: "1% Down Programs", icon: "info", desc: "Bring 1%, get a 2% grant — 3% total down from you", body: "Some lenders offer programs where you bring just 1% down and receive a 2% grant — giving you 3% total down payment with only 1% out of pocket. The grant does not need to be repaid.\n\nWho qualifies:\n• First-time homebuyers\n• Income caps apply (varies by area — check AMI limits)\n• Must be a primary residence\n• Conforming loan amounts\n\nThis is one of the most powerful affordability tools available right now for buyers who have income but limited savings." },
    ]},
    { cat: "Refinancing", items: [
-    { title: "The 3-Point Refi Test", icon: "🧪", desc: "Only refinance if it passes all 3 checkpoints", body: "Before refinancing, run every scenario through the 3-Point Refi Test. Only move forward if the new loan:\n\n1. Saves at least 0.500% on your rate OR $300+/month on your payment\n2. Requires no points (keep upfront costs low)\n3. Shaves 1+ year off your loan if you keep the same monthly payment\n\nIf it checks all three boxes: it's a no-brainer.\n\nThink of refinancing like rock climbing down the mountain. Every time you can lock in a lower rate and shave 0.500% off your loan — clip in. Secure the savings. Then keep climbing down." },
-    { title: "Rate & Term vs Cash-Out Refi", icon: "💵", desc: "Different purposes, different rules, different rates", body: "Rate & Term Refi: You're refinancing to get a better rate, shorter term, or both. Small cash out is allowed (greater of $2,000 or 1% of loan amount). This gets the best pricing.\n\nCash-Out Refi: You're pulling equity from your home — to pay off debt, fund renovations, or invest. Higher rate (typically +0.25–0.50%) but more flexibility.\n\nKey refi facts:\n• You can refinance every 6 months (start the process around month 4)\n• Choose any term from 8–30 years — no need to reset to 30\n• You'll skip 1–2 mortgage payments at closing\n• You'll get an escrow refund from your old lender\n• Your payoff will be higher than your balance (lenders collect interest in arrears)\n\nNet Cash Out = Refi proceeds + skipped payments + escrow refund" },
-    { title: "How to Remove PMI", icon: "🚲", desc: "Ditch the training wheels and save hundreds per month", body: "If you didn't put 20% down, you're likely paying Private Mortgage Insurance (PMI). It protects the lender, not you — and you want to remove it ASAP.\n\nWhen can you remove PMI?\n• Automatically removed at 78% LTV (based on original purchase price)\n• Request removal at 80% LTV (also based on original price)\n• Loan is 2+ years old: remove at 75% LTV using current appraised value\n• Loan is 5+ years old: remove at 80% LTV using current appraised value\n\nSteps: Contact your servicer, submit a written request with your loan number, may need an appraisal, and must show on-time payment history.\n\nImportant: FHA mortgage insurance (MIP) lasts for the life of the loan. The only way to remove FHA MIP is to refinance into a conventional loan once you have 20%+ equity." },
+    { title: "The 3-Point Refi Test", icon: "", desc: "Only refinance if it passes all 3 checkpoints", body: "Before refinancing, run every scenario through the 3-Point Refi Test. Only move forward if the new loan:\n\n1. Saves at least 0.500% on your rate OR $300+/month on your payment\n2. Requires no points (keep upfront costs low)\n3. Shaves 1+ year off your loan if you keep the same monthly payment\n\nIf it checks all three boxes: it's a no-brainer.\n\nThink of refinancing like rock climbing down the mountain. Every time you can lock in a lower rate and shave 0.500% off your loan — clip in. Secure the savings. Then keep climbing down." },
+    { title: "Rate & Term vs Cash-Out Refi", icon: "banknote", desc: "Different purposes, different rules, different rates", body: "Rate & Term Refi: You're refinancing to get a better rate, shorter term, or both. Small cash out is allowed (greater of $2,000 or 1% of loan amount). This gets the best pricing.\n\nCash-Out Refi: You're pulling equity from your home — to pay off debt, fund renovations, or invest. Higher rate (typically +0.25–0.50%) but more flexibility.\n\nKey refi facts:\n• You can refinance every 6 months (start the process around month 4)\n• Choose any term from 8–30 years — no need to reset to 30\n• You'll skip 1–2 mortgage payments at closing\n• You'll get an escrow refund from your old lender\n• Your payoff will be higher than your balance (lenders collect interest in arrears)\n\nNet Cash Out = Refi proceeds + skipped payments + escrow refund" },
+    { title: "How to Remove PMI", icon: "", desc: "Ditch the training wheels and save hundreds per month", body: "If you didn't put 20% down, you're likely paying Private Mortgage Insurance (PMI). It protects the lender, not you — and you want to remove it ASAP.\n\nWhen can you remove PMI?\n• Automatically removed at 78% LTV (based on original purchase price)\n• Request removal at 80% LTV (also based on original price)\n• Loan is 2+ years old: remove at 75% LTV using current appraised value\n• Loan is 5+ years old: remove at 80% LTV using current appraised value\n\nSteps: Contact your servicer, submit a written request with your loan number, may need an appraisal, and must show on-time payment history.\n\nImportant: FHA mortgage insurance (MIP) lasts for the life of the loan. The only way to remove FHA MIP is to refinance into a conventional loan once you have 20%+ equity." },
    ]},
    { cat: "Strategy & Wealth", items: [
-    { title: "Buying Before Selling", icon: "🏡", desc: "Three financing structures to move up without moving twice", body: "The classic dilemma: you need to sell your current home to buy the next one. Here are three ways to buy first:\n\nOption 1 — Conventional Loan: Works if you can qualify carrying two mortgage payments AND have cash for the down payment. Best pricing, but only fits a small slice of buyers.\n\nOption 2 — Bridge Loan: Short-term (6–12 months) using your current home's equity. No sale contingency, you move once. But they're pricey: ~10% interest + 2–3 points, often $30–40K+ all-in.\n\nOption 3 — Conventional-Bridge Hybrid (the sweet spot): Conventional pricing with bridge-like flexibility. You can exclude your current mortgage from qualifying if you have 30%+ equity in your departing home AND it's listed on the MLS.\n\nDown payment solutions: 401(k) loan (repaid after sale), gift funds, HELOC on departing home, or a 60-day retirement rollover." },
-    { title: "HELOCs: Your Rich Grandma", icon: "🏦", desc: "A safety net that costs nothing when unused", body: "A Home Equity Line of Credit (HELOC) is a revolving credit line secured by your home's equity. It costs nothing when unused and gives you fast, low-cost access to cash.\n\nBest uses:\n• Buy before you sell — use as a built-in bridge for your next down payment\n• Emergency cushion — job change, medical bills, unexpected repairs\n• Home improvements — kitchen remodel, ADU, solar (interest may be tax-deductible)\n• Tax & business flexibility — cover quarterly taxes or smooth out self-employment cash flow\n\nHELOC rates are tied to Prime (Fed Funds Rate + 3%), so they move with Fed decisions.\n\nPro tip: Open a HELOC BEFORE you need one. When you actually need it, it's usually too late to get one quickly. For HELOCs, going direct to a bank or credit union is typically best — smaller regional banks often offer the best speed and service." },
-    { title: "Mortgage Points: Pay or Skip?", icon: "💎", desc: "When buying down your rate makes sense — and when it doesn't", body: "Mortgage points (discount points) are prepaid interest. You pay upfront at closing in exchange for a permanently lower rate. 1 point = 1% of your loan amount.\n\nExample on a $600K loan:\n• Paying 1 point ($6,000) might save ~$148/month\n• Breakeven: ~40 months (just over 3 years)\n• After breakeven, you're saving every month\n\nPay points when: You'll keep the loan 5+ years and want the lowest possible payment.\n\nSkip points (or take lender credit) when: You plan to refinance, sell, or move in a few years. A lender credit gives you money toward closing costs in exchange for a slightly higher rate.\n\nTaking a lender credit vs paying 1 point = a $12,000 swing in upfront costs on a $600K loan.\n\nTax note: Points paid on a purchase may be tax-deductible in the year you close. Check with your CPA." },
-    { title: "Lowkey Homebuying Season", icon: "🎯", desc: "The Black Friday of housing that most buyers miss", body: "Spring and summer are the typical homebuying seasons. But deal hunters should circle November through February — Lowkey Homebuying SZN.\n\nWhy it works:\n• Less competition — many buyers pause for the holidays\n• More motivated sellers — winter listings usually mean sellers need to move, not just want to. Carrying costs add up, and that's your leverage.\n• Real-time inspections — rainy season gives you an instant reality check on roofs, drainage, and leaks\n\nIf you could wait until spring, you would — but so would the seller. That mismatch is your opportunity." },
+    { title: "Buying Before Selling", icon: "home", desc: "Three financing structures to move up without moving twice", body: "The classic dilemma: you need to sell your current home to buy the next one. Here are three ways to buy first:\n\nOption 1 — Conventional Loan: Works if you can qualify carrying two mortgage payments AND have cash for the down payment. Best pricing, but only fits a small slice of buyers.\n\nOption 2 — Bridge Loan: Short-term (6–12 months) using your current home's equity. No sale contingency, you move once. But they're pricey: ~10% interest + 2–3 points, often $30–40K+ all-in.\n\nOption 3 — Conventional-Bridge Hybrid (the sweet spot): Conventional pricing with bridge-like flexibility. You can exclude your current mortgage from qualifying if you have 30%+ equity in your departing home AND it's listed on the MLS.\n\nDown payment solutions: 401(k) loan (repaid after sale), gift funds, HELOC on departing home, or a 60-day retirement rollover." },
+    { title: "HELOCs: Your Rich Grandma", icon: "landmark", desc: "A safety net that costs nothing when unused", body: "A Home Equity Line of Credit (HELOC) is a revolving credit line secured by your home's equity. It costs nothing when unused and gives you fast, low-cost access to cash.\n\nBest uses:\n• Buy before you sell — use as a built-in bridge for your next down payment\n• Emergency cushion — job change, medical bills, unexpected repairs\n• Home improvements — kitchen remodel, ADU, solar (interest may be tax-deductible)\n• Tax & business flexibility — cover quarterly taxes or smooth out self-employment cash flow\n\nHELOC rates are tied to Prime (Fed Funds Rate + 3%), so they move with Fed decisions.\n\nPro tip: Open a HELOC BEFORE you need one. When you actually need it, it's usually too late to get one quickly. For HELOCs, going direct to a bank or credit union is typically best — smaller regional banks often offer the best speed and service." },
+    { title: "Mortgage Points: Pay or Skip?", icon: "diamond", desc: "When buying down your rate makes sense — and when it doesn't", body: "Mortgage points (discount points) are prepaid interest. You pay upfront at closing in exchange for a permanently lower rate. 1 point = 1% of your loan amount.\n\nExample on a $600K loan:\n• Paying 1 point ($6,000) might save ~$148/month\n• Breakeven: ~40 months (just over 3 years)\n• After breakeven, you're saving every month\n\nPay points when: You'll keep the loan 5+ years and want the lowest possible payment.\n\nSkip points (or take lender credit) when: You plan to refinance, sell, or move in a few years. A lender credit gives you money toward closing costs in exchange for a slightly higher rate.\n\nTaking a lender credit vs paying 1 point = a $12,000 swing in upfront costs on a $600K loan.\n\nTax note: Points paid on a purchase may be tax-deductible in the year you close. Check with your CPA." },
+    { title: "Lowkey Homebuying Season", icon: "target", desc: "The Black Friday of housing that most buyers miss", body: "Spring and summer are the typical homebuying seasons. But deal hunters should circle November through February — Lowkey Homebuying SZN.\n\nWhy it works:\n• Less competition — many buyers pause for the holidays\n• More motivated sellers — winter listings usually mean sellers need to move, not just want to. Carrying costs add up, and that's your leverage.\n• Real-time inspections — rainy season gives you an instant reality check on roofs, drainage, and leaks\n\nIf you could wait until spring, you would — but so would the seller. That mismatch is your opportunity." },
    ]},
    { cat: "Investor Corner", items: [
-    { title: "Fix & Flip Loans", icon: "🔨", desc: "Short-term, asset-based loans for buy-renovate-resell", body: "Fix & Flip loans are short-term (6–18 months), interest-only loans for investors looking to buy, renovate, and resell.\n\nKey features:\n• Asset-based: approval is based on After-Repair Value (ARV), not your income or credit\n• Fast closings: often 5–7 days\n• Lenders typically fund 75–90% of purchase + 100% of rehab, capped at 75% of ARV\n\nThe 70% Rule: Don't pay more than 70% of ARV minus repair costs. If ARV = $1,000,000 and reno = $100,000, cap your purchase at $600,000.\n\nWhat lenders want to see: A detailed scope of work, realistic timeline, contractor bids, and your experience level.\n\nFirst-time flipper? Start small, partner with an experienced contractor, and expect the unexpected." },
-    { title: "House Hacking with FHA", icon: "🔑", desc: "Live in one unit, rent the other — build wealth from day one", body: "House hacking means buying a multi-unit property, living in one unit, and renting the others to offset your mortgage.\n\nWith an FHA loan, you can buy a duplex with just 3.5% down. The rental income from the other unit can dramatically reduce your effective housing cost.\n\nThe math: $1M duplex → $35K down → $7,500/mo PITI. Rent the other unit for $2,000/mo → your net cost is $5,500/mo for a million-dollar appreciating, income-producing asset.\n\nAfter 12 months of occupancy, you can move out and keep it as a full rental property. Then repeat with your next primary residence.\n\nThis is one of the most reliable paths to building a real estate portfolio starting from scratch." },
+    { title: "Fix & Flip Loans", icon: "", desc: "Short-term, asset-based loans for buy-renovate-resell", body: "Fix & Flip loans are short-term (6–18 months), interest-only loans for investors looking to buy, renovate, and resell.\n\nKey features:\n• Asset-based: approval is based on After-Repair Value (ARV), not your income or credit\n• Fast closings: often 5–7 days\n• Lenders typically fund 75–90% of purchase + 100% of rehab, capped at 75% of ARV\n\nThe 70% Rule: Don't pay more than 70% of ARV minus repair costs. If ARV = $1,000,000 and reno = $100,000, cap your purchase at $600,000.\n\nWhat lenders want to see: A detailed scope of work, realistic timeline, contractor bids, and your experience level.\n\nFirst-time flipper? Start small, partner with an experienced contractor, and expect the unexpected." },
+    { title: "House Hacking with FHA", icon: "key", desc: "Live in one unit, rent the other — build wealth from day one", body: "House hacking means buying a multi-unit property, living in one unit, and renting the others to offset your mortgage.\n\nWith an FHA loan, you can buy a duplex with just 3.5% down. The rental income from the other unit can dramatically reduce your effective housing cost.\n\nThe math: $1M duplex → $35K down → $7,500/mo PITI. Rent the other unit for $2,000/mo → your net cost is $5,500/mo for a million-dollar appreciating, income-producing asset.\n\nAfter 12 months of occupancy, you can move out and keep it as a full rental property. Then repeat with your next primary residence.\n\nThis is one of the most reliable paths to building a real estate portfolio starting from scratch." },
    ]},
   ].map((section, si) => <LearnSec key={si} cat={section.cat} items={section.items} />)}
  </>)}
@@ -7914,7 +7915,7 @@ export default function MortgageBlueprint({ initialState }) {
 
   {(() => {
    const programs = [
-    { name: "Conventional", sub: "Conforming & High Balance", icon: "🏦", active: loanType === "Conventional",
+    { name: "Conventional", sub: "Conforming & High Balance", icon: "landmark", active: loanType === "Conventional",
       rows: [
        ["Min Down Payment", "3% (FTHB ≤100% AMI)\n5% standard", "3% requires first-time buyer status + income ≤ area median. Non-FTHB or high-balance = 5% min."],
        ["Min FICO", "620", "Below 680 may trigger pricing adjustments (LLPAs). 740+ gets the best rates."],
@@ -7924,7 +7925,7 @@ export default function MortgageBlueprint({ initialState }) {
        ["Loan Limits (2026)", `Conforming: ${fmt(calc.confLimit)}\nHigh Bal: ${fmt(calc.highBalLimit)}`, "2026 FHFA limits. High-balance applies in high-cost counties. Above high-balance = Jumbo."],
        ["Occupancy", "Primary, 2nd Home, Investment", "Investment properties require 15–25% down and higher reserves."],
       ]},
-    { name: "FHA", sub: "Government-Backed", icon: "🏠", active: loanType === "FHA",
+    { name: "FHA", sub: "Government-Backed", icon: "home", active: loanType === "FHA",
       rows: [
        ["Min Down Payment", "3.5%", "With 580+ FICO. Minimum score for FHA is 580."],
        ["Min FICO", "580", "Many lenders overlay at 620. FHA allows 2 yrs post-bankruptcy, 3 yrs post-foreclosure."],
@@ -7934,7 +7935,7 @@ export default function MortgageBlueprint({ initialState }) {
        ["Loan Limits (2026)", `1-unit: ${fmt(832750)}\n2-unit: ${fmt(1066250)}`, "FHA floor = conforming limit. Higher in high-cost areas (ceiling = 150% of conforming). FHA duplex limits are generous — great for house-hacking."],
        ["Occupancy", "Primary residence only", "Must occupy within 60 days. 12-month occupancy requirement."],
       ]},
-    { name: "VA", sub: "Veterans & Active Duty", icon: "🎖️", active: loanType === "VA",
+    { name: "VA", sub: "Veterans & Active Duty", icon: "", active: loanType === "VA",
       rows: [
        ["Min Down Payment", "0%", "True zero down. For veterans, active duty, National Guard, reservists, and surviving spouses."],
        ["Min FICO", "580", "VA has no official minimum — most lenders overlay at 580–620."],
@@ -7945,7 +7946,7 @@ export default function MortgageBlueprint({ initialState }) {
        ["Occupancy", "Primary residence only", "Must certify intent to occupy. Refi to conventional to convert to rental."],
        ["Residual Income", "Required", "Leftover monthly income after all obligations — varies by region and family size."],
       ]},
-    { name: "Jumbo", sub: "Non-Conforming", icon: "💎", active: loanType === "Jumbo",
+    { name: "Jumbo", sub: "Non-Conforming", icon: "diamond", active: loanType === "Jumbo",
       rows: [
        ["Min Down Payment", "20%", "Standard minimum for Jumbo. Some niche programs allow 10–15% with strong compensating factors."],
        ["Min FICO", "700", "Some lenders require 720. Below 700 severely limits options."],
@@ -8018,7 +8019,7 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
 
   <Card style={{ marginTop: 12, border: `1px solid ${T.blue}33`, background: `${T.blue}06` }}>
-   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.blue, marginBottom: 10 }}>📋 Your Current Thresholds</div>
+   <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.blue, marginBottom: 10 }}>Your Current Thresholds</div>
    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Based on your {loanType} loan setup</div>
    {[["Loan Type", loanType], ["Min Down %", calc.minDPpct + "%" + (loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : "")], ["Max DTI", pct(calc.maxDTI, 0)], ["Min FICO", calc.ficoMin.toString()],
     ["Reserve Months", calc.reserveMonths.toString()], ["Conforming Limit", fmt(calc.confLimit)], ["High Balance", fmt(calc.highBalLimit)]
@@ -8030,7 +8031,7 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {tab === "compare" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value="📊" label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
+  <Hero value="bar-chart" label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
  </div>
  {/* ── Scenario Manager ── */}
  <Sec title="Your Loan Options" action="+ New" onAction={() => setNewScenarioName("New Option")}>
@@ -8084,7 +8085,7 @@ export default function MortgageBlueprint({ initialState }) {
  ) : compareData.length <= 1 ? (
   <Card style={{ marginTop: 8 }}>
    <div style={{ textAlign: "center", padding: 20 }}>
-    <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+    <div style={{ fontSize: 32, marginBottom: 8 }}></div>
     <div style={{ fontSize: 14, fontWeight: 600, color: T.textSecondary }}>Create a second loan option above to see a side-by-side comparison</div>
     <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 6 }}>Try a different price, rate, loan type, or down payment to see which works best for you.</div>
    </div>
@@ -8137,7 +8138,7 @@ export default function MortgageBlueprint({ initialState }) {
    const lowestInt = [...compareData].sort((a, b) => a.metrics.totalInt - b.metrics.totalInt)[0];
    return (
    <Card style={{ background: `${T.green}08`, border: `1px solid ${T.green}22`, marginTop: 12 }}>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 10 }}>🏆 Quick Verdict</div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 10 }}>Quick Verdict</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
      {[
       ["Lowest Payment", lowest.name, fmt(lowest.metrics.monthlyPayment) + "/mo"],
@@ -8267,7 +8268,7 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   </Sec>
   <Card style={{ marginTop: 8, padding: 14 }}>
-   <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, textAlign: "center" }}>💡 Current scenario metrics use exact calculations. Other scenarios use simplified estimates for quick comparison. Switch to a scenario in Setup for full detail.</div>
+   <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, textAlign: "center" }}>Current scenario metrics use exact calculations. Other scenarios use simplified estimates for quick comparison. Switch to a scenario in Setup for full detail.</div>
   </Card>
   <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
    <button onClick={() => { setNewScenarioName("New Option"); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -8292,7 +8293,7 @@ export default function MortgageBlueprint({ initialState }) {
      <div style={{ fontSize: 13, color: T.textTertiary }}>{themeMode === 'auto' ? 'Auto — light by day, dark by night' : themeMode === 'light' ? 'Always light' : 'Always dark'}</div>
     </div>
     <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 10, padding: 3 }}>
-     {[['auto','🌗'],['light','☀️'],['dark','🌙']].map(([k,e]) => (
+     {[['auto','◐'],['light','○'],['dark','☽']].map(([k,e]) => (
       <button key={k} onClick={() => { setThemeMode(k); try { localStorage.setItem('bp_theme_mode', k); } catch {} Haptics.light(); }} style={{ padding: "5px 10px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: themeMode === k ? 700 : 500, background: themeMode === k ? T.tabActiveBg : "transparent", color: themeMode === k ? T.text : T.textTertiary, cursor: "pointer" }}>{e}</button>
      ))}
     </div>
@@ -8384,7 +8385,7 @@ export default function MortgageBlueprint({ initialState }) {
        ))}
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-       <button onClick={() => setIsLocked(true)} style={{ flex: 1, padding: 10, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>🔒 Lock Now</button>
+       <button onClick={() => setIsLocked(true)} style={{ flex: 1, padding: 10, background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Lock Now</button>
        <button onClick={handleRemovePin} style={{ flex: 1, padding: 10, background: `${T.red}15`, border: `1px solid ${T.red}33`, borderRadius: 10, color: T.red, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Remove PIN</button>
       </div>
      </div>
@@ -8411,12 +8412,12 @@ export default function MortgageBlueprint({ initialState }) {
    <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
     <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Welcome Tutorial</div>
     <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Replay the intro walkthrough for new users</div>
-    <button onClick={() => { setWelcomeStep(0); setShowWelcome(true); }} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>🧭 Replay Tutorial</button>
+    <button onClick={() => { setWelcomeStep(0); setShowWelcome(true); }} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Replay Tutorial</button>
    </div>
    <div style={{ padding: "12px 0" }}>
     <div style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 4 }}>Danger Zone</div>
     <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Permanently delete all scenarios, borrower data, and preferences</div>
-    <button onClick={() => { setShowClearConfirm(true); setClearStep(0); }} style={{ width: "100%", padding: 14, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 12, color: T.red, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>🗑️ Clear All Data</button>
+    <button onClick={() => { setShowClearConfirm(true); setClearStep(0); }} style={{ width: "100%", padding: 14, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 12, color: T.red, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Clear All Data</button>
    </div>
   </Card>
  </Sec>
@@ -8488,13 +8489,13 @@ export default function MortgageBlueprint({ initialState }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
        {ppSavedLocations.length > 1 ? (
         <select onChange={e => { const loc = ppSavedLocations.find(l => l.label === e.target.value); if (loc) { setPpHometown(loc); setPpSearchZip(loc.zip || loc.city || loc.label); ppFetchListings(loc.zip || loc.city || loc.label); } else ppChangeHometown(); }} value={ppHometown?.label || ""} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 8px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: `1px solid ${T.cardBorder}`, cursor: "pointer", appearance: "auto", fontFamily: FONT, maxWidth: 120 }}>
-         {ppSavedLocations.map(l => <option key={l.label} value={l.label}>📍 {l.label}</option>)}
+         {ppSavedLocations.map(l => <option key={l.label} value={l.label}>{l.label}</option>)}
          <option value="__new">+ New location</option>
         </select>
        ) : ppHometown ? (
-        <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>📍 {ppHometown.label}</button>
+        <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>{ppHometown.label}</button>
        ) : null}
-       <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>🔥 {ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
+       <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>{ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
        <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 10, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
         <span style={{ fontSize: 16 }}>{ppCurrentHome.icon}</span>
         <span style={{ fontSize: 11, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</span>
@@ -8505,7 +8506,7 @@ export default function MortgageBlueprint({ initialState }) {
      {/* PP View Navigation Tabs */}
      <div style={{ padding: "0 18px 10px" }}>
       <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
-       {[["cards","🏠 Play"],["results","📊 History"],["stats","📈 Stats"],["leaderboard","🏆 Board"]].map(([k,l]) => (
+       {[["cards","Play"],["results","History"],["stats","Stats"],["leaderboard","Board"]].map(([k,l]) => (
         <button key={k} onClick={() => setPpView(k)} style={{
          flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
          background: ppView === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
@@ -8541,12 +8542,12 @@ export default function MortgageBlueprint({ initialState }) {
           transition: "all 0.2s", whiteSpace: "nowrap",
          }}
         >
-         {ppLoading ? "⏳" : "🔍 Search"}
+         {ppLoading ? "⏳" : "Search"}
         </button>
        </div>
        {ppError && (
         <div style={{ marginTop: 6, fontSize: 11, color: "#e8c84d", background: "rgba(232,200,77,0.08)", borderRadius: 8, padding: "6px 10px" }}>
-         ⚠️ {ppError}
+         {ppError}
         </div>
        )}
        {ppDataSource === "live" && (
@@ -8557,7 +8558,7 @@ export default function MortgageBlueprint({ initialState }) {
          <div style={{ display: "flex", gap: 10 }}>
           {ppHometown && ppLocationLabel !== ppHometown.label && (
            <button onClick={() => { setPpSearchZip(ppHometown.zip || ppHometown.city); ppFetchListings(ppHometown.zip || ppHometown.city); }} style={{ fontSize: 11, color: "#38bd7e", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-            🏡 Back to {ppHometown.label}
+            Back to {ppHometown.label}
            </button>
           )}
           <button onClick={() => { setPpDataSource("hardcoded"); setPpLiveActive([]); setPpLiveSold([]); setPpLocationLabel(""); setPpGuesses([]); setPpSearchZip(""); try{localStorage.removeItem("pp-guesses")}catch(e){} }} style={{ fontSize: 11, color: T.textTertiary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
@@ -8572,7 +8573,7 @@ export default function MortgageBlueprint({ initialState }) {
      {/* PP Loading Overlay */}
      {ppLoading && (
       <div style={{ textAlign: "center", padding: "40px 20px" }}>
-       <div style={{ fontSize: 36, marginBottom: 12, animation: "ppFadeIn 0.5s ease infinite alternate" }}>🏠</div>
+       <div style={{ fontSize: 36, marginBottom: 12, animation: "ppFadeIn 0.5s ease infinite alternate" }}></div>
        <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>Searching listings...</div>
        <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 4 }}>Pulling live data from Zillow</div>
       </div>
@@ -8582,7 +8583,7 @@ export default function MortgageBlueprint({ initialState }) {
      {ppShowHometownSetup && (
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 250, backdropFilter: "blur(12px)", animation: "ppFadeIn 0.3s ease" }}>
        <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: 380, width: "90%", textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>📍</div>
+        <div style={{ fontSize: 40, marginBottom: 12 }}></div>
         <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 6 }}>Set Your Hometown</div>
         <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 20, lineHeight: 1.5 }}>
          This is where PricePoint will pull properties from. Your leaderboard will be based on your city.
@@ -8610,7 +8611,7 @@ export default function MortgageBlueprint({ initialState }) {
           transition: "all 0.2s", letterSpacing: 0.5, marginBottom: 8,
          }}
         >
-         Set Hometown 🏡
+         Set Hometown 
         </button>
         {ppHometown && (
          <button
@@ -8643,7 +8644,7 @@ export default function MortgageBlueprint({ initialState }) {
          display: "flex", alignItems: "center", justifyContent: "space-between",
          cursor: "pointer", transition: "all 0.3s",
         }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: ppWeeklyMode ? "#e8c84d" : T.textTertiary }}>🏆 Weekly Challenge {ppWeeklyMode ? `— ${ppWeeklyRemaining.length} of 5 left` : ""}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: ppWeeklyMode ? "#e8c84d" : T.textTertiary }}>Weekly Challenge {ppWeeklyMode ? `— ${ppWeeklyRemaining.length} of 5 left` : ""}</span>
         <span style={{ fontSize: 11, fontWeight: 600, color: ppWeeklyMode ? "#e8c84d" : T.textTertiary }}>{ppWeeklyMode ? "Exit" : "Play →"}</span>
        </button>
       </div>
@@ -8657,13 +8658,13 @@ export default function MortgageBlueprint({ initialState }) {
          background: ppSoldMode ? "linear-gradient(135deg,#e8c84d,#d4a843)" : "transparent",
          color: ppSoldMode ? "#1a1a1a" : T.textTertiary,
          cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-        }}>🏠 Recently Sold</button>
+        }}>Recently Sold</button>
         <button onClick={() => setPpSoldMode(false)} style={{
          flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
          background: !ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
          color: !ppSoldMode ? "#fff" : T.textTertiary,
          cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-        }}>📋 On Market</button>
+        }}>On Market</button>
        </div>
       </div>
      )}
@@ -8733,7 +8734,7 @@ export default function MortgageBlueprint({ initialState }) {
              </div>
             );
            })()}
-           {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}>🏷️ Sold</div>}
+           {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}> Sold</div>}
           </div>
           {/* Right column on desktop: details + guess */}
           <div style={{ padding: "14px 0 0", flex: isDesktop ? 1 : undefined }}>
@@ -8855,7 +8856,7 @@ export default function MortgageBlueprint({ initialState }) {
             background: ppGuessInput ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
             color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
             transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
-           }}>Lock It In {ppSoldMode ? "🎯" : "🔒"}</button>
+           }}>Lock It In {ppSoldMode ? "target" : "lock"}</button>
           </div>
            {/* Run the Numbers — feed listing into Blueprint calculator */}
            <button onClick={() => {
@@ -8870,7 +8871,7 @@ export default function MortgageBlueprint({ initialState }) {
             width:"100%", padding: "12px", borderRadius: 14, border: `1px solid ${T.blue}40`, fontSize: 13, fontWeight: 700,
             background: `${T.blue}10`, color: T.blue, cursor: "pointer", transition: "all 0.2s",
             marginTop: 10, fontFamily: FONT, letterSpacing: 0.3, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-           }}>🧮 Run the Numbers in Blueprint</button>
+           }}>Run the Numbers in Blueprint</button>
            <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
             {ppActiveListings.length - 1} more {ppWeeklyMode ? "in challenge" : ppSoldMode ? "recently sold" : "on market"}
            </div>
@@ -8880,7 +8881,7 @@ export default function MortgageBlueprint({ initialState }) {
         </div>
        ) : (
         <div style={{ textAlign:"center", padding:"60px 20px" }}>
-         <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "🏆" : "🏡"}</div>
+         <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "trophy" : "home"}</div>
          <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
          <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
          <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
@@ -8989,7 +8990,7 @@ export default function MortgageBlueprint({ initialState }) {
           }}>{i+1}</div>
           <div style={{ flex:1 }}>
            <div style={{ fontSize:14, fontWeight:600, color: p.isYou ? "#38bd7e" : T.text }}>{p.name} {p.badge}</div>
-           <div style={{ fontSize:11, color:T.textTertiary }}>{p.role} · {p.guesses} guesses · 🔥{p.streak}</div>
+           <div style={{ fontSize:11, color:T.textTertiary }}>{p.role} · {p.guesses} guesses · {p.streak}</div>
           </div>
           <div style={{ fontSize:20, fontWeight:800, color: p.isYou ? "#38bd7e" : T.text }}>
            {p.avgDiff === 99 ? "—" : p.avgDiff + "%"}
@@ -9028,7 +9029,7 @@ export default function MortgageBlueprint({ initialState }) {
           </div>
          )}
          {!ppNextHome && (
-          <div style={{ fontSize: 13, color: "#38bd7e", fontWeight: 600, textAlign: "center", padding: "8px 0" }}>👑 MAX LEVEL — You own the Mega Mansion!</div>
+          <div style={{ fontSize: 13, color: "#38bd7e", fontWeight: 600, textAlign: "center", padding: "8px 0" }}>MAX LEVEL — You own the Mega Mansion!</div>
          )}
         </div>
 
@@ -9048,12 +9049,12 @@ export default function MortgageBlueprint({ initialState }) {
         {/* ── Badges ── */}
         <div style={{ marginBottom: 14 }}>
          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>🏅 Badges</span>
+          <span> Badges</span>
           <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>{ppBadges.length} earned</span>
          </div>
          {ppBadges.length === 0 ? (
           <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px 16px", textAlign: "center" }}>
-           <div style={{ fontSize: 32, marginBottom: 6 }}>🎯</div>
+           <div style={{ fontSize: 32, marginBottom: 6 }}></div>
            <div style={{ fontSize: 13, color: T.textTertiary }}>Make your first guess to earn badges!</div>
           </div>
          ) : (
@@ -9084,11 +9085,11 @@ export default function MortgageBlueprint({ initialState }) {
 
         {/* ── Live Mode Stats ── */}
         <div style={{ fontSize: 13, fontWeight: 700, color: "#38bd7e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-         <span>🏆 Live</span>
+         <span>Live</span>
          <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>counts toward leaderboard</span>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
-         {[["Avg Accuracy",ppCompAvgDiff==="—"?"—":ppCompAvgDiff+"%","#38bd7e"],["Streak","🔥 "+ppCompCurStreak,"#38bd7e"],["Best","⭐ "+ppCompBestStreak,T.text],["Guesses",ppCompGuesses.length,T.text],["Revealed",ppCompRevealed.length,T.text],["Pending",ppCompGuesses.length-ppCompRevealed.length,"#e8c84d"]].map(([l,v,c],i) => (
+         {[["Avg Accuracy",ppCompAvgDiff==="—"?"—":ppCompAvgDiff+"%","#38bd7e"],["Streak",""+ppCompCurStreak,"#38bd7e"],["Best",""+ppCompBestStreak,T.text],["Guesses",ppCompGuesses.length,T.text],["Revealed",ppCompRevealed.length,T.text],["Pending",ppCompGuesses.length-ppCompRevealed.length,"#e8c84d"]].map(([l,v,c],i) => (
           <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20 }}>
            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
            <div style={{ fontSize:24, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
@@ -9113,11 +9114,11 @@ export default function MortgageBlueprint({ initialState }) {
 
         {/* Practice Stats */}
         <div style={{ fontSize: 13, fontWeight: 700, color: "#e8c84d", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-         <span>🎓 Practice</span>
+         <span>Practice</span>
          <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>sold homes · not ranked</span>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:14 }}>
-         {[["Avg Accuracy",ppPracticeAvgDiff==="—"?"—":ppPracticeAvgDiff+"%","#e8c84d"],["Streak","🔥 "+ppPracticeCurStreak,"#e8c84d"],["Total",ppPracticeGuesses.length,T.text]].map(([l,v,c],i) => (
+         {[["Avg Accuracy",ppPracticeAvgDiff==="—"?"—":ppPracticeAvgDiff+"%","#e8c84d"],["Streak",""+ppPracticeCurStreak,"#e8c84d"],["Total",ppPracticeGuesses.length,T.text]].map(([l,v,c],i) => (
           <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:16 }}>
            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
            <div style={{ fontSize:20, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
@@ -9142,7 +9143,7 @@ export default function MortgageBlueprint({ initialState }) {
 
         {/* ── Home Progression Roadmap ── */}
         <div style={{ marginTop: 4, marginBottom: 14 }}>
-         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10 }}>🏘️ Home Roadmap</div>
+         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10 }}>Home Roadmap</div>
          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "12px 14px" }}>
           {PP_HOMES.map((h, i) => {
            const unlocked = ppXP >= h.req;
@@ -9157,7 +9158,7 @@ export default function MortgageBlueprint({ initialState }) {
               <div style={{ fontSize: 10, color: T.textTertiary }}>Level {h.level} · {h.req} XP</div>
              </div>
              {unlocked && <div style={{ fontSize: 14, color: "#38bd7e" }}>✓</div>}
-             {!unlocked && <div style={{ fontSize: 10, color: T.textTertiary }}>🔒</div>}
+             {!unlocked && <div style={{ fontSize: 10, color: T.textTertiary }}></div>}
             </div>
            );
           })}
@@ -9176,7 +9177,7 @@ export default function MortgageBlueprint({ initialState }) {
       <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
        <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
         <div style={{ textAlign:"center" }}>
-         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "🏠 RECENTLY SOLD" : "🏠 SOLD"}</div>
+         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "RECENTLY SOLD" : "SOLD"}</div>
          <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
          <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
          <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24, flexWrap:"wrap", gap:8 }}>
@@ -9213,7 +9214,7 @@ export default function MortgageBlueprint({ initialState }) {
           return (
            <div style={{ background: great ? "rgba(56,189,126,0.08)" : good ? "rgba(232,200,77,0.08)" : "rgba(232,93,93,0.08)", border: `1px solid ${great ? "rgba(56,189,126,0.25)" : good ? "rgba(232,200,77,0.25)" : "rgba(232,93,93,0.25)"}`, borderRadius:16, padding:"18px 20px" }}>
             <div style={{ fontSize:32, fontWeight:800, color: great ? "#38bd7e" : good ? "#e8c84d" : "#e85d5d" }}>{over?"+":"−"}{diff.toFixed(1)}%</div>
-            <div style={{ fontSize:13, color:T.textSecondary, marginTop:4 }}>{great?"🎯 Sniper accuracy!":good?"👏 Strong market read!":over?"📈 Bit optimistic":"📉 Undervalued this one"}</div>
+            <div style={{ fontSize:13, color:T.textSecondary, marginTop:4 }}>{great?"Sniper accuracy!":good?"— Strong market read!":over?"Bit optimistic":"Undervalued this one"}</div>
             <div style={{ fontSize:12, color:T.textTertiary, marginTop:4 }}>{over?"Over":"Under"} by {ppFmt(Math.abs(ppShowReveal.guess-rp))}</div>
            </div>
           );
@@ -9229,17 +9230,17 @@ export default function MortgageBlueprint({ initialState }) {
            ppCloseReveal();
            setAppMode("blueprint");
            setTab("calc");
-          }} style={{ flex:1, padding:14, borderRadius:16, border:`1px solid ${T.blue}40`, fontSize:14, fontWeight:700, background:`${T.blue}12`, color:T.blue, cursor:"pointer", letterSpacing:0.3, fontFamily:FONT }}>🧮 Run the Numbers</button>
+          }} style={{ flex:1, padding:14, borderRadius:16, border:`1px solid ${T.blue}40`, fontSize:14, fontWeight:700, background:`${T.blue}12`, color:T.blue, cursor:"pointer", letterSpacing:0.3, fontFamily:FONT }}>Run the Numbers</button>
           <button onClick={ppCloseReveal} style={{ flex:1, padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
          </div>
          <button onClick={() => {
           const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice;
           const diff = rp ? parseFloat(ppAbsPct(ppShowReveal.guess, rp)) : null;
           const over = rp ? ppShowReveal.guess > rp : false;
-          const emoji = diff !== null ? (diff <= 3 ? "🎯" : diff <= 7 ? "👏" : "📈") : "🏠";
+          const emoji = diff !== null ? (diff <= 3 ? "target" : diff <= 7 ? "—" : "trending-up") : "home";
           const text = `${emoji} PricePoint: I guessed ${ppFmt(ppShowReveal.guess)} on ${ppShowReveal.address}${rp ? ` — ${over?"+":"−"}${diff.toFixed(1)}% ${ppShowReveal.isSoldMode ? "vs sold price" : "vs list price"}` : ""}! Try it at mortgageblueprint.app`;
-          if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("📋 Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
-         }} style={{ width:"100%", padding:10, borderRadius:12, border:"none", background:"transparent", fontSize:12, fontWeight:600, color:T.textTertiary, cursor:"pointer", marginTop:4, fontFamily:FONT }}>📤 Share Result</button>
+          if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
+         }} style={{ width:"100%", padding:10, borderRadius:12, border:"none", background:"transparent", fontSize:12, fontWeight:600, color:T.textTertiary, cursor:"pointer", marginTop:4, fontFamily:FONT }}>Share Result</button>
         </div>
        </div>
       </div>
