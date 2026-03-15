@@ -1,20 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a73e8"/>
-      <stop offset="100%" style="stop-color:#0d47a1"/>
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
     </linearGradient>
   </defs>
-  <rect width="192" height="192" rx="38" fill="url(#bg)"/>
-  <!-- House roof -->
-  <path d="M96 38 L152 82 L40 82 Z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
-  <!-- House body -->
-  <rect x="52" y="82" width="88" height="68" rx="4" fill="none" stroke="#fff" stroke-width="5"/>
-  <!-- Blueprint grid lines -->
-  <line x1="52" y1="102" x2="140" y2="102" stroke="#fff" stroke-width="1.5" opacity="0.4"/>
-  <line x1="52" y1="122" x2="140" y2="122" stroke="#fff" stroke-width="1.5" opacity="0.4"/>
-  <line x1="80" y1="82" x2="80" y2="150" stroke="#fff" stroke-width="1.5" opacity="0.4"/>
-  <line x1="112" y1="82" x2="112" y2="150" stroke="#fff" stroke-width="1.5" opacity="0.4"/>
-  <!-- Dollar sign in center -->
-  <text x="96" y="128" font-family="system-ui,-apple-system,sans-serif" font-size="36" font-weight="700" fill="#fff" text-anchor="middle" dominant-baseline="middle">$</text>
+  <rect width="192" height="192" rx="43" fill="url(#bg)"/>
+  
+        <g transform="translate(96.0, 96.0)">
+          <circle cx="0" cy="0" r="53.760000000000005" fill="none" stroke="white" stroke-width="3.4559999999999995" opacity="0.9"/>
+          <circle cx="0" cy="0" r="38.400000000000006" fill="none" stroke="white" stroke-width="1.92" opacity="0.4"/>
+          <polygon points="0,-42.24 11.52,3.84 0,15.36 -11.52,3.84" fill="white" opacity="0.95"/>
+          <polygon points="0,42.24 11.52,-3.84 0,-15.36 -11.52,-3.84" fill="white" opacity="0.45"/>
+          <circle cx="0" cy="0" r="5.76" fill="white"/>
+          <!-- Cardinal ticks -->
+          <line x1="0" y1="-57.599999999999994" x2="0" y2="-49.92" stroke="white" stroke-width="2.3040000000000003" stroke-linecap="round" opacity="0.7"/>
+          <line x1="0" y1="57.599999999999994" x2="0" y2="49.92" stroke="white" stroke-width="2.3040000000000003" stroke-linecap="round" opacity="0.7"/>
+          <line x1="-57.599999999999994" y1="0" x2="-49.92" y2="0" stroke="white" stroke-width="2.3040000000000003" stroke-linecap="round" opacity="0.7"/>
+          <line x1="57.599999999999994" y1="0" x2="49.92" y2="0" stroke="white" stroke-width="2.3040000000000003" stroke-linecap="round" opacity="0.7"/>
+        </g>
 </svg>
