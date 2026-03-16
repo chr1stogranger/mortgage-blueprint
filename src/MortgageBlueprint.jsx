@@ -4000,7 +4000,10 @@ export default function MortgageBlueprint({ initialState }) {
     .bp-sidebar::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 2px; }
     .bp-sidebar-item { transition: all 0.15s ease; }
     .bp-sidebar-item:hover { background: ${T.tabActiveBg}; }
-    /* Desktop smooth scrollbar for main content */
+    /* Desktop smooth scrollbar */
+    html { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
+    html::-webkit-scrollbar { width: 6px; }
+    html::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
     .bp-main-content { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     .bp-main-content::-webkit-scrollbar { width: 6px; }
     .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
@@ -4063,7 +4066,7 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: isDesktop ? "auto" : "visible", height: isDesktop ? "100vh" : "auto", width: "100%" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%" }}>
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -4415,7 +4418,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "calc" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── Desktop: Left column (PayRing + summary) — fixed 50% so always visible ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, order: 1, maxHeight: "calc(100vh - 40px)", overflowY: "hidden", display: "flex", flexDirection: "column" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, order: 1, maxHeight: "calc(100vh - 110px)", overflowY: "auto", display: "flex", flexDirection: "column" } : {}}>
  <div className={changedFields.size > 0 ? "field-updated" : ""} style={isDesktop ? { display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 8 } : { marginTop: 20 }}>
   <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 320 : 200} />
  </div>
@@ -4710,7 +4713,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "amort" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── LEFT: Hero + Summary + Chart (sticky on desktop) ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.totalIntWithExtra)} label="Total Interest" color={T.blue} sub={calc.intSaved > 100 ? `Save ${fmt(calc.intSaved)}` : null} />
  </div>
@@ -4864,7 +4867,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "costs" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── LEFT: Hero + Summary cards (sticky on desktop) ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp : calc.cashToClose)} label={isRefi ? "Estimated Refi Costs" : "Estimated Cash to Close"} color={T.green} />
  </div>
@@ -5097,7 +5100,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "income" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Borrower 1 (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.monthlyIncome)} label="Monthly Income" color={T.green} sub={`${fmt(calc.monthlyIncome * 12)}/yr`} />
  </div>
@@ -5217,7 +5220,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "assets" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Summary cards (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div data-field="assets-section" style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.totalAssetValue)} label="Total Assets" color={T.cyan} />
  </div>
@@ -5294,7 +5297,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "debts" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Toggles (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div data-field="debts-section" style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={debtFree ? "$0" : fmt(calc.totalMonthlyDebts)} label="Monthly Debts" color={debtFree ? T.green : T.red} sub={debtFree ? "Debt free!" : `${calc.qualifyingDebts.length} qualifying`} />
  </div>
@@ -5446,7 +5449,7 @@ export default function MortgageBlueprint({ initialState }) {
  </Card>
  <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
  {/* ── LEFT: StopLight pillars stay above, FICO section ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <Sec title="Credit Score">
   <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
   <Card>
@@ -5800,7 +5803,7 @@ export default function MortgageBlueprint({ initialState }) {
  /* ── INVESTMENT: Schedule E Pro Forma ── */
  <div style={{ marginTop: 20 }}>
   <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
-  <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+  <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
    <Hero value={fmt(calc.schedENetIncome)} label="Schedule E — Net Rental Income" color={calc.schedENetIncome >= 0 ? T.green : T.red} sub={`${fmt(calc.schedENetIncome / 12)}/mo`} />
    <Card pad={14} style={{ marginTop: 16 }}>
     <div style={{ fontSize: 11, color: T.textTertiary }}>Annual Cash Flow</div>
@@ -5867,7 +5870,7 @@ export default function MortgageBlueprint({ initialState }) {
 ) : (
  /* ── PRIMARY RESIDENCE: Schedule A Tax Savings (original) ── */
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? {} : { marginTop: 20 }}>
   <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.purple} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
  </div>
@@ -7237,7 +7240,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "invest" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Inputs (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(invCalc.monthlyCashFlow)} label="Monthly Cash Flow" color={invCalc.monthlyCashFlow >= 0 ? T.green : T.red} sub={`Cap Rate: ${invCalc.capRate.toFixed(2)}% · CoC: ${invCalc.cashOnCash.toFixed(1)}%`} />
  </div>
@@ -7401,7 +7404,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "rentvbuy" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Summary (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflowY: "hidden" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={rbCalc.breakEvenYear ? `Year ${rbCalc.breakEvenYear}` : "—"} label="Break-even Point" color={T.blue} sub="When buying beats renting" />
  </div>
