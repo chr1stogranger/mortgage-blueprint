@@ -1190,6 +1190,7 @@ export default function MortgageBlueprint({ initialState }) {
  }, []);
  // ── Auto Theme (light by day, dark by night, with manual override) ──
  const [themeMode, setThemeMode] = useState(() => {
+  try { const p = new URLSearchParams(window.location.search); const t = p.get('theme'); if (t === 'dark' || t === 'light') return t; } catch {}
   try { const saved = localStorage.getItem('bp_theme_mode'); if (saved) return saved; } catch {}
   return 'auto';
  });
@@ -1251,7 +1252,10 @@ export default function MortgageBlueprint({ initialState }) {
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("setup");
  // ── App Mode: Blueprint or PricePoint ──
- const [appMode, setAppMode] = useState("blueprint");
+ const [appMode, setAppMode] = useState(() => {
+  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'pricepoint') return 'pricepoint'; } catch {}
+  return 'blueprint';
+ });
  const [ppGuessInput, setPpGuessInput] = useState("");
  const [ppGuesses, setPpGuesses] = useState([]);
  const [ppView, setPpView] = useState("cards"); // cards | results | leaderboard | stats
