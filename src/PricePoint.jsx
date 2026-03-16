@@ -206,6 +206,63 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, []);
 
+  // ── Auto-load on mount: hometown → geolocation → sample data ──
+  const geoAttempted = useRef(false);
+  useEffect(() => {
+    if (ppDataSource !== "hardcoded" || ppLiveActive.length > 0 || ppLiveSold.length > 0) return;
+    // 1. If we have a saved hometown, use it
+    if (ppHometown && (ppHometown.zip || ppHometown.city)) {
+      const search = ppHometown.zip || ppHometown.city;
+      setPpSearchZip(search);
+      ppFetchListings(search);
+      return;
+    }
+    // 2. Try browser geolocation → reverse geocode → auto-fetch
+    if (!geoAttempted.current && navigator.geolocation) {
+      geoAttempted.current = true;
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const { latitude, longitude } = pos.coords;
+            // Free US Census Bureau reverse geocode — no API key needed
+            const geoResp = await fetch(`https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${longitude}&y=${latitude}&benchmark=Public_AR_Current&vintage=Current_Current&format=json`);
+            const geoData = await geoResp.json();
+            const match = geoData?.result?.geographies?.["Census Tracts"]?.[0];
+            if (match) {
+              const state = match.STATE;
+              const county = match.COUNTY;
+              const stateAbbr = match.STUSAB || "";
+              const geoName = match.BASENAME || "";
+              // Try to get zip from the address matching layer
+              const addrResp = await fetch(`https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${longitude}&y=${latitude}&benchmark=Public_AR_Current&vintage=Current_Current&layers=86&format=json`);
+              const addrData = await addrResp.json();
+              const zcta = addrData?.result?.geographies?.["ZIP Code Tabulation Areas"]?.[0];
+              if (zcta?.ZCTA5CE20) {
+                const zip = zcta.ZCTA5CE20;
+                setPpSearchZip(zip);
+                ppFetchListings(zip);
+                // Save as hometown for next time
+                const ht = { zip, label: `${geoName}, ${stateAbbr}`.trim() || zip };
+                setPpHometown(ht);
+                setPpSavedLocations(prev => {
+                  const exists = prev.find(l => l.label === ht.label);
+                  if (exists) return prev;
+                  return [ht, ...prev].slice(0, 5);
+                });
+                return;
+              }
+            }
+          } catch (err) {
+            console.log("Geolocation reverse geocode failed, using sample data:", err);
+          }
+        },
+        () => { /* Permission denied or error — just use sample data */ },
+        { timeout: 5000, maximumAge: 300000 } // 5s timeout, cache for 5 min
+      );
+    }
+    // 3. Fall back: just use sample data (no blocking)
+  }, []);
+
   // ── Data Sources ──
   const PP_ACTIVE_SOURCE = ppDataSource === "live" && ppLiveActive.length > 0 ? ppLiveActive : PP_LISTINGS;
   const PP_SOLD_SOURCE = ppDataSource === "live" && ppLiveSold.length > 0 ? ppLiveSold : PP_SOLD_LISTINGS;
