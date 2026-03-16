@@ -1267,6 +1267,9 @@ export default function MortgageBlueprint({ initialState }) {
  const [ppNotif, setPpNotif] = useState(null);
  const [ppPrevBadgeCount, setPpPrevBadgeCount] = useState(0);
  const [ppSoldMode, setPpSoldMode] = useState(true);
+ const [ppRevealCounter, setPpRevealCounter] = useState(null); // animated counter value for reveal
+ const [ppRevealDone, setPpRevealDone] = useState(false); // counter animation finished
+ const [ppConfetti, setPpConfetti] = useState([]); // confetti particles for close guesses
  const [ppHometown, setPpHometown] = useState(() => { try { return JSON.parse(localStorage.getItem("pp-hometown")) || null; } catch(e) { return null; } });
  const [ppSavedLocations, setPpSavedLocations] = useState(() => { try { return JSON.parse(localStorage.getItem("pp-saved-locs")) || []; } catch(e) { return []; } });
  React.useEffect(() => { try { localStorage.setItem("pp-saved-locs", JSON.stringify(ppSavedLocations)); } catch(e){} }, [ppSavedLocations]);
@@ -3590,7 +3593,7 @@ export default function MortgageBlueprint({ initialState }) {
  // Save hometown to localStorage
  useEffect(() => { try { if (ppHometown) localStorage.setItem("pp-hometown", JSON.stringify(ppHometown)); } catch(e){} }, [ppHometown]);
 
- // Auto-load from hometown (or Setup zip as fallback) when entering PricePoint
+ // Auto-load from hometown when entering PricePoint — skip setup modal, use sample data instantly
  useEffect(() => {
   if (appMode === "pricepoint" && ppDataSource === "hardcoded" && ppLiveActive.length === 0 && ppLiveSold.length === 0) {
    if (ppHometown && ppHometown.zip) {
@@ -3599,10 +3602,8 @@ export default function MortgageBlueprint({ initialState }) {
    } else if (ppHometown && ppHometown.city) {
     setPpSearchZip(ppHometown.city);
     ppFetchListings(ppHometown.city);
-   } else if (!ppHometown) {
-    // No hometown set — show setup prompt
-    setPpShowHometownSetup(true);
    }
+   // No hometown? Just use sample data — no modal friction
   }
  }, [appMode]);
 
@@ -3730,8 +3731,41 @@ export default function MortgageBlueprint({ initialState }) {
    setPpPhotoIdx(0);
    setPpDescExpanded(false);
    if (isSold) {
+    // Animated reveal: counter rolls from guess → sold price
+    setPpRevealCounter(null);
+    setPpRevealDone(false);
+    setPpConfetti([]);
     setPpShowReveal(newGuess);
     setTimeout(() => setPpRevealAnim(true), 50);
+    // Animate the price counter
+    const soldP = ppCurrentListing.soldPrice;
+    const startVal = val;
+    const steps = 30;
+    const stepTime = 35;
+    let step = 0;
+    const counterInterval = setInterval(() => {
+     step++;
+     const progress = step / steps;
+     const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+     const current = Math.round(startVal + (soldP - startVal) * eased);
+     setPpRevealCounter(current);
+     if (step >= steps) {
+      clearInterval(counterInterval);
+      setPpRevealCounter(soldP);
+      setPpRevealDone(true);
+      // Confetti for close guesses (within 5%)
+      const pctOffCheck = Math.abs((val - soldP) / soldP) * 100;
+      if (pctOffCheck <= 5) {
+       const particles = Array.from({ length: pctOffCheck <= 2 ? 40 : 20 }, (_, i) => ({
+        id: i, x: Math.random() * 100, delay: Math.random() * 0.3,
+        color: ["#38bd7e","#e8c84d","#6366F1","#3B82F6","#EC4899","#06B6D4"][Math.floor(Math.random()*6)],
+        rotation: Math.random() * 360, speed: 1 + Math.random() * 2,
+       }));
+       setPpConfetti(particles);
+       setTimeout(() => setPpConfetti([]), 3000);
+      }
+     }
+    }, stepTime);
     const pctOff = Math.abs((val - ppCurrentListing.soldPrice) / ppCurrentListing.soldPrice) * 100;
     const bonus = pctOff <= 1 ? 50 : pctOff <= 2 ? 40 : pctOff <= 5 ? 25 : pctOff <= 10 ? 15 : 0;
     setTimeout(() => { setPpNotif(`+${10 + bonus} XP earned!${bonus > 0 ? ` ${pctOff.toFixed(1)}% accuracy bonus` : ""}`); setTimeout(() => setPpNotif(null), 3000); }, 2000);
@@ -3751,7 +3785,7 @@ export default function MortgageBlueprint({ initialState }) {
   const updated = [...ppGuesses]; updated[idx] = {...g, revealed:true, soldPrice:sold};
   setPpGuesses(updated); setPpShowReveal(updated[idx]); setTimeout(() => setPpRevealAnim(true), 50);
  };
- const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
+ const ppCloseReveal = () => { setPpRevealAnim(false); setPpConfetti([]); setTimeout(() => { setPpShowReveal(null); setPpRevealCounter(null); setPpRevealDone(false); }, 300); };
  const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
  const ppSkipListing = () => {
   if (!ppCurrentListing) return;
@@ -8466,11 +8500,15 @@ export default function MortgageBlueprint({ initialState }) {
       @keyframes ppSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
       @keyframes ppCardExit { to { opacity:0; transform:translateX(120%) rotate(8deg) } }
       @keyframes ppNotifIn { from { opacity:0; transform:translateY(-20px) } to { opacity:1; transform:translateY(0) } }
+      @keyframes ppConfettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity:1 } 100% { transform: translateY(400px) rotate(720deg); opacity:0 } }
+      @keyframes ppPulseGreen { 0%,100% { box-shadow: 0 0 0 0 rgba(56,189,126,0.4) } 50% { box-shadow: 0 0 30px 10px rgba(56,189,126,0.15) } }
+      @keyframes ppCounterPop { 0% { transform:scale(1) } 50% { transform:scale(1.15) } 100% { transform:scale(1) } }
       .pp-submitted { animation: ppCardExit 0.4s ease-in forwards }
-      .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(12px) }
+      .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(16px) }
       .pp-rvl-ov.vis { opacity:1 }
-      .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:${isDesktop ? "540px" : "420px"}; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
+      .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:${isDesktop ? "540px" : "420px"}; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1); position:relative; overflow:hidden }
       .pp-rvl-ov.vis .pp-rvl-cd { transform:translateY(0) }
+      .pp-sticky-guess { position:sticky; bottom:0; left:0; right:0; z-index:10; padding:12px 16px 16px; background:linear-gradient(transparent, ${T.bg} 20%); backdrop-filter:blur(8px) }
      `}</style>
 
      {/* PP Notification */}
@@ -8505,17 +8543,21 @@ export default function MortgageBlueprint({ initialState }) {
       </div>
      </div>
 
-     {/* PP View Navigation Tabs */}
+     {/* PP View Navigation Tabs — progressive unlock */}
      <div style={{ padding: "0 18px 10px" }}>
       <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
-       {[["cards","Play"],["results","History"],["stats","Stats"],["leaderboard","Board"]].map(([k,l]) => (
-        <button key={k} onClick={() => setPpView(k)} style={{
-         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-         background: ppView === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
-         color: ppView === k ? "#fff" : T.textTertiary,
-         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-        }}>{l}</button>
-       ))}
+       {[["cards","Play",0],["results","History",3],["stats","Stats",10],["leaderboard","Board",20]].map(([k,l,minGuesses]) => {
+        const unlocked = ppGuesses.length >= minGuesses;
+        return (
+         <button key={k} onClick={() => unlocked && setPpView(k)} style={{
+          flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
+          background: ppView === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
+          color: ppView === k ? "#fff" : !unlocked ? `${T.textTertiary}40` : T.textTertiary,
+          cursor: unlocked ? "pointer" : "default", transition: "all 0.2s", whiteSpace: "nowrap",
+          position: "relative",
+         }}>{l}{!unlocked && <span style={{ display:"block", fontSize:8, opacity:0.5 }}>{minGuesses - ppGuesses.length} more</span>}</button>
+        );
+       })}
       </div>
      </div>
 
@@ -8651,8 +8693,8 @@ export default function MortgageBlueprint({ initialState }) {
        </button>
       </div>
      )}
-     {/* Mode Toggle: Recently Sold vs Currently On Market */}
-     {ppView === "cards" && !ppLoading && !ppWeeklyMode && (
+     {/* Mode Toggle: Recently Sold vs Currently On Market — hidden until 5+ guesses */}
+     {ppView === "cards" && !ppLoading && !ppWeeklyMode && ppGuesses.length >= 5 && (
       <div style={{ padding: "0 18px 8px" }}>
        <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
         <button onClick={() => setPpSoldMode(true)} style={{
@@ -8671,23 +8713,23 @@ export default function MortgageBlueprint({ initialState }) {
       </div>
      )}
 
-     <div style={{ padding: "0 18px", paddingBottom: 20, overflow: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
+     <div style={{ padding: "0 18px", paddingBottom: isDesktop ? 20 : 90, overflow: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
 
-      {/* ── PP CARDS VIEW ── */}
+      {/* ── PP CARDS VIEW — Redesigned: photo-first, sticky guess bar ── */}
       {ppView === "cards" && !ppLoading && (
        ppCurrentListing ? (
-        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
-         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
-          <div style={{ display: isDesktop ? "flex" : "block", gap: isDesktop ? 20 : 0 }}>
-          <div style={{ position: "relative", flex: isDesktop ? "0 0 50%" : undefined, maxWidth: isDesktop ? "50%" : undefined }}>
-           {/* Photo Carousel */}
+        <>
+        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.4s ease-out" }}>
+         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, overflow: "hidden" }}>
+          {/* Photo — takes up most of the card */}
+          <div style={{ position: "relative" }}>
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
             const hasPhotos = det?.photos?.length > 1;
             const photos = hasPhotos ? det.photos : [ppCurrentListing.photo];
             const idx = Math.min(ppPhotoIdx, photos.length - 1);
             return (
-             <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}` }}
+             <div style={{ position: "relative" }}
               onTouchStart={e => { ppPhotoTouchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }; }}
               onTouchEnd={e => {
                const dx = e.changedTouches[0].clientX - ppPhotoTouchRef.current.startX;
@@ -8698,189 +8740,156 @@ export default function MortgageBlueprint({ initialState }) {
                 if (dx > 0) setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1);
                }
               }}>
-              <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 360 : 200, objectFit:"cover", display:"block" }}
+              <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 380 : 260, objectFit:"cover", display:"block" }}
                onError={e => { if (!e.target.dataset.retried) { e.target.dataset.retried = "1"; e.target.src = photos[idx] + (photos[idx].includes("?") ? "&" : "?") + "t=" + Date.now(); } else { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }}} />
+              {/* Gradient overlay at bottom of photo for text readability */}
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, height:120, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", pointerEvents:"none" }} />
+              {/* Address + key stats overlaid on photo bottom */}
+              <div style={{ position:"absolute", bottom:12, left:14, right:14 }}>
+               <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>{ppCurrentListing.address}</div>
+               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 1 }}>{ppCurrentListing.neighborhood} · {ppCurrentListing.city}</div>
+               <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                {[[ppCurrentListing.beds,"bd"],[ppCurrentListing.baths,"ba"],[(ppCurrentListing.sqft||0).toLocaleString(),"sf"],[ppCurrentListing.yearBuilt,"yr"]].map(([v,l],i) => (
+                 <span key={i} style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{v} <span style={{ color:"rgba(255,255,255,0.5)", fontSize:10 }}>{l}</span></span>
+                ))}
+               </div>
+              </div>
               {/* Dot indicators */}
               {hasPhotos && (
-               <div style={{ position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, background:"rgba(0,0,0,0.4)", borderRadius:10, padding:"4px 8px" }}>
-                {photos.length <= 15 ? photos.map((_,i) => (
-                 <div key={i} onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(i); }}
-                  style={{ width: i===idx ? 8 : 5, height: 5, borderRadius: 3, background: i===idx ? "#fff" : "rgba(255,255,255,0.4)", transition:"all 0.2s", cursor:"pointer" }} />
-                )) : (
-                 <span style={{ fontSize:10, color:"#fff", fontWeight:600 }}>{idx+1} / {photos.length}</span>
-                )}
-               </div>
+               <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:8, padding:"3px 8px", fontSize:10, color:"#fff", fontWeight:600 }}>{idx+1}/{photos.length}</div>
               )}
-              {/* Left/right tap zones (desktop fallback) — loops around */}
+              {/* Left/right arrows */}
               {hasPhotos && (
                <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1); }}
-                style={{ position:"absolute", left:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
+                style={{ position:"absolute", left:6, top:"45%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>‹</div>
               )}
               {hasPhotos && (
                <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0); }}
-                style={{ position:"absolute", right:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
+                style={{ position:"absolute", right:6, top:"45%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>›</div>
               )}
-              {/* Left/right arrows on hover — always visible, loops around */}
-              {hasPhotos && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1); }}
-                style={{ position:"absolute", left:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>‹</div>
-              )}
-              {hasPhotos && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0); }}
-                style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>›</div>
-              )}
-              {/* Loading shimmer for photos */}
+              {/* Sold badge */}
+              {ppSoldMode && <div style={{ position:"absolute", top:12, left:12, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}>Sold</div>}
               {det?.loading && (
-               <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.5)", borderRadius:8, padding:"4px 8px", fontSize:10, color:"#fff" }}>Loading photos...</div>
+               <div style={{ position:"absolute", top:12, right:12, background:"rgba(0,0,0,0.5)", borderRadius:8, padding:"4px 8px", fontSize:10, color:"#fff" }}>Loading...</div>
               )}
              </div>
             );
            })()}
-           {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}> Sold</div>}
           </div>
-          {/* Right column on desktop: details + guess */}
-          <div style={{ padding: "14px 0 0", flex: isDesktop ? 1 : undefined }}>
-           <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>{ppCurrentListing.address}</div>
-           <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{ppCurrentListing.neighborhood} · {ppCurrentListing.city}, {ppCurrentListing.state} {ppCurrentListing.zip}</div>
-           <div style={{ display: "flex", gap: 6, margin: "12px 0", flexWrap: "wrap" }}>
-            {[[ppCurrentListing.beds,"Beds"],[ppCurrentListing.baths,"Baths"],[(ppCurrentListing.sqft||0).toLocaleString(),"SqFt"],[ppCurrentListing.yearBuilt,"Built"],["$"+ppCurrentListing.pricePerSqft,"/SF"]].map(([v,l],i) => (
-             <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 12px", textAlign: "center", flex: 1, minWidth: 55 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{v}</div>
-              <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 1 }}>{l}</div>
+          {/* Compact info strip below photo */}
+          <div style={{ padding: "12px 14px" }}>
+           {/* Reference prices row */}
+           <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            {ppCurrentListing.listPrice ? (
+             <div style={{ flex: 1, minWidth: 80, background: "rgba(56,189,126,0.06)", borderRadius: 10, padding: "8px 12px", border:"1px solid rgba(56,189,126,0.12)" }}>
+              <div style={{ fontSize: 9, color: "#38bd7e", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Listed</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#38bd7e", marginTop: 1, letterSpacing: "-0.01em" }}>{ppFmt(ppCurrentListing.listPrice)}</div>
              </div>
-            ))}
+            ) : null}
+            {ppCurrentListing.zestimate ? (
+             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
+              <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Zestimate</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.blue, marginTop: 1 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
+             </div>
+            ) : null}
+            {ppSoldMode && ppCurrentListing.soldDate ? (
+             <div style={{ flex: 0, minWidth: 65, background: T.pillBg, borderRadius: 10, padding: "8px 12px", textAlign:"center" }}>
+              <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Sold</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#e8c84d", marginTop: 3 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}</div>
+             </div>
+            ) : null}
+            {!ppSoldMode && ppCurrentListing.daysOnMarket ? (
+             <div style={{ flex: 0, minWidth: 50, background: T.pillBg, borderRadius: 10, padding: "8px 12px", textAlign:"center" }}>
+              <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>DOM</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#38bd7e", marginTop: 3 }}>{ppCurrentListing.daysOnMarket}</div>
+             </div>
+            ) : null}
            </div>
-           {/* MLS Description */}
+           {/* MLS Description — collapsed by default */}
            {(() => {
             const det = ppPropertyDetails[ppCurrentListing.zpid];
             const desc = det?.description;
             if (!desc) return null;
-            // Strip dollar amounts from description to avoid giving away price
             const cleanDesc = desc.replace(/\$[\d,]+(?:\.\d{2})?/g, "$***").replace(/(?:priced?|offered?|asking|listed?|sold?)\s+(?:at|for)\s+\$?[\d,]+/gi, "").trim();
-            const isLong = cleanDesc.length > 150;
-            const shown = isLong && !ppDescExpanded ? cleanDesc.slice(0, 150).replace(/\s+\S*$/, "…") : cleanDesc;
+            const shown = !ppDescExpanded ? cleanDesc.slice(0, 100).replace(/\s+\S*$/, "...") : cleanDesc;
             return (
-             <div style={{ marginBottom: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 12, borderLeft: `3px solid ${T.blue}40` }}>
-              <div style={{ fontSize: 12, lineHeight: 1.5, color: T.textSecondary }}>{shown}</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
-               {isLong && (
-                <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
-                 style={{ background:"none", border:"none", color:T.blue, fontSize:11, fontWeight:600, cursor:"pointer", padding:0, fontFamily:FONT }}>
-                 {ppDescExpanded ? "Show less" : "Read more"}
-                </button>
-               )}
-               {ppCurrentListing.detailUrl && (
-                <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
-                 style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:0, fontFamily:FONT, marginLeft:"auto" }}>
-                 View on Zillow ↗
-                </button>
-               )}
-              </div>
-             </div>
+             <button onClick={() => setPpDescExpanded(!ppDescExpanded)} style={{ width:"100%", background: T.pillBg, border:"none", borderRadius: 10, padding: "8px 12px", cursor:"pointer", textAlign:"left", marginBottom:8 }}>
+              <div style={{ fontSize: 11, lineHeight: 1.4, color: T.textSecondary }}>{shown}</div>
+              <div style={{ fontSize:10, color:T.blue, fontWeight:600, marginTop:3 }}>{ppDescExpanded ? "Show less" : "Read more"}</div>
+             </button>
             );
            })()}
-           {/* List Price — hero pill */}
-           {ppCurrentListing.listPrice ? (
-            <div style={{ background: "rgba(56,189,126,0.08)", border: "1px solid rgba(56,189,126,0.2)", borderRadius: 14, padding: "12px 16px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-             <div>
-              <div style={{ fontSize: 10, color: "#38bd7e", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Listed at</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#38bd7e", marginTop: 2, letterSpacing: "-0.02em" }}>{ppFmt(ppCurrentListing.listPrice)}</div>
-             </div>
-             {ppCurrentListing.sqft > 0 && <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: T.textSecondary }}>${Math.round(ppCurrentListing.listPrice / ppCurrentListing.sqft)}</div>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>per SF</div>
-             </div>}
-            </div>
-           ) : null}
-           {/* Secondary refs: Zestimate, Sold Date / DOM */}
-           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            {ppCurrentListing.zestimate ? (
-             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
-             </div>
-            ) : null}
-            {ppSoldMode && ppCurrentListing.soldDate ? (
-             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Sold Date</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
-             </div>
-            ) : null}
-            {!ppSoldMode && ppCurrentListing.daysOnMarket ? (
-             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Days on Market</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#38bd7e", marginTop: 4 }}>{ppCurrentListing.daysOnMarket}</div>
-             </div>
-            ) : null}
-           </div>
-           <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
-            placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
-            style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 6, boxSizing: "border-box" }} />
-           {/* Quick-guess shortcut pills */}
-           {(() => {
-            const lp = ppCurrentListing.listPrice;
-            const ze = ppCurrentListing.zestimate;
-            const pills = [];
-            if (lp) pills.push({ label: "List", val: lp });
-            if (ze) pills.push({ label: "Zest", val: ze });
-            if (lp && ze) pills.push({ label: "Mid", val: Math.round((lp + ze) / 2) });
-            if (pills.length === 0) return null;
-            return (
-             <div style={{ display: "flex", gap: 6, marginBottom: 8, justifyContent: "center", flexWrap: "wrap" }}>
-              {pills.map((p, i) => (
-               <button key={i} onClick={() => setPpGuessInput("$" + p.val.toLocaleString())}
-                style={{ padding: "4px 10px", borderRadius: 8, border: `1px solid ${T.cardBorder}`, background: T.pillBg, fontSize: 11, fontWeight: 600, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, transition: "all 0.2s" }}>
-                {p.label} {ppFmt(p.val)}
-               </button>
-              ))}
-             </div>
-            );
-           })()}
-           {ppGuessInput && (() => {
-            const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
-            if (!v) return null;
-            const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
-            const comparePrice = ppCurrentListing.listPrice || ppCurrentListing.zestimate;
-            const compareLabel = ppCurrentListing.listPrice ? "list" : "Zestimate";
-            const d = comparePrice ? ((v - comparePrice)/comparePrice*100).toFixed(1) : null;
-            return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
-             {d !== null ? <>{d > 0 ? "+" : ""}{d}% vs {compareLabel}</> : null}{pp ? `${d !== null ? " · " : ""}$${pp}/SF` : ""}
-             {!ppSoldMode && ppCurrentListing.zestimate && ppCurrentListing.listPrice ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
-            </div>;
-           })()}
-           <div style={{ display: "flex", gap: 8 }}>
-           <button onClick={ppSkipListing} style={{
-            padding: "14px 16px", borderRadius: 16, border: `1px solid ${T.cardBorder}`, fontSize: 14, fontWeight: 600,
-            background: T.pillBg, color: T.textTertiary, cursor: "pointer", transition: "all 0.2s",
-           }}>Skip</button>
-           <button onClick={ppHandleGuess} disabled={!ppGuessInput} style={{
-            flex: 1, padding: "14px", borderRadius: 16, border: "none", fontSize: 15, fontWeight: 700,
-            background: ppGuessInput ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-            color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
-            transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
-           }}>Lock It In <Icon name={ppSoldMode ? "target" : "lock"} size={15} /></button>
-          </div>
-           {/* Run the Numbers — feed listing into Blueprint calculator */}
-           <button onClick={() => {
-            const price = ppCurrentListing.soldPrice || ppCurrentListing.listPrice || ppCurrentListing.zestimate;
-            if (price) setSalesPrice(price);
-            if (ppCurrentListing.state) setPropertyState(ppCurrentListing.state);
-            if (ppCurrentListing.city) setCity(ppCurrentListing.city);
-            if (ppCurrentListing.zip) setPropertyZip(ppCurrentListing.zip);
-            setAppMode("blueprint");
-            setTab("calc");
-           }} style={{
-            width:"100%", padding: "12px", borderRadius: 14, border: `1px solid ${T.blue}40`, fontSize: 13, fontWeight: 700,
-            background: `${T.blue}10`, color: T.blue, cursor: "pointer", transition: "all 0.2s",
-            marginTop: 10, fontFamily: FONT, letterSpacing: 0.3, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-           }}>Run the Numbers in Blueprint</button>
-           <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
-            {ppActiveListings.length - 1} more {ppWeeklyMode ? "in challenge" : ppSoldMode ? "recently sold" : "on market"}
+           {/* Quick links */}
+           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <button onClick={() => {
+             const price = ppCurrentListing.soldPrice || ppCurrentListing.listPrice || ppCurrentListing.zestimate;
+             if (price) setSalesPrice(price);
+             if (ppCurrentListing.state) setPropertyState(ppCurrentListing.state);
+             if (ppCurrentListing.city) setCity(ppCurrentListing.city);
+             if (ppCurrentListing.zip) setPropertyZip(ppCurrentListing.zip);
+             setAppMode("blueprint");
+             setTab("calc");
+            }} style={{ padding: "6px 12px", borderRadius: 10, border: `1px solid ${T.blue}30`, fontSize: 11, fontWeight: 600, background: `${T.blue}08`, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Run Numbers</button>
+            {ppCurrentListing.detailUrl && (
+             <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")} style={{ padding: "6px 12px", borderRadius: 10, border: `1px solid ${T.cardBorder}`, fontSize: 11, fontWeight: 600, background: T.pillBg, color: T.textTertiary, cursor: "pointer", fontFamily: FONT }}>Zillow ↗</button>
+            )}
+            <span style={{ marginLeft:"auto", fontSize:11, color:T.textTertiary }}>{ppActiveListings.length - 1} more</span>
            </div>
           </div>
-          </div>{/* close desktop flex wrapper */}
          </div>
         </div>
+        {/* ── STICKY GUESS BAR — always visible at bottom ── */}
+        <div className={isDesktop ? "" : "pp-sticky-guess"} style={isDesktop ? { marginTop: 12 } : {}}>
+         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 18, padding: "12px 14px" }}>
+          {/* Quick-guess shortcut pills */}
+          {(() => {
+           const lp = ppCurrentListing.listPrice;
+           const ze = ppCurrentListing.zestimate;
+           const pills = [];
+           if (lp) pills.push({ label: "List", val: lp });
+           if (ze) pills.push({ label: "Zest", val: ze });
+           if (lp && ze) pills.push({ label: "Mid", val: Math.round((lp + ze) / 2) });
+           if (pills.length === 0) return null;
+           return (
+            <div style={{ display: "flex", gap: 5, marginBottom: 8, justifyContent: "center" }}>
+             {pills.map((p, i) => (
+              <button key={i} onClick={() => setPpGuessInput("$" + p.val.toLocaleString())}
+               style={{ padding: "3px 8px", borderRadius: 8, border: `1px solid ${T.cardBorder}`, background: T.pillBg, fontSize: 10, fontWeight: 600, color: T.textTertiary, cursor: "pointer", fontFamily: FONT }}>
+               {p.label} {ppFmt(p.val)}
+              </button>
+             ))}
+            </div>
+           );
+          })()}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+           <button onClick={ppSkipListing} style={{
+            padding: "12px 14px", borderRadius: 14, border: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600,
+            background: T.pillBg, color: T.textTertiary, cursor: "pointer",
+           }}>Skip</button>
+           <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
+            placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
+            style={{ flex:1, background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 14, padding: "12px 14px", fontSize: 20, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", boxSizing: "border-box", minWidth:0 }} />
+           <button onClick={ppHandleGuess} disabled={!ppGuessInput} style={{
+            padding: "12px 16px", borderRadius: 14, border: "none", fontSize: 14, fontWeight: 700,
+            background: ppGuessInput ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
+            color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
+            letterSpacing: 0.5, textTransform: "uppercase", whiteSpace: "nowrap",
+           }}><Icon name="target" size={18} /></button>
+          </div>
+          {ppGuessInput && (() => {
+           const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
+           if (!v) return null;
+           const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
+           const comparePrice = ppCurrentListing.listPrice || ppCurrentListing.zestimate;
+           const compareLabel = ppCurrentListing.listPrice ? "list" : "Zestimate";
+           const d = comparePrice ? ((v - comparePrice)/comparePrice*100).toFixed(1) : null;
+           return <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:6 }}>
+            {d !== null ? <>{d > 0 ? "+" : ""}{d}% vs {compareLabel}</> : null}{pp ? `${d !== null ? " · " : ""}$${pp}/SF` : ""}
+           </div>;
+          })()}
+         </div>
+        </div>
+        </>
        ) : (
         <div style={{ textAlign:"center", padding:"60px 20px" }}>
          <div style={{ marginBottom:16, display:"flex", justifyContent:"center", color: T.textSecondary }}><Icon name={ppSoldMode ? "trophy" : "home"} size={48} /></div>
@@ -9174,75 +9183,92 @@ export default function MortgageBlueprint({ initialState }) {
       )}
      </div>
 
-     {/* PP SOLD REVEAL MODAL */}
+     {/* PP SOLD REVEAL MODAL — Animated counter + confetti */}
      {ppShowReveal && (ppShowReveal.soldPrice || ppShowReveal.revealPrice || ppShowReveal.listPrice) && (
       <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
        <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
+        {/* Confetti particles */}
+        {ppConfetti.map(p => (
+         <div key={p.id} style={{ position:"absolute", top:-10, left:`${p.x}%`, width:8, height:8, borderRadius:2, background:p.color, animation:`ppConfettiFall ${p.speed}s ease-in ${p.delay}s forwards`, transform:`rotate(${p.rotation}deg)`, opacity:0.9, zIndex:10 }} />
+        ))}
         <div style={{ textAlign:"center" }}>
          <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "RECENTLY SOLD" : "SOLD"}</div>
-         <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
-         <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
-         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24, flexWrap:"wrap", gap:8 }}>
-          {ppShowReveal.listPrice ? (
-           <div style={{ textAlign:"center", minWidth:80 }}>
-            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>List Price</div>
-            <div style={{ fontSize:18, fontWeight:700, color:T.textSecondary }}>{ppFmt(ppShowReveal.listPrice)}</div>
-           </div>
-          ) : null}
-          {ppShowReveal.zestimate ? (
-           <div style={{ textAlign:"center", minWidth:80 }}>
-            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Zestimate</div>
-            <div style={{ fontSize:18, fontWeight:700, color:T.blue }}>{ppFmt(ppShowReveal.zestimate)}</div>
-           </div>
-          ) : null}
-          {(ppShowReveal.listPrice || ppShowReveal.zestimate) && <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />}
-          <div style={{ textAlign:"center", minWidth:80 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Your Guess</div>
-           <div style={{ fontSize:22, fontWeight:800, color:T.text }}>{ppFmt(ppShowReveal.guess)}</div>
-           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.guess/ppShowReveal.sqft)}/SF</div>}
+         <div style={{ fontSize:16, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
+         <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:20 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
+         {/* Animated sold price counter — the star of the show */}
+         <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:2, textTransform:"uppercase", marginBottom:6 }}>Sold Price</div>
+          <div style={{
+           fontSize:40, fontWeight:900, letterSpacing:"-0.02em",
+           color: ppRevealDone ? "#38bd7e" : T.text,
+           animation: ppRevealDone ? "ppCounterPop 0.3s ease" : "none",
+           transition: "color 0.3s",
+          }}>
+           {ppRevealCounter !== null ? ppFmt(ppRevealCounter) : ppFmt(ppShowReveal.guess)}
           </div>
-          <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />
-          <div style={{ textAlign:"center", minWidth:80 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Sold Price</div>
-           <div style={{ fontSize:22, fontWeight:800, color:"#38bd7e" }}>{ppFmt(ppShowReveal.soldPrice)}</div>
-           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.soldPrice/ppShowReveal.sqft)}/SF</div>}
-          </div>
+          {ppShowReveal.sqft && ppRevealDone && <div style={{ fontSize:12, color:T.textTertiary, marginTop:2 }}>${Math.round((ppShowReveal.soldPrice || ppShowReveal.revealPrice)/ppShowReveal.sqft)}/SF</div>}
          </div>
-         {(() => {
+         {/* Comparison row: Your Guess vs refs */}
+         <div style={{ display:"flex", justifyContent:"center", gap:16, marginBottom:16, flexWrap:"wrap" }}>
+          <div style={{ textAlign:"center" }}>
+           <div style={{ fontSize:9, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase" }}>Your Guess</div>
+           <div style={{ fontSize:20, fontWeight:800, color:T.text, marginTop:2 }}>{ppFmt(ppShowReveal.guess)}</div>
+          </div>
+          {ppShowReveal.listPrice ? (
+           <div style={{ textAlign:"center" }}>
+            <div style={{ fontSize:9, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase" }}>List</div>
+            <div style={{ fontSize:20, fontWeight:700, color:T.textSecondary, marginTop:2 }}>{ppFmt(ppShowReveal.listPrice)}</div>
+           </div>
+          ) : null}
+         </div>
+         {/* Accuracy result — shows after counter finishes */}
+         {ppRevealDone && (() => {
           const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice || ppShowReveal.listPrice;
           const diff = parseFloat(ppAbsPct(ppShowReveal.guess, rp));
           const over = ppShowReveal.guess > rp;
           const great = diff <= 3, good = diff <= 7;
           return (
-           <div style={{ background: great ? "rgba(56,189,126,0.08)" : good ? "rgba(232,200,77,0.08)" : "rgba(232,93,93,0.08)", border: `1px solid ${great ? "rgba(56,189,126,0.25)" : good ? "rgba(232,200,77,0.25)" : "rgba(232,93,93,0.25)"}`, borderRadius:16, padding:"18px 20px" }}>
-            <div style={{ fontSize:32, fontWeight:800, color: great ? "#38bd7e" : good ? "#e8c84d" : "#e85d5d" }}>{over?"+":"−"}{diff.toFixed(1)}%</div>
-            <div style={{ fontSize:13, color:T.textSecondary, marginTop:4 }}>{great?"Sniper accuracy!":good?"— Strong market read!":over?"Bit optimistic":"Undervalued this one"}</div>
+           <div style={{
+            background: great ? "rgba(56,189,126,0.08)" : good ? "rgba(232,200,77,0.08)" : "rgba(232,93,93,0.08)",
+            border: `1px solid ${great ? "rgba(56,189,126,0.25)" : good ? "rgba(232,200,77,0.25)" : "rgba(232,93,93,0.25)"}`,
+            borderRadius:16, padding:"16px 20px", animation: "ppSlideUp 0.4s ease-out",
+           }}>
+            <div style={{ fontSize:36, fontWeight:900, color: great ? "#38bd7e" : good ? "#e8c84d" : "#e85d5d" }}>{over?"+":"-"}{diff.toFixed(1)}%</div>
+            <div style={{ fontSize:14, color:T.textSecondary, marginTop:4, fontWeight:600 }}>{great?"Sniper accuracy!":good?"Strong market read!":over?"Bit optimistic":"Undervalued this one"}</div>
             <div style={{ fontSize:12, color:T.textTertiary, marginTop:4 }}>{over?"Over":"Under"} by {ppFmt(Math.abs(ppShowReveal.guess-rp))}</div>
            </div>
           );
          })()}
-         {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Recently sold — compare your guess against the actual sale price</div>}
-         <div style={{ display:"flex", gap:8, marginTop: ppShowReveal.isSoldMode ? 8 : 20 }}>
-          <button onClick={() => {
-           const price = ppShowReveal.revealPrice || ppShowReveal.soldPrice || ppShowReveal.listPrice || ppShowReveal.zestimate;
-           if (price) setSalesPrice(price);
-           if (ppShowReveal.state) setPropertyState(ppShowReveal.state);
-           if (ppShowReveal.city) setCity(ppShowReveal.city);
-           if (ppShowReveal.zip) setPropertyZip(ppShowReveal.zip);
-           ppCloseReveal();
-           setAppMode("blueprint");
-           setTab("calc");
-          }} style={{ flex:1, padding:14, borderRadius:16, border:`1px solid ${T.blue}40`, fontSize:14, fontWeight:700, background:`${T.blue}12`, color:T.blue, cursor:"pointer", letterSpacing:0.3, fontFamily:FONT }}>Run the Numbers</button>
-          <button onClick={ppCloseReveal} style={{ flex:1, padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
-         </div>
-         <button onClick={() => {
-          const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice;
-          const diff = rp ? parseFloat(ppAbsPct(ppShowReveal.guess, rp)) : null;
-          const over = rp ? ppShowReveal.guess > rp : false;
-          const emoji = diff !== null ? (diff <= 3 ? "target" : diff <= 7 ? "—" : "trending-up") : "home";
-          const text = `${emoji} PricePoint: I guessed ${ppFmt(ppShowReveal.guess)} on ${ppShowReveal.address}${rp ? ` — ${over?"+":"−"}${diff.toFixed(1)}% ${ppShowReveal.isSoldMode ? "vs sold price" : "vs list price"}` : ""}! Try it at mortgageblueprint.app`;
-          if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
-         }} style={{ width:"100%", padding:10, borderRadius:12, border:"none", background:"transparent", fontSize:12, fontWeight:600, color:T.textTertiary, cursor:"pointer", marginTop:4, fontFamily:FONT }}>Share Result</button>
+         {/* Action buttons — show after reveal done */}
+         {ppRevealDone && (
+          <div style={{ marginTop:16 }}>
+           <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+            <button onClick={() => {
+             const price = ppShowReveal.revealPrice || ppShowReveal.soldPrice || ppShowReveal.listPrice || ppShowReveal.zestimate;
+             if (price) setSalesPrice(price);
+             if (ppShowReveal.state) setPropertyState(ppShowReveal.state);
+             if (ppShowReveal.city) setCity(ppShowReveal.city);
+             if (ppShowReveal.zip) setPropertyZip(ppShowReveal.zip);
+             ppCloseReveal();
+             setAppMode("blueprint");
+             setTab("calc");
+            }} style={{ flex:1, padding:12, borderRadius:14, border:`1px solid ${T.blue}40`, fontSize:13, fontWeight:700, background:`${T.blue}12`, color:T.blue, cursor:"pointer", fontFamily:FONT }}>Run Numbers</button>
+            <button onClick={ppCloseReveal} style={{ flex:1, padding:12, borderRadius:14, border:"none", fontSize:14, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", letterSpacing:0.5, textTransform:"uppercase" }}>Next</button>
+           </div>
+           {/* Wordle-style share button */}
+           <button onClick={() => {
+            const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice;
+            const diff = rp ? parseFloat(ppAbsPct(ppShowReveal.guess, rp)) : null;
+            const over = rp ? ppShowReveal.guess > rp : false;
+            // Wordle-style grid: accuracy → colored squares
+            const squares = diff !== null ? (diff <= 1 ? "🟩🟩🟩🟩🟩" : diff <= 3 ? "🟩🟩🟩🟩⬜" : diff <= 5 ? "🟩🟩🟩⬜⬜" : diff <= 10 ? "🟨🟨⬜⬜⬜" : "🟥⬜⬜⬜⬜") : "⬜⬜⬜⬜⬜";
+            const text = `PricePoint ${ppShowReveal.city}\n${squares}\n${ppShowReveal.address}\n${diff !== null ? `${over?"+":"-"}${diff.toFixed(1)}% ${ppShowReveal.isSoldMode ? "vs sold" : "vs list"}` : ""}\n\nPlay at mortgageblueprint.app`;
+            if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
+           }} style={{ width:"100%", padding:10, borderRadius:12, border:`1px solid ${T.cardBorder}`, background:T.pillBg, fontSize:12, fontWeight:600, color:T.textSecondary, cursor:"pointer", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            <Icon name="share-2" size={14} /> Share Result
+           </button>
+          </div>
+         )}
         </div>
        </div>
       </div>
