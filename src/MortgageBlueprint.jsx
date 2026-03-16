@@ -2189,7 +2189,7 @@ export default function MortgageBlueprint({ initialState }) {
    const cashInHandLabel = c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing";
    const cashInHandValue = c.refiNetCashInHand >= 0 ? fmt(c.refiNetCashInHand) : fmt(Math.abs(c.refiNetCashInHand));
    html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row(cashOutLabel,cashOutValue,false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row(cashInHandLabel,cashInHandValue,true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
-   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"check":"✗"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"check":"✗"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"check":"✗"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
+   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✓":"✗"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✓":"✗"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✓":"✗"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
   } else {
    // PURCHASE HERO
    html += `<div class="hero-bar"><div class="big">${fmt(c.housingPayment)}<span style="font-size:18px;font-weight:400">/mo</span></div><div class="sub">${propAddr !== "TBD" && propAddr ? propAddr + " · " : ""}${fmt(c.cashToClose)} cash to close</div></div>`;
@@ -3864,7 +3864,7 @@ export default function MortgageBlueprint({ initialState }) {
  React.useEffect(() => {
   if (ppBadges.length > ppPrevBadgeCount && ppPrevBadgeCount > 0) {
    const newBadge = ppBadges[ppBadges.length - 1];
-   setPpNotif(`New Badge: ${newBadge.icon} ${newBadge.name}!`);
+   setPpNotif(`New Badge: ${newBadge.name}!`);
    setTimeout(() => setPpNotif(null), 4000);
   }
   setPpPrevBadgeCount(ppBadges.length);
@@ -4254,7 +4254,7 @@ export default function MortgageBlueprint({ initialState }) {
            background: appMode === k ? T.blue : "transparent",
            color: appMode === k ? "#fff" : T.textTertiary,
            cursor: "pointer", transition: "all 0.2s", fontFamily: FONT, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3,
-          }}>{e} {l}</button>
+          }}><Icon name={e} size={11} /> {l}</button>
          ))}
         </div>
        </div>
@@ -7951,7 +7951,7 @@ export default function MortgageBlueprint({ initialState }) {
     <Card key={pi} style={{ marginTop: 12, border: prog.active ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, position: "relative", overflow: "hidden" }}>
      {prog.active && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: T.blue }} />}
      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-      <div style={{ fontSize: 28 }}>{prog.icon}</div>
+      <div style={{ display: "flex", alignItems: "center", color: prog.active ? T.blue : T.textSecondary }}>{prog.icon ? <Icon name={prog.icon} size={28} /> : null}</div>
       <div>
        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ fontSize: 17, fontWeight: 800, fontFamily: FONT, color: T.text }}>{prog.name}</div>
@@ -8870,7 +8870,7 @@ export default function MortgageBlueprint({ initialState }) {
         </div>
        ) : (
         <div style={{ textAlign:"center", padding:"60px 20px" }}>
-         <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "trophy" : "home"}</div>
+         <div style={{ marginBottom:16, display:"flex", justifyContent:"center", color: T.textSecondary }}><Icon name={ppSoldMode ? "trophy" : "home"} size={48} /></div>
          <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
          <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
          <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
