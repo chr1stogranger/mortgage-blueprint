@@ -2426,7 +2426,7 @@ export default function MortgageBlueprint({ initialState }) {
    nextTab = visibleTabs[vIdx + 1];
    nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
    // Use parent position for progress display
-   const parentIdx = tab === "reo" ? TAB_PROGRESSION.indexOf("assets") : tab === "sell" ? TAB_PROGRESSION.indexOf("amort") : TAB_PROGRESSION.indexOf("calc");
+   const parentIdx = tab === "reo" ? TAB_PROGRESSION.indexOf("debts") : tab === "sell" ? TAB_PROGRESSION.indexOf("amort") : TAB_PROGRESSION.indexOf("calc");
    stepNum = parentIdx + 1;
    totalSteps = TAB_PROGRESSION.length;
    progressPct = (stepNum / totalSteps) * 100;
@@ -3891,8 +3891,9 @@ export default function MortgageBlueprint({ initialState }) {
 
  const TABS = [["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
-  ["costs","Costs"],["income","Income"],["debts","Debts"],["assets","Assets"],
+  ["costs","Costs"],["income","Income"],["debts","Debts"],
   ...(ownsProperties ? [["reo","REO"]] : []),
+  ["assets","Assets"],
   ["qualify","Qualify"],
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
@@ -6511,33 +6512,9 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
    )}
 
-   {/* ── Filing Status + Toggles + Zip Summary — tucked under estimate ── */}
+   {/* ── Filing Status ── */}
    <div style={{ marginTop: 10, padding: "10px 14px", background: T.pillBg, borderRadius: 12, border: `1px solid ${T.separator}` }}>
-    <div style={isDesktop ? { display: "flex", alignItems: "center", gap: 10 } : {}}>
-     <div style={{ flex: isDesktop ? "0 0 auto" : "none", minWidth: isDesktop ? 140 : "auto", marginBottom: isDesktop ? 0 : 8 }}>
-      <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
-     </div>
-     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
-      <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: ownsProperties ? `${T.green}12` : T.inputBg, border: `1px solid ${ownsProperties ? `${T.green}40` : T.separator}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
-       <div style={{ width: 28, height: 14, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
-        <div style={{ width: 10, height: 10, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-       </div>
-       <span style={{ fontSize: 10, fontWeight: 600, color: ownsProperties ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Own</span>
-      </div>
-      {!isRefi && <div onClick={() => setShowInvestor(!showInvestor)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: showInvestor ? `${T.green}12` : T.inputBg, border: `1px solid ${showInvestor ? `${T.green}40` : T.separator}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
-       <div style={{ width: 28, height: 14, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
-        <div style={{ width: 10, height: 10, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-       </div>
-       <span style={{ fontSize: 10, fontWeight: 600, color: showInvestor ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Invest</span>
-      </div>}
-      {!isRefi && <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: hasSellProperty ? `${T.green}12` : T.inputBg, border: `1px solid ${hasSellProperty ? `${T.green}40` : T.separator}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
-       <div style={{ width: 28, height: 14, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
-        <div style={{ width: 10, height: 10, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-       </div>
-       <span style={{ fontSize: 10, fontWeight: 600, color: hasSellProperty ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Sell</span>
-      </div>}
-     </div>
-    </div>
+    <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
     {/* Auto-filled zip summary */}
     {(city && propertyState) && (
      <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}`, display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
@@ -6545,6 +6522,45 @@ export default function MortgageBlueprint({ initialState }) {
       {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
       {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
      </div>
+    )}
+   </div>
+
+   {/* ── Modules — full-width toggles with descriptions ── */}
+   <div style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden" }}>
+    <div style={{ padding: "10px 14px 6px", fontSize: 13, fontWeight: 700, color: T.text }}>Modules</div>
+    {/* Own Properties */}
+    <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Own Properties?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show REO (Real Estate Owned) tab</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+    {/* Selling a Property */}
+    {!isRefi && (
+    <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Selling a Property?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Seller Net Sheet tab</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+    )}
+    {/* Investment Analysis */}
+    {!isRefi && (
+    <div onClick={() => setShowInvestor(!showInvestor)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Investor tab with ROI metrics</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
     )}
    </div>
   </div>{/* end right column */}
