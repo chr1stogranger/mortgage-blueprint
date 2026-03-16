@@ -2461,27 +2461,16 @@ export default function MortgageBlueprint({ initialState }) {
      <div style={{ height: 3, background: T.separator }}>
       <div style={{ height: "100%", width: isReady ? "100%" : `${progressPct}%`, background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : fieldsComplete ? `${T.blue}40` : `${T.blue}18`, borderRadius: 99, transition: "width 0.5s ease, background 0.4s ease" }} />
      </div>
-     <div onClick={isReady ? handleNext : undefined} style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, gap: 12, transition: "background 0.4s", cursor: isReady ? "pointer" : "default" }}>
+     <div onClick={isReady ? handleNext : undefined} style={{ display: "flex", alignItems: "center", padding: "14px 20px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, transition: "background 0.4s", cursor: isReady ? "pointer" : "default" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-       <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.75)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
-       <div style={{ fontSize: 14, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+       <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.65)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
+       <div style={{ fontSize: 15, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
         {isReady ? `✓ ${TAB_DISPLAY_NAMES[tab]} complete` : fieldsComplete ? `${TAB_DISPLAY_NAMES[tab]} ✓ — scroll down` : TAB_DISPLAY_NAMES[tab]}
        </div>
       </div>
-      <button
-       onClick={isReady ? handleNext : undefined}
-       disabled={!isReady}
-       style={{
-        padding: "10px 20px", borderRadius: 14, border: isReady ? "2px solid rgba(255,255,255,0.3)" : "none", fontFamily: FONT, fontSize: 14, fontWeight: 700,
-        cursor: isReady ? "pointer" : "default", letterSpacing: "0.01em", transition: "all 0.3s",
-        background: isReady ? "rgba(255,255,255,0.2)" : `${T.blue}18`,
-        color: isReady ? "#FFFFFF" : `${T.blue}60`,
-        boxShadow: "none",
-        opacity: isReady ? 1 : 0.6,
-       }}
-      >
-       {isReady ? `${nextName} →` : nextName}
-      </button>
+      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: isReady ? "#FFFFFF" : `${T.blue}60`, letterSpacing: "-0.01em", whiteSpace: "nowrap", transition: "all 0.3s", opacity: isReady ? 1 : 0.5 }}>
+       {nextName} →
+      </div>
      </div>
     </div>
    </div>
