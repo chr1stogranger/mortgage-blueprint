@@ -6431,49 +6431,49 @@ export default function MortgageBlueprint({ initialState }) {
    </Card>
   </div>{/* end left column */}
 
-  {/* ── RIGHT COLUMN: Numbers & Estimate ── */}
+  {/* ── RIGHT COLUMN: Numbers, Estimate & Options ── */}
   <div>
    <Card>
-    {/* 5) Sales Price — purchase only */}
+    {/* 5+6) Price & Down Payment — side by side on desktop, purchase only */}
     {!isRefi && (
-    <div data-field="price-input" className={isPulse("price-input")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
-     <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
-    </div>
-    )}
-
-    {/* 6) Down Payment with %/$ toggle — purchase only */}
-    {!isRefi && (
-    <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-       Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-      </div>
-      <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
-       <button onClick={() => setDownMode("pct")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
-       <button onClick={() => setDownMode("dollar")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
-      </div>
+    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } : { marginBottom: 10 }}>
+     <div data-field="price-input" className={isPulse("price-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+      <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
      </div>
-     {downMode === "pct" ? (
-      <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
-     ) : (
-      <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
-     )}
-     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
-      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+     <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+        Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+       </div>
+       <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
+        <button onClick={() => setDownMode("pct")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
+        <button onClick={() => setDownMode("dollar")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
+       </div>
+      </div>
+      {downMode === "pct" ? (
+       <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+      ) : (
+       <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
+      )}
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
+       {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+      </div>
      </div>
     </div>
     )}
     {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
 
-    {/* 7) First-Time Homebuyer — purchase only */}
+    {/* 7) First-Time Homebuyer — compact inline */}
     {!isRefi && (
-    <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>First-Time Homebuyer?</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-      <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "9px 0", background: firstTimeBuyer ? `${T.green}22` : T.inputBg, border: firstTimeBuyer ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 10, color: firstTimeBuyer ? T.green : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Yes — FTHB</button>
-      <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "9px 0", background: !firstTimeBuyer ? `${T.blue}22` : T.inputBg, border: !firstTimeBuyer ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: !firstTimeBuyer ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>No</button>
+    <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s", marginBottom: 6 }}>
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary }}>First-Time Homebuyer?</span>
+      <div style={{ display: "flex", gap: 4 }}>
+       <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer ? `${T.green}22` : T.inputBg, border: firstTimeBuyer ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
+       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "5px 12px", background: !firstTimeBuyer ? `${T.blue}22` : T.inputBg, border: !firstTimeBuyer ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: !firstTimeBuyer ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
+      </div>
      </div>
-     {firstTimeBuyer && <Note color={T.green}>FTHB unlocked! 3% down conventional available.</Note>}
+     {firstTimeBuyer && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 4 }}>FTHB unlocked — 3% down conventional available</div>}
     </div>
     )}
 
@@ -6487,7 +6487,7 @@ export default function MortgageBlueprint({ initialState }) {
 
    {/* ── Live Estimate — purchase only ── */}
    {!isRefi && (
-   <div style={{ background: darkMode ? "linear-gradient(135deg, #1a2a1f, #162030)" : `linear-gradient(135deg, ${T.green}08, ${T.blue}06)`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 10 }}>
+   <div style={{ background: darkMode ? "linear-gradient(135deg, #1a2a1f, #162030)" : `linear-gradient(135deg, ${T.green}08, ${T.blue}06)`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 10 : 0 }}>
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
       <span style={{ fontSize: 28, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
@@ -6510,6 +6510,43 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </div>
    )}
+
+   {/* ── Filing Status + Toggles + Zip Summary — tucked under estimate ── */}
+   <div style={{ marginTop: 10, padding: "10px 14px", background: T.pillBg, borderRadius: 12, border: `1px solid ${T.separator}` }}>
+    <div style={isDesktop ? { display: "flex", alignItems: "center", gap: 10 } : {}}>
+     <div style={{ flex: isDesktop ? "0 0 auto" : "none", minWidth: isDesktop ? 140 : "auto", marginBottom: isDesktop ? 0 : 8 }}>
+      <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
+     </div>
+     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
+      <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: ownsProperties ? `${T.green}12` : T.inputBg, border: `1px solid ${ownsProperties ? `${T.green}40` : T.separator}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
+       <div style={{ width: 28, height: 14, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
+        <div style={{ width: 10, height: 10, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
+       </div>
+       <span style={{ fontSize: 10, fontWeight: 600, color: ownsProperties ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Own</span>
+      </div>
+      {!isRefi && <div onClick={() => setShowInvestor(!showInvestor)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: showInvestor ? `${T.green}12` : T.inputBg, border: `1px solid ${showInvestor ? `${T.green}40` : T.separator}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
+       <div style={{ width: 28, height: 14, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
+        <div style={{ width: 10, height: 10, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
+       </div>
+       <span style={{ fontSize: 10, fontWeight: 600, color: showInvestor ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Invest</span>
+      </div>}
+      {!isRefi && <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: hasSellProperty ? `${T.green}12` : T.inputBg, border: `1px solid ${hasSellProperty ? `${T.green}40` : T.separator}`, borderRadius: 8, cursor: "pointer", transition: "all 0.2s" }}>
+       <div style={{ width: 28, height: 14, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
+        <div style={{ width: 10, height: 10, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
+       </div>
+       <span style={{ fontSize: 10, fontWeight: 600, color: hasSellProperty ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Sell</span>
+      </div>}
+     </div>
+    </div>
+    {/* Auto-filled zip summary */}
+    {(city && propertyState) && (
+     <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}`, display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
+      <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
+      {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
+      {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
+     </div>
+    )}
+   </div>
   </div>{/* end right column */}
 
  </div>{/* end 2-column grid */}
@@ -6637,52 +6674,22 @@ export default function MortgageBlueprint({ initialState }) {
   </div>
  </div>}
 
- {/* ── Options ── */}
+ {/* ── Manual zip fallback (when auto-lookup fails) ── */}
+ {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (
  <Card>
-  <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
-  {/* Compact toggles row */}
-  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-   <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: ownsProperties ? `${T.green}12` : T.inputBg, border: `1px solid ${ownsProperties ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
-    <div style={{ width: 32, height: 18, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
-     <div style={{ width: 14, height: 14, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-    </div>
-    <span style={{ fontSize: 11, fontWeight: 600, color: ownsProperties ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Own Property</span>
+  <div style={{ fontSize: 11, fontWeight: 600, color: T.orange, marginBottom: 6 }}>Zip not found — set manually:</div>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+   <div>
+    {propertyState === "California" ? (
+     <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
+    ) : (
+     <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
+    )}
    </div>
-   {!isRefi && <div onClick={() => setShowInvestor(!showInvestor)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: showInvestor ? `${T.green}12` : T.inputBg, border: `1px solid ${showInvestor ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
-    <div style={{ width: 32, height: 18, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
-     <div style={{ width: 14, height: 14, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-    </div>
-    <span style={{ fontSize: 11, fontWeight: 600, color: showInvestor ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Investment</span>
-   </div>}
-   {!isRefi && <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: hasSellProperty ? `${T.green}12` : T.inputBg, border: `1px solid ${hasSellProperty ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
-    <div style={{ width: 32, height: 18, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
-     <div style={{ width: 14, height: 14, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
-    </div>
-    <span style={{ fontSize: 11, fontWeight: 600, color: hasSellProperty ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Selling</span>
-   </div>}
+   <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
   </div>
-  {/* Auto-filled zip summary — compact */}
-  {(city && propertyState) && (
-   <div style={{ marginTop: 10, padding: "8px 12px", background: T.pillBg, borderRadius: 8, display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: 11, color: T.textTertiary }}>
-    <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
-    {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
-    {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
-   </div>
-  )}
-  {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
-   <div style={{ marginTop: 10, fontSize: 11, fontWeight: 600, color: T.orange, marginBottom: 6 }}>Zip not found — set manually:</div>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-    <div>
-     {propertyState === "California" ? (
-      <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
-     ) : (
-      <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
-     )}
-    </div>
-    <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
-   </div>
-  </>)}
  </Card>
+ )}
 
  {/* ── Scenarios ── */}
  {/* ── Current Loan Option indicator ── */}
