@@ -6611,106 +6611,58 @@ export default function MortgageBlueprint({ initialState }) {
   </div>
  </div>}
 
- {/* ── Your Team (collapsible) ── */}
- <div onClick={() => setSetupTeamOpen(!setupTeamOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupTeamOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupTeamOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}></span>
-   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Your Team</span>
-   <span style={{ fontSize: 11, color: T.textTertiary }}>(LO, Realtor, Borrower)</span>
+ {/* ── Borrower & Realtor (compact inline) ── */}
+ <Card>
+  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
+   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" sm />
+   <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" sm />
   </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupTeamOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
- </div>
- {setupTeamOpen && (
-  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
-   <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
-    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
-   </div>
-   <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
-    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
-   </div>
-   <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
-   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
-  </Card>
- )}
-
- {/* ── Advanced Settings (collapsed) ── */}
- <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}></span>
-   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Advanced Settings</span>
+  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}` }}>
+   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
   </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
- </div>
- {setupAdvancedOpen && (
-  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
-   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
-    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+  {/* Compact toggles row */}
+  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+   <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: ownsProperties ? `${T.green}12` : T.inputBg, border: `1px solid ${ownsProperties ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
+    <div style={{ width: 32, height: 18, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
+     <div style={{ width: 14, height: 14, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
     </div>
+    <span style={{ fontSize: 11, fontWeight: 600, color: ownsProperties ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Own Property</span>
    </div>
-   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
-   </div>}
-   {!isRefi && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
-    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   {!isRefi && <div onClick={() => setShowInvestor(!showInvestor)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: showInvestor ? `${T.green}12` : T.inputBg, border: `1px solid ${showInvestor ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
+    <div style={{ width: 32, height: 18, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
+     <div style={{ width: 14, height: 14, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
     </div>
+    <span style={{ fontSize: 11, fontWeight: 600, color: showInvestor ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Investment</span>
    </div>}
-   {!isRefi && toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
-   </div>}
-   {!isRefi && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   {!isRefi && <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: hasSellProperty ? `${T.green}12` : T.inputBg, border: `1px solid ${hasSellProperty ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
+    <div style={{ width: 32, height: 18, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s" }}>
+     <div style={{ width: 14, height: 14, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 16 : 2, transition: "left 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }} />
     </div>
+    <span style={{ fontSize: 11, fontWeight: 600, color: hasSellProperty ? T.green : T.textTertiary, whiteSpace: "nowrap" }}>Selling</span>
    </div>}
-   {!isRefi && toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
-   </div>}
-   <div style={{ marginTop: 12, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>AUTO-FILLED FROM ZIP</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
-     <span style={{ color: T.textTertiary }}>Location</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{city}, {propertyState}</span>
-     <span style={{ color: T.textTertiary }}>Tax Rate</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
-      {propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%
-     </span>
-     {!isRefi && <><span style={{ color: T.textTertiary }}>Transfer Tax</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
-      {getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County only ($1.10/$1K)"}
-     </span></>}
-     {propertyCounty && COUNTY_AMI[propertyCounty] && <>
-      <span style={{ color: T.textTertiary }}>Area Median Income</span>
-      <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{fmt(COUNTY_AMI[propertyCounty])}</span>
-     </>}
-    </div>
+  </div>
+  {/* Auto-filled zip summary — compact */}
+  {(city && propertyState) && (
+   <div style={{ marginTop: 10, padding: "8px 12px", background: T.pillBg, borderRadius: 8, display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: 11, color: T.textTertiary }}>
+    <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
+    {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
+    {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
    </div>
-   {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
-    <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Zip not found — set location manually:</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-     <div>
-      {propertyState === "California" ? (
-       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
-      ) : (
-       <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
-      )}
-     </div>
-     <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+  )}
+  {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
+   <div style={{ marginTop: 10, fontSize: 11, fontWeight: 600, color: T.orange, marginBottom: 6 }}>Zip not found — set manually:</div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+    <div>
+     {propertyState === "California" ? (
+      <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
+     ) : (
+      <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
+     )}
     </div>
-   </>)}
-  </Card>
- )}
+    <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+   </div>
+  </>)}
+ </Card>
 
  {/* ── Scenarios ── */}
  {/* ── Current Loan Option indicator ── */}
@@ -8286,6 +8238,21 @@ export default function MortgageBlueprint({ initialState }) {
       <button key={k} onClick={() => { setThemeMode(k); try { localStorage.setItem('bp_theme_mode', k); } catch {} Haptics.light(); }} style={{ padding: "5px 10px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: themeMode === k ? 700 : 500, background: themeMode === k ? T.tabActiveBg : "transparent", color: themeMode === k ? T.text : T.textTertiary, cursor: "pointer" }}>{e}</button>
      ))}
     </div>
+   </div>
+  </Card>
+ </Sec>
+ <Sec title="Loan Officer Info">
+  <Card>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once — applies to all scenarios.</div>
+   <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
+    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
+   </div>
+   <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
+    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
    </div>
   </Card>
  </Sec>
