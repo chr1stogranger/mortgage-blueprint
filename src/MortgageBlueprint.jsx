@@ -6429,6 +6429,18 @@ export default function MortgageBlueprint({ initialState }) {
       </span>
      </div>}
     </div>
+
+    {/* 5) Filing Status + zip summary — below FICO to even out columns */}
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}` }}>
+     <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
+     {(city && propertyState) && (
+      <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
+       <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
+       {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
+       {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
+      </div>
+     )}
+    </div>
    </Card>
   </div>{/* end left column */}
 
@@ -6511,19 +6523,6 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </div>
    )}
-
-   {/* ── Filing Status ── */}
-   <div style={{ marginTop: 10, padding: "10px 14px", background: T.pillBg, borderRadius: 12, border: `1px solid ${T.separator}` }}>
-    <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
-    {/* Auto-filled zip summary */}
-    {(city && propertyState) && (
-     <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}`, display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
-      <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
-      {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
-      {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
-     </div>
-    )}
-   </div>
 
    {/* ── Modules — full-width toggles with descriptions ── */}
    <div style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden" }}>
