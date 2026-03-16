@@ -782,8 +782,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   })()}
                 </div>
 
-                {/* Info Strip */}
-                <div style={{ padding: "12px 14px" }}>
+                {/* Info Strip — fixed height so guess bar doesn't shift */}
+                <div style={{ padding: "12px 14px", maxHeight: isDesktop ? 200 : 160, overflowY: "auto", overflowX: "hidden" }}>
                   <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                     {ppCurrentListing.listPrice ? (
                       <div style={{ flex: 1, minWidth: 80, background: "rgba(56,189,126,0.06)", borderRadius: 10, padding: "8px 12px", border:"1px solid rgba(56,189,126,0.12)" }}>
