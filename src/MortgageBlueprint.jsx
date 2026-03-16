@@ -6563,6 +6563,8 @@ export default function MortgageBlueprint({ initialState }) {
      </div>
     </div>
     )}
+    {/* Security note */}
+    <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.separator}`, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
    </div>
   </div>{/* end right column */}
 
@@ -6722,10 +6724,6 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
  )}
 
- {/* Security */}
- <Card style={{ background: T.pillBg }}>
-  <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
- </Card>
 </>)}
 {/* ═══ REO - Real Estate Owned ═══ */}
 {tab === "reo" && (<>
