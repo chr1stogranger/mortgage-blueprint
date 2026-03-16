@@ -6374,10 +6374,11 @@ export default function MortgageBlueprint({ initialState }) {
      </div>
     </div>
 
-    {/* 3) Property Location */}
-    <div data-field="zip-code" className={isPulse("zip-code")} onClick={() => markTouched("location")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+    {/* 3) Property Location — Zip first, then city/state */}
+    <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Property Location <span style={{ color: T.red, fontSize: 12, fontWeight: 700 }}>*</span></div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 6 }}>
+     <TextInp label="Zip Code" value={propertyZip} onChange={v => { const clean = v.replace(/\D/g,"").slice(0,5); setPropertyZip(clean); if (clean.length >= 5) setTimeout(() => markTouched("location"), 600); }} placeholder="Enter zip to auto-fill" inputMode="numeric" pattern="[0-9]*" />
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
       <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); markTouched("location"); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
       <div>
        {propertyState === "California" ? (
@@ -6387,7 +6388,6 @@ export default function MortgageBlueprint({ initialState }) {
        )}
       </div>
      </div>
-     <TextInp label="Zip Code" value={propertyZip} onChange={v => { setPropertyZip(v.replace(/\D/g,"").slice(0,5)); if (v.replace(/\D/g,"").length >= 5) markTouched("location"); }} placeholder="Optional — auto-fills county" inputMode="numeric" pattern="[0-9]*" sm />
     </div>
     {(city && propertyState) && (
      <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
@@ -6634,15 +6634,9 @@ export default function MortgageBlueprint({ initialState }) {
   </div>
  </div>}
 
- {/* ── Borrower & Realtor (compact inline) ── */}
+ {/* ── Options ── */}
  <Card>
-  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10 }}>
-   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" sm />
-   <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" sm />
-  </div>
-  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}` }}>
-   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
-  </div>
+  <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
   {/* Compact toggles row */}
   <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
    <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: ownsProperties ? `${T.green}12` : T.inputBg, border: `1px solid ${ownsProperties ? `${T.green}40` : T.separator}`, borderRadius: 10, cursor: "pointer", transition: "all 0.2s", minWidth: 0 }}>
