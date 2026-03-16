@@ -2557,7 +2557,7 @@ export default function MortgageBlueprint({ initialState }) {
   if (tab === "setup") {
    if (!skillLevel) return "experience-level";
    if (isRefi === null) return "transaction-type";
-   if (propertyZip.length < 5 && !(city && propertyState)) return "zip-code";
+   if (!guideTouched.has("location")) return "zip-code";
    if (creditScore === 0) return "fico-input";
    if (!isRefi && salesPrice === 0) return "price-input";
    if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
@@ -3991,6 +3991,9 @@ export default function MortgageBlueprint({ initialState }) {
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
     .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
+    input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
+    input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
     /* Desktop sidebar styles */
     .bp-sidebar { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     .bp-sidebar::-webkit-scrollbar { width: 4px; }
@@ -6372,19 +6375,19 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
 
     {/* 3) Property Location */}
-    <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+    <div data-field="zip-code" className={isPulse("zip-code")} onClick={() => markTouched("location")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Property Location <span style={{ color: T.red, fontSize: 12, fontWeight: 700 }}>*</span></div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 6 }}>
-      <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+      <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); markTouched("location"); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
       <div>
        {propertyState === "California" ? (
-        <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} req />
+        <SearchSelect label="City" value={city} onChange={v => { setCity(v); markTouched("location"); }} options={CITY_NAMES} req />
        ) : (
-        <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} req />
+        <SearchSelect label="City" value={city} onChange={v => { setCity(v); markTouched("location"); }} options={STATE_CITIES[propertyState] || []} req />
        )}
       </div>
      </div>
-     <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Optional — auto-fills county" inputMode="numeric" pattern="[0-9]*" sm />
+     <TextInp label="Zip Code" value={propertyZip} onChange={v => { setPropertyZip(v.replace(/\D/g,"").slice(0,5)); if (v.replace(/\D/g,"").length >= 5) markTouched("location"); }} placeholder="Optional — auto-fills county" inputMode="numeric" pattern="[0-9]*" sm />
     </div>
     {(city && propertyState) && (
      <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
@@ -6392,10 +6395,30 @@ export default function MortgageBlueprint({ initialState }) {
      </div>
     )}
 
-    {/* 4) FICO */}
+    {/* 4) FICO with slider */}
     <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-     <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
-     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
+     <FieldLabel label="Middle FICO Score" tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." req filled={creditScore > 0} />
+     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ flex: "0 0 90px" }}>
+       <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
+        onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
+        onBlur={() => { if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
+        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+       <input type="range" min={300} max={850} step={5} value={creditScore || 650}
+        onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+        style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+        <span>300</span>
+        <span>580</span>
+        <span>670</span>
+        <span>740</span>
+        <span>850</span>
+       </div>
+      </div>
+     </div>
+     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
       <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
       <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
        {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
