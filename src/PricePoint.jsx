@@ -341,7 +341,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   useEffect(() => {
-    if (ppCurrentListing?.zpid && ppDataSource === "live") {
+    if (ppCurrentListing?.zpid) {
       ppFetchDetails(ppCurrentListing.zpid);
       setPpPhotoIdx(0);
       setPpDescExpanded(false);
@@ -734,7 +734,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         <div style={{ fontSize: 18, fontWeight: 800, color: "#38bd7e", marginTop: 1, letterSpacing: "-0.01em" }}>{ppFmt(ppCurrentListing.listPrice)}</div>
                       </div>
                     ) : null}
-                    {ppCurrentListing.zestimate ? (
+                    {/* Zestimate — hide on sold mode (often matches sold price, giving away the answer) */}
+                    {!ppSoldMode && ppCurrentListing.zestimate ? (
                       <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
                         <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Zestimate</div>
                         <div style={{ fontSize: 18, fontWeight: 800, color: T.blue, marginTop: 1 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
@@ -743,7 +744,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     {ppSoldMode && ppCurrentListing.soldDate ? (
                       <div style={{ flex: 0, minWidth: 65, background: T.pillBg, borderRadius: 10, padding: "8px 12px", textAlign:"center" }}>
                         <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Sold</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#e8c84d", marginTop: 3 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#e8c84d", marginTop: 3 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
                       </div>
                     ) : null}
                     {!ppSoldMode && ppCurrentListing.daysOnMarket ? (
@@ -792,7 +793,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 18, padding: "12px 14px" }}>
                 {(() => {
                   const lp = ppCurrentListing.listPrice;
-                  const ze = ppCurrentListing.zestimate;
+                  const ze = !ppSoldMode ? ppCurrentListing.zestimate : null; // hide Zestimate on sold
                   const pills = [];
                   if (lp) pills.push({ label: "List", val: lp });
                   if (ze) pills.push({ label: "Zest", val: ze });
@@ -1202,11 +1203,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice;
                     const diff = rp ? parseFloat(ppAbsPct(ppShowReveal.guess, rp)) : null;
                     const over = rp ? ppShowReveal.guess > rp : false;
-                    const squares = diff !== null ? (diff <= 1 ? "🟩🟩🟩🟩🟩" : diff <= 3 ? "🟩🟩🟩🟩⬜" : diff <= 5 ? "🟩🟩🟩⬜⬜" : diff <= 10 ? "🟨🟨⬜⬜⬜" : "🟥⬜⬜⬜⬜") : "⬜⬜⬜⬜⬜";
-                    const text = `PricePoint ${ppShowReveal.city}\n${squares}\n${ppShowReveal.address}\n${diff !== null ? `${over?"+":"-"}${diff.toFixed(1)}% ${ppShowReveal.isSoldMode ? "vs sold" : "vs list"}` : ""}\n\nPlay at mortgageblueprint.app`;
+                    // Clean text format — no emojis that render weirdly on iOS share sheet
+                    const rating = diff !== null ? (diff <= 1 ? "BULLSEYE" : diff <= 3 ? "SNIPER" : diff <= 5 ? "SHARP" : diff <= 10 ? "CLOSE" : "MISS") : "";
+                    const bar = diff !== null ? (diff <= 1 ? "|||||" : diff <= 3 ? "||||." : diff <= 5 ? "|||.." : diff <= 10 ? "||..." : "|....") : "";
+                    const text = `PricePoint - ${ppShowReveal.city}\n[${bar}] ${rating}\n${ppShowReveal.address}\nGuess: ${ppFmt(ppShowReveal.guess)} ${diff !== null ? `(${over?"+":"-"}${diff.toFixed(1)}%)` : ""}\n\nmortgageblueprint.app/pricepoint`;
                     if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
                   }} style={{ width:"100%", padding:10, borderRadius:12, border:`1px solid ${T.cardBorder}`, background:T.pillBg, fontSize:12, fontWeight:600, color:T.textSecondary, cursor:"pointer", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-                    <Icon name="share-2" size={14} /> Share Result
+                    Share Result
                   </button>
                 </div>
               )}
