@@ -650,7 +650,7 @@ function StopLight({ checks, onPillarClick }) {
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   {/* Main status badge */}
   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20 }}>
-   <span style={{ display: "flex", alignItems: "center" }}><Icon name={allGreen ? "trophy" : anyGreen ? "unlock" : "lock"} size={28} /></span>
+   <span style={{ display: "flex", alignItems: "center", color: allGreen ? T.green : anyGreen ? T.orange : T.red }}><Icon name={allGreen ? "trophy" : anyGreen ? "unlock" : "lock"} size={28} /></span>
    <div>
     <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: allGreen ? T.green : anyGreen ? T.orange : T.red, letterSpacing: "-0.03em" }}>{allGreen ? "PRE-QUALIFIED" : anyGreen ? "ALMOST THERE" : "NOT YET"}</div>
     <div style={{ fontSize: 12, color: T.textTertiary }}>{allGreen ? `All ${checks.length} pillars cleared!` : `${checks.filter(c => c.ok).length} of ${checks.length} pillars cleared`}</div>
@@ -4056,7 +4056,7 @@ export default function MortgageBlueprint({ initialState }) {
           background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
          }}>
-         <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
+         <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
          {!sidebarCollapsed && (
           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
          )}
@@ -4110,7 +4110,7 @@ export default function MortgageBlueprint({ initialState }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
      <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative" }}>
       <span onClick={() => { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }} style={{ position: "absolute", top: 16, right: 20, fontSize: 12, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, opacity: 0.6 }}>Skip</span>
-      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: step.color || T.blue }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>{step.title}</div>
       <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 24, whiteSpace: "pre-line", textAlign: "left" }}>{step.body}</div>
       {/* Progress dots */}
@@ -4299,7 +4299,7 @@ export default function MortgageBlueprint({ initialState }) {
        <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
         {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
-       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", color: T.textSecondary }}>
         {privacyMode ? "⊘" : <Icon name="eye" size={16} />}
        </button>
       </div>
@@ -4365,7 +4365,7 @@ export default function MortgageBlueprint({ initialState }) {
      {/* ── Qualification Pillars Strip ── */}
      <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-       <span style={{ display: "flex", alignItems: "center" }}><Icon name={allGood ? "trophy" : someGood ? "unlock" : "lock"} size={14} /></span>
+       <span style={{ display: "flex", alignItems: "center", color: allGood ? T.green : someGood ? T.orange : T.textTertiary }}><Icon name={allGood ? "trophy" : someGood ? "unlock" : "lock"} size={14} /></span>
        <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? (isRefi ? "Refi Qualified" : "Pre-Qualified") : someGood ? `${isRefi ? refiPillarCount : purchPillarCount}/${isRefi ? 3 : 5} Pillars` : `${isRefi ? 3 : 5} Qualification Pillars`}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
@@ -6360,7 +6360,7 @@ export default function MortgageBlueprint({ initialState }) {
       {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
        <button key={key} onClick={() => saveSkillLevel(key)}
         style={{ padding: "8px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-        <div style={{ display: "flex", justifyContent: "center" }}><Icon name={preset.icon} size={16} /></div>
+        <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>
         <div style={{ fontSize: 11, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 2 }}>{preset.label}</div>
        </button>
       ))}
@@ -7709,7 +7709,7 @@ export default function MortgageBlueprint({ initialState }) {
        return (
         <div key={ch.id} onClick={() => !locked && (setCourseChapter(ch.id), setCourseQuizAnswers({}), setCourseQuizSubmitted(false))}
          style={{ display: "flex", gap: 12, padding: "12px 0", borderTop: ci > 0 ? `1px solid ${T.separator}` : "none", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.4 : 1 }}>
-         <div style={{ width: 44, height: 44, borderRadius: 14, background: done ? `${T.green}20` : locked ? T.inputBg : `${phase.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, border: done ? `2px solid ${T.green}` : `2px solid transparent` }}>
+         <div style={{ width: 44, height: 44, borderRadius: 14, background: done ? `${T.green}20` : locked ? T.inputBg : `${phase.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, border: done ? `2px solid ${T.green}` : `2px solid transparent`, color: done ? T.green : locked ? T.textTertiary : phase.color }}>
           <Icon name={done ? "check" : locked ? "lock" : ch.icon} size={22} />
          </div>
          <div style={{ flex: 1 }}>
@@ -8497,7 +8497,7 @@ export default function MortgageBlueprint({ initialState }) {
        ) : null}
        <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>{ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
        <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 10, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
-        <span style={{ display: "flex", alignItems: "center" }}><Icon name={ppCurrentHome.icon} size={16} /></span>
+        <span style={{ display: "flex", alignItems: "center", color: "#38bd7e" }}><Icon name={ppCurrentHome.icon} size={16} /></span>
         <span style={{ fontSize: 11, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</span>
        </div>
       </div>
@@ -9021,7 +9021,7 @@ export default function MortgageBlueprint({ initialState }) {
           <div>
            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.textTertiary, marginBottom: 4 }}>
             <span>{ppCurrentHome.name}</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Icon name={ppNextHome.icon} size={10} /> {ppNextHome.name} — {ppXPtoNext} XP to go</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 3, color: T.textTertiary }}><Icon name={ppNextHome.icon} size={10} /> {ppNextHome.name} — {ppXPtoNext} XP to go</span>
            </div>
            <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${Math.max(ppLevelProgress * 100, 2)}%`, background: "linear-gradient(90deg, #38bd7e, #2d9d68)", borderRadius: 4, transition: "width 0.5s ease" }} />
@@ -9061,7 +9061,7 @@ export default function MortgageBlueprint({ initialState }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
            {ppBadges.map(b => (
             <div key={b.id} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
-             <div style={{ display: "flex", justifyContent: "center" }}><Icon name={b.icon} size={26} /></div>
+             <div style={{ display: "flex", justifyContent: "center", color: T.blue }}><Icon name={b.icon} size={26} /></div>
              <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginTop: 4 }}>{b.name}</div>
              <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{b.desc}</div>
             </div>
@@ -9150,7 +9150,7 @@ export default function MortgageBlueprint({ initialState }) {
            const isCurrent = h.level === ppLevel;
            return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < PP_HOMES.length - 1 ? `1px solid ${T.separator}` : "none", opacity: unlocked ? 1 : 0.35 }}>
-             <div style={{ width: 32, display: "flex", justifyContent: "center", alignItems: "center" }}><Icon name={h.icon} size={22} /></div>
+             <div style={{ width: 32, display: "flex", justifyContent: "center", alignItems: "center", color: isCurrent ? "#38bd7e" : unlocked ? T.text : T.textTertiary }}><Icon name={h.icon} size={22} /></div>
              <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#38bd7e" : unlocked ? T.text : T.textTertiary }}>
                {h.name} {isCurrent && <span style={{ fontSize: 10, background: "rgba(56,189,126,0.15)", color: "#38bd7e", borderRadius: 6, padding: "1px 6px", marginLeft: 4 }}>YOU</span>}
