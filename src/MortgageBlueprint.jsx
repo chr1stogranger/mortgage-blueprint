@@ -2461,7 +2461,7 @@ export default function MortgageBlueprint({ initialState }) {
      <div style={{ height: 3, background: T.separator }}>
       <div style={{ height: "100%", width: isReady ? "100%" : `${progressPct}%`, background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : fieldsComplete ? `${T.blue}40` : `${T.blue}18`, borderRadius: 99, transition: "width 0.5s ease, background 0.4s ease" }} />
      </div>
-     <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, gap: 12, transition: "background 0.4s" }}>
+     <div onClick={isReady ? handleNext : undefined} style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, gap: 12, transition: "background 0.4s", cursor: isReady ? "pointer" : "default" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
        <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.75)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
        <div style={{ fontSize: 14, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
