@@ -1,0 +1,1110 @@
+/**
+ * Markets.jsx — PricePoint Prediction Markets Tab
+ *
+ * Polymarket-style prediction trading hub for Bay Area real estate.
+ * Shows live markets on active MLS listings, practice mode with closed comps,
+ * portfolio view with P&L, and leaderboard.
+ *
+ * @author Christo Granger / Claude — March 2026
+ */
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import Icon from './Icon';
+import {
+  fetchLiveMarkets,
+  fetchPracticeComps,
+  buyShares,
+  sellShares,
+  completeOnboarding,
+  submitPracticePrediction,
+  selectMarket,
+  closeTradingPanel,
+  setActiveTab,
+  setFilters,
+  clearFilters,
+  setSortBy,
+  openComplianceModal,
+  closeComplianceModal,
+  clearError,
+  selectFilteredMarkets,
+  selectActiveMarket,
+  selectPositionsForMarket,
+  selectPortfolioWithPnL,
+  selectCurrentPracticeComp,
+  selectPracticeStats,
+  selectUnreadNotificationCount,
+  selectIsCacheStale,
+  selectComplianceStatus,
+  MARKET_STATUS,
+  USER_ROLES,
+  MIN_BET,
+  MAX_BET,
+} from './store/marketsSlice';
+
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+const fmt = (n) => {
+  if (n === null || n === undefined || isNaN(n)) return '$0';
+  return '$' + Math.round(n).toLocaleString();
+};
+
+const fmtK = (n) => {
+  if (!n) return '$0';
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return fmt(n);
+};
+
+const pct = (n) => `${(n * 100).toFixed(1)}%`;
+
+
+// ─────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────
+
+export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
+  const dispatch = useDispatch();
+
+  // ── Selectors ──
+  const filteredMarkets = useSelector(selectFilteredMarkets);
+  const activeMarket = useSelector(selectActiveMarket);
+  const portfolio = useSelector(selectPortfolioWithPnL);
+  const currentComp = useSelector(selectCurrentPracticeComp);
+  const practiceStats = useSelector(selectPracticeStats);
+  const unreadCount = useSelector(selectUnreadNotificationCount);
+  const isCacheStale = useSelector(selectIsCacheStale);
+  const compliance = useSelector(selectComplianceStatus);
+  const ui = useSelector((state) => state.markets.ui);
+  const practiceMode = useSelector((state) => state.markets.practiceMode);
+
+  // ── Local state ──
+  const [tradeAmount, setTradeAmount] = useState('');
+  const [selectedBucket, setSelectedBucket] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(!compliance.onboardingComplete);
+  const [onboardingRole, setOnboardingRole] = useState(null);
+  const [onboardingInsider, setOnboardingInsider] = useState(null);
+  const [propertyAttestOpen, setPropertyAttestOpen] = useState(false);
+  const [attestMarketId, setAttestMarketId] = useState(null);
+  const [attestBucketId, setAttestBucketId] = useState(null);
+  const [attestAmount, setAttestAmount] = useState(0);
+  const [tradeError, setTradeError] = useState(null);
+  const [tradeSuccess, setTradeSuccess] = useState(null);
+  const [sellMode, setSellMode] = useState(false);
+  const [sellShares_, setSellShares_] = useState('');
+  const searchInputRef = useRef(null);
+
+  // ── Fetch data on mount ──
+  useEffect(() => {
+    if (isCacheStale && ui.activeTab === 'live') {
+      dispatch(fetchLiveMarkets(ui.filters));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (ui.activeTab === 'practice' && practiceMode.comps.length === 0) {
+      dispatch(fetchPracticeComps({ zip: ui.filters.zip || '94122' }));
+    }
+  }, [ui.activeTab]);
+
+  // ── Clear trade messages after 3s ──
+  useEffect(() => {
+    if (tradeSuccess) {
+      const t = setTimeout(() => setTradeSuccess(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [tradeSuccess]);
+
+  // ── Handlers ──
+  const handleSearch = useCallback(() => {
+    dispatch(fetchLiveMarkets(ui.filters));
+  }, [dispatch, ui.filters]);
+
+  const handleCompleteOnboarding = useCallback(() => {
+    if (!onboardingRole || onboardingInsider === null) return;
+    dispatch(completeOnboarding({
+      userId: `user_${Date.now()}`, // TODO: use real auth user ID
+      roleId: onboardingRole,
+      hasInsiderAccess: onboardingInsider,
+    }));
+    setShowOnboarding(false);
+  }, [dispatch, onboardingRole, onboardingInsider]);
+
+  const handleBuyAttempt = useCallback((marketId, bucketId, amount) => {
+    setTradeError(null);
+    // Open per-property attestation modal
+    setAttestMarketId(marketId);
+    setAttestBucketId(bucketId);
+    setAttestAmount(amount);
+    setPropertyAttestOpen(true);
+  }, []);
+
+  const handleBuyConfirm = useCallback(async (hasInsiderInfo) => {
+    setPropertyAttestOpen(false);
+    const result = await dispatch(buyShares({
+      marketId: attestMarketId,
+      bucketId: attestBucketId,
+      amount: attestAmount,
+      propertyAttestation: { hasInsiderInfo },
+    }));
+
+    if (buyShares.fulfilled.match(result)) {
+      setTradeSuccess(`Bought ${result.payload.sharesAcquired.toFixed(1)} shares for ${fmt(attestAmount)}`);
+      setTradeAmount('');
+      setSelectedBucket(null);
+    } else {
+      setTradeError(result.payload?.message || 'Trade failed');
+    }
+  }, [dispatch, attestMarketId, attestBucketId, attestAmount]);
+
+  const handleSell = useCallback(async (marketId, bucketId, shares) => {
+    setTradeError(null);
+    const result = await dispatch(sellShares({ marketId, bucketId, sharesToSell: shares }));
+    if (sellShares.fulfilled.match(result)) {
+      setTradeSuccess(`Sold ${shares.toFixed(1)} shares for ${fmt(result.payload.saleProceeds)}`);
+      setSellMode(false);
+      setSellShares_('');
+    } else {
+      setTradeError(result.payload?.message || 'Sell failed');
+    }
+  }, [dispatch]);
+
+  const handlePracticePick = useCallback((compId, bucketId) => {
+    dispatch(submitPracticePrediction({ compId, selectedBucketId: bucketId }));
+  }, [dispatch]);
+
+
+  // ─────────────────────────────────────────
+  // STYLES
+  // ─────────────────────────────────────────
+
+  const card = {
+    background: T.card,
+    borderRadius: 16,
+    border: `1px solid ${T.cardBorder}`,
+    padding: isDesktop ? 24 : 16,
+    marginBottom: 12,
+  };
+
+  const pillBtn = (active, color) => ({
+    padding: '6px 14px',
+    borderRadius: 9999,
+    border: active ? 'none' : `1px solid ${T.cardBorder}`,
+    background: active ? (color || T.blue) : 'transparent',
+    color: active ? '#fff' : T.textSecondary,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  });
+
+  const inputStyle = {
+    background: T.inputBg || T.card,
+    border: `1px solid ${T.cardBorder}`,
+    borderRadius: 10,
+    padding: '10px 14px',
+    fontSize: 14,
+    color: T.text,
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
+    fontFamily: "'Inter', sans-serif",
+  };
+
+  const monoStyle = {
+    fontFamily: FONT,
+    letterSpacing: '-0.02em',
+  };
+
+
+  // ─────────────────────────────────────────
+  // RENDER: ONBOARDING MODAL
+  // ─────────────────────────────────────────
+
+  if (showOnboarding) {
+    return (
+      <div style={{ padding: isDesktop ? 40 : 20, maxWidth: 500, margin: '0 auto' }}>
+        <div style={card}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Icon name="target" size={32} style={{ color: T.blue }} />
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: T.text, margin: '12px 0 4px', letterSpacing: '-0.03em' }}>
+              Welcome to Markets
+            </h2>
+            <p style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.5 }}>
+              Before you start trading, we need to know a bit about your role.
+              This helps us maintain fair and transparent markets.
+            </p>
+          </div>
+
+          {/* Role Selection */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10 }}>
+              Your Role
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {USER_ROLES.map((role) => (
+                <button
+                  key={role.id}
+                  onClick={() => setOnboardingRole(role.id)}
+                  style={{
+                    ...pillBtn(onboardingRole === role.id, role.insiderRisk ? '#F59E0B' : '#6366F1'),
+                    fontSize: 13,
+                    padding: '8px 16px',
+                  }}
+                >
+                  {role.label}
+                  {role.insiderRisk && onboardingRole === role.id && (
+                    <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.8 }}>Insider</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Insider Access Question */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10 }}>
+              Non-Public Information Access
+            </div>
+            <p style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, lineHeight: 1.5 }}>
+              Do you have access to non-public information about real estate transactions or property valuations?
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setOnboardingInsider(true)} style={pillBtn(onboardingInsider === true, '#F59E0B')}>
+                Yes
+              </button>
+              <button onClick={() => setOnboardingInsider(false)} style={pillBtn(onboardingInsider === false, '#10B981')}>
+                No
+              </button>
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <div style={{ background: `${T.blue}10`, borderRadius: 12, padding: 14, marginBottom: 20 }}>
+            <p style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6, margin: 0 }}>
+              By continuing, you agree to our prediction market terms. Trading while in possession of
+              material non-public information about a specific property is prohibited and will result in
+              account restriction. All attestations are logged for compliance purposes.
+            </p>
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={handleCompleteOnboarding}
+            disabled={!onboardingRole || onboardingInsider === null}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              borderRadius: 9999,
+              border: 'none',
+              background: (!onboardingRole || onboardingInsider === null) ? T.cardBorder : 'linear-gradient(135deg, #6366F1, #3B82F6)',
+              color: '#fff',
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: (!onboardingRole || onboardingInsider === null) ? 'not-allowed' : 'pointer',
+              opacity: (!onboardingRole || onboardingInsider === null) ? 0.5 : 1,
+              transition: 'all 0.2s',
+            }}
+          >
+            Start Trading
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+
+  // ─────────────────────────────────────────
+  // RENDER: PER-PROPERTY ATTESTATION MODAL
+  // ─────────────────────────────────────────
+
+  const AttestationModal = () => {
+    if (!propertyAttestOpen) return null;
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}>
+        <div style={{ ...card, maxWidth: 420, margin: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <Icon name="alert-triangle" size={28} style={{ color: '#F59E0B' }} />
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: T.text, margin: '10px 0 4px' }}>
+              Compliance Check
+            </h3>
+            <p style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>
+              Do you have non-public information about this specific property?
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <button
+              onClick={() => handleBuyConfirm(true)}
+              style={{
+                flex: 1, padding: '12px', borderRadius: 12, border: `1px solid ${T.cardBorder}`,
+                background: 'transparent', color: '#EF4444', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Yes — I have insider info
+            </button>
+            <button
+              onClick={() => handleBuyConfirm(false)}
+              style={{
+                flex: 1, padding: '12px', borderRadius: 9999, border: 'none',
+                background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              No — Proceed
+            </button>
+          </div>
+          <button
+            onClick={() => setPropertyAttestOpen(false)}
+            style={{
+              width: '100%', padding: 10, marginTop: 10, border: 'none', background: 'transparent',
+              color: T.textTertiary, fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
+  // ─────────────────────────────────────────
+  // RENDER: SUB-TAB NAV
+  // ─────────────────────────────────────────
+
+  const tabs = [
+    { id: 'live', label: 'Live Markets', icon: 'trending-up' },
+    { id: 'practice', label: 'Practice', icon: 'target' },
+    { id: 'portfolio', label: 'Portfolio', icon: 'banknote' },
+  ];
+
+
+  // ─────────────────────────────────────────
+  // RENDER: MARKET CARD
+  // ─────────────────────────────────────────
+
+  const MarketCard = ({ market }) => {
+    const positions = useSelector((state) => selectPositionsForMarket(state, market.id));
+    const hasPosition = positions.length > 0;
+    const totalVolume = market.buckets.reduce((s, b) => s + b.volume, 0);
+
+    return (
+      <div
+        style={{ ...card, cursor: 'pointer', transition: 'all 0.15s' }}
+        onClick={() => dispatch(selectMarket(market.id))}
+      >
+        <div style={{ display: 'flex', gap: 14 }}>
+          {/* Photo */}
+          {market.photo && (
+            <div style={{
+              width: 80, height: 80, borderRadius: 12, overflow: 'hidden', flexShrink: 0,
+              background: T.cardBorder,
+            }}>
+              <img
+                src={market.photo}
+                alt={market.address}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
+                  {market.address}
+                </div>
+                <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
+                  {market.city}, {market.state} {market.zip}
+                  {market.neighborhood && ` · ${market.neighborhood}`}
+                </div>
+              </div>
+
+              {/* Status badge */}
+              <div style={{
+                padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600,
+                fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px',
+                background: market.status === MARKET_STATUS.OPEN ? '#10B98118' :
+                            market.status === MARKET_STATUS.PENDING ? '#F59E0B18' : '#EF444418',
+                color: market.status === MARKET_STATUS.OPEN ? '#10B981' :
+                       market.status === MARKET_STATUS.PENDING ? '#F59E0B' : '#EF4444',
+              }}>
+                {market.status}
+              </div>
+            </div>
+
+            {/* Property details */}
+            <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12, color: T.textSecondary }}>
+              {market.beds && <span>{market.beds} bed</span>}
+              {market.baths && <span>{market.baths} bath</span>}
+              {market.sqft && <span>{market.sqft.toLocaleString()} sqft</span>}
+              <span style={{ ...monoStyle, color: T.text, fontWeight: 600 }}>{fmtK(market.listPrice)}</span>
+            </div>
+
+            {/* Bucket odds preview */}
+            <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
+              {market.buckets.map((bucket) => (
+                <div key={bucket.id} style={{
+                  flex: bucket.odds, height: 6, borderRadius: 3,
+                  background: bucket.id === 0 ? '#6366F1' : bucket.id === 1 ? '#3B82F6' : bucket.id === 2 ? '#06B6D4' : '#10B981',
+                  opacity: 0.7, minWidth: 4,
+                  transition: 'flex 0.3s ease',
+                }} />
+              ))}
+            </div>
+
+            {/* Volume and position indicator */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: T.textTertiary, ...monoStyle }}>
+                {fmt(totalVolume)} volume · {market.totalBettors} trader{market.totalBettors !== 1 ? 's' : ''}
+              </div>
+              {hasPosition && (
+                <div style={{
+                  fontSize: 10, fontWeight: 700, fontFamily: FONT, textTransform: 'uppercase',
+                  letterSpacing: '1.5px', color: '#6366F1',
+                }}>
+                  Active Position
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  // ─────────────────────────────────────────
+  // RENDER: TRADING PANEL
+  // ─────────────────────────────────────────
+
+  const TradingPanel = () => {
+    if (!activeMarket) return null;
+    const positions = useSelector((state) => selectPositionsForMarket(state, activeMarket.id));
+
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 900,
+        display: 'flex', alignItems: isDesktop ? 'center' : 'flex-end', justifyContent: 'center',
+      }}>
+        <div style={{
+          background: T.bg || '#050505', borderRadius: isDesktop ? 20 : '20px 20px 0 0',
+          width: isDesktop ? 520 : '100%', maxHeight: '90vh', overflow: 'auto',
+          border: `1px solid ${T.cardBorder}`,
+        }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '20px 20px 12px', borderBottom: `1px solid ${T.cardBorder}`,
+          }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
+                {activeMarket.address}
+              </div>
+              <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
+                {activeMarket.city} · {fmtK(activeMarket.listPrice)} list · {activeMarket.beds}bd/{activeMarket.baths}ba
+              </div>
+            </div>
+            <button
+              onClick={() => dispatch(closeTradingPanel())}
+              style={{
+                background: T.pillBg, border: 'none', borderRadius: 10,
+                width: 36, height: 36, cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Icon name="x" size={16} style={{ color: T.textSecondary }} />
+            </button>
+          </div>
+
+          <div style={{ padding: 20 }}>
+            {/* Price Buckets */}
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10 }}>
+              Pick Your Price Range
+            </div>
+
+            {activeMarket.buckets.map((bucket) => {
+              const isSelected = selectedBucket === bucket.id;
+              const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+              const color = bucketColors[bucket.id];
+              const position = positions.find((p) => p.bucketId === bucket.id);
+
+              return (
+                <div
+                  key={bucket.id}
+                  onClick={() => { setSelectedBucket(bucket.id); setSellMode(false); }}
+                  style={{
+                    ...card,
+                    padding: '14px 16px',
+                    marginBottom: 8,
+                    cursor: 'pointer',
+                    border: isSelected ? `2px solid ${color}` : `1px solid ${T.cardBorder}`,
+                    background: isSelected ? `${color}08` : T.card,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{bucket.label}</div>
+                      <div style={{ fontSize: 12, color: T.textSecondary, ...monoStyle, marginTop: 2 }}>
+                        {pct(bucket.odds)} odds · {fmt(bucket.volume)} vol
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: 22, fontWeight: 800, color, fontFamily: FONT,
+                      letterSpacing: '-0.03em',
+                    }}>
+                      {pct(bucket.odds)}
+                    </div>
+                  </div>
+
+                  {/* Existing position */}
+                  {position && (
+                    <div style={{
+                      marginTop: 8, padding: '8px 12px', borderRadius: 10,
+                      background: `${color}10`, fontSize: 12, color: T.textSecondary,
+                      display: 'flex', justifyContent: 'space-between',
+                    }}>
+                      <span>Your position: {position.shares.toFixed(1)} shares</span>
+                      <span style={{ color: position.pnl >= 0 ? '#10B981' : '#EF4444', fontWeight: 600, fontFamily: FONT }}>
+                        {position.pnl >= 0 ? '+' : ''}{fmt(position.pnl)} P&L
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Trade Input */}
+            {selectedBucket !== null && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <button onClick={() => setSellMode(false)} style={pillBtn(!sellMode, '#6366F1')}>Buy</button>
+                  {positions.find((p) => p.bucketId === selectedBucket) && (
+                    <button onClick={() => setSellMode(true)} style={pillBtn(sellMode, '#EF4444')}>Sell</button>
+                  )}
+                </div>
+
+                {!sellMode ? (
+                  <>
+                    <input
+                      type="number"
+                      value={tradeAmount}
+                      onChange={(e) => setTradeAmount(e.target.value)}
+                      placeholder={`Amount ($${MIN_BET} – $${MAX_BET})`}
+                      style={inputStyle}
+                    />
+                    {/* Quick amount buttons */}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      {[50, 100, 250, 500].map((amt) => (
+                        <button key={amt} onClick={() => setTradeAmount(String(amt))} style={{
+                          ...pillBtn(Number(tradeAmount) === amt),
+                          flex: 1, textAlign: 'center',
+                        }}>
+                          ${amt}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const amt = Number(tradeAmount);
+                        if (amt >= MIN_BET && amt <= MAX_BET) {
+                          handleBuyAttempt(activeMarket.id, selectedBucket, amt);
+                        } else {
+                          setTradeError(`Enter an amount between $${MIN_BET} and $${MAX_BET}`);
+                        }
+                      }}
+                      disabled={!tradeAmount || Number(tradeAmount) < MIN_BET}
+                      style={{
+                        width: '100%', padding: '14px', borderRadius: 9999, border: 'none',
+                        marginTop: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                        background: Number(tradeAmount) >= MIN_BET
+                          ? 'linear-gradient(135deg, #6366F1, #3B82F6)'
+                          : T.cardBorder,
+                        color: '#fff',
+                        opacity: Number(tradeAmount) >= MIN_BET ? 1 : 0.5,
+                        boxShadow: Number(tradeAmount) >= MIN_BET ? '0 0 20px rgba(99,102,241,0.3)' : 'none',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      Buy {tradeAmount ? fmt(Number(tradeAmount)) : ''} in {activeMarket.buckets.find((b) => b.id === selectedBucket)?.label}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {(() => {
+                      const pos = positions.find((p) => p.bucketId === selectedBucket);
+                      if (!pos) return null;
+                      return (
+                        <>
+                          <input
+                            type="number"
+                            value={sellShares_}
+                            onChange={(e) => setSellShares_(e.target.value)}
+                            placeholder={`Shares to sell (max ${pos.shares.toFixed(1)})`}
+                            style={inputStyle}
+                          />
+                          <button
+                            onClick={() => {
+                              const shares = Number(sellShares_);
+                              if (shares > 0 && shares <= pos.shares) {
+                                handleSell(activeMarket.id, selectedBucket, shares);
+                              }
+                            }}
+                            style={{
+                              width: '100%', padding: '14px', borderRadius: 9999, border: 'none',
+                              marginTop: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                              background: '#EF4444', color: '#fff',
+                            }}
+                          >
+                            Sell Shares
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Trade feedback */}
+            {tradeError && (
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#EF444418', color: '#EF4444', fontSize: 13, fontWeight: 500 }}>
+                {tradeError}
+              </div>
+            )}
+            {tradeSuccess && (
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#10B98118', color: '#10B981', fontSize: 13, fontWeight: 500 }}>
+                {tradeSuccess}
+              </div>
+            )}
+
+            {/* Balance */}
+            <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 12, background: `${T.blue}08`, textAlign: 'center' }}>
+              <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary }}>
+                Available Balance
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: '-0.03em', marginTop: 4 }}>
+                {fmt(portfolio.balance)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  // ─────────────────────────────────────────
+  // RENDER: PRACTICE MODE
+  // ─────────────────────────────────────────
+
+  const PracticeView = () => {
+    if (!currentComp) {
+      return (
+        <div style={{ ...card, textAlign: 'center', padding: 40 }}>
+          <Icon name="target" size={28} style={{ color: T.textTertiary }} />
+          <p style={{ color: T.textSecondary, marginTop: 12 }}>
+            {ui.loading ? 'Loading practice comps...' : 'No practice comps available. Try a different ZIP code.'}
+          </p>
+        </div>
+      );
+    }
+
+    const lastPrediction = practiceMode.predictions[practiceMode.predictions.length - 1];
+    const showResult = lastPrediction && lastPrediction.compId === currentComp.id;
+
+    return (
+      <div>
+        {/* Stats bar */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Streak', value: practiceStats.currentStreak, icon: 'zap' },
+            { label: 'Accuracy', value: `${practiceStats.accuracy}%`, icon: 'target' },
+            { label: 'Earned', value: fmt(practiceStats.practiceEarnings), icon: 'dollar' },
+            { label: 'Remaining', value: practiceStats.compsRemaining, icon: 'grid' },
+          ].map((stat) => (
+            <div key={stat.label} style={{
+              flex: 1, minWidth: 70, ...card, padding: '12px 10px', textAlign: 'center', marginBottom: 0,
+            }}>
+              <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {stat.label}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 4 }}>
+                {stat.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Comp Card */}
+        <div style={card}>
+          {currentComp.photo && (
+            <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 14, height: 200 }}>
+              <img src={currentComp.photo} alt={currentComp.address} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+            </div>
+          )}
+          <div style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
+            {currentComp.address}
+          </div>
+          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>
+            {currentComp.city}, {currentComp.state} {currentComp.zip}
+          </div>
+          <div style={{ display: 'flex', gap: 14, marginTop: 8, fontSize: 13, color: T.textSecondary }}>
+            {currentComp.beds && <span>{currentComp.beds} bed</span>}
+            {currentComp.baths && <span>{currentComp.baths} bath</span>}
+            {currentComp.sqft && <span>{currentComp.sqft.toLocaleString()} sqft</span>}
+          </div>
+          <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 4, ...monoStyle }}>
+            Listed at {fmtK(currentComp.listPrice)}
+          </div>
+
+          {/* Pick a bucket */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10 }}>
+              {showResult ? 'Result' : 'What did this sell for?'}
+            </div>
+            {currentComp.buckets.map((bucket) => {
+              const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+              const color = bucketColors[bucket.id];
+              const isWinner = showResult && lastPrediction.actualBucket === bucket.id;
+              const wasPick = showResult && lastPrediction.selectedBucket === bucket.id;
+
+              return (
+                <button
+                  key={bucket.id}
+                  onClick={() => !showResult && handlePracticePick(currentComp.id, bucket.id)}
+                  disabled={showResult}
+                  style={{
+                    display: 'block', width: '100%', padding: '14px 16px', marginBottom: 8,
+                    borderRadius: 12, textAlign: 'left', cursor: showResult ? 'default' : 'pointer',
+                    border: isWinner ? `2px solid ${color}` : wasPick && !isWinner ? '2px solid #EF4444' : `1px solid ${T.cardBorder}`,
+                    background: isWinner ? `${color}12` : wasPick && !isWinner ? '#EF444412' : T.card,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{bucket.label}</span>
+                    {isWinner && <span style={{ fontSize: 12, fontWeight: 700, color }}>Sold: {fmtK(currentComp.soldPrice)}</span>}
+                    {wasPick && !isWinner && <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444' }}>Your pick</span>}
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Result feedback */}
+            {showResult && (
+              <div style={{
+                marginTop: 12, padding: '14px 16px', borderRadius: 12, textAlign: 'center',
+                background: lastPrediction.correct ? '#10B98118' : lastPrediction.close ? '#F59E0B18' : '#EF444418',
+              }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: lastPrediction.correct ? '#10B981' : lastPrediction.close ? '#F59E0B' : '#EF4444' }}>
+                  {lastPrediction.correct ? 'Nailed It!' : lastPrediction.close ? 'Close!' : 'Not Quite'}
+                </div>
+                <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>
+                  Sold for {fmtK(lastPrediction.soldPrice)}
+                  {lastPrediction.reward > 0 && <span style={{ fontWeight: 700, color: '#10B981' }}> — +{fmt(lastPrediction.reward)}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  // ─────────────────────────────────────────
+  // RENDER: PORTFOLIO VIEW
+  // ─────────────────────────────────────────
+
+  const PortfolioView = () => (
+    <div>
+      {/* Account summary */}
+      <div style={{ ...card, textAlign: 'center' }}>
+        <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary }}>
+          Total Account Value
+        </div>
+        <div style={{ fontSize: 36, fontWeight: 900, fontFamily: FONT, color: T.text, letterSpacing: '-0.04em', marginTop: 6 }}>
+          {fmt(portfolio.totalAccountValue)}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px' }}>Cash</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(portfolio.balance)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px' }}>Invested</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(portfolio.totalCurrentValue)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px' }}>P&L</div>
+            <div style={{
+              fontSize: 16, fontWeight: 700, fontFamily: FONT,
+              color: portfolio.totalUnrealizedPnL >= 0 ? '#10B981' : '#EF4444',
+            }}>
+              {portfolio.totalUnrealizedPnL >= 0 ? '+' : ''}{fmt(portfolio.totalUnrealizedPnL)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Active Positions */}
+      <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10, marginTop: 8 }}>
+        Active Positions ({Object.keys(portfolio.positions).length})
+      </div>
+
+      {Object.keys(portfolio.positions).length === 0 ? (
+        <div style={{ ...card, textAlign: 'center', padding: 30 }}>
+          <p style={{ color: T.textSecondary, fontSize: 14 }}>
+            No active positions yet. Browse the Live Markets tab to start trading.
+          </p>
+        </div>
+      ) : (
+        Object.entries(portfolio.positions).map(([key, pos]) => (
+          <div key={key} style={card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{pos.marketAddress || 'Property'}</div>
+                <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>{pos.bucketLabel}</div>
+              </div>
+              <div style={{
+                padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT,
+                background: pos.marketStatus === MARKET_STATUS.OPEN ? '#10B98118' : '#F59E0B18',
+                color: pos.marketStatus === MARKET_STATUS.OPEN ? '#10B981' : '#F59E0B',
+                textTransform: 'uppercase', letterSpacing: '1px',
+              }}>
+                {pos.marketStatus}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, color: T.textTertiary }}>Shares</div>
+                <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text }}>{pos.shares.toFixed(1)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: T.textTertiary }}>Cost</div>
+                <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(pos.costBasis)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: T.textTertiary }}>Value</div>
+                <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(pos.currentValue)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: T.textTertiary }}>P&L</div>
+                <div style={{
+                  fontSize: 14, fontWeight: 700, fontFamily: FONT,
+                  color: pos.pnl >= 0 ? '#10B981' : '#EF4444',
+                }}>
+                  {pos.pnl >= 0 ? '+' : ''}{fmt(pos.pnl)}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* Closed Positions */}
+      {portfolio.closedPositions.length > 0 && (
+        <>
+          <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10, marginTop: 20 }}>
+            Closed Positions ({portfolio.closedPositions.length})
+          </div>
+          {portfolio.closedPositions.slice(0, 10).map((pos, i) => (
+            <div key={i} style={{ ...card, opacity: 0.8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{pos.marketAddress || 'Closed Market'}</div>
+                  <div style={{ fontSize: 12, color: T.textSecondary }}>{pos.bucketLabel} · {pos.shares.toFixed(1)} shares</div>
+                </div>
+                <div style={{
+                  fontSize: 15, fontWeight: 700, fontFamily: FONT,
+                  color: pos.won ? '#10B981' : '#EF4444',
+                }}>
+                  {pos.won ? '+' : ''}{fmt(pos.pnl)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+
+
+  // ─────────────────────────────────────────
+  // RENDER: MAIN
+  // ─────────────────────────────────────────
+
+  return (
+    <div style={{ padding: isDesktop ? '20px 40px' : '0 16px 80px', maxWidth: 700, margin: '0 auto' }}>
+      <AttestationModal />
+      {ui.tradingPanelOpen && <TradingPanel />}
+
+      {/* Header */}
+      <div style={{ padding: '20px 0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: '-0.03em' }}>
+            Markets
+          </div>
+          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2 }}>
+            Prediction trading on Bay Area real estate
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: T.textTertiary }}>
+            Balance
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: '-0.03em' }}>
+            {fmt(portfolio.balance)}
+          </div>
+        </div>
+      </div>
+
+      {/* Sub-tab navigation */}
+      <div style={{ display: 'flex', gap: 4, background: T.pillBg, borderRadius: 14, padding: 3, marginBottom: 16 }}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => dispatch(setActiveTab(t.id))}
+            style={{
+              flex: 1, padding: '10px 12px', borderRadius: 12, border: 'none',
+              fontSize: 13, fontWeight: ui.activeTab === t.id ? 700 : 500,
+              background: ui.activeTab === t.id ? T.card : 'transparent',
+              color: ui.activeTab === t.id ? T.text : T.textTertiary,
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: ui.activeTab === t.id ? `0 1px 4px rgba(0,0,0,0.1)` : 'none',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── LIVE MARKETS TAB ── */}
+      {ui.activeTab === 'live' && (
+        <div>
+          {/* Search / Filters */}
+          <div style={{ ...card, padding: '14px 16px' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={ui.filters.zip}
+                onChange={(e) => dispatch(setFilters({ zip: e.target.value }))}
+                placeholder="ZIP code (e.g. 94122)"
+                style={{ ...inputStyle, flex: 1 }}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button
+                onClick={handleSearch}
+                style={{
+                  padding: '10px 20px', borderRadius: 9999, border: 'none',
+                  background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  boxShadow: '0 0 16px rgba(99,102,241,0.25)',
+                }}
+              >
+                Search
+              </button>
+            </div>
+
+            {/* Additional filters */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={ui.filters.city}
+                onChange={(e) => dispatch(setFilters({ city: e.target.value }))}
+                placeholder="City"
+                style={{ ...inputStyle, flex: 1, minWidth: 100, padding: '8px 12px', fontSize: 12 }}
+              />
+              <input
+                type="number"
+                value={ui.filters.minPrice || ''}
+                onChange={(e) => dispatch(setFilters({ minPrice: e.target.value ? Number(e.target.value) : null }))}
+                placeholder="Min price"
+                style={{ ...inputStyle, flex: 1, minWidth: 80, padding: '8px 12px', fontSize: 12 }}
+              />
+              <input
+                type="number"
+                value={ui.filters.maxPrice || ''}
+                onChange={(e) => dispatch(setFilters({ maxPrice: e.target.value ? Number(e.target.value) : null }))}
+                placeholder="Max price"
+                style={{ ...inputStyle, flex: 1, minWidth: 80, padding: '8px 12px', fontSize: 12 }}
+              />
+            </div>
+
+            {/* Sort */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>Sort:</span>
+              {[
+                { id: 'volume', label: 'Volume' },
+                { id: 'newest', label: 'Newest' },
+                { id: 'most_bettors', label: 'Popular' },
+              ].map((s) => (
+                <button key={s.id} onClick={() => dispatch(setSortBy(s.id))} style={pillBtn(ui.sortBy === s.id)}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Loading */}
+          {ui.loading && (
+            <div style={{ textAlign: 'center', padding: 30, color: T.textSecondary }}>
+              Loading markets...
+            </div>
+          )}
+
+          {/* Error */}
+          {ui.error && (
+            <div style={{
+              ...card, background: '#EF444412', border: '1px solid #EF444430',
+              color: '#EF4444', fontSize: 13, textAlign: 'center',
+            }}>
+              {ui.error}
+              <button onClick={() => dispatch(clearError())} style={{ marginLeft: 10, border: 'none', background: 'transparent', color: '#EF4444', textDecoration: 'underline', cursor: 'pointer' }}>
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Market list */}
+          {!ui.loading && filteredMarkets.length === 0 && (
+            <div style={{ ...card, textAlign: 'center', padding: 40 }}>
+              <Icon name="trending-up" size={28} style={{ color: T.textTertiary }} />
+              <p style={{ color: T.textSecondary, marginTop: 12, fontSize: 14 }}>
+                No live markets found. Search a Bay Area ZIP code to get started.
+              </p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+                {['94122', '94110', '94102', '94610'].map((zip) => (
+                  <button key={zip} onClick={() => { dispatch(setFilters({ zip })); dispatch(fetchLiveMarkets({ zip })); }} style={pillBtn(false)}>
+                    {zip}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredMarkets.map((market) => (
+            <MarketCard key={market.id} market={market} />
+          ))}
+        </div>
+      )}
+
+      {/* ── PRACTICE TAB ── */}
+      {ui.activeTab === 'practice' && <PracticeView />}
+
+      {/* ── PORTFOLIO TAB ── */}
+      {ui.activeTab === 'portfolio' && <PortfolioView />}
+    </div>
+  );
+}

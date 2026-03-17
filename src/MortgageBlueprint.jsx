@@ -2,6 +2,8 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
+import PricePoint from "./PricePoint";
+import Markets from "./Markets";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
@@ -428,34 +430,34 @@ function getPMIRate(ltv, fico) {
 let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 const DARK = {
- bg: "#000000", bg2: "#000000", card: "#1C1C1E", cardBorder: "rgba(255,255,255,0.06)",
- cardShadow: "0 1px 3px rgba(0,0,0,0.5)", cardHover: "#2C2C2E",
- accent: "#FF9F0A", blue: "#0A84FF", green: "#30D158", red: "#FF453A",
- purple: "#BF5AF2", orange: "#FF9F0A", cyan: "#64D2FF", pink: "#FF375F", teal: "#6AC4DC",
- text: "#FFFFFF", textSecondary: "rgba(255,255,255,0.55)", textTertiary: "rgba(255,255,255,0.3)",
- separator: "rgba(255,255,255,0.08)", inputBg: "#2C2C2E", inputBorder: "rgba(255,255,255,0.1)",
- headerBg: "rgba(0,0,0,0.85)", tabActiveBg: "rgba(255,255,255,0.12)", tabActiveText: "#FFFFFF",
- successBg: "rgba(48,209,88,0.12)", successBorder: "rgba(48,209,88,0.2)",
- errorBg: "rgba(255,69,58,0.12)", errorBorder: "rgba(255,69,58,0.2)",
- warningBg: "rgba(255,159,10,0.12)", warningBorder: "rgba(255,159,10,0.2)",
+ bg: "#050505", bg2: "#0A0A0A", card: "#0F0F0F", cardBorder: "rgba(255,255,255,0.06)",
+ cardShadow: "0 1px 3px rgba(0,0,0,0.5)", cardHover: "#141414",
+ accent: "#6366F1", blue: "#3B82F6", green: "#10B981", red: "#EF4444",
+ purple: "#8B5CF6", orange: "#F59E0B", cyan: "#06B6D4", pink: "#EC4899", teal: "#06B6D4",
+ text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#666666",
+ separator: "rgba(255,255,255,0.06)", inputBg: "#1A1A1A", inputBorder: "rgba(255,255,255,0.12)",
+ headerBg: "rgba(5,5,5,0.7)", tabActiveBg: "rgba(255,255,255,0.08)", tabActiveText: "#EDEDED",
+ successBg: "rgba(16,185,129,0.12)", successBorder: "rgba(16,185,129,0.2)",
+ errorBg: "rgba(239,68,68,0.12)", errorBorder: "rgba(239,68,68,0.2)",
+ warningBg: "rgba(245,158,11,0.12)", warningBorder: "rgba(245,158,11,0.2)",
  ringTrack: "rgba(255,255,255,0.06)", pillBg: "rgba(255,255,255,0.06)",
 };
 const LIGHT = {
- bg: "#F2F1F6", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(0,0,0,0.04)",
- cardShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)", cardHover: "#F8F8FA",
- accent: "#F5A623", blue: "#007AFF", green: "#34C759", red: "#FF3B30",
- purple: "#AF52DE", orange: "#FF9500", cyan: "#32ADE6", pink: "#FF2D55", teal: "#5AC8D8",
- text: "#000000", textSecondary: "rgba(0,0,0,0.5)", textTertiary: "rgba(0,0,0,0.25)",
- separator: "rgba(0,0,0,0.06)", inputBg: "#F2F1F6", inputBorder: "rgba(0,0,0,0.08)",
- headerBg: "rgba(242,241,246,0.85)", tabActiveBg: "rgba(0,0,0,0.06)", tabActiveText: "#000000",
- successBg: "rgba(52,199,89,0.1)", successBorder: "rgba(52,199,89,0.2)",
- errorBg: "rgba(255,59,48,0.1)", errorBorder: "rgba(255,59,48,0.2)",
- warningBg: "rgba(255,149,0,0.1)", warningBorder: "rgba(255,149,0,0.2)",
+ bg: "#FAFAFA", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(0,0,0,0.06)",
+ cardShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)", cardHover: "#F5F5F5",
+ accent: "#6366F1", blue: "#3B82F6", green: "#10B981", red: "#EF4444",
+ purple: "#8B5CF6", orange: "#F59E0B", cyan: "#06B6D4", pink: "#EC4899", teal: "#06B6D4",
+ text: "#171717", textSecondary: "#525252", textTertiary: "#737373",
+ separator: "rgba(0,0,0,0.06)", inputBg: "#F0F0F0", inputBorder: "rgba(0,0,0,0.12)",
+ headerBg: "rgba(250,250,250,0.85)", tabActiveBg: "rgba(0,0,0,0.06)", tabActiveText: "#171717",
+ successBg: "rgba(16,185,129,0.08)", successBorder: "rgba(16,185,129,0.15)",
+ errorBg: "rgba(239,68,68,0.08)", errorBorder: "rgba(239,68,68,0.15)",
+ warningBg: "rgba(245,158,11,0.08)", warningBorder: "rgba(245,158,11,0.15)",
  ringTrack: "rgba(0,0,0,0.06)", pillBg: "rgba(0,0,0,0.04)",
 };
 let T = DARK;
-const FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif";
-const MONO = "'SF Mono', 'Menlo', 'Consolas', monospace";
+const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
  return (<span style={{ position: "relative", display: "inline-flex", marginLeft: 5, verticalAlign: "middle" }}
@@ -650,7 +652,7 @@ function StopLight({ checks, onPillarClick }) {
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   {/* Main status badge */}
   <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20 }}>
-   <span style={{ fontSize: 28 }}>{allGreen ? "trophy" : anyGreen ? "unlock" : "lock"}</span>
+   <span style={{ display: "flex", alignItems: "center", color: allGreen ? T.green : anyGreen ? T.orange : T.red }}><Icon name={allGreen ? "trophy" : anyGreen ? "unlock" : "lock"} size={28} /></span>
    <div>
     <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: allGreen ? T.green : anyGreen ? T.orange : T.red, letterSpacing: "-0.03em" }}>{allGreen ? "PRE-QUALIFIED" : anyGreen ? "ALMOST THERE" : "NOT YET"}</div>
     <div style={{ fontSize: 12, color: T.textTertiary }}>{allGreen ? `All ${checks.length} pillars cleared!` : `${checks.filter(c => c.ok).length} of ${checks.length} pillars cleared`}</div>
@@ -765,7 +767,7 @@ function LearnSec({ cat, items }) {
     {items.map((item, ii) => (
      <div key={ii} style={{ borderBottom: ii < items.length - 1 ? `1px solid ${T.separator}` : "none" }}>
       <div onClick={() => toggle(ii)} style={{ display: "flex", gap: 12, padding: "14px 0", cursor: "pointer" }}>
-       <div style={{ width: 40, height: 40, borderRadius: 12, background: `${T.blue}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{item.icon}</div>
+       <div style={{ width: 40, height: 40, borderRadius: 12, background: `${T.blue}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: T.blue }}>{item.icon ? <Icon name={item.icon} size={20} /> : null}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{item.title}</div>
         <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>{item.desc}</div>
@@ -1190,6 +1192,7 @@ export default function MortgageBlueprint({ initialState }) {
  }, []);
  // ── Auto Theme (light by day, dark by night, with manual override) ──
  const [themeMode, setThemeMode] = useState(() => {
+  try { const p = new URLSearchParams(window.location.search); const t = p.get('theme'); if (t === 'dark' || t === 'light') return t; } catch {}
   try { const saved = localStorage.getItem('bp_theme_mode'); if (saved) return saved; } catch {}
   return 'auto';
  });
@@ -1251,71 +1254,11 @@ export default function MortgageBlueprint({ initialState }) {
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("setup");
  // ── App Mode: Blueprint or PricePoint ──
- const [appMode, setAppMode] = useState("blueprint");
- const [ppGuessInput, setPpGuessInput] = useState("");
- const [ppGuesses, setPpGuesses] = useState([]);
- const [ppView, setPpView] = useState("cards"); // cards | results | leaderboard | stats
- const [ppShowReveal, setPpShowReveal] = useState(null);
- const [ppRevealAnim, setPpRevealAnim] = useState(false);
- const [ppCardAnim, setPpCardAnim] = useState("");
- const [ppSkipped, setPpSkipped] = useState([]);
- const [ppWeeklyMode, setPpWeeklyMode] = useState(false);
- const [ppNotif, setPpNotif] = useState(null);
- const [ppPrevBadgeCount, setPpPrevBadgeCount] = useState(0);
- const [ppSoldMode, setPpSoldMode] = useState(true);
- const [ppHometown, setPpHometown] = useState(() => { try { return JSON.parse(localStorage.getItem("pp-hometown")) || null; } catch(e) { return null; } });
- const [ppSavedLocations, setPpSavedLocations] = useState(() => { try { return JSON.parse(localStorage.getItem("pp-saved-locs")) || []; } catch(e) { return []; } });
- React.useEffect(() => { try { localStorage.setItem("pp-saved-locs", JSON.stringify(ppSavedLocations)); } catch(e){} }, [ppSavedLocations]);
- const [ppShowHometownSetup, setPpShowHometownSetup] = useState(false);
- const [ppHometownInput, setPpHometownInput] = useState("");
- const [ppLeaderboardFilter, setPpLeaderboardFilter] = useState("all");
- const [ppHistoryFilter, setPpHistoryFilter] = useState("all"); // "all" | "within5" | "over" | "under" // "all" | "agents" | "buyers"
- const [ppPublicProfile, setPpPublicProfile] = useState(() => { try { const v = localStorage.getItem("pp-public"); return v === null ? true : v === "true"; } catch(e) { return true; } });
- useEffect(() => { try { localStorage.setItem("pp-public", String(ppPublicProfile)); } catch(e){} }, [ppPublicProfile]);
-
- // ── PricePoint XP & Leveling System ──
- const PP_HOMES = [
-  { level: 1, name: "Studio Condo", icon: "landmark", req: 0 },
-  { level: 2, name: "1BR Condo", icon: "landmark", req: 50 },
-  { level: 3, name: "2BR Condo", icon: "landmark", req: 150 },
-  { level: 4, name: "Townhouse", icon: "grid", req: 300 },
-  { level: 5, name: "Starter Home", icon: "home", req: 500 },
-  { level: 6, name: "3BR House", icon: "home", req: 800 },
-  { level: 7, name: "4BR House", icon: "home", req: 1200 },
-  { level: 8, name: "Craftsman", icon: "🪵", req: 1700 },
-  { level: 9, name: "Victorian", icon: "home", req: 2400 },
-  { level: 10, name: "Modern Farmhouse", icon: "trending-up", req: 3200 },
-  { level: 11, name: "Luxury Home", icon: "diamond", req: 4200 },
-  { level: 12, name: "Estate", icon: "crown", req: 5500 },
-  { level: 13, name: "Mega Mansion", icon: "crown", req: 7000 },
- ];
- const [ppSearchZip, setPpSearchZip] = useState("");
- const [ppPropertyDetails, setPpPropertyDetails] = useState({}); // cache: { zpid: { photos, description, loading, error } }
- const [ppPhotoIdx, setPpPhotoIdx] = useState(0); // current photo index in carousel
- const [ppDescExpanded, setPpDescExpanded] = useState(false);
- const ppPhotoTouchRef = useRef({ startX: 0, startY: 0 });
- const [ppLiveActive, setPpLiveActive] = useState([]);
- const [ppLiveSold, setPpLiveSold] = useState([]);
- const [ppLoading, setPpLoading] = useState(false);
- const [ppError, setPpError] = useState(null);
- const [ppDataSource, setPpDataSource] = useState("hardcoded"); // "hardcoded" | "live"
- const [ppLocationLabel, setPpLocationLabel] = useState("");
- const ppTouchStartX = useRef(null);
- const ppTouchStartY = useRef(null);
- const PP_VIEWS = ["cards","results","stats","leaderboard"];
- const ppHandleTouchStart = (e) => { ppTouchStartX.current = e.touches[0].clientX; ppTouchStartY.current = e.touches[0].clientY; };
- const ppHandleTouchEnd = (e) => {
-  if (ppTouchStartX.current === null) return;
-  const dx = e.changedTouches[0].clientX - ppTouchStartX.current;
-  const dy = e.changedTouches[0].clientY - ppTouchStartY.current;
-  ppTouchStartX.current = null; ppTouchStartY.current = null;
-  if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
-  const cur = PP_VIEWS.indexOf(ppView);
-  if (cur === -1) return;
-  if (dx < -60 && cur < PP_VIEWS.length - 1) setPpView(PP_VIEWS[cur + 1]);
-  else if (dx > 60 && cur > 0) setPpView(PP_VIEWS[cur - 1]);
- };
- const ppViewIdx = PP_VIEWS.indexOf(ppView);
+ const [appMode, setAppMode] = useState(() => {
+  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'pricepoint') return 'pricepoint'; } catch {}
+  return 'blueprint';
+ });
+ // PricePoint is now its own component — see PricePoint.jsx
  const [salesPrice, setSalesPrice] = useState(1000000);
  const [downPct, setDownPct] = useState(20);
  const [downMode, setDownMode] = useState("pct"); // "pct" or "dollar"
@@ -2189,7 +2132,7 @@ export default function MortgageBlueprint({ initialState }) {
    const cashInHandLabel = c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing";
    const cashInHandValue = c.refiNetCashInHand >= 0 ? fmt(c.refiNetCashInHand) : fmt(Math.abs(c.refiNetCashInHand));
    html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row(cashOutLabel,cashOutValue,false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row(cashInHandLabel,cashInHandValue,true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
-   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"check":"✗"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"check":"✗"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"check":"✗"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
+   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✓":"✗"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✓":"✗"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✓":"✗"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
   } else {
    // PURCHASE HERO
    html += `<div class="hero-bar"><div class="big">${fmt(c.housingPayment)}<span style="font-size:18px;font-weight:400">/mo</span></div><div class="sub">${propAddr !== "TBD" && propAddr ? propAddr + " · " : ""}${fmt(c.cashToClose)} cash to close</div></div>`;
@@ -2426,7 +2369,7 @@ export default function MortgageBlueprint({ initialState }) {
    nextTab = visibleTabs[vIdx + 1];
    nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
    // Use parent position for progress display
-   const parentIdx = tab === "reo" ? TAB_PROGRESSION.indexOf("assets") : tab === "sell" ? TAB_PROGRESSION.indexOf("amort") : TAB_PROGRESSION.indexOf("calc");
+   const parentIdx = tab === "reo" ? TAB_PROGRESSION.indexOf("debts") : tab === "sell" ? TAB_PROGRESSION.indexOf("amort") : TAB_PROGRESSION.indexOf("calc");
    stepNum = parentIdx + 1;
    totalSteps = TAB_PROGRESSION.length;
    progressPct = (stepNum / totalSteps) * 100;
@@ -2461,27 +2404,16 @@ export default function MortgageBlueprint({ initialState }) {
      <div style={{ height: 3, background: T.separator }}>
       <div style={{ height: "100%", width: isReady ? "100%" : `${progressPct}%`, background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : fieldsComplete ? `${T.blue}40` : `${T.blue}18`, borderRadius: 99, transition: "width 0.5s ease, background 0.4s ease" }} />
      </div>
-     <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, gap: 12, transition: "background 0.4s" }}>
+     <div onClick={isReady ? handleNext : undefined} style={{ display: "flex", alignItems: "center", padding: "14px 20px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, transition: "background 0.4s", cursor: isReady ? "pointer" : "default" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-       <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.75)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
-       <div style={{ fontSize: 14, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+       <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.65)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
+       <div style={{ fontSize: 15, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
         {isReady ? `✓ ${TAB_DISPLAY_NAMES[tab]} complete` : fieldsComplete ? `${TAB_DISPLAY_NAMES[tab]} ✓ — scroll down` : TAB_DISPLAY_NAMES[tab]}
        </div>
       </div>
-      <button
-       onClick={isReady ? handleNext : undefined}
-       disabled={!isReady}
-       style={{
-        padding: "10px 20px", borderRadius: 14, border: isReady ? "2px solid rgba(255,255,255,0.3)" : "none", fontFamily: FONT, fontSize: 14, fontWeight: 700,
-        cursor: isReady ? "pointer" : "default", letterSpacing: "0.01em", transition: "all 0.3s",
-        background: isReady ? "rgba(255,255,255,0.2)" : `${T.blue}18`,
-        color: isReady ? "#FFFFFF" : `${T.blue}60`,
-        boxShadow: "none",
-        opacity: isReady ? 1 : 0.6,
-       }}
-      >
-       {isReady ? `${nextName} →` : nextName}
-      </button>
+      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: isReady ? "#FFFFFF" : `${T.blue}60`, letterSpacing: "-0.01em", whiteSpace: "nowrap", transition: "all 0.3s", opacity: isReady ? 1 : 0.5 }}>
+       {nextName} →
+      </div>
      </div>
     </div>
    </div>
@@ -2568,7 +2500,7 @@ export default function MortgageBlueprint({ initialState }) {
   if (tab === "setup") {
    if (!skillLevel) return "experience-level";
    if (isRefi === null) return "transaction-type";
-   if (propertyZip.length < 5 && !(city && propertyState)) return "zip-code";
+   if (!guideTouched.has("location")) return "zip-code";
    if (creditScore === 0) return "fico-input";
    if (!isRefi && salesPrice === 0) return "price-input";
    if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
@@ -3533,377 +3465,14 @@ export default function MortgageBlueprint({ initialState }) {
   );
  };
  // ═══════════════════════════════════════════
- // PRICEPOINT — Live Data Fetching
+ // PRICEPOINT — Now in PricePoint.jsx
  // ═══════════════════════════════════════════
- const ppFetchTimer = useRef(null);
- const ppFetchListings = (searchValue) => {
-  if (!searchValue || searchValue.trim().length < 2) return;
-  clearTimeout(ppFetchTimer.current);
-  ppFetchTimer.current = setTimeout(() => ppFetchListingsNow(searchValue), 500);
- };
- const ppFetchListingsNow = async (searchValue) => {
-  if (!searchValue || searchValue.trim().length < 2) return;
-  setPpLoading(true);
-  setPpError(null);
-  try {
-   const sv = searchValue.trim();
-   const isZip = /^\d{5}$/.test(sv);
-   let params;
-   if (isZip) {
-    params = `zip=${sv}`;
-   } else {
-    // Parse "City, State" or "City State" or just "City" (defaults to CA)
-    const cityStateMatch = sv.match(/^(.+?)[,\s]+([A-Za-z]{2})$/);
-    if (cityStateMatch) {
-     params = `city=${encodeURIComponent(cityStateMatch[1].trim())}&state=${encodeURIComponent(cityStateMatch[2].trim().toUpperCase())}`;
-    } else {
-     params = `city=${encodeURIComponent(sv)}&state=CA`;
-    }
-   }
-   const resp = await fetch(`/api/pricepoint?${params}`);
-   if (!resp.ok) throw new Error(`API returned ${resp.status}`);
-   const data = await resp.json();
-   if (data.error) throw new Error(data.error);
-   const hasActive = data.activeListings && data.activeListings.length > 0;
-   const hasSold = data.soldListings && data.soldListings.length > 0;
-   if (!hasActive && !hasSold) {
-    setPpError("No listings found for this location. Using sample data.");
-    setPpDataSource("hardcoded");
-   } else {
-    setPpLiveActive(data.activeListings || []);
-    setPpLiveSold(data.soldListings || []);
-    setPpDataSource("live");
-    const locLabel = data.location || searchValue;
-    setPpLocationLabel(locLabel);
-    // Update hometown label if this was a hometown search
-    if (ppHometown && (ppHometown.zip === searchValue || ppHometown.city === searchValue)) {
-     const updated = { ...ppHometown, label: locLabel };
-     setPpHometown(updated);
-    }
-    // Reset guesses when loading new location data
-    setPpGuesses([]);
-    setPpGuessInput("");
-    try { localStorage.removeItem("pp-guesses"); } catch(e){}
-   }
-  } catch (err) {
-   console.error("PricePoint fetch error:", err);
-   setPpError(`Could not load live data: ${err.message}. Using sample data.`);
-   setPpDataSource("hardcoded");
-  } finally {
-   setPpLoading(false);
-  }
- };
-
- // Save hometown to localStorage
- useEffect(() => { try { if (ppHometown) localStorage.setItem("pp-hometown", JSON.stringify(ppHometown)); } catch(e){} }, [ppHometown]);
-
- // Auto-load from hometown (or Setup zip as fallback) when entering PricePoint
- useEffect(() => {
-  if (appMode === "pricepoint" && ppDataSource === "hardcoded" && ppLiveActive.length === 0 && ppLiveSold.length === 0) {
-   if (ppHometown && ppHometown.zip) {
-    setPpSearchZip(ppHometown.zip);
-    ppFetchListings(ppHometown.zip);
-   } else if (ppHometown && ppHometown.city) {
-    setPpSearchZip(ppHometown.city);
-    ppFetchListings(ppHometown.city);
-   } else if (!ppHometown) {
-    // No hometown set — show setup prompt
-    setPpShowHometownSetup(true);
-   }
-  }
- }, [appMode]);
-
- const ppSaveHometown = () => {
-  const val = ppHometownInput.trim();
-  if (!val) return;
-  const isZip = /^\d{5}$/.test(val);
-  // Parse "City, ST" format for better labeling
-  const cityStateMatch = val.match(/^(.+?)[,\s]+([A-Za-z]{2})$/);
-  let ht;
-  if (isZip) {
-   ht = { zip: val, label: val };
-  } else if (cityStateMatch) {
-   ht = { city: cityStateMatch[1].trim(), state: cityStateMatch[2].trim().toUpperCase(), label: cityStateMatch[1].trim() + ", " + cityStateMatch[2].trim().toUpperCase() };
-  } else {
-   ht = { city: val, label: val };
-  }
-  setPpHometown(ht);
-  setPpShowHometownSetup(false);
-  setPpSearchZip(val);
-  ppFetchListings(val);
-  setPpSavedLocations(prev => {
-   const exists = prev.find(l => l.label === ht.label);
-   if (exists) return prev;
-   return [ht, ...prev].slice(0, 5);
-  });
- };
-
- const ppChangeHometown = () => {
-  setPpHometownInput(ppHometown?.label || "");
-  setPpShowHometownSetup(true);
- };
-
- const ppHandleSearch = () => {
-  if (ppSearchZip.trim()) ppFetchListings(ppSearchZip.trim());
- };
-
- // ═══════════════════════════════════════════
- // PRICEPOINT — Sample Listings & Logic (fallback)
- // ═══════════════════════════════════════════
- const PP_LISTINGS = [
-  { id:"pp1",zpid:"15103285",address:"1334 28th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1250,lotSqft:2997,yearBuilt:1940,propertyType:"Single Family",listPrice:1195000,zestimate:1413700,daysOnMarket:8,status:"active",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:956 },
-  { id:"pp2",zpid:"15204891",address:"1522 44th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1650,lotSqft:2500,yearBuilt:1942,propertyType:"Single Family",listPrice:1395000,zestimate:1510000,daysOnMarket:12,status:"active",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:845 },
-  { id:"pp3",zpid:"15091234",address:"2150 19th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:4,baths:3,sqft:2200,lotSqft:2500,yearBuilt:1955,propertyType:"Single Family",listPrice:1895000,zestimate:1820000,daysOnMarket:21,status:"active",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Parkside",pricePerSqft:861 },
-  { id:"pp4",zpid:"15305672",address:"1741 35th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:995000,zestimate:1075000,daysOnMarket:5,status:"active",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
-  { id:"pp5",zpid:"15198345",address:"1248 12th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1800,lotSqft:2500,yearBuilt:1948,propertyType:"Single Family",listPrice:1650000,zestimate:1720000,daysOnMarket:3,status:"active",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:917 },
-  { id:"pp6",zpid:"15401298",address:"3855 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1480,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1295000,zestimate:1340000,daysOnMarket:16,status:"active",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:875 },
-  { id:"pp7",zpid:"15502876",address:"1560 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1950,lotSqft:2500,yearBuilt:1945,propertyType:"Single Family",listPrice:1550000,zestimate:1610000,daysOnMarket:9,status:"active",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:795 },
-  { id:"pp8",zpid:"15087654",address:"680 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1350,lotSqft:2500,yearBuilt:1960,propertyType:"Condo",listPrice:895000,zestimate:920000,daysOnMarket:28,status:"active",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:663 },
-  { id:"pp9",zpid:"15612098",address:"2480 46th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1350,lotSqft:2500,yearBuilt:1939,propertyType:"Single Family",listPrice:1150000,zestimate:1200000,daysOnMarket:14,status:"active",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:852 },
-  { id:"pp10",zpid:"15098123",address:"1123 8th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:5,baths:3,sqft:2800,lotSqft:3000,yearBuilt:1952,propertyType:"Single Family",listPrice:1950000,zestimate:2050000,daysOnMarket:7,status:"active",photo:"https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:696 },
- ];
-
- const PP_SOLD_LISTINGS = [
-  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:931 },
-  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Parkside",pricePerSqft:977 },
-  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:953 },
-  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905 },
-  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
-  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:692 },
-  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:906 },
-  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:823 },
-  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962 },
-  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909 },
- ];
- const ppFmt = n => n?.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}) ?? "—";
- const ppAbsPct = (g,a) => (Math.abs((g-a)/a)*100).toFixed(1);
- const ppPct = (g,a) => (((g-a)/a)*100).toFixed(1);
-
- // Load/save PP guesses
- useEffect(() => { try { const s = localStorage.getItem("pp-guesses"); if (s) setPpGuesses(JSON.parse(s)); } catch(e){} }, []);
- useEffect(() => { try { localStorage.setItem("pp-guesses", JSON.stringify(ppGuesses)); } catch(e){} }, [ppGuesses]);
- // ── Realtor Partner auto-populate on mount ──
- useEffect(() => {
-  if (realtorPartner) {
-   if (realtorPartner.name && !realtorName) setRealtorName(realtorPartner.name);
-   if (realtorPartner.farmZip && !ppSearchZip) setPpSearchZip(realtorPartner.farmZip);
-  }
- }, []);
-
- // Use live data if available, otherwise fall back to hardcoded
- const PP_ACTIVE_SOURCE = ppDataSource === "live" && ppLiveActive.length > 0 ? ppLiveActive : PP_LISTINGS;
- const PP_SOLD_SOURCE = ppDataSource === "live" && ppLiveSold.length > 0 ? ppLiveSold : PP_SOLD_LISTINGS;
-
- // Weekly Challenge: deterministic 5 picks from sold listings, rotates each week
- const ppWeekSeed = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
- const ppWeeklyListings = React.useMemo(() => {
-  const src = PP_SOLD_SOURCE.slice();
-  if (src.length <= 5) return src;
-  // Deterministic shuffle based on week seed
-  const shuffled = src.map((v,i) => ({ v, sort: ((ppWeekSeed * 9301 + i * 49297) % 233280) })).sort((a,b) => a.sort - b.sort).map(x => x.v);
-  return shuffled.slice(0, 5);
- }, [ppWeekSeed, PP_SOLD_SOURCE]);
- const ppWeeklyRemaining = ppWeeklyListings.filter(l => !ppGuesses.find(g => g.listingId === l.id));
-
- const ppActiveListings = ppWeeklyMode
-  ? ppWeeklyRemaining.filter(l => !ppSkipped.includes(l.id))
-  : ppSoldMode
-  ? PP_SOLD_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id) && !ppSkipped.includes(l.id))
-  : PP_ACTIVE_SOURCE.filter(l => !ppGuesses.find(g => g.listingId === l.id) && !ppSkipped.includes(l.id));
- const ppCurrentListing = ppActiveListings[0];
- const ppTotalListings = ppSoldMode ? PP_SOLD_SOURCE.length : PP_ACTIVE_SOURCE.length;
-
- const ppHandleGuess = () => {
-  const val = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
-  if (!val || !ppCurrentListing) return;
-  const isSold = ppSoldMode && ppCurrentListing.soldPrice;
-  setPpCardAnim("pp-submitted");
-  setTimeout(() => {
-   const newGuess = {
-    listingId:ppCurrentListing.id, zpid:ppCurrentListing.zpid, guess:val,
-    soldPrice: isSold ? ppCurrentListing.soldPrice : null,
-    listPrice:ppCurrentListing.listPrice, zestimate:ppCurrentListing.zestimate,
-    revealPrice: isSold ? ppCurrentListing.soldPrice : null,
-    address:ppCurrentListing.address, city:ppCurrentListing.city, state:ppCurrentListing.state, zip:ppCurrentListing.zip,
-    propertyType:ppCurrentListing.propertyType, neighborhood:ppCurrentListing.neighborhood,
-    sqft:ppCurrentListing.sqft, beds:ppCurrentListing.beds, baths:ppCurrentListing.baths,
-    photo:ppCurrentListing.photo, timestamp:Date.now(),
-    revealed: isSold ? true : false,
-    isSoldMode: !!isSold,
-   };
-   setPpGuesses(prev => [...prev, newGuess]);
-   setPpGuessInput("");
-   setPpCardAnim("");
-   setPpPhotoIdx(0);
-   setPpDescExpanded(false);
-   if (isSold) {
-    setPpShowReveal(newGuess);
-    setTimeout(() => setPpRevealAnim(true), 50);
-    const pctOff = Math.abs((val - ppCurrentListing.soldPrice) / ppCurrentListing.soldPrice) * 100;
-    const bonus = pctOff <= 1 ? 50 : pctOff <= 2 ? 40 : pctOff <= 5 ? 25 : pctOff <= 10 ? 15 : 0;
-    setTimeout(() => { setPpNotif(`+${10 + bonus} XP earned!${bonus > 0 ? ` ${pctOff.toFixed(1)}% accuracy bonus` : ""}`); setTimeout(() => setPpNotif(null), 3000); }, 2000);
-   } else {
-    setPpNotif(`Locked in ${ppFmt(val)} — +10 XP`);
-    setTimeout(() => setPpNotif(null), 3000);
-   }
-  }, 400);
- };
-
- const ppSimulateSold = (idx) => {
-  const g = ppGuesses[idx];
-  if (g.revealed) { setPpShowReveal(g); setTimeout(() => setPpRevealAnim(true), 50); return; }
-  const base = g.zestimate || g.listPrice;
-  const v = (Math.random() - 0.4) * 0.08;
-  const sold = Math.round(base * (1 + v));
-  const updated = [...ppGuesses]; updated[idx] = {...g, revealed:true, soldPrice:sold};
-  setPpGuesses(updated); setPpShowReveal(updated[idx]); setTimeout(() => setPpRevealAnim(true), 50);
- };
- const ppCloseReveal = () => { setPpRevealAnim(false); setTimeout(() => setPpShowReveal(null), 300); };
- const ppHandleInput = (e) => { const r = e.target.value.replace(/[^0-9]/g,""); setPpGuessInput(r ? "$" + parseInt(r).toLocaleString() : ""); };
- const ppSkipListing = () => {
-  if (!ppCurrentListing) return;
-  setPpCardAnim("pp-submitted");
-  setTimeout(() => { setPpSkipped(prev => [...prev, ppCurrentListing.id]); setPpCardAnim(""); setPpPhotoIdx(0); setPpDescExpanded(false); setPpGuessInput(""); }, 400);
- };
- const ppResetAll = () => { setPpGuesses([]); setPpSkipped([]); setPpGuessInput(""); setPpShowReveal(null); setPpLiveActive([]); setPpLiveSold([]); setPpDataSource("hardcoded"); setPpLocationLabel(""); setPpError(null); setPpPropertyDetails({}); try { localStorage.removeItem("pp-guesses"); } catch(e){} };
-
- // Fetch property details (photos + description) on demand
- const ppFetchDetails = async (zpid) => {
-  if (!zpid || ppPropertyDetails[zpid]?.loading) return;
-  // Skip if we already have photos loaded (length > 0)
-  if (ppPropertyDetails[zpid]?.photos?.length > 0) return;
-  setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: true, photos: [], description: "", error: null } }));
-  try {
-   const resp = await fetch(`/api/propertydetails?zpid=${zpid}`);
-   if (!resp.ok) throw new Error(`API ${resp.status}`);
-   const data = await resp.json();
-   if (data.error) throw new Error(data.error);
-   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: data.photos || [], description: data.description || "", error: null, listPrice: data.listPrice || null, zestimate: data.zestimate || null } }));
-   // Backfill listPrice on current listing if the search API didn't have it
-   if (data.listPrice && ppCurrentListing?.zpid === String(zpid)) {
-    const src = ppSoldMode ? ppLiveSold : ppLiveActive;
-    const idx = src.findIndex(l => String(l.zpid) === String(zpid));
-    if (idx >= 0 && !src[idx].listPrice) {
-     const updated = [...src];
-     updated[idx] = { ...updated[idx], listPrice: data.listPrice };
-     if (ppSoldMode) setPpLiveSold(updated); else setPpLiveActive(updated);
-    }
-   }
-  } catch (err) {
-   console.error("Detail fetch error:", err);
-   setPpPropertyDetails(prev => ({ ...prev, [zpid]: { loading: false, photos: [], description: "", error: err.message } }));
-  }
- };
-
- // Auto-fetch details when current listing changes
- useEffect(() => {
-  if (ppCurrentListing?.zpid && ppDataSource === "live") {
-   ppFetchDetails(ppCurrentListing.zpid);
-   setPpPhotoIdx(0);
-   setPpDescExpanded(false);
-  }
- }, [ppCurrentListing?.zpid]);
-
- const ppGetRevealPrice = (g) => g.revealPrice || g.soldPrice;
- const ppRevealed = ppGuesses.filter(g => g.revealed && ppGetRevealPrice(g));
- const ppCompGuesses = ppGuesses.filter(g => !g.isSoldMode);
- const ppCompRevealed = ppCompGuesses.filter(g => g.revealed && ppGetRevealPrice(g));
- const ppPracticeGuesses = ppGuesses.filter(g => g.isSoldMode);
- const ppPracticeRevealed = ppPracticeGuesses.filter(g => g.revealed && ppGetRevealPrice(g));
-
- // ── Stats Helper Functions (DRY) ──
- const ppCalcStats = (reveals) => {
-  const rp = (g) => ppGetRevealPrice(g);
-  const avgDiff = reveals.length > 0 ? (reveals.reduce((s,g) => s + Math.abs((g.guess-rp(g))/rp(g))*100, 0)/reveals.length).toFixed(1) : "—";
-  const overCount = reveals.filter(g => g.guess > rp(g)).length;
-  const underCount = reveals.filter(g => g.guess < rp(g)).length;
-  let curStreak = 0;
-  for (let i = reveals.length-1; i >= 0; i--) { if (parseFloat(ppAbsPct(reveals[i].guess, rp(reveals[i]))) <= 5) curStreak++; else break; }
-  let bestStreak = 0, ts = 0;
-  for (const g of reveals) { if (parseFloat(ppAbsPct(g.guess, rp(g))) <= 5) { ts++; bestStreak = Math.max(bestStreak, ts); } else ts = 0; }
-  return { avgDiff, overCount, underCount, curStreak, bestStreak };
- };
- const ppCompStats = ppCalcStats(ppCompRevealed);
- const ppPracticeStats = ppCalcStats(ppPracticeRevealed);
- const ppAllStats = ppCalcStats(ppRevealed);
- // Aliases for backward compat
- const ppCompAvgDiff = ppCompStats.avgDiff, ppCompOverCount = ppCompStats.overCount, ppCompUnderCount = ppCompStats.underCount, ppCompCurStreak = ppCompStats.curStreak, ppCompBestStreak = ppCompStats.bestStreak;
- const ppPracticeAvgDiff = ppPracticeStats.avgDiff, ppPracticeOverCount = ppPracticeStats.overCount, ppPracticeUnderCount = ppPracticeStats.underCount, ppPracticeCurStreak = ppPracticeStats.curStreak, ppPracticeBestStreak = ppPracticeStats.bestStreak;
- const ppAvgDiff = ppAllStats.avgDiff, ppOverCount = ppAllStats.overCount, ppUnderCount = ppAllStats.underCount, ppCurStreak = ppAllStats.curStreak, ppBestStreak = ppAllStats.bestStreak;
-
- // ── XP & Level System ──
- const ppCalcXP = (guesses) => {
-  let xp = 0;
-  guesses.forEach(g => {
-   xp += 10; // base XP per guess
-   if (g.revealed && g.soldPrice) {
-    const pct = Math.abs((g.guess - g.soldPrice) / g.soldPrice) * 100;
-    if (pct <= 1) xp += 50;      // Bullseye
-    else if (pct <= 2) xp += 40;  // Sharpshooter
-    else if (pct <= 5) xp += 25;  // On target
-    else if (pct <= 10) xp += 15; // Close
-   }
-  });
-  // Streak bonus
-  xp += ppBestStreak * 5;
-  return xp;
- };
- const ppXP = ppCalcXP(ppGuesses);
- const ppCurrentHome = [...PP_HOMES].reverse().find(h => ppXP >= h.req) || PP_HOMES[0];
- const ppNextHome = PP_HOMES.find(h => h.req > ppXP);
- const ppLevel = ppCurrentHome.level;
- const ppXPtoNext = ppNextHome ? ppNextHome.req - ppXP : 0;
- const ppLevelProgress = ppNextHome ? (ppXP - ppCurrentHome.req) / (ppNextHome.req - ppCurrentHome.req) : 1;
-
- // ── Badges ──
- const ppBadges = [];
- if (ppGuesses.length >= 1) ppBadges.push({ id: "first", icon: "target", name: "First Guess", desc: "Made your first guess" });
- if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 1)) ppBadges.push({ id: "bullseye", icon: "target", name: "Bullseye", desc: "Within 1% of sold price" });
- if (ppRevealed.some(g => parseFloat(ppAbsPct(g.guess, g.soldPrice)) <= 2)) ppBadges.push({ id: "sharp", icon: "target", name: "Sharpshooter", desc: "Within 2% of sold price" });
- if (ppBestStreak >= 3) ppBadges.push({ id: "streak3", icon: "zap", name: "On Fire", desc: "3+ streak within 5%" });
- if (ppBestStreak >= 5) ppBadges.push({ id: "streak5", icon: "zap", name: "Blazing", desc: "5+ streak within 5%" });
- if (ppGuesses.length >= 10) ppBadges.push({ id: "ten", icon: "bar-chart", name: "Getting Started", desc: "10 total guesses" });
- if (ppGuesses.length >= 25) ppBadges.push({ id: "twentyfive", icon: "bar-chart", name: "Market Watcher", desc: "25 total guesses" });
- if (ppGuesses.length >= 50) ppBadges.push({ id: "fifty", icon: "star", name: "Market Expert", desc: "50 total guesses" });
- if (ppGuesses.length >= 100) ppBadges.push({ id: "hundred", icon: "crown", name: "Legend", desc: "100 total guesses" });
- if (ppLevel >= 5) ppBadges.push({ id: "homeowner", icon: "home", name: "Homeowner", desc: "Reached Level 5" });
- if (ppLevel >= 10) ppBadges.push({ id: "mogul", icon: "trending-up", name: "Property Mogul", desc: "Reached Level 10" });
- if (ppLevel >= 13) ppBadges.push({ id: "mansion", icon: "crown", name: "Mega Mansion", desc: "Reached max level" });
- if (ppAvgDiff !== "—" && parseFloat(ppAvgDiff) <= 5 && ppRevealed.length >= 5) ppBadges.push({ id: "consistent", icon: "zap", name: "Consistent", desc: "Under 5% avg with 5+ reveals" });
-
- // Badge toast notification
- React.useEffect(() => {
-  if (ppBadges.length > ppPrevBadgeCount && ppPrevBadgeCount > 0) {
-   const newBadge = ppBadges[ppBadges.length - 1];
-   setPpNotif(`New Badge: ${newBadge.icon} ${newBadge.name}!`);
-   setTimeout(() => setPpNotif(null), 4000);
-  }
-  setPpPrevBadgeCount(ppBadges.length);
- }, [ppBadges.length]);
-
- const PP_LEADERBOARD_ALL = [
-  { name:"Sarah K.",role:"Agent · Compass",category:"agent",avgDiff:2.1,streak:7,guesses:34,badge:"target" },
-  { name:"Mike T.",role:"Lender · First Republic",category:"agent",avgDiff:3.4,streak:4,guesses:28,badge:"zap" },
-  { name: ppPublicProfile ? "You" : "Anonymous", role:"Lender",category:"agent",avgDiff:ppCompAvgDiff === "—" ? 99 : parseFloat(ppCompAvgDiff),streak:ppCompCurStreak,guesses:ppCompGuesses.length,badge: PP_HOMES[[...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) >= 0 ? PP_HOMES.length - 1 - [...PP_HOMES].reverse().findIndex(h => ppXP >= h.req) : 0]?.icon || "landmark", isYou: true },
-  { name:"Jessica R.",role:"Agent · Coldwell Banker",category:"agent",avgDiff:4.8,streak:2,guesses:41,badge:"star" },
-  { name:"Rachel M.",role:"Agent · KW",category:"agent",avgDiff:5.6,streak:3,guesses:22,badge:"" },
-  { name:"Tom W.",role:"Lender · Chase",category:"agent",avgDiff:6.2,streak:1,guesses:15,badge:"" },
-  { name:"David L.",role:"Investor",category:"buyer",avgDiff:5.1,streak:1,guesses:19,badge:"" },
-  { name:"Emily C.",role:"First-Time Buyer",category:"buyer",avgDiff:6.8,streak:2,guesses:12,badge:"home" },
-  { name:"Jason P.",role:"Buyer · Relocating",category:"buyer",avgDiff:7.3,streak:0,guesses:9,badge:"" },
-  { name:"Karen S.",role:"Investor · Flipper",category:"buyer",avgDiff:3.9,streak:5,guesses:31,badge:"dollar" },
-  { name:"Alex N.",role:"Buyer · Move-Up",category:"buyer",avgDiff:8.1,streak:0,guesses:7,badge:"" },
-  { name:"Brian H.",role:"Buyer · Downsizer",category:"buyer",avgDiff:5.5,streak:1,guesses:16,badge:"" },
- ].sort((a,b) => a.avgDiff === 99 ? 1 : b.avgDiff === 99 ? -1 : a.avgDiff - b.avgDiff);
-
- const PP_LEADERBOARD = ppLeaderboardFilter === "all" ? PP_LEADERBOARD_ALL
-  : ppLeaderboardFilter === "agents" ? PP_LEADERBOARD_ALL.filter(p => p.category === "agent" || p.isYou)
-  : PP_LEADERBOARD_ALL.filter(p => p.category === "buyer" || p.isYou);
-
+ // (all PricePoint logic moved to PricePoint.jsx)
  const TABS = [["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
-  ["costs","Costs"],["income","Income"],["debts","Debts"],["assets","Assets"],
+  ["costs","Costs"],["income","Income"],["debts","Debts"],
   ...(ownsProperties ? [["reo","REO"]] : []),
+  ["assets","Assets"],
   ["qualify","Qualify"],
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
@@ -4002,13 +3571,19 @@ export default function MortgageBlueprint({ initialState }) {
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
     .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
+    input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
+    input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
     /* Desktop sidebar styles */
     .bp-sidebar { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     .bp-sidebar::-webkit-scrollbar { width: 4px; }
     .bp-sidebar::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 2px; }
     .bp-sidebar-item { transition: all 0.15s ease; }
     .bp-sidebar-item:hover { background: ${T.tabActiveBg}; }
-    /* Desktop smooth scrollbar for main content */
+    /* Desktop smooth scrollbar */
+    html { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
+    html::-webkit-scrollbar { width: 6px; }
+    html::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
     .bp-main-content { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     .bp-main-content::-webkit-scrollbar { width: 6px; }
     .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
@@ -4056,7 +3631,7 @@ export default function MortgageBlueprint({ initialState }) {
           background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
          }}>
-         <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
+         <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
          {!sidebarCollapsed && (
           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
          )}
@@ -4071,7 +3646,7 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: isDesktop ? "auto" : "visible", height: isDesktop ? "100vh" : "auto", width: "100%" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%" }}>
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -4110,7 +3685,7 @@ export default function MortgageBlueprint({ initialState }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
      <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative" }}>
       <span onClick={() => { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }} style={{ position: "absolute", top: 16, right: 20, fontSize: 12, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, opacity: 0.6 }}>Skip</span>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>{step.emoji}</div>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: step.color || T.blue }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>{step.title}</div>
       <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 24, whiteSpace: "pre-line", textAlign: "left" }}>{step.body}</div>
       {/* Progress dots */}
@@ -4210,13 +3785,13 @@ export default function MortgageBlueprint({ initialState }) {
    <div className="mb-safe-top" style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "10px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
-      {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
+      {[["blueprint","Blueprint"],["pricepoint","PricePoint"],["markets","Markets"]].map(([k,l]) => (
        <button key={k} onClick={() => setAppMode(k)} style={{
-        padding: "8px 20px", borderRadius: 12, border: "none", fontSize: 13, fontWeight: 700,
+        padding: "8px 16px", borderRadius: 12, border: "none", fontSize: 12, fontWeight: 700,
         fontFamily: "'SF Pro Display','Inter',sans-serif", cursor: "pointer", transition: "all 0.25s",
-        background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
+        background: appMode === k ? (k === "blueprint" ? T.blue : k === "pricepoint" ? "#38bd7e" : "#6366F1") : "transparent",
         color: appMode === k ? "#fff" : T.textTertiary,
-        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : "0 2px 12px rgba(56,189,126,0.3)") : "none",
+        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : k === "pricepoint" ? "0 2px 12px rgba(56,189,126,0.3)" : "0 2px 12px rgba(99,102,241,0.3)") : "none",
        }}>{l}</button>
       ))}
      </div>
@@ -4259,13 +3834,13 @@ export default function MortgageBlueprint({ initialState }) {
         <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Mortgage Blueprint</span>
         {/* ── Blueprint / PricePoint segmented toggle ── */}
         <div style={{ display: "flex", background: T.pillBg, borderRadius: 10, padding: 2 }}>
-         {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"]].map(([k,e,l]) => (
+         {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,e,l]) => (
           <button key={k} onClick={() => setAppMode(k)} style={{
            padding: "4px 10px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: appMode === k ? 700 : 500,
-           background: appMode === k ? T.blue : "transparent",
+           background: appMode === k ? (k === "markets" ? "#6366F1" : T.blue) : "transparent",
            color: appMode === k ? "#fff" : T.textTertiary,
            cursor: "pointer", transition: "all 0.2s", fontFamily: FONT, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3,
-          }}>{e} {l}</button>
+          }}><Icon name={e} size={11} /> {l}</button>
          ))}
         </div>
        </div>
@@ -4299,8 +3874,8 @@ export default function MortgageBlueprint({ initialState }) {
        <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
         {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
-       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
-        {privacyMode ? "⊘" : "eye"}
+       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", color: T.textSecondary }}>
+        {privacyMode ? "⊘" : <Icon name="eye" size={16} />}
        </button>
       </div>
      </div>
@@ -4365,7 +3940,7 @@ export default function MortgageBlueprint({ initialState }) {
      {/* ── Qualification Pillars Strip ── */}
      <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-       <span style={{ fontSize: 14 }}>{allGood ? "trophy" : someGood ? "unlock" : "lock"}</span>
+       <span style={{ display: "flex", alignItems: "center", color: allGood ? T.green : someGood ? T.orange : T.textTertiary }}><Icon name={allGood ? "trophy" : someGood ? "unlock" : "lock"} size={14} /></span>
        <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? (isRefi ? "Refi Qualified" : "Pre-Qualified") : someGood ? `${isRefi ? refiPillarCount : purchPillarCount}/${isRefi ? 3 : 5} Pillars` : `${isRefi ? 3 : 5} Qualification Pillars`}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
@@ -4423,7 +3998,7 @@ export default function MortgageBlueprint({ initialState }) {
 {tab === "calc" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── Desktop: Left column (PayRing + summary) — fixed 50% so always visible ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, order: 1, maxHeight: "calc(100vh - 40px)", overflow: "auto", display: "flex", flexDirection: "column" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, order: 1, maxHeight: "calc(100vh - 110px)", overflowY: "auto", display: "flex", flexDirection: "column" } : {}}>
  <div className={changedFields.size > 0 ? "field-updated" : ""} style={isDesktop ? { display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 8 } : { marginTop: 20 }}>
   <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 320 : 200} />
  </div>
@@ -4716,12 +4291,12 @@ export default function MortgageBlueprint({ initialState }) {
  </div>{/* end desktop flex wrapper */}
 </>)}
 {tab === "amort" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* ── LEFT: Hero + Summary + Chart (sticky on desktop) ── */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.totalIntWithExtra)} label="Total Interest" color={T.blue} sub={calc.intSaved > 100 ? `Save ${fmt(calc.intSaved)}` : null} />
  </div>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 16, alignItems: "flex-start" } : {}}>
- {/* ── LEFT: Summary + Chart (sticky on desktop) ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: isDesktop ? "0 0 12px" : "16px 0" }}>
   <Card pad={14}>
    <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>Payoff</div>
@@ -4870,12 +4445,12 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* ── LEFT: Hero + Summary cards (sticky on desktop) ── */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp : calc.cashToClose)} label={isRefi ? "Estimated Refi Costs" : "Estimated Cash to Close"} color={T.green} />
  </div>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 16, alignItems: "flex-start" } : {}}>
- {/* ── LEFT: Summary cards (sticky on desktop) ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  {isRefi ? (
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: isDesktop ? "0 0 12px" : "16px 0 16px" }}>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em" }}>{fmt(calc.totalClosingCosts)}</div></Card>
@@ -5103,13 +4678,13 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Hero + Borrower 1 (sticky) */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.monthlyIncome)} label="Monthly Income" color={T.green} sub={`${fmt(calc.monthlyIncome * 12)}/yr`} />
  </div>
  {calc.reoPositiveIncome > 0 && <Note color={T.blue}>+{fmt(calc.reoPositiveIncome)}/mo investment property rental income added to qualifying income (75% rule). DTI uses {fmt(calc.qualifyingIncome)}/mo total.</Note>}
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 0, alignItems: "flex-start" } : {}}>
- {/* LEFT: Borrower 1 (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <Sec title="Borrower 1" action="+ Add" onAction={() => addIncome(1)}>
   {incomes.filter(i => i.borrower === 1).map((inc, idx) => {
    const isVar = VARIABLE_PAY_TYPES.includes(inc.payType);
@@ -5223,12 +4798,12 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && (<>
- <div data-field="assets-section" style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Hero + Summary cards (sticky) */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div data-field="assets-section" style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.totalAssetValue)} label="Total Assets" color={T.cyan} />
  </div>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 0, alignItems: "flex-start" } : {}}>
- {/* LEFT: Summary cards (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "16px 0" }}>
   <Card pad={14}>
    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Cash to Close</div>
@@ -5300,12 +4875,12 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ DEBTS ═══ */}
 {tab === "debts" && (<>
- <div data-field="debts-section" style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Hero + Toggles (sticky) */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div data-field="debts-section" style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={debtFree ? "$0" : fmt(calc.totalMonthlyDebts)} label="Monthly Debts" color={debtFree ? T.green : T.red} sub={debtFree ? "Debt free!" : `${calc.qualifyingDebts.length} qualifying`} />
  </div>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 0, alignItems: "flex-start" } : {}}>
- {/* LEFT: Toggles (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <div data-field="debt-free-toggle" className={isPulse("debt-free-toggle")} onClick={() => markTouched("debt-free-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <Card style={{ marginBottom: 14 }}>
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -5454,7 +5029,7 @@ export default function MortgageBlueprint({ initialState }) {
  </Card>
  <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
  {/* ── LEFT: StopLight pillars stay above, FICO section ── */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <Sec title="Credit Score">
   <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
   <Card>
@@ -5808,7 +5383,7 @@ export default function MortgageBlueprint({ initialState }) {
  /* ── INVESTMENT: Schedule E Pro Forma ── */
  <div style={{ marginTop: 20 }}>
   <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
-  <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
+  <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
    <Hero value={fmt(calc.schedENetIncome)} label="Schedule E — Net Rental Income" color={calc.schedENetIncome >= 0 ? T.green : T.red} sub={`${fmt(calc.schedENetIncome / 12)}/mo`} />
    <Card pad={14} style={{ marginTop: 16 }}>
     <div style={{ fontSize: 11, color: T.textTertiary }}>Annual Cash Flow</div>
@@ -5875,7 +5450,7 @@ export default function MortgageBlueprint({ initialState }) {
 ) : (
  /* ── PRIMARY RESIDENCE: Schedule A Tax Savings (original) ── */
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? {} : { marginTop: 20 }}>
   <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.purple} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
  </div>
@@ -6286,7 +5861,7 @@ export default function MortgageBlueprint({ initialState }) {
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
     {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
      <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
-      <div style={{ fontSize: 16, marginBottom: 2 }}>{icon}</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2, color: T.green }}><Icon name={icon} size={16} /></div>
       <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
      </div>
     ))}
@@ -6360,7 +5935,7 @@ export default function MortgageBlueprint({ initialState }) {
       {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
        <button key={key} onClick={() => saveSkillLevel(key)}
         style={{ padding: "8px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-        <div style={{ fontSize: 16 }}>{preset.icon}</div>
+        <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>
         <div style={{ fontSize: 11, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 2 }}>{preset.label}</div>
        </button>
       ))}
@@ -6382,20 +5957,20 @@ export default function MortgageBlueprint({ initialState }) {
      </div>
     </div>
 
-    {/* 3) Property Location */}
+    {/* 3) Property Location — Zip first, then city/state */}
     <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Property Location <span style={{ color: T.red, fontSize: 12, fontWeight: 700 }}>*</span></div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 6 }}>
-      <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
+     <TextInp label="Zip Code" value={propertyZip} onChange={v => { const clean = v.replace(/\D/g,"").slice(0,5); setPropertyZip(clean); if (clean.length >= 5) setTimeout(() => markTouched("location"), 600); }} placeholder="Enter zip to auto-fill" inputMode="numeric" pattern="[0-9]*" />
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); markTouched("location"); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
       <div>
        {propertyState === "California" ? (
-        <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} req />
+        <SearchSelect label="City" value={city} onChange={v => { setCity(v); markTouched("location"); }} options={CITY_NAMES} req />
        ) : (
-        <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} req />
+        <SearchSelect label="City" value={city} onChange={v => { setCity(v); markTouched("location"); }} options={STATE_CITIES[propertyState] || []} req />
        )}
       </div>
      </div>
-     <TextInp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(v.replace(/\D/g,"").slice(0,5))} placeholder="Optional — auto-fills county" inputMode="numeric" pattern="[0-9]*" sm />
     </div>
     {(city && propertyState) && (
      <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
@@ -6403,62 +5978,87 @@ export default function MortgageBlueprint({ initialState }) {
      </div>
     )}
 
-    {/* 4) FICO */}
+    {/* 4) FICO with slider */}
     <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-     <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." />
-     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -6, marginBottom: 10 }}>
+     <FieldLabel label="Middle FICO Score" tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." req filled={creditScore > 0} />
+     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ flex: "0 0 90px" }}>
+       <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
+        onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
+        onBlur={() => { if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
+        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+       <input type="range" min={300} max={850} step={5} value={creditScore || 650}
+        onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+        style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+        <span>300</span>
+        <span>580</span>
+        <span>670</span>
+        <span>740</span>
+        <span>850</span>
+       </div>
+      </div>
+     </div>
+     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
       <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
       <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
        {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
       </span>
      </div>}
     </div>
+
+    {/* 5) Filing Status — below FICO to even out columns */}
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}` }}>
+     <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
+    </div>
    </Card>
   </div>{/* end left column */}
 
-  {/* ── RIGHT COLUMN: Numbers & Estimate ── */}
+  {/* ── RIGHT COLUMN: Numbers, Estimate & Options ── */}
   <div>
    <Card>
-    {/* 5) Sales Price — purchase only */}
+    {/* 5+6) Price & Down Payment — side by side on desktop, purchase only */}
     {!isRefi && (
-    <div data-field="price-input" className={isPulse("price-input")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
-     <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
-    </div>
-    )}
-
-    {/* 6) Down Payment with %/$ toggle — purchase only */}
-    {!isRefi && (
-    <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-       Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-      </div>
-      <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
-       <button onClick={() => setDownMode("pct")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
-       <button onClick={() => setDownMode("dollar")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
-      </div>
+    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } : { marginBottom: 10 }}>
+     <div data-field="price-input" className={isPulse("price-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+      <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
      </div>
-     {downMode === "pct" ? (
-      <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
-     ) : (
-      <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
-     )}
-     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
-      {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+     <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+        Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+       </div>
+       <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
+        <button onClick={() => setDownMode("pct")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
+        <button onClick={() => setDownMode("dollar")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
+       </div>
+      </div>
+      {downMode === "pct" ? (
+       <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+      ) : (
+       <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
+      )}
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
+       {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+      </div>
      </div>
     </div>
     )}
     {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
 
-    {/* 7) First-Time Homebuyer — purchase only */}
+    {/* 7) First-Time Homebuyer — compact inline */}
     {!isRefi && (
-    <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>First-Time Homebuyer?</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-      <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "9px 0", background: firstTimeBuyer ? `${T.green}22` : T.inputBg, border: firstTimeBuyer ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 10, color: firstTimeBuyer ? T.green : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Yes — FTHB</button>
-      <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "9px 0", background: !firstTimeBuyer ? `${T.blue}22` : T.inputBg, border: !firstTimeBuyer ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: !firstTimeBuyer ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>No</button>
+    <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s", marginBottom: 6 }}>
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary }}>First-Time Homebuyer?</span>
+      <div style={{ display: "flex", gap: 4 }}>
+       <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer ? `${T.green}22` : T.inputBg, border: firstTimeBuyer ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
+       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "5px 12px", background: !firstTimeBuyer ? `${T.blue}22` : T.inputBg, border: !firstTimeBuyer ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: !firstTimeBuyer ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
+      </div>
      </div>
-     {firstTimeBuyer && <Note color={T.green}>FTHB unlocked! 3% down conventional available.</Note>}
+     {firstTimeBuyer && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 4 }}>FTHB unlocked — 3% down conventional available</div>}
     </div>
     )}
 
@@ -6472,7 +6072,7 @@ export default function MortgageBlueprint({ initialState }) {
 
    {/* ── Live Estimate — purchase only ── */}
    {!isRefi && (
-   <div style={{ background: darkMode ? "linear-gradient(135deg, #1a2a1f, #162030)" : `linear-gradient(135deg, ${T.green}08, ${T.blue}06)`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 10 }}>
+   <div style={{ background: darkMode ? "linear-gradient(135deg, #1a2a1f, #162030)" : `linear-gradient(135deg, ${T.green}08, ${T.blue}06)`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 10 : 0 }}>
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
       <span style={{ fontSize: 28, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
@@ -6495,6 +6095,56 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    </div>
    )}
+
+   {/* ── Zip summary — Tax, Transfer, AMI right below estimate ── */}
+   {(city && propertyState) && (
+    <div style={{ marginTop: 6, padding: "6px 14px", display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
+     <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
+     {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
+     {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
+    </div>
+   )}
+
+   {/* ── Modules — full-width toggles with descriptions ── */}
+   <div style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden" }}>
+    <div style={{ padding: "10px 14px 6px", fontSize: 13, fontWeight: 700, color: T.text }}>Modules</div>
+    {/* Own Properties */}
+    <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Own Properties?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show REO (Real Estate Owned) tab</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+    {/* Selling a Property */}
+    {!isRefi && (
+    <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Selling a Property?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Seller Net Sheet tab</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+    )}
+    {/* Investment Analysis */}
+    {!isRefi && (
+    <div onClick={() => setShowInvestor(!showInvestor)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Investor tab with ROI metrics</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+    )}
+    {/* Security note */}
+    <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.separator}`, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
+   </div>
   </div>{/* end right column */}
 
  </div>{/* end 2-column grid */}
@@ -6622,105 +6272,21 @@ export default function MortgageBlueprint({ initialState }) {
   </div>
  </div>}
 
- {/* ── Your Team (collapsible) ── */}
- <div onClick={() => setSetupTeamOpen(!setupTeamOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupTeamOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupTeamOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}></span>
-   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Your Team</span>
-   <span style={{ fontSize: 11, color: T.textTertiary }}>(LO, Realtor, Borrower)</span>
+ {/* ── Manual zip fallback (when auto-lookup fails) ── */}
+ {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (
+ <Card>
+  <div style={{ fontSize: 11, fontWeight: 600, color: T.orange, marginBottom: 6 }}>Zip not found — set manually:</div>
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+   <div>
+    {propertyState === "California" ? (
+     <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
+    ) : (
+     <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
+    )}
+   </div>
+   <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
   </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupTeamOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
- </div>
- {setupTeamOpen && (
-  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
-   <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
-    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
-   </div>
-   <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
-    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
-   </div>
-   <Inp label="Realtor" value={realtorName} onChange={setRealtorName} prefix="" type="text" />
-   <Inp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} prefix="" type="text" />
-  </Card>
- )}
-
- {/* ── Advanced Settings (collapsed) ── */}
- <div onClick={() => setSetupAdvancedOpen(!setupAdvancedOpen)}
-  style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: setupAdvancedOpen ? "18px 18px 0 0" : 18, padding: "16px", cursor: "pointer", marginBottom: setupAdvancedOpen ? 0 : 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-   <span style={{ fontSize: 14 }}></span>
-   <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Advanced Settings</span>
-  </div>
-  <span style={{ fontSize: 16, color: T.textTertiary, transform: setupAdvancedOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>▾</span>
- </div>
- {setupAdvancedOpen && (
-  <Card style={{ borderRadius: "0 0 18px 18px", marginTop: 0 }}>
-   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." />
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Currently own property?</span>
-    <div onClick={() => { setOwnsProperties(!ownsProperties); setToggleHint(toggleHint === "ownsProperties" ? null : "ownsProperties"); }} style={{ width: 52, height: 30, borderRadius: 99, background: ownsProperties ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: ownsProperties ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>
-   {toggleHint === "ownsProperties" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${ownsProperties ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {ownsProperties ? TOGGLE_DESCRIPTIONS.ownsProperties.on : TOGGLE_DESCRIPTIONS.ownsProperties.off}
-   </div>}
-   {!isRefi && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Investment Property?</span>
-    <div onClick={() => { setShowInvestor(!showInvestor); setToggleHint(toggleHint === "showInvestor" ? null : "showInvestor"); }} style={{ width: 52, height: 30, borderRadius: 99, background: showInvestor ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: showInvestor ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>}
-   {!isRefi && toggleHint === "showInvestor" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${showInvestor ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {showInvestor ? TOGGLE_DESCRIPTIONS.showInvestor.on : TOGGLE_DESCRIPTIONS.showInvestor.off}
-   </div>}
-   {!isRefi && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: `1px solid ${T.separator}` }}>
-    <span style={{ fontSize: 14, color: T.text }}>Selling a property?</span>
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); setToggleHint(toggleHint === "hasSellProperty" ? null : "hasSellProperty"); }} style={{ width: 52, height: 30, borderRadius: 99, background: hasSellProperty ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-     <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: hasSellProperty ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-    </div>
-   </div>}
-   {!isRefi && toggleHint === "hasSellProperty" && <div style={{ padding: "8px 12px", margin: "4px 0 8px", background: `${hasSellProperty ? T.green : T.blue}10`, borderRadius: 10, fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-    {hasSellProperty ? TOGGLE_DESCRIPTIONS.hasSellProperty.on : TOGGLE_DESCRIPTIONS.hasSellProperty.off}
-   </div>}
-   <div style={{ marginTop: 12, padding: "10px 14px", background: T.pillBg, borderRadius: 10 }}>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>AUTO-FILLED FROM ZIP</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
-     <span style={{ color: T.textTertiary }}>Location</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{city}, {propertyState}</span>
-     <span style={{ color: T.textTertiary }}>Tax Rate</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
-      {propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%
-     </span>
-     {!isRefi && <><span style={{ color: T.textTertiary }}>Transfer Tax</span>
-     <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>
-      {getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County only ($1.10/$1K)"}
-     </span></>}
-     {propertyCounty && COUNTY_AMI[propertyCounty] && <>
-      <span style={{ color: T.textTertiary }}>Area Median Income</span>
-      <span style={{ color: T.text, fontWeight: 600, fontFamily: FONT, textAlign: "right" }}>{fmt(COUNTY_AMI[propertyCounty])}</span>
-     </>}
-    </div>
-   </div>
-   {(!lookupZip(propertyZip) && propertyZip.length >= 5) && (<>
-    <div style={{ marginTop: 12, fontSize: 12, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Zip not found — set location manually:</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-     <div>
-      {propertyState === "California" ? (
-       <SearchSelect label="City" value={city} onChange={setCity} options={CITY_NAMES} />
-      ) : (
-       <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
-      )}
-     </div>
-     <Sel label="State" value={propertyState} onChange={setPropertyState} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
-    </div>
-   </>)}
-  </Card>
+ </Card>
  )}
 
  {/* ── Scenarios ── */}
@@ -6737,10 +6303,6 @@ export default function MortgageBlueprint({ initialState }) {
   </Card>
  )}
 
- {/* Security */}
- <Card style={{ background: T.pillBg }}>
-  <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
- </Card>
 </>)}
 {/* ═══ REO - Real Estate Owned ═══ */}
 {tab === "reo" && (<>
@@ -7277,12 +6839,12 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ INVESTMENT PROPERTY ═══ */}
 {tab === "invest" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Hero + Inputs (sticky) */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(invCalc.monthlyCashFlow)} label="Monthly Cash Flow" color={invCalc.monthlyCashFlow >= 0 ? T.green : T.red} sub={`Cap Rate: ${invCalc.capRate.toFixed(2)}% · CoC: ${invCalc.cashOnCash.toFixed(1)}%`} />
  </div>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 16, alignItems: "flex-start" } : {}}>
- {/* LEFT: Inputs (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <Sec title="Rental Income">
   <Card>
    <Inp label="Monthly Rent" value={invMonthlyRent} onChange={setInvMonthlyRent} />
@@ -7441,12 +7003,12 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ RENT VS BUY ═══ */}
 {tab === "rentvbuy" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Hero + Summary (sticky) */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={rbCalc.breakEvenYear ? `Year ${rbCalc.breakEvenYear}` : "—"} label="Break-even Point" color={T.blue} sub="When buying beats renting" />
  </div>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 0, alignItems: "flex-start" } : {}}>
- {/* LEFT: Summary (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 20, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 40px)", overflow: "auto" } : {}}>
  <Sec title="Your Renting Costs">
   <Card>
    <Inp label="Current Monthly Rent" value={rbCurrentRent} onChange={setRbCurrentRent} />
@@ -7709,8 +7271,8 @@ export default function MortgageBlueprint({ initialState }) {
        return (
         <div key={ch.id} onClick={() => !locked && (setCourseChapter(ch.id), setCourseQuizAnswers({}), setCourseQuizSubmitted(false))}
          style={{ display: "flex", gap: 12, padding: "12px 0", borderTop: ci > 0 ? `1px solid ${T.separator}` : "none", cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.4 : 1 }}>
-         <div style={{ width: 44, height: 44, borderRadius: 14, background: done ? `${T.green}20` : locked ? T.inputBg : `${phase.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, border: done ? `2px solid ${T.green}` : `2px solid transparent` }}>
-          {done ? "check" : locked ? "lock" : ch.icon}
+         <div style={{ width: 44, height: 44, borderRadius: 14, background: done ? `${T.green}20` : locked ? T.inputBg : `${phase.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, border: done ? `2px solid ${T.green}` : `2px solid transparent`, color: done ? T.green : locked ? T.textTertiary : phase.color }}>
+          <Icon name={done ? "check" : locked ? "lock" : ch.icon} size={22} />
          </div>
          <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: done ? T.green : locked ? T.textTertiary : T.text }}>Ch. {ch.id}: {ch.title}</div>
@@ -7747,7 +7309,7 @@ export default function MortgageBlueprint({ initialState }) {
     {/* Chapter header */}
     <Card style={{ background: `linear-gradient(135deg, ${PHASE_INFO[ch.phase-1].color}12, ${T.card})`, border: `1px solid ${PHASE_INFO[ch.phase-1].color}30` }}>
      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 52, height: 52, borderRadius: 16, background: `${PHASE_INFO[ch.phase-1].color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>{ch.icon}</div>
+      <div style={{ width: 52, height: 52, borderRadius: 16, background: `${PHASE_INFO[ch.phase-1].color}20`, display: "flex", alignItems: "center", justifyContent: "center", color: PHASE_INFO[ch.phase-1].color }}><Icon name={ch.icon} size={28} /></div>
       <div>
        <div style={{ fontSize: 11, fontWeight: 700, color: PHASE_INFO[ch.phase-1].color, textTransform: "uppercase", letterSpacing: 1 }}>Phase {ch.phase} · Chapter {ch.id}</div>
        <div style={{ fontSize: 18, fontWeight: 800, color: T.text, fontFamily: FONT }}>{ch.title}</div>
@@ -7962,7 +7524,7 @@ export default function MortgageBlueprint({ initialState }) {
     <Card key={pi} style={{ marginTop: 12, border: prog.active ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, position: "relative", overflow: "hidden" }}>
      {prog.active && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: T.blue }} />}
      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-      <div style={{ fontSize: 28 }}>{prog.icon}</div>
+      <div style={{ display: "flex", alignItems: "center", color: prog.active ? T.blue : T.textSecondary }}>{prog.icon ? <Icon name={prog.icon} size={28} /> : null}</div>
       <div>
        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ fontSize: 17, fontWeight: 800, fontFamily: FONT, color: T.text }}>{prog.name}</div>
@@ -8300,6 +7862,21 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
   </Card>
  </Sec>
+ <Sec title="Loan Officer Info">
+  <Card>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once — applies to all scenarios.</div>
+   <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
+    <Inp label="LO NMLS" value={loNmls} onChange={setLoNmls} prefix="" type="text" />
+   </div>
+   <Inp label="LO Email" value={loEmail} onChange={setLoEmail} prefix="" type="text" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
+    <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
+   </div>
+  </Card>
+ </Sec>
  <Sec title="Modules">
   <Card>
    {[["Refinance?", "Show Refi Summary tab", isRefi, setIsRefi],
@@ -8454,798 +8031,35 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
    </>}
    {/* ═══════════════════════════════════════════ */}
-   {/* PRICEPOINT MODE */}
+   {/* PRICEPOINT MODE — Now its own component */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "pricepoint" && (
-    <div style={{ maxWidth: isDesktop ? 1100 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
-     <style>{`
-      html, body { background: ${T.bg} !important; overflow-x: hidden; }
-      @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
-      @keyframes ppSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
-      @keyframes ppCardExit { to { opacity:0; transform:translateX(120%) rotate(8deg) } }
-      @keyframes ppNotifIn { from { opacity:0; transform:translateY(-20px) } to { opacity:1; transform:translateY(0) } }
-      .pp-submitted { animation: ppCardExit 0.4s ease-in forwards }
-      .pp-rvl-ov { position:fixed; inset:0; background:rgba(0,0,0,0.88); display:flex; align-items:center; justify-content:center; z-index:200; opacity:0; transition:opacity 0.3s; backdrop-filter:blur(12px) }
-      .pp-rvl-ov.vis { opacity:1 }
-      .pp-rvl-cd { background:${T.card}; border:1px solid rgba(56,189,126,0.2); border-radius:28px; padding:36px 28px; max-width:${isDesktop ? "540px" : "420px"}; width:92%; transform:translateY(100%); transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1) }
-      .pp-rvl-ov.vis .pp-rvl-cd { transform:translateY(0) }
-     `}</style>
-
-     {/* PP Notification */}
-     {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
-
-     {/* PP Header */}
-     <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div>
-       <button onClick={() => setAppMode("blueprint")} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 4, fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
-        ← Blueprint
-       </button>
-       <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
-       <div style={{ fontSize: 12, color: T.textTertiary }}>
-        {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Recently Sold" : "On Market"}` : ppSoldMode ? "Recently Sold" : "On Market"}
-        {ppDataSource === "live" && <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(56,189,126,0.15)", color:"#38bd7e", fontWeight:700 }}>LIVE</span>}
-       </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-       {ppSavedLocations.length > 1 ? (
-        <select onChange={e => { const loc = ppSavedLocations.find(l => l.label === e.target.value); if (loc) { setPpHometown(loc); setPpSearchZip(loc.zip || loc.city || loc.label); ppFetchListings(loc.zip || loc.city || loc.label); } else ppChangeHometown(); }} value={ppHometown?.label || ""} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 8px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: `1px solid ${T.cardBorder}`, cursor: "pointer", appearance: "auto", fontFamily: FONT, maxWidth: 120 }}>
-         {ppSavedLocations.map(l => <option key={l.label} value={l.label}>{l.label}</option>)}
-         <option value="__new">+ New location</option>
-        </select>
-       ) : ppHometown ? (
-        <button onClick={ppChangeHometown} style={{ background: T.pillBg, borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: T.textTertiary, border: "none", cursor: "pointer" }}>{ppHometown.label}</button>
-       ) : null}
-       <div style={{ background: T.pillBg, borderRadius: 10, padding: "6px 12px", fontSize: 14, fontWeight: 700, color: T.text, opacity: (ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak) > 0 ? 1 : 0.4 }}>{ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak}</div>
-       <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 10, padding: "4px 10px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
-        <span style={{ fontSize: 16 }}>{ppCurrentHome.icon}</span>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</span>
-       </div>
-      </div>
-     </div>
-
-     {/* PP View Navigation Tabs */}
-     <div style={{ padding: "0 18px 10px" }}>
-      <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
-       {[["cards","Play"],["results","History"],["stats","Stats"],["leaderboard","Board"]].map(([k,l]) => (
-        <button key={k} onClick={() => setPpView(k)} style={{
-         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-         background: ppView === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
-         color: ppView === k ? "#fff" : T.textTertiary,
-         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-        }}>{l}</button>
-       ))}
-      </div>
-     </div>
-
-     {/* PP Search Bar */}
-     {ppView === "cards" && (
-      <div style={{ padding: "0 18px 10px" }}>
-       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-         value={ppSearchZip}
-         onChange={e => setPpSearchZip(e.target.value)}
-         onKeyDown={e => e.key === "Enter" && ppHandleSearch()}
-         placeholder="City, State (e.g. Oakland, CA)"
-         style={{
-          flex: 1, background: T.pillBg, border: `1px solid ${T.cardBorder}`, borderRadius: 12,
-          padding: "10px 14px", fontSize: 14, color: T.text, outline: "none", boxSizing: "border-box",
-         }}
-        />
-        <button
-         onClick={ppHandleSearch}
-         disabled={ppLoading || !ppSearchZip.trim()}
-         style={{
-          padding: "10px 16px", borderRadius: 12, border: "none", fontSize: 13, fontWeight: 700,
-          background: ppSearchZip.trim() && !ppLoading ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-          color: ppSearchZip.trim() && !ppLoading ? "#fff" : T.textTertiary,
-          cursor: ppSearchZip.trim() && !ppLoading ? "pointer" : "not-allowed",
-          transition: "all 0.2s", whiteSpace: "nowrap",
-         }}
-        >
-         {ppLoading ? "⏳" : "Search"}
-        </button>
-       </div>
-       {ppError && (
-        <div style={{ marginTop: 6, fontSize: 11, color: "#e8c84d", background: "rgba(232,200,77,0.08)", borderRadius: 8, padding: "6px 10px" }}>
-         {ppError}
-        </div>
-       )}
-       {ppDataSource === "live" && (
-        <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-         <span style={{ fontSize: 11, color: T.textTertiary }}>
-          {PP_ACTIVE_SOURCE.length} active · {PP_SOLD_SOURCE.length} sold
-         </span>
-         <div style={{ display: "flex", gap: 10 }}>
-          {ppHometown && ppLocationLabel !== ppHometown.label && (
-           <button onClick={() => { setPpSearchZip(ppHometown.zip || ppHometown.city); ppFetchListings(ppHometown.zip || ppHometown.city); }} style={{ fontSize: 11, color: "#38bd7e", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-            Back to {ppHometown.label}
-           </button>
-          )}
-          <button onClick={() => { setPpDataSource("hardcoded"); setPpLiveActive([]); setPpLiveSold([]); setPpLocationLabel(""); setPpGuesses([]); setPpSearchZip(""); try{localStorage.removeItem("pp-guesses")}catch(e){} }} style={{ fontSize: 11, color: T.textTertiary, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-           Sample data
-          </button>
-         </div>
-        </div>
-       )}
-      </div>
-     )}
-
-     {/* PP Loading Overlay */}
-     {ppLoading && (
-      <div style={{ textAlign: "center", padding: "40px 20px" }}>
-       <div style={{ fontSize: 36, marginBottom: 12, animation: "ppFadeIn 0.5s ease infinite alternate" }}></div>
-       <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>Searching listings...</div>
-       <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 4 }}>Pulling live data from Zillow</div>
-      </div>
-     )}
-
-     {/* PP Hometown Setup Prompt */}
-     {ppShowHometownSetup && (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 250, backdropFilter: "blur(12px)", animation: "ppFadeIn 0.3s ease" }}>
-       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: 380, width: "90%", textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}></div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 6 }}>Set Your Hometown</div>
-        <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 20, lineHeight: 1.5 }}>
-         This is where PricePoint will pull properties from. Your leaderboard will be based on your city.
-        </div>
-        <input
-         value={ppHometownInput}
-         onChange={e => setPpHometownInput(e.target.value)}
-         onKeyDown={e => e.key === "Enter" && ppSaveHometown()}
-         placeholder="City, State (e.g. San Francisco, CA)"
-         autoFocus
-         style={{
-          width: "100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.3)`, borderRadius: 14,
-          padding: "14px 18px", fontSize: 18, fontWeight: 600, color: T.text, textAlign: "center",
-          outline: "none", boxSizing: "border-box", marginBottom: 12,
-         }}
-        />
-        <button
-         onClick={ppSaveHometown}
-         disabled={!ppHometownInput.trim()}
-         style={{
-          width: "100%", padding: "14px", borderRadius: 14, border: "none", fontSize: 15, fontWeight: 700,
-          background: ppHometownInput.trim() ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-          color: ppHometownInput.trim() ? "#fff" : T.textTertiary,
-          cursor: ppHometownInput.trim() ? "pointer" : "not-allowed",
-          transition: "all 0.2s", letterSpacing: 0.5, marginBottom: 8,
-         }}
-        >
-         Set Hometown 
-        </button>
-        {ppHometown && (
-         <button
-          onClick={() => setPpShowHometownSetup(false)}
-          style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 13, cursor: "pointer", padding: "8px" }}
-         >
-          Cancel
-         </button>
-        )}
-        {!ppHometown && (
-         <button
-          onClick={() => { setPpShowHometownSetup(false); }}
-          style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", padding: "8px", marginTop: 4 }}
-         >
-          Skip — use sample data
-         </button>
-        )}
-       </div>
-      </div>
-     )}
-
-     {/* Weekly Challenge Banner */}
-     {ppView === "cards" && !ppLoading && PP_SOLD_SOURCE.length >= 5 && (
-      <div style={{ padding: "0 18px 8px" }}>
-       <button onClick={() => { setPpWeeklyMode(!ppWeeklyMode); if (!ppWeeklyMode) setPpSoldMode(true); }}
-        style={{
-         width: "100%", padding: ppWeeklyMode ? "12px 14px" : "8px 14px", borderRadius: 12,
-         border: `1px solid ${ppWeeklyMode ? "rgba(232,200,77,0.4)" : T.cardBorder}`,
-         background: ppWeeklyMode ? "linear-gradient(135deg, rgba(232,200,77,0.12), rgba(232,200,77,0.04))" : T.pillBg,
-         display: "flex", alignItems: "center", justifyContent: "space-between",
-         cursor: "pointer", transition: "all 0.3s",
-        }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: ppWeeklyMode ? "#e8c84d" : T.textTertiary }}>Weekly Challenge {ppWeeklyMode ? `— ${ppWeeklyRemaining.length} of 5 left` : ""}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: ppWeeklyMode ? "#e8c84d" : T.textTertiary }}>{ppWeeklyMode ? "Exit" : "Play →"}</span>
-       </button>
-      </div>
-     )}
-     {/* Mode Toggle: Recently Sold vs Currently On Market */}
-     {ppView === "cards" && !ppLoading && !ppWeeklyMode && (
-      <div style={{ padding: "0 18px 8px" }}>
-       <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3 }}>
-        <button onClick={() => setPpSoldMode(true)} style={{
-         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-         background: ppSoldMode ? "linear-gradient(135deg,#e8c84d,#d4a843)" : "transparent",
-         color: ppSoldMode ? "#1a1a1a" : T.textTertiary,
-         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-        }}>Recently Sold</button>
-        <button onClick={() => setPpSoldMode(false)} style={{
-         flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-         background: !ppSoldMode ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
-         color: !ppSoldMode ? "#fff" : T.textTertiary,
-         cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
-        }}>On Market</button>
-       </div>
-      </div>
-     )}
-
-     <div style={{ padding: "0 18px", paddingBottom: 20, overflow: "hidden" }} onTouchStart={ppHandleTouchStart} onTouchEnd={ppHandleTouchEnd}>
-
-      {/* ── PP CARDS VIEW ── */}
-      {ppView === "cards" && !ppLoading && (
-       ppCurrentListing ? (
-        <div className={ppCardAnim} style={{ animation: ppCardAnim ? undefined : "ppSlideUp 0.5s ease-out" }}>
-         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 22, padding: 14 }}>
-          <div style={{ display: isDesktop ? "flex" : "block", gap: isDesktop ? 20 : 0 }}>
-          <div style={{ position: "relative", flex: isDesktop ? "0 0 50%" : undefined, maxWidth: isDesktop ? "50%" : undefined }}>
-           {/* Photo Carousel */}
-           {(() => {
-            const det = ppPropertyDetails[ppCurrentListing.zpid];
-            const hasPhotos = det?.photos?.length > 1;
-            const photos = hasPhotos ? det.photos : [ppCurrentListing.photo];
-            const idx = Math.min(ppPhotoIdx, photos.length - 1);
-            return (
-             <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}` }}
-              onTouchStart={e => { ppPhotoTouchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY }; }}
-              onTouchEnd={e => {
-               const dx = e.changedTouches[0].clientX - ppPhotoTouchRef.current.startX;
-               const dy = e.changedTouches[0].clientY - ppPhotoTouchRef.current.startY;
-               if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                e.stopPropagation();
-                if (dx < 0) setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0);
-                if (dx > 0) setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1);
-               }
-              }}>
-              <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 360 : 200, objectFit:"cover", display:"block" }}
-               onError={e => { if (!e.target.dataset.retried) { e.target.dataset.retried = "1"; e.target.src = photos[idx] + (photos[idx].includes("?") ? "&" : "?") + "t=" + Date.now(); } else { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }}} />
-              {/* Dot indicators */}
-              {hasPhotos && (
-               <div style={{ position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, background:"rgba(0,0,0,0.4)", borderRadius:10, padding:"4px 8px" }}>
-                {photos.length <= 15 ? photos.map((_,i) => (
-                 <div key={i} onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(i); }}
-                  style={{ width: i===idx ? 8 : 5, height: 5, borderRadius: 3, background: i===idx ? "#fff" : "rgba(255,255,255,0.4)", transition:"all 0.2s", cursor:"pointer" }} />
-                )) : (
-                 <span style={{ fontSize:10, color:"#fff", fontWeight:600 }}>{idx+1} / {photos.length}</span>
-                )}
-               </div>
-              )}
-              {/* Left/right tap zones (desktop fallback) — loops around */}
-              {hasPhotos && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1); }}
-                style={{ position:"absolute", left:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
-              )}
-              {hasPhotos && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0); }}
-                style={{ position:"absolute", right:0, top:0, width:"30%", height:"100%", cursor:"pointer" }} />
-              )}
-              {/* Left/right arrows on hover — always visible, loops around */}
-              {hasPhotos && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1); }}
-                style={{ position:"absolute", left:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>‹</div>
-              )}
-              {hasPhotos && (
-               <div onClick={(e) => { e.stopPropagation(); setPpPhotoIdx(idx < photos.length - 1 ? idx + 1 : 0); }}
-                style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:14, color:"#fff" }}>›</div>
-              )}
-              {/* Loading shimmer for photos */}
-              {det?.loading && (
-               <div style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.5)", borderRadius:8, padding:"4px 8px", fontSize:10, color:"#fff" }}>Loading photos...</div>
-              )}
-             </div>
-            );
-           })()}
-           {ppSoldMode && <div style={{ position:"absolute", top:10, left:10, background:"rgba(232,200,77,0.9)", backdropFilter:"blur(6px)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:800, color:"#1a1a2e", letterSpacing:1, textTransform:"uppercase" }}> Sold</div>}
-          </div>
-          {/* Right column on desktop: details + guess */}
-          <div style={{ padding: "14px 0 0", flex: isDesktop ? 1 : undefined }}>
-           <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>{ppCurrentListing.address}</div>
-           <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{ppCurrentListing.neighborhood} · {ppCurrentListing.city}, {ppCurrentListing.state} {ppCurrentListing.zip}</div>
-           <div style={{ display: "flex", gap: 6, margin: "12px 0", flexWrap: "wrap" }}>
-            {[[ppCurrentListing.beds,"Beds"],[ppCurrentListing.baths,"Baths"],[(ppCurrentListing.sqft||0).toLocaleString(),"SqFt"],[ppCurrentListing.yearBuilt,"Built"],["$"+ppCurrentListing.pricePerSqft,"/SF"]].map(([v,l],i) => (
-             <div key={i} style={{ background: T.pillBg, borderRadius: 10, padding: "8px 12px", textAlign: "center", flex: 1, minWidth: 55 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{v}</div>
-              <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 1 }}>{l}</div>
-             </div>
-            ))}
-           </div>
-           {/* MLS Description */}
-           {(() => {
-            const det = ppPropertyDetails[ppCurrentListing.zpid];
-            const desc = det?.description;
-            if (!desc) return null;
-            // Strip dollar amounts from description to avoid giving away price
-            const cleanDesc = desc.replace(/\$[\d,]+(?:\.\d{2})?/g, "$***").replace(/(?:priced?|offered?|asking|listed?|sold?)\s+(?:at|for)\s+\$?[\d,]+/gi, "").trim();
-            const isLong = cleanDesc.length > 150;
-            const shown = isLong && !ppDescExpanded ? cleanDesc.slice(0, 150).replace(/\s+\S*$/, "…") : cleanDesc;
-            return (
-             <div style={{ marginBottom: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 12, borderLeft: `3px solid ${T.blue}40` }}>
-              <div style={{ fontSize: 12, lineHeight: 1.5, color: T.textSecondary }}>{shown}</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
-               {isLong && (
-                <button onClick={() => setPpDescExpanded(!ppDescExpanded)}
-                 style={{ background:"none", border:"none", color:T.blue, fontSize:11, fontWeight:600, cursor:"pointer", padding:0, fontFamily:FONT }}>
-                 {ppDescExpanded ? "Show less" : "Read more"}
-                </button>
-               )}
-               {ppCurrentListing.detailUrl && (
-                <button onClick={() => window.open(ppCurrentListing.detailUrl, "_blank")}
-                 style={{ background:"none", border:"none", color:T.textTertiary, fontSize:11, fontWeight:500, cursor:"pointer", padding:0, fontFamily:FONT, marginLeft:"auto" }}>
-                 View on Zillow ↗
-                </button>
-               )}
-              </div>
-             </div>
-            );
-           })()}
-           {/* List Price — hero pill */}
-           {ppCurrentListing.listPrice ? (
-            <div style={{ background: "rgba(56,189,126,0.08)", border: "1px solid rgba(56,189,126,0.2)", borderRadius: 14, padding: "12px 16px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-             <div>
-              <div style={{ fontSize: 10, color: "#38bd7e", fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Listed at</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#38bd7e", marginTop: 2, letterSpacing: "-0.02em" }}>{ppFmt(ppCurrentListing.listPrice)}</div>
-             </div>
-             {ppCurrentListing.sqft > 0 && <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: T.textSecondary }}>${Math.round(ppCurrentListing.listPrice / ppCurrentListing.sqft)}</div>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>per SF</div>
-             </div>}
-            </div>
-           ) : null}
-           {/* Secondary refs: Zestimate, Sold Date / DOM */}
-           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            {ppCurrentListing.zestimate ? (
-             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Zestimate</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: T.blue, marginTop: 2 }}>{ppFmt(ppCurrentListing.zestimate)}</div>
-             </div>
-            ) : null}
-            {ppSoldMode && ppCurrentListing.soldDate ? (
-             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Sold Date</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#e8c84d", marginTop: 4 }}>{new Date(ppCurrentListing.soldDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</div>
-             </div>
-            ) : null}
-            {!ppSoldMode && ppCurrentListing.daysOnMarket ? (
-             <div style={{ flex: 1, minWidth: 80, background: T.pillBg, borderRadius: 10, padding: "8px 12px" }}>
-              <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Days on Market</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#38bd7e", marginTop: 4 }}>{ppCurrentListing.daysOnMarket}</div>
-             </div>
-            ) : null}
-           </div>
-           <input value={ppGuessInput} onChange={ppHandleInput} onKeyDown={e => e.key === "Enter" && ppHandleGuess()}
-            placeholder={ppSoldMode ? "What did it sell for?" : "What will it sell for?"}
-            style={{ width:"100%", background: T.pillBg, border: `2px solid rgba(56,189,126,0.25)`, borderRadius: 16, padding: "14px 20px", fontSize: 26, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", marginBottom: 6, boxSizing: "border-box" }} />
-           {/* Quick-guess shortcut pills */}
-           {(() => {
-            const lp = ppCurrentListing.listPrice;
-            const ze = ppCurrentListing.zestimate;
-            const pills = [];
-            if (lp) pills.push({ label: "List", val: lp });
-            if (ze) pills.push({ label: "Zest", val: ze });
-            if (lp && ze) pills.push({ label: "Mid", val: Math.round((lp + ze) / 2) });
-            if (pills.length === 0) return null;
-            return (
-             <div style={{ display: "flex", gap: 6, marginBottom: 8, justifyContent: "center", flexWrap: "wrap" }}>
-              {pills.map((p, i) => (
-               <button key={i} onClick={() => setPpGuessInput("$" + p.val.toLocaleString())}
-                style={{ padding: "4px 10px", borderRadius: 8, border: `1px solid ${T.cardBorder}`, background: T.pillBg, fontSize: 11, fontWeight: 600, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, transition: "all 0.2s" }}>
-                {p.label} {ppFmt(p.val)}
-               </button>
-              ))}
-             </div>
-            );
-           })()}
-           {ppGuessInput && (() => {
-            const v = parseInt(ppGuessInput.replace(/[^0-9]/g,""));
-            if (!v) return null;
-            const pp = ppCurrentListing.sqft ? Math.round(v/ppCurrentListing.sqft) : null;
-            const comparePrice = ppCurrentListing.listPrice || ppCurrentListing.zestimate;
-            const compareLabel = ppCurrentListing.listPrice ? "list" : "Zestimate";
-            const d = comparePrice ? ((v - comparePrice)/comparePrice*100).toFixed(1) : null;
-            return <div style={{ textAlign:"center", fontSize:12, color:T.textTertiary, marginBottom:10 }}>
-             {d !== null ? <>{d > 0 ? "+" : ""}{d}% vs {compareLabel}</> : null}{pp ? `${d !== null ? " · " : ""}$${pp}/SF` : ""}
-             {!ppSoldMode && ppCurrentListing.zestimate && ppCurrentListing.listPrice ? ` · ${((v-ppCurrentListing.zestimate)/ppCurrentListing.zestimate*100).toFixed(1)}% vs Zestimate` : ""}
-            </div>;
-           })()}
-           <div style={{ display: "flex", gap: 8 }}>
-           <button onClick={ppSkipListing} style={{
-            padding: "14px 16px", borderRadius: 16, border: `1px solid ${T.cardBorder}`, fontSize: 14, fontWeight: 600,
-            background: T.pillBg, color: T.textTertiary, cursor: "pointer", transition: "all 0.2s",
-           }}>Skip</button>
-           <button onClick={ppHandleGuess} disabled={!ppGuessInput} style={{
-            flex: 1, padding: "14px", borderRadius: 16, border: "none", fontSize: 15, fontWeight: 700,
-            background: ppGuessInput ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-            color: ppGuessInput ? "#fff" : T.textTertiary, cursor: ppGuessInput ? "pointer" : "not-allowed",
-            transition: "all 0.2s", letterSpacing: 0.8, textTransform: "uppercase",
-           }}>Lock It In {ppSoldMode ? "target" : "lock"}</button>
-          </div>
-           {/* Run the Numbers — feed listing into Blueprint calculator */}
-           <button onClick={() => {
-            const price = ppCurrentListing.soldPrice || ppCurrentListing.listPrice || ppCurrentListing.zestimate;
-            if (price) setSalesPrice(price);
-            if (ppCurrentListing.state) setPropertyState(ppCurrentListing.state);
-            if (ppCurrentListing.city) setCity(ppCurrentListing.city);
-            if (ppCurrentListing.zip) setPropertyZip(ppCurrentListing.zip);
-            setAppMode("blueprint");
-            setTab("calc");
-           }} style={{
-            width:"100%", padding: "12px", borderRadius: 14, border: `1px solid ${T.blue}40`, fontSize: 13, fontWeight: 700,
-            background: `${T.blue}10`, color: T.blue, cursor: "pointer", transition: "all 0.2s",
-            marginTop: 10, fontFamily: FONT, letterSpacing: 0.3, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-           }}>Run the Numbers in Blueprint</button>
-           <div style={{ textAlign:"center", marginTop:10, fontSize:12, color:T.textTertiary }}>
-            {ppActiveListings.length - 1} more {ppWeeklyMode ? "in challenge" : ppSoldMode ? "recently sold" : "on market"}
-           </div>
-          </div>
-          </div>{/* close desktop flex wrapper */}
-         </div>
-        </div>
-       ) : (
-        <div style={{ textAlign:"center", padding:"60px 20px" }}>
-         <div style={{ fontSize:48, marginBottom:16 }}>{ppSoldMode ? "trophy" : "home"}</div>
-         <div style={{ fontSize:20, fontWeight:700, color:T.text, marginBottom:8 }}>All caught up!</div>
-         <div style={{ fontSize:14, color:T.textTertiary, marginBottom:20 }}>You guessed on all {ppTotalListings} {ppSoldMode ? "sold" : ""} listings.</div>
-         <button onClick={() => setPpSoldMode(!ppSoldMode)} style={{ padding:"12px 24px", borderRadius:14, border:"none", background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:10 }}>
-          Try {ppSoldMode ? "Currently On Market" : "Recently Sold"} →
-         </button>
-         <div style={{ marginTop:8 }}>
-          <button onClick={ppResetAll} style={{ padding:"10px 20px", borderRadius:14, border:`1px solid ${T.cardBorder}`, background:T.pillBg, color:T.textSecondary, fontSize:13, fontWeight:600, cursor:"pointer" }}>Reset All</button>
-         </div>
-        </div>
-       )
-      )}
-
-      {/* ── PP RESULTS VIEW ── */}
-      {ppView === "results" && (
-       <div style={{ animation: "ppFadeIn 0.3s ease" }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 4 }}>Guess History</div>
-        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>{ppGuesses.length} total guesses · {ppRevealed.length} revealed</div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-         {[["all","All"],["within5","≤ 5%"],["over","Over"],["under","Under"]].map(([k,l]) => (
-          <button key={k} onClick={() => setPpHistoryFilter(k)} style={{
-           padding: "6px 14px", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 600,
-           background: ppHistoryFilter === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : T.pillBg,
-           color: ppHistoryFilter === k ? "#fff" : T.textTertiary, cursor: "pointer", transition: "all 0.2s",
-          }}>{l}</button>
-         ))}
-        </div>
-        {(() => {
-         const filtered = [...ppGuesses].reverse().filter(g => {
-          const rp = ppGetRevealPrice(g);
-          if (!rp || !g.revealed) return ppHistoryFilter === "all";
-          const pct = (g.guess - rp) / rp * 100;
-          if (ppHistoryFilter === "within5") return Math.abs(pct) <= 5;
-          if (ppHistoryFilter === "over") return pct > 0;
-          if (ppHistoryFilter === "under") return pct < 0;
-          return true;
-         });
-         return filtered.length === 0 ? (
-         <div style={{ textAlign:"center", padding:"40px", color:T.textTertiary }}>{ppGuesses.length === 0 ? "No guesses yet — go make some!" : "No guesses match this filter"}</div>
-        ) : <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: isDesktop ? "1fr 1fr" : undefined, gap: isDesktop ? 8 : 0 }}>{filtered.map((g, i) => {
-         const realIdx = ppGuesses.indexOf(g);
-         return (
-          <div key={realIdx} onClick={() => ppSimulateSold(realIdx)}
-           style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", borderRadius:14, cursor:"pointer", background:T.card, border:`1px solid ${T.cardBorder}`, transition:"all 0.2s", marginBottom:8 }}>
-           <div style={{ minWidth:0 }}>
-            <div style={{ fontSize:14, fontWeight:600, color:T.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{g.address}</div>
-            <div style={{ fontSize:11, color:T.textTertiary, marginTop:1 }}>{g.neighborhood} · {g.propertyType}{g.isSoldMode ? <span style={{ marginLeft:6, fontSize:9, padding:"1px 5px", borderRadius:4, background:"rgba(232,200,77,0.15)", color:"#e8c84d", fontWeight:700 }}>PRACTICE</span> : ""}</div>
-            <div style={{ display:"flex", gap:12, marginTop:4, fontSize:12 }}>
-             <span><span style={{ color:T.textTertiary }}>List:</span> <span style={{ color:T.textSecondary }}>{ppFmt(g.listPrice)}</span></span>
-             <span><span style={{ color:T.textTertiary }}>You:</span> <span style={{ color:"#38bd7e", fontWeight:700 }}>{ppFmt(g.guess)}</span></span>
-            </div>
-           </div>
-           <div style={{ textAlign:"right", flexShrink:0, marginLeft:8 }}>
-            {g.revealed && ppGetRevealPrice(g) ? (
-             <>
-              <div style={{ fontSize:12, color:T.textTertiary }}>{g.isSoldMode ? "Sold" : "List"} {ppFmt(ppGetRevealPrice(g))}</div>
-              <div style={{ fontSize:18, fontWeight:800, color:parseFloat(ppAbsPct(g.guess,ppGetRevealPrice(g)))<=3?"#38bd7e":parseFloat(ppAbsPct(g.guess,ppGetRevealPrice(g)))<=7?"#e8c84d":"#e85d5d" }}>
-               {g.guess>=ppGetRevealPrice(g)?"+":""}{ppPct(g.guess,ppGetRevealPrice(g))}%
-              </div>
-             </>
-            ) : (
-             <span style={{ display:"inline-block", padding:"4px 10px", borderRadius:8, fontSize:10, fontWeight:700, background:"rgba(56,189,126,0.1)", color:"#38bd7e", border:"1px solid rgba(56,189,126,0.2)" }}>● Pending</span>
-            )}
-           </div>
-          </div>
-         );
-        })}</div>;
-        })()}
-       </div>
-      )}
-
-      {/* ── PP LEADERBOARD VIEW ── */}
-      {ppView === "leaderboard" && (
-       <div style={{ animation: "ppFadeIn 0.3s ease" }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 2 }}>
-         {ppHometown ? `${ppHometown.label} Leaderboard` : ppLocationLabel ? `${ppLocationLabel} Leaderboard` : "Leaderboard"}
-        </div>
-        <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 14 }}>
-         {ppHometown ? "Your City Rankings · Practice excluded" : "Live listings only · Practice excluded"}
-        </div>
-
-        {/* Filter Slide Bar */}
-        <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 3, marginBottom: 14 }}>
-         {[["all","All"],["agents","Realtors"],["buyers","Buyers"]].map(([k,l]) => (
-          <button key={k} onClick={() => setPpLeaderboardFilter(k)} style={{
-           flex: 1, padding: "8px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 600,
-           background: ppLeaderboardFilter === k ? "linear-gradient(135deg,#38bd7e,#2d9d68)" : "transparent",
-           color: ppLeaderboardFilter === k ? "#fff" : T.textTertiary,
-           cursor: "pointer", transition: "all 0.2s",
-          }}>{l}</button>
-         ))}
-        </div>
-
-        <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: isDesktop ? "1fr 1fr" : undefined, gap: isDesktop ? 8 : 0 }}>
-        {PP_LEADERBOARD.map((p,i) => (
-         <div key={i} style={{
-          display:"flex", alignItems:"center", padding:"14px 16px", borderRadius:14,
-          background: p.isYou ? "rgba(56,189,126,0.06)" : T.card,
-          border: `1px solid ${p.isYou ? "rgba(56,189,126,0.2)" : T.cardBorder}`,
-          marginBottom:8,
-         }}>
-          <div style={{
-           width:32, height:32, borderRadius:10,
-           background: i<3 ? ["linear-gradient(135deg,#38bd7e,#2d9d68)","linear-gradient(135deg,#a8b4c0,#c8d0d8)","linear-gradient(135deg,#c9904a,#e0b070)"][i] : T.pillBg,
-           display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:13,
-           color: i<3 ? "#fff" : T.textTertiary, marginRight:12, flexShrink:0,
-          }}>{i+1}</div>
-          <div style={{ flex:1 }}>
-           <div style={{ fontSize:14, fontWeight:600, color: p.isYou ? "#38bd7e" : T.text }}>{p.name} {p.badge}</div>
-           <div style={{ fontSize:11, color:T.textTertiary }}>{p.role} · {p.guesses} guesses · {p.streak}</div>
-          </div>
-          <div style={{ fontSize:20, fontWeight:800, color: p.isYou ? "#38bd7e" : T.text }}>
-           {p.avgDiff === 99 ? "—" : p.avgDiff + "%"}
-          </div>
-         </div>
-        ))}
-        </div>{/* close leaderboard grid */}
-       </div>
-      )}
-
-      {/* ── PP STATS VIEW ── */}
-      {ppView === "stats" && (
-       <div style={{ animation: "ppFadeIn 0.3s ease" }}>
-
-        {/* ── My Home (Progression) ── */}
-        <div style={{ background: "linear-gradient(135deg, #1a2a1f, #162030)", border: "1px solid rgba(56,189,126,0.2)", borderRadius: 22, padding: "20px 18px", marginBottom: 14 }}>
-         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <div>
-           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "#38bd7e", textTransform: "uppercase" }}>MY HOME</div>
-           <div style={{ fontSize: 20, fontWeight: 800, color: T.text, marginTop: 2 }}>{ppCurrentHome.icon} {ppCurrentHome.name}</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-           <div style={{ fontSize: 28, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</div>
-           <div style={{ fontSize: 11, color: T.textTertiary }}>{ppXP} XP</div>
-          </div>
-         </div>
-         {ppNextHome && (
-          <div>
-           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.textTertiary, marginBottom: 4 }}>
-            <span>{ppCurrentHome.name}</span>
-            <span>{ppNextHome.icon} {ppNextHome.name} — {ppXPtoNext} XP to go</span>
-           </div>
-           <div style={{ height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${Math.max(ppLevelProgress * 100, 2)}%`, background: "linear-gradient(90deg, #38bd7e, #2d9d68)", borderRadius: 4, transition: "width 0.5s ease" }} />
-           </div>
-          </div>
-         )}
-         {!ppNextHome && (
-          <div style={{ fontSize: 13, color: "#38bd7e", fontWeight: 600, textAlign: "center", padding: "8px 0" }}>MAX LEVEL — You own the Mega Mansion!</div>
-         )}
-        </div>
-
-        {/* ── How XP Works ── */}
-        <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 14 }}>
-         <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>How You Earn XP</div>
-         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          {[["Any guess","+10 XP","#888"],["Within 10%","+15 bonus","#aaa"],["Within 5%","+25 bonus",T.blue],["Within 2%","+40 bonus","#38bd7e"],["Bullseye (1%)","+50 bonus","#e8c84d"],["Best streak","×5 per",T.orange]].map(([l,v,c],i) => (
-           <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "4px 0" }}>
-            <span style={{ color: T.textTertiary }}>{l}</span>
-            <span style={{ color: c, fontWeight: 700 }}>{v}</span>
-           </div>
-          ))}
-         </div>
-        </div>
-
-        {/* ── Badges ── */}
-        <div style={{ marginBottom: 14 }}>
-         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-          <span> Badges</span>
-          <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>{ppBadges.length} earned</span>
-         </div>
-         {ppBadges.length === 0 ? (
-          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px 16px", textAlign: "center" }}>
-           <div style={{ fontSize: 32, marginBottom: 6 }}></div>
-           <div style={{ fontSize: 13, color: T.textTertiary }}>Make your first guess to earn badges!</div>
-          </div>
-         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-           {ppBadges.map(b => (
-            <div key={b.id} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
-             <div style={{ fontSize: 26 }}>{b.icon}</div>
-             <div style={{ fontSize: 11, fontWeight: 700, color: T.text, marginTop: 4 }}>{b.name}</div>
-             <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>{b.desc}</div>
-            </div>
-           ))}
-          </div>
-         )}
-        </div>
-
-        {/* ── Public/Private Toggle ── */}
-        <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 14 }}>
-         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-           <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Public Profile</div>
-           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{ppPublicProfile ? "Your name & stats visible on leaderboard" : "Showing as Anonymous on leaderboard"}</div>
-          </div>
-          <div onClick={() => setPpPublicProfile(!ppPublicProfile)} style={{ width: 48, height: 28, borderRadius: 14, background: ppPublicProfile ? "#38bd7e" : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-           <div style={{ width: 24, height: 24, borderRadius: 12, background: "#fff", transform: ppPublicProfile ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-          </div>
-         </div>
-        </div>
-
-        {/* ── Live Mode Stats ── */}
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#38bd7e", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-         <span>Live</span>
-         <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>counts toward leaderboard</span>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
-         {[["Avg Accuracy",ppCompAvgDiff==="—"?"—":ppCompAvgDiff+"%","#38bd7e"],["Streak",""+ppCompCurStreak,"#38bd7e"],["Best",""+ppCompBestStreak,T.text],["Guesses",ppCompGuesses.length,T.text],["Revealed",ppCompRevealed.length,T.text],["Pending",ppCompGuesses.length-ppCompRevealed.length,"#e8c84d"]].map(([l,v,c],i) => (
-          <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
-           <div style={{ fontSize:24, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
-          </div>
-         ))}
-        </div>
-
-        {/* Live Mode Bias */}
-        {ppCompRevealed.length > 0 && (
-         <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:18 }}>
-          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Live Mode Bias</div>
-          <div style={{ display:"flex", height:34, borderRadius:10, overflow:"hidden", marginBottom:8 }}>
-           {ppCompOverCount > 0 && <div style={{ width:`${(ppCompOverCount/ppCompRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppCompOverCount}</div>}
-           {ppCompUnderCount > 0 && <div style={{ width:`${(ppCompUnderCount/ppCompRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppCompUnderCount}</div>}
-          </div>
-          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.textTertiary }}>
-           <span><span style={{ color:"#e85d5d" }}>●</span> Over ({ppCompOverCount})</span>
-           <span><span style={{ color:T.blue }}>●</span> Under ({ppCompUnderCount})</span>
-          </div>
-         </div>
-        )}
-
-        {/* Practice Stats */}
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#e8c84d", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-         <span>Practice</span>
-         <span style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500 }}>sold homes · not ranked</span>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:14 }}>
-         {[["Avg Accuracy",ppPracticeAvgDiff==="—"?"—":ppPracticeAvgDiff+"%","#e8c84d"],["Streak",""+ppPracticeCurStreak,"#e8c84d"],["Total",ppPracticeGuesses.length,T.text]].map(([l,v,c],i) => (
-          <div key={i} style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:16 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{l}</div>
-           <div style={{ fontSize:20, fontWeight:800, color:c, marginTop:4 }}>{v}</div>
-          </div>
-         ))}
-        </div>
-
-        {/* Practice Bias */}
-        {ppPracticeRevealed.length > 0 && (
-         <div style={{ background:T.card, border:`1px solid ${T.cardBorder}`, borderRadius:16, padding:20, marginBottom:10 }}>
-          <div style={{ fontSize:10, color:T.textTertiary, fontWeight:600, letterSpacing:1, textTransform:"uppercase", marginBottom:12 }}>Practice Bias</div>
-          <div style={{ display:"flex", height:34, borderRadius:10, overflow:"hidden", marginBottom:8 }}>
-           {ppPracticeOverCount > 0 && <div style={{ width:`${(ppPracticeOverCount/ppPracticeRevealed.length)*100}%`, background:"linear-gradient(90deg,#e85d5d,#d94040)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppPracticeOverCount}</div>}
-           {ppPracticeUnderCount > 0 && <div style={{ width:`${(ppPracticeUnderCount/ppPracticeRevealed.length)*100}%`, background:`linear-gradient(90deg,${T.blue},#3a8aaa)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, color:"#fff", minWidth:32 }}>{ppPracticeUnderCount}</div>}
-          </div>
-          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:T.textTertiary }}>
-           <span><span style={{ color:"#e85d5d" }}>●</span> Over ({ppPracticeOverCount})</span>
-           <span><span style={{ color:T.blue }}>●</span> Under ({ppPracticeUnderCount})</span>
-          </div>
-         </div>
-        )}
-
-        {/* ── Home Progression Roadmap ── */}
-        <div style={{ marginTop: 4, marginBottom: 14 }}>
-         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10 }}>Home Roadmap</div>
-         <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "12px 14px" }}>
-          {PP_HOMES.map((h, i) => {
-           const unlocked = ppXP >= h.req;
-           const isCurrent = h.level === ppLevel;
-           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < PP_HOMES.length - 1 ? `1px solid ${T.separator}` : "none", opacity: unlocked ? 1 : 0.35 }}>
-             <div style={{ fontSize: 22, width: 32, textAlign: "center" }}>{h.icon}</div>
-             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: isCurrent ? 800 : 600, color: isCurrent ? "#38bd7e" : unlocked ? T.text : T.textTertiary }}>
-               {h.name} {isCurrent && <span style={{ fontSize: 10, background: "rgba(56,189,126,0.15)", color: "#38bd7e", borderRadius: 6, padding: "1px 6px", marginLeft: 4 }}>YOU</span>}
-              </div>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>Level {h.level} · {h.req} XP</div>
-             </div>
-             {unlocked && <div style={{ fontSize: 14, color: "#38bd7e" }}>✓</div>}
-             {!unlocked && <div style={{ fontSize: 10, color: T.textTertiary }}></div>}
-            </div>
-           );
-          })}
-         </div>
-        </div>
-
-        {ppGuesses.length > 0 && (
-         <button onClick={ppResetAll} style={{ width:"100%", padding:14, borderRadius:14, border:`1px solid rgba(232,93,93,0.2)`, background:"rgba(232,93,93,0.08)", color:"#e85d5d", fontSize:14, fontWeight:600, cursor:"pointer", marginTop:10 }}>Reset All Data</button>
-        )}
-       </div>
-      )}
-     </div>
-
-     {/* PP SOLD REVEAL MODAL */}
-     {ppShowReveal && (ppShowReveal.soldPrice || ppShowReveal.revealPrice || ppShowReveal.listPrice) && (
-      <div className={`pp-rvl-ov ${ppRevealAnim ? "vis" : ""}`} onClick={ppCloseReveal}>
-       <div className="pp-rvl-cd" onClick={e => e.stopPropagation()}>
-        <div style={{ textAlign:"center" }}>
-         <div style={{ fontSize:12, color:T.textTertiary, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>{ppShowReveal.isSoldMode ? "RECENTLY SOLD" : "SOLD"}</div>
-         <div style={{ fontSize:18, fontWeight:700, color:T.text }}>{ppShowReveal.address}</div>
-         <div style={{ fontSize:12, color:T.textTertiary, marginTop:2, marginBottom:24 }}>{ppShowReveal.neighborhood} · {ppShowReveal.city}</div>
-         <div style={{ display:"flex", justifyContent:"space-around", marginBottom:24, flexWrap:"wrap", gap:8 }}>
-          {ppShowReveal.listPrice ? (
-           <div style={{ textAlign:"center", minWidth:80 }}>
-            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>List Price</div>
-            <div style={{ fontSize:18, fontWeight:700, color:T.textSecondary }}>{ppFmt(ppShowReveal.listPrice)}</div>
-           </div>
-          ) : null}
-          {ppShowReveal.zestimate ? (
-           <div style={{ textAlign:"center", minWidth:80 }}>
-            <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Zestimate</div>
-            <div style={{ fontSize:18, fontWeight:700, color:T.blue }}>{ppFmt(ppShowReveal.zestimate)}</div>
-           </div>
-          ) : null}
-          {(ppShowReveal.listPrice || ppShowReveal.zestimate) && <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />}
-          <div style={{ textAlign:"center", minWidth:80 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Your Guess</div>
-           <div style={{ fontSize:22, fontWeight:800, color:T.text }}>{ppFmt(ppShowReveal.guess)}</div>
-           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.guess/ppShowReveal.sqft)}/SF</div>}
-          </div>
-          <div style={{ width:1, background:T.cardBorder, alignSelf:"stretch" }} />
-          <div style={{ textAlign:"center", minWidth:80 }}>
-           <div style={{ fontSize:10, color:T.textTertiary, fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:4 }}>Sold Price</div>
-           <div style={{ fontSize:22, fontWeight:800, color:"#38bd7e" }}>{ppFmt(ppShowReveal.soldPrice)}</div>
-           {ppShowReveal.sqft && <div style={{ fontSize:11, color:T.textTertiary, marginTop:2 }}>${Math.round(ppShowReveal.soldPrice/ppShowReveal.sqft)}/SF</div>}
-          </div>
-         </div>
-         {(() => {
-          const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice || ppShowReveal.listPrice;
-          const diff = parseFloat(ppAbsPct(ppShowReveal.guess, rp));
-          const over = ppShowReveal.guess > rp;
-          const great = diff <= 3, good = diff <= 7;
-          return (
-           <div style={{ background: great ? "rgba(56,189,126,0.08)" : good ? "rgba(232,200,77,0.08)" : "rgba(232,93,93,0.08)", border: `1px solid ${great ? "rgba(56,189,126,0.25)" : good ? "rgba(232,200,77,0.25)" : "rgba(232,93,93,0.25)"}`, borderRadius:16, padding:"18px 20px" }}>
-            <div style={{ fontSize:32, fontWeight:800, color: great ? "#38bd7e" : good ? "#e8c84d" : "#e85d5d" }}>{over?"+":"−"}{diff.toFixed(1)}%</div>
-            <div style={{ fontSize:13, color:T.textSecondary, marginTop:4 }}>{great?"Sniper accuracy!":good?"— Strong market read!":over?"Bit optimistic":"Undervalued this one"}</div>
-            <div style={{ fontSize:12, color:T.textTertiary, marginTop:4 }}>{over?"Over":"Under"} by {ppFmt(Math.abs(ppShowReveal.guess-rp))}</div>
-           </div>
-          );
-         })()}
-         {ppShowReveal.isSoldMode && <div style={{ textAlign:"center", fontSize:11, color:T.textTertiary, marginTop:12 }}>Recently sold — compare your guess against the actual sale price</div>}
-         <div style={{ display:"flex", gap:8, marginTop: ppShowReveal.isSoldMode ? 8 : 20 }}>
-          <button onClick={() => {
-           const price = ppShowReveal.revealPrice || ppShowReveal.soldPrice || ppShowReveal.listPrice || ppShowReveal.zestimate;
-           if (price) setSalesPrice(price);
-           if (ppShowReveal.state) setPropertyState(ppShowReveal.state);
-           if (ppShowReveal.city) setCity(ppShowReveal.city);
-           if (ppShowReveal.zip) setPropertyZip(ppShowReveal.zip);
-           ppCloseReveal();
-           setAppMode("blueprint");
-           setTab("calc");
-          }} style={{ flex:1, padding:14, borderRadius:16, border:`1px solid ${T.blue}40`, fontSize:14, fontWeight:700, background:`${T.blue}12`, color:T.blue, cursor:"pointer", letterSpacing:0.3, fontFamily:FONT }}>Run the Numbers</button>
-          <button onClick={ppCloseReveal} style={{ flex:1, padding:14, borderRadius:16, border:"none", fontSize:15, fontWeight:700, background:"linear-gradient(135deg,#38bd7e,#2d9d68)", color:"#fff", cursor:"pointer", letterSpacing:0.8, textTransform:"uppercase" }}>Got It</button>
-         </div>
-         <button onClick={() => {
-          const rp = ppShowReveal.revealPrice || ppShowReveal.soldPrice;
-          const diff = rp ? parseFloat(ppAbsPct(ppShowReveal.guess, rp)) : null;
-          const over = rp ? ppShowReveal.guess > rp : false;
-          const emoji = diff !== null ? (diff <= 3 ? "target" : diff <= 7 ? "—" : "trending-up") : "home";
-          const text = `${emoji} PricePoint: I guessed ${ppFmt(ppShowReveal.guess)} on ${ppShowReveal.address}${rp ? ` — ${over?"+":"−"}${diff.toFixed(1)}% ${ppShowReveal.isSoldMode ? "vs sold price" : "vs list price"}` : ""}! Try it at mortgageblueprint.app`;
-          if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
-         }} style={{ width:"100%", padding:10, borderRadius:12, border:"none", background:"transparent", fontSize:12, fontWeight:600, color:T.textTertiary, cursor:"pointer", marginTop:4, fontFamily:FONT }}>Share Result</button>
-        </div>
-       </div>
-      </div>
-     )}
-    </div>
+    <PricePoint
+     T={T}
+     isDesktop={isDesktop}
+     FONT={FONT}
+     realtorPartner={realtorPartner}
+     onRunNumbers={({ price, state, city, zip }) => {
+      if (price) setSalesPrice(price);
+      if (state) setPropertyState(state);
+      if (city) setCity(city);
+      if (zip) setPropertyZip(zip);
+      setAppMode("blueprint");
+      setTab("calc");
+     }}
+     onBackToBlueprint={() => setAppMode("blueprint")}
+    />
+   )}
+   {/* ═══════════════════════════════════════════ */}
+   {/* MARKETS MODE — Prediction Markets */}
+   {/* ═══════════════════════════════════════════ */}
+   {appMode === "markets" && (
+    <Markets
+     T={T}
+     isDesktop={isDesktop}
+     FONT={FONT}
+     onBackToBlueprint={() => setAppMode("blueprint")}
+    />
    )}
    {appMode === "blueprint" && <FloatingNextBar />}
   </div>{/* end main content wrapper */}
