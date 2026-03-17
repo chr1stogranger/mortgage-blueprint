@@ -1,10 +1,10 @@
 /**
  * API helper for Blueprint ↔ Pipeline Supabase communication.
- * All authenticated calls go through Pipeline's API routes at loanpipeline.app.
+ * All authenticated calls go through Ops API routes at ops.realstack.app.
  * Share link calls are public (no auth needed).
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://loanpipeline.app';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
 // ─── Authenticated API calls (LO only) ─────────────────────────────────────
 

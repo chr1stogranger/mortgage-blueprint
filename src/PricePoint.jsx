@@ -1296,7 +1296,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     // Clean text format — no emojis that render weirdly on iOS share sheet
                     const rating = diff !== null ? (diff <= 1 ? "BULLSEYE" : diff <= 3 ? "SNIPER" : diff <= 5 ? "SHARP" : diff <= 10 ? "CLOSE" : "MISS") : "";
                     const bar = diff !== null ? (diff <= 1 ? "|||||" : diff <= 3 ? "||||." : diff <= 5 ? "|||.." : diff <= 10 ? "||..." : "|....") : "";
-                    const text = `PricePoint - ${ppShowReveal.city}\n[${bar}] ${rating}\n${ppShowReveal.address}\nGuess: ${ppFmt(ppShowReveal.guess)} ${diff !== null ? `(${over?"+":"-"}${diff.toFixed(1)}%)` : ""}\n\nmortgageblueprint.app/pricepoint`;
+                    const text = `PricePoint - ${ppShowReveal.city}\n[${bar}] ${rating}\n${ppShowReveal.address}\nGuess: ${ppFmt(ppShowReveal.guess)} ${diff !== null ? `(${over?"+":"-"}${diff.toFixed(1)}%)` : ""}\n\nrealstack.app/pricepoint`;
                     if (navigator.share) { navigator.share({ text }); } else { navigator.clipboard.writeText(text); setPpNotif("Copied to clipboard!"); setTimeout(() => setPpNotif(null), 2000); }
                   }} style={{ width:"100%", padding:10, borderRadius:12, border:`1px solid ${T.cardBorder}`, background:T.pillBg, fontSize:12, fontWeight:600, color:T.textSecondary, cursor:"pointer", fontFamily:FONT, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
                     Share Result
