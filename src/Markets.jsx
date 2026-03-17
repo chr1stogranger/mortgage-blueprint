@@ -27,6 +27,8 @@ import {
   openComplianceModal,
   closeComplianceModal,
   clearError,
+  markNotificationRead,
+  checkMarketUpdates,
   selectFilteredMarkets,
   selectActiveMarket,
   selectPositionsForMarket,
@@ -95,7 +97,10 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
   const [tradeSuccess, setTradeSuccess] = useState(null);
   const [sellMode, setSellMode] = useState(false);
   const [sellShares_, setSellShares_] = useState('');
+  const [notifOpen, setNotifOpen] = useState(false);
   const searchInputRef = useRef(null);
+  const notifRef = useRef(null);
+  const notifications = useSelector((state) => state.markets.notifications);
 
   // ── Fetch data on mount ──
   useEffect(() => {
@@ -109,6 +114,24 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
       dispatch(fetchPracticeComps({ zip: ui.filters.zip || '94122' }));
     }
   }, [ui.activeTab]);
+
+  // ── Poll for market updates every 5 minutes ──
+  useEffect(() => {
+    const interval = setInterval(() => {
+      dispatch(checkMarketUpdates());
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [dispatch]);
+
+  // ── Close notification dropdown on outside click ──
+  useEffect(() => {
+    if (!notifOpen) return;
+    const handleClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [notifOpen]);
 
   // ── Clear trade messages after 3s ──
   useEffect(() => {
@@ -1142,12 +1165,109 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
             Prediction trading on Bay Area real estate
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: T.textTertiary }}>
-            Balance
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Notification Bell */}
+          <div ref={notifRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setNotifOpen(!notifOpen)}
+              style={{
+                background: T.pillBg, border: 'none', borderRadius: 10,
+                width: 38, height: 38, cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', position: 'relative',
+              }}
+            >
+              <Icon name="bell" size={18} style={{ color: T.textSecondary }} />
+              {unreadCount > 0 && (
+                <div style={{
+                  position: 'absolute', top: -2, right: -2,
+                  width: 18, height: 18, borderRadius: 9,
+                  background: '#EF4444', color: '#fff',
+                  fontSize: 10, fontWeight: 700, fontFamily: FONT,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </div>
+              )}
+            </button>
+
+            {/* Notification Dropdown */}
+            {notifOpen && (
+              <div style={{
+                position: 'absolute', top: 44, right: 0, width: 320,
+                background: T.card, border: `1px solid ${T.cardBorder}`,
+                borderRadius: 16, boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
+                zIndex: 100, overflow: 'hidden', maxHeight: 400, overflowY: 'auto',
+              }}>
+                <div style={{
+                  padding: '14px 16px', borderBottom: `1px solid ${T.cardBorder}`,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Notifications</div>
+                  {unreadCount > 0 && (
+                    <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, color: '#6366F1' }}>
+                      {unreadCount} new
+                    </div>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: T.textTertiary, fontSize: 13 }}>
+                    No notifications yet. You'll be notified when markets you've bet on close.
+                  </div>
+                ) : (
+                  notifications.slice(0, 20).map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => {
+                        if (!notif.read) dispatch(markNotificationRead(notif.id));
+                        if (notif.marketId) dispatch(selectMarket(notif.marketId));
+                        setNotifOpen(false);
+                      }}
+                      style={{
+                        padding: '12px 16px', borderBottom: `1px solid ${T.cardBorder}`,
+                        cursor: 'pointer', transition: 'background 0.15s',
+                        background: notif.read ? 'transparent' : `${T.blue}06`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 14, flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: notif.type === 'market_won' ? '#10B98118' : notif.type === 'market_lost' ? '#EF444418' : `${T.blue}12`,
+                        }}>
+                          <Icon
+                            name={notif.type === 'market_won' ? 'trending-up' : notif.type === 'market_lost' ? 'trending-down' : 'info'}
+                            size={14}
+                            style={{ color: notif.type === 'market_won' ? '#10B981' : notif.type === 'market_lost' ? '#EF4444' : T.blue }}
+                          />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: T.text, fontWeight: notif.read ? 400 : 600, lineHeight: 1.4 }}>
+                            {notif.message}
+                          </div>
+                          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 3, fontFamily: FONT }}>
+                            {new Date(notif.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        {!notif.read && (
+                          <div style={{ width: 8, height: 8, borderRadius: 4, background: '#6366F1', flexShrink: 0, marginTop: 6 }} />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: '-0.03em' }}>
-            {fmt(portfolio.balance)}
+
+          {/* Balance */}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: T.textTertiary }}>
+              Balance
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: '-0.03em' }}>
+              {fmt(portfolio.balance)}
+            </div>
           </div>
         </div>
       </div>

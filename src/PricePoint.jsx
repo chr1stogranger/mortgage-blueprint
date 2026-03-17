@@ -44,7 +44,7 @@ const PP_SOLD_LISTINGS = [
   { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909 },
 ];
 
-export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, realtorPartner }) {
+export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner }) {
   // ── Markets integration — check if current listing has an active market ──
   const liveMarkets = useSelector((state) => state.markets?.liveMarkets || []);
 
@@ -784,7 +784,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                           if (!market) return null;
                           const topBucket = [...market.buckets].sort((a, b) => b.odds - a.odds)[0];
                           return (
-                            <div style={{
+                            <div
+                              onClick={(e) => { e.stopPropagation(); onOpenMarkets?.(); }}
+                              title="Open prediction market for this property"
+                              style={{
                               position:"absolute", top: 12, left: 12,
                               background:"rgba(99,102,241,0.92)", backdropFilter:"blur(6px)",
                               borderRadius: 10, padding:"6px 12px",

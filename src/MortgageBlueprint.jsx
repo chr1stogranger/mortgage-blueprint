@@ -8048,6 +8048,7 @@ export default function MortgageBlueprint({ initialState }) {
       setTab("calc");
      }}
      onBackToBlueprint={() => setAppMode("blueprint")}
+     onOpenMarkets={() => setAppMode("markets")}
     />
    )}
    {/* ═══════════════════════════════════════════ */}
