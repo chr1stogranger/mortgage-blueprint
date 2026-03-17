@@ -531,11 +531,27 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
               Pick Your Price Range
             </div>
 
+            {/* Odds Visualization — horizontal bar chart */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 16, height: 8, borderRadius: 4, overflow: 'hidden' }}>
+              {activeMarket.buckets.map((bucket) => {
+                const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+                return (
+                  <div key={bucket.id} style={{
+                    flex: bucket.odds, background: bucketColors[bucket.id],
+                    transition: 'flex 0.5s ease', minWidth: 4, borderRadius: 2,
+                    opacity: selectedBucket === null || selectedBucket === bucket.id ? 1 : 0.3,
+                  }} />
+                );
+              })}
+            </div>
+
             {activeMarket.buckets.map((bucket) => {
               const isSelected = selectedBucket === bucket.id;
               const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
               const color = bucketColors[bucket.id];
               const position = positions.find((p) => p.bucketId === bucket.id);
+              // Share price = odds. If you buy at 0.25 odds and win, payout is $1/share
+              const impliedPayout = bucket.odds > 0 ? (1 / bucket.odds).toFixed(2) : '0';
 
               return (
                 <div
@@ -552,18 +568,34 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
+                    <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{bucket.label}</div>
-                      <div style={{ fontSize: 12, color: T.textSecondary, ...monoStyle, marginTop: 2 }}>
-                        {pct(bucket.odds)} odds · {fmt(bucket.volume)} vol
+                      <div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: 11, color: T.textTertiary, ...monoStyle }}>
+                        <span>{fmt(bucket.volume)} vol</span>
+                        <span>·</span>
+                        <span>{impliedPayout}x payout</span>
                       </div>
                     </div>
-                    <div style={{
-                      fontSize: 22, fontWeight: 800, color, fontFamily: FONT,
-                      letterSpacing: '-0.03em',
-                    }}>
-                      {pct(bucket.odds)}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{
+                        fontSize: 22, fontWeight: 800, color, fontFamily: FONT,
+                        letterSpacing: '-0.03em',
+                      }}>
+                        {pct(bucket.odds)}
+                      </div>
+                      <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 1 }}>
+                        ${bucket.odds.toFixed(2)}/share
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Odds bar within bucket */}
+                  <div style={{ marginTop: 8, height: 4, borderRadius: 2, background: `${color}15`, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 2, background: color,
+                      width: `${(bucket.odds * 100).toFixed(1)}%`,
+                      transition: 'width 0.5s ease',
+                    }} />
                   </div>
 
                   {/* Existing position */}
@@ -573,9 +605,9 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
                       background: `${color}10`, fontSize: 12, color: T.textSecondary,
                       display: 'flex', justifyContent: 'space-between',
                     }}>
-                      <span>Your position: {position.shares.toFixed(1)} shares</span>
+                      <span>{position.shares.toFixed(1)} shares @ ${position.avgCost?.toFixed(2) || '0.25'}</span>
                       <span style={{ color: position.pnl >= 0 ? '#10B981' : '#EF4444', fontWeight: 600, fontFamily: FONT }}>
-                        {position.pnl >= 0 ? '+' : ''}{fmt(position.pnl)} P&L
+                        {position.pnl >= 0 ? '+' : ''}{fmt(position.pnl)}
                       </span>
                     </div>
                   )}
@@ -613,6 +645,35 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
                         </button>
                       ))}
                     </div>
+                    {/* Estimated payout preview */}
+                    {Number(tradeAmount) >= MIN_BET && (() => {
+                      const bucket = activeMarket.buckets.find((b) => b.id === selectedBucket);
+                      if (!bucket) return null;
+                      const shares = Number(tradeAmount) / bucket.odds;
+                      const totalMarketVol = activeMarket.buckets.reduce((s, b) => s + b.volume, 0) + Number(tradeAmount);
+                      const estPayout = (shares / (bucket.totalShares + shares)) * totalMarketVol;
+                      const estProfit = estPayout - Number(tradeAmount);
+                      return (
+                        <div style={{
+                          marginTop: 10, padding: '10px 14px', borderRadius: 10,
+                          background: `${T.blue}08`, border: `1px solid ${T.cardBorder}`,
+                          display: 'flex', justifyContent: 'space-between', fontSize: 12,
+                        }}>
+                          <div>
+                            <div style={{ color: T.textTertiary, ...monoStyle, fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>If you win</div>
+                            <div style={{ color: '#10B981', fontWeight: 700, fontFamily: FONT, fontSize: 16, marginTop: 2 }}>
+                              +{fmt(estProfit)} profit
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ color: T.textTertiary, ...monoStyle, fontSize: 10 }}>{shares.toFixed(1)} shares</div>
+                            <div style={{ color: T.text, fontWeight: 600, fontFamily: FONT, fontSize: 14, marginTop: 2 }}>
+                              {fmt(estPayout)} payout
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <button
                       onClick={() => {
                         const amt = Number(tradeAmount);
@@ -708,115 +769,237 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
   // ─────────────────────────────────────────
 
   const PracticeView = () => {
-    if (!currentComp) {
-      return (
-        <div style={{ ...card, textAlign: 'center', padding: 40 }}>
-          <Icon name="target" size={28} style={{ color: T.textTertiary }} />
-          <p style={{ color: T.textSecondary, marginTop: 12 }}>
-            {ui.loading ? 'Loading practice comps...' : 'No practice comps available. Try a different ZIP code.'}
-          </p>
-        </div>
-      );
-    }
+    const [practiceZip, setPracticeZip] = useState(ui.filters.zip || '94122');
+    const [revealAnim, setRevealAnim] = useState(false);
 
+    const handleLoadComps = () => {
+      dispatch(fetchPracticeComps({ zip: practiceZip }));
+    };
+
+    // Trigger reveal animation when result shows
     const lastPrediction = practiceMode.predictions[practiceMode.predictions.length - 1];
-    const showResult = lastPrediction && lastPrediction.compId === currentComp.id;
+    const showResult = currentComp && lastPrediction && lastPrediction.compId === currentComp?.id;
+
+    React.useEffect(() => {
+      if (showResult) {
+        setRevealAnim(false);
+        requestAnimationFrame(() => setRevealAnim(true));
+      }
+    }, [showResult, lastPrediction?.compId]);
 
     return (
       <div>
+        {/* Practice ZIP search */}
+        <div style={{ ...card, padding: '12px 16px', marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={practiceZip}
+              onChange={(e) => setPracticeZip(e.target.value)}
+              placeholder="ZIP code for practice comps"
+              style={{ ...inputStyle, flex: 1 }}
+              onKeyDown={(e) => e.key === 'Enter' && handleLoadComps()}
+            />
+            <button onClick={handleLoadComps} style={{
+              padding: '10px 20px', borderRadius: 9999, border: 'none',
+              background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}>
+              Load
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            {['94122', '94110', '94102', '94610', '94501'].map((z) => (
+              <button key={z} onClick={() => { setPracticeZip(z); dispatch(fetchPracticeComps({ zip: z })); }} style={{
+                ...pillBtn(practiceZip === z), flex: 1, textAlign: 'center', fontSize: 11,
+              }}>
+                {z}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Stats bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {[
-            { label: 'Streak', value: practiceStats.currentStreak, icon: 'zap' },
-            { label: 'Accuracy', value: `${practiceStats.accuracy}%`, icon: 'target' },
-            { label: 'Earned', value: fmt(practiceStats.practiceEarnings), icon: 'dollar' },
-            { label: 'Remaining', value: practiceStats.compsRemaining, icon: 'grid' },
+            { label: 'Streak', value: practiceStats.currentStreak, color: practiceStats.currentStreak > 0 ? '#F59E0B' : T.text },
+            { label: 'Accuracy', value: `${practiceStats.accuracy}%`, color: practiceStats.accuracy >= 50 ? '#10B981' : T.text },
+            { label: 'Earned', value: fmt(practiceStats.practiceEarnings), color: '#6366F1' },
+            { label: 'Remaining', value: practiceStats.compsRemaining, color: T.text },
           ].map((stat) => (
             <div key={stat.label} style={{
               flex: 1, minWidth: 70, ...card, padding: '12px 10px', textAlign: 'center', marginBottom: 0,
             }}>
-              <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>
+              <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>
                 {stat.label}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 4 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: stat.color, fontFamily: FONT, marginTop: 4 }}>
                 {stat.value}
               </div>
             </div>
           ))}
         </div>
 
+        {/* Empty state */}
+        {!currentComp && (
+          <div style={{ ...card, textAlign: 'center', padding: 40 }}>
+            <Icon name="target" size={28} style={{ color: T.textTertiary }} />
+            <p style={{ color: T.textSecondary, marginTop: 12, fontSize: 14 }}>
+              {ui.loading ? 'Loading practice comps...' : 'No practice comps available. Try a different ZIP code above.'}
+            </p>
+          </div>
+        )}
+
         {/* Comp Card */}
-        <div style={card}>
-          {currentComp.photo && (
-            <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 14, height: 200 }}>
-              <img src={currentComp.photo} alt={currentComp.address} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
-            </div>
-          )}
-          <div style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
-            {currentComp.address}
-          </div>
-          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>
-            {currentComp.city}, {currentComp.state} {currentComp.zip}
-          </div>
-          <div style={{ display: 'flex', gap: 14, marginTop: 8, fontSize: 13, color: T.textSecondary }}>
-            {currentComp.beds && <span>{currentComp.beds} bed</span>}
-            {currentComp.baths && <span>{currentComp.baths} bath</span>}
-            {currentComp.sqft && <span>{currentComp.sqft.toLocaleString()} sqft</span>}
-          </div>
-          <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 4, ...monoStyle }}>
-            Listed at {fmtK(currentComp.listPrice)}
-          </div>
-
-          {/* Pick a bucket */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10 }}>
-              {showResult ? 'Result' : 'What did this sell for?'}
-            </div>
-            {currentComp.buckets.map((bucket) => {
-              const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
-              const color = bucketColors[bucket.id];
-              const isWinner = showResult && lastPrediction.actualBucket === bucket.id;
-              const wasPick = showResult && lastPrediction.selectedBucket === bucket.id;
-
-              return (
-                <button
-                  key={bucket.id}
-                  onClick={() => !showResult && handlePracticePick(currentComp.id, bucket.id)}
-                  disabled={showResult}
-                  style={{
-                    display: 'block', width: '100%', padding: '14px 16px', marginBottom: 8,
-                    borderRadius: 12, textAlign: 'left', cursor: showResult ? 'default' : 'pointer',
-                    border: isWinner ? `2px solid ${color}` : wasPick && !isWinner ? '2px solid #EF4444' : `1px solid ${T.cardBorder}`,
-                    background: isWinner ? `${color}12` : wasPick && !isWinner ? '#EF444412' : T.card,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{bucket.label}</span>
-                    {isWinner && <span style={{ fontSize: 12, fontWeight: 700, color }}>Sold: {fmtK(currentComp.soldPrice)}</span>}
-                    {wasPick && !isWinner && <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444' }}>Your pick</span>}
+        {currentComp && (
+          <div style={card}>
+            {currentComp.photo && (
+              <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 14, height: isDesktop ? 240 : 200, position: 'relative' }}>
+                <img src={currentComp.photo} alt={currentComp.address} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                {/* Comp counter badge */}
+                <div style={{
+                  position: 'absolute', top: 12, right: 12, background: 'rgba(0,0,0,0.6)',
+                  backdropFilter: 'blur(8px)', borderRadius: 8, padding: '4px 10px',
+                  fontSize: 11, fontWeight: 600, fontFamily: FONT, color: '#fff',
+                }}>
+                  {practiceMode.currentCompIndex + 1} / {practiceMode.comps.length}
+                </div>
+                {/* Sold date badge */}
+                {currentComp.soldDate && (
+                  <div style={{
+                    position: 'absolute', top: 12, left: 12, background: 'rgba(232,200,77,0.9)',
+                    backdropFilter: 'blur(6px)', borderRadius: 8, padding: '4px 10px',
+                    fontSize: 10, fontWeight: 800, color: '#1a1a2e', letterSpacing: 1, textTransform: 'uppercase',
+                  }}>
+                    Sold {new Date(currentComp.soldDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                   </div>
-                </button>
-              );
-            })}
-
-            {/* Result feedback */}
-            {showResult && (
-              <div style={{
-                marginTop: 12, padding: '14px 16px', borderRadius: 12, textAlign: 'center',
-                background: lastPrediction.correct ? '#10B98118' : lastPrediction.close ? '#F59E0B18' : '#EF444418',
-              }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: lastPrediction.correct ? '#10B981' : lastPrediction.close ? '#F59E0B' : '#EF4444' }}>
-                  {lastPrediction.correct ? 'Nailed It!' : lastPrediction.close ? 'Close!' : 'Not Quite'}
-                </div>
-                <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>
-                  Sold for {fmtK(lastPrediction.soldPrice)}
-                  {lastPrediction.reward > 0 && <span style={{ fontWeight: 700, color: '#10B981' }}> — +{fmt(lastPrediction.reward)}</span>}
-                </div>
+                )}
               </div>
             )}
+
+            <div style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
+              {currentComp.address}
+            </div>
+            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>
+              {currentComp.city}, {currentComp.state} {currentComp.zip}
+            </div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 8, fontSize: 13, color: T.textSecondary }}>
+              {currentComp.beds && <span>{currentComp.beds} bed</span>}
+              {currentComp.baths && <span>{currentComp.baths} bath</span>}
+              {currentComp.sqft && <span>{currentComp.sqft.toLocaleString()} sqft</span>}
+              {currentComp.pricePerSqft && <span style={monoStyle}>${currentComp.pricePerSqft}/sqft</span>}
+            </div>
+            <div style={{ fontSize: 13, color: T.text, marginTop: 6, fontWeight: 600, ...monoStyle }}>
+              Listed at {fmtK(currentComp.listPrice)}
+            </div>
+
+            {/* Pick a bucket */}
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '2px', color: T.textTertiary, marginBottom: 10 }}>
+                {showResult ? 'Result' : 'What did this sell for?'}
+              </div>
+              {currentComp.buckets.map((bucket) => {
+                const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+                const color = bucketColors[bucket.id];
+                const isWinner = showResult && lastPrediction.actualBucket === bucket.id;
+                const wasPick = showResult && lastPrediction.selectedBucket === bucket.id;
+                const correctPick = isWinner && wasPick;
+
+                return (
+                  <button
+                    key={bucket.id}
+                    onClick={() => !showResult && handlePracticePick(currentComp.id, bucket.id)}
+                    disabled={showResult}
+                    style={{
+                      display: 'block', width: '100%', padding: '14px 16px', marginBottom: 8,
+                      borderRadius: 12, textAlign: 'left', cursor: showResult ? 'default' : 'pointer',
+                      border: isWinner ? `2px solid ${color}` : wasPick && !isWinner ? '2px solid #EF4444' : `1px solid ${T.cardBorder}`,
+                      background: isWinner ? `${color}12` : wasPick && !isWinner ? '#EF444412' : T.card,
+                      transition: 'all 0.3s ease',
+                      transform: showResult && revealAnim && isWinner ? 'scale(1.02)' : 'scale(1)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{bucket.label}</span>
+                      {isWinner && (
+                        <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: FONT }}>
+                          {correctPick ? 'Correct' : ''} {fmtK(currentComp.soldPrice)}
+                        </span>
+                      )}
+                      {wasPick && !isWinner && <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444' }}>Your pick</span>}
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Result feedback */}
+              {showResult && (
+                <>
+                  <div style={{
+                    marginTop: 12, padding: '16px', borderRadius: 12, textAlign: 'center',
+                    background: lastPrediction.correct ? '#10B98118' : lastPrediction.close ? '#F59E0B18' : '#EF444418',
+                    transition: 'all 0.3s ease',
+                    transform: revealAnim ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.95)',
+                    opacity: revealAnim ? 1 : 0,
+                  }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: lastPrediction.correct ? '#10B981' : lastPrediction.close ? '#F59E0B' : '#EF4444' }}>
+                      {lastPrediction.correct ? 'Nailed It!' : lastPrediction.close ? 'Close!' : 'Not Quite'}
+                    </div>
+                    <div style={{ fontSize: 14, color: T.textSecondary, marginTop: 4 }}>
+                      Sold for <span style={{ fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmtK(lastPrediction.soldPrice)}</span>
+                      {lastPrediction.reward > 0 && (
+                        <span style={{ fontWeight: 700, color: '#10B981' }}> — +{fmt(lastPrediction.reward)} earned</span>
+                      )}
+                    </div>
+                    {lastPrediction.correct && practiceStats.currentStreak > 1 && (
+                      <div style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600, marginTop: 6, fontFamily: FONT }}>
+                        {practiceStats.currentStreak} streak!
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Next Property button */}
+                  {practiceStats.compsRemaining > 0 ? (
+                    <button
+                      onClick={() => {
+                        setRevealAnim(false);
+                        // The slice auto-advances currentCompIndex on prediction
+                        // Force re-fetch if we need more comps
+                        if (practiceMode.currentCompIndex >= practiceMode.comps.length - 1) {
+                          dispatch(fetchPracticeComps({ zip: practiceZip }));
+                        }
+                      }}
+                      style={{
+                        width: '100%', padding: '14px', borderRadius: 9999, border: 'none',
+                        marginTop: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                        background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+                        boxShadow: '0 0 20px rgba(99,102,241,0.3)',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      Next Property →
+                    </button>
+                  ) : (
+                    <div style={{ marginTop: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 8 }}>
+                        No more comps in this area.
+                      </div>
+                      <button
+                        onClick={handleLoadComps}
+                        style={{
+                          padding: '12px 24px', borderRadius: 9999, border: `1px solid ${T.cardBorder}`,
+                          background: 'transparent', color: T.text, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        Load More Comps
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
