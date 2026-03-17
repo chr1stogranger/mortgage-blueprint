@@ -261,7 +261,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📐</div>
           <div style={{ fontSize: 16, color: T.text, fontWeight: 600 }}>Loading your Blueprint...</div>
-          <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 4 }}>Mortgage Blueprint</div>
+          <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 4 }}>RealStack Blueprint</div>
         </div>
       </div>
     );
@@ -279,7 +279,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
               ? "This share link may have expired or been deactivated. Please contact your loan officer for a new link."
               : error}
           </div>
-          <div style={{ marginTop: 24, fontSize: 12, color: T.textTertiary }}>Mortgage Blueprint</div>
+          <div style={{ marginTop: 24, fontSize: 12, color: T.textTertiary }}>RealStack Blueprint</div>
         </div>
       </div>
     );
@@ -303,10 +303,10 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: T.text, letterSpacing: "-0.3px" }}>
-              Mortgage Blueprint
+              RealStack Blueprint
             </div>
             <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 1 }}>
-              Mortgage Blueprint
+              RealStack Blueprint
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -395,7 +395,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         textAlign: "center",
       }}>
         <div style={{ fontSize: 11, color: T.textTertiary }}>
-          <span style={{ color: T.accent, fontWeight: 600 }}>Mortgage Blueprint</span>
+          <span style={{ color: T.accent, fontWeight: 600 }}>RealStack Blueprint</span>
         </div>
       </div>
     </div>

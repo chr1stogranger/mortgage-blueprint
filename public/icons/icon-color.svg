@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Roof -->
+  <polygon points="50,4 8,22 50,17 92,22" fill="#C7D2FE"/>
+  <polygon points="50,17 92,22 92,26 50,21" fill="#4F46E5"/>
+  <polygon points="50,17 8,22 8,26 50,21" fill="#818CF8"/>
+  <!-- Sheet 4 (indigo) -->
+  <polygon points="8,30 50,25 92,30 50,35" fill="#A5B4FC"/>
+  <polygon points="8,30 50,35 50,38 8,33" fill="#818CF8"/>
+  <polygon points="50,35 92,30 92,33 50,38" fill="#6366F1"/>
+  <!-- Sheet 3 (blue) -->
+  <polygon points="8,44 50,39 92,44 50,49" fill="#93C5FD"/>
+  <polygon points="8,44 50,49 50,52 8,47" fill="#60A5FA"/>
+  <polygon points="50,49 92,44 92,47 50,52" fill="#3B82F6"/>
+  <!-- Sheet 2 (teal) -->
+  <polygon points="8,58 50,53 92,58 50,63" fill="#67E8F9"/>
+  <polygon points="8,58 50,63 50,66 8,61" fill="#22D3EE"/>
+  <polygon points="50,63 92,58 92,61 50,66" fill="#06B6D4"/>
+  <!-- Sheet 1 (green) -->
+  <polygon points="8,72 50,67 92,72 50,77" fill="#6EE7B7"/>
+  <polygon points="8,72 50,77 50,80 8,75" fill="#34D399"/>
+  <polygon points="50,77 92,72 92,75 50,80" fill="#10B981"/>
+</svg>

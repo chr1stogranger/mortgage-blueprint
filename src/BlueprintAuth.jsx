@@ -196,7 +196,7 @@ export default function BlueprintAuth({ children }) {
   const loginModal = showLogin && !user && !localMode ? (
     <div style={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
       <div style={styles.card}>
-        <div style={styles.logo}>Mortgage Blueprint</div>
+        <div style={styles.logo}><span>Real</span><span style={{ color: "#6366F1" }}>Stack</span> Blueprint</div>
         <div style={styles.subtitle}>Sign in to sync scenarios across devices</div>
         <button style={styles.googleBtn} onClick={handleGoogleClick}>
           <GoogleIcon /> Sign in with Google
