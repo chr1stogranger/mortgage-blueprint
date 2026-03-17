@@ -5,6 +5,8 @@
  * Color: inherits currentColor from parent element
  */
 
+import React from 'react';
+
 const icons = {
   // ===== NAVIGATION & TABS =====
   home: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>,
@@ -89,7 +91,7 @@ const icons = {
   globe: <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
 };
 
-export default function Icon({ name, size = 18, className = '', style = {}, strokeWidth }) {
+const Icon = ({ name, size = 18, className = '', style = {}, strokeWidth }) => {
   const paths = icons[name];
   if (!paths) return null;
 
@@ -109,7 +111,9 @@ export default function Icon({ name, size = 18, className = '', style = {}, stro
       {paths}
     </svg>
   );
-}
+};
+
+export default React.memo(Icon);
 
 // For quick inline usage: Icon.names lists all available icons
 Icon.names = Object.keys(icons);

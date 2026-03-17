@@ -1250,6 +1250,17 @@ export default function MortgageBlueprint({ initialState }) {
  const [welcomeStep, setWelcomeStep] = useState(0);
  const [clearStep, setClearStep] = useState(0);
  const [showFredKey, setShowFredKey] = useState(false);
+ const [isOffline, setIsOffline] = useState(!navigator.onLine);
+ useEffect(() => {
+  const goOffline = () => setIsOffline(true);
+  const goOnline = () => setIsOffline(false);
+  window.addEventListener('offline', goOffline);
+  window.addEventListener('online', goOnline);
+  return () => {
+    window.removeEventListener('offline', goOffline);
+    window.removeEventListener('online', goOnline);
+  };
+ }, []);
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("setup");
@@ -2214,24 +2225,43 @@ export default function MortgageBlueprint({ initialState }) {
    try {
     const base = "https://api.stlouisfed.org/fred/series/observations";
     const qp = (id) => base + "?series_id=" + id + "&api_key=" + fredApiKey + "&file_type=json&sort_order=desc&limit=1";
-    const [r30, r15, rArm] = await Promise.all([
-     fetch(qp("MORTGAGE30US")).then(r => r.json()),
-     fetch(qp("MORTGAGE15US")).then(r => r.json()),
-     fetch(qp("MORTGAGE5US")).then(r => r.json()),
-    ]);
-    const v30 = parseFloat(r30?.observations?.[0]?.value);
-    const v15 = parseFloat(r15?.observations?.[0]?.value);
-    const vArm = parseFloat(rArm?.observations?.[0]?.value);
-    if (v30 > 2 && v30 < 15) {
-     applyRates({
-      date: r30.observations[0].date, "30yr_fixed": v30,
-      "15yr_fixed": v15 || +(v30 - 0.6).toFixed(2),
-      "30yr_fha": +(v30 - 0.25).toFixed(2), "30yr_va": +(v30 - 0.35).toFixed(2),
-      "30yr_jumbo": +(v30 + 0.25).toFixed(2), "5yr_arm": vArm || +(v30 - 0.3).toFixed(2),
-      source: "FRED / Freddie Mac PMMS"
-     });
-     setRatesLoading(false);
-     return;
+    try {
+     const [r30, r15, rArm] = await Promise.all([
+      fetch(qp("MORTGAGE30US"))
+        .then(r => r.json())
+        .catch(e => { console.log("FRED MORTGAGE30US fetch failed:", e.message); throw e; }),
+      fetch(qp("MORTGAGE15US"))
+        .then(r => r.json())
+        .catch(e => { console.log("FRED MORTGAGE15US fetch failed:", e.message); throw e; }),
+      fetch(qp("MORTGAGE5US"))
+        .then(r => r.json())
+        .catch(e => { console.log("FRED MORTGAGE5US fetch failed:", e.message); throw e; }),
+     ]);
+     // Validate response structure before parsing
+     if (!r30?.observations?.[0] || !r15?.observations?.[0] || !rArm?.observations?.[0]) {
+      throw new Error("Invalid FRED API response structure");
+     }
+     const v30 = parseFloat(r30.observations[0].value);
+     const v15 = parseFloat(r15.observations[0].value);
+     const vArm = parseFloat(rArm.observations[0].value);
+     // Check for NaN values
+     if (isNaN(v30) || isNaN(v15) || isNaN(vArm)) {
+      throw new Error("FRED API returned NaN values");
+     }
+     if (v30 > 2 && v30 < 15) {
+      applyRates({
+       date: r30.observations[0].date, "30yr_fixed": v30,
+       "15yr_fixed": v15 || +(v30 - 0.6).toFixed(2),
+       "30yr_fha": +(v30 - 0.25).toFixed(2), "30yr_va": +(v30 - 0.35).toFixed(2),
+       "30yr_jumbo": +(v30 + 0.25).toFixed(2), "5yr_arm": vArm || +(v30 - 0.3).toFixed(2),
+       source: "FRED / Freddie Mac PMMS"
+      });
+      setRatesLoading(false);
+      return;
+     }
+    } catch(promiseError) {
+     console.log("FRED Promise.all failed:", promiseError.message);
+     throw promiseError;
     }
    } catch(e) { console.log("FRED direct failed:", e.message); }
   }
@@ -3647,6 +3677,7 @@ export default function MortgageBlueprint({ initialState }) {
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
    <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%" }}>
+  {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>

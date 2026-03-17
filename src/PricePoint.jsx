@@ -754,7 +754,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                             if (dx > 0) setPpPhotoIdx(idx > 0 ? idx - 1 : photos.length - 1);
                           }
                         }}>
-                        <img src={photos[idx]} alt="" referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 380 : 260, objectFit:"cover", display:"block" }}
+                        <img src={photos[idx]} alt={`Property listing: ${ppCurrentListing.address || 'Unknown address'}, ${ppCurrentListing.city || 'Unknown city'}`} referrerPolicy="no-referrer" style={{ width:"100%", height: isDesktop ? 380 : 260, objectFit:"cover", display:"block" }}
                           onError={e => { if (!e.target.dataset.retried) { e.target.dataset.retried = "1"; e.target.src = photos[idx] + (photos[idx].includes("?") ? "&" : "?") + "t=" + Date.now(); } else { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }}} />
                         <div style={{ position:"absolute", bottom:0, left:0, right:0, height:120, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", pointerEvents:"none" }} />
                         <div style={{ position:"absolute", bottom:12, left:14, right:14 }}>
