@@ -215,9 +215,12 @@ export const fetchLiveMarkets = createAsyncThunk(
       const { zip, city, state, minPrice, maxPrice, status } = filters;
 
       // Build query params for existing PricePoint API
+      // Default to San Francisco (94122) if no location specified
       const params = new URLSearchParams();
-      if (zip) params.set('zip', zip);
-      if (city) params.set('city', city);
+      const hasLocation = (zip && zip.trim()) || (city && city.trim());
+      if (zip && zip.trim()) params.set('zip', zip.trim());
+      else if (city && city.trim()) params.set('city', city.trim());
+      else params.set('zip', '94122'); // default: Sunset District, SF
       if (state) params.set('state', state || 'CA');
 
       const response = await fetch(`/api/pricepoint?${params.toString()}`);
