@@ -3621,7 +3621,7 @@ export default function MortgageBlueprint({ initialState }) {
    {/* ═══ DESKTOP SIDEBAR ═══ */}
    {isDesktop && appMode === "blueprint" && (
     <div className="bp-sidebar" style={{
-     width: sidebarCollapsed ? 64 : 240, minWidth: sidebarCollapsed ? 64 : 240, height: "100vh", position: "sticky", top: 0,
+     width: sidebarCollapsed ? 56 : 180, minWidth: sidebarCollapsed ? 56 : 180, height: "100vh", position: "sticky", top: 0,
      background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
      display: "flex", flexDirection: "column", transition: "width 0.2s, min-width 0.2s", overflow: "hidden", zIndex: 60, flexShrink: 0
     }}>
@@ -3689,18 +3689,7 @@ export default function MortgageBlueprint({ initialState }) {
        </div>
       )}
      </div>
-     {/* Payment Summary */}
-     {!sidebarCollapsed && (
-      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.separator}` }}>
-       <div style={{ fontSize: 26, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.03em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 13, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
-       <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>{fmt(calc.cashToClose)} to close · {rate}% rate</div>
-      </div>
-     )}
-     {sidebarCollapsed && (
-      <div style={{ textAlign: "center", padding: "10px 4px", borderBottom: `1px solid ${T.separator}` }}>
-       <div style={{ fontSize: 10, fontWeight: 700, color: T.blue }}>{fmt(calc.housingPayment)}</div>
-      </div>
-     )}
+     {/* Payment summary moved to header bar */}
      {/* Sidebar Nav Items */}
      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
       {TABS.map(([k, l]) => {
@@ -3711,8 +3700,8 @@ export default function MortgageBlueprint({ initialState }) {
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; } }}
          style={{
-          padding: sidebarCollapsed ? "10px 0" : "9px 18px", cursor: locked ? "not-allowed" : "pointer",
-          display: "flex", alignItems: "center", gap: 10, margin: "1px 8px", borderRadius: 10,
+          padding: sidebarCollapsed ? "8px 0" : "7px 12px", cursor: locked ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
           background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
          }}>
@@ -3725,9 +3714,12 @@ export default function MortgageBlueprint({ initialState }) {
        );
       })}
      </div>
-     {/* Sidebar Footer */}
-     <div style={{ padding: sidebarCollapsed ? "12px 8px" : "12px 18px", borderTop: `1px solid ${T.separator}` }}>
-     </div>
+     {/* Sidebar Footer — payment at a glance when collapsed */}
+     {sidebarCollapsed && (
+      <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
+       <div style={{ fontSize: 9, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(calc.housingPayment)}</div>
+      </div>
+     )}
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
@@ -3917,7 +3909,12 @@ export default function MortgageBlueprint({ initialState }) {
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}><span style={{ color: T.text }}>Blueprint</span></span>
+        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>Blueprint</span>
+        <div style={{ background: T.pillBg, borderRadius: 10, padding: "4px 12px", display: "flex", alignItems: "baseline", gap: 4 }}>
+         <span style={{ fontSize: 16, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.text, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}</span>
+         <span style={{ fontSize: 10, color: T.textTertiary }}>/mo</span>
+         <span style={{ fontSize: 10, color: T.textTertiary, marginLeft: 4 }}>{fmt(calc.cashToClose)} to close</span>
+        </div>
        </div>
        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, flexWrap: "nowrap", overflow: "hidden" }}>
         {scenarioList.length > 1 ? scenarioList.map(name => (

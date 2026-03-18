@@ -507,7 +507,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Main Render ──
   return (
-    <div style={{ maxWidth: isDesktop ? 1100 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box", marginLeft: isDesktop && setAppMode ? 220 : "auto" }}>
+    <div style={{ maxWidth: isDesktop ? 1100 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box", marginLeft: isDesktop && setAppMode ? 180 : "auto" }}>
       <style>{`
         html, body { background: ${T.bg} !important; overflow-x: hidden; }
         @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
@@ -529,7 +529,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* Desktop Sidebar */}
       {isDesktop && setAppMode && (
-        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 220, background: T.bg2 || T.card, borderRight: `1px solid ${T.cardBorder}`, padding: "16px 0", display: "flex", flexDirection: "column", zIndex: 10 }}>
+        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 180, background: T.bg2 || T.card, borderRight: `1px solid ${T.cardBorder}`, padding: "12px 0", display: "flex", flexDirection: "column", zIndex: 10 }}>
           <div style={{ padding: "8px 16px 16px", borderBottom: `1px solid ${T.cardBorder}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
@@ -593,7 +593,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       )}
 
       {/* Header */}
-      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: isDesktop && setAppMode ? 220 : 0 }}>
+      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: isDesktop && setAppMode ? 180 : 0 }}>
         <div>
           {/* Back to Blueprint — desktop only when no sidebar, hidden on mobile (top toggle handles it) */}
           {!isDesktop && !setAppMode && <button onClick={onBackToBlueprint} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 4, fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
