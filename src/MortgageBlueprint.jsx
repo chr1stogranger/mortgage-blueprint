@@ -3664,7 +3664,7 @@ export default function MortgageBlueprint({ initialState }) {
     .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
    `}</style>
    {/* ═══ DESKTOP SIDEBAR ═══ */}
-   {isDesktop && appMode === "blueprint" && (
+   {isDesktop && (
     <div className="bp-sidebar" style={{
      width: sidebarCollapsed ? 56 : 180, minWidth: sidebarCollapsed ? 56 : 180, height: "100vh", position: "sticky", top: 0,
      background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
@@ -3762,10 +3762,10 @@ export default function MortgageBlueprint({ initialState }) {
        </div>
       )}
      </div>
-     {/* Payment summary moved to header bar */}
-     {/* Sidebar Nav Items */}
+     {/* Mode-specific nav items */}
      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-      {TABS.map(([k, l]) => {
+      {/* Blueprint nav */}
+      {appMode === "blueprint" && TABS.map(([k, l]) => {
        const locked = !isTabUnlocked(k);
        const completed = !!completedTabs[k];
        const active = tab === k;
@@ -3786,9 +3786,25 @@ export default function MortgageBlueprint({ initialState }) {
         </div>
        );
       })}
+      {/* PricePoint nav (when PP is primary) */}
+      {appMode === "pricepoint" && !sidebarCollapsed && [["cards","crosshair","Play"],["results","clock","History"],["stats","bar-chart-2","Stats"],["leaderboard","award","Board"]].map(([k,ico,l]) => (
+       <div key={k} className="bp-sidebar-item" style={{
+        padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
+        background: "transparent",
+        color: T.textSecondary,
+       }}><Icon name={ico} size={15} /><span style={{ fontSize: 13, fontWeight: 500 }}>{l}</span></div>
+      ))}
+      {/* Markets nav (when Markets is primary) */}
+      {appMode === "markets" && !sidebarCollapsed && [["live","trending-up","Live Markets"],["practice","target","Practice"],["portfolio","banknote","Portfolio"]].map(([k,ico,l]) => (
+       <div key={k} className="bp-sidebar-item" style={{
+        padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
+        background: "transparent",
+        color: T.textSecondary,
+       }}><Icon name={ico} size={15} /><span style={{ fontSize: 13, fontWeight: 500 }}>{l}</span></div>
+      ))}
      </div>
-     {/* Sidebar Footer — payment at a glance when collapsed */}
-     {sidebarCollapsed && (
+     {/* Sidebar Footer */}
+     {sidebarCollapsed && appMode === "blueprint" && (
       <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
        <div style={{ fontSize: 9, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(calc.housingPayment)}</div>
       </div>
@@ -3796,7 +3812,7 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${appMode === "blueprint" ? (sidebarCollapsed ? 56 : 180) : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -8181,11 +8197,11 @@ export default function MortgageBlueprint({ initialState }) {
    {appMode === "pricepoint" && (
     <PricePoint
      T={T}
-     isDesktop={splitMode ? false : isDesktop}
+     isDesktop={isDesktop}
      FONT={FONT}
      realtorPartner={realtorPartner}
-     appMode={splitMode ? null : appMode}
-     setAppMode={splitMode ? null : (m) => { closeSplit(); setAppMode(m); }}
+     appMode={null}
+     setAppMode={null}
      onRunNumbers={({ price, state, city, zip }) => {
       if (price) setSalesPrice(price);
       if (state) setPropertyState(state);
@@ -8205,10 +8221,10 @@ export default function MortgageBlueprint({ initialState }) {
    {appMode === "markets" && (
     <Markets
      T={T}
-     isDesktop={splitMode ? false : isDesktop}
+     isDesktop={isDesktop}
      FONT={FONT}
-     appMode={splitMode ? null : appMode}
-     setAppMode={splitMode ? null : (m) => { closeSplit(); setAppMode(m); }}
+     appMode={null}
+     setAppMode={null}
      onBackToBlueprint={() => setAppMode("blueprint")}
     />
    )}
