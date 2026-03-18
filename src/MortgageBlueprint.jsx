@@ -3714,11 +3714,11 @@ export default function MortgageBlueprint({ initialState }) {
    const step = steps[welcomeStep];
    return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-     <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative" }}>
+     <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative", display: "flex", flexDirection: "column", minHeight: 460 }}>
       <span onClick={() => { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }} style={{ position: "absolute", top: 16, right: 20, fontSize: 12, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, opacity: 0.6 }}>Skip</span>
-      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: step.color || T.blue }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: step.color || T.blue, minHeight: 48 }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>{step.title}</div>
-      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 24, whiteSpace: "pre-line", textAlign: "left" }}>{step.body}</div>
+      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 24, whiteSpace: "pre-line", textAlign: "left", flex: 1, overflow: "auto" }}>{step.body}</div>
       {/* Progress dots */}
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 20 }}>
        {steps.map((_, i) => (
@@ -3863,8 +3863,8 @@ export default function MortgageBlueprint({ initialState }) {
       <div>
        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></span>
-        {/* ── Blueprint / PricePoint segmented toggle ── */}
-        <div style={{ display: "flex", background: T.pillBg, borderRadius: 10, padding: 2 }}>
+        {/* ── Blueprint / PricePoint segmented toggle (desktop only — mobile uses top sticky) ── */}
+        {isDesktop && <div style={{ display: "flex", background: T.pillBg, borderRadius: 10, padding: 2 }}>
          {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,e,l]) => (
           <button key={k} onClick={() => setAppMode(k)} style={{
            padding: "4px 10px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: appMode === k ? 700 : 500,
@@ -3873,7 +3873,7 @@ export default function MortgageBlueprint({ initialState }) {
            cursor: "pointer", transition: "all 0.2s", fontFamily: FONT, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3,
           }}><Icon name={e} size={11} /> {l}</button>
          ))}
-        </div>
+        </div>}
        </div>
        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, flexWrap: "nowrap", overflow: "hidden" }}>
         {scenarioList.length > 1 ? scenarioList.map(name => (
@@ -8070,6 +8070,8 @@ export default function MortgageBlueprint({ initialState }) {
      isDesktop={isDesktop}
      FONT={FONT}
      realtorPartner={realtorPartner}
+     appMode={appMode}
+     setAppMode={setAppMode}
      onRunNumbers={({ price, state, city, zip }) => {
       if (price) setSalesPrice(price);
       if (state) setPropertyState(state);
@@ -8090,6 +8092,8 @@ export default function MortgageBlueprint({ initialState }) {
      T={T}
      isDesktop={isDesktop}
      FONT={FONT}
+     appMode={appMode}
+     setAppMode={setAppMode}
      onBackToBlueprint={() => setAppMode("blueprint")}
     />
    )}

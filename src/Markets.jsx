@@ -68,7 +68,7 @@ const pct = (n) => `${(n * 100).toFixed(1)}%`;
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
 
-export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
+export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode, setAppMode }) {
   const dispatch = useDispatch();
 
   // ── Selectors ──
@@ -1151,7 +1151,68 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint }) {
   // ─────────────────────────────────────────
 
   return (
-    <div style={{ padding: isDesktop ? '20px 40px' : '0 16px 80px', maxWidth: 700, margin: '0 auto' }}>
+    <div style={{ padding: isDesktop ? '20px 40px' : '0 16px 80px', maxWidth: 700, margin: '0 auto', marginLeft: isDesktop && setAppMode ? 220 : 'auto' }}>
+      {/* Desktop Sidebar */}
+      {isDesktop && setAppMode && (
+        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 220, background: T.bg2 || T.card, borderRight: `1px solid ${T.cardBorder}`, padding: "16px 0", display: "flex", flexDirection: "column", zIndex: 10 }}>
+          <div style={{ padding: "8px 16px 16px", borderBottom: `1px solid ${T.cardBorder}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <svg viewBox="0 0 100 100" fill="none" style={{width:24,height:24,borderRadius:5,overflow:"hidden",flexShrink:0}}>
+                <defs><linearGradient id="mk-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+                <rect width="100" height="100" fill="url(#mk-bg)"/>
+                <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
+                <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
+                <polygon points="50,25 8,30 8,34 50,29" fill="rgba(255,255,255,0.68)"/>
+                <polygon points="8,38 50,33 92,38 50,43" fill="rgba(255,255,255,0.90)"/>
+                <polygon points="8,38 50,43 50,46 8,41" fill="rgba(255,255,255,0.58)"/>
+                <polygon points="50,43 92,38 92,41 50,46" fill="rgba(255,255,255,0.40)"/>
+                <polygon points="8,52 50,47 92,52 50,57" fill="rgba(255,255,255,0.70)"/>
+                <polygon points="8,52 50,57 50,60 8,55" fill="rgba(255,255,255,0.45)"/>
+                <polygon points="50,57 92,52 92,55 50,60" fill="rgba(255,255,255,0.28)"/>
+                <polygon points="8,66 50,61 92,66 50,71" fill="rgba(255,255,255,0.50)"/>
+                <polygon points="8,66 50,71 50,74 8,69" fill="rgba(255,255,255,0.32)"/>
+                <polygon points="50,71 92,66 92,69 50,74" fill="rgba(255,255,255,0.18)"/>
+                <polygon points="8,80 50,75 92,80 50,85" fill="rgba(255,255,255,0.34)"/>
+                <polygon points="8,80 50,85 50,88 8,83" fill="rgba(255,255,255,0.20)"/>
+                <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
+              </svg>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></div>
+              </div>
+            </div>
+            {/* Mode Toggle */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,ico,l]) => (
+                <button key={k} onClick={() => setAppMode(k)} style={{
+                  display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8,
+                  border: "none", fontSize: 13, fontWeight: k === appMode ? 700 : 500, fontFamily: FONT,
+                  background: k === appMode ? (k === "pricepoint" ? "rgba(56,189,126,0.12)" : k === "markets" ? "rgba(99,102,241,0.12)" : `${T.blue}15`) : "transparent",
+                  color: k === appMode ? (k === "pricepoint" ? "#38bd7e" : k === "markets" ? "#6366F1" : T.blue) : T.textTertiary,
+                  cursor: "pointer", transition: "all 0.2s", textAlign: "left",
+                }}><Icon name={ico} size={16} /> {l}</button>
+              ))}
+            </div>
+          </div>
+          {/* Markets Nav */}
+          <nav style={{ padding: "10px 6px", flex: 1 }}>
+            {tabs.map((t) => (
+              <button key={t.id} onClick={() => dispatch(setActiveTab(t.id))} style={{
+                display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px", borderRadius: 8,
+                border: "none", fontSize: 13, fontWeight: ui.activeTab === t.id ? 600 : 400, fontFamily: FONT,
+                background: ui.activeTab === t.id ? `${T.text}08` : "transparent",
+                color: ui.activeTab === t.id ? T.text : T.textTertiary,
+                cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+              }}><Icon name={t.icon} size={16} /> {t.label}</button>
+            ))}
+          </nav>
+          {/* Balance */}
+          <div style={{ padding: "12px 16px", borderTop: `1px solid ${T.cardBorder}` }}>
+            <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Balance</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${portfolio.balance?.toLocaleString() || '10,000'}</div>
+          </div>
+        </div>
+      )}
+
       <AttestationModal />
       {ui.tradingPanelOpen && <TradingPanel />}
 

@@ -44,7 +44,7 @@ const PP_SOLD_LISTINGS = [
   { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909 },
 ];
 
-export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner }) {
+export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode }) {
   // ── Markets integration — check if current listing has an active market ──
   const liveMarkets = useSelector((state) => state.markets?.liveMarkets || []);
 
@@ -507,7 +507,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Main Render ──
   return (
-    <div style={{ maxWidth: isDesktop ? 1100 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box" }}>
+    <div style={{ maxWidth: isDesktop ? 1100 : 480, margin: "0 auto", width: "100%", overflowX: "hidden", boxSizing: "border-box", marginLeft: isDesktop && setAppMode ? 220 : "auto" }}>
       <style>{`
         html, body { background: ${T.bg} !important; overflow-x: hidden; }
         @keyframes ppFadeIn { from { opacity:0 } to { opacity:1 } }
@@ -527,12 +527,78 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {ppNotif && <div style={{ position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:300,padding:"12px 24px",borderRadius:14,fontSize:13,fontWeight:600,background:"rgba(56,189,126,0.15)",color:"#38bd7e",border:"1px solid rgba(56,189,126,0.3)",animation:"ppNotifIn 0.3s ease",maxWidth:380,textAlign:"center" }}>{ppNotif}</div>}
 
+      {/* Desktop Sidebar */}
+      {isDesktop && setAppMode && (
+        <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 220, background: T.bg2 || T.card, borderRight: `1px solid ${T.cardBorder}`, padding: "16px 0", display: "flex", flexDirection: "column", zIndex: 10 }}>
+          <div style={{ padding: "8px 16px 16px", borderBottom: `1px solid ${T.cardBorder}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <svg viewBox="0 0 100 100" fill="none" style={{width:24,height:24,borderRadius:5,overflow:"hidden",flexShrink:0}}>
+                <defs><linearGradient id="pp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+                <rect width="100" height="100" fill="url(#pp-bg)"/>
+                <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
+                <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
+                <polygon points="50,25 8,30 8,34 50,29" fill="rgba(255,255,255,0.68)"/>
+                <polygon points="8,38 50,33 92,38 50,43" fill="rgba(255,255,255,0.90)"/>
+                <polygon points="8,38 50,43 50,46 8,41" fill="rgba(255,255,255,0.58)"/>
+                <polygon points="50,43 92,38 92,41 50,46" fill="rgba(255,255,255,0.40)"/>
+                <polygon points="8,52 50,47 92,52 50,57" fill="rgba(255,255,255,0.70)"/>
+                <polygon points="8,52 50,57 50,60 8,55" fill="rgba(255,255,255,0.45)"/>
+                <polygon points="50,57 92,52 92,55 50,60" fill="rgba(255,255,255,0.28)"/>
+                <polygon points="8,66 50,61 92,66 50,71" fill="rgba(255,255,255,0.50)"/>
+                <polygon points="8,66 50,71 50,74 8,69" fill="rgba(255,255,255,0.32)"/>
+                <polygon points="50,71 92,66 92,69 50,74" fill="rgba(255,255,255,0.18)"/>
+                <polygon points="8,80 50,75 92,80 50,85" fill="rgba(255,255,255,0.34)"/>
+                <polygon points="8,80 50,85 50,88 8,83" fill="rgba(255,255,255,0.20)"/>
+                <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
+              </svg>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></div>
+              </div>
+            </div>
+            {/* Mode Toggle */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,ico,l]) => (
+                <button key={k} onClick={() => setAppMode(k)} style={{
+                  display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8,
+                  border: "none", fontSize: 13, fontWeight: k === appMode ? 700 : 500, fontFamily: FONT,
+                  background: k === appMode ? (k === "pricepoint" ? "rgba(56,189,126,0.12)" : k === "markets" ? "rgba(99,102,241,0.12)" : `${T.blue}15`) : "transparent",
+                  color: k === appMode ? (k === "pricepoint" ? "#38bd7e" : k === "markets" ? "#6366F1" : T.blue) : T.textTertiary,
+                  cursor: "pointer", transition: "all 0.2s", textAlign: "left",
+                }}><Icon name={ico} size={16} /> {l}</button>
+              ))}
+            </div>
+          </div>
+          {/* PricePoint Nav */}
+          <nav style={{ padding: "10px 6px", flex: 1 }}>
+            {[["cards","crosshair","Play"],["results","clock","History"],["stats","bar-chart-2","Stats"],["leaderboard","award","Board"]].map(([k,ico,l]) => (
+              <button key={k} onClick={() => setPpView(k)} style={{
+                display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px", borderRadius: 8,
+                border: "none", fontSize: 13, fontWeight: ppView === k ? 600 : 400, fontFamily: FONT,
+                background: ppView === k ? `${T.text}08` : "transparent",
+                color: ppView === k ? T.text : T.textTertiary,
+                cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+              }}><Icon name={ico} size={16} /> {l}</button>
+            ))}
+          </nav>
+          {/* Level Badge */}
+          <div style={{ padding: "12px 16px", borderTop: `1px solid ${T.cardBorder}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "linear-gradient(135deg, rgba(56,189,126,0.15), rgba(56,189,126,0.05))", borderRadius: 8, padding: "4px 8px", display: "flex", alignItems: "center", gap: 4, border: "1px solid rgba(56,189,126,0.2)" }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#38bd7e" }}>Lv.{ppLevel}</span>
+              </div>
+              <span style={{ fontSize: 11, color: T.textTertiary }}>{ppSoldMode ? ppPracticeCurStreak : ppCompCurStreak} streak</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", marginLeft: isDesktop && setAppMode ? 220 : 0 }}>
         <div>
-          <button onClick={onBackToBlueprint} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 4, fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
+          {/* Back to Blueprint — desktop only when no sidebar, hidden on mobile (top toggle handles it) */}
+          {!isDesktop && !setAppMode && <button onClick={onBackToBlueprint} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: "2px 0", marginBottom: 4, fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
             ← Blueprint
-          </button>
+          </button>}
           <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>PricePoint</div>
           <div style={{ fontSize: 12, color: T.textTertiary }}>
             {ppDataSource === "live" ? `Live · ${ppLocationLabel}` : ppHometown ? `${ppHometown.label} · ${ppSoldMode ? "Recently Sold" : "On Market"}` : ppSoldMode ? "Recently Sold" : "On Market"}
