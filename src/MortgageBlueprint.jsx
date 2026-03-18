@@ -3796,7 +3796,7 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${appMode === "blueprint" ? (sidebarCollapsed ? 56 : 180) : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -8178,14 +8178,14 @@ export default function MortgageBlueprint({ initialState }) {
    {/* ═══════════════════════════════════════════ */}
    {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
-   {appMode === "pricepoint" && !splitMode && (
+   {appMode === "pricepoint" && (
     <PricePoint
      T={T}
-     isDesktop={isDesktop}
+     isDesktop={splitMode ? false : isDesktop}
      FONT={FONT}
      realtorPartner={realtorPartner}
-     appMode={appMode}
-     setAppMode={(m) => { closeSplit(); setAppMode(m); }}
+     appMode={splitMode ? null : appMode}
+     setAppMode={splitMode ? null : (m) => { closeSplit(); setAppMode(m); }}
      onRunNumbers={({ price, state, city, zip }) => {
       if (price) setSalesPrice(price);
       if (state) setPropertyState(state);
@@ -8202,17 +8202,17 @@ export default function MortgageBlueprint({ initialState }) {
    {/* ═══════════════════════════════════════════ */}
    {/* MARKETS MODE */}
    {/* ═══════════════════════════════════════════ */}
-   {appMode === "markets" && !splitMode && (
+   {appMode === "markets" && (
     <Markets
      T={T}
-     isDesktop={isDesktop}
+     isDesktop={splitMode ? false : isDesktop}
      FONT={FONT}
-     appMode={appMode}
-     setAppMode={(m) => { closeSplit(); setAppMode(m); }}
+     appMode={splitMode ? null : appMode}
+     setAppMode={splitMode ? null : (m) => { closeSplit(); setAppMode(m); }}
      onBackToBlueprint={() => setAppMode("blueprint")}
     />
    )}
-   {appMode === "blueprint" && !splitMode && <FloatingNextBar />}
+   {appMode === "blueprint" && <FloatingNextBar />}
 
    {/* ═══════════════════════════════════════════ */}
    {/* SPLIT-SCREEN MODE (desktop only) */}
@@ -8258,10 +8258,6 @@ export default function MortgageBlueprint({ initialState }) {
 
     return (
      <>
-      {/* Constrain left pane width */}
-      <style>{`
-       .bp-main-content { max-width: calc(${splitRatio}vw - ${sidebarW}px) !important; }
-      `}</style>
       {/* Divider — draggable */}
       <div ref={splitContainerRef} className="split-divider"
        onMouseDown={onSplitDragStart} onTouchStart={onSplitDragStart}
