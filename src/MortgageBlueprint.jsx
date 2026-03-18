@@ -1266,9 +1266,46 @@ export default function MortgageBlueprint({ initialState }) {
  const [tab, setTab] = useState("setup");
  // ── App Mode: Blueprint or PricePoint ──
  const [appMode, setAppMode] = useState(() => {
-  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'pricepoint') return 'pricepoint'; } catch {}
+  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'pricepoint') return 'pricepoint'; if (p.get('mode') === 'markets') return 'markets'; } catch {}
   return 'blueprint';
  });
+ // ── Split-Screen Mode (desktop only) ──
+ const [splitMode, setSplitMode] = useState(false); // is split active?
+ const [splitApp, setSplitApp] = useState(null); // which mode is in the right pane
+ const [splitRatio, setSplitRatio] = useState(50); // left pane width percentage
+ const splitDragging = useRef(false);
+ const splitContainerRef = useRef(null);
+ // Open split view with a specific mode in the right pane
+ const openSplit = useCallback((mode) => {
+  if (!isDesktop) return;
+  if (mode === appMode) return; // can't split same mode
+  setSplitMode(true);
+  setSplitApp(mode);
+  setSplitRatio(50);
+ }, [isDesktop, appMode]);
+ // Close split view
+ const closeSplit = useCallback(() => {
+  setSplitMode(false);
+  setSplitApp(null);
+  setSplitRatio(50);
+ }, []);
+ // Handle split divider drag
+ const onSplitDragStart = useCallback((e) => {
+  e.preventDefault();
+  splitDragging.current = true;
+  const onMove = (ev) => {
+   if (!splitDragging.current || !splitContainerRef.current) return;
+   const rect = splitContainerRef.current.getBoundingClientRect();
+   const x = (ev.clientX || ev.touches?.[0]?.clientX) - rect.left;
+   const pct = Math.max(25, Math.min(75, (x / rect.width) * 100));
+   setSplitRatio(pct);
+  };
+  const onUp = () => { splitDragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  window.addEventListener('touchmove', onMove);
+  window.addEventListener('touchend', onUp);
+ }, []);
  // PricePoint is now its own component — see PricePoint.jsx
  const [salesPrice, setSalesPrice] = useState(1000000);
  const [downPct, setDownPct] = useState(20);
@@ -3610,6 +3647,15 @@ export default function MortgageBlueprint({ initialState }) {
     .bp-sidebar::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 2px; }
     .bp-sidebar-item { transition: all 0.15s ease; }
     .bp-sidebar-item:hover { background: ${T.tabActiveBg}; }
+    /* Split button appears on hover */
+    .split-btn { opacity: 0 !important; }
+    div:hover > .split-btn { opacity: 0.6 !important; }
+    .split-btn:hover { opacity: 1 !important; background: ${T.pillBg}; }
+    /* Split divider */
+    .split-divider { width: 6px; cursor: col-resize; background: transparent; position: relative; flex-shrink: 0; transition: background 0.15s; }
+    .split-divider:hover, .split-divider:active { background: ${T.blue}30; }
+    .split-divider::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 40px; background: ${T.separator}; border-radius: 1px; transition: background 0.15s; }
+    .split-divider:hover::after { background: ${T.blue}; }
     /* Desktop smooth scrollbar */
     html { scrollbar-width: thin; scrollbar-color: ${T.separator} transparent; }
     html::-webkit-scrollbar { width: 6px; }
@@ -3657,17 +3703,45 @@ export default function MortgageBlueprint({ initialState }) {
          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         </button>
        </div>
-       {/* Mode Toggle */}
+       {/* Mode Toggle with Split affordance */}
        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,ico,l]) => (
-         <button key={k} onClick={() => setAppMode(k)} style={{
-          display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8,
-          border: "none", fontSize: 13, fontWeight: k === appMode ? 700 : 500, fontFamily: FONT,
-          background: k === appMode ? `${T.blue}15` : "transparent",
-          color: k === appMode ? T.blue : T.textTertiary,
-          cursor: "pointer", transition: "all 0.2s", textAlign: "left",
-         }}><Icon name={ico} size={16} /> {l}</button>
-        ))}
+        {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,ico,l]) => {
+         const isActive = k === appMode;
+         const isSplit = splitMode && k === splitApp;
+         return (
+          <div key={k} style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
+           <button onClick={() => { if (splitMode && k !== appMode && k !== splitApp) { setSplitApp(k); } else { closeSplit(); setAppMode(k); } }} style={{
+            display: "flex", alignItems: "center", gap: 8, flex: 1, padding: "7px 10px", borderRadius: 8,
+            border: "none", fontSize: 12, fontWeight: isActive || isSplit ? 700 : 500, fontFamily: FONT,
+            background: isActive ? `${T.blue}15` : isSplit ? `${T.blue}08` : "transparent",
+            color: isActive ? T.blue : isSplit ? T.blue : T.textTertiary,
+            cursor: "pointer", transition: "all 0.2s", textAlign: "left",
+           }}><Icon name={ico} size={14} /> {l}
+            {isSplit && <span style={{ fontSize: 8, opacity: 0.5, marginLeft: "auto" }}>R</span>}
+           </button>
+           {/* Split button — show on hover for non-active modes */}
+           {k !== appMode && !isSplit && (
+            <button onClick={(e) => { e.stopPropagation(); openSplit(k); }}
+             title={`Open ${l} in split view`}
+             className="split-btn"
+             style={{
+              background: "none", border: "none", cursor: "pointer", padding: "4px",
+              color: T.textTertiary, opacity: 0, transition: "opacity 0.15s", display: "flex",
+              borderRadius: 4, flexShrink: 0,
+             }}>
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+            </button>
+           )}
+           {isSplit && (
+            <button onClick={(e) => { e.stopPropagation(); closeSplit(); }}
+             title="Close split view"
+             style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: T.textTertiary, display: "flex", borderRadius: 4, flexShrink: 0 }}>
+             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+           )}
+          </div>
+         );
+        })}
        </div>
       </>}
       {sidebarCollapsed && (
@@ -8103,22 +8177,23 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
    </>}
    {/* ═══════════════════════════════════════════ */}
-   {/* PRICEPOINT MODE — Now its own component */}
+   {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
-   {appMode === "pricepoint" && (
+   {appMode === "pricepoint" && !splitMode && (
     <PricePoint
      T={T}
      isDesktop={isDesktop}
      FONT={FONT}
      realtorPartner={realtorPartner}
      appMode={appMode}
-     setAppMode={setAppMode}
+     setAppMode={(m) => { closeSplit(); setAppMode(m); }}
      onRunNumbers={({ price, state, city, zip }) => {
       if (price) setSalesPrice(price);
       if (state) setPropertyState(state);
       if (city) setCity(city);
       if (zip) setPropertyZip(zip);
-      setAppMode("blueprint");
+      if (splitMode && splitApp === "blueprint") { /* Blueprint pane will react to state changes */ }
+      else { setAppMode("blueprint"); }
       setTab("calc");
      }}
      onBackToBlueprint={() => setAppMode("blueprint")}
@@ -8126,19 +8201,94 @@ export default function MortgageBlueprint({ initialState }) {
     />
    )}
    {/* ═══════════════════════════════════════════ */}
-   {/* MARKETS MODE — Prediction Markets */}
+   {/* MARKETS MODE */}
    {/* ═══════════════════════════════════════════ */}
-   {appMode === "markets" && (
+   {appMode === "markets" && !splitMode && (
     <Markets
      T={T}
      isDesktop={isDesktop}
      FONT={FONT}
      appMode={appMode}
-     setAppMode={setAppMode}
+     setAppMode={(m) => { closeSplit(); setAppMode(m); }}
      onBackToBlueprint={() => setAppMode("blueprint")}
     />
    )}
-   {appMode === "blueprint" && <FloatingNextBar />}
+   {appMode === "blueprint" && !splitMode && <FloatingNextBar />}
+
+   {/* ═══════════════════════════════════════════ */}
+   {/* SPLIT-SCREEN MODE (desktop only) */}
+   {/* ═══════════════════════════════════════════ */}
+   {splitMode && isDesktop && splitApp && (() => {
+    // Render a component for a given mode key
+    const renderSplitPane = (mode, isSplitPane) => {
+     const paneStyle = { overflow: "auto", height: "100vh", position: "relative" };
+     if (mode === "pricepoint") return (
+      <div style={paneStyle}>
+       <PricePoint
+        T={T}
+        isDesktop={false}
+        FONT={FONT}
+        realtorPartner={realtorPartner}
+        appMode={null}
+        setAppMode={null}
+        onRunNumbers={({ price, state, city, zip }) => {
+         if (price) setSalesPrice(price);
+         if (state) setPropertyState(state);
+         if (city) setCity(city);
+         if (zip) setPropertyZip(zip);
+         setTab("calc");
+        }}
+        onBackToBlueprint={() => { closeSplit(); setAppMode("blueprint"); }}
+        onOpenMarkets={() => { closeSplit(); setAppMode("markets"); }}
+       />
+      </div>
+     );
+     if (mode === "markets") return (
+      <div style={paneStyle}>
+       <Markets
+        T={T}
+        isDesktop={false}
+        FONT={FONT}
+        appMode={null}
+        setAppMode={null}
+        onBackToBlueprint={() => { closeSplit(); setAppMode("blueprint"); }}
+       />
+      </div>
+     );
+     return null; // Blueprint rendered in its own section above
+    };
+
+    return (
+     <div ref={splitContainerRef} style={{ display: "flex", position: "fixed", top: 0, right: 0, bottom: 0, left: appMode === "blueprint" ? (sidebarCollapsed ? 56 : 180) : 180, zIndex: 5, background: T.bg }}>
+      {/* Left Pane — primary mode (already rendered above for Blueprint, or render here) */}
+      {appMode !== "blueprint" && (
+       <div style={{ width: `${splitRatio}%`, overflow: "auto", height: "100%", borderRight: "none" }}>
+        {renderSplitPane(appMode)}
+       </div>
+      )}
+      {appMode === "blueprint" && (
+       <div style={{ width: `${splitRatio}%`, overflow: "auto", height: "100%" }}>
+        {/* Blueprint content is already rendered in the main flow — overlay just the split pane */}
+       </div>
+      )}
+      {/* Divider */}
+      <div className="split-divider" onMouseDown={onSplitDragStart} onTouchStart={onSplitDragStart} />
+      {/* Right Pane — secondary mode */}
+      <div style={{ width: `${100 - splitRatio}%`, overflow: "auto", height: "100%", background: T.bg, borderLeft: `1px solid ${T.separator}` }}>
+       <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.separator}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: T.headerBg, backdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+         <Icon name={splitApp === "pricepoint" ? "target" : splitApp === "markets" ? "trending-up" : "settings"} size={14} />
+         <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{splitApp === "pricepoint" ? "PricePoint" : splitApp === "markets" ? "Markets" : "Blueprint"}</span>
+        </div>
+        <button onClick={closeSplit} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4, display: "flex" }}>
+         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+       </div>
+       {renderSplitPane(splitApp, true)}
+      </div>
+     </div>
+    );
+   })()}
   </div>{/* end main content wrapper */}
   </div>
  );
