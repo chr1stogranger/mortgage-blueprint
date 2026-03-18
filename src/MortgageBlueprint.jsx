@@ -3625,27 +3625,82 @@ export default function MortgageBlueprint({ initialState }) {
      background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
      display: "flex", flexDirection: "column", transition: "width 0.2s, min-width 0.2s", overflow: "hidden", zIndex: 60, flexShrink: 0
     }}>
-     {/* Sidebar Header */}
-     <div style={{ padding: sidebarCollapsed ? "20px 12px" : "20px 18px", borderBottom: `1px solid ${T.separator}` }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-       {!sidebarCollapsed && <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.03em", color: T.text }}>Blueprint</div>}
-       <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{ background: T.pillBg, border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: T.textSecondary, flexShrink: 0 }}>
-        {sidebarCollapsed ? "→" : "←"}
-       </button>
-      </div>
-      {/* Monthly payment summary */}
-      {!sidebarCollapsed && (
-       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.03em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 14, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
-        <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>{fmt(calc.cashToClose)} to close · {rate}% rate</div>
+     {/* Sidebar Header — Logo + Mode Toggle (matches PricePoint/Markets pattern) */}
+     <div style={{ padding: sidebarCollapsed ? "12px 8px 14px" : "12px 16px 14px", borderBottom: `1px solid ${T.separator}` }}>
+      {!sidebarCollapsed && <>
+       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+         <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
+          <defs><linearGradient id="bp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+          <rect width="100" height="100" fill="url(#bp-bg)"/>
+          <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
+          <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
+          <polygon points="50,25 8,30 8,34 50,29" fill="rgba(255,255,255,0.68)"/>
+          <polygon points="8,38 50,33 92,38 50,43" fill="rgba(255,255,255,0.90)"/>
+          <polygon points="8,38 50,43 50,46 8,41" fill="rgba(255,255,255,0.58)"/>
+          <polygon points="50,43 92,38 92,41 50,46" fill="rgba(255,255,255,0.40)"/>
+          <polygon points="8,52 50,47 92,52 50,57" fill="rgba(255,255,255,0.70)"/>
+          <polygon points="8,52 50,57 50,60 8,55" fill="rgba(255,255,255,0.45)"/>
+          <polygon points="50,57 92,52 92,55 50,60" fill="rgba(255,255,255,0.28)"/>
+          <polygon points="8,66 50,61 92,66 50,71" fill="rgba(255,255,255,0.50)"/>
+          <polygon points="8,66 50,71 50,74 8,69" fill="rgba(255,255,255,0.32)"/>
+          <polygon points="50,71 92,66 92,69 50,74" fill="rgba(255,255,255,0.18)"/>
+          <polygon points="8,80 50,75 92,80 50,85" fill="rgba(255,255,255,0.34)"/>
+          <polygon points="8,80 50,85 50,88 8,83" fill="rgba(255,255,255,0.20)"/>
+          <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
+         </svg>
+         <div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></div>
+         </div>
+        </div>
+        <button onClick={() => setSidebarCollapsed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
        </div>
-      )}
+       {/* Mode Toggle */}
+       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,ico,l]) => (
+         <button key={k} onClick={() => setAppMode(k)} style={{
+          display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8,
+          border: "none", fontSize: 13, fontWeight: k === appMode ? 700 : 500, fontFamily: FONT,
+          background: k === appMode ? `${T.blue}15` : "transparent",
+          color: k === appMode ? T.blue : T.textTertiary,
+          cursor: "pointer", transition: "all 0.2s", textAlign: "left",
+         }}><Icon name={ico} size={16} /> {l}</button>
+        ))}
+       </div>
+      </>}
       {sidebarCollapsed && (
-       <div style={{ textAlign: "center", marginTop: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.blue }}>{fmt(calc.housingPayment)}</div>
+       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden"}}>
+         <defs><linearGradient id="bp-bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+         <rect width="100" height="100" fill="url(#bp-bg2)"/>
+         <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
+         <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
+         <polygon points="50,25 8,30 8,34 50,29" fill="rgba(255,255,255,0.68)"/>
+         <polygon points="8,38 50,33 92,38 50,43" fill="rgba(255,255,255,0.90)"/>
+         <polygon points="8,52 50,47 92,52 50,57" fill="rgba(255,255,255,0.70)"/>
+         <polygon points="8,66 50,61 92,66 50,71" fill="rgba(255,255,255,0.50)"/>
+         <polygon points="8,80 50,75 92,80 50,85" fill="rgba(255,255,255,0.34)"/>
+        </svg>
+        <button onClick={() => setSidebarCollapsed(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </button>
        </div>
       )}
      </div>
+     {/* Payment Summary */}
+     {!sidebarCollapsed && (
+      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.separator}` }}>
+       <div style={{ fontSize: 26, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.03em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 13, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
+       <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>{fmt(calc.cashToClose)} to close · {rate}% rate</div>
+      </div>
+     )}
+     {sidebarCollapsed && (
+      <div style={{ textAlign: "center", padding: "10px 4px", borderBottom: `1px solid ${T.separator}` }}>
+       <div style={{ fontSize: 10, fontWeight: 700, color: T.blue }}>{fmt(calc.housingPayment)}</div>
+      </div>
+     )}
      {/* Sidebar Nav Items */}
      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
       {TABS.map(([k, l]) => {
@@ -3862,18 +3917,7 @@ export default function MortgageBlueprint({ initialState }) {
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div>
        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></span>
-        {/* ── Blueprint / PricePoint segmented toggle (desktop only — mobile uses top sticky) ── */}
-        {isDesktop && <div style={{ display: "flex", background: T.pillBg, borderRadius: 10, padding: 2 }}>
-         {[["blueprint","settings","Blueprint"],["pricepoint","target","PricePoint"],["markets","trending-up","Markets"]].map(([k,e,l]) => (
-          <button key={k} onClick={() => setAppMode(k)} style={{
-           padding: "4px 10px", borderRadius: 8, border: "none", fontSize: 11, fontWeight: appMode === k ? 700 : 500,
-           background: appMode === k ? (k === "markets" ? "#6366F1" : T.blue) : "transparent",
-           color: appMode === k ? "#fff" : T.textTertiary,
-           cursor: "pointer", transition: "all 0.2s", fontFamily: FONT, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3,
-          }}><Icon name={e} size={11} /> {l}</button>
-         ))}
-        </div>}
+        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}><span style={{ color: T.text }}>Blueprint</span></span>
        </div>
        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, flexWrap: "nowrap", overflow: "hidden" }}>
         {scenarioList.length > 1 ? scenarioList.map(name => (

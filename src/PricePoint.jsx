@@ -532,7 +532,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 220, background: T.bg2 || T.card, borderRight: `1px solid ${T.cardBorder}`, padding: "16px 0", display: "flex", flexDirection: "column", zIndex: 10 }}>
           <div style={{ padding: "8px 16px 16px", borderBottom: `1px solid ${T.cardBorder}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <svg viewBox="0 0 100 100" fill="none" style={{width:24,height:24,borderRadius:5,overflow:"hidden",flexShrink:0}}>
+              <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
                 <defs><linearGradient id="pp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
                 <rect width="100" height="100" fill="url(#pp-bg)"/>
                 <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
