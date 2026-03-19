@@ -132,7 +132,7 @@ function PaneRow({ label, value, sub, color, bold }) {
 // ═══════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════
-export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate, liveRates, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos, loadedScenario }) {
+export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate, liveRates, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos, loadedScenario, linkedDownPayment }) {
   T = theme; // set module-level theme ref
 
   // ── Core State ──
@@ -210,6 +210,19 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       if (s.scenarioName) setScenarioLabel(s.scenarioName);
     }
   }, [loadedScenario]);
+
+  // ── Apply linked down payment from Sell→Buy proceeds flow ──
+  const prevLinkedDown = useRef(null);
+  useEffect(() => {
+    if (linkedDownPayment != null && linkedDownPayment > 0 && linkedDownPayment !== prevLinkedDown.current) {
+      prevLinkedDown.current = linkedDownPayment;
+      // Set down payment as dollar amount, recalculate %
+      if (salesPrice > 0) {
+        const newPct = Math.round(linkedDownPayment / salesPrice * 10000) / 100;
+        setDownPct(Math.min(newPct, 100));
+      }
+    }
+  }, [linkedDownPayment, salesPrice]);
 
   // ── Apply linked values for refi mode ──
   useEffect(() => {

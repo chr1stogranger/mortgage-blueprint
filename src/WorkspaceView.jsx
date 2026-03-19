@@ -137,99 +137,113 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
 
   // ── Proceeds Control Bar (Buy→Sell→Refi AND Sell→Buy modes) ──
   const ProceedsBar = () => {
-    if (workspaceMode !== WORKSPACE_MODES.BUY_SELL_REFI && workspaceMode !== WORKSPACE_MODES.SELL_BUY) return null;
+    const isBSR = workspaceMode === WORKSPACE_MODES.BUY_SELL_REFI;
+    const isSB = workspaceMode === WORKSPACE_MODES.SELL_BUY;
+    if (!isBSR && !isSB) return null;
     const netProceeds = linkedValues.sellNetAfterTax || 0;
     if (netProceeds <= 0) return null;
 
-    const isSellBuy = workspaceMode === WORKSPACE_MODES.SELL_BUY;
-    const fmt = (v) => "$" + Math.round(v).toLocaleString("en-US");
-    const applied = linkedValues.proceedsUseAll ? netProceeds : linkedValues.proceedsToApply;
-    const extraCash = linkedValues.extraCashContribution || 0;
-    const totalForDown = applied + extraCash;
-    const remaining = netProceeds - applied;
+    const fmt = (v) => "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
+    const mode = linkedValues.proceedsMode || "all";
+    const closingCosts = linkedValues.purchaseClosingCosts || 0;
+    const extraCash = linkedValues.extraCash || 0;
+    const holdback = linkedValues.holdbackAmount || 0;
+
+    // Core math: proceeds - closing costs on purchase = available for down
+    const availableForDown = netProceeds - closingCosts;
+    let finalDown;
+    if (mode === "add-extra") finalDown = availableForDown + extraCash;
+    else if (mode === "hold-back") finalDown = availableForDown - holdback;
+    else finalDown = availableForDown; // "all"
+
+    finalDown = Math.max(0, finalDown);
+
+    // Push finalDownPayment into linked values (so purchase pane can read it)
+    // This is done via effect in the parent — we just display here
+    // But we do need to update the linked value when our inputs change
+    useEffect(() => {
+      updateLinkedValue("finalDownPayment", finalDown);
+    }, [finalDown]);
+
+    const pillStyle = (active) => ({
+      padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
+      fontSize: 11, fontWeight: 600, fontFamily: MONO,
+      background: active ? `${T.accent}20` : T.inputBg,
+      color: active ? T.accent : T.textTertiary,
+      transition: "all 0.15s",
+    });
+
+    const inputStyle = {
+      background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8,
+      padding: "4px 8px", width: 100, color: T.text, fontSize: 12,
+      fontWeight: 600, fontFamily: MONO, outline: "none",
+    };
 
     return (
       <div style={{
         position: "sticky", top: 0, zIndex: 30,
         background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
         borderBottom: `1px solid ${T.separator}`, padding: "10px 16px",
-        display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Icon name="arrow-right" size={14} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1px" }}>
+        {/* Row 1: Math breakdown */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary }}>
             Proceeds Flow
           </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmt(netProceeds)}</span>
+            <span style={{ fontSize: 11, color: T.textTertiary }}>net</span>
+            <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
+            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.red }}>{fmt(closingCosts)}</span>
+            <span style={{ fontSize: 11, color: T.textTertiary }}>closing costs</span>
+            <span style={{ fontSize: 11, color: T.textTertiary }}>=</span>
+            <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.blue }}>{fmt(availableForDown)}</span>
+            <span style={{ fontSize: 11, color: T.textTertiary }}>available for down</span>
+          </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-          <div style={{ fontSize: 13, color: T.text }}>
-            <span style={{ color: T.green, fontWeight: 700, fontFamily: MONO }}>{fmt(netProceeds)}</span>
-            <span style={{ color: T.textTertiary }}> net from sale</span>
+        {/* Row 2: Q1 — Add extra or hold back? */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: T.textSecondary }}>Additional funds?</span>
+          <div style={{ display: "flex", gap: 3 }}>
+            <button onClick={() => updateLinkedValue("proceedsMode", "all")} style={pillStyle(mode === "all")}>Use All</button>
+            <button onClick={() => updateLinkedValue("proceedsMode", "add-extra")} style={pillStyle(mode === "add-extra")}>+ Add Extra</button>
+            <button onClick={() => updateLinkedValue("proceedsMode", "hold-back")} style={pillStyle(mode === "hold-back")}>- Hold Back</button>
           </div>
 
-          <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: T.textTertiary }}>Apply:</span>
-            <button
-              onClick={() => updateLinkedValue("proceedsUseAll", !linkedValues.proceedsUseAll)}
-              style={{
-                background: linkedValues.proceedsUseAll ? `${T.green}15` : T.inputBg,
-                border: `1px solid ${linkedValues.proceedsUseAll ? T.green : T.inputBorder}`,
-                borderRadius: 9999, padding: "3px 10px", cursor: "pointer",
-                fontSize: 12, fontWeight: 600, color: linkedValues.proceedsUseAll ? T.green : T.text,
-                fontFamily: MONO,
-              }}
-            >
-              {linkedValues.proceedsUseAll ? "All" : "Custom"}
-            </button>
-          </div>
-
-          {!linkedValues.proceedsUseAll && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input
-                type="range"
-                min={0} max={netProceeds} step={1000}
-                value={linkedValues.proceedsToApply}
-                onChange={(e) => updateLinkedValue("proceedsToApply", Number(e.target.value))}
-                style={{ width: 120, accentColor: T.accent }}
-              />
-              <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.blue }}>
-                {fmt(applied)}
-              </span>
-            </div>
-          )}
-
-          {remaining > 0 && !linkedValues.proceedsUseAll && (
-            <div style={{ fontSize: 11, color: T.textTertiary }}>
-              {fmt(remaining)} in reserves
-            </div>
-          )}
-
-          {/* Extra cash contribution (Sell→Buy mode) */}
-          {isSellBuy && (
+          {/* Q2a: How much extra? */}
+          {mode === "add-extra" && (
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: T.textTertiary, fontSize: 12 }}>+</span>
-              <input
-                type="text" inputMode="decimal"
-                placeholder="Extra cash"
-                value={extraCash > 0 ? extraCash.toLocaleString("en-US") : ""}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value.replace(/,/g, "")) || 0;
-                  updateLinkedValue("extraCashContribution", v);
-                }}
-                style={{
-                  background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8,
-                  padding: "3px 8px", width: 90, color: T.text, fontSize: 12,
-                  fontWeight: 600, fontFamily: MONO, outline: "none",
-                }}
-              />
-              {totalForDown > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.blue }}>
-                  = {fmt(totalForDown)} for down
-                </span>
-              )}
+              <span style={{ fontSize: 11, color: T.textSecondary }}>How much?</span>
+              <span style={{ fontSize: 12, color: T.textSecondary }}>$</span>
+              <input type="text" inputMode="decimal" value={extraCash > 0 ? extraCash.toLocaleString("en-US") : ""}
+                onChange={(e) => updateLinkedValue("extraCash", parseInt(e.target.value.replace(/,/g, "")) || 0)}
+                style={inputStyle} placeholder="0" />
             </div>
           )}
+
+          {/* Q2b: How much to hold back? */}
+          {mode === "hold-back" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: T.textSecondary }}>How much?</span>
+              <span style={{ fontSize: 12, color: T.textSecondary }}>$</span>
+              <input type="text" inputMode="decimal" value={holdback > 0 ? holdback.toLocaleString("en-US") : ""}
+                onChange={(e) => updateLinkedValue("holdbackAmount", parseInt(e.target.value.replace(/,/g, "")) || 0)}
+                style={inputStyle} placeholder="0" />
+            </div>
+          )}
+
+          {/* Final result */}
+          <div style={{
+            marginLeft: "auto", padding: "4px 12px", borderRadius: 9999,
+            background: `${T.green}12`, border: `1px solid ${T.green}25`,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <span style={{ fontSize: 11, color: T.green, fontWeight: 500 }}>Down Payment:</span>
+            <span style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: T.green, letterSpacing: "-0.02em" }}>
+              {fmt(finalDown)}
+            </span>
+          </div>
         </div>
       </div>
     );

@@ -88,9 +88,12 @@ export function WorkspaceProvider({ children }) {
     purchaseLoanAmount: 0,    // from purchase → refi seed
     purchaseRate: 0,          // from purchase → refi "current rate"
     purchasePropertyValue: 0, // from purchase → refi property value
-    // Sell→Buy links:
-    sellProceedsForDown: 0,   // from seller-net → purchase down payment
-    extraCashContribution: 0, // extra cash on top of proceeds for down payment
+    purchaseClosingCosts: 0,  // from purchase calc → used to compute available-for-down
+    // Sell→Buy proceeds flow:
+    proceedsMode: "all",      // "all" | "add-extra" | "hold-back"
+    extraCash: 0,             // additional funds to bring (add-extra mode)
+    holdbackAmount: 0,        // funds to hold back (hold-back mode)
+    finalDownPayment: 0,      // computed: proceeds - closing costs +/- adjustments
   });
 
   // ── Pane scenario names (for localStorage isolation) ──

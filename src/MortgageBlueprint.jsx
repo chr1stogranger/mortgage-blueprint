@@ -1202,12 +1202,14 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
       sharedDebts={debts}
       sharedOtherIncome={otherIncome}
       sharedReos={reos}
+      linkedDownPayment={(paneConfig.type === "blueprint-purchase") ? linkedValues.finalDownPayment : undefined}
       onCalcUpdate={(id, calcObj) => {
        updatePaneCalc(id, calcObj);
-       // If this is the purchase pane, push loan details to linked values
+       // If this is the purchase pane, push loan details + closing costs to linked values
        if (paneConfig.type === "blueprint-purchase" || paneConfig.type === "blueprint") {
         updateLinkedValue("purchaseLoanAmount", calcObj.loan);
         updateLinkedValue("purchasePropertyValue", calcObj.dp + calcObj.loan);
+        updateLinkedValue("purchaseClosingCosts", calcObj.totalClosingCosts + calcObj.prepaidInt + (calcObj.ins * 12) + (calcObj.monthlyTax + calcObj.ins) * 3);
        }
       }}
       onStateUpdate={(id, stateObj) => {
