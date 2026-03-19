@@ -494,7 +494,7 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
  const display = isText ? value : (editStr !== null ? editStr : (value === 0 && focused ? "" : fmtComma(value)));
  const wasFocused = useRef(false);
  useEffect(() => { if (cursorRef.current !== null && inputRef.current) { if (wasFocused.current) inputRef.current.focus(); inputRef.current.setSelectionRange(cursorRef.current, cursorRef.current); cursorRef.current = null; } });
- useEffect(() => { if (wasFocused.current && inputRef.current && document.activeElement !== inputRef.current) { inputRef.current.focus(); } });
+ useEffect(() => { if (wasFocused.current && inputRef.current && document.activeElement !== inputRef.current) { inputRef.current.focus(); } }, [value]);
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={filled} />
   <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 12, padding: sm ? "10px 12px" : "12px 14px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
@@ -1186,13 +1186,18 @@ function WorkspaceHost({ T, isDesktop, sidebarW }) {
    <WorkspaceView
     T={T}
     isDesktop={isDesktop}
-    renderBlueprintPane={(paneId, paneConfig) => (
+    renderBlueprintPane={(paneId, paneConfig, liveRates) => {
+     // Map live rate for this pane's loan type
+     const paneState = {};
+     const lr = liveRates && liveRates["30yr_fixed"] ? liveRates["30yr_fixed"] : null;
+     return (
      <BlueprintPane
       theme={T}
       paneId={paneId}
       paneConfig={paneConfig}
       isRefiMode={paneConfig.type === "blueprint-refi"}
       linkedValues={paneConfig.type === "blueprint-refi" ? linkedValues : undefined}
+      liveRate={lr}
       onCalcUpdate={(id, calcObj) => {
        updatePaneCalc(id, calcObj);
        // If this is the purchase pane, push loan details to linked values
@@ -1209,7 +1214,8 @@ function WorkspaceHost({ T, isDesktop, sidebarW }) {
        }
       }}
      />
-    )}
+    );
+    }}
     renderSellerNetPane={(paneId, paneConfig) => (
      <SellerNetPane
       theme={T}

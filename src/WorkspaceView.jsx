@@ -5,7 +5,7 @@
  * Each pane is forced into single-column (mobile) layout.
  * On mobile devices, renders as swipeable tabs.
  */
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useWorkspace, MODE_CONFIGS, WORKSPACE_MODES } from "./WorkspaceContext";
 import WorkspaceSelector from "./WorkspaceSelector";
 import ComparePane from "./ComparePane";
@@ -25,7 +25,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
  * - renderSellerNetPane: function(paneId, paneConfig) => React element
  *     Renders the Seller Net Proceeds calculator for a pane
  */
-export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, renderSellerNetPane }) {
+export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, renderSellerNetPane, onLiveRates }) {
   const {
     workspaceMode, workspaceActive, closeWorkspace,
     modeConfig, linkedValues, updateLinkedValue, paneCalcs, isDebtFree,
@@ -33,6 +33,45 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
 
   // Mobile tab state (which pane is active on mobile)
   const [mobileTab, setMobileTab] = useState(0);
+
+  // ── Live Rates ──
+  const [liveRates, setLiveRates] = useState(null);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesError, setRatesError] = useState(null);
+
+  const fetchLiveRates = useCallback(async () => {
+    setRatesLoading(true);
+    setRatesError(null);
+    try {
+      const res = await fetch("/api/rates");
+      if (res.ok) {
+        const data = await res.json();
+        if (data["30yr_fixed"] > 2 && data["30yr_fixed"] < 15) {
+          data.date = data.date || new Date().toISOString().split("T")[0];
+          setLiveRates(data);
+          setRatesLoading(false);
+          return;
+        }
+      }
+      throw new Error("Invalid rate data");
+    } catch (e) {
+      setRatesError("Could not fetch rates");
+      setRatesLoading(false);
+    }
+  }, []);
+
+  // Helper: get the right rate for a loan type + term
+  const getLiveRate = useCallback((loanType, term) => {
+    if (!liveRates) return null;
+    const map = {
+      "Conventional": term === 15 ? liveRates["15yr_fixed"] : liveRates["30yr_fixed"],
+      "FHA": liveRates["30yr_fha"] || liveRates["30yr_fixed"],
+      "VA": liveRates["30yr_va"] || liveRates["30yr_fixed"],
+      "Jumbo": liveRates["30yr_jumbo"] || liveRates["30yr_fixed"],
+      "USDA": liveRates["30yr_fixed"],
+    };
+    return map[loanType] || liveRates["30yr_fixed"];
+  }, [liveRates]);
 
   // If no mode selected, show the mode selector
   if (!workspaceMode) {
@@ -57,7 +96,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
         if (type === "blueprint-refi" && isDebtFree()) {
           return <DebtFreeSplash T={T} linkedValues={linkedValues} />;
         }
-        return renderBlueprintPane ? renderBlueprintPane(id, pane) : (
+        return renderBlueprintPane ? renderBlueprintPane(id, pane, liveRates) : (
           <div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>
             <Icon name="calculator" size={32} />
             <div style={{ marginTop: 12, fontSize: 14 }}>Blueprint Pane</div>
@@ -220,13 +259,28 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
           </span>
         </div>
 
-        <button onClick={() => { closeWorkspace(); }} style={{
-          background: "none", border: `1px solid ${T.separator}`,
-          borderRadius: 9999, padding: "4px 12px", cursor: "pointer",
-          fontSize: 11, fontWeight: 500, color: T.textSecondary, fontFamily: FONT,
-        }}>
-          Exit Workspace
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Pull Live Rates button */}
+          <button onClick={fetchLiveRates} disabled={ratesLoading} style={{
+            background: liveRates ? `${T.green}12` : `${T.blue}12`,
+            border: `1px solid ${liveRates ? `${T.green}30` : `${T.blue}30`}`,
+            borderRadius: 9999, padding: "4px 12px", cursor: ratesLoading ? "wait" : "pointer",
+            fontSize: 11, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: MONO,
+            display: "flex", alignItems: "center", gap: 5, opacity: ratesLoading ? 0.6 : 1,
+          }}>
+            <Icon name={liveRates ? "check" : "zap"} size={12} />
+            {ratesLoading ? "Fetching..." : liveRates ? `Rates: ${liveRates["30yr_fixed"]}% · ${liveRates.date}` : "Pull Live Rates"}
+          </button>
+          {ratesError && <span style={{ fontSize: 10, color: T.red }}>{ratesError}</span>}
+
+          <button onClick={() => { closeWorkspace(); }} style={{
+            background: "none", border: `1px solid ${T.separator}`,
+            borderRadius: 9999, padding: "4px 12px", cursor: "pointer",
+            fontSize: 11, fontWeight: 500, color: T.textSecondary, fontFamily: FONT,
+          }}>
+            Exit Workspace
+          </button>
+        </div>
       </div>
 
       <ProceedsBar />

@@ -129,13 +129,22 @@ function PaneRow({ label, value, sub, color, bold }) {
 // ═══════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════
-export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode }) {
+export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate }) {
   T = theme; // set module-level theme ref
 
   // ── Core State ──
   const [salesPrice, setSalesPrice] = useState(1000000);
   const [downPct, setDownPct] = useState(20);
   const [rate, setRate] = useState(6.5);
+
+  // ── Apply live rate when pushed from workspace ──
+  const prevLiveRate = useRef(null);
+  useEffect(() => {
+    if (liveRate && liveRate !== prevLiveRate.current && !isNaN(liveRate)) {
+      setRate(liveRate);
+      prevLiveRate.current = liveRate;
+    }
+  }, [liveRate]);
   const [term, setTerm] = useState(30);
   const [loanType, setLoanType] = useState("Conventional");
   const [propType, setPropType] = useState("Single Family");
