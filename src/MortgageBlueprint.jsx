@@ -1218,6 +1218,10 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
        if (paneConfig.type === "blueprint-purchase" || paneConfig.type === "blueprint") {
         updateLinkedValue("purchaseRate", stateObj.rate);
         updateLinkedValue("purchaseSalesPrice", stateObj.salesPrice);
+        updateLinkedValue("purchaseInsurance", stateObj.annualIns);
+        updateLinkedValue("purchaseHoa", stateObj.hoa);
+        updateLinkedValue("purchaseCity", stateObj.city || "Alameda");
+        updateLinkedValue("purchasePropType", stateObj.propType || "Single Family");
        }
       }}
      />

@@ -224,14 +224,18 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
     }
   }, [linkedDownPayment, salesPrice]);
 
-  // ── Apply linked values for refi mode ──
+  // ── Apply linked values for refi mode (carry over from purchase pane) ──
   useEffect(() => {
     if (isRefiMode && linkedValues) {
       if (linkedValues.purchasePropertyValue > 0) setSalesPrice(linkedValues.purchasePropertyValue);
       if (linkedValues.purchaseLoanAmount > 0) setRefiCurrentBalance(linkedValues.purchaseLoanAmount);
       if (linkedValues.purchaseRate > 0) setRefiCurrentRate(linkedValues.purchaseRate);
+      if (linkedValues.purchaseInsurance > 0) setAnnualIns(linkedValues.purchaseInsurance);
+      if (linkedValues.purchaseHoa >= 0 && linkedValues.purchaseHoa !== undefined) setHoa(linkedValues.purchaseHoa);
+      if (linkedValues.purchaseCity) setCity(linkedValues.purchaseCity);
+      if (linkedValues.purchasePropType) setPropType(linkedValues.purchasePropType);
     }
-  }, [isRefiMode, linkedValues?.purchasePropertyValue, linkedValues?.purchaseLoanAmount, linkedValues?.purchaseRate]);
+  }, [isRefiMode, linkedValues?.purchasePropertyValue, linkedValues?.purchaseLoanAmount, linkedValues?.purchaseRate, linkedValues?.purchaseInsurance, linkedValues?.purchaseHoa, linkedValues?.purchaseCity, linkedValues?.purchasePropType]);
 
   // ── Calculation Engine ──
   const calc = useMemo(() => {
@@ -366,7 +370,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   }, [calc, paneId]);
 
   useEffect(() => {
-    if (onStateUpdate) onStateUpdate(paneId, { salesPrice, downPct, rate, term, loanType, propType, scenarioName: scenarioLabel, annualIns, hoa, creditScore });
+    if (onStateUpdate) onStateUpdate(paneId, { salesPrice, downPct, rate, term, loanType, propType, city, scenarioName: scenarioLabel, annualIns, hoa, creditScore });
   }, [salesPrice, downPct, rate, term, loanType, propType, scenarioLabel, paneId]);
 
   // ── Notify linked values (purchase pane → context) ──
