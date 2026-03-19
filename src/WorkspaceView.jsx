@@ -25,7 +25,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
  * - renderSellerNetPane: function(paneId, paneConfig) => React element
  *     Renders the Seller Net Proceeds calculator for a pane
  */
-export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, renderSellerNetPane, onLiveRates }) {
+export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, renderSellerNetPane, onLiveRates, scenarioList, currentScenario }) {
   const {
     workspaceMode, workspaceActive, closeWorkspace,
     modeConfig, linkedValues, updateLinkedValue, paneCalcs, isDebtFree,
@@ -33,6 +33,22 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
 
   // Mobile tab state (which pane is active on mobile)
   const [mobileTab, setMobileTab] = useState(0);
+
+  // ── Per-pane loaded scenario data ──
+  const [paneScenarioData, setPaneScenarioData] = useState({}); // { left: {...state}, center: {...state} }
+  const [paneScenarioNames, setPaneScenarioNames] = useState({}); // { left: "Scenario 1" }
+
+  const loadScenarioIntoPane = useCallback(async (paneId, scenarioName) => {
+    try {
+      const raw = localStorage.getItem("scenario:" + scenarioName);
+      if (raw) {
+        const data = JSON.parse(raw);
+        data.scenarioName = scenarioName;
+        setPaneScenarioData(prev => ({ ...prev, [paneId]: data }));
+        setPaneScenarioNames(prev => ({ ...prev, [paneId]: scenarioName }));
+      }
+    } catch (e) { console.error("Failed to load scenario:", e); }
+  }, []);
 
   // ── Live Rates ──
   const [liveRates, setLiveRates] = useState(null);
@@ -96,7 +112,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
         if (type === "blueprint-refi" && isDebtFree()) {
           return <DebtFreeSplash T={T} linkedValues={linkedValues} />;
         }
-        return renderBlueprintPane ? renderBlueprintPane(id, pane, liveRates) : (
+        return renderBlueprintPane ? renderBlueprintPane(id, pane, liveRates, paneScenarioData[id]) : (
           <div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>
             <Icon name="calculator" size={32} />
             <div style={{ marginTop: 12, fontSize: 14 }}>Blueprint Pane</div>
@@ -302,9 +318,9 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
               flex: 1, overflow: "auto", display: "flex", flexDirection: "column",
               minWidth: 0, // allow flex shrink
             }}>
-              {/* Pane header with label */}
+              {/* Pane header with label + Load Scenario */}
               <div style={{
-                padding: "8px 16px", borderBottom: `1px solid ${T.separator}`,
+                padding: "8px 12px", borderBottom: `1px solid ${T.separator}`,
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 flexShrink: 0, background: T.bg2,
               }}>
@@ -316,15 +332,36 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
                   <span style={{
                     fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT,
                   }}>
-                    {pane.label}
+                    {paneScenarioNames[pane.id] || pane.label}
                   </span>
                 </div>
-                <span style={{
-                  fontSize: 10, fontWeight: 500, fontFamily: MONO,
-                  color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px",
-                }}>
-                  {pane.type.replace("blueprint-", "").replace("-", " ")}
-                </span>
+                {/* Load Scenario dropdown — only for blueprint panes */}
+                {(pane.type === "blueprint" || pane.type === "blueprint-purchase" || pane.type === "blueprint-refi") && scenarioList && scenarioList.length > 0 && (
+                  <select
+                    value={paneScenarioNames[pane.id] || ""}
+                    onChange={(e) => { if (e.target.value) loadScenarioIntoPane(pane.id, e.target.value); }}
+                    style={{
+                      background: T.inputBg, border: `1px solid ${T.inputBorder}`,
+                      borderRadius: 8, padding: "3px 8px", color: T.textSecondary,
+                      fontSize: 10, fontWeight: 600, fontFamily: MONO,
+                      cursor: "pointer", outline: "none", maxWidth: 140,
+                      WebkitAppearance: "none",
+                    }}
+                  >
+                    <option value="">Load Scenario</option>
+                    {scenarioList.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                )}
+                {!(pane.type === "blueprint" || pane.type === "blueprint-purchase" || pane.type === "blueprint-refi") && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 500, fontFamily: MONO,
+                    color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px",
+                  }}>
+                    {pane.type.replace("blueprint-", "").replace("-", " ")}
+                  </span>
+                )}
               </div>
               {/* Pane content — scrollable independently */}
               <div style={{

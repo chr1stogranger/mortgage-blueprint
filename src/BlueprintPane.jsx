@@ -132,7 +132,7 @@ function PaneRow({ label, value, sub, color, bold }) {
 // ═══════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════
-export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate, liveRates, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos }) {
+export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate, liveRates, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos, loadedScenario }) {
   T = theme; // set module-level theme ref
 
   // ── Core State ──
@@ -188,6 +188,28 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
 
   // ── Scenario label ──
   const [scenarioLabel, setScenarioLabel] = useState(paneConfig?.label || "Scenario");
+
+  // ── Load saved scenario when loadedScenario prop changes ──
+  const prevLoadedScenario = useRef(null);
+  useEffect(() => {
+    if (loadedScenario && loadedScenario !== prevLoadedScenario.current) {
+      prevLoadedScenario.current = loadedScenario;
+      const s = loadedScenario;
+      if (s.salesPrice !== undefined) setSalesPrice(s.salesPrice);
+      if (s.downPct !== undefined) setDownPct(s.downPct);
+      if (s.rate !== undefined) setRate(s.rate);
+      if (s.term !== undefined) setTerm(s.term);
+      if (s.loanType) setLoanType(s.loanType.startsWith("VA") ? "VA" : s.loanType);
+      if (s.propType) setPropType(s.propType);
+      if (s.city) setCity(s.city);
+      if (s.propertyState) setPropertyState(s.propertyState);
+      if (s.hoa !== undefined) setHoa(s.hoa);
+      if (s.annualIns !== undefined) setAnnualIns(s.annualIns);
+      if (s.creditScore !== undefined) setCreditScore(s.creditScore);
+      if (s.includeEscrow !== undefined) setIncludeEscrow(s.includeEscrow);
+      if (s.scenarioName) setScenarioLabel(s.scenarioName);
+    }
+  }, [loadedScenario]);
 
   // ── Apply linked values for refi mode ──
   useEffect(() => {

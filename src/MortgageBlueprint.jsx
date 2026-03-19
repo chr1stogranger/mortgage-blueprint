@@ -1179,14 +1179,16 @@ function ConstructionHouse({ stagesComplete, total }) {
 // ═══ WORKSPACE HOST ═══
 // Bridge component: lives inside WorkspaceProvider, uses useWorkspace() to
 // wire BlueprintPane and SellerNetPane callbacks to the shared context.
-function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, reos }) {
+function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, reos, scenarioList, currentScenario }) {
  const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues } = useWorkspace();
  return (
   <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
    <WorkspaceView
     T={T}
     isDesktop={isDesktop}
-    renderBlueprintPane={(paneId, paneConfig, liveRates) => {
+    scenarioList={scenarioList}
+    currentScenario={currentScenario}
+    renderBlueprintPane={(paneId, paneConfig, liveRates, loadedScenario) => {
      return (
      <BlueprintPane
       theme={T}
@@ -1195,6 +1197,7 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
       isRefiMode={paneConfig.type === "blueprint-refi"}
       linkedValues={paneConfig.type === "blueprint-refi" ? linkedValues : undefined}
       liveRates={liveRates}
+      loadedScenario={loadedScenario}
       sharedIncomes={incomes}
       sharedDebts={debts}
       sharedOtherIncome={otherIncome}
@@ -3606,7 +3609,6 @@ export default function MortgageBlueprint({ initialState }) {
   ...(firstTimeBuyer && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
   ...(isDesktop ? [["workspace","Workspace"]] : []),
-  ["compare","Compare"],
   ["summary","Share"],
   ["settings","Settings"]];
  // Swipe navigation between tabs
@@ -6110,7 +6112,7 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} />
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} />
 )}
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
