@@ -225,13 +225,13 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
         {primaryRes && yearsOwned >= 2 && (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: `${T.blue}08`, border: `1px solid ${T.blue}15`, marginTop: 2, marginBottom: 4 }}>
             <div style={{ fontSize: 10, color: T.blue, fontWeight: 600, lineHeight: 1.4 }}>
-              IRC §121 Exemption: {filingStatus === "MFJ" ? "$500,000" : "$250,000"} ({filingStatus === "MFJ" ? "married filing jointly" : filingStatus === "MFS" ? "married filing separately" : filingStatus === "HOH" ? "head of household" : "single filer"})
+              IRC §121: Up to {filingStatus === "MFJ" ? "$500K" : "$250K"} excluded — lived in home 2 of last 5 years ({filingStatus === "MFJ" ? "married filing jointly" : filingStatus === "MFS" ? "married filing separately" : filingStatus === "HOH" ? "head of household" : "single"})
             </div>
           </div>
         )}
         {primaryRes && yearsOwned < 2 && (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: T.warningBg, marginTop: 2, marginBottom: 4, fontSize: 10, color: T.orange, fontWeight: 600 }}>
-            Must own 2+ years as primary residence for §121 exclusion
+            Must have lived in home 2 of the last 5 years for §121 exclusion
           </div>
         )}
         {/* Result — inline */}
