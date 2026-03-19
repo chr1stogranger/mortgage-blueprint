@@ -239,8 +239,10 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
     if (workspaceMode !== WORKSPACE_MODES.BUY_SELL_REFI && workspaceMode !== WORKSPACE_MODES.SELL_BUY) return;
     const netProceeds = linkedValues.sellNetAfterTax || 0;
     if (netProceeds <= 0) return;
+    const isSB = workspaceMode === WORKSPACE_MODES.SELL_BUY;
     const mode = linkedValues.proceedsMode || "all";
-    const closingCosts = linkedValues.purchaseClosingCosts || 0;
+    // BSR: no closing cost deduction (those were paid at purchase); SB: deduct purchase closing costs
+    const closingCosts = isSB ? (linkedValues.purchaseClosingCosts || 0) : 0;
     const extraCash = linkedValues.extraCash || 0;
     const holdback = linkedValues.holdbackAmount || 0;
     const availableForDown = netProceeds - closingCosts;

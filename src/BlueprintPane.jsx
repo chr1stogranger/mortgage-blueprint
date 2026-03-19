@@ -362,7 +362,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       adjustedLoan, adjustedPayment, proceedsApplied,
       yourDTI, qualifyingIncome, monthlyDebts, monthlyIncome,
     };
-  }, [salesPrice, downPct, rate, term, loanType, propType, city, propertyState, hoa, annualIns, creditScore, includeEscrow, isRefiMode, linkedValues, refiCurrentPayment, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos]);
+  }, [salesPrice, downPct, rate, term, loanType, propType, city, propertyState, hoa, annualIns, creditScore, includeEscrow, isRefiMode, linkedValues, linkedValues?.finalDownPayment, linkedValues?.sellNetAfterTax, refiCurrentPayment, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos]);
 
   // ── Report calc + state back to workspace context ──
   useEffect(() => {
@@ -434,10 +434,10 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       {/* ── INPUTS SECTION ── */}
       {activeSection === "inputs" && (
         <PaneCard>
-          <PaneInp label="Purchase Price" value={salesPrice} onChange={setSalesPrice} tip="The sale price or appraised value of the property." glow />
+          <PaneInp label={isRefiMode ? "Property Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} tip={isRefiMode ? "Current appraised value of the property being refinanced." : "The sale price or appraised value of the property."} glow />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <PaneInp label="Down %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.5} max={100} />
-            <PaneInp label="Down $" value={Math.round(salesPrice * downPct / 100)} onChange={v => setDownPct(salesPrice > 0 ? Math.round(v / salesPrice * 10000) / 100 : 0)} />
+            <PaneInp label={isRefiMode ? "Paydown %" : "Down %"} value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.5} max={100} />
+            <PaneInp label={isRefiMode ? "Paydown $" : "Down $"} value={Math.round(salesPrice * downPct / 100)} onChange={v => setDownPct(salesPrice > 0 ? Math.round(v / salesPrice * 10000) / 100 : 0)} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <PaneInp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.125} max={15} />
@@ -475,10 +475,10 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         {/* Cash to Close Waterfall */}
         <PaneCard>
           <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Cash to Close</div>
-          <PaneRow label="Purchase Price" value={fmt(salesPrice)} bold />
+          <PaneRow label={isRefiMode ? "Property Value" : "Purchase Price"} value={fmt(salesPrice)} bold />
           <PaneRow label="Loan Amount" value={`-${fmt(calc.loan)}`} color={T.blue} />
           <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
-            <PaneRow label="Down Payment" value={fmt(calc.dp)} sub={`${downPct}%`} bold />
+            <PaneRow label={isRefiMode ? "Equity / Paydown" : "Down Payment"} value={fmt(calc.dp)} sub={`${downPct}%`} bold />
           </div>
           <PaneRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} sub="lender + title" />
           <PaneRow label="Prepaids + Escrow" value={fmt(calc.prepaidInt + calc.prepaidIns + calc.initialEscrow)} sub={`${fmt(calc.prepaidInt)} int · ${fmt(calc.prepaidIns)} ins · ${fmt(calc.initialEscrow)} escrow`} />
