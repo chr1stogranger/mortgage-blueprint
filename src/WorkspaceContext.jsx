@@ -126,7 +126,8 @@ export function WorkspaceProvider({ children }) {
     setLinkedValues({
       sellNetProceeds: 0, sellNetAfterTax: 0, proceedsToApply: 0,
       proceedsUseAll: true, purchaseSalesPrice: 0, purchaseLoanAmount: 0,
-      purchaseRate: 0, purchasePropertyValue: 0, sellProceedsForDown: 0,
+      purchaseRate: 0, purchasePropertyValue: 0, purchaseClosingCosts: 0,
+      proceedsMode: "all", extraCash: 0, holdbackAmount: 0, finalDownPayment: 0,
     });
     setPaneStates({});
     setPaneCalcs({});

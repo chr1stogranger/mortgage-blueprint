@@ -89,6 +89,26 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
     return map[loanType] || liveRates["30yr_fixed"];
   }, [liveRates]);
 
+  // ── Compute and push finalDownPayment at top level (not inside ProceedsBar) ──
+  useEffect(() => {
+    if (workspaceMode !== WORKSPACE_MODES.BUY_SELL_REFI && workspaceMode !== WORKSPACE_MODES.SELL_BUY) return;
+    const netProceeds = linkedValues.sellNetAfterTax || 0;
+    if (netProceeds <= 0) return;
+    const mode = linkedValues.proceedsMode || "all";
+    const closingCosts = linkedValues.purchaseClosingCosts || 0;
+    const extraCash = linkedValues.extraCash || 0;
+    const holdback = linkedValues.holdbackAmount || 0;
+    const availableForDown = netProceeds - closingCosts;
+    let finalDown;
+    if (mode === "add-extra") finalDown = availableForDown + extraCash;
+    else if (mode === "hold-back") finalDown = availableForDown - holdback;
+    else finalDown = availableForDown;
+    finalDown = Math.max(0, finalDown);
+    if (finalDown !== linkedValues.finalDownPayment) {
+      updateLinkedValue("finalDownPayment", finalDown);
+    }
+  }, [workspaceMode, linkedValues.sellNetAfterTax, linkedValues.purchaseClosingCosts, linkedValues.proceedsMode, linkedValues.extraCash, linkedValues.holdbackAmount]);
+
   // If no mode selected, show the mode selector
   if (!workspaceMode) {
     return <WorkspaceSelector T={T} isDesktop={isDesktop} />;
@@ -157,13 +177,6 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
     else finalDown = availableForDown; // "all"
 
     finalDown = Math.max(0, finalDown);
-
-    // Push finalDownPayment into linked values (so purchase pane can read it)
-    // This is done via effect in the parent — we just display here
-    // But we do need to update the linked value when our inputs change
-    useEffect(() => {
-      updateLinkedValue("finalDownPayment", finalDown);
-    }, [finalDown]);
 
     const pillStyle = (active) => ({
       padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
