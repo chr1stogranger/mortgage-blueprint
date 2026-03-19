@@ -13,6 +13,9 @@ import {
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
 } from "./api";
+import useBlueprintSync from "./hooks/useBlueprintSync";
+import PresenceBar from "./components/PresenceBar";
+import LockControls from "./components/LockControls";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -3877,9 +3880,24 @@ export default function MortgageBlueprint({ initialState }) {
       ))}
      </div>
      {/* Sidebar Footer */}
+     {appMode === "blueprint" && !sidebarCollapsed && (
+      <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
+       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 2px 10px ${T.green}30` }}>
+        <Icon name="check-circle" size={14} />
+        Get Pre-Approved
+       </a>
+      </div>
+     )}
      {sidebarCollapsed && appMode === "blueprint" && (
       <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
-       <div style={{ fontSize: 9, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(calc.housingPayment)}</div>
+       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", cursor: "pointer", padding: "4px 0" }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg, ${T.green}, #059669)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+         <Icon name="check-circle" size={14} color="#fff" />
+        </div>
+       </a>
+       <div style={{ fontSize: 9, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>{fmt(calc.housingPayment)}</div>
       </div>
      )}
     </div>
@@ -6019,7 +6037,29 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
- <div style={{ marginTop: 20 }}>
+ {/* ── CTA Buttons (top of summary) ── */}
+ <div style={{ marginTop: 16, marginBottom: 8 }}>
+  <button onClick={() => setShowEmailModal(true)} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
+   Share Blueprint
+  </button>
+ </div>
+ {loanOfficer && (
+  <div style={{ marginBottom: 16 }}>
+   <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
+    style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
+     Get Pre-Approved Now
+   </a>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
+    {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
+     <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2, color: T.green }}><Icon name={icon} size={16} /></div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
+     </div>
+    ))}
+   </div>
+  </div>
+ )}
+ <div style={{ marginTop: 8 }}>
   <Hero value={fmt(calc.displayPayment)} label={includeEscrow ? "Monthly Payment" : "Monthly Payment (No Escrow)"} sub={propertyTBD ? "TBD" : (propertyAddress ? propertyAddress : (isRefi ? (calc.refiMonthlyTotalSavings > 0 ? `Save ${fmt(calc.refiMonthlyTotalSavings)}/mo` : `${fmt(calc.totalClosingCosts)} refi costs`) : fmt(calc.cashToClose) + " to close"))} />
   {!propertyTBD && propertyAddress && <div style={{ textAlign: "center", marginTop: -8, marginBottom: 8, fontSize: 12, color: T.textTertiary }}>{fmt(calc.cashToClose)} to close · {city}{propertyCounty ? `, ${propertyCounty} Co.` : ""}</div>}
  </div>
@@ -6088,27 +6128,6 @@ export default function MortgageBlueprint({ initialState }) {
    <MRow label="Net Cash Flow" value={`${fmt(calc.reoNetCashFlow)}/mo`} color={calc.reoNetCashFlow >= 0 ? T.green : T.red} />
   </Card>
  </Sec>}
- <div style={{ marginTop: 12, marginBottom: 12 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
-   Share Blueprint
-  </button>
- </div>
- {loanOfficer && (
-  <div style={{ marginBottom: 12 }}>
-   <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
-    style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
-     Get Pre-Approved Now
-   </a>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
-    {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
-     <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 2, color: T.green }}><Icon name={icon} size={16} /></div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
-     </div>
-    ))}
-   </div>
-  </div>
- )}
  {!loanOfficer && (
   <div style={{ padding: "12px 16px", background: T.warningBg, borderRadius: 12, marginBottom: 12 }}>
    <div style={{ fontSize: 12, color: T.orange, fontWeight: 600 }}>Apply Now available when a Loan Officer is set</div>
