@@ -7286,7 +7286,7 @@ export default function MortgageBlueprint({ initialState }) {
  </Sec>
  </div>{/* end rentvbuy left column */}
  {/* RIGHT: Tables & details (scrollable) */}
- <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0, overflow: "hidden" } : {}}>
  <Sec title="Wealth Comparison Over Time">
   <Card>
    <div style={{ overflowX: "auto" }}>
