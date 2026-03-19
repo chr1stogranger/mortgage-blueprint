@@ -115,14 +115,28 @@ The SharePortal currently shows a summary card view where borrowers can "adjust"
 
 **Decision:** When a borrower clicks a share link, after a brief branded loading screen (RealStack logo, 1-2 sec), they should be auto-loaded into the full `MortgageBlueprint` component with their scenario pre-loaded. Same calculator the LO uses, same tabs — just in "borrower mode" where LO-locked fields are read-only.
 
-**Implementation:** In `App.jsx`, when `?share=TOKEN` is detected:
-1. Fetch share data (validate token, get borrower + scenarios)
-2. Show the branded loading screen (keep the current `LoadingSpinner` from SharePortal)
-3. If only 1 scenario: auto-load it into `MortgageBlueprint` via `setFullCalcState(scenario.state_data)`
-4. If multiple scenarios: show a quick scenario picker (use the scenario cards from SharePortal), then load the selected one
-5. The `MortgageBlueprint` component needs a `borrowerMode` prop that: hides the LO-only features (borrower picker, settings), shows the PresenceBar, respects field locks, and routes saves through the share-sync endpoint instead of the authenticated endpoint.
+**Decision: Borrowers MUST authenticate to see their Blueprint.** Financial data (credit scores, income, debts, assets) should not be accessible to anyone who happens to get the link. The magic link auth system (Phase 5) was built this session and handles this.
 
-The `onEnterFullCalculator` callback already exists in App.jsx — it does exactly this. We just need to auto-trigger it instead of requiring the borrower to click a button.
+**Implementation:** In `App.jsx`, when `?share=TOKEN` is detected:
+1. Show branded RealStack splash screen with the borrower's first name ("Welcome, Sarah")
+2. Check for existing borrower session token in localStorage (`bp_borrower_session`)
+3. If valid session exists → skip to step 6
+4. If no session → show email input: "Enter your email to access your Blueprint"
+5. Borrower enters email → magic link sent → they click it → session created (30-day expiry)
+6. Fetch share data (validate token + session, get borrower + scenarios)
+7. If only 1 scenario: auto-load it into `MortgageBlueprint` via `setFullCalcState(scenario.state_data)`
+8. If multiple scenarios: show a quick scenario picker, then load the selected one
+9. The `MortgageBlueprint` component needs a `borrowerMode` prop that: hides the LO-only features (borrower picker, settings), shows the PresenceBar, respects field locks, and routes saves through the share-sync endpoint instead of the authenticated endpoint.
+
+The `onEnterFullCalculator` callback already exists in App.jsx — it does exactly this. We just need to gate it behind borrower auth and auto-trigger it instead of requiring a button click.
+
+The magic link auth is already built:
+- `BorrowerAccountPrompt.jsx` has the email input UI
+- `api/collab.js?resource=borrower-auth` handles request/verify/me endpoints
+- `borrower_accounts` table stores accounts + hashed magic tokens
+- Session tokens are signed HMAC-SHA256 with 30-day expiry
+- First visit: enter email, click link in inbox (~15 seconds)
+- Return visits: session still valid, straight into calculator (zero friction)
 
 ### 1. Two-Step Borrower + Blueprint Picker (NEXT SESSION — START HERE)
 
