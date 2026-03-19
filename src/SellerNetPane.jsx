@@ -90,7 +90,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
     const adjBasis = costBasis + improvements;
     const grossGain = sellPrice - adjBasis - totalCosts;
     const isMFJ = filingStatus === "MFJ";
-    const exclusionLimit = primaryRes && yearsOwned >= 2 ? (isMFJ ? 500000 : 250000) : 0;
+    const exclusionLimit = primaryRes ? (isMFJ ? 500000 : 250000) : 0;
     const taxableGain = Math.max(0, grossGain - exclusionLimit);
     const isLongTerm = yearsOwned >= 1;
 
@@ -188,11 +188,13 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
           <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} />
           <PaneInp label="Improvements" value={improvements} onChange={setImprovements} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, alignItems: "end" }}>
-          <PaneInp label="Years Owned" value={yearsOwned} onChange={setYearsOwned} prefix="" suffix="yrs" step={1} max={50} />
-          {/* Primary Residence — Yes/No pills */}
+        {/* Primary residence question + Filing Status — single row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "end" }}>
+          {/* §121 qualifying question */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>Primary Residence</div>
+            <div style={{ fontSize: 10, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT, lineHeight: 1.3 }}>
+              Lived here 2 of last 5 years?
+            </div>
             <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
               {[true, false].map(v => (
                 <button key={String(v)} onClick={() => setPrimaryRes(v)} style={{
@@ -221,17 +223,17 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
             </select>
           </div>
         </div>
-        {/* Exemption callout */}
-        {primaryRes && yearsOwned >= 2 && (
-          <div style={{ padding: "6px 8px", borderRadius: 8, background: `${T.blue}08`, border: `1px solid ${T.blue}15`, marginTop: 2, marginBottom: 4 }}>
-            <div style={{ fontSize: 10, color: T.blue, fontWeight: 600, lineHeight: 1.4 }}>
-              IRC §121: Up to {filingStatus === "MFJ" ? "$500K" : "$250K"} excluded — lived in home 2 of last 5 years ({filingStatus === "MFJ" ? "married filing jointly" : filingStatus === "MFS" ? "married filing separately" : filingStatus === "HOH" ? "head of household" : "single"})
+        {/* Exemption result */}
+        {primaryRes && (
+          <div style={{ padding: "6px 8px", borderRadius: 8, background: `${T.green}08`, border: `1px solid ${T.green}15`, marginTop: 2, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, color: T.green, fontWeight: 600, lineHeight: 1.4 }}>
+              §121 Exclusion: Up to {filingStatus === "MFJ" ? "$500,000" : "$250,000"} of gain excluded from tax
             </div>
           </div>
         )}
-        {primaryRes && yearsOwned < 2 && (
+        {!primaryRes && (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: T.warningBg, marginTop: 2, marginBottom: 4, fontSize: 10, color: T.orange, fontWeight: 600 }}>
-            Must have lived in home 2 of the last 5 years for §121 exclusion
+            No §121 exclusion — full gain is taxable
           </div>
         )}
         {/* Result — inline */}
