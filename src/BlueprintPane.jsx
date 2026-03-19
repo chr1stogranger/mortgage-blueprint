@@ -578,18 +578,25 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         </PaneCard>
       )}
 
-      {/* Loan type badge */}
+      {/* Loan type badge — use adjusted loan for refi mode */}
+      {(() => {
+        const badgeLoan = isRefiMode && calc.proceedsApplied > 0 ? calc.adjustedLoan : calc.loan;
+        const badgeCategory = loanType === "FHA" ? "FHA" : loanType === "VA" ? "VA" :
+          badgeLoan > CONF_LIMIT * 1.5 ? "Jumbo" : badgeLoan > CONF_LIMIT ? "High Balance" : "Conforming";
+        return (
       <div style={{ textAlign: "center", marginTop: 8 }}>
         <span style={{
           fontSize: 10, fontWeight: 600, fontFamily: MONO,
           textTransform: "uppercase", letterSpacing: "1px",
           padding: "3px 10px", borderRadius: 9999,
-          background: calc.loanCategory === "Conforming" ? `${T.green}12` : calc.loanCategory === "FHA" ? `${T.blue}12` : `${T.orange}12`,
-          color: calc.loanCategory === "Conforming" ? T.green : calc.loanCategory === "FHA" ? T.blue : T.orange,
+          background: badgeCategory === "Conforming" ? `${T.green}12` : badgeCategory === "FHA" ? `${T.blue}12` : `${T.orange}12`,
+          color: badgeCategory === "Conforming" ? T.green : badgeCategory === "FHA" ? T.blue : T.orange,
         }}>
-          {calc.loanCategory} · {term}yr {loanType}
+          {badgeCategory} · {term}yr {loanType}
         </span>
       </div>
+        );
+      })()}
     </div>
   );
 }
