@@ -2581,8 +2581,6 @@ export default function MortgageBlueprint({ initialState }) {
    return null;
   }
   if (tab === "calc") {
-   if (salesPrice === 0) return "calc-price";
-   if (!isRefi && !guideTouched.has("calc-down")) return "calc-down";
    if (rate === 0) return "calc-rate";
    if (!guideTouched.has("calc-term")) return "calc-term";
    if (!guideTouched.has("calc-loantype")) return "calc-loantype";
