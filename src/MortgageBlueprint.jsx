@@ -1179,7 +1179,7 @@ function ConstructionHouse({ stagesComplete, total }) {
 // ═══ WORKSPACE HOST ═══
 // Bridge component: lives inside WorkspaceProvider, uses useWorkspace() to
 // wire BlueprintPane and SellerNetPane callbacks to the shared context.
-function WorkspaceHost({ T, isDesktop, sidebarW }) {
+function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, reos }) {
  const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues } = useWorkspace();
  return (
   <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
@@ -1187,9 +1187,6 @@ function WorkspaceHost({ T, isDesktop, sidebarW }) {
     T={T}
     isDesktop={isDesktop}
     renderBlueprintPane={(paneId, paneConfig, liveRates) => {
-     // Map live rate for this pane's loan type
-     const paneState = {};
-     const lr = liveRates && liveRates["30yr_fixed"] ? liveRates["30yr_fixed"] : null;
      return (
      <BlueprintPane
       theme={T}
@@ -1197,7 +1194,11 @@ function WorkspaceHost({ T, isDesktop, sidebarW }) {
       paneConfig={paneConfig}
       isRefiMode={paneConfig.type === "blueprint-refi"}
       linkedValues={paneConfig.type === "blueprint-refi" ? linkedValues : undefined}
-      liveRate={lr}
+      liveRates={liveRates}
+      sharedIncomes={incomes}
+      sharedDebts={debts}
+      sharedOtherIncome={otherIncome}
+      sharedReos={reos}
       onCalcUpdate={(id, calcObj) => {
        updatePaneCalc(id, calcObj);
        // If this is the purchase pane, push loan details to linked values
@@ -6109,7 +6110,7 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} />
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} />
 )}
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>

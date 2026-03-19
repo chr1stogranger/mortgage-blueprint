@@ -132,7 +132,7 @@ function PaneRow({ label, value, sub, color, bold }) {
 // ═══════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════
-export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate }) {
+export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate, onStateUpdate, linkedValues, isRefiMode, liveRate, liveRates, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos }) {
   T = theme; // set module-level theme ref
 
   // ── Core State ──
@@ -140,16 +140,27 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   const [downPct, setDownPct] = useState(20);
   const [rate, setRate] = useState(6.5);
 
-  // ── Apply live rate when pushed from workspace ──
-  const prevLiveRate = useRef(null);
-  useEffect(() => {
-    if (liveRate && liveRate !== prevLiveRate.current && !isNaN(liveRate)) {
-      setRate(liveRate);
-      prevLiveRate.current = liveRate;
-    }
-  }, [liveRate]);
   const [term, setTerm] = useState(30);
   const [loanType, setLoanType] = useState("Conventional");
+
+  // ── Apply live rate when pushed from workspace, auto-update on loan type/term change ──
+  const hasLiveRates = useRef(false);
+  useEffect(() => {
+    if (liveRates && liveRates["30yr_fixed"]) {
+      hasLiveRates.current = true;
+      const rateMap = {
+        "Conventional": term === 15 ? liveRates["15yr_fixed"] : liveRates["30yr_fixed"],
+        "FHA": liveRates["30yr_fha"] || liveRates["30yr_fixed"],
+        "VA": liveRates["30yr_va"] || liveRates["30yr_fixed"],
+        "Jumbo": liveRates["30yr_jumbo"] || liveRates["30yr_fixed"],
+        "USDA": liveRates["30yr_fixed"],
+      };
+      const matched = rateMap[loanType] || liveRates["30yr_fixed"];
+      if (matched && !isNaN(matched)) setRate(matched);
+    } else if (liveRate && !hasLiveRates.current && !isNaN(liveRate)) {
+      setRate(liveRate);
+    }
+  }, [liveRates, liveRate, loanType, term]);
   const [propType, setPropType] = useState("Single Family");
   const [city, setCity] = useState("Alameda");
   const [propertyState, setPropertyState] = useState("California");
@@ -258,6 +269,42 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       }
     }
 
+    // ── DTI from shared income/debts ──
+    const incArr = sharedIncomes || [];
+    const debtArr = sharedDebts || [];
+    const reoArr = sharedReos || [];
+    const monthlyIncome = incArr.reduce((s, inc) => {
+      const amt = Number(inc.monthly) || 0;
+      return s + amt;
+    }, 0) + (Number(sharedOtherIncome) || 0);
+
+    // Monthly debts (exclude debts linked to investment REOs — they net via rental income)
+    const investReoIds = new Set(reoArr.filter(r => r.propUse === "Investment").map(r => String(r.id)));
+    const linkedDebtIds = new Set(debtArr.filter(d => d.linkedReoId && investReoIds.has(d.linkedReoId) && (d.type === "Mortgage" || d.type === "HELOC")).map(d => d.id));
+    const monthlyDebts = debtArr.filter(d => !linkedDebtIds.has(d.id)).reduce((s, d) => s + (Number(d.payment || d.monthly) || 0), 0);
+
+    // Investment property netting (75% of rent - PITIA)
+    let reoInvNet = 0;
+    reoArr.filter(r => r.propUse === "Investment").forEach(r => {
+      const linked = debtArr.filter(d => d.linkedReoId === String(r.id));
+      const linkedPmt = linked.reduce((s, d) => s + (Number(d.monthly || d.payment) || 0), 0);
+      const pitia = linked.length > 0 ? linkedPmt : (Number(r.payment) || 0);
+      reoInvNet += ((Number(r.rentalIncome) || 0) * 0.75) - pitia;
+    });
+
+    // Primary/Second Home REO debt
+    let reoPrimDebt = 0;
+    reoArr.filter(r => r.propUse !== "Investment").forEach(r => {
+      const linked = debtArr.filter(d => d.linkedReoId === String(r.id));
+      if (linked.length === 0) reoPrimDebt += (Number(r.payment) || 0);
+    });
+
+    const reoIncAdd = reoInvNet > 0 ? reoInvNet : 0;
+    const reoDebtAdd = (reoInvNet < 0 ? Math.abs(reoInvNet) : 0) + reoPrimDebt;
+    const qualifyingIncome = monthlyIncome + reoIncAdd;
+    const totalPaymentForDTI = housingPayment + monthlyDebts + reoDebtAdd;
+    const yourDTI = qualifyingIncome > 0 ? totalPaymentForDTI / qualifyingIncome : 0;
+
     return {
       dp, baseLoan, loan, ltv, loanCategory,
       pi, monthlyTax, yearlyTax, ins, monthlyMI, hoa,
@@ -266,11 +313,9 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       totalInt, totalIntStandard: totalInt,
       refiMonthlySavings,
       adjustedLoan, adjustedPayment,
-      // For workspace linking
-      yourDTI: 0, // Simplified — full DTI requires income/debts
-      qualifyingIncome: 0,
+      yourDTI, qualifyingIncome, monthlyDebts, monthlyIncome,
     };
-  }, [salesPrice, downPct, rate, term, loanType, propType, city, propertyState, hoa, annualIns, creditScore, includeEscrow, isRefiMode, linkedValues, refiCurrentPayment]);
+  }, [salesPrice, downPct, rate, term, loanType, propType, city, propertyState, hoa, annualIns, creditScore, includeEscrow, isRefiMode, linkedValues, refiCurrentPayment, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos]);
 
   // ── Report calc + state back to workspace context ──
   useEffect(() => {
@@ -380,6 +425,8 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
             <PaneRow label="Down Payment" value={fmt(calc.dp)} sub={`${downPct}%`} />
             <PaneRow label="LTV" value={pct(calc.ltv, 1)} color={calc.ltv > 0.80 ? T.orange : T.green} />
             <PaneRow label="Loan Category" value={calc.loanCategory} />
+            {calc.qualifyingIncome > 0 && <PaneRow label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI > 0.50 ? T.red : calc.yourDTI > 0.43 ? T.orange : T.green} bold />}
+            {calc.qualifyingIncome > 0 && <PaneRow label="Income" value={fmt(calc.qualifyingIncome) + "/mo"} sub={fmt(calc.monthlyDebts) + " debts"} />}
             <PaneRow label="Total Interest" value={fmt(calc.totalInt)} sub={`over ${term} years`} />
           </div>
           {isRefiMode && calc.adjustedLoan < calc.loan && (
