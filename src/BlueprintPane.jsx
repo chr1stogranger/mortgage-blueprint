@@ -165,7 +165,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   const [city, setCity] = useState("Alameda");
   const [propertyState, setPropertyState] = useState("California");
   const [hoa, setHoa] = useState(0);
-  const [annualIns, setAnnualIns] = useState(1500);
+  const [annualIns, setAnnualIns] = useState(2400);
   const [creditScore, setCreditScore] = useState(760);
   const [includeEscrow, setIncludeEscrow] = useState(true);
 
@@ -174,7 +174,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   useEffect(() => {
     if (propType !== prevPropType.current) {
       if (CONDO_TYPES.has(propType)) setAnnualIns(750);
-      else if (CONDO_TYPES.has(prevPropType.current)) setAnnualIns(1500);
+      else if (CONDO_TYPES.has(prevPropType.current)) setAnnualIns(2400);
       prevPropType.current = propType;
     }
   }, [propType]);
@@ -393,23 +393,6 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
 
   return (
     <div style={{ padding: "16px 0" }}>
-      {/* Refi After Proceeds — shown at TOP of refi pane */}
-      {isRefiMode && calc.proceedsApplied > 0 && (
-        <PaneCard style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, marginBottom: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
-            Refi After Proceeds
-          </div>
-          <PaneRow label="Original Loan" value={fmt(calc.loan)} />
-          <PaneRow label="Proceeds Applied" value={`-${fmt(calc.proceedsApplied)}`} color={T.green} />
-          <PaneRow label="Refi Closing Costs" value={`+${fmt(4500)}`} sub="est." color={T.orange} />
-          <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
-            <PaneRow label="New Loan Amount" value={fmt(calc.adjustedLoan)} color={T.green} bold />
-            <PaneRow label="New Payment" value={fmt(calc.adjustedPayment)} color={T.green} bold />
-          </div>
-          <PaneRow label="Monthly Savings" value={fmt(calc.housingPayment - calc.adjustedPayment) + "/mo"} color={T.green} />
-          {salesPrice > 0 && <PaneRow label="New LTV" value={((calc.adjustedLoan / salesPrice) * 100).toFixed(1) + "%"} color={(calc.adjustedLoan / salesPrice) > 0.80 ? T.orange : T.green} />}
-        </PaneCard>
-      )}
       {/* Hero metric */}
       <div style={{ marginBottom: 16, textAlign: "center" }}>
         <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.04em", lineHeight: 1 }}>
@@ -434,9 +417,9 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         ))}
       </div>
 
-      {/* Section tabs — hide Costs for refi with proceeds */}
+      {/* Section tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
-        {[["inputs", "Inputs"], ["results", "Breakdown"], ...(isRefiMode && calc.proceedsApplied > 0 ? [] : [["costs", "Costs"]])].map(([key, label]) => (
+        {[["inputs", "Inputs"], ["results", "Breakdown"], ["costs", "Costs"]].map(([key, label]) => (
           <button key={key} onClick={() => setActiveSection(key)} style={{
             flex: 1, padding: "6px 8px", borderRadius: 8, border: "none",
             background: activeSection === key ? `${T.accent}15` : "transparent",
@@ -522,6 +505,23 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
             <PaneRow label="Total Payment" value={fmt(calc.housingPayment)} bold color={T.text} />
           </div>
         </PaneCard>
+        {/* Refi After Proceeds — shown after Monthly Payment in Breakdown */}
+        {isRefiMode && calc.proceedsApplied > 0 && (
+          <PaneCard style={{ background: T.successBg, border: `1px solid ${T.successBorder}` }}>
+            <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
+              Refi After Proceeds
+            </div>
+            <PaneRow label="Original Loan" value={fmt(calc.loan)} />
+            <PaneRow label="Proceeds Applied" value={`-${fmt(calc.proceedsApplied)}`} color={T.green} />
+            <PaneRow label="Refi Closing Costs" value={`+${fmt(4500)}`} sub="est." color={T.orange} />
+            <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+              <PaneRow label="New Loan Amount" value={fmt(calc.adjustedLoan)} color={T.green} bold />
+              <PaneRow label="New Payment" value={fmt(calc.adjustedPayment)} color={T.green} bold />
+            </div>
+            <PaneRow label="Monthly Savings" value={fmt(calc.housingPayment - calc.adjustedPayment) + "/mo"} color={T.green} />
+            {salesPrice > 0 && <PaneRow label="New LTV" value={((calc.adjustedLoan / salesPrice) * 100).toFixed(1) + "%"} color={(calc.adjustedLoan / salesPrice) > 0.80 ? T.orange : T.green} />}
+          </PaneCard>
+        )}
         {/* Cash to Close Waterfall — hide for refi with proceeds (not relevant) */}
         {!(isRefiMode && calc.proceedsApplied > 0) && (
         <PaneCard>
