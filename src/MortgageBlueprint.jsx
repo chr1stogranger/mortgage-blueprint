@@ -3859,7 +3859,7 @@ export default function MortgageBlueprint({ initialState }) {
    const step = steps[welcomeStep];
    return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-     <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative", display: "flex", flexDirection: "column", minHeight: 460 }}>
+     <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative", display: "flex", flexDirection: "column", height: 520 }}>
       <span onClick={() => { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }} style={{ position: "absolute", top: 16, right: 20, fontSize: 12, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, opacity: 0.6 }}>Skip</span>
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: step.color || T.blue, minHeight: 48 }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>{step.title}</div>
