@@ -41,7 +41,7 @@ export default function useVersionHistory({
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
         const res = await fetch(
-          `${API_BASE}/api/scenario-changes?scenario_id=${scenarioId}&limit=${maxHistory}`,
+          `${API_BASE}/api/collab?resource=changes&scenario_id=${scenarioId}&limit=${maxHistory}`,
           { headers }
         );
 
@@ -139,7 +139,7 @@ export default function useVersionHistory({
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${API_BASE}/api/scenario-changes`, {
+      const res = await fetch(`${API_BASE}/api/collab?resource=changes`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

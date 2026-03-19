@@ -38,7 +38,7 @@ export default function BorrowerAccountPrompt({
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/borrower-auth?action=request`, {
+      const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -37,7 +37,7 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
     try {
       const token = localStorage.getItem('bp_token');
       const res = await fetch(
-        `${API_BASE}/api/activity-digest?days=${days}&unsent=false`,
+        `${API_BASE}/api/collab?resource=digest&days=${days}&unsent=false`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -61,7 +61,7 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
   const computeDigest = useCallback(async () => {
     try {
       const token = localStorage.getItem('bp_token');
-      await fetch(`${API_BASE}/api/activity-digest?action=compute`, {
+      await fetch(`${API_BASE}/api/collab?resource=digest&action=compute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

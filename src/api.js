@@ -108,30 +108,30 @@ export async function saveSharedScenario(shareToken, data) {
 // ─── Field Locks (LO only) ──────────────────────────────────────────────────
 
 export async function lockField(scenarioId, fieldKey, action = 'locked') {
-  return authFetch('/api/field-locks', {
+  return authFetch('/api/collab?resource=locks', {
     method: 'POST',
     body: { scenario_id: scenarioId, field_key: fieldKey, action },
   });
 }
 
 export async function fetchLockHistory(scenarioId) {
-  return authFetch(`/api/field-locks?scenario_id=${scenarioId}`);
+  return authFetch(`/api/collab?resource=locks&scenario_id=${scenarioId}`);
 }
 
 // ─── Version History ────────────────────────────────────────────────────────
 
 export async function fetchScenarioChanges(scenarioId, limit = 100) {
-  return authFetch(`/api/scenario-changes?scenario_id=${scenarioId}&limit=${limit}`);
+  return authFetch(`/api/collab?resource=changes&scenario_id=${scenarioId}&limit=${limit}`);
 }
 
 export async function createScenarioChange(data) {
-  return authFetch('/api/scenario-changes', { method: 'POST', body: data });
+  return authFetch('/api/collab?resource=changes', { method: 'POST', body: data });
 }
 
 // ─── Share Sync (public, no auth — for borrower live editing) ───────────────
 
 export async function syncSharedScenario(shareToken, scenarioId, stateData, calcSummary, fieldDiffs, userInfo = {}) {
-  const res = await fetch(`${API_BASE}/api/share-sync`, {
+  const res = await fetch(`${API_BASE}/api/collab?resource=sync`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -155,12 +155,12 @@ export async function syncSharedScenario(shareToken, scenarioId, stateData, calc
 // ─── Activity Digest (LO only) ─────────────────────────────────────────────
 
 export async function fetchActivityDigest(days = 7) {
-  return authFetch(`/api/activity-digest?days=${days}&unsent=false`);
+  return authFetch(`/api/collab?resource=digest&days=${days}&unsent=false`);
 }
 
 export async function computeActivityDigest(date = null) {
   const d = date || new Date().toISOString().split('T')[0];
-  return authFetch('/api/activity-digest?action=compute', {
+  return authFetch('/api/collab?resource=digest&action=compute', {
     method: 'POST',
     body: { date: d },
   });
@@ -169,7 +169,7 @@ export async function computeActivityDigest(date = null) {
 // ─── Borrower Auth (public, no LO auth needed) ─────────────────────────────
 
 export async function requestBorrowerMagicLink(email, name = '', shareToken = null) {
-  const res = await fetch(`${API_BASE}/api/borrower-auth?action=request`, {
+  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name, share_token: shareToken }),
@@ -182,7 +182,7 @@ export async function requestBorrowerMagicLink(email, name = '', shareToken = nu
 }
 
 export async function verifyBorrowerMagicLink(token, email) {
-  const res = await fetch(`${API_BASE}/api/borrower-auth?action=verify`, {
+  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, email }),
@@ -195,7 +195,7 @@ export async function verifyBorrowerMagicLink(token, email) {
 }
 
 export async function fetchBorrowerProfile(sessionToken) {
-  const res = await fetch(`${API_BASE}/api/borrower-auth?action=me`, {
+  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=me`, {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${sessionToken}`,

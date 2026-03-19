@@ -33,7 +33,7 @@ export default function LockControls({
 
     try {
       const token = localStorage.getItem('bp_token');
-      const res = await fetch(`${API_BASE}/api/field-locks`, {
+      const res = await fetch(`${API_BASE}/api/collab?resource=locks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

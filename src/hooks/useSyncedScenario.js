@@ -261,7 +261,7 @@ export default function useSyncedScenario({
       if (shareToken) {
         // Borrower: use share endpoint for updates
         const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
-        await fetch(`${API_BASE}/api/share/sync`, {
+        await fetch(`${API_BASE}/api/collab?resource=sync`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -287,7 +287,7 @@ export default function useSyncedScenario({
         const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
         const token = localStorage.getItem('bp_token');
         if (token) {
-          fetch(`${API_BASE}/api/scenario-changes`, {
+          fetch(`${API_BASE}/api/collab?resource=changes`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
