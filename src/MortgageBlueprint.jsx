@@ -4211,6 +4211,32 @@ export default function MortgageBlueprint({ initialState }) {
         <option value="__new__">+ New Borrower</option>
        </select>
        {borrowerLoading && <span style={{ fontSize: 10, color: T.textTertiary }}>Loading...</span>}
+       {/* Copy Share Link button */}
+       {activeBorrower?.share_token && (
+        <button
+         onClick={() => {
+          const url = `${window.location.origin}?share=${activeBorrower.share_token}`;
+          navigator.clipboard.writeText(url).then(() => {
+           const btn = document.getElementById('bp-copy-share-btn');
+           if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Share Link'; }, 2000); }
+          }).catch(() => {
+           prompt('Copy this share link:', url);
+          });
+         }}
+         id="bp-copy-share-btn"
+         style={{
+          fontSize: 11, fontWeight: 600, color: '#6366F1',
+          background: 'rgba(99,102,241,0.08)',
+          border: '1px solid rgba(99,102,241,0.2)',
+          borderRadius: 8, padding: '5px 10px',
+          cursor: 'pointer', fontFamily: FONT,
+          whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+         }}
+        >
+         <Icon name="link" size={12} />
+         Share Link
+        </button>
+       )}
       </div>
      )}
      {/* ── Sign-in prompt when not authenticated ── */}
@@ -6071,11 +6097,33 @@ export default function MortgageBlueprint({ initialState }) {
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
  {/* ── CTA Buttons (top of summary) ── */}
- <div style={{ marginTop: 16, marginBottom: 8 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
-   Share Blueprint
+ <div style={{ marginTop: 16, marginBottom: 8, display: "flex", gap: 8 }}>
+  <button onClick={() => setShowEmailModal(true)} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: `0 4px 14px ${T.blue}30` }}>
+   <Icon name="mail" size={16} />
+   Email
   </button>
+  {activeBorrower?.share_token && (
+   <button
+    onClick={() => {
+     const url = `${window.location.origin}?share=${activeBorrower.share_token}`;
+     navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('bp-share-link-summary');
+      if (btn) { btn.querySelector('span').textContent = 'Copied!'; setTimeout(() => { btn.querySelector('span').textContent = 'Copy Link'; }, 2000); }
+     }).catch(() => { prompt('Copy this link:', url); });
+    }}
+    id="bp-share-link-summary"
+    style={{ flex: 1, padding: 16, background: 'linear-gradient(135deg, #6366F1, #3B82F6)', border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}
+   >
+    <Icon name="link" size={16} />
+    <span>Copy Link</span>
+   </button>
+  )}
  </div>
+ {!activeBorrower?.share_token && isCloud && (
+  <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>
+   Select a borrower above to generate a shareable live link
+  </div>
+ )}
  {loanOfficer && (
   <div style={{ marginBottom: 16 }}>
    <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
