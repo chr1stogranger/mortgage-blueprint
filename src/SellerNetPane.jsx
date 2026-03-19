@@ -55,7 +55,7 @@ function PaneRow({ label, value, sub, color, bold }) {
 // ═══════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════
-export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
+export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, sharedFilingStatus }) {
   T = theme;
 
   // ── State ──
@@ -72,7 +72,12 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
   const [improvements, setImprovements] = useState(50000);
   const [yearsOwned, setYearsOwned] = useState(10);
   const [primaryRes, setPrimaryRes] = useState(true);
-  const [married, setMarried] = useState(true);
+  const [filingStatus, setFilingStatus] = useState(sharedFilingStatus || "MFJ");
+
+  // Auto-fill filing status from main app
+  useEffect(() => {
+    if (sharedFilingStatus) setFilingStatus(sharedFilingStatus);
+  }, [sharedFilingStatus]);
 
   // ── Calculation ──
   const calc = useMemo(() => {
@@ -84,7 +89,8 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
     // Capital gains
     const adjBasis = costBasis + improvements;
     const grossGain = sellPrice - adjBasis - totalCosts;
-    const exclusionLimit = primaryRes && yearsOwned >= 2 ? (married ? 500000 : 250000) : 0;
+    const isMFJ = filingStatus === "MFJ";
+    const exclusionLimit = primaryRes && yearsOwned >= 2 ? (isMFJ ? 500000 : 250000) : 0;
     const taxableGain = Math.max(0, grossGain - exclusionLimit);
     const isLongTerm = yearsOwned >= 1;
 
@@ -104,7 +110,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
       isLongTerm, fedRate, fedTax, stateTax, niit, totalCapGainsTax,
       netAfterTax,
     };
-  }, [sellPrice, mortgagePayoff, commission, escrowCost, titleCost, otherCosts, sellerCredit, costBasis, improvements, yearsOwned, primaryRes, married]);
+  }, [sellPrice, mortgagePayoff, commission, escrowCost, titleCost, otherCosts, sellerCredit, costBasis, improvements, yearsOwned, primaryRes, filingStatus]);
 
   // ── Report back to workspace ──
   useEffect(() => {
@@ -179,30 +185,55 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
           Capital Gains Estimate
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          <PaneInp label="Purchase Price" value={costBasis} onChange={setCostBasis} />
+          <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} />
           <PaneInp label="Improvements" value={improvements} onChange={setImprovements} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, alignItems: "end" }}>
           <PaneInp label="Years Owned" value={yearsOwned} onChange={setYearsOwned} prefix="" suffix="yrs" step={1} max={50} />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 0 10px", marginBottom: 0 }}>
-            <span style={{ fontSize: 10, color: T.textSecondary }}>Primary</span>
-            <button onClick={() => setPrimaryRes(!primaryRes)} style={{
-              width: 36, height: 20, borderRadius: 10, border: "none",
-              background: primaryRes ? T.green : T.inputBg, cursor: "pointer", position: "relative",
-            }}>
-              <div style={{ width: 14, height: 14, borderRadius: 7, background: "#fff", position: "absolute", top: 3, left: primaryRes ? 19 : 3, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
-            </button>
+          {/* Primary Residence — Yes/No pills */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>Primary Residence</div>
+            <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
+              {[true, false].map(v => (
+                <button key={String(v)} onClick={() => setPrimaryRes(v)} style={{
+                  flex: 1, padding: "6px 0", border: "none", cursor: "pointer",
+                  background: primaryRes === v ? (v ? T.green : T.red) : T.inputBg,
+                  color: primaryRes === v ? "#fff" : T.textTertiary,
+                  fontSize: 11, fontWeight: 600, fontFamily: FONT,
+                }}>
+                  {v ? "Yes" : "No"}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 0 10px" }}>
-            <span style={{ fontSize: 10, color: T.textSecondary }}>MFJ</span>
-            <button onClick={() => setMarried(!married)} style={{
-              width: 36, height: 20, borderRadius: 10, border: "none",
-              background: married ? T.green : T.inputBg, cursor: "pointer", position: "relative",
+          {/* Filing Status — dropdown */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>Filing Status</div>
+            <select value={filingStatus} onChange={e => setFilingStatus(e.target.value)} style={{
+              width: "100%", background: T.inputBg, borderRadius: 8, border: `1px solid ${T.inputBorder}`,
+              padding: "6px 8px", color: T.text, fontSize: 11, fontWeight: 500,
+              outline: "none", cursor: "pointer", fontFamily: FONT, WebkitAppearance: "none",
             }}>
-              <div style={{ width: 14, height: 14, borderRadius: 7, background: "#fff", position: "absolute", top: 3, left: married ? 19 : 3, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
-            </button>
+              <option value="MFJ">Married Filing Jointly</option>
+              <option value="MFS">Married Filing Separately</option>
+              <option value="Single">Single</option>
+              <option value="HOH">Head of Household</option>
+            </select>
           </div>
         </div>
+        {/* Exemption callout */}
+        {primaryRes && yearsOwned >= 2 && (
+          <div style={{ padding: "6px 8px", borderRadius: 8, background: `${T.blue}08`, border: `1px solid ${T.blue}15`, marginTop: 2, marginBottom: 4 }}>
+            <div style={{ fontSize: 10, color: T.blue, fontWeight: 600, lineHeight: 1.4 }}>
+              IRC §121 Exemption: {filingStatus === "MFJ" ? "$500,000" : "$250,000"} ({filingStatus === "MFJ" ? "married filing jointly" : filingStatus === "MFS" ? "married filing separately" : filingStatus === "HOH" ? "head of household" : "single filer"})
+            </div>
+          </div>
+        )}
+        {primaryRes && yearsOwned < 2 && (
+          <div style={{ padding: "6px 8px", borderRadius: 8, background: T.warningBg, marginTop: 2, marginBottom: 4, fontSize: 10, color: T.orange, fontWeight: 600 }}>
+            Must own 2+ years as primary residence for §121 exclusion
+          </div>
+        )}
         {/* Result — inline */}
         {calc.taxableGain > 0 ? (
           <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 6, marginTop: 2 }}>
@@ -213,7 +244,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
           </div>
         ) : calc.grossGain > 0 ? (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: T.successBg, marginTop: 4, fontSize: 10, color: T.green, fontWeight: 600, textAlign: "center" }}>
-            Gain excluded under IRC §121 — no tax
+            Entire gain excluded — no capital gains tax owed
           </div>
         ) : null}
       </PaneCard>

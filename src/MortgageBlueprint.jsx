@@ -1179,7 +1179,7 @@ function ConstructionHouse({ stagesComplete, total }) {
 // ═══ WORKSPACE HOST ═══
 // Bridge component: lives inside WorkspaceProvider, uses useWorkspace() to
 // wire BlueprintPane and SellerNetPane callbacks to the shared context.
-function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, reos, scenarioList, currentScenario }) {
+function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, reos, scenarioList, currentScenario, filingStatus }) {
  const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues } = useWorkspace();
  return (
   <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
@@ -1224,6 +1224,7 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
      <SellerNetPane
       theme={T}
       paneId={paneId}
+      sharedFilingStatus={filingStatus}
       onNetProceedsUpdate={(vals) => {
        updateLinkedValue("sellNetProceeds", vals.sellNetProceeds);
        updateLinkedValue("sellNetAfterTax", vals.sellNetAfterTax);
@@ -6112,7 +6113,7 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} />
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
 )}
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>

@@ -135,16 +135,18 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
     }
   };
 
-  // ── Proceeds Control Bar (Buy→Sell→Refi mode) ──
+  // ── Proceeds Control Bar (Buy→Sell→Refi AND Sell→Buy modes) ──
   const ProceedsBar = () => {
-    if (workspaceMode !== WORKSPACE_MODES.BUY_SELL_REFI) return null;
+    if (workspaceMode !== WORKSPACE_MODES.BUY_SELL_REFI && workspaceMode !== WORKSPACE_MODES.SELL_BUY) return null;
     const netProceeds = linkedValues.sellNetAfterTax || 0;
     if (netProceeds <= 0) return null;
 
+    const isSellBuy = workspaceMode === WORKSPACE_MODES.SELL_BUY;
     const fmt = (v) => "$" + Math.round(v).toLocaleString("en-US");
     const applied = linkedValues.proceedsUseAll ? netProceeds : linkedValues.proceedsToApply;
+    const extraCash = linkedValues.extraCashContribution || 0;
+    const totalForDown = applied + extraCash;
     const remaining = netProceeds - applied;
-    const pctApplied = netProceeds > 0 ? (applied / netProceeds * 100) : 0;
 
     return (
       <div style={{
@@ -200,6 +202,32 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
           {remaining > 0 && !linkedValues.proceedsUseAll && (
             <div style={{ fontSize: 11, color: T.textTertiary }}>
               {fmt(remaining)} in reserves
+            </div>
+          )}
+
+          {/* Extra cash contribution (Sell→Buy mode) */}
+          {isSellBuy && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: T.textTertiary, fontSize: 12 }}>+</span>
+              <input
+                type="text" inputMode="decimal"
+                placeholder="Extra cash"
+                value={extraCash > 0 ? extraCash.toLocaleString("en-US") : ""}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value.replace(/,/g, "")) || 0;
+                  updateLinkedValue("extraCashContribution", v);
+                }}
+                style={{
+                  background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8,
+                  padding: "3px 8px", width: 90, color: T.text, fontSize: 12,
+                  fontWeight: 600, fontFamily: MONO, outline: "none",
+                }}
+              />
+              {totalForDown > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.blue }}>
+                  = {fmt(totalForDown)} for down
+                </span>
+              )}
             </div>
           )}
         </div>

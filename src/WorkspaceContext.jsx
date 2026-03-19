@@ -90,6 +90,7 @@ export function WorkspaceProvider({ children }) {
     purchasePropertyValue: 0, // from purchase → refi property value
     // Sell→Buy links:
     sellProceedsForDown: 0,   // from seller-net → purchase down payment
+    extraCashContribution: 0, // extra cash on top of proceeds for down payment
   });
 
   // ── Pane scenario names (for localStorage isolation) ──
