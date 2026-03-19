@@ -61,6 +61,8 @@ const STATE_PROPERTY_TAX_RATES = {
 };
 
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo"];
+const PROP_TYPES = ["Single Family", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
+const CONDO_TYPES = new Set(["Condo", "Townhouse"]);
 const CONF_LIMIT = 832750;
 
 // ── Compact UI Components ──
@@ -81,17 +83,18 @@ function InfoTip({ text }) {
   </span>);
 }
 
-function PaneInp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, tip }) {
+function PaneInp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, tip, glow }) {
   const [focused, setFocused] = useState(false);
   const [editStr, setEditStr] = useState(null);
   const inputRef = useRef(null);
   const fmtComma = (n) => { if (n === 0 || n === "") return ""; const parts = String(n).split("."); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return parts.join("."); };
   const clamp = (n) => { if (isNaN(n)) return 0; if (min !== undefined && n < min) return min; if (max !== undefined && n > max) return max; return n; };
   const display = editStr !== null ? editStr : (value === 0 && focused ? "" : fmtComma(value));
+  const glowStyle = glow && value === 0 ? { boxShadow: `0 0 0 2px ${T.blue}60, 0 0 12px ${T.blue}20`, border: `2px solid ${T.blue}` } : {};
 
   return (<div style={{ marginBottom: 10 }}>
-    {label && <div style={{ display: "flex", alignItems: "center", fontSize: 11, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>{label}{tip && <InfoTip text={tip} />}</div>}
-    <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 10, padding: "8px 10px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
+    {label && <div style={{ display: "flex", alignItems: "center", fontSize: 11, fontWeight: 500, color: glow && value === 0 ? T.blue : T.textSecondary, marginBottom: 4, fontFamily: FONT }}>{label}{glow && value === 0 && <span style={{ color: T.blue, marginLeft: 3, fontSize: 11, fontWeight: 700 }}>*</span>}{tip && <InfoTip text={tip} />}</div>}
+    <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 10, padding: "8px 10px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "all 0.3s", ...glowStyle }}>
       {prefix && <span style={{ color: T.textSecondary, fontSize: 14, fontWeight: 600, marginRight: 3 }}>{prefix}</span>}
       <input ref={inputRef} type="text" inputMode="decimal" value={display}
         onFocus={() => { setFocused(true); setEditStr(null); }}
@@ -154,6 +157,18 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   const [annualIns, setAnnualIns] = useState(1500);
   const [creditScore, setCreditScore] = useState(760);
   const [includeEscrow, setIncludeEscrow] = useState(true);
+
+  // ── Auto-set insurance for condos ──
+  const prevPropType = useRef(propType);
+  useEffect(() => {
+    if (propType !== prevPropType.current) {
+      if (CONDO_TYPES.has(propType)) setAnnualIns(750);
+      else if (CONDO_TYPES.has(prevPropType.current)) setAnnualIns(1500);
+      prevPropType.current = propType;
+    }
+  }, [propType]);
+
+  const hoaRequired = CONDO_TYPES.has(propType);
 
   // ── Refi-specific state ──
   const [refiCurrentRate, setRefiCurrentRate] = useState(0);
@@ -336,9 +351,12 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
             <PaneInp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.125} max={15} />
             <PaneSel label="Term" value={term} onChange={v => setTerm(Number(v))} options={[{value: 30, label: "30 yr"}, {value: 20, label: "20 yr"}, {value: 15, label: "15 yr"}, {value: 10, label: "10 yr"}]} />
           </div>
-          <PaneSel label="Loan Type" value={loanType} onChange={setLoanType} options={LOAN_TYPES} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <PaneInp label="HOA" value={hoa} onChange={setHoa} tip="Monthly HOA dues" />
+            <PaneSel label="Loan Type" value={loanType} onChange={setLoanType} options={LOAN_TYPES} />
+            <PaneSel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <PaneInp label="HOA" value={hoa} onChange={setHoa} tip="Monthly HOA dues" glow={hoaRequired} />
             <PaneInp label="Annual Insurance" value={annualIns} onChange={setAnnualIns} />
           </div>
           <PaneInp label="Credit Score" value={creditScore} onChange={setCreditScore} prefix="" min={300} max={850} tip="Used for PMI rate lookup" />
