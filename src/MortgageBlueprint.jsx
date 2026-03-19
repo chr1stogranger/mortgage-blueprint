@@ -1180,7 +1180,8 @@ function ConstructionHouse({ stagesComplete, total }) {
 // Bridge component: lives inside WorkspaceProvider, uses useWorkspace() to
 // wire BlueprintPane and SellerNetPane callbacks to the shared context.
 function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, reos, scenarioList, currentScenario, filingStatus }) {
- const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues } = useWorkspace();
+ const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues, workspaceMode } = useWorkspace();
+ const isSellBuy = workspaceMode === "sell-buy";
  return (
   <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
    <WorkspaceView
@@ -1202,7 +1203,7 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
       sharedDebts={debts}
       sharedOtherIncome={otherIncome}
       sharedReos={reos}
-      linkedDownPayment={(paneConfig.type === "blueprint-purchase") ? linkedValues.finalDownPayment : undefined}
+      linkedDownPayment={(paneConfig.type === "blueprint-purchase" && isSellBuy) ? linkedValues.finalDownPayment : undefined}
       onCalcUpdate={(id, calcObj) => {
        updatePaneCalc(id, calcObj);
        // If this is the purchase pane, push loan details + closing costs to linked values

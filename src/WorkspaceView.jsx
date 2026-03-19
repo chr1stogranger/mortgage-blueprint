@@ -35,7 +35,9 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
   if (netProceeds <= 0) return null;
 
   const mode = linkedValues.proceedsMode || "all";
-  const closingCosts = linkedValues.purchaseClosingCosts || 0;
+  // BSR: proceeds go to refi paydown (no closing cost deduction — those were paid at purchase)
+  // SB: proceeds go to purchase down payment (closing costs deducted)
+  const closingCosts = isSB ? (linkedValues.purchaseClosingCosts || 0) : 0;
   const availableForDown = netProceeds - closingCosts;
 
   // Use local values for live badge calculation
@@ -44,6 +46,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
   else if (mode === "hold-back") finalDown = availableForDown - localHoldback;
   else finalDown = availableForDown;
   finalDown = Math.max(0, finalDown);
+  const resultLabel = isBSR ? "refi paydown" : "down payment";
 
   const fmtComma = (n) => { if (!n) return ""; return Math.round(n).toLocaleString("en-US"); };
   const parseNum = (s) => parseInt(String(s).replace(/,/g, "")) || 0;
@@ -90,9 +93,11 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
         </span>
         <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmtBar(netProceeds)}</span>
         <span style={{ fontSize: 11, color: T.textTertiary }}>net</span>
-        <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
-        <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.red }}>{fmtBar(closingCosts)}</span>
-        <span style={{ fontSize: 11, color: T.textTertiary }}>closing</span>
+        {isSB && closingCosts > 0 && (<>
+          <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
+          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.red }}>{fmtBar(closingCosts)}</span>
+          <span style={{ fontSize: 11, color: T.textTertiary }}>closing</span>
+        </>)}
         {mode === "add-extra" && localExtra > 0 && (<>
           <span style={{ fontSize: 11, color: T.textTertiary }}>+</span>
           <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.blue }}>{fmtBar(localExtra)}</span>
@@ -105,7 +110,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
         </>)}
         <span style={{ fontSize: 11, color: T.textTertiary }}>=</span>
         <span style={{ fontSize: 13, fontWeight: 800, fontFamily: MONO, color: T.green }}>{fmtBar(finalDown)}</span>
-        <span style={{ fontSize: 11, color: T.textTertiary }}>down payment</span>
+        <span style={{ fontSize: 11, color: T.textTertiary }}>{resultLabel}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, color: T.textSecondary }}>Additional funds?</span>
@@ -145,7 +150,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
           background: `${T.green}12`, border: `1px solid ${T.green}25`,
           display: "flex", alignItems: "center", gap: 6,
         }}>
-          <span style={{ fontSize: 11, color: T.green, fontWeight: 500 }}>Down Payment:</span>
+          <span style={{ fontSize: 11, color: T.green, fontWeight: 500 }}>{isBSR ? "Refi Paydown:" : "Down Payment:"}</span>
           <span style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: T.green, letterSpacing: "-0.02em" }}>
             {fmtBar(finalDown)}
           </span>
