@@ -5837,17 +5837,65 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && (<>
- <div style={{ marginTop: 20 }}>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Hero + Summary (sticky on desktop) */}
+ <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+ <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   {(() => {
    const linkedReo = sellLinkedReoId ? reos.find(r => String(r.id) === sellLinkedReoId) : null;
    return <Hero value={fmt(calc.sellNetAfterTax)} label={linkedReo ? `Net Proceeds — ${linkedReo.address || "Linked Property"}` : "Net After Tax"} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} sub={calc.sellTotalCapGainsTax > 0 ? `${fmt(calc.sellTotalCapGainsTax)} est. capital gains tax` : "No capital gains tax"} />;
   })()}
  </div>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, margin: "16px 0" }}>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, margin: "0 0 16px 0" }}>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Net Proceeds</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.green, letterSpacing: "-0.02em" }}>{fmt(calc.sellNetProceeds)}</div></Card>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Sell Costs</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.red, letterSpacing: "-0.02em" }}>{fmt(calc.sellTotalCosts)}</div><div style={{ fontSize: 10, color: T.textTertiary }}>{sellPrice > 0 ? (calc.sellTotalCosts / sellPrice * 100).toFixed(1) : 0}%</div></Card>
   <Card pad={12}><div style={{ fontSize: 10, color: T.textTertiary }}>Commission</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.sellCommAmt)}</div></Card>
  </div>
+ <Card style={{ background: calc.sellNetAfterTax >= 0 ? T.successBg : T.errorBg }}>
+  <MRow label="Sale Price" value={fmt(sellPrice)} bold />
+  <MRow label="Mortgage Payoff" value={`-${fmt(sellMortgagePayoff)}`} color={T.red} />
+  <MRow label="Total Costs" value={`-${fmt(calc.sellTotalCosts)}`} color={T.red} />
+  <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
+   <MRow label="Net Proceeds (Pre-Tax)" value={fmt(calc.sellNetProceeds)} color={calc.sellNetProceeds >= 0 ? T.green : T.red} bold />
+  </div>
+  {calc.sellTotalCapGainsTax > 0 && <MRow label="Est. Capital Gains Tax" value={`-${fmt(calc.sellTotalCapGainsTax)}`} color={T.red} />}
+  <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+   <MRow label="Net After Tax" value={fmt(calc.sellNetAfterTax)} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} bold />
+  </div>
+ </Card>
+ {sellCostBasis > 0 && <Sec title="Gain Calculation">
+  <Card>
+   <MRow label="Sale Price" value={fmt(sellPrice)} />
+   <MRow label="Adjusted Cost Basis" value={`-${fmt(calc.sellAdjBasis)}`} sub={`${fmt(sellCostBasis)} purchase + ${fmt(sellImprovements)} improvements`} color={T.textSecondary} />
+   <MRow label="Selling Costs" value={`-${fmt(calc.sellTotalCosts)}`} color={T.textSecondary} />
+   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
+    <MRow label="Gross Gain" value={fmt(calc.sellGrossGain)} color={calc.sellGrossGain > 0 ? T.green : T.red} bold />
+   </div>
+   {calc.sellExclusionLimit > 0 && <MRow label={`Exclusion (${married === "MFJ" ? "MFJ" : married === "MFS" ? "MFS" : "Single/HOH"})`} value={`-${fmt(calc.sellExclusionLimit)}`} sub={`Primary res ${sellYearsOwned}+ yrs`} color={T.green} />}
+   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
+    <MRow label="Taxable Gain" value={fmt(calc.sellTaxableGain)} color={calc.sellTaxableGain > 0 ? T.orange : T.green} bold />
+   </div>
+   {calc.sellTaxableGain === 0 && calc.sellGrossGain > 0 && <Note color={T.green}>Entire gain excluded under IRC §121. No federal capital gains tax owed.</Note>}
+  </Card>
+ </Sec>}
+ {calc.sellTaxableGain > 0 && <Sec title="Tax Estimate">
+  <Card>
+   <MRow label="Holding Period" value={calc.sellIsLongTerm ? `${sellYearsOwned} yrs (Long-Term)` : `${sellYearsOwned} yr (Short-Term)`} sub={calc.sellIsLongTerm ? "Favorable LTCG rates" : "Taxed as ordinary income"} />
+   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
+    <MRow label="Federal LTCG Rate" value={calc.fedLTCGRate !== null ? `${(calc.fedLTCGRate * 100).toFixed(0)}%` : "Ordinary"} />
+    <MRow label="Federal Cap Gains Tax" value={fmt(calc.sellFedCapGainsTax - calc.sellNIIT)} color={T.red} />
+    {calc.sellNIIT > 0 && <MRow label="NIIT (3.8%)" value={fmt(calc.sellNIIT)} sub="Net Investment Income Tax" color={T.red} />}
+    <MRow label={`State Tax (${taxState})`} value={fmt(calc.sellStateCapGainsTax)} sub={`${(calc.sellStateCapGainsRate * 100).toFixed(2)}% marginal rate`} color={T.red} />
+   </div>
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Est. Tax" value={fmt(calc.sellTotalCapGainsTax)} color={T.red} bold />
+   </div>
+   <Note color={T.orange}>This is an estimate only — not tax advice. Consult a CPA for your specific situation. Depreciation recapture, installment sales, 1031 exchanges, and AMT may apply.</Note>
+  </Card>
+ </Sec>}
+ </div>{/* end seller net left column */}
+ {/* RIGHT: Input forms */}
+ <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  <Sec title="Sale Details">
   <Card>
    {reos.length > 0 && (
@@ -5900,48 +5948,8 @@ export default function MortgageBlueprint({ initialState }) {
    </div>
   </Card>
  </Sec>
- {sellCostBasis > 0 && <Sec title="Gain Calculation">
-  <Card>
-   <MRow label="Sale Price" value={fmt(sellPrice)} />
-   <MRow label="Adjusted Cost Basis" value={`-${fmt(calc.sellAdjBasis)}`} sub={`${fmt(sellCostBasis)} purchase + ${fmt(sellImprovements)} improvements`} color={T.textSecondary} />
-   <MRow label="Selling Costs" value={`-${fmt(calc.sellTotalCosts)}`} color={T.textSecondary} />
-   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-    <MRow label="Gross Gain" value={fmt(calc.sellGrossGain)} color={calc.sellGrossGain > 0 ? T.green : T.red} bold />
-   </div>
-   {calc.sellExclusionLimit > 0 && <MRow label={`Exclusion (${married === "MFJ" ? "MFJ" : married === "MFS" ? "MFS" : "Single/HOH"})`} value={`-${fmt(calc.sellExclusionLimit)}`} sub={`Primary res ${sellYearsOwned}+ yrs`} color={T.green} />}
-   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-    <MRow label="Taxable Gain" value={fmt(calc.sellTaxableGain)} color={calc.sellTaxableGain > 0 ? T.orange : T.green} bold />
-   </div>
-   {calc.sellTaxableGain === 0 && calc.sellGrossGain > 0 && <Note color={T.green}>Entire gain excluded under IRC §121. No federal capital gains tax owed.</Note>}
-  </Card>
- </Sec>}
- {calc.sellTaxableGain > 0 && <Sec title="Tax Estimate">
-  <Card>
-   <MRow label="Holding Period" value={calc.sellIsLongTerm ? `${sellYearsOwned} yrs (Long-Term)` : `${sellYearsOwned} yr (Short-Term)`} sub={calc.sellIsLongTerm ? "Favorable LTCG rates" : "Taxed as ordinary income"} />
-   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-    <MRow label="Federal LTCG Rate" value={calc.fedLTCGRate !== null ? `${(calc.fedLTCGRate * 100).toFixed(0)}%` : "Ordinary"} />
-    <MRow label="Federal Cap Gains Tax" value={fmt(calc.sellFedCapGainsTax - calc.sellNIIT)} color={T.red} />
-    {calc.sellNIIT > 0 && <MRow label="NIIT (3.8%)" value={fmt(calc.sellNIIT)} sub="Net Investment Income Tax" color={T.red} />}
-    <MRow label={`State Tax (${taxState})`} value={fmt(calc.sellStateCapGainsTax)} sub={`${(calc.sellStateCapGainsRate * 100).toFixed(2)}% marginal rate`} color={T.red} />
-   </div>
-   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label="Total Est. Tax" value={fmt(calc.sellTotalCapGainsTax)} color={T.red} bold />
-   </div>
-   <Note color={T.orange}>This is an estimate only — not tax advice. Consult a CPA for your specific situation. Depreciation recapture, installment sales, 1031 exchanges, and AMT may apply.</Note>
-  </Card>
- </Sec>}
- <Card style={{ background: calc.sellNetAfterTax >= 0 ? T.successBg : T.errorBg }}>
-  <MRow label="Sale Price" value={fmt(sellPrice)} bold />
-  <MRow label="Mortgage Payoff" value={`-${fmt(sellMortgagePayoff)}`} color={T.red} />
-  <MRow label="Total Costs" value={`-${fmt(calc.sellTotalCosts)}`} color={T.red} />
-  <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-   <MRow label="Net Proceeds (Pre-Tax)" value={fmt(calc.sellNetProceeds)} color={calc.sellNetProceeds >= 0 ? T.green : T.red} bold />
-  </div>
-  {calc.sellTotalCapGainsTax > 0 && <MRow label="Est. Capital Gains Tax" value={`-${fmt(calc.sellTotalCapGainsTax)}`} color={T.red} />}
-  <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-   <MRow label="Net After Tax" value={fmt(calc.sellNetAfterTax)} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} bold />
-  </div>
- </Card>
+ </div>{/* end seller net right column */}
+ </div>{/* end seller net desktop flex wrapper */}
 </>)}
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
