@@ -61,7 +61,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
   // ── State ──
   const [sellPrice, setSellPrice] = useState(1200000);
   const [mortgagePayoff, setMortgagePayoff] = useState(400000);
-  const [commission, setCommission] = useState(5);
+  const [commission, setCommission] = useState(6);
   const [escrowCost, setEscrowCost] = useState(3500);
   const [titleCost, setTitleCost] = useState(2500);
   const [otherCosts, setOtherCosts] = useState(0);
