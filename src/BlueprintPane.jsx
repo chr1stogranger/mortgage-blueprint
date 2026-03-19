@@ -344,7 +344,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       dp, baseLoan, loan, ltv, loanCategory,
       pi, monthlyTax, yearlyTax, ins, monthlyMI, hoa,
       housingPayment, displayPayment,
-      totalClosingCosts, cashToClose, prepaidInt, titleEscrow, origCharges,
+      totalClosingCosts, cashToClose, prepaidInt, prepaidIns, initialEscrow, titleEscrow, origCharges,
       totalInt, totalIntStandard: totalInt,
       refiMonthlySavings,
       adjustedLoan, adjustedPayment,
@@ -447,47 +447,79 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       )}
 
       {/* ── BREAKDOWN SECTION ── */}
-      {activeSection === "results" && (
+      {activeSection === "results" && (<>
+        {/* Monthly Payment Breakdown */}
         <PaneCard>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Monthly Payment</div>
           <PaneRow label="P&I" value={fmt(calc.pi)} />
           <PaneRow label="Property Tax" value={fmt(calc.monthlyTax)} sub={`${fmt(calc.yearlyTax)}/yr`} />
           <PaneRow label="Insurance" value={fmt(calc.ins)} sub={`${fmt(annualIns)}/yr`} />
           {calc.monthlyMI > 0 && <PaneRow label={loanType === "FHA" ? "MIP" : "PMI"} value={fmt(calc.monthlyMI)} color={T.orange} />}
           {hoa > 0 && <PaneRow label="HOA" value={fmt(hoa)} />}
-          <PaneRow label="Total Payment" value={fmt(calc.housingPayment)} bold color={T.text} />
-          <div style={{ marginTop: 12, borderTop: `1px solid ${T.separator}`, paddingTop: 8 }}>
-            <PaneRow label="Loan Amount" value={fmt(calc.loan)} />
-            <PaneRow label="Down Payment" value={fmt(calc.dp)} sub={`${downPct}%`} />
-            <PaneRow label="LTV" value={pct(calc.ltv, 1)} color={calc.ltv > 0.80 ? T.orange : T.green} />
-            <PaneRow label="Loan Category" value={calc.loanCategory} />
-            {calc.qualifyingIncome > 0 && <PaneRow label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI > 0.50 ? T.red : calc.yourDTI > 0.43 ? T.orange : T.green} bold />}
-            {calc.qualifyingIncome > 0 && <PaneRow label="Income" value={fmt(calc.qualifyingIncome) + "/mo"} sub={fmt(calc.monthlyDebts) + " debts"} />}
-            <PaneRow label="Total Interest" value={fmt(calc.totalInt)} sub={`over ${term} years`} />
+          <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+            <PaneRow label="Total Payment" value={fmt(calc.housingPayment)} bold color={T.text} />
           </div>
-          {isRefiMode && calc.adjustedLoan < calc.loan && (
-            <div style={{ marginTop: 12, padding: 10, borderRadius: 10, background: T.successBg, border: `1px solid ${T.successBorder}` }}>
-              <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
-                After Proceeds Applied
-              </div>
-              <PaneRow label="Adjusted Loan" value={fmt(calc.adjustedLoan)} color={T.green} bold />
-              <PaneRow label="New Payment" value={fmt(calc.adjustedPayment)} color={T.green} bold />
-              <PaneRow label="Savings" value={fmt(calc.housingPayment - calc.adjustedPayment) + "/mo"} color={T.green} />
-            </div>
-          )}
         </PaneCard>
-      )}
+        {/* Cash to Close Waterfall */}
+        <PaneCard>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Cash to Close</div>
+          <PaneRow label="Purchase Price" value={fmt(salesPrice)} bold />
+          <PaneRow label="Loan Amount" value={`-${fmt(calc.loan)}`} color={T.blue} />
+          <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+            <PaneRow label="Down Payment" value={fmt(calc.dp)} sub={`${downPct}%`} bold />
+          </div>
+          <PaneRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} sub="lender + title" />
+          <PaneRow label="Prepaid Interest" value={fmt(calc.prepaidInt)} sub="~15 days" />
+          <PaneRow label="Prepaid Insurance" value={fmt(calc.prepaidIns)} />
+          <PaneRow label="Initial Escrow" value={fmt(calc.initialEscrow)} sub="~3 months" />
+          <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+            <PaneRow label="Cash to Close" value={fmt(calc.cashToClose)} bold color={T.blue} />
+          </div>
+        </PaneCard>
+        {/* Loan Details */}
+        <PaneCard>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Loan Details</div>
+          <PaneRow label="LTV" value={pct(calc.ltv, 1)} color={calc.ltv > 0.80 ? T.orange : T.green} />
+          <PaneRow label="Loan Category" value={calc.loanCategory} />
+          {calc.qualifyingIncome > 0 && <PaneRow label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI > 0.50 ? T.red : calc.yourDTI > 0.43 ? T.orange : T.green} bold />}
+          {calc.qualifyingIncome > 0 && <PaneRow label="Income" value={fmt(calc.qualifyingIncome) + "/mo"} sub={fmt(calc.monthlyDebts) + " debts"} />}
+          <PaneRow label="Total Interest" value={fmt(calc.totalInt)} sub={`over ${term} years`} />
+        </PaneCard>
+        {isRefiMode && calc.adjustedLoan < calc.loan && (
+          <PaneCard style={{ background: T.successBg, border: `1px solid ${T.successBorder}` }}>
+            <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
+              After Proceeds Applied
+            </div>
+            <PaneRow label="Adjusted Loan" value={fmt(calc.adjustedLoan)} color={T.green} bold />
+            <PaneRow label="New Payment" value={fmt(calc.adjustedPayment)} color={T.green} bold />
+            <PaneRow label="Savings" value={fmt(calc.housingPayment - calc.adjustedPayment) + "/mo"} color={T.green} />
+          </PaneCard>
+        )}
+      </>)}
 
-      {/* ── COSTS SECTION ── */}
+      {/* ── COSTS SECTION (detailed closing cost breakdown) ── */}
       {activeSection === "costs" && (
         <PaneCard>
-          <PaneRow label="Down Payment" value={fmt(calc.dp)} bold />
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Closing Cost Detail</div>
           <PaneRow label="Origination & Lender" value={fmt(calc.origCharges)} />
           <PaneRow label="Title & Escrow" value={fmt(calc.titleEscrow)} />
+          <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+            <PaneRow label="Total Closing Costs" value={fmt(calc.totalClosingCosts)} bold />
+          </div>
+          <div style={{ marginTop: 8, fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Prepaids & Escrow</div>
           <PaneRow label="Prepaid Interest" value={fmt(calc.prepaidInt)} sub="~15 days" />
-          <PaneRow label="Prepaid Insurance" value={fmt(annualIns)} />
-          <PaneRow label="Initial Escrow" value={fmt((calc.monthlyTax + calc.ins) * 3)} sub="3 months" />
-          <div style={{ marginTop: 8, borderTop: `2px solid ${T.separator}`, paddingTop: 8 }}>
-            <PaneRow label="Cash to Close" value={fmt(calc.cashToClose)} bold color={T.blue} />
+          <PaneRow label="Prepaid Insurance" value={fmt(calc.prepaidIns)} sub="12 months" />
+          <PaneRow label="Initial Escrow" value={fmt(calc.initialEscrow)} sub="tax + ins ~3 mo" />
+          <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+            <PaneRow label="Total Prepaids" value={fmt(calc.prepaidInt + calc.prepaidIns + calc.initialEscrow)} bold />
+          </div>
+          <div style={{ marginTop: 8, borderTop: `2px solid ${T.separator}`, paddingTop: 6 }}>
+            <PaneRow label="Down Payment" value={fmt(calc.dp)} sub={`${downPct}%`} />
+            <PaneRow label="+ Closing Costs" value={fmt(calc.totalClosingCosts)} />
+            <PaneRow label="+ Prepaids & Escrow" value={fmt(calc.prepaidInt + calc.prepaidIns + calc.initialEscrow)} />
+            <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+              <PaneRow label="Cash to Close" value={fmt(calc.cashToClose)} bold color={T.blue} />
+            </div>
           </div>
         </PaneCard>
       )}
