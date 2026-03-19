@@ -12,6 +12,7 @@ import {
   fetchBorrowers, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
+  fetchBorrowerPrefill,
 } from "./api";
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
@@ -1267,6 +1268,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   isBorrower ? (borrowerMode.scenarioId || null) : null
  );
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
+ const [borrowerScenarios, setBorrowerScenarios] = useState([]); // Scenarios for selected borrower (step 2)
+ const [borrowerScenariosLoading, setBorrowerScenariosLoading] = useState(false);
  const supabaseSaveTimer = useRef(null);
 
  // ── Real-Time Sync (Phase 1-6) ──
@@ -4264,25 +4267,59 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         borrowers={borrowerList}
         activeBorrower={activeBorrower}
         loading={borrowerLoading}
+        scenarios={borrowerScenarios}
+        scenariosLoading={borrowerScenariosLoading}
         T={T}
         onSelect={async (b) => {
-         if (!b) { setActiveBorrower(null); setActiveScenarioId(null); return; }
+         if (!b) { setActiveBorrower(null); setActiveScenarioId(null); setBorrowerScenarios([]); return; }
          setActiveBorrower(b);
          setActiveScenarioId(null);
-         // Load first scenario for this borrower
+         setBorrowerScenariosLoading(true);
+         // Load scenarios for step 2
          try {
-          const scenarios = await apiFetchScenarios(b.id);
-          if (scenarios?.length) {
-           const first = scenarios[0];
-           if (first.state_data) loadState(first.state_data);
-           setActiveScenarioId(first.id);
-           setScenarioName(first.name || 'Scenario 1');
-           sync.initSync(first.state_data, first.locked_fields);
+          const scens = await apiFetchScenarios(b.id);
+          setBorrowerScenarios(scens || []);
+         } catch (err) {
+          console.warn('[Blueprint] Failed to load scenarios:', err.message);
+          setBorrowerScenarios([]);
+         }
+         setBorrowerScenariosLoading(false);
+        }}
+        onSelectScenario={(scenario) => {
+         // Step 2: user picked a specific scenario
+         if (scenario.state_data) loadState(scenario.state_data);
+         setActiveScenarioId(scenario.id);
+         setScenarioName(scenario.name || 'Scenario 1');
+         sync.initSync(scenario.state_data, scenario.locked_fields);
+        }}
+        onAutoCreateScenario={async (borrower) => {
+         // Auto-create "Scenario 1" with Arive pre-fill
+         try {
+          let prefillState = {};
+          try {
+           const prefillResult = await fetchBorrowerPrefill(borrower.id);
+           if (prefillResult?.prefill) prefillState = prefillResult.prefill;
+          } catch { /* no prefill data — proceed with blank */ }
+
+          const newScenario = await apiCreateScenario({
+           borrower_id: borrower.id,
+           name: 'Scenario 1',
+           type: 'purchase',
+           state_data: prefillState,
+           calc_summary: {},
+          });
+          const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
+          if (s?.id) {
+           if (Object.keys(prefillState).length > 0) loadState(prefillState);
+           setActiveScenarioId(s.id);
+           setScenarioName(s.name || 'Scenario 1');
+           sync.initSync(prefillState, null);
+           setBorrowerScenarios([s]);
           }
-         } catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); }
+         } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
         }}
         onCreateNew={async (prefillName) => {
-         const name = prefillName || prompt("New borrower name:");
+         const name = prefillName || prompt("New client name:");
          if (!name) return;
          try {
           const result = await createBorrower({ name, status: 'active' });
@@ -4291,8 +4328,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
            setBorrowerList(prev => [...prev, newB]);
            setActiveBorrower(newB);
            setActiveScenarioId(null);
+           setBorrowerScenarios([]);
           }
-         } catch (err) { alert('Failed to create borrower: ' + err.message); }
+         } catch (err) { alert('Failed to create client: ' + err.message); }
         }}
        />
        {/* Copy Share Link button */}

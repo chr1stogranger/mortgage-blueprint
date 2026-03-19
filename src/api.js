@@ -194,6 +194,10 @@ export async function verifyBorrowerMagicLink(token, email) {
   return res.json();
 }
 
+export async function fetchBorrowerPrefill(borrowerId) {
+  return authFetch(`/api/collab?resource=borrower-prefill&borrower_id=${borrowerId}`);
+}
+
 export async function authenticateBorrowerGoogle(credential, shareToken = null) {
   const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=google`, {
     method: 'POST',
