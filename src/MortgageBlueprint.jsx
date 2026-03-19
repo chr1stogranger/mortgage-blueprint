@@ -6,6 +6,8 @@ import PricePoint from "./PricePoint";
 import Markets from "./Markets";
 import WorkspaceView from "./WorkspaceView";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
+import BlueprintPane from "./BlueprintPane";
+import SellerNetPane from "./SellerNetPane";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
@@ -6060,85 +6062,30 @@ export default function MortgageBlueprint({ initialState }) {
   <WorkspaceView
    T={T}
    isDesktop={isDesktop}
-   renderBlueprintPane={(paneId, paneConfig) => {
-    // For now, render a placeholder that shows the pane info.
-    // Phase 2 will mount isolated MortgageBlueprint instances per pane.
-    const isRefiPane = paneConfig.type === "blueprint-refi";
-    const isPurchasePane = paneConfig.type === "blueprint-purchase";
-    return (
-     <div style={{ padding: "20px 4px" }}>
-      <div style={{ textAlign: "center", padding: "40px 20px" }}>
-       <div style={{
-        width: 56, height: 56, borderRadius: 16,
-        background: `${isRefiPane ? T.green : isPurchasePane ? T.blue : T.accent}12`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        margin: "0 auto 16px",
-        color: isRefiPane ? T.green : isPurchasePane ? T.blue : T.accent,
-       }}>
-        <Icon name={isRefiPane ? "refresh-cw" : "calculator"} size={24} />
-       </div>
-       <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-        {paneConfig.label} Blueprint
-       </div>
-       <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.5, maxWidth: 280, margin: "0 auto" }}>
-        {isRefiPane
-         ? "This pane will load a refinance calculator. Loan details from your Purchase pane will seed the current mortgage fields."
-         : isPurchasePane
-         ? "This pane will load a purchase calculator. In Sell→Buy mode, net proceeds from your sale will flow into the down payment."
-         : "This pane loads an independent loan scenario. Adjust inputs to compare against other panes."}
-       </div>
-       <div style={{
-        marginTop: 20, padding: "10px 16px", borderRadius: 12,
-        background: T.pillBg, display: "inline-block",
-        fontSize: 11, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace",
-        color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px",
-       }}>
-        Pane: {paneId} · Type: {paneConfig.type}
-       </div>
-      </div>
-     </div>
-    );
-   }}
-   renderSellerNetPane={(paneId, paneConfig) => {
-    // Render the existing Seller Net Proceeds UI (Phase 2: extract as component)
-    return (
-     <div style={{ padding: "20px 4px" }}>
-      <div style={{ textAlign: "center", padding: "40px 20px" }}>
-       <div style={{
-        width: 56, height: 56, borderRadius: 16,
-        background: `${T.orange}12`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        margin: "0 auto 16px", color: T.orange,
-       }}>
-        <Icon name="dollar" size={24} />
-       </div>
-       <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-        Seller Net Proceeds
-       </div>
-       <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.5, maxWidth: 280, margin: "0 auto" }}>
-        This pane calculates your net proceeds from selling a property, including commission, closing costs, and capital gains tax estimates.
-       </div>
-       <div style={{
-        marginTop: 16, padding: 14, borderRadius: 12,
-        background: T.successBg, border: `1px solid ${T.successBorder}`,
-       }}>
-        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
-         Current Net Proceeds
-        </div>
-        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.green }}>
-         {fmt(calc.sellNetAfterTax)}
-        </div>
-       </div>
-       <div style={{
-        marginTop: 12, fontSize: 11, color: T.textTertiary,
-        fontFamily: "'JetBrains Mono', monospace",
-       }}>
-        Pane: {paneId} · Uses current Seller Net data
-       </div>
-      </div>
-     </div>
-    );
-   }}
+   renderBlueprintPane={(paneId, paneConfig) => (
+    <BlueprintPane
+     theme={T}
+     paneId={paneId}
+     paneConfig={paneConfig}
+     isRefiMode={paneConfig.type === "blueprint-refi"}
+     onCalcUpdate={(id, calcObj) => {
+      // Update workspace context with this pane's calc results
+      if (typeof window.__workspaceCalcUpdate === "function") window.__workspaceCalcUpdate(id, calcObj);
+     }}
+     onStateUpdate={(id, stateObj) => {
+      if (typeof window.__workspaceStateUpdate === "function") window.__workspaceStateUpdate(id, stateObj);
+     }}
+    />
+   )}
+   renderSellerNetPane={(paneId, paneConfig) => (
+    <SellerNetPane
+     theme={T}
+     paneId={paneId}
+     onNetProceedsUpdate={(vals) => {
+      if (typeof window.__workspaceNetProceedsUpdate === "function") window.__workspaceNetProceedsUpdate(vals);
+     }}
+    />
+   )}
   />
  </div>
 )}
