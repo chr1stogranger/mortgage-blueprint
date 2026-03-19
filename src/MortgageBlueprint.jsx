@@ -2572,6 +2572,7 @@ export default function MortgageBlueprint({ initialState }) {
    if (isRefi === null) return "transaction-type";
    if (!guideTouched.has("location")) return "zip-code";
    if (creditScore === 0) return "fico-input";
+   if (!guideTouched.has("filing-status")) return "filing-status";
    if (!isRefi && salesPrice === 0) return "price-input";
    if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
    if (!isRefi && !guideTouched.has("fthb")) return "fthb";
@@ -3641,7 +3642,7 @@ export default function MortgageBlueprint({ initialState }) {
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
-    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; }
+    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; padding: 10px; margin: -10px; margin-bottom: 2px; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
@@ -6273,8 +6274,8 @@ export default function MortgageBlueprint({ initialState }) {
     </div>
 
     {/* 5) Filing Status — below FICO to even out columns */}
-    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}` }}>
-     <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
+    <div data-field="filing-status" className={isPulse("filing-status")} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
+     <Sel label="Filing Status" value={married} onChange={v => { setMarried(v); markTouched("filing-status"); }} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
     </div>
    </Card>
   </div>{/* end left column */}
