@@ -1258,6 +1258,23 @@ export default function MortgageBlueprint({ initialState }) {
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
  const supabaseSaveTimer = useRef(null);
 
+ // ── Real-Time Sync (Phase 1-6) ──
+ // getState/loadState are defined below — sync hook uses refs so this is safe
+ const getStateRef = useRef(null);
+ const loadStateRef = useRef(null);
+ const sync = useBlueprintSync({
+  scenarioId: activeScenarioId,
+  getState: () => getStateRef.current ? getStateRef.current() : {},
+  loadState: (s) => loadStateRef.current && loadStateRef.current(s),
+  userInfo: {
+   email: auth?.user?.email || '',
+   name: auth?.user?.name || '',
+   avatarUrl: auth?.user?.picture || '',
+  },
+  userType: 'lo',
+  enabled: isCloud && !!activeBorrower && !!activeScenarioId,
+ });
+
  // ── Desktop Detection ──
  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 900);
  useEffect(() => {
@@ -1743,6 +1760,9 @@ export default function MortgageBlueprint({ initialState }) {
   if (s.rbRentGrowth !== undefined) setRbRentGrowth(s.rbRentGrowth);
   if (s.rbInvestReturn !== undefined) setRbInvestReturn(s.rbInvestReturn);
  };
+ // Wire getState/loadState into the sync hook refs
+ getStateRef.current = getState;
+ loadStateRef.current = loadState;
  useEffect(() => {
   (async () => {
    try {
@@ -1896,6 +1916,8 @@ export default function MortgageBlueprint({ initialState }) {
     if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
     supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
    }
+   // ── Real-time sync (pushes changes to other connected users) ──
+   sync.scheduleSync();
    setTimeout(() => setSaving(false), 600);
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
@@ -3905,6 +3927,12 @@ export default function MortgageBlueprint({ initialState }) {
    {/* ═══ MAIN CONTENT AREA ═══ */}
    <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
+  {/* Real-time presence bar — shows who else is viewing this blueprint */}
+  {sync.onlineUsers.length > 0 && (
+   <div style={{ padding: '8px 16px 0' }}>
+    <PresenceBar onlineUsers={sync.onlineUsers} fieldFocus={{}} />
+   </div>
+  )}
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
@@ -4108,6 +4136,9 @@ export default function MortgageBlueprint({ initialState }) {
         {cloudSyncStatus === 'saving' && <span style={{ fontSize: 10, color: T.blue, fontStyle: "italic" }}></span>}
         {cloudSyncStatus === 'saved' && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
         {cloudSyncStatus === 'error' && <span style={{ fontSize: 10, color: T.red }}>✗</span>}
+        {sync.status === 'saving' && <span style={{ fontSize: 10, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
+        {sync.status === 'saved' && <span style={{ fontSize: 10, color: '#10B981' }}>live ✓</span>}
+        {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -4165,6 +4196,8 @@ export default function MortgageBlueprint({ initialState }) {
             if (first.state_data) loadState(first.state_data);
             setActiveScenarioId(first.id);
             setScenarioName(first.name || 'Scenario 1');
+            // Initialize real-time sync baseline
+            sync.initSync(first.state_data, first.locked_fields);
            }
           } catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); }
          }
