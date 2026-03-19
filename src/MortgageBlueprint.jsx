@@ -4,6 +4,8 @@ import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
 import PricePoint from "./PricePoint";
 import Markets from "./Markets";
+import WorkspaceView from "./WorkspaceView";
+import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
@@ -488,12 +490,14 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
  const clamp = (n) => { if (isNaN(n)) return 0; if (min !== undefined && n < min) return min; if (max !== undefined && n > max) return max; return n; };
  const fmtComma = (n) => { if (n === 0 || n === "") return ""; const parts = String(n).split("."); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return parts.join("."); };
  const display = isText ? value : (editStr !== null ? editStr : (value === 0 && focused ? "" : fmtComma(value)));
- useEffect(() => { if (cursorRef.current !== null && inputRef.current) { inputRef.current.setSelectionRange(cursorRef.current, cursorRef.current); cursorRef.current = null; } });
+ const wasFocused = useRef(false);
+ useEffect(() => { if (cursorRef.current !== null && inputRef.current) { if (wasFocused.current) inputRef.current.focus(); inputRef.current.setSelectionRange(cursorRef.current, cursorRef.current); cursorRef.current = null; } });
+ useEffect(() => { if (wasFocused.current && inputRef.current && document.activeElement !== inputRef.current) { inputRef.current.focus(); } });
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={filled} />
   <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 12, padding: sm ? "10px 12px" : "12px 14px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT }}>{prefix}</span>}
-   <input ref={inputRef} type="text" inputMode={isText ? "text" : "decimal"} value={display} onFocus={() => { setFocused(true); setEditStr(null); }} onBlur={() => { setFocused(false); if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) onChange(n); } }} min={isText ? undefined : min} step={isText ? undefined : step}
+   <input ref={inputRef} type="text" inputMode={isText ? "text" : "decimal"} value={display} onFocus={() => { setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) onChange(n); } }} min={isText ? undefined : min} step={isText ? undefined : step}
     style={{ background: "transparent", border: "none", outline: "none", color: T.text, fontSize: sm ? 15 : 17, fontWeight: isText ? 500 : 600, fontFamily: FONT, width: "100%", letterSpacing: "-0.02em" }} />
    {suffix && <span style={{ color: T.textTertiary, fontSize: 13, marginLeft: 6, fontFamily: FONT }}>{suffix}</span>}
   </div>
@@ -3545,6 +3549,7 @@ export default function MortgageBlueprint({ initialState }) {
   ...(showInvestor ? [["invest","Investor"]] : []),
   ...(firstTimeBuyer && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
+  ...(isDesktop ? [["workspace","Workspace"]] : []),
   ["compare","Compare"],
   ["summary","Share"],
   ["settings","Settings"]];
@@ -3618,6 +3623,7 @@ export default function MortgageBlueprint({ initialState }) {
  const refiPillarCount = [calc.ficoCheck, calc.dtiCheck, refiLtvCheck].filter(c => c === "Good!").length;
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
+  <WorkspaceProvider>
   <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
     *, *::before, *::after { box-sizing: border-box; }
@@ -3769,7 +3775,7 @@ export default function MortgageBlueprint({ initialState }) {
        const locked = !isTabUnlocked(k);
        const completed = !!completedTabs[k];
        const active = tab === k;
-       const icons = { setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
+       const icons = { setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; } }}
          style={{
@@ -6039,6 +6045,94 @@ export default function MortgageBlueprint({ initialState }) {
   <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Subject to lender requirements. Rates change daily. Not a commitment to lend.</div>
  </Card>
 </>)}
+{/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
+{tab === "workspace" && isDesktop && (
+ <div style={{ position: "fixed", inset: 0, left: sidebarCollapsed ? 56 : 180, zIndex: 100, background: T.bg }}>
+  <WorkspaceView
+   T={T}
+   isDesktop={isDesktop}
+   renderBlueprintPane={(paneId, paneConfig) => {
+    // For now, render a placeholder that shows the pane info.
+    // Phase 2 will mount isolated MortgageBlueprint instances per pane.
+    const isRefiPane = paneConfig.type === "blueprint-refi";
+    const isPurchasePane = paneConfig.type === "blueprint-purchase";
+    return (
+     <div style={{ padding: "20px 4px" }}>
+      <div style={{ textAlign: "center", padding: "40px 20px" }}>
+       <div style={{
+        width: 56, height: 56, borderRadius: 16,
+        background: `${isRefiPane ? T.green : isPurchasePane ? T.blue : T.accent}12`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        margin: "0 auto 16px",
+        color: isRefiPane ? T.green : isPurchasePane ? T.blue : T.accent,
+       }}>
+        <Icon name={isRefiPane ? "refresh-cw" : "calculator"} size={24} />
+       </div>
+       <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>
+        {paneConfig.label} Blueprint
+       </div>
+       <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.5, maxWidth: 280, margin: "0 auto" }}>
+        {isRefiPane
+         ? "This pane will load a refinance calculator. Loan details from your Purchase pane will seed the current mortgage fields."
+         : isPurchasePane
+         ? "This pane will load a purchase calculator. In Sell→Buy mode, net proceeds from your sale will flow into the down payment."
+         : "This pane loads an independent loan scenario. Adjust inputs to compare against other panes."}
+       </div>
+       <div style={{
+        marginTop: 20, padding: "10px 16px", borderRadius: 12,
+        background: T.pillBg, display: "inline-block",
+        fontSize: 11, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace",
+        color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px",
+       }}>
+        Pane: {paneId} · Type: {paneConfig.type}
+       </div>
+      </div>
+     </div>
+    );
+   }}
+   renderSellerNetPane={(paneId, paneConfig) => {
+    // Render the existing Seller Net Proceeds UI (Phase 2: extract as component)
+    return (
+     <div style={{ padding: "20px 4px" }}>
+      <div style={{ textAlign: "center", padding: "40px 20px" }}>
+       <div style={{
+        width: 56, height: 56, borderRadius: 16,
+        background: `${T.orange}12`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        margin: "0 auto 16px", color: T.orange,
+       }}>
+        <Icon name="dollar" size={24} />
+       </div>
+       <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>
+        Seller Net Proceeds
+       </div>
+       <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.5, maxWidth: 280, margin: "0 auto" }}>
+        This pane calculates your net proceeds from selling a property, including commission, closing costs, and capital gains tax estimates.
+       </div>
+       <div style={{
+        marginTop: 16, padding: 14, borderRadius: 12,
+        background: T.successBg, border: `1px solid ${T.successBorder}`,
+       }}>
+        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
+         Current Net Proceeds
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.green }}>
+         {fmt(calc.sellNetAfterTax)}
+        </div>
+       </div>
+       <div style={{
+        marginTop: 12, fontSize: 11, color: T.textTertiary,
+        fontFamily: "'JetBrains Mono', monospace",
+       }}>
+        Pane: {paneId} · Uses current Seller Net data
+       </div>
+      </div>
+     </div>
+    );
+   }}
+  />
+ </div>
+)}
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
  <div style={{ marginTop: 12 }}>
@@ -8296,5 +8390,6 @@ export default function MortgageBlueprint({ initialState }) {
    })()}
   </div>{/* end main content wrapper */}
   </div>
+  </WorkspaceProvider>
  );
 }
