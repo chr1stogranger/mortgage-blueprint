@@ -26,8 +26,9 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
   // Local state for inputs so badge updates live while typing
   const [localExtra, setLocalExtra] = useState(linkedValues.extraCash || 0);
   const [localHoldback, setLocalHoldback] = useState(linkedValues.holdbackAmount || 0);
-  const [editingExtra, setEditingExtra] = useState(null); // string while typing, null when idle
+  const [editingExtra, setEditingExtra] = useState(null);
   const [editingHoldback, setEditingHoldback] = useState(null);
+  const [glowing, setGlowing] = useState(true); // attention pulse until first interaction
 
   if (!isBSR && !isSB) return null;
   const netProceeds = linkedValues.sellNetAfterTax || 0;
@@ -60,14 +61,31 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
     fontWeight: 600, fontFamily: MONO, outline: "none",
   };
 
+  const dismissGlow = () => { if (glowing) setGlowing(false); };
+
   return (
-    <div style={{
+    <div onClick={dismissGlow} style={{
       position: "sticky", top: 0, zIndex: 30,
       background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
       borderBottom: `1px solid ${T.separator}`, padding: "10px 16px",
+      ...(glowing ? {
+        boxShadow: `0 0 0 2px ${T.blue}60, 0 0 20px ${T.blue}25, 0 4px 12px ${T.blue}15`,
+        border: `1px solid ${T.blue}50`,
+        borderBottom: `1px solid ${T.blue}50`,
+        animation: "proceedsGlow 2.5s ease-in-out infinite",
+      } : {}),
     }}>
+      {glowing && <style>{`@keyframes proceedsGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(99,102,241,0.4), 0 0 16px rgba(99,102,241,0.15); } 50% { box-shadow: 0 0 0 3px rgba(99,102,241,0.7), 0 0 28px rgba(99,102,241,0.3); } }`}</style>}
+      {glowing && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <Icon name="arrow-right" size={12} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
+            Review your proceeds flow and choose how to apply funds
+          </span>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary }}>
+        <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: glowing ? T.blue : T.textTertiary }}>
           Proceeds
         </span>
         <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmtBar(netProceeds)}</span>
