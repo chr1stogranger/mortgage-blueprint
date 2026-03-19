@@ -4038,7 +4038,7 @@ export default function MortgageBlueprint({ initialState }) {
         <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
         <div style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary }}>{fmt(calc.cashToClose)} to close</div>
        </div>
-       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
         {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
        <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", color: T.textSecondary }}>
@@ -7856,7 +7856,7 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {tab === "compare" && (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value="bar-chart" label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
+  <Hero value={<Icon name="bar-chart" size={34} />} label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
  </div>
  {/* ── Scenario Manager ── */}
  <Sec title="Your Loan Options" action="+ New" onAction={() => setNewScenarioName("New Option")}>
