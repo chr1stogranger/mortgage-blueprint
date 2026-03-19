@@ -116,124 +116,107 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate }) {
     }
   }, [calc.netProceeds, calc.netAfterTax]);
 
-  const [showCapGains, setShowCapGains] = useState(false);
-
   return (
-    <div style={{ padding: "16px 0" }}>
-      {/* Hero */}
-      <div style={{ marginBottom: 16, textAlign: "center" }}>
-        <div style={{
-          fontSize: 28, fontWeight: 800, fontFamily: FONT,
-          color: calc.netAfterTax >= 0 ? T.green : T.red,
-          letterSpacing: "-0.04em", lineHeight: 1,
-        }}>
+    <div style={{ padding: "12px 0" }}>
+      {/* Hero — compact */}
+      <div style={{ marginBottom: 12, textAlign: "center" }}>
+        <div style={{ fontSize: 26, fontWeight: 800, fontFamily: FONT, color: calc.netAfterTax >= 0 ? T.green : T.red, letterSpacing: "-0.04em", lineHeight: 1 }}>
           {fmt(calc.netAfterTax)}
         </div>
-        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4, fontFamily: FONT }}>
-          Net After Tax
-          {calc.totalCapGainsTax > 0 && <span style={{ color: T.orange }}> · {fmt(calc.totalCapGainsTax)} cap gains</span>}
+        <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 3, fontFamily: FONT }}>
+          Net After Tax{calc.totalCapGainsTax > 0 && <span style={{ color: T.orange }}> · {fmt(calc.totalCapGainsTax)} cap gains</span>}
         </div>
       </div>
 
-      {/* Quick metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
+      {/* Quick metrics — tighter */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, marginBottom: 10 }}>
         {[
           { label: "Net", value: fmt(calc.netProceeds), color: T.green },
           { label: "Costs", value: fmt(calc.totalCosts), color: T.red },
           { label: "Comm", value: fmt(calc.commAmt), color: T.text },
         ].map((m, i) => (
-          <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.pillBg, borderRadius: 10 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
-            <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
+          <div key={i} style={{ textAlign: "center", padding: "6px 4px", background: T.pillBg, borderRadius: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
+            <div style={{ fontSize: 8, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Sale Details */}
+      {/* Sale Details — compact with 2-col grids */}
       <PaneCard>
-        <PaneInp label="Sale Price" value={sellPrice} onChange={setSellPrice} />
-        <PaneInp label="Mortgage Payoff" value={mortgagePayoff} onChange={setMortgagePayoff} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <PaneInp label="Sale Price" value={sellPrice} onChange={setSellPrice} />
+          <PaneInp label="Mortgage Payoff" value={mortgagePayoff} onChange={setMortgagePayoff} />
+        </div>
         <PaneInp label="Commission %" value={commission} onChange={setCommission} prefix="" suffix="%" step={0.25} max={10} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <PaneInp label="Escrow" value={escrowCost} onChange={setEscrowCost} />
           <PaneInp label="Title" value={titleCost} onChange={setTitleCost} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <PaneInp label="Other Costs" value={otherCosts} onChange={setOtherCosts} />
           <PaneInp label="Seller Credit" value={sellerCredit} onChange={setSellerCredit} />
         </div>
       </PaneCard>
 
-      {/* Summary */}
-      <PaneCard style={{ background: calc.netAfterTax >= 0 ? T.successBg : T.errorBg }}>
+      {/* Summary — compact */}
+      <PaneCard style={{ background: calc.netAfterTax >= 0 ? T.successBg : T.errorBg, padding: 10 }}>
         <PaneRow label="Sale Price" value={fmt(sellPrice)} bold />
         <PaneRow label="Mortgage Payoff" value={`-${fmt(mortgagePayoff)}`} color={T.red} />
         <PaneRow label="Total Costs" value={`-${fmt(calc.totalCosts)}`} color={T.red} />
-        <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+        <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 3, paddingTop: 3 }}>
           <PaneRow label="Net Proceeds" value={fmt(calc.netProceeds)} color={calc.netProceeds >= 0 ? T.green : T.red} bold />
         </div>
-        {calc.totalCapGainsTax > 0 && (
-          <PaneRow label="Est. Cap Gains Tax" value={`-${fmt(calc.totalCapGainsTax)}`} color={T.red} />
-        )}
-        <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+        {calc.totalCapGainsTax > 0 && <PaneRow label="Cap Gains Tax" value={`-${fmt(calc.totalCapGainsTax)}`} color={T.red} />}
+        <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 3, paddingTop: 3 }}>
           <PaneRow label="Net After Tax" value={fmt(calc.netAfterTax)} color={calc.netAfterTax >= 0 ? T.green : T.red} bold />
         </div>
       </PaneCard>
 
-      {/* Capital Gains toggle */}
-      <button onClick={() => setShowCapGains(!showCapGains)} style={{
-        width: "100%", background: "none", border: `1px solid ${T.separator}`,
-        borderRadius: 10, padding: "8px 12px", cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        color: T.textSecondary, fontSize: 12, fontWeight: 500, fontFamily: FONT,
-      }}>
-        <span>Capital Gains Estimate</span>
-        <Icon name={showCapGains ? "chevron-down" : "chevron-right"} size={14} />
-      </button>
-
-      {showCapGains && (
-        <PaneCard style={{ marginTop: 8 }}>
-          <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} />
-          <PaneInp label="Capital Improvements" value={improvements} onChange={setImprovements} />
+      {/* Capital Gains — inline, always visible, compact */}
+      <PaneCard style={{ padding: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
+          Capital Gains Estimate
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <PaneInp label="Purchase Price" value={costBasis} onChange={setCostBasis} />
+          <PaneInp label="Improvements" value={improvements} onChange={setImprovements} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, alignItems: "end" }}>
           <PaneInp label="Years Owned" value={yearsOwned} onChange={setYearsOwned} prefix="" suffix="yrs" step={1} max={50} />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-            <span style={{ fontSize: 12, fontWeight: 500, color: T.text }}>Primary Residence?</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 0 10px", marginBottom: 0 }}>
+            <span style={{ fontSize: 10, color: T.textSecondary }}>Primary</span>
             <button onClick={() => setPrimaryRes(!primaryRes)} style={{
-              width: 44, height: 24, borderRadius: 12, border: "none",
+              width: 36, height: 20, borderRadius: 10, border: "none",
               background: primaryRes ? T.green : T.inputBg, cursor: "pointer", position: "relative",
             }}>
-              <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", position: "absolute", top: 3, left: primaryRes ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+              <div style={{ width: 14, height: 14, borderRadius: 7, background: "#fff", position: "absolute", top: 3, left: primaryRes ? 19 : 3, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
             </button>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-            <span style={{ fontSize: 12, fontWeight: 500, color: T.text }}>Married Filing Jointly?</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 0 10px" }}>
+            <span style={{ fontSize: 10, color: T.textSecondary }}>MFJ</span>
             <button onClick={() => setMarried(!married)} style={{
-              width: 44, height: 24, borderRadius: 12, border: "none",
+              width: 36, height: 20, borderRadius: 10, border: "none",
               background: married ? T.green : T.inputBg, cursor: "pointer", position: "relative",
             }}>
-              <div style={{ width: 18, height: 18, borderRadius: 9, background: "#fff", position: "absolute", top: 3, left: married ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+              <div style={{ width: 14, height: 14, borderRadius: 7, background: "#fff", position: "absolute", top: 3, left: married ? 19 : 3, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
             </button>
           </div>
-          {calc.taxableGain > 0 && (
-            <div style={{ marginTop: 8, borderTop: `1px solid ${T.separator}`, paddingTop: 8 }}>
-              <PaneRow label="Gross Gain" value={fmt(calc.grossGain)} color={calc.grossGain > 0 ? T.green : T.text} />
-              {calc.exclusionLimit > 0 && <PaneRow label={`Exclusion (${married ? "MFJ" : "Single"})`} value={`-${fmt(calc.exclusionLimit)}`} color={T.green} />}
-              <PaneRow label="Taxable Gain" value={fmt(calc.taxableGain)} color={T.orange} bold />
-              <PaneRow label="Federal" value={fmt(calc.fedTax)} sub={`${(calc.fedRate * 100).toFixed(0)}%`} color={T.red} />
-              <PaneRow label="State (CA)" value={fmt(calc.stateTax)} sub="9.3%" color={T.red} />
-              {calc.niit > 0 && <PaneRow label="NIIT" value={fmt(calc.niit)} sub="3.8%" color={T.red} />}
-              <PaneRow label="Total Tax" value={fmt(calc.totalCapGainsTax)} bold color={T.red} />
+        </div>
+        {/* Result — inline */}
+        {calc.taxableGain > 0 ? (
+          <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 6, marginTop: 2 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+              <PaneRow label="Taxable Gain" value={fmt(calc.taxableGain)} color={T.orange} />
+              <PaneRow label="Total Tax" value={fmt(calc.totalCapGainsTax)} color={T.red} bold />
             </div>
-          )}
-          {calc.taxableGain === 0 && calc.grossGain > 0 && (
-            <div style={{ marginTop: 8, padding: 10, borderRadius: 10, background: T.successBg }}>
-              <div style={{ fontSize: 11, color: T.green, fontWeight: 600 }}>
-                Entire gain excluded under IRC §121. No capital gains tax.
-              </div>
-            </div>
-          )}
-        </PaneCard>
-      )}
+          </div>
+        ) : calc.grossGain > 0 ? (
+          <div style={{ padding: "6px 8px", borderRadius: 8, background: T.successBg, marginTop: 4, fontSize: 10, color: T.green, fontWeight: 600, textAlign: "center" }}>
+            Gain excluded under IRC §121 — no tax
+          </div>
+        ) : null}
+      </PaneCard>
     </div>
   );
 }
