@@ -102,7 +102,7 @@ export default function WorkspaceSelector({ T, isDesktop }) {
         <div style={{
           fontSize: 14, color: T.textSecondary, marginTop: 8, lineHeight: 1.5,
         }}>
-          Compare loan scenarios side by side or model complex life events like buying and selling simultaneously.
+          Compare loan scenarios side by side or model complex life events like buying then selling.
         </div>
       </div>
 
