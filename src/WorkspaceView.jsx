@@ -23,20 +23,29 @@ const fmtBar = (v) => "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
 function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
   const isBSR = workspaceMode === WORKSPACE_MODES.BUY_SELL_REFI;
   const isSB = workspaceMode === WORKSPACE_MODES.SELL_BUY;
+  // Local state for inputs so badge updates live while typing
+  const [localExtra, setLocalExtra] = useState(linkedValues.extraCash || 0);
+  const [localHoldback, setLocalHoldback] = useState(linkedValues.holdbackAmount || 0);
+  const [editingExtra, setEditingExtra] = useState(null); // string while typing, null when idle
+  const [editingHoldback, setEditingHoldback] = useState(null);
+
   if (!isBSR && !isSB) return null;
   const netProceeds = linkedValues.sellNetAfterTax || 0;
   if (netProceeds <= 0) return null;
 
   const mode = linkedValues.proceedsMode || "all";
   const closingCosts = linkedValues.purchaseClosingCosts || 0;
-  const extraCash = linkedValues.extraCash || 0;
-  const holdback = linkedValues.holdbackAmount || 0;
   const availableForDown = netProceeds - closingCosts;
+
+  // Use local values for live badge calculation
   let finalDown;
-  if (mode === "add-extra") finalDown = availableForDown + extraCash;
-  else if (mode === "hold-back") finalDown = availableForDown - holdback;
+  if (mode === "add-extra") finalDown = availableForDown + localExtra;
+  else if (mode === "hold-back") finalDown = availableForDown - localHoldback;
   else finalDown = availableForDown;
   finalDown = Math.max(0, finalDown);
+
+  const fmtComma = (n) => { if (!n) return ""; return Math.round(n).toLocaleString("en-US"); };
+  const parseNum = (s) => parseInt(String(s).replace(/,/g, "")) || 0;
 
   const pillStyle = (active) => ({
     padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
@@ -47,7 +56,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
   });
   const inputStyle = {
     background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8,
-    padding: "4px 8px", width: 100, color: T.text, fontSize: 12,
+    padding: "4px 8px", width: 110, color: T.text, fontSize: 12,
     fontWeight: 600, fontFamily: MONO, outline: "none",
   };
 
@@ -57,35 +66,45 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
       background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
       borderBottom: `1px solid ${T.separator}`, padding: "10px 16px",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary }}>
-          Proceeds Flow
+          Proceeds
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmtBar(netProceeds)}</span>
-          <span style={{ fontSize: 11, color: T.textTertiary }}>net</span>
+        <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmtBar(netProceeds)}</span>
+        <span style={{ fontSize: 11, color: T.textTertiary }}>net</span>
+        <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
+        <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.red }}>{fmtBar(closingCosts)}</span>
+        <span style={{ fontSize: 11, color: T.textTertiary }}>closing</span>
+        {mode === "add-extra" && localExtra > 0 && (<>
+          <span style={{ fontSize: 11, color: T.textTertiary }}>+</span>
+          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.blue }}>{fmtBar(localExtra)}</span>
+          <span style={{ fontSize: 11, color: T.textTertiary }}>extra</span>
+        </>)}
+        {mode === "hold-back" && localHoldback > 0 && (<>
           <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
-          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.red }}>{fmtBar(closingCosts)}</span>
-          <span style={{ fontSize: 11, color: T.textTertiary }}>closing</span>
-          <span style={{ fontSize: 11, color: T.textTertiary }}>=</span>
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.blue }}>{fmtBar(availableForDown)}</span>
-          <span style={{ fontSize: 11, color: T.textTertiary }}>for down</span>
-        </div>
+          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.orange }}>{fmtBar(localHoldback)}</span>
+          <span style={{ fontSize: 11, color: T.textTertiary }}>holdback</span>
+        </>)}
+        <span style={{ fontSize: 11, color: T.textTertiary }}>=</span>
+        <span style={{ fontSize: 13, fontWeight: 800, fontFamily: MONO, color: T.green }}>{fmtBar(finalDown)}</span>
+        <span style={{ fontSize: 11, color: T.textTertiary }}>down payment</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, color: T.textSecondary }}>Additional funds?</span>
         <div style={{ display: "flex", gap: 3 }}>
-          <button onClick={() => updateLinkedValue("proceedsMode", "all")} style={pillStyle(mode === "all")}>Use All</button>
-          <button onClick={() => updateLinkedValue("proceedsMode", "add-extra")} style={pillStyle(mode === "add-extra")}>+ Add Extra</button>
-          <button onClick={() => updateLinkedValue("proceedsMode", "hold-back")} style={pillStyle(mode === "hold-back")}>- Hold Back</button>
+          <button onClick={() => { updateLinkedValue("proceedsMode", "all"); setLocalExtra(0); setLocalHoldback(0); updateLinkedValue("extraCash", 0); updateLinkedValue("holdbackAmount", 0); }} style={pillStyle(mode === "all")}>Use All</button>
+          <button onClick={() => { updateLinkedValue("proceedsMode", "add-extra"); setLocalHoldback(0); updateLinkedValue("holdbackAmount", 0); }} style={pillStyle(mode === "add-extra")}>+ Add Extra</button>
+          <button onClick={() => { updateLinkedValue("proceedsMode", "hold-back"); setLocalExtra(0); updateLinkedValue("extraCash", 0); }} style={pillStyle(mode === "hold-back")}>- Hold Back</button>
         </div>
         {mode === "add-extra" && (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 11, color: T.textSecondary }}>How much?</span>
             <span style={{ fontSize: 12, color: T.textSecondary }}>$</span>
             <input type="text" inputMode="decimal"
-              defaultValue={extraCash > 0 ? extraCash.toLocaleString("en-US") : ""}
-              onBlur={(e) => updateLinkedValue("extraCash", parseInt(e.target.value.replace(/,/g, "")) || 0)}
+              value={editingExtra !== null ? editingExtra : fmtComma(localExtra)}
+              onFocus={() => setEditingExtra(localExtra > 0 ? String(localExtra) : "")}
+              onChange={(e) => { const raw = e.target.value.replace(/,/g, ""); if (raw === "" || /^\d*$/.test(raw)) { setEditingExtra(raw); const n = parseNum(raw); setLocalExtra(n); } }}
+              onBlur={() => { setEditingExtra(null); updateLinkedValue("extraCash", localExtra); }}
               onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
               style={inputStyle} placeholder="0" />
           </div>
@@ -95,8 +114,10 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
             <span style={{ fontSize: 11, color: T.textSecondary }}>How much?</span>
             <span style={{ fontSize: 12, color: T.textSecondary }}>$</span>
             <input type="text" inputMode="decimal"
-              defaultValue={holdback > 0 ? holdback.toLocaleString("en-US") : ""}
-              onBlur={(e) => updateLinkedValue("holdbackAmount", parseInt(e.target.value.replace(/,/g, "")) || 0)}
+              value={editingHoldback !== null ? editingHoldback : fmtComma(localHoldback)}
+              onFocus={() => setEditingHoldback(localHoldback > 0 ? String(localHoldback) : "")}
+              onChange={(e) => { const raw = e.target.value.replace(/,/g, ""); if (raw === "" || /^\d*$/.test(raw)) { setEditingHoldback(raw); const n = parseNum(raw); setLocalHoldback(n); } }}
+              onBlur={() => { setEditingHoldback(null); updateLinkedValue("holdbackAmount", localHoldback); }}
               onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
               style={inputStyle} placeholder="0" />
           </div>
