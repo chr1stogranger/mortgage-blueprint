@@ -406,8 +406,8 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       {/* Quick metrics strip */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 16 }}>
         {[
-          { label: "Loan", value: fmt(effectiveLoan), color: T.text },
-          { label: "LTV", value: pct(isRefiMode ? (calc.adjustedLoan / salesPrice) : calc.ltv, 0), color: calc.ltv > 0.80 ? T.orange : T.green },
+          { label: isRefiMode && calc.proceedsApplied > 0 ? "New Loan" : "Loan", value: fmt(effectiveLoan), color: isRefiMode && calc.proceedsApplied > 0 ? T.green : T.text },
+          { label: "LTV", value: pct(isRefiMode && calc.proceedsApplied > 0 ? (calc.adjustedLoan / salesPrice) : calc.ltv, 0), color: (isRefiMode ? calc.adjustedLoan / salesPrice : calc.ltv) > 0.80 ? T.orange : T.green },
           { label: "Rate", value: rate + "%", color: T.blue },
         ].map((m, i) => (
           <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.pillBg, borderRadius: 10 }}>
@@ -435,10 +435,43 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       {activeSection === "inputs" && (
         <PaneCard>
           <PaneInp label={isRefiMode ? "Property Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} tip={isRefiMode ? "Current appraised value of the property being refinanced." : "The sale price or appraised value of the property."} glow />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <PaneInp label={isRefiMode ? "Paydown %" : "Down %"} value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.5} max={100} />
-            <PaneInp label={isRefiMode ? "Paydown $" : "Down $"} value={Math.round(salesPrice * downPct / 100)} onChange={v => setDownPct(salesPrice > 0 ? Math.round(v / salesPrice * 10000) / 100 : 0)} />
-          </div>
+          {/* Refi mode with proceeds: show proceeds summary instead of down payment fields */}
+          {isRefiMode && calc.proceedsApplied > 0 ? (
+            <div style={{
+              background: `${T.green}08`, border: `1px solid ${T.green}20`,
+              borderRadius: 10, padding: "10px 12px", marginBottom: 10,
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.green, marginBottom: 6 }}>
+                Refi Paydown from Sale Proceeds
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>Original Loan</span>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(calc.loan)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>Proceeds Applied</span>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.green }}>-{fmt(calc.proceedsApplied)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>Refi Closing Costs</span>
+                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.orange }}>+{fmt(4500)}</span>
+              </div>
+              <div style={{ borderTop: `2px solid ${T.green}30`, marginTop: 4, paddingTop: 6, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>New Loan</span>
+                <span style={{ fontSize: 16, fontWeight: 800, fontFamily: MONO, color: T.green }}>{fmt(calc.adjustedLoan)}</span>
+              </div>
+              {salesPrice > 0 && (
+                <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4, textAlign: "right" }}>
+                  {((calc.adjustedLoan / salesPrice) * 100).toFixed(1)}% LTV
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <PaneInp label="Down %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.5} max={100} />
+              <PaneInp label="Down $" value={Math.round(salesPrice * downPct / 100)} onChange={v => setDownPct(salesPrice > 0 ? Math.round(v / salesPrice * 10000) / 100 : 0)} />
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <PaneInp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.125} max={15} />
             <PaneSel label="Term" value={term} onChange={v => setTerm(Number(v))} options={[{value: 30, label: "30 yr"}, {value: 20, label: "20 yr"}, {value: 15, label: "15 yr"}, {value: 10, label: "10 yr"}]} />
