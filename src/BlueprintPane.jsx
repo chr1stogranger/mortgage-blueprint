@@ -181,10 +181,10 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
     // P&I
     const pi = calcPI(loan, rate, term);
 
-    // Property tax
+    // Property tax — CA_CITY_TAX_RATES are already decimals (e.g. 0.012127 = 1.2127%)
     let yearlyTax;
     if (propertyState === "California" && CA_CITY_TAX_RATES[city]) {
-      yearlyTax = salesPrice * (CA_CITY_TAX_RATES[city] / 100);
+      yearlyTax = salesPrice * CA_CITY_TAX_RATES[city];
     } else {
       const stateRate = STATE_PROPERTY_TAX_RATES[propertyState] || 0.0125;
       yearlyTax = salesPrice * stateRate;

@@ -1176,6 +1176,54 @@ function ConstructionHouse({ stagesComplete, total }) {
   </svg>
  );
 }
+// ═══ WORKSPACE HOST ═══
+// Bridge component: lives inside WorkspaceProvider, uses useWorkspace() to
+// wire BlueprintPane and SellerNetPane callbacks to the shared context.
+function WorkspaceHost({ T, isDesktop, sidebarW }) {
+ const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues } = useWorkspace();
+ return (
+  <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
+   <WorkspaceView
+    T={T}
+    isDesktop={isDesktop}
+    renderBlueprintPane={(paneId, paneConfig) => (
+     <BlueprintPane
+      theme={T}
+      paneId={paneId}
+      paneConfig={paneConfig}
+      isRefiMode={paneConfig.type === "blueprint-refi"}
+      linkedValues={paneConfig.type === "blueprint-refi" ? linkedValues : undefined}
+      onCalcUpdate={(id, calcObj) => {
+       updatePaneCalc(id, calcObj);
+       // If this is the purchase pane, push loan details to linked values
+       if (paneConfig.type === "blueprint-purchase" || paneConfig.type === "blueprint") {
+        updateLinkedValue("purchaseLoanAmount", calcObj.loan);
+        updateLinkedValue("purchasePropertyValue", calcObj.dp + calcObj.loan);
+       }
+      }}
+      onStateUpdate={(id, stateObj) => {
+       updatePaneState(id, stateObj);
+       if (paneConfig.type === "blueprint-purchase" || paneConfig.type === "blueprint") {
+        updateLinkedValue("purchaseRate", stateObj.rate);
+        updateLinkedValue("purchaseSalesPrice", stateObj.salesPrice);
+       }
+      }}
+     />
+    )}
+    renderSellerNetPane={(paneId, paneConfig) => (
+     <SellerNetPane
+      theme={T}
+      paneId={paneId}
+      onNetProceedsUpdate={(vals) => {
+       updateLinkedValue("sellNetProceeds", vals.sellNetProceeds);
+       updateLinkedValue("sellNetAfterTax", vals.sellNetAfterTax);
+      }}
+     />
+    )}
+   />
+  </div>
+ );
+}
 export default function MortgageBlueprint({ initialState }) {
  // ── Auth context (from BlueprintAuth wrapper) ──
  const auth = useBlueprintAuth();
@@ -6055,36 +6103,7 @@ export default function MortgageBlueprint({ initialState }) {
 </>)}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <div style={{ position: "fixed", inset: 0, left: sidebarCollapsed ? 56 : 180, zIndex: 100, background: T.bg }}>
-  <WorkspaceView
-   T={T}
-   isDesktop={isDesktop}
-   renderBlueprintPane={(paneId, paneConfig) => (
-    <BlueprintPane
-     theme={T}
-     paneId={paneId}
-     paneConfig={paneConfig}
-     isRefiMode={paneConfig.type === "blueprint-refi"}
-     onCalcUpdate={(id, calcObj) => {
-      // Update workspace context with this pane's calc results
-      if (typeof window.__workspaceCalcUpdate === "function") window.__workspaceCalcUpdate(id, calcObj);
-     }}
-     onStateUpdate={(id, stateObj) => {
-      if (typeof window.__workspaceStateUpdate === "function") window.__workspaceStateUpdate(id, stateObj);
-     }}
-    />
-   )}
-   renderSellerNetPane={(paneId, paneConfig) => (
-    <SellerNetPane
-     theme={T}
-     paneId={paneId}
-     onNetProceedsUpdate={(vals) => {
-      if (typeof window.__workspaceNetProceedsUpdate === "function") window.__workspaceNetProceedsUpdate(vals);
-     }}
-    />
-   )}
-  />
- </div>
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} />
 )}
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
