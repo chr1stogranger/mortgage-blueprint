@@ -16,6 +16,8 @@ import {
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
 import LockControls from "./components/LockControls";
+import VersionTimeline from "./components/VersionTimeline";
+import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
@@ -1246,16 +1248,24 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
   </div>
  );
 }
-export default function MortgageBlueprint({ initialState }) {
- // ── Auth context (from BlueprintAuth wrapper) ──
- const auth = useBlueprintAuth();
- const isCloud = auth?.isAuthenticated && !auth?.localMode;
+export default function MortgageBlueprint({ initialState, borrowerMode }) {
+ // ── Borrower mode detection ──
+ const isBorrower = !!borrowerMode?.enabled;
+
+ // ── Auth context (from BlueprintAuth wrapper — unused in borrower mode) ──
+ const rawAuth = useBlueprintAuth(); // Always called (React hook rules)
+ const auth = isBorrower ? null : rawAuth;
+ const isCloud = isBorrower ? true : (auth?.isAuthenticated && !auth?.localMode);
 
  // ── Borrower state (Supabase-synced when authenticated) ──
- const [activeBorrower, setActiveBorrower] = useState(null);    // { id, name, email, ... }
+ const [activeBorrower, setActiveBorrower] = useState(
+  isBorrower ? (borrowerMode.borrower || {}) : null
+ );
  const [borrowerList, setBorrowerList] = useState([]);           // [ { id, name, email, status }, ... ]
  const [borrowerLoading, setBorrowerLoading] = useState(false);
- const [activeScenarioId, setActiveScenarioId] = useState(null); // Supabase UUID for current scenario
+ const [activeScenarioId, setActiveScenarioId] = useState(
+  isBorrower ? (borrowerMode.scenarioId || null) : null
+ );
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
  const supabaseSaveTimer = useRef(null);
 
@@ -1267,14 +1277,40 @@ export default function MortgageBlueprint({ initialState }) {
   scenarioId: activeScenarioId,
   getState: () => getStateRef.current ? getStateRef.current() : {},
   loadState: (s) => loadStateRef.current && loadStateRef.current(s),
-  userInfo: {
+  userInfo: isBorrower ? {
+   email: borrowerMode.account?.email || '',
+   name: borrowerMode.account?.name || '',
+   avatarUrl: borrowerMode.account?.picture || '',
+  } : {
    email: auth?.user?.email || '',
    name: auth?.user?.name || '',
    avatarUrl: auth?.user?.picture || '',
   },
-  userType: 'lo',
-  enabled: isCloud && !!activeBorrower && !!activeScenarioId,
+  userType: isBorrower ? 'borrower' : 'lo',
+  shareToken: isBorrower ? borrowerMode.shareToken : null,
+  enabled: isBorrower
+   ? !!activeScenarioId
+   : (isCloud && !!activeBorrower && !!activeScenarioId),
  });
+
+ // ── Version History (Phase 3) ──
+ const versionHistoryHook = useVersionHistory({
+  scenarioId: activeScenarioId,
+  userType: isBorrower ? 'borrower' : 'lo',
+  enabled: isCloud && !!activeScenarioId,
+  onRevert: (fields) => {
+   if (loadStateRef.current) loadStateRef.current(fields);
+   sync.scheduleSync();
+  },
+ });
+ const versionHistory = versionHistoryHook.history;
+ const versionBookmarks = versionHistoryHook.bookmarks;
+ const handleVersionUndo = versionHistoryHook.undo;
+ const handleVersionRevert = versionHistoryHook.revertTo;
+ const handleCreateBookmark = (label) => {
+  const state = getStateRef.current ? getStateRef.current() : null;
+  versionHistoryHook.createBookmark(label, state);
+ };
 
  // ── Desktop Detection ──
  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 900);
@@ -1766,6 +1802,20 @@ export default function MortgageBlueprint({ initialState }) {
  loadStateRef.current = loadState;
  useEffect(() => {
   (async () => {
+   // ── Borrower mode: load initialState directly, skip localStorage ──
+   if (isBorrower && initialState) {
+    loadState(initialState);
+    setScenarioList([borrowerMode.scenarios?.[0]?.name || "My Blueprint"]);
+    setScenarioName(borrowerMode.scenarios?.[0]?.name || "My Blueprint");
+    // Initialize sync baseline
+    if (activeScenarioId) {
+     sync.initSync(initialState, null);
+    }
+    setLoaded(true);
+    try { if (window.__FRED_API_KEY__) { setFredApiKey(window.__FRED_API_KEY__); } } catch(e) {}
+    return;
+   }
+
    try {
     const listResult = await LS.list("scenario:");
     const names = listResult?.keys?.map(k => k.replace("scenario:", "")) || [];
@@ -1908,14 +1958,17 @@ export default function MortgageBlueprint({ initialState }) {
   saveTimer.current = setTimeout(async () => {
    setSaving(true);
    const stateData = getState();
-   try {
-    await LS.set("scenario:" + scenarioName, JSON.stringify(stateData));
-    await LS.set("active-scenario", scenarioName);
-   } catch(e) {}
-   // ── Write-through to Supabase when authenticated + borrower selected ──
-   if (isCloud && activeBorrower) {
-    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
-    supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
+   // ── Borrower mode: skip localStorage, only sync via Realtime ──
+   if (!isBorrower) {
+    try {
+     await LS.set("scenario:" + scenarioName, JSON.stringify(stateData));
+     await LS.set("active-scenario", scenarioName);
+    } catch(e) {}
+    // ── Write-through to Supabase when authenticated + borrower selected ──
+    if (isCloud && activeBorrower) {
+     if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+     supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
+    }
    }
    // ── Real-time sync (pushes changes to other connected users) ──
    sync.scheduleSync();
@@ -3645,7 +3698,7 @@ export default function MortgageBlueprint({ initialState }) {
   ...(firstTimeBuyer && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
   ["summary","Share"],
-  ["settings","Settings"]];
+  ...(isBorrower ? [] : [["settings","Settings"]])];
  // Swipe navigation between tabs
  const visibleTabs = TABS.map(([k]) => k).filter(k => isTabUnlocked(k));
  const handleTouchStart = (e) => {
@@ -3762,8 +3815,8 @@ export default function MortgageBlueprint({ initialState }) {
     .bp-main-content::-webkit-scrollbar { width: 6px; }
     .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
    `}</style>
-   {/* ═══ DESKTOP SIDEBAR ═══ */}
-   {isDesktop && (
+   {/* ═══ DESKTOP SIDEBAR (hidden in borrower mode) ═══ */}
+   {isDesktop && !isBorrower && (
     <div className="bp-sidebar" style={{
      width: sidebarCollapsed ? 56 : 180, minWidth: sidebarCollapsed ? 56 : 180, height: "100vh", position: "sticky", top: 0,
      background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
@@ -3928,6 +3981,47 @@ export default function MortgageBlueprint({ initialState }) {
    {/* ═══ MAIN CONTENT AREA ═══ */}
    <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
+  {/* ── Borrower mode header bar ── */}
+  {isBorrower && (
+   <div style={{
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '10px 16px', margin: '8px 16px 0',
+    background: `linear-gradient(135deg, rgba(99,102,241,0.08), rgba(59,130,246,0.06))`,
+    border: `1px solid rgba(99,102,241,0.15)`,
+    borderRadius: 12, fontFamily: FONT,
+   }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+     <div style={{
+      width: 28, height: 28, borderRadius: 8,
+      background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: '0 0 12px rgba(99,102,241,0.2)',
+     }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+     </div>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
+       Your Blueprint
+      </div>
+      <div style={{ fontSize: 10, color: T.textSecondary, fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+       {borrowerMode.borrower?.name ? `Prepared for ${borrowerMode.borrower.name.split(' ')[0]}` : 'LIVE COLLABORATION'}
+      </div>
+     </div>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+     {sync.status === 'saving' && <span style={{ fontSize: 10, color: '#6366F1', fontStyle: 'italic' }}>syncing...</span>}
+     {sync.status === 'saved' && <span style={{ fontSize: 10, color: '#10B981' }}>saved</span>}
+     {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length + 1} online</span>}
+     <div style={{
+      width: 8, height: 8, borderRadius: '50%',
+      background: sync.status === 'error' ? '#EF4444' : '#10B981',
+      boxShadow: `0 0 6px ${sync.status === 'error' ? 'rgba(239,68,68,0.5)' : 'rgba(16,185,129,0.5)'}`,
+     }} />
+    </div>
+   </div>
+  )}
   {/* Real-time presence bar — shows who else is viewing this blueprint */}
   {sync.onlineUsers.length > 0 && (
    <div style={{ padding: '8px 16px 0' }}>
@@ -4162,8 +4256,8 @@ export default function MortgageBlueprint({ initialState }) {
        </button>
       </div>
      </div>
-     {/* ── Borrower Picker (only when authenticated) ── */}
-     {isCloud && (
+     {/* ── Borrower Picker (LO only — hidden in borrower mode) ── */}
+     {isCloud && !isBorrower && (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
        {auth?.userPill}
        <BorrowerPicker
@@ -6203,6 +6297,41 @@ export default function MortgageBlueprint({ initialState }) {
   <div style={{ padding: "12px 16px", background: T.warningBg, borderRadius: 12, marginBottom: 12 }}>
    <div style={{ fontSize: 12, color: T.orange, fontWeight: 600 }}>Apply Now available when a Loan Officer is set</div>
    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Add your LO name and email in Settings → Team.</div>
+  </div>
+ )}
+ {/* ── Collaboration Panel (LO only) ── */}
+ {isCloud && !isBorrower && activeScenarioId && (
+  <div style={{ marginTop: 16 }}>
+   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+    <div style={{ width: 4, height: 16, borderRadius: 2, background: 'linear-gradient(135deg, #6366F1, #3B82F6)' }} />
+    <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: MONO }}>COLLABORATION</span>
+   </div>
+   <LockControls
+    scenarioId={activeScenarioId}
+    lockedFields={sync.lockedFields}
+    userType="lo"
+    lockableSections={{
+     incomes: { label: 'Income', description: 'Annual income, sources, and frequency' },
+     debts: { label: 'Debts', description: 'Monthly debts, car payments, student loans' },
+     creditScore: { label: 'Credit Score', description: 'FICO score — verified from credit pull' },
+     assets: { label: 'Assets', description: 'Bank balances, retirement, gift funds' },
+     employmentInfo: { label: 'Employment', description: 'Employer, years at job, title' },
+    }}
+    onLockChange={(newLocked) => {
+     // Lock change is handled by LockControls component internally
+    }}
+   />
+   <div style={{ marginTop: 12 }}>
+    <VersionTimeline
+     history={versionHistory}
+     bookmarks={versionBookmarks}
+     onUndo={handleVersionUndo}
+     onRevertTo={handleVersionRevert}
+     onCreateBookmark={handleCreateBookmark}
+     userType="lo"
+     maxVisible={10}
+    />
+   </div>
   </div>
  )}
  <Card style={{ marginTop: 8, background: T.pillBg }}>

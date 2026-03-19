@@ -194,6 +194,19 @@ export async function verifyBorrowerMagicLink(token, email) {
   return res.json();
 }
 
+export async function authenticateBorrowerGoogle(credential, shareToken = null) {
+  const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential, share_token: shareToken }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Google sign-in failed');
+  }
+  return res.json();
+}
+
 export async function fetchBorrowerProfile(sessionToken) {
   const res = await fetch(`${API_BASE}/api/collab?resource=borrower-auth&action=me`, {
     headers: {
