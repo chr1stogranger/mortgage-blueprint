@@ -2573,7 +2573,7 @@ export default function MortgageBlueprint({ initialState }) {
    if (!guideTouched.has("location")) return "zip-code";
    if (creditScore === 0) return "fico-input";
    if (!guideTouched.has("filing-status")) return "filing-status";
-   if (!isRefi && salesPrice === 0) return "price-input";
+   if (!isRefi && !guideTouched.has("price-input")) return "price-input";
    if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
    if (!isRefi && !guideTouched.has("fthb")) return "fthb";
    return null;
@@ -3642,7 +3642,7 @@ export default function MortgageBlueprint({ initialState }) {
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
-    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; padding: 10px; margin: -10px; margin-bottom: 2px; }
+    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; padding: 5px; margin: -5px; margin-bottom: 2px; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
@@ -6286,8 +6286,8 @@ export default function MortgageBlueprint({ initialState }) {
     {/* 5+6) Price & Down Payment — side by side on desktop, purchase only */}
     {!isRefi && (
     <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } : { marginBottom: 10 }}>
-     <div data-field="price-input" className={isPulse("price-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-      <Inp label="Sales Price" value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+     <div data-field="price-input" className={isPulse("price-input")} onClick={() => markTouched("price-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+      <Inp label="Sales Price" value={salesPrice} onChange={v => { setSalesPrice(v); markTouched("price-input"); }} max={100000000} req />
      </div>
      <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
