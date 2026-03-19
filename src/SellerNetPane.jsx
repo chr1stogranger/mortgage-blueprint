@@ -70,8 +70,8 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
   // Capital gains
   const [costBasis, setCostBasis] = useState(600000);
   const [improvements, setImprovements] = useState(50000);
-  const [yearsOwned, setYearsOwned] = useState(10);
   const [primaryRes, setPrimaryRes] = useState(true);
+  const [holdingYears, setHoldingYears] = useState(0); // only used when primaryRes is false
   const [filingStatus, setFilingStatus] = useState(sharedFilingStatus || "MFJ");
 
   // Auto-fill filing status from main app
@@ -92,15 +92,38 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
     const isMFJ = filingStatus === "MFJ";
     const exclusionLimit = primaryRes ? (isMFJ ? 500000 : 250000) : 0;
     const taxableGain = Math.max(0, grossGain - exclusionLimit);
-    const isLongTerm = yearsOwned >= 1;
 
-    // Federal capital gains tax (simplified)
-    const fedRate = isLongTerm ? (taxableGain > 500000 ? 0.20 : taxableGain > 90000 ? 0.15 : 0) : 0.24;
-    const fedTax = taxableGain * fedRate;
-    // State (CA default ~9.3%)
+    // Short-term vs long-term determination:
+    // If primary res (lived 2 of 5) → always long-term by definition
+    // If not primary → use holdingYears: < 1 year = short-term, >= 1 year = long-term
+    const isLongTerm = primaryRes ? true : holdingYears >= 1;
+
+    // Federal capital gains tax
+    let fedRate, fedTax;
+    if (isLongTerm) {
+      // 2025 LTCG brackets (simplified — single vs MFJ)
+      if (isMFJ) {
+        fedRate = taxableGain > 583750 ? 0.20 : taxableGain > 94050 ? 0.15 : 0;
+      } else {
+        fedRate = taxableGain > 518900 ? 0.20 : taxableGain > 47025 ? 0.15 : 0;
+      }
+      fedTax = taxableGain * fedRate;
+    } else {
+      // Short-term: taxed as ordinary income — use estimated marginal rate
+      // Simplified brackets for the gain amount
+      if (isMFJ) {
+        fedRate = taxableGain > 383900 ? 0.32 : taxableGain > 190750 ? 0.24 : taxableGain > 89075 ? 0.22 : 0.12;
+      } else {
+        fedRate = taxableGain > 191950 ? 0.32 : taxableGain > 100525 ? 0.24 : taxableGain > 44725 ? 0.22 : 0.12;
+      }
+      fedTax = taxableGain * fedRate;
+    }
+
+    // State (CA default ~9.3% — CA taxes cap gains as ordinary income regardless of holding period)
     const stateTax = taxableGain * 0.093;
-    // NIIT
-    const niit = taxableGain > 200000 ? taxableGain * 0.038 : 0;
+    // NIIT (3.8% on investment income over $200K single / $250K MFJ)
+    const niitThreshold = isMFJ ? 250000 : 200000;
+    const niit = taxableGain > niitThreshold ? (taxableGain - niitThreshold) * 0.038 : 0;
     const totalCapGainsTax = fedTax + stateTax + niit;
     const netAfterTax = netProceeds - totalCapGainsTax;
 
@@ -110,7 +133,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
       isLongTerm, fedRate, fedTax, stateTax, niit, totalCapGainsTax,
       netAfterTax,
     };
-  }, [sellPrice, mortgagePayoff, commission, escrowCost, titleCost, otherCosts, sellerCredit, costBasis, improvements, yearsOwned, primaryRes, filingStatus]);
+  }, [sellPrice, mortgagePayoff, commission, escrowCost, titleCost, otherCosts, sellerCredit, costBasis, improvements, primaryRes, holdingYears, filingStatus]);
 
   // ── Report back to workspace ──
   useEffect(() => {
@@ -188,9 +211,8 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
           <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} />
           <PaneInp label="Improvements" value={improvements} onChange={setImprovements} />
         </div>
-        {/* Primary residence question + Filing Status — single row */}
+        {/* Q1: §121 qualifying question + Filing Status */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "end" }}>
-          {/* §121 qualifying question */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 10, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT, lineHeight: 1.3 }}>
               Lived here 2 of last 5 years?
@@ -208,7 +230,6 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
               ))}
             </div>
           </div>
-          {/* Filing Status — dropdown */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 10, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>Filing Status</div>
             <select value={filingStatus} onChange={e => setFilingStatus(e.target.value)} style={{
@@ -223,17 +244,36 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
             </select>
           </div>
         </div>
-        {/* Exemption result */}
+        {/* Q2: If No — how long owned? (determines short-term vs long-term) */}
+        {!primaryRes && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "end" }}>
+            <PaneInp label="How long have you owned it?" value={holdingYears} onChange={setHoldingYears} prefix="" suffix="yrs" step={0.5} max={50} />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{
+                padding: "6px 8px", borderRadius: 8,
+                background: holdingYears >= 1 ? `${T.blue}08` : `${T.orange}08`,
+                border: `1px solid ${holdingYears >= 1 ? `${T.blue}15` : `${T.orange}15`}`,
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.4, color: holdingYears >= 1 ? T.blue : T.orange }}>
+                  {holdingYears >= 1
+                    ? `Long-term rates apply (${(calc.fedRate * 100).toFixed(0)}% federal)`
+                    : `Short-term: taxed as ordinary income (~${(calc.fedRate * 100).toFixed(0)}%)`}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Exemption / tax status result */}
         {primaryRes && (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: `${T.green}08`, border: `1px solid ${T.green}15`, marginTop: 2, marginBottom: 4 }}>
             <div style={{ fontSize: 10, color: T.green, fontWeight: 600, lineHeight: 1.4 }}>
-              §121 Exclusion: Up to {filingStatus === "MFJ" ? "$500,000" : "$250,000"} of gain excluded from tax
+              §121 Exclusion: Up to {filingStatus === "MFJ" ? "$500,000" : "$250,000"} excluded · Long-term rates apply
             </div>
           </div>
         )}
         {!primaryRes && (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: T.warningBg, marginTop: 2, marginBottom: 4, fontSize: 10, color: T.orange, fontWeight: 600 }}>
-            No §121 exclusion — full gain is taxable
+            No §121 exclusion — full gain is taxable at {holdingYears >= 1 ? "long-term capital gains" : "ordinary income (short-term)"} rates
           </div>
         )}
         {/* Result — inline */}
