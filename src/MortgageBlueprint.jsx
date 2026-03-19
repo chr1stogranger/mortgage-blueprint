@@ -3642,7 +3642,7 @@ export default function MortgageBlueprint({ initialState }) {
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
-    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; padding: 5px; margin: -5px; margin-bottom: 2px; }
+    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; padding: 4px 5px; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
