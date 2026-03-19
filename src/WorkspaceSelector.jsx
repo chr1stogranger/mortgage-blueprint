@@ -36,6 +36,16 @@ const PANE_LAYOUTS = {
     { label: "Sell", color: "#F59E0B" },
     { label: "Buy", color: "#3B82F6" },
   ],
+  [WORKSPACE_MODES.REFI_RATE_TERM]: [
+    { label: "Now", color: "#EF4444" },
+    { label: "Refi", color: "#10B981" },
+    { label: "VS", color: "#6366F1" },
+  ],
+  [WORKSPACE_MODES.REFI_CASH_OUT]: [
+    { label: "Now", color: "#EF4444" },
+    { label: "Cash", color: "#F59E0B" },
+    { label: "VS", color: "#6366F1" },
+  ],
 };
 
 const ICONS = {
@@ -44,6 +54,8 @@ const ICONS = {
   [WORKSPACE_MODES.COMPARE_2_SUMMARY]: "bar-chart",
   [WORKSPACE_MODES.BUY_SELL_REFI]: "refresh-cw",
   [WORKSPACE_MODES.SELL_BUY]: "dollar",
+  [WORKSPACE_MODES.REFI_RATE_TERM]: "trending-down",
+  [WORKSPACE_MODES.REFI_CASH_OUT]: "banknote",
 };
 
 export default function WorkspaceSelector({ T, isDesktop }) {

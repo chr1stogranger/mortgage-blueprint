@@ -2607,6 +2607,7 @@ export default function MortgageBlueprint({ initialState }) {
    // Conditional tabs (refi, reo, sell, invest, rentvbuy) — unlock if their prerequisite is met AND parent area is unlocked
    if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 1; // need calc unlocked
    if (tabId === "reo") return unlockedIndex >= 6; // need assets area
+   if (tabId === "workspace") return unlockedIndex >= 7; // need qualify area
    if (tabId === "sell") return unlockedIndex >= 8; // need amort area
    if (tabId === "invest") return unlockedIndex >= 8;
    if (tabId === "rentvbuy") return unlockedIndex >= 8;
@@ -3611,12 +3612,12 @@ export default function MortgageBlueprint({ initialState }) {
   ...(ownsProperties ? [["reo","REO"]] : []),
   ["assets","Assets"],
   ["qualify","Qualify"],
+  ...(isDesktop ? [["workspace","Workspace"]] : []),
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
   ...(showInvestor ? [["invest","Investor"]] : []),
   ...(firstTimeBuyer && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
-  ...(isDesktop ? [["workspace","Workspace"]] : []),
   ["summary","Share"],
   ["settings","Settings"]];
  // Swipe navigation between tabs

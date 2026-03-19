@@ -9,6 +9,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useWorkspace, MODE_CONFIGS, WORKSPACE_MODES } from "./WorkspaceContext";
 import WorkspaceSelector from "./WorkspaceSelector";
 import ComparePane from "./ComparePane";
+import RefiComparePane from "./RefiComparePane";
 import DebtFreeSplash from "./DebtFreeSplash";
 import Icon from "./Icon";
 
@@ -275,6 +276,8 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
       case "blueprint":
       case "blueprint-purchase":
       case "blueprint-refi":
+      case "blueprint-current":
+      case "blueprint-cashout":
         // Check if this is the refi pane in Buy→Sell→Refi AND debt-free
         if (type === "blueprint-refi" && isDebtFree()) {
           return <DebtFreeSplash T={T} linkedValues={linkedValues} />;
@@ -296,6 +299,9 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
 
       case "compare-summary":
         return <ComparePane T={T} />;
+
+      case "refi-compare":
+        return <RefiComparePane T={T} />;
 
       default:
         return <div style={{ padding: 20, color: T.textTertiary }}>Unknown pane type: {type}</div>;

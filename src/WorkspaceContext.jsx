@@ -15,6 +15,8 @@ export const WORKSPACE_MODES = {
   COMPARE_2_SUMMARY: "compare-2-summary", // 2 Blueprints + Compare pane
   BUY_SELL_REFI: "buy-sell-refi", // Purchase | Seller Net | Refi (or Debt-Free)
   SELL_BUY: "sell-buy",           // Seller Net | Purchase
+  REFI_RATE_TERM: "refi-rate-term",   // Current Loan | Proposed Refi | Comparison
+  REFI_CASH_OUT: "refi-cash-out",     // Current Loan | Proposed Refi | Comparison
 };
 
 export const MODE_CONFIGS = {
@@ -64,6 +66,26 @@ export const MODE_CONFIGS = {
     panes: [
       { id: "left", type: "seller-net", label: "Seller Net" },
       { id: "right", type: "blueprint-purchase", label: "Purchase" },
+    ],
+  },
+  [WORKSPACE_MODES.REFI_RATE_TERM]: {
+    label: "Rate/Term Refi",
+    description: "Compare current loan to a new rate or term",
+    group: "Refinance Analysis",
+    panes: [
+      { id: "left", type: "blueprint-current", label: "Current Loan" },
+      { id: "center", type: "blueprint", label: "Proposed Refi" },
+      { id: "right", type: "refi-compare", label: "Comparison" },
+    ],
+  },
+  [WORKSPACE_MODES.REFI_CASH_OUT]: {
+    label: "Cash-Out Refi",
+    description: "Pull equity and compare to current loan",
+    group: "Refinance Analysis",
+    panes: [
+      { id: "left", type: "blueprint-current", label: "Current Loan" },
+      { id: "center", type: "blueprint-cashout", label: "Cash-Out Refi" },
+      { id: "right", type: "refi-compare", label: "Comparison" },
     ],
   },
 };
