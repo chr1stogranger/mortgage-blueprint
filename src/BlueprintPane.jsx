@@ -291,15 +291,23 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
     // Refi savings (if in refi mode)
     const refiMonthlySavings = isRefiMode && refiCurrentPayment > 0 ? refiCurrentPayment - displayPayment : 0;
 
-    // Apply proceeds paydown for refi mode
+    // Apply proceeds paydown for refi mode (Buy→Sell→Refi)
+    // Refi pays off the purchase loan, applies net proceeds as paydown,
+    // and adds ~$4,500 in refi closing costs to the new loan
+    const REFI_CLOSING_COSTS = 4500;
     let adjustedLoan = loan;
     let adjustedPayment = displayPayment;
+    let proceedsApplied = 0;
     if (isRefiMode && linkedValues) {
-      const proceeds = linkedValues.proceedsUseAll ? linkedValues.sellNetAfterTax : linkedValues.proceedsToApply;
+      // Use finalDownPayment from the proceeds flow (which already accounts for holdback/extra)
+      const proceeds = linkedValues.finalDownPayment || linkedValues.sellNetAfterTax || 0;
+      proceedsApplied = proceeds;
       if (proceeds > 0) {
-        adjustedLoan = Math.max(0, loan - proceeds);
+        // New refi loan = purchase loan - proceeds + refi closing costs rolled in
+        adjustedLoan = Math.max(0, loan - proceeds + REFI_CLOSING_COSTS);
+        const adjLTV = salesPrice > 0 ? adjustedLoan / salesPrice : 0;
         const adjPI = calcPI(adjustedLoan, rate, term);
-        const adjMI = loanType !== "VA" && (adjustedLoan / salesPrice) > 0.80 ? adjustedLoan * getPMIRate(adjustedLoan / salesPrice, creditScore) / 12 : 0;
+        const adjMI = loanType !== "VA" && adjLTV > 0.80 ? adjustedLoan * getPMIRate(adjLTV, creditScore) / 12 : 0;
         adjustedPayment = adjPI + monthlyTax + ins + adjMI + hoa;
       }
     }
@@ -347,7 +355,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       totalClosingCosts, cashToClose, prepaidInt, prepaidIns, initialEscrow, titleEscrow, origCharges,
       totalInt, totalIntStandard: totalInt,
       refiMonthlySavings,
-      adjustedLoan, adjustedPayment,
+      adjustedLoan, adjustedPayment, proceedsApplied,
       yourDTI, qualifyingIncome, monthlyDebts, monthlyIncome,
     };
   }, [salesPrice, downPct, rate, term, loanType, propType, city, propertyState, hoa, annualIns, creditScore, includeEscrow, isRefiMode, linkedValues, refiCurrentPayment, sharedIncomes, sharedDebts, sharedOtherIncome, sharedReos]);
@@ -422,7 +430,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       {/* ── INPUTS SECTION ── */}
       {activeSection === "inputs" && (
         <PaneCard>
-          <PaneInp label="Purchase Price" value={salesPrice} onChange={setSalesPrice} tip="The sale price or appraised value of the property." />
+          <PaneInp label="Purchase Price" value={salesPrice} onChange={setSalesPrice} tip="The sale price or appraised value of the property." glow />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <PaneInp label="Down %" value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.5} max={100} />
             <PaneInp label="Down $" value={Math.round(salesPrice * downPct / 100)} onChange={v => setDownPct(salesPrice > 0 ? Math.round(v / salesPrice * 10000) / 100 : 0)} />
@@ -486,11 +494,17 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         {isRefiMode && calc.adjustedLoan < calc.loan && (
           <PaneCard style={{ background: T.successBg, border: `1px solid ${T.successBorder}` }}>
             <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
-              After Proceeds Applied
+              Refi After Proceeds
             </div>
-            <PaneRow label="Adjusted Loan" value={fmt(calc.adjustedLoan)} color={T.green} bold />
-            <PaneRow label="New Payment" value={fmt(calc.adjustedPayment)} color={T.green} bold />
-            <PaneRow label="Savings" value={fmt(calc.housingPayment - calc.adjustedPayment) + "/mo"} color={T.green} />
+            <PaneRow label="Original Loan" value={fmt(calc.loan)} />
+            <PaneRow label="Proceeds Applied" value={`-${fmt(calc.proceedsApplied)}`} color={T.green} />
+            <PaneRow label="Refi Closing Costs" value={`+${fmt(4500)}`} sub="est." color={T.orange} />
+            <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
+              <PaneRow label="New Loan Amount" value={fmt(calc.adjustedLoan)} color={T.green} bold />
+              <PaneRow label="New Payment" value={fmt(calc.adjustedPayment)} color={T.green} bold />
+            </div>
+            <PaneRow label="Monthly Savings" value={fmt(calc.housingPayment - calc.adjustedPayment) + "/mo"} color={T.green} />
+            {salesPrice > 0 && <PaneRow label="New LTV" value={((calc.adjustedLoan / salesPrice) * 100).toFixed(1) + "%"} color={(calc.adjustedLoan / salesPrice) > 0.80 ? T.orange : T.green} />}
           </PaneCard>
         )}
       </>)}

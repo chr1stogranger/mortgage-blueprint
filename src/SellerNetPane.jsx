@@ -18,16 +18,34 @@ function fmt(v) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 }
 
-// ── Compact UI (same as BlueprintPane) ──
-function PaneInp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, tip }) {
+// ── Compact UI ──
+function InfoTip({ text }) {
+  const [open, setOpen] = useState(false);
+  return (<span style={{ position: "relative", display: "inline-flex", marginLeft: 5, verticalAlign: "middle" }}
+    onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <span onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o); }} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: open ? T.blue : `${T.blue}20`, color: open ? "#fff" : T.blue, fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: FONT, lineHeight: 1 }}>i</span>
+    {open && (
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div onClick={() => setOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)" }} />
+        <div style={{ position: "relative", zIndex: 1, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14, padding: 18, fontSize: 12, lineHeight: 1.6, color: T.textSecondary, width: "min(300px, 85vw)", boxShadow: "0 8px 30px rgba(0,0,0,0.25)", whiteSpace: "pre-line" }}>
+          {text}
+          <button onClick={() => setOpen(false)} style={{ marginTop: 10, width: "100%", padding: 8, background: T.blue, border: "none", borderRadius: 10, fontSize: 12, fontWeight: 600, color: "#fff", cursor: "pointer", fontFamily: FONT }}>Got it</button>
+        </div>
+      </div>
+    )}
+  </span>);
+}
+
+function PaneInp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, tip, glow }) {
   const [focused, setFocused] = useState(false);
   const [editStr, setEditStr] = useState(null);
   const fmtComma = (n) => { if (n === 0 || n === "") return ""; const parts = String(n).split("."); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return parts.join("."); };
   const clamp = (n) => { if (isNaN(n)) return 0; if (min !== undefined && n < min) return min; if (max !== undefined && n > max) return max; return n; };
   const display = editStr !== null ? editStr : (value === 0 && focused ? "" : fmtComma(value));
+  const glowStyle = glow && value === 0 ? { boxShadow: `0 0 0 2px ${T.blue}60, 0 0 12px ${T.blue}20`, border: `2px solid ${T.blue}` } : {};
   return (<div style={{ marginBottom: 10 }}>
-    {label && <div style={{ fontSize: 11, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>{label}</div>}
-    <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 10, padding: "8px 10px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}` }}>
+    {label && <div style={{ display: "flex", alignItems: "center", fontSize: 11, fontWeight: 500, color: glow && value === 0 ? T.blue : T.textSecondary, marginBottom: 4, fontFamily: FONT }}>{label}{glow && value === 0 && <span style={{ color: T.blue, marginLeft: 3, fontSize: 11, fontWeight: 700 }}>*</span>}{tip && <InfoTip text={tip} />}</div>}
+    <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 10, padding: "8px 10px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "all 0.3s", ...glowStyle }}>
       {prefix && <span style={{ color: T.textSecondary, fontSize: 14, fontWeight: 600, marginRight: 3 }}>{prefix}</span>}
       <input type="text" inputMode="decimal" value={display}
         onFocus={() => { setFocused(true); setEditStr(null); }}
@@ -174,7 +192,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
       {/* Sale Details — compact with 2-col grids */}
       <PaneCard>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          <PaneInp label="Sale Price" value={sellPrice} onChange={setSellPrice} />
+          <PaneInp label="Sale Price" value={sellPrice} onChange={setSellPrice} glow />
           <PaneInp label="Mortgage Payoff" value={mortgagePayoff} onChange={setMortgagePayoff} />
         </div>
         <PaneInp label="Commission %" value={commission} onChange={setCommission} prefix="" suffix="%" step={0.25} max={10} />
@@ -208,8 +226,8 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
           Capital Gains Estimate
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} />
-          <PaneInp label="Improvements" value={improvements} onChange={setImprovements} />
+          <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} glow />
+          <PaneInp label="Improvements" value={improvements} onChange={setImprovements} tip={"Capital improvements increase your cost basis, reducing taxable gain.\n\nIncludes: kitchen/bath remodel, new roof, room addition, HVAC, solar panels, hardscaping, new windows, seismic retrofit.\n\nDoes NOT include: painting, repairs, maintenance, appliance replacement, landscaping upkeep.\n\nIf unsure, $0 is safe — you'll just have a slightly higher taxable gain. Ask your CPA for exact amounts."} />
         </div>
         {/* Q1: §121 qualifying question + Filing Status */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "end" }}>
