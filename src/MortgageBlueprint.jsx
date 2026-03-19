@@ -16,6 +16,7 @@ import {
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
 import LockControls from "./components/LockControls";
+import BorrowerPicker from "./components/BorrowerPicker";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -4161,56 +4162,45 @@ export default function MortgageBlueprint({ initialState }) {
        </button>
       </div>
      </div>
-     {/* ── Borrower Picker (only when authenticated + borrowers exist) ── */}
+     {/* ── Borrower Picker (only when authenticated) ── */}
      {isCloud && (
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
        {auth?.userPill}
-       <select
-        value={activeBorrower?.id || ''}
-        onChange={async (e) => {
-         const id = e.target.value;
-         if (id === '__new__') {
-          const name = prompt("New borrower name:");
-          if (!name) return;
-          try {
-           const result = await createBorrower({ name, status: 'active' });
-           const newB = result?.[0] || result;
-           if (newB?.id) {
-            setBorrowerList(prev => [...prev, newB]);
-            setActiveBorrower(newB);
-            setActiveScenarioId(null);
-           }
-          } catch (err) { alert('Failed to create borrower: ' + err.message); }
-          return;
-         }
-         if (!id) { setActiveBorrower(null); setActiveScenarioId(null); return; }
-         const b = borrowerList.find(b => b.id === id);
-         setActiveBorrower(b || null);
+       <BorrowerPicker
+        borrowers={borrowerList}
+        activeBorrower={activeBorrower}
+        loading={borrowerLoading}
+        T={T}
+        onSelect={async (b) => {
+         if (!b) { setActiveBorrower(null); setActiveScenarioId(null); return; }
+         setActiveBorrower(b);
          setActiveScenarioId(null);
-         // Load first scenario for this borrower if exists
-         if (b) {
-          try {
-           const scenarios = await apiFetchScenarios(b.id);
-           if (scenarios?.length) {
-            const first = scenarios[0];
-            if (first.state_data) loadState(first.state_data);
-            setActiveScenarioId(first.id);
-            setScenarioName(first.name || 'Scenario 1');
-            // Initialize real-time sync baseline
-            sync.initSync(first.state_data, first.locked_fields);
-           }
-          } catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); }
-         }
+         // Load first scenario for this borrower
+         try {
+          const scenarios = await apiFetchScenarios(b.id);
+          if (scenarios?.length) {
+           const first = scenarios[0];
+           if (first.state_data) loadState(first.state_data);
+           setActiveScenarioId(first.id);
+           setScenarioName(first.name || 'Scenario 1');
+           sync.initSync(first.state_data, first.locked_fields);
+          }
+         } catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); }
         }}
-        style={{ flex: 1, maxWidth: 220, fontSize: 12, padding: "5px 8px", background: T.inputBg || T.pillBg, color: T.text, border: `1px solid ${T.border || '#30363d'}`, borderRadius: 8, fontFamily: "Inter, system-ui, sans-serif", cursor: "pointer" }}
-       >
-        <option value="">— Select Borrower —</option>
-        {borrowerList.map(b => (
-         <option key={b.id} value={b.id}>{b.name}{b.email ? ` (${b.email})` : ''}</option>
-        ))}
-        <option value="__new__">+ New Borrower</option>
-       </select>
-       {borrowerLoading && <span style={{ fontSize: 10, color: T.textTertiary }}>Loading...</span>}
+        onCreateNew={async (prefillName) => {
+         const name = prefillName || prompt("New borrower name:");
+         if (!name) return;
+         try {
+          const result = await createBorrower({ name, status: 'active' });
+          const newB = result?.[0] || result;
+          if (newB?.id) {
+           setBorrowerList(prev => [...prev, newB]);
+           setActiveBorrower(newB);
+           setActiveScenarioId(null);
+          }
+         } catch (err) { alert('Failed to create borrower: ' + err.message); }
+        }}
+       />
        {/* Copy Share Link button */}
        {activeBorrower?.share_token && (
         <button
