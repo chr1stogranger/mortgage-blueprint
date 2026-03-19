@@ -469,9 +469,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
             <PaneRow label="Down Payment" value={fmt(calc.dp)} sub={`${downPct}%`} bold />
           </div>
           <PaneRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} sub="lender + title" />
-          <PaneRow label="Prepaid Interest" value={fmt(calc.prepaidInt)} sub="~15 days" />
-          <PaneRow label="Prepaid Insurance" value={fmt(calc.prepaidIns)} />
-          <PaneRow label="Initial Escrow" value={fmt(calc.initialEscrow)} sub="~3 months" />
+          <PaneRow label="Prepaids + Escrow" value={fmt(calc.prepaidInt + calc.prepaidIns + calc.initialEscrow)} sub={`${fmt(calc.prepaidInt)} int · ${fmt(calc.prepaidIns)} ins · ${fmt(calc.initialEscrow)} escrow`} />
           <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
             <PaneRow label="Cash to Close" value={fmt(calc.cashToClose)} bold color={T.blue} />
           </div>
