@@ -130,13 +130,26 @@ The SharePortal currently shows a summary card view where borrowers can "adjust"
 
 The `onEnterFullCalculator` callback already exists in App.jsx — it does exactly this. We just need to gate it behind borrower auth and auto-trigger it instead of requiring a button click.
 
+**Decision: Offer BOTH Google sign-in AND magic link for borrowers.**
+- "Sign in with Google" button — one tap, zero friction, gets name + profile pic automatically. Any Google account can sign in (no allowlist like LO auth). The share token gates access to specific borrower data, not the Google auth.
+- "Or use your email" — magic link flow for borrowers who don't use Gmail or prefer not to connect Google.
+- Both methods create the same `borrower_accounts` record and session.
+- The sign-in screen shows Google button prominently, with magic link as secondary option below.
+
 The magic link auth is already built:
 - `BorrowerAccountPrompt.jsx` has the email input UI
 - `api/collab.js?resource=borrower-auth` handles request/verify/me endpoints
 - `borrower_accounts` table stores accounts + hashed magic tokens
 - Session tokens are signed HMAC-SHA256 with 30-day expiry
-- First visit: enter email, click link in inbox (~15 seconds)
+- First visit: enter email, click link in inbox (~15 seconds) OR one-tap Google sign-in
 - Return visits: session still valid, straight into calculator (zero friction)
+
+Google sign-in for borrowers still needs to be built:
+- Reuse the same Google Client ID (already authorized for blueprint.realstack.app)
+- On successful Google auth, look up or create `borrower_accounts` record by email
+- Link to the `borrowers` table via email match or share token
+- Issue the same HMAC session token so the rest of the flow is identical
+- No allowlist check — any Google account can sign in (access is gated by share token, not email)
 
 ### 1. Two-Step Borrower + Blueprint Picker (NEXT SESSION — START HERE)
 
