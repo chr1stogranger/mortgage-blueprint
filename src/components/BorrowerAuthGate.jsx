@@ -76,6 +76,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
   const [borrowerName, setBorrowerName] = useState('');
   const [sending, setSending] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
+  const [showMagicLink, setShowMagicLink] = useState(false);
   const scriptLoadedRef = useRef(false);
 
   // ── Step 1: Splash → Check existing session ────────────────────────────
@@ -414,8 +415,6 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
   }
 
   // ─── Render: Auth Screen (Google + Magic Link) ─────────────────────────
-  const [showMagicLink, setShowMagicLink] = useState(false);
-
   return (
     <div style={{
       minHeight: '100vh', background: T.bg,
