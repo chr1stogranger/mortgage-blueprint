@@ -2,8 +2,19 @@
 // Vercel Serverless Function — fetches property photos + description from RapidAPI
 // Endpoint: /api/propertydetails?zpid=12345678
 
+const ALLOWED_ORIGINS = [
+  "https://blueprint.realstack.app",
+  "https://mortgage-blueprint.vercel.app",
+  "http://localhost:5173", // local dev
+];
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "https://blueprint.realstack.app");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET");
   if (req.method === "OPTIONS") return res.status(200).end();
 
