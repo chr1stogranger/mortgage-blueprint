@@ -46,11 +46,24 @@ const GoogleIcon = () => (
   </svg>
 );
 
-// ─── Home Icon ────────────────────────────────────────────────────────────────
+// ─── RealStack Iso Stack Icon (from brand kit) ───────────────────────────────
 const HomeIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <polyline points="9 22 9 12 15 12 15 22" />
+  <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
+    <polygon points="50,8 12,28 50,20 88,28" fill="rgba(255,255,255,0.95)"/>
+    <polygon points="50,20 88,28 88,32 50,24" fill="rgba(255,255,255,0.48)"/>
+    <polygon points="12,28 50,20 50,24 12,32" fill="rgba(255,255,255,0.68)"/>
+    <polygon points="12,38 50,30 88,38 50,46" fill="rgba(255,255,255,0.90)"/>
+    <polygon points="50,46 88,38 88,41 50,49" fill="rgba(255,255,255,0.40)"/>
+    <polygon points="12,38 50,46 50,49 12,41" fill="rgba(255,255,255,0.58)"/>
+    <polygon points="12,52 50,44 88,52 50,60" fill="rgba(255,255,255,0.70)"/>
+    <polygon points="50,60 88,52 88,55 50,63" fill="rgba(255,255,255,0.28)"/>
+    <polygon points="12,52 50,60 50,63 12,55" fill="rgba(255,255,255,0.45)"/>
+    <polygon points="12,66 50,58 88,66 50,74" fill="rgba(255,255,255,0.50)"/>
+    <polygon points="50,74 88,66 88,69 50,77" fill="rgba(255,255,255,0.18)"/>
+    <polygon points="12,66 50,74 50,77 12,69" fill="rgba(255,255,255,0.32)"/>
+    <polygon points="12,80 50,72 88,80 50,88" fill="rgba(255,255,255,0.34)"/>
+    <polygon points="50,88 88,80 88,83 50,91" fill="rgba(255,255,255,0.10)"/>
+    <polygon points="12,80 50,88 50,91 12,83" fill="rgba(255,255,255,0.20)"/>
   </svg>
 );
 

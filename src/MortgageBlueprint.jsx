@@ -489,7 +489,7 @@ function FieldLabel({ label, tip, req, filled }) {
  if (!label) return null;
  return (<div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</div>);
 }
-function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req }) {
+function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder }) {
  const [focused, setFocused] = useState(false);
  const [editStr, setEditStr] = useState(null);
  const inputRef = useRef(null);
@@ -507,6 +507,7 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
   <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 12, padding: sm ? "10px 12px" : "12px 14px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT }}>{prefix}</span>}
    <input ref={inputRef} type="text" inputMode={isText ? "text" : "decimal"} value={display} onFocus={() => { setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) onChange(n); } }} min={isText ? undefined : min} step={isText ? undefined : step}
+    placeholder={placeholder || ""}
     style={{ background: "transparent", border: "none", outline: "none", color: T.text, fontSize: sm ? 15 : 17, fontWeight: isText ? 500 : 600, fontFamily: FONT, width: "100%", letterSpacing: "-0.02em" }} />
    {suffix && <span style={{ color: T.textTertiary, fontSize: 13, marginLeft: 6, fontFamily: FONT }}>{suffix}</span>}
   </div>
@@ -704,7 +705,7 @@ function StopLight({ checks, onPillarClick }) {
        <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}</span>
       </div>
       <div style={{ flex: 1 }}>
-       <div style={{ fontSize: 14, fontWeight: 700, color }}>{c.icon || ""} {c.fullLabel || c.label} — {statusText}</div>
+       <div style={{ fontSize: 14, fontWeight: 700, color, display: "flex", alignItems: "center", gap: 6 }}>{c.icon && <Icon name={c.icon} size={16} />} {c.fullLabel || c.label} — {statusText}</div>
        <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{c.detail}</div>
       </div>
      </div>
@@ -1438,7 +1439,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   window.addEventListener('touchend', onUp);
  }, []);
  // PricePoint is now its own component — see PricePoint.jsx
- const [salesPrice, setSalesPrice] = useState(1000000);
+ const [salesPrice, setSalesPrice] = useState(0);
  const [downPct, setDownPct] = useState(20);
  const [downMode, setDownMode] = useState("pct"); // "pct" or "dollar"
  const [rate, setRate] = useState(6.5);
@@ -3776,6 +3777,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
     *, *::before, *::after { box-sizing: border-box; }
+    input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
     @viewport { width: device-width; }
     @supports (padding-top: env(safe-area-inset-top)) {
      .mb-safe-top { padding-top: env(safe-area-inset-top) !important; }
@@ -4239,23 +4241,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-       {/* ── Build Mode — subtle inline toggle ── */}
-       <div onClick={() => saveGameMode(!gameMode)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", padding: "4px 8px", borderRadius: 8, background: gameMode ? `${T.green}12` : "transparent", transition: "all 0.2s" }} title={gameMode ? "Build Mode ON" : "Build Mode OFF"}>
-        <span style={{ fontSize: 10, color: gameMode ? T.green : T.textTertiary, fontWeight: 600, whiteSpace: "nowrap" }}>Build</span>
-        <div style={{ width: 28, height: 16, borderRadius: 99, background: gameMode ? T.green : T.inputBg, padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-         <div style={{ width: 12, height: 12, borderRadius: "50%", background: gameMode ? "#fff" : T.textTertiary, transform: gameMode ? "translateX(12px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
-        </div>
-       </div>
-       {isDesktop && <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
-        <div style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary }}>{fmt(calc.cashToClose)} to close</div>
-       </div>}
-       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 32, height: 32, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
         {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
-       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: T.textSecondary }}>
-        {privacyMode ? "⊘" : <Icon name="eye" size={16} />}
+       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 32, height: 32, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: T.textSecondary }}>
+        {privacyMode ? "⊘" : <Icon name="eye" size={14} />}
        </button>
       </div>
      </div>
@@ -4439,7 +4430,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Card>
   <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" } : {}}>
   <div>
-  <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+  <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" />
   {!isRefi && (
   <button onClick={() => window.open(`https://www.zillow.com/homes/${encodeURIComponent(city + ", " + taxState)}_rb/`, "_blank")} style={{ width: "100%", background: `${T.blue}08`, border: `1px solid ${T.blue}18`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10, marginTop: -4 }}>
    <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>Zillow</span>
@@ -5313,32 +5304,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <div data-field="debts-section" style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   <Hero value={debtFree ? "$0" : fmt(calc.totalMonthlyDebts)} label="Monthly Debts" color={debtFree ? T.green : T.red} sub={debtFree ? "Debt free!" : `${calc.qualifyingDebts.length} qualifying`} />
  </div>
- <div data-field="debt-free-toggle" className={isPulse("debt-free-toggle")} onClick={() => markTouched("debt-free-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
- <Card style={{ marginBottom: 14 }}>
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-   <div>
-    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>No monthly debts</span>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>No credit cards, auto, student loans, or installments</div>
-   </div>
-   <div onClick={() => { setDebtFree(!debtFree); markTouched("debt-free-toggle"); }} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: debtFree ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-   </div>
-  </div>
-  {debtFree && (
-   <div style={{ marginTop: 12, padding: "14px 16px", background: T.successBg, borderRadius: 12, textAlign: "center" }}>
-    <div style={{ fontSize: 28, marginBottom: 6 }}></div>
-    <div style={{ fontSize: 15, fontWeight: 700, color: T.green }}>Great work — no consumer debt!</div>
-    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>This means more of your DTI capacity goes toward your new mortgage, maximizing your purchasing power.</div>
-   </div>
-  )}
-  {debtFree && ownsProperties && (
-   <div style={{ marginTop: 10, padding: "10px 14px", background: `${T.blue}10`, borderRadius: 10 }}>
-    <div style={{ fontSize: 12, color: T.blue, fontWeight: 600, marginBottom: 3 }}>Owned properties still count</div>
-    <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>Property taxes, homeowner's insurance, and HOA on your existing properties are still factored into DTI through the REO tab — this toggle only excludes credit-report debts.</div>
-   </div>
-  )}
- </Card>
- </div>
  {/* Own Properties — Yes / No buttons (required, unlocks REO tab) */}
  <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
  <Card style={{ marginBottom: 14 }}>
@@ -5369,6 +5334,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   )}
   {ownsProperties === false && guideTouched.has("owns-properties-toggle") && (
    <div style={{ marginTop: 10, fontSize: 11, color: T.textTertiary }}>No existing properties — DTI will only include credit-report liabilities.</div>
+  )}
+ </Card>
+ </div>
+ {/* Debt-free toggle — shown after own-properties question */}
+ <div data-field="debt-free-toggle" className={isPulse("debt-free-toggle")} onClick={() => markTouched("debt-free-toggle")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+ <Card style={{ marginBottom: 14 }}>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+   <div>
+    <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Are you debt-free?</span>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>No credit cards, auto loans, student loans, or installments</div>
+   </div>
+   <div onClick={() => { setDebtFree(!debtFree); markTouched("debt-free-toggle"); }} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+    <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: debtFree ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+   </div>
+  </div>
+  {debtFree && (
+   <div style={{ marginTop: 12, padding: "14px 16px", background: T.successBg, borderRadius: 12, textAlign: "center" }}>
+    <div style={{ fontSize: 15, fontWeight: 700, color: T.green }}>No consumer debt — more buying power</div>
+    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>More of your DTI capacity goes toward your new mortgage, maximizing your purchasing power.</div>
+   </div>
+  )}
+  {debtFree && ownsProperties && (
+   <div style={{ marginTop: 10, padding: "10px 14px", background: `${T.blue}10`, borderRadius: 10 }}>
+    <div style={{ fontSize: 12, color: T.blue, fontWeight: 600, marginBottom: 3 }}>Owned properties still count</div>
+    <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>Property taxes, insurance, and HOA on your existing properties are still factored into DTI through the REO tab — this toggle only excludes credit-report debts.</div>
+   </div>
   )}
  </Card>
  </div>
