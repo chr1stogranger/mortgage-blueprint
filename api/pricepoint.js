@@ -17,9 +17,19 @@ function getCached(key) {
 }
 
 function setCache(key, data) {
-  if (cache.size > 100) {
-    const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    for (let i = 0; i < 50; i++) cache.delete(oldest[i][0]);
+  // Evict expired entries first, then oldest if still over limit
+  if (cache.size >= 100) {
+    const now = Date.now();
+    // Pass 1: remove expired entries
+    for (const [k, v] of cache) {
+      if (now - v.timestamp > CACHE_TTL) cache.delete(k);
+    }
+    // Pass 2: if still over limit, remove oldest until under 50
+    if (cache.size >= 100) {
+      const sorted = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+      const toRemove = Math.min(sorted.length, cache.size - 50);
+      for (let i = 0; i < toRemove; i++) cache.delete(sorted[i][0]);
+    }
   }
   cache.set(key, { data, timestamp: Date.now() });
 }
