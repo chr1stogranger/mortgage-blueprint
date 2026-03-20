@@ -46,24 +46,29 @@ const GoogleIcon = () => (
   </svg>
 );
 
-// ─── RealStack Iso Stack Icon (from brand kit) ───────────────────────────────
+// ─── RealStack Brand Icon — "Airy Iso Stack" (Brand Kit, Color Version) ──────
 const HomeIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
-    <polygon points="50,8 12,28 50,20 88,28" fill="rgba(255,255,255,0.95)"/>
-    <polygon points="50,20 88,28 88,32 50,24" fill="rgba(255,255,255,0.48)"/>
-    <polygon points="12,28 50,20 50,24 12,32" fill="rgba(255,255,255,0.68)"/>
-    <polygon points="12,38 50,30 88,38 50,46" fill="rgba(255,255,255,0.90)"/>
-    <polygon points="50,46 88,38 88,41 50,49" fill="rgba(255,255,255,0.40)"/>
-    <polygon points="12,38 50,46 50,49 12,41" fill="rgba(255,255,255,0.58)"/>
-    <polygon points="12,52 50,44 88,52 50,60" fill="rgba(255,255,255,0.70)"/>
-    <polygon points="50,60 88,52 88,55 50,63" fill="rgba(255,255,255,0.28)"/>
-    <polygon points="12,52 50,60 50,63 12,55" fill="rgba(255,255,255,0.45)"/>
-    <polygon points="12,66 50,58 88,66 50,74" fill="rgba(255,255,255,0.50)"/>
-    <polygon points="50,74 88,66 88,69 50,77" fill="rgba(255,255,255,0.18)"/>
-    <polygon points="12,66 50,74 50,77 12,69" fill="rgba(255,255,255,0.32)"/>
-    <polygon points="12,80 50,72 88,80 50,88" fill="rgba(255,255,255,0.34)"/>
-    <polygon points="50,88 88,80 88,83 50,91" fill="rgba(255,255,255,0.10)"/>
-    <polygon points="12,80 50,88 50,91 12,83" fill="rgba(255,255,255,0.20)"/>
+  <svg width="36" height="36" viewBox="0 0 100 100" fill="none">
+    {/* Roof */}
+    <polygon points="50,4 8,22 50,14 92,22" fill="#C7D2FE"/>
+    <polygon points="50,14 92,22 92,26 50,18" fill="#4F46E5"/>
+    <polygon points="8,22 50,14 50,18 8,26" fill="#818CF8"/>
+    {/* Sheet 4 — Indigo (top) */}
+    <polygon points="8,32 50,24 92,32 50,40" fill="#A5B4FC"/>
+    <polygon points="50,40 92,32 92,35 50,43" fill="#6366F1"/>
+    <polygon points="8,32 50,40 50,43 8,35" fill="#818CF8"/>
+    {/* Sheet 3 — Blue */}
+    <polygon points="8,48 50,40 92,48 50,56" fill="#93C5FD"/>
+    <polygon points="50,56 92,48 92,51 50,59" fill="#3B82F6"/>
+    <polygon points="8,48 50,56 50,59 8,51" fill="#60A5FA"/>
+    {/* Sheet 2 — Teal */}
+    <polygon points="8,64 50,56 92,64 50,72" fill="#67E8F9"/>
+    <polygon points="50,72 92,64 92,67 50,75" fill="#06B6D4"/>
+    <polygon points="8,64 50,72 50,75 8,67" fill="#22D3EE"/>
+    {/* Sheet 1 — Green (bottom) */}
+    <polygon points="8,80 50,72 92,80 50,88" fill="#6EE7B7"/>
+    <polygon points="50,88 92,80 92,83 50,91" fill="#10B981"/>
+    <polygon points="8,80 50,88 50,91 8,83" fill="#34D399"/>
   </svg>
 );
 
