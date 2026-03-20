@@ -4171,15 +4171,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Sticky Header ── */}
    <div style={{ position: "sticky", top: isDesktop ? 0 : 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
     <div style={{ padding: "16px 20px 8px" }}>
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
       <div>
-       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>Blueprint</span>
-        <div style={{ background: T.pillBg, borderRadius: 10, padding: "4px 12px", display: "flex", alignItems: "baseline", gap: 4 }}>
-         <span style={{ fontSize: 16, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.text, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}</span>
-         <span style={{ fontSize: 10, color: T.textTertiary }}>/mo</span>
-         <span style={{ fontSize: 10, color: T.textTertiary, marginLeft: 4 }}>{fmt(calc.cashToClose)} to close</span>
-        </div>
        </div>
        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, flexWrap: "nowrap", overflow: "hidden" }}>
         {scenarioList.length > 1 ? scenarioList.map(name => (
@@ -4199,7 +4194,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+       <div style={{ textAlign: "right", marginRight: 4 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4, justifyContent: "flex-end" }}>
+         <span style={{ fontSize: 18, fontWeight: 800, color: T.text, letterSpacing: "-0.03em" }}>{fmt(calc.housingPayment)}</span>
+         <span style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary }}>/mo</span>
+        </div>
+        <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{fmt(calc.cashToClose)} to close</div>
+       </div>
        <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 32, height: 32, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
         {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
