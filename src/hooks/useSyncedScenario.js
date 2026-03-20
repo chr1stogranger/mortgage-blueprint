@@ -410,16 +410,25 @@ export default function useSyncedScenario({
   }, [lockedFields]);
 
   // ── Cleanup on unmount ────────────────────────────────────────────────
+  // Use a ref to always have the latest flushChanges without re-registering cleanup
+  const flushRef = useRef(flushChanges);
+  useEffect(() => { flushRef.current = flushChanges; }, [flushChanges]);
+
   useEffect(() => {
     return () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
-        // Flush any pending changes before unmount
-        flushChanges();
+        debounceTimer.current = null;
       }
-      subscriptionsRef.current.forEach(sub => sub.unsubscribe());
+      // Flush pending changes safely (catch errors during unmount)
+      try { flushRef.current?.(); } catch (e) { console.warn('[Sync] Cleanup flush failed:', e.message); }
+      // Unsubscribe from all realtime channels
+      subscriptionsRef.current.forEach(sub => {
+        try { sub.unsubscribe(); } catch (e) { /* ignore */ }
+      });
+      subscriptionsRef.current = [];
     };
-  }, [flushChanges]);
+  }, []); // Empty deps — only runs on unmount
 
   return {
     // State

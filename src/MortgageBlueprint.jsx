@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
-import PricePoint from "./PricePoint";
-import Markets from "./Markets";
+// Lazy load heavy components for faster initial page load
+const PricePoint = lazy(() => import("./PricePoint"));
+const Markets = lazy(() => import("./Markets"));
 import WorkspaceView from "./WorkspaceView";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import BlueprintPane from "./BlueprintPane";
@@ -8484,6 +8485,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "pricepoint" && (
+    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: T.textDim, fontSize: 13 }}>Loading PricePoint...</div>}>
     <PricePoint
      T={T}
      isDesktop={isDesktop}
@@ -8503,11 +8505,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      onBackToBlueprint={() => setAppMode("blueprint")}
      onOpenMarkets={() => setAppMode("markets")}
     />
+    </Suspense>
    )}
    {/* ═══════════════════════════════════════════ */}
    {/* MARKETS MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "markets" && (
+    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: T.textDim, fontSize: 13 }}>Loading Markets...</div>}>
     <Markets
      T={T}
      isDesktop={isDesktop}
@@ -8516,6 +8520,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      setAppMode={null}
      onBackToBlueprint={() => setAppMode("blueprint")}
     />
+    </Suspense>
    )}
    {appMode === "blueprint" && <FloatingNextBar />}
 
@@ -8530,6 +8535,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
     const renderSplitPane = (mode) => {
      if (mode === "pricepoint") return (
+      <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: T.textDim, fontSize: 13 }}>Loading...</div>}>
       <PricePoint
        T={T}
        isDesktop={false}
@@ -8547,8 +8553,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        onBackToBlueprint={() => { closeSplit(); setAppMode("blueprint"); }}
        onOpenMarkets={() => { closeSplit(); setAppMode("markets"); }}
       />
+      </Suspense>
      );
      if (mode === "markets") return (
+      <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: T.textDim, fontSize: 13 }}>Loading...</div>}>
       <Markets
        T={T}
        isDesktop={false}
@@ -8557,6 +8565,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        setAppMode={null}
        onBackToBlueprint={() => { closeSplit(); setAppMode("blueprint"); }}
       />
+      </Suspense>
      );
      return null;
     };
