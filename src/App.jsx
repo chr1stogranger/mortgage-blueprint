@@ -1,7 +1,51 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component } from 'react'
 import MortgageBlueprint from './MortgageBlueprint'
 import BlueprintAuth from './BlueprintAuth'
 import BorrowerAuthGate from './components/BorrowerAuthGate'
+
+// ── Error Boundary for Share Flow ────────────────────────────────────────────
+class ShareFlowErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('[ShareFlow] Error caught by boundary:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      const T = { bg: '#050505', accent: '#6366F1', text: '#EDEDED', textSecondary: '#A1A1A1', red: '#EF4444' };
+      const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+      return (
+        <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT }}>
+          <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
+            <div style={{ width: 56, height: 56, margin: '0 auto 16px', borderRadius: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: '-0.03em', marginBottom: 8 }}>
+              Something went wrong
+            </div>
+            <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6, marginBottom: 20 }}>
+              We had trouble loading your mortgage scenario. This is usually temporary.
+            </div>
+            <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }} style={{ padding: '10px 24px', borderRadius: 9999, background: T.accent, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              Try Again
+            </button>
+            <div style={{ marginTop: 16, fontSize: 13, color: T.textSecondary }}>
+              Need help? Email <a href="mailto:chr1stogranger@gmail.com" style={{ color: T.accent }}>chr1stogranger@gmail.com</a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function App() {
   const [shareToken, setShareToken] = useState(null);
@@ -25,18 +69,20 @@ function App() {
     }
 
     return (
-      <BorrowerAuthGate
-        shareToken={shareToken}
-        onAuthenticated={(ctx) => {
-          // ctx = { sessionToken, account, shareToken, borrower, accessLevel, scenarios }
-          setBorrowerContext(ctx);
-        }}
-        onError={(type) => {
-          if (type === 'expired') {
-            setShareExpired(true);
-          }
-        }}
-      />
+      <ShareFlowErrorBoundary>
+        <BorrowerAuthGate
+          shareToken={shareToken}
+          onAuthenticated={(ctx) => {
+            // ctx = { sessionToken, account, shareToken, borrower, accessLevel, scenarios }
+            setBorrowerContext(ctx);
+          }}
+          onError={(type) => {
+            if (type === 'expired') {
+              setShareExpired(true);
+            }
+          }}
+        />
+      </ShareFlowErrorBoundary>
     );
   }
 
@@ -49,6 +95,7 @@ function App() {
     const initialState = scenario?.state_data || null;
 
     return (
+      <ShareFlowErrorBoundary>
       <MortgageBlueprint
         initialState={initialState}
         borrowerMode={{
@@ -62,6 +109,7 @@ function App() {
           scenarios,
         }}
       />
+      </ShareFlowErrorBoundary>
     );
   }
 

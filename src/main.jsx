@@ -62,9 +62,10 @@ class ErrorBoundary extends Component {
   }
 }
 
-// SECURITY TODO: Move API keys to backend proxy endpoints instead of exposing on window object
-window.__FRED_API_KEY__ = import.meta.env.VITE_FRED_API_KEY || "";
-window.__GOOGLE_PLACES_KEY__ = import.meta.env.VITE_GOOGLE_PLACES_KEY || "";
+// API keys are now served via backend proxy routes (/api/rates, /api/propertydetails)
+// No client-side key exposure needed. Legacy window properties kept as empty for backward compat.
+window.__FRED_API_KEY__ = "";
+window.__GOOGLE_PLACES_KEY__ = "";
 
 // ── Native iOS/Android status bar styling ──
 // Only runs inside Capacitor native shell, no-op on web

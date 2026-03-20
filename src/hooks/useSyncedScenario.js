@@ -104,6 +104,7 @@ export default function useSyncedScenario({
   const [error, setError] = useState(null);
   const [currentVersion, setCurrentVersion] = useState(1);
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [conflicts, setConflicts] = useState([]); // fields with simultaneous edit conflicts
 
   // ── Refs for debouncing and tracking ──────────────────────────────────
   const debounceTimer = useRef(null);
@@ -186,11 +187,24 @@ export default function useSyncedScenario({
         setState(prev => {
           // Merge strategy: remote wins for fields not in pendingChanges
           const merged = { ...prev };
+          const conflictedFields = [];
           for (const [key, value] of Object.entries(newRow.state_data)) {
-            // Don't overwrite fields the local user is actively editing
-            if (!(key in pendingChanges.current)) {
+            if (key in pendingChanges.current) {
+              // Conflict: both local and remote changed the same field
+              // Keep local value but track the conflict
+              if (pendingChanges.current[key] !== value) {
+                conflictedFields.push(key);
+              }
+            } else {
               merged[key] = value;
             }
+          }
+          // Notify about conflicts (non-blocking — local changes preserved)
+          if (conflictedFields.length > 0) {
+            console.warn(`[Sync] Conflict on fields: ${conflictedFields.join(', ')} — local changes preserved`);
+            setConflicts(conflictedFields);
+            // Auto-clear conflict indicator after 5 seconds
+            setTimeout(() => setConflicts([]), 5000);
           }
           return merged;
         });
@@ -419,6 +433,7 @@ export default function useSyncedScenario({
     isLoading,
     isSaving,
     isRemoteUpdate,
+    conflicts,        // Array of field names with simultaneous edit conflicts (auto-clears after 5s)
     error,
 
     // Actions

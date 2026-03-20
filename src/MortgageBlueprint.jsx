@@ -2411,51 +2411,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     }
    }
   } catch(e) { console.log("Proxy fetch failed:", e.message); }
-  // Attempt 2: Direct FRED API (fallback for local dev)
-  if (fredApiKey) {
-   try {
-    const base = "https://api.stlouisfed.org/fred/series/observations";
-    const qp = (id) => base + "?series_id=" + id + "&api_key=" + fredApiKey + "&file_type=json&sort_order=desc&limit=1";
-    try {
-     const [r30, r15, rArm] = await Promise.all([
-      fetch(qp("MORTGAGE30US"))
-        .then(r => r.json())
-        .catch(e => { console.log("FRED MORTGAGE30US fetch failed:", e.message); throw e; }),
-      fetch(qp("MORTGAGE15US"))
-        .then(r => r.json())
-        .catch(e => { console.log("FRED MORTGAGE15US fetch failed:", e.message); throw e; }),
-      fetch(qp("MORTGAGE5US"))
-        .then(r => r.json())
-        .catch(e => { console.log("FRED MORTGAGE5US fetch failed:", e.message); throw e; }),
-     ]);
-     // Validate response structure before parsing
-     if (!r30?.observations?.[0] || !r15?.observations?.[0] || !rArm?.observations?.[0]) {
-      throw new Error("Invalid FRED API response structure");
-     }
-     const v30 = parseFloat(r30.observations[0].value);
-     const v15 = parseFloat(r15.observations[0].value);
-     const vArm = parseFloat(rArm.observations[0].value);
-     // Check for NaN values
-     if (isNaN(v30) || isNaN(v15) || isNaN(vArm)) {
-      throw new Error("FRED API returned NaN values");
-     }
-     if (v30 > 2 && v30 < 15) {
-      applyRates({
-       date: r30.observations[0].date, "30yr_fixed": v30,
-       "15yr_fixed": v15 || +(v30 - 0.6).toFixed(2),
-       "30yr_fha": +(v30 - 0.25).toFixed(2), "30yr_va": +(v30 - 0.35).toFixed(2),
-       "30yr_jumbo": +(v30 + 0.25).toFixed(2), "5yr_arm": vArm || +(v30 - 0.3).toFixed(2),
-       source: "FRED / Freddie Mac PMMS"
-      });
-      setRatesLoading(false);
-      return;
-     }
-    } catch(promiseError) {
-     console.log("FRED Promise.all failed:", promiseError.message);
-     throw promiseError;
-    }
-   } catch(e) { console.log("FRED direct failed:", e.message); }
-  }
+  // Rate fetch failed — all rate data flows through /api/rates server-side proxy
+  // (FRED API key is never exposed to the client)
   setRatesError("Could not fetch rates — try again in a moment");
   setRatesLoading(false);
  };
