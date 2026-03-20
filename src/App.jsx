@@ -152,9 +152,25 @@ function ShareExpiredScreen() {
           Link Not Found
         </div>
         <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6 }}>
-          This share link may have expired or been deactivated. Contact your loan officer for a new link.
+          This share link may have expired or been deactivated.
         </div>
-        <div style={{ marginTop: 28 }}>
+        <div style={{ marginTop: 24, padding: '16px 20px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12 }}>
+          <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 8 }}>Need a new link? Contact your loan officer:</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 4 }}>Chris Granger</div>
+          <div style={{ fontSize: 13, color: T.textSecondary }}>NMLS #952015</div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="mailto:chr1stogranger@gmail.com" style={{ padding: '8px 16px', borderRadius: 9999, background: T.accent, color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
+              Email
+            </a>
+            <a href="tel:4159878489" style={{ padding: '8px 16px', borderRadius: 9999, background: 'transparent', color: T.accent, textDecoration: 'none', fontSize: 13, fontWeight: 600, border: `1px solid ${T.accent}` }}>
+              Call
+            </a>
+            <a href="https://calendly.com/chrisgranger" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 16px', borderRadius: 9999, background: 'transparent', color: T.accent, textDecoration: 'none', fontSize: 13, fontWeight: 600, border: `1px solid ${T.accent}` }}>
+              Schedule
+            </a>
+          </div>
+        </div>
+        <div style={{ marginTop: 24 }}>
           <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.04em' }}>
             <span style={{ color: T.textTertiary }}>Real</span><span style={{ color: T.accent }}>Stack</span>
           </div>
