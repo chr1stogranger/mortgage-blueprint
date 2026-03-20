@@ -40,8 +40,12 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Cache all JS, CSS, HTML, and font files
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // Cache JS, CSS, and assets — but NOT index.html
+        // index.html must always be fetched fresh from the server so that
+        // security headers (CSP, HSTS, etc.) are never served from stale cache
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff,woff2}'],
+        // Ensure index.html is always fetched from network
+        navigateFallback: null,
         // Runtime caching for API calls and external resources
         runtimeCaching: [
           {
@@ -64,12 +68,13 @@ export default defineConfig({
             }
           },
           {
-            // Cache your own Vercel API endpoints
-            urlPattern: /^\/api\/.*/i,
+            // Cache read-only API endpoints (rates, listings, pricepoint)
+            // Exclude collab/auth endpoints — those must never be cached
+            urlPattern: /^\/api\/(rates|listings|pricepoint|propertydetails)/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 },
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 },
               networkTimeoutSeconds: 5
             }
           },
