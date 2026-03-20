@@ -4239,7 +4239,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
        {/* ── Build Mode — subtle inline toggle ── */}
        <div onClick={() => saveGameMode(!gameMode)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", padding: "4px 8px", borderRadius: 8, background: gameMode ? `${T.green}12` : "transparent", transition: "all 0.2s" }} title={gameMode ? "Build Mode ON" : "Build Mode OFF"}>
         <span style={{ fontSize: 10, color: gameMode ? T.green : T.textTertiary, fontWeight: 600, whiteSpace: "nowrap" }}>Build</span>
@@ -4247,14 +4247,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          <div style={{ width: 12, height: 12, borderRadius: "50%", background: gameMode ? "#fff" : T.textTertiary, transform: gameMode ? "translateX(12px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
         </div>
        </div>
-       <div style={{ textAlign: "right" }}>
+       {isDesktop && <div style={{ textAlign: "right" }}>
         <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary }}>/mo</span></div>
         <div style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary }}>{fmt(calc.cashToClose)} to close</div>
-       </div>
-       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
+       </div>}
+       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
         {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
        </button>
-       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", color: T.textSecondary }}>
+       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: "none", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: T.textSecondary }}>
         {privacyMode ? "⊘" : <Icon name="eye" size={16} />}
        </button>
       </div>
