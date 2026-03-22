@@ -53,11 +53,6 @@ function normalizeProperty(raw, index, prefix, isSold) {
   const listPrice = isSold
     ? (raw.listPrice || raw.originalListPrice || raw.priceForHDP?.listing || raw.attributionInfo?.listingPrice || null)
     : (raw.price || 0);
-  // Log sold listing fields to help debug what's available
-  if (isSold && index < 2) {
-    console.log(`[PricePoint] Sold listing fields: price=${raw.price}, listPrice=${raw.listPrice}, originalListPrice=${raw.originalListPrice}, zestimate=${raw.zestimate}, keys=${Object.keys(raw).slice(0,20).join(',')}`);
-  }
-
   return {
     id: `${prefix}${index + 1}`,
     zpid: String(raw.zpid || ""),
@@ -122,7 +117,6 @@ async function fetchListings(location, homeStatus, apiKey, apiHost) {
   });
 
   const url = `https://${apiHost}/search?${params}`;
-  console.log(`[PricePoint] Fetching: ${url}`);
 
   const res = await fetch(url, {
     method: "GET",
@@ -138,8 +132,6 @@ async function fetchListings(location, homeStatus, apiKey, apiHost) {
   }
 
   const data = await res.json();
-  console.log(`[PricePoint] Response keys: ${Object.keys(data || {}).join(', ')}`);
-  console.log(`[PricePoint] Status: ${data.status}, Data count: ${data.data?.length || 0}`);
   return data;
 }
 
@@ -185,7 +177,6 @@ export default async function handler(req, res) {
     const cacheKey = location.toLowerCase().trim();
     const cached = getCached(cacheKey);
     if (cached) {
-      console.log(`[PricePoint] Cache hit for: ${cacheKey}`);
       return res.status(200).json({ ...cached, cached: true });
     }
 
@@ -208,23 +199,18 @@ export default async function handler(req, res) {
     let active = [];
     if (activeData.status === "fulfilled" && activeData.value?.data) {
       const results = activeData.value.data;
-      console.log(`[PricePoint] Active listings: ${results.length}`);
-      if (results[0]) {
-        console.log(`[PricePoint] Sample: zpid=${results[0].zpid}, price=${results[0].price}, img=${results[0].imgSrc ? 'yes' : 'no'}`);
-      }
       active = results
         .filter(r => r.zpid && r.price)
         .slice(0, 15)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
     } else {
       const reason = activeData.status === "rejected" ? activeData.reason?.message : "no data";
-      console.log(`[PricePoint] Active failed: ${reason}`);
+      console.error(`[PricePoint] Active failed: ${reason}`);
     }
 
     // Merge pending listings into active pool
     if (pendingData.status === "fulfilled" && pendingData.value?.data) {
       const pendingResults = pendingData.value.data;
-      console.log(`[PricePoint] Pending listings: ${pendingResults.length}`);
       const pendingNormalized = pendingResults
         .filter(r => r.zpid && r.price)
         .slice(0, 5)
@@ -236,14 +222,13 @@ export default async function handler(req, res) {
     let sold = [];
     if (soldData.status === "fulfilled" && soldData.value?.data) {
       const results = soldData.value.data;
-      console.log(`[PricePoint] Sold listings: ${results.length}`);
       sold = results
         .filter(r => r.zpid && r.price)
         .slice(0, 20)
         .map((r, i) => normalizeProperty(r, i, "pps", true));
     } else {
       const reason = soldData.status === "rejected" ? soldData.reason?.message : "no data";
-      console.log(`[PricePoint] Sold failed: ${reason}`);
+      console.error(`[PricePoint] Sold failed: ${reason}`);
     }
 
     const result = {
