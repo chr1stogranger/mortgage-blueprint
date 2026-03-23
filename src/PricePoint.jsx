@@ -278,8 +278,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [countdown, setCountdown] = useState("");
 
   // ── Stats Tabs ──
-  const [statsTab, setStatsTab] = useState("daily"); // "daily" or "freeplay"
+  const [statsTab, setStatsTab] = useState("daily"); // "daily", "freeplay", or "live"
   const [leaderboardTab, setLeaderboardTab] = useState("today"); // "today", "weekly", or "alltime"
+  const [leaderboardMode, setLeaderboardMode] = useState("daily"); // "daily", "free", or "live"
 
   // ── Refs ──
   const revealCounterRef = useRef(null);
@@ -940,15 +941,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
           {/* Stats Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-            {["daily", "freeplay"].map(tab => (
-              <button key={tab} onClick={() => setStatsTab(tab)} style={{
+            {[{ id: "daily", label: "Daily" }, { id: "freeplay", label: "Free Play" }, { id: "live", label: "Live" }].map(tab => (
+              <button key={tab.id} onClick={() => setStatsTab(tab.id)} style={{
                 flex: 1, padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: FONT,
-                border: `1px solid ${statsTab === tab ? "transparent" : T.cardBorder}`,
-                background: statsTab === tab ? T.accent : T.card,
-                color: statsTab === tab ? "#fff" : T.textSecondary,
+                border: `1px solid ${statsTab === tab.id ? "transparent" : T.cardBorder}`,
+                background: statsTab === tab.id ? (tab.id === "live" ? T.red : tab.id === "freeplay" ? T.cyan : T.accent) : T.card,
+                color: statsTab === tab.id ? "#fff" : T.textSecondary,
                 cursor: "pointer", transition: "all 0.2s"
               }}>
-                {tab === "daily" ? "Daily" : "Free Play"}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -1093,6 +1094,110 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </>
           )}
 
+          {/* ─── LIVE STATS TAB ─── */}
+          {statsTab === "live" && (
+            <>
+              {(() => {
+                const liveResults = allResults.filter(r => r.isLive);
+                const livePreds = allPredictions;
+                const pendingCount = livePreds.filter(p => !p.resolved).length;
+                const resolvedCount = livePreds.filter(p => p.resolved).length;
+                const avgVsList = liveResults.length > 0
+                  ? liveResults.reduce((sum, r) => sum + (r.pctOff || 0), 0) / liveResults.length
+                  : null;
+
+                return (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.red }}>{livePreds.length}</div>
+                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Predictions</div>
+                      </div>
+                      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.red }}>
+                          {avgVsList != null ? `${avgVsList > 0 ? "+" : ""}${avgVsList.toFixed(1)}%` : "—"}
+                        </div>
+                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg vs List</div>
+                      </div>
+                    </div>
+
+                    {/* Pending vs Resolved */}
+                    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                      <OverlineLabel>PREDICTION STATUS</OverlineLabel>
+                      <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+                        <div style={{ flex: 1, background: `${T.orange}12`, borderRadius: 12, padding: "14px 12px", textAlign: "center", border: `1px solid ${T.orange}20` }}>
+                          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.orange }}>{pendingCount}</div>
+                          <div style={{ fontSize: 10, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Pending</div>
+                        </div>
+                        <div style={{ flex: 1, background: `${T.green}12`, borderRadius: 12, padding: "14px 12px", textAlign: "center", border: `1px solid ${T.green}20` }}>
+                          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.green }}>{resolvedCount}</div>
+                          <div style={{ fontSize: 10, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Resolved</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recent Predictions */}
+                    {livePreds.length > 0 && (
+                      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                        <OverlineLabel>RECENT PREDICTIONS</OverlineLabel>
+                        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                          {livePreds.slice(-5).reverse().map((pred, idx) => (
+                            <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.inputBg, borderRadius: 10 }}>
+                              {pred.photo && <img src={pred.photo} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {resolveNeighborhood(pred)}
+                                </div>
+                                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>
+                                  {pred.beds}BR/{pred.baths}BA · {(pred.sqft || 0).toLocaleString()}sf
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: T.text }}>{fmt(pred.guess)}</div>
+                                <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, color: pred.resolved ? T.green : T.orange }}>
+                                  {pred.resolved ? "RESOLVED" : "PENDING"}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Accuracy by Neighborhood (Live) */}
+                    {(() => {
+                      const liveWithHood = liveResults.filter(r => r.neighborhood || r.city);
+                      const hoods = [...new Set(liveWithHood.map(r => r.neighborhood || r.city))].filter(Boolean);
+                      return hoods.length > 0 ? (
+                        <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                          <OverlineLabel>PREDICTIONS BY AREA</OverlineLabel>
+                          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                            {hoods.map((hood, idx) => {
+                              const count = liveWithHood.filter(r => (r.neighborhood || r.city) === hood).length;
+                              return (
+                                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>{hood}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: T.red, fontFamily: MONO }}>{count} pred{count !== 1 ? "s" : ""}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {livePreds.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "40px 20px", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14 }}>
+                        <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 8, fontFamily: FONT }}>No predictions yet</div>
+                        <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>Head to the Live tab to predict sale prices on active listings</div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </>
+          )}
+
           <button onClick={() => { setMarketInput(market?.label || ""); setView("onboarding"); }} style={{ display: "block", margin: "16px auto 0", background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Change market</button>
         </div>
       )}
@@ -1231,7 +1336,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
-      {/* ═══ LEADERBOARD (with Today / Weekly / All Time tabs) ═══ */}
+      {/* ═══ LEADERBOARD (with mode + time tabs) ═══ */}
       {view === "leaderboard" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.3s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -1241,70 +1346,120 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           </div>
 
-          {/* Leaderboard Tabs */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          {/* Mode Toggle: Daily / Free / Live */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            {[
+              { id: "daily", label: "Daily", color: T.accent },
+              { id: "free", label: "Free Play", color: T.cyan },
+              { id: "live", label: "Live", color: T.red },
+            ].map(mode => (
+              <button key={mode.id} onClick={() => setLeaderboardMode(mode.id)} style={{
+                flex: 1, padding: "10px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: FONT,
+                border: `1px solid ${leaderboardMode === mode.id ? "transparent" : T.cardBorder}`,
+                background: leaderboardMode === mode.id ? mode.color : T.card,
+                color: leaderboardMode === mode.id ? "#fff" : T.textSecondary,
+                cursor: "pointer", transition: "all 0.2s"
+              }}>
+                {mode.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Time Toggle: Today / Weekly / All Time */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
             {[
               { id: "today", label: "Today" },
               { id: "weekly", label: "Weekly" },
               { id: "alltime", label: "All Time" },
             ].map(tab => (
               <button key={tab.id} onClick={() => setLeaderboardTab(tab.id)} style={{
-                flex: 1, padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: FONT,
-                border: `1px solid ${leaderboardTab === tab.id ? "transparent" : T.cardBorder}`,
-                background: leaderboardTab === tab.id ? T.accent : T.card,
-                color: leaderboardTab === tab.id ? "#fff" : T.textSecondary,
-                cursor: "pointer", transition: "all 0.2s"
+                flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: MONO,
+                border: `1px solid ${leaderboardTab === tab.id ? T.accent + "40" : T.cardBorder}`,
+                background: leaderboardTab === tab.id ? `${T.accent}12` : "transparent",
+                color: leaderboardTab === tab.id ? T.accent : T.textTertiary,
+                cursor: "pointer", transition: "all 0.2s", letterSpacing: 1, textTransform: "uppercase",
               }}>
                 {tab.label}
               </button>
             ))}
           </div>
 
-          {/* Mock leaderboard data */}
+          {/* Leaderboard entries */}
           {(() => {
+            const modeColor = leaderboardMode === "live" ? T.red : leaderboardMode === "free" ? T.cyan : T.accent;
+            const modeLabel = leaderboardMode === "live" ? "predictions" : "guesses";
+
+            // Compute user stats per mode
+            const userDailyResults = allResults.filter(r => r.isDaily && r.revealed && r.soldPrice);
+            const userFreeResults = allResults.filter(r => !r.isDaily && !r.isLive && r.revealed && r.soldPrice);
+            const userLiveResults = allResults.filter(r => r.isLive);
+
+            const userAccuracy = leaderboardMode === "daily"
+              ? (userDailyResults.length > 0 ? parseFloat((100 - userDailyResults.reduce((s, r) => s + Math.abs((r.guess - r.soldPrice) / r.soldPrice) * 100, 0) / userDailyResults.length).toFixed(1)) : 0)
+              : leaderboardMode === "free"
+              ? (userFreeResults.length > 0 ? parseFloat((100 - userFreeResults.reduce((s, r) => s + Math.abs((r.guess - r.soldPrice) / r.soldPrice) * 100, 0) / userFreeResults.length).toFixed(1)) : 0)
+              : (userLiveResults.length > 0 ? parseFloat((100 - userLiveResults.reduce((s, r) => s + (r.pctOff || 0), 0) / userLiveResults.length).toFixed(1)) : 0);
+
+            const userCount = leaderboardMode === "daily" ? userDailyResults.length
+              : leaderboardMode === "free" ? userFreeResults.length
+              : userLiveResults.length;
+
+            // Mock data per mode
+            const mockByMode = {
+              daily: [
+                { name: "Sarah K.", role: "Realtor", accuracy: 97.2, count: 21 },
+                { name: "Mike T.", role: "Buyer", accuracy: 95.8, count: 15 },
+                { name: "Jessica R.", role: "Realtor", accuracy: 94.1, count: 19 },
+                { name: "David L.", role: "Buyer", accuracy: 91.5, count: 12 },
+                { name: "Amanda W.", role: "Realtor", accuracy: 89.3, count: 9 },
+              ],
+              free: [
+                { name: "Mike T.", role: "Buyer", accuracy: 96.4, count: 87 },
+                { name: "Sarah K.", role: "Realtor", accuracy: 95.1, count: 64 },
+                { name: "Raj P.", role: "Investor", accuracy: 93.8, count: 112 },
+                { name: "Lily C.", role: "Buyer", accuracy: 92.0, count: 45 },
+                { name: "Amanda W.", role: "Realtor", accuracy: 90.7, count: 38 },
+              ],
+              live: [
+                { name: "Jessica R.", role: "Realtor", accuracy: 94.5, count: 34 },
+                { name: "Raj P.", role: "Investor", accuracy: 93.2, count: 51 },
+                { name: "Sarah K.", role: "Realtor", accuracy: 91.8, count: 28 },
+                { name: "Mike T.", role: "Buyer", accuracy: 90.1, count: 22 },
+                { name: "Lily C.", role: "Buyer", accuracy: 88.6, count: 19 },
+              ],
+            };
+
             const mockData = [
-              { name: "Sarah K.", role: "Realtor", accuracy: 97.2, guesses: 21 },
-              { name: "Mike T.", role: "Buyer", accuracy: 95.8, guesses: 15 },
-              { name: "Jessica R.", role: "Realtor", accuracy: 94.1, guesses: 19 },
-              { name: "You", role: "", accuracy: avgAccuracy != null ? parseFloat((100 - avgAccuracy).toFixed(1)) : 0, guesses: allResults.length, isYou: true },
-              { name: "David L.", role: "Buyer", accuracy: 91.5, guesses: 12 },
-              { name: "Amanda W.", role: "Realtor", accuracy: 89.3, guesses: 9 },
+              ...mockByMode[leaderboardMode],
+              { name: "You", role: "", accuracy: userAccuracy, count: userCount, isYou: true },
             ];
             const sorted = [...mockData].sort((a, b) => b.accuracy - a.accuracy);
-            const hasData = sorted.some(e => !e.isYou) || sorted.some(e => e.isYou && e.guesses > 0);
 
             return (
               <>
-                {hasData ? (
-                  <>
-                    {sorted.map((entry, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${T.accent}12` : T.card, border: `1px solid ${entry.isYou ? `${T.accent}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: MONO,
-                          background: i === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : i === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : i === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
-                          color: i < 3 ? "#fff" : T.textSecondary }}>{i + 1}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? T.accent : T.text, fontFamily: FONT }}>{entry.name}</div>
-                          {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: entry.isYou ? T.accent : T.green }}>{entry.accuracy}%</div>
-                          <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary }}>{entry.guesses} guesses</div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "40px 20px", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 8, fontFamily: FONT }}>Coming soon</div>
-                    <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>Play to earn your spot on the leaderboard</div>
+                {sorted.map((entry, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${modeColor}12` : T.card, border: `1px solid ${entry.isYou ? `${modeColor}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: MONO,
+                      background: i === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : i === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : i === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
+                      color: i < 3 ? "#fff" : T.textSecondary }}>{i + 1}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? modeColor : T.text, fontFamily: FONT }}>{entry.name}</div>
+                      {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: entry.isYou ? modeColor : T.green }}>{entry.accuracy}%</div>
+                      <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary }}>{entry.count} {modeLabel}</div>
+                    </div>
                   </div>
-                )}
+                ))}
               </>
             );
           })()}
 
           <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: T.textTertiary, padding: 16, background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, fontFamily: FONT }}>
-            Leaderboard updates daily at midnight.<br />Play more dailies to climb the rankings.
+            {leaderboardMode === "daily" ? "Leaderboard updates daily at midnight. Play more dailies to climb."
+              : leaderboardMode === "free" ? "Free Play rankings based on accuracy across all rounds."
+              : "Live rankings based on prediction accuracy once listings close."}
           </div>
         </div>
       )}
