@@ -264,6 +264,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [mlsExpanded, setMlsExpanded] = useState(false);
   const [fpSelectedNeighborhood, setFpSelectedNeighborhood] = useState(null);
 
+  // ── Live Mode State ──
+  const [liveListings, setLiveListings] = useState([]);
+  const [liveIdx, setLiveIdx] = useState(0);
+  const [liveGuessInput, setLiveGuessInput] = useState("");
+  const [livePrediction, setLivePrediction] = useState(null);
+  const [allPredictions, setAllPredictions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
+  });
+  const [showLevelModal, setShowLevelModal] = useState(false);
+
   // ── Countdown ──
   const [countdown, setCountdown] = useState("");
 
@@ -306,6 +316,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   useEffect(() => { try { localStorage.setItem("pp-all-results", JSON.stringify(allResults)); } catch {} }, [allResults]);
   useEffect(() => { try { if (dailyResult) localStorage.setItem("pp-daily-result", JSON.stringify(dailyResult)); } catch {} }, [dailyResult]);
   useEffect(() => { try { if (soldListings !== SAMPLE_SOLD) localStorage.setItem("pp-sold-listings", JSON.stringify(soldListings)); } catch {} }, [soldListings]);
+  useEffect(() => { try { localStorage.setItem("pp-predictions", JSON.stringify(allPredictions)); } catch {} }, [allPredictions]);
 
   // ── Initialize view ──
   useEffect(() => {
@@ -516,6 +527,68 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
   };
 
+  // ── Live Mode ──
+  const enterLiveMode = () => {
+    // Use activeListings from soldListings data, or filter for active status
+    const actives = soldListings.filter(l => l.status === "for_sale" || l.status === "pending");
+    // If no active listings available, use all listings and show a note
+    const pool = actives.length > 0 ? actives : soldListings.slice(0, 10);
+    setLiveListings([...pool].sort(() => Math.random() - 0.5));
+    setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
+  };
+
+  const handleLiveGuessInput = (e) => {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    setLiveGuessInput(raw.slice(0, 10));
+  };
+
+  const handleLiveGuess = () => {
+    const val = parseInt(liveGuessInput.replace(/[^0-9]/g, ""));
+    const listing = liveListings[liveIdx];
+    if (!val || !listing) return;
+
+    // For live mode, we can't score against sold price — we compare to list price and other predictions
+    const vsListPct = listing.listPrice ? ((val - listing.listPrice) / listing.listPrice * 100).toFixed(1) : null;
+
+    const prediction = {
+      guess: val,
+      listPrice: listing.listPrice,
+      address: listing.address,
+      neighborhood: listing.neighborhood,
+      city: listing.city,
+      state: listing.state,
+      zip: listing.zip,
+      beds: listing.beds,
+      baths: listing.baths,
+      sqft: listing.sqft,
+      photo: listing.photo,
+      propertyType: listing.propertyType,
+      status: listing.status || "active",
+      vsListPct: vsListPct ? parseFloat(vsListPct) : null,
+      timestamp: Date.now(),
+      resolved: false,
+      soldPrice: null,
+    };
+
+    setLivePrediction(prediction);
+    setAllPredictions(prev => [...prev, prediction]);
+    // Award XP for making a prediction
+    setAllResults(prev => [...prev, {
+      guess: val, soldPrice: listing.listPrice || val, pctOff: Math.abs(parseFloat(vsListPct || 0)),
+      revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now(),
+      propertyType: listing.propertyType || null,
+      neighborhood: listing.neighborhood || null,
+      city: listing.city || null,
+      isLive: true,
+    }]);
+  };
+
+  const liveNextProperty = () => {
+    setLivePrediction(null);
+    setLiveGuessInput("");
+    setLiveIdx(prev => prev + 1);
+  };
+
   // ── Resolve feedback color from theme ──
   const fbColor = (fb) => T[fb?.colorKey] || T.green;
 
@@ -523,6 +596,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const TAB_VIEWS = {
     daily: view === "daily" || view === "postDaily",
     free: view === "freeplay" || view === "fpPicker",
+    live: view === "live",
     stats: view === "tomorrow",
     board: view === "leaderboard",
   };
@@ -532,6 +606,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       else setView("daily");
     } else if (tab === "free") {
       if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("fpPicker");
+      else setView("daily"); // gate: must play daily first
+    } else if (tab === "live") {
+      if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("live");
       else setView("daily"); // gate: must play daily first
     } else if (tab === "stats") {
       setView("tomorrow");
@@ -736,6 +813,26 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {shareToast && (
         <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, padding: "12px 24px", borderRadius: 12, background: T.accent, color: "#fff", fontSize: 14, fontWeight: 600, animation: "ppSlideUp 0.3s ease", boxShadow: "0 8px 32px rgba(99,102,241,0.3)", fontFamily: FONT }}>
           Copied to clipboard
+        </div>
+      )}
+
+      {/* Persistent XP bar — visible on Free, Live, Stats */}
+      {(view === "freeplay" || view === "live" || view === "tomorrow") && (
+        <div onClick={() => setShowLevelModal(true)} style={{
+          margin: "0 16px 12px", padding: "10px 16px", background: T.card,
+          border: `1px solid ${T.cardBorder}`, borderRadius: 12,
+          cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={16} /></span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Lv.{currentLevel.level}</span>
+          </div>
+          <div style={{ flex: 1, height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #6366F1, #3B82F6)",
+              width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%",
+              transition: "width 0.5s ease" }} />
+          </div>
+          <span style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary, whiteSpace: "nowrap" }}>{xp}{nextLevel ? `/${nextLevel.req}` : ""} XP</span>
         </div>
       )}
 
@@ -1000,6 +1097,73 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
+      {/* ═══ LIVE MODE ═══ */}
+      {view === "live" && (
+        <div style={{ padding: "16px 16px 100px", animation: "ppSlideUp 0.4s ease" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red }}>LIVE</div>
+              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label} · Round {liveIdx + 1}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
+            </div>
+          </div>
+          {liveListings[liveIdx] && !livePrediction ? (
+            <>
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true })}
+              <div style={{ marginTop: 16, padding: "20px", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 12 }}>Your Prediction</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginBottom: 16 }}>
+                  <span style={{ fontSize: 13, fontFamily: MONO, color: T.textTertiary }}>$</span>
+                  <input
+                    type="text" placeholder="0" value={fmtGuess(liveGuessInput)} onChange={handleLiveGuessInput}
+                    style={{ flex: 1, fontSize: 32, fontWeight: 800, fontFamily: MONO, color: T.text, background: "transparent", border: "none", outline: "none", padding: "4px 0", paddingBottom: 0, borderBottom: `2px solid ${T.accent}` }}
+                  />
+                </div>
+                <PillButton onClick={handleLiveGuess} accent>Lock In Prediction</PillButton>
+              </div>
+            </>
+          ) : livePrediction ? (
+            <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
+              <img src={livePrediction.photo} alt="" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+              <div style={{ padding: "20px" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 8 }}>PREDICTION LOCKED</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: T.text, fontFamily: FONT, marginBottom: 12 }}>
+                  {livePrediction.beds}BR / {livePrediction.baths}BA · {(livePrediction.sqft || 0).toLocaleString()} sf
+                </div>
+                <div style={{ background: T.inputBg, padding: "12px 14px", borderRadius: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>Your Prediction</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.text }}>{fmt(livePrediction.guess)}</div>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>vs List</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: MONO, color: livePrediction.vsListPct >= 0 ? T.orange : T.green, marginTop: 2 }}>
+                      {livePrediction.vsListPct ? (livePrediction.vsListPct >= 0 ? "+" : "") + livePrediction.vsListPct.toFixed(1) + "%" : "—"}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Status</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: livePrediction.status === "pending" ? T.orange : T.green, marginTop: 2 }}>{(livePrediction.status || "active").toUpperCase()}</div>
+                  </div>
+                </div>
+                <div style={{ padding: "12px", background: `${T.accent}12`, borderRadius: 10, marginBottom: 12, borderLeft: `3px solid ${T.accent}` }}>
+                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>68% of players think it'll sell higher. We'll notify you when this one closes.</div>
+                </div>
+                <PillButton onClick={liveNextProperty} secondary>Next Property</PillButton>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "60px 20px" }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
+              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 20, fontFamily: FONT }}>You've locked in predictions on all active listings.</div>
+              <PillButton onClick={() => setView("postDaily")} accent>Back to Home</PillButton>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ═══ FREE PLAY NEIGHBORHOOD PICKER ═══ */}
       {view === "fpPicker" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
@@ -1157,6 +1321,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {[
               { id: "daily", label: "Daily", icon: "target" },
               { id: "free", label: "Free", icon: "play" },
+              { id: "live", label: "Live", icon: "radio" },
               { id: "stats", label: "Stats", icon: "bar-chart" },
               { id: "board", label: "Board", icon: "award" },
             ].map(tab => {
@@ -1173,6 +1338,67 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ LEVEL ROADMAP MODAL ═══ */}
+      {showLevelModal && (
+        <div onClick={() => setShowLevelModal(false)} style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20, animation: "ppFadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: 20, padding: "24px 20px", maxWidth: 380,
+            width: "100%", maxHeight: "70vh", overflowY: "auto", border: `1px solid ${T.cardBorder}`,
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
+              fontFamily: MONO, color: T.accent, marginBottom: 4 }}>LEVEL ROADMAP</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>
+              Your Journey
+            </div>
+            {LEVELS.map((lvl, i) => {
+              const unlocked = xp >= lvl.req;
+              const isCurrent = currentLevel.level === lvl.level;
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                  borderRadius: 12, marginBottom: 6,
+                  background: isCurrent ? `${T.accent}12` : "transparent",
+                  border: `1px solid ${isCurrent ? `${T.accent}30` : "transparent"}`,
+                  opacity: unlocked ? 1 : 0.4,
+                }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center",
+                    justifyContent: "center",
+                    background: unlocked ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.inputBg,
+                    color: unlocked ? "#fff" : T.textTertiary,
+                  }}>
+                    <Icon name={lvl.icon} size={18} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: unlocked ? T.text : T.textTertiary, fontFamily: FONT }}>
+                      Lv.{lvl.level} — {lvl.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{lvl.req} XP required</div>
+                  </div>
+                  {isCurrent && (
+                    <div style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, color: T.accent,
+                      background: `${T.accent}18`, padding: "3px 8px", borderRadius: 6, letterSpacing: 1 }}>YOU</div>
+                  )}
+                  {unlocked && !isCurrent && (
+                    <Icon name="check" size={16} style={{ color: T.green }} />
+                  )}
+                </div>
+              );
+            })}
+            <button onClick={() => setShowLevelModal(false)} style={{
+              width: "100%", marginTop: 16, padding: "14px", borderRadius: 9999,
+              background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+              fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT,
+            }}>Got It</button>
           </div>
         </div>
       )}
