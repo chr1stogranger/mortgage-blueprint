@@ -524,9 +524,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {/* Guess */}
           <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>What do you think it sold for?</div>
-          <input value={guess ? `$${guess}` : ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} placeholder="$0" inputMode="numeric"
-            style={{ width: "100%", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 20px", fontSize: 28, fontWeight: 800, color: T.text, textAlign: "center", outline: "none", fontFamily: MONO, transition: "border-color 0.2s", boxSizing: "border-box" }}
-            onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = T.cardBorder} />
+          <div style={{ position: "relative", width: "100%" }}>
+            {guess && <div style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", fontSize: 28, fontWeight: 800, color: T.text, fontFamily: MONO, pointerEvents: "none", zIndex: 1 }}>$</div>}
+            <input value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} placeholder="$0" inputMode="numeric"
+              style={{ width: "100%", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: guess ? "16px 20px 16px 40px" : "16px 20px", fontSize: 28, fontWeight: 800, color: T.text, textAlign: guess ? "left" : "center", outline: "none", fontFamily: MONO, transition: "border-color 0.2s", boxSizing: "border-box" }}
+              onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = T.cardBorder} />
+          </div>
           {/* Live feedback */}
           {guess && (() => {
             const v = parseInt(guess.replace(/[^0-9]/g, ""));
@@ -647,15 +650,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
             </div>
           </div>
-          <PropertyCard listing={dailyProperty} guess={guessInput} onGuessChange={handleGuessInput} onGuess={handleDailyGuess} badge="DAILY" badgeColor={T.accent} accentColor={T.accent} />
+          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent })}
         </div>
       )}
 
       {/* ═══ REVEAL ═══ */}
       {view === "reveal" && dailyResult && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: 16 }}>
-          <RevealCard result={dailyResult} showPhases onShare={shareResult} onContinue={() => setView("postDaily")}
-            onRunNumbersClick={onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null} />
+          {RevealCard({ result: dailyResult, showPhases: true, onShare: shareResult, onContinue: () => setView("postDaily"),
+            onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })}
         </div>
       )}
 
@@ -802,12 +805,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {fpListings[fpIdx] && !fpResult ? (
             <>
-              <PropertyCard listing={fpListings[fpIdx]} guess={fpGuessInput} onGuessChange={handleFpGuessInput} onGuess={handleFpGuess} badge="FREE PLAY" badgeColor={T.cyan} accentColor={T.cyan} />
+              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan })}
               <div style={{ textAlign: "center", marginTop: 10, fontSize: 12, color: T.textTertiary, fontFamily: MONO }}>{fpListings.length - fpIdx - 1} more in queue</div>
             </>
           ) : fpResult ? (
-            <RevealCard result={fpResult} onContinue={fpNextProperty}
-              onRunNumbersClick={onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null} />
+            {RevealCard({ result: fpResult, onContinue: fpNextProperty,
+              onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })}
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
