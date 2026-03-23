@@ -192,6 +192,26 @@ const SAMPLE_SOLD = [
   { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909,description:"Move-in ready 3BR/2BA with a flexible floor plan. Renovated kitchen with breakfast bar, updated bathrooms, and gleaming hardwood throughout. Large primary suite with walk-in closet. Finished garage with laundry. Excellent Central Sunset location near shopping, dining, and express bus lines." },
 ];
 
+// ── SF Neighborhoods mapped to zip codes ──
+const SF_NEIGHBORHOODS = [
+  { name: "All of SF", zip: null },
+  { name: "Sunset", zip: "94122" },
+  { name: "Richmond", zip: "94118" },
+  { name: "Marina", zip: "94123" },
+  { name: "Pacific Heights", zip: "94115" },
+  { name: "Noe Valley", zip: "94114" },
+  { name: "Mission", zip: "94110" },
+  { name: "Castro", zip: "94114" },
+  { name: "SOMA", zip: "94103" },
+  { name: "Hayes Valley", zip: "94102" },
+  { name: "Bernal Heights", zip: "94110" },
+  { name: "Potrero Hill", zip: "94107" },
+  { name: "Excelsior", zip: "94112" },
+  { name: "Bayview", zip: "94124" },
+  { name: "Twin Peaks", zip: "94131" },
+  { name: "Glen Park", zip: "94131" },
+];
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -234,9 +254,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpGuessInput, setFpGuessInput] = useState("");
   const [fpResult, setFpResult] = useState(null);
   const [mlsExpanded, setMlsExpanded] = useState(false);
+  const [fpSelectedNeighborhood, setFpSelectedNeighborhood] = useState(null);
 
   // ── Countdown ──
   const [countdown, setCountdown] = useState("");
+
+  // ── Stats Tabs ──
+  const [statsTab, setStatsTab] = useState("daily"); // "daily" or "freeplay"
+  const [leaderboardTab, setLeaderboardTab] = useState("today"); // "today", "weekly", or "alltime"
 
   // ── Refs ──
   const revealCounterRef = useRef(null);
@@ -458,13 +483,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       feedback, feedbackMessage: getRandomMessage(feedback), insight,
       dailyNumber: null, timestamp: Date.now(), revealed: true, isDaily: false,
     });
-    setAllResults(prev => [...prev, { guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)), revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now() }]);
+    setAllResults(prev => [...prev, {
+      guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)),
+      revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now(),
+      propertyType: listing.propertyType || null,
+      neighborhood: listing.neighborhood || null,
+      city: listing.city || null,
+    }]);
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
-  const enterFreePlay = () => {
+  const enterFreePlay = (zip) => {
     // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
     const excludedIndices = getDailyIndices(soldListings, market?.label || "", 30);
-    const pool = soldListings.filter((_, i) => !excludedIndices.has(i));
+    let pool = soldListings.filter((_, i) => !excludedIndices.has(i));
+
+    // If zip is provided, filter to that neighborhood
+    if (zip) {
+      pool = pool.filter(listing => listing.zip === zip);
+    }
+
     // If exclusion removed too many (small dataset), fall back to all minus today only
     const safePool = pool.length >= 3 ? pool : soldListings.filter((_, i) => i !== (dailyProperty ? soldListings.indexOf(dailyProperty) : -1));
     setFpListings([...safePool].sort(() => Math.random() - 0.5));
@@ -477,7 +514,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ── Tab Bar Navigation ──
   const TAB_VIEWS = {
     daily: view === "daily" || view === "postDaily",
-    free: view === "freeplay",
+    free: view === "freeplay" || view === "fpPicker",
     stats: view === "tomorrow",
     board: view === "leaderboard",
   };
@@ -486,7 +523,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
       else setView("daily");
     } else if (tab === "free") {
-      if (dailyResult && dailyResult.dailyNumber === dailyNumber) enterFreePlay();
+      if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("fpPicker");
       else setView("daily"); // gate: must play daily first
     } else if (tab === "stats") {
       setView("tomorrow");
@@ -766,7 +803,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan, marginBottom: 10 }}>KEEP GOING?</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.text, fontFamily: FONT, lineHeight: 1.3, marginBottom: 6 }}>Your instincts are warmed up</div>
             <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 20 }}>Jump into Free Play for unlimited rounds.<br />Same market, no spoilers for future dailies.</div>
-            <PillButton onClick={enterFreePlay} tealAccent>Start Free Play</PillButton>
+            <PillButton onClick={() => setView("fpPicker")} tealAccent>Start Free Play</PillButton>
           </div>
 
           <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px", textAlign: "center", marginBottom: 16 }}>
@@ -786,68 +823,210 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
-      {/* ═══ STATS (formerly TOMORROW) ═══ */}
+      {/* ═══ STATS (with Daily / Free Play tabs) ═══ */}
       {view === "tomorrow" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>YOUR STATS</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label}</div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {streak > 0 && <StatPill value={`${streak}d`} label="streak" color={T.orange} />}
-              <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
-            </div>
           </div>
 
-          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
-            <OverlineLabel>YOUR STATS</OverlineLabel>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 10 }}>
-              {[[allResults.filter(r => r.isDaily).length, "Dailies"], [streak, "Streak"], [avgAccuracy != null ? `${(100 - avgAccuracy).toFixed(1)}%` : "—", "Avg"]].map(([val, label], i) => (
-                <div key={i} style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: MONO, color: T.text }}>{val}</div>
-                  <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>{label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${T.cardBorder}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={14} /></span> Lv.{currentLevel.level} — {currentLevel.name}
-                </span>
-                <span style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary }}>{xp} XP{nextLevel ? ` / ${nextLevel.req}` : ""}</span>
-              </div>
-              <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #6366F1, #3B82F6)", width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%", transition: "width 0.5s ease" }} />
-              </div>
-            </div>
+          {/* Stats Tabs */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {["daily", "freeplay"].map(tab => (
+              <button key={tab} onClick={() => setStatsTab(tab)} style={{
+                flex: 1, padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: FONT,
+                border: `1px solid ${statsTab === tab ? "transparent" : T.cardBorder}`,
+                background: statsTab === tab ? T.accent : T.card,
+                color: statsTab === tab ? "#fff" : T.textSecondary,
+                cursor: "pointer", transition: "all 0.2s"
+              }}>
+                {tab === "daily" ? "Daily" : "Free Play"}
+              </button>
+            ))}
           </div>
 
-          {dailyResult && (
-            <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
-              <OverlineLabel>TODAY'S RESULT</OverlineLabel>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
-                <img src={dailyResult.photo} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover" }}
-                  onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{dailyResult.neighborhood}</div>
-                  <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{dailyResult.beds}BR/{dailyResult.baths}BA · {(dailyResult.sqft || 0).toLocaleString()}sf</div>
+          {/* ─── DAILY STATS TAB ─── */}
+          {statsTab === "daily" && (
+            <>
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
+                <OverlineLabel>YOUR STREAK</OverlineLabel>
+                <div style={{ fontSize: 56, fontWeight: 900, fontFamily: MONO, color: T.accent, marginTop: 8, textAlign: "center", marginBottom: 6 }}>{streak}</div>
+                <div style={{ fontSize: 14, color: T.textSecondary, textAlign: "center", fontFamily: FONT }}>consecutive days</div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.text }}>{allResults.filter(r => r.isDaily).length}</div>
+                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Dailies Played</div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: MONO, color: fbColor(dailyResult.feedback) }}>{(100 - dailyResult.pctOff).toFixed(1)}%</div>
-                  <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, letterSpacing: 1, color: fbColor(dailyResult.feedback) }}>{dailyResult.feedback.label}</div>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.green }}>{avgAccuracy != null ? (100 - avgAccuracy).toFixed(1) : "—"}%</div>
+                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
                 </div>
               </div>
-            </div>
+
+              {/* Accuracy Distribution */}
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                <OverlineLabel>ACCURACY DISTRIBUTION</OverlineLabel>
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                  {[
+                    { label: "BULLSEYE", range: "≤2%", color: T.green, minPct: 0, maxPct: 2 },
+                    { label: "SHARP", range: "≤5%", color: T.green, minPct: 2.01, maxPct: 5 },
+                    { label: "SOLID", range: "≤10%", color: T.cyan, minPct: 5.01, maxPct: 10 },
+                    { label: "TRICKY", range: "≤20%", color: T.orange, minPct: 10.01, maxPct: 20 },
+                    { label: "SURPRISE", range: ">20%", color: T.orange, minPct: 20.01, maxPct: 100 },
+                  ].map((band, idx) => {
+                    const count = allResults.filter(r => r.isDaily && r.pctOff >= band.minPct && r.pctOff <= band.maxPct).length;
+                    const total = allResults.filter(r => r.isDaily).length;
+                    const pct = total > 0 ? (count / total) * 100 : 0;
+                    return (
+                      <div key={idx}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: MONO, textTransform: "uppercase" }}>{band.label}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary, fontFamily: MONO }}>{count}</div>
+                        </div>
+                        <div style={{ height: 8, background: T.inputBg, borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ height: "100%", background: band.color, width: `${Math.max(pct, 3)}%`, transition: "width 0.3s ease", borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* XP & Level */}
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={14} /></span> Lv.{currentLevel.level} — {currentLevel.name}
+                  </span>
+                  <span style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary }}>{xp} XP{nextLevel ? ` / ${nextLevel.req}` : ""}</span>
+                </div>
+                <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #6366F1, #3B82F6)", width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%", transition: "width 0.5s ease" }} />
+                </div>
+              </div>
+
+              {/* Next Daily Countdown */}
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px", textAlign: "center", marginBottom: 16 }}>
+                <OverlineLabel>NEXT DAILY IN</OverlineLabel>
+                <div style={{ fontSize: 32, fontWeight: 800, fontFamily: MONO, color: T.text, letterSpacing: "-0.02em", marginTop: 4 }}>{countdown}</div>
+              </div>
+            </>
           )}
 
-          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "24px 20px", textAlign: "center", marginBottom: 16 }}>
-            <OverlineLabel>NEXT PROPERTY IN</OverlineLabel>
-            <div style={{ fontSize: 32, fontWeight: 800, fontFamily: MONO, color: T.text, letterSpacing: "-0.02em", marginTop: 4 }}>{countdown}</div>
-            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 6, fontFamily: FONT }}>Come back tomorrow to keep your streak</div>
-          </div>
+          {/* ─── FREE PLAY STATS TAB ─── */}
+          {statsTab === "freeplay" && (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.cyan }}>{allResults.filter(r => !r.isDaily).length}</div>
+                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Free Play Rounds</div>
+                </div>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.cyan }}>
+                    {(() => {
+                      const fpResults = allResults.filter(r => !r.isDaily && r.revealed && r.soldPrice);
+                      return fpResults.length > 0 ? (100 - fpResults.reduce((sum, r) => sum + Math.abs((r.guess - r.soldPrice) / r.soldPrice) * 100, 0) / fpResults.length).toFixed(1) : "—";
+                    })()}%
+                  </div>
+                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
+                </div>
+              </div>
+
+              {/* Best Guess */}
+              {(() => {
+                const fpResults = allResults.filter(r => !r.isDaily);
+                const best = fpResults.length > 0 ? fpResults.reduce((min, r) => r.pctOff < min.pctOff ? r : min) : null;
+                return best ? (
+                  <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                    <OverlineLabel>BEST GUESS</OverlineLabel>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.green }}>{(100 - best.pctOff).toFixed(1)}%</div>
+                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Accuracy</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT }}>{best.propertyType ? propTypeShort(best.propertyType) : "—"}</div>
+                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Type</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Accuracy by Property Type */}
+              {(() => {
+                const fpResults = allResults.filter(r => !r.isDaily && r.revealed && r.soldPrice && r.propertyType);
+                const types = [...new Set(fpResults.map(r => propTypeShort(r.propertyType)))].filter(Boolean);
+                return types.length > 0 ? (
+                  <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                    <OverlineLabel>ACCURACY BY TYPE</OverlineLabel>
+                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                      {types.map((type, idx) => {
+                        const typeResults = fpResults.filter(r => propTypeShort(r.propertyType) === type);
+                        const accuracy = 100 - typeResults.reduce((sum, r) => sum + Math.abs((r.guess - r.soldPrice) / r.soldPrice) * 100, 0) / typeResults.length;
+                        return (
+                          <div key={idx}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: MONO }}>{type}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: T.cyan, fontFamily: MONO }}>{accuracy.toFixed(1)}%</div>
+                            </div>
+                            <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
+                              <div style={{ height: "100%", background: T.cyan, width: `${Math.max(accuracy, 3)}%`, transition: "width 0.3s ease", borderRadius: 3 }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </>
+          )}
 
           <button onClick={() => { setMarketInput(market?.label || ""); setView("onboarding"); }} style={{ display: "block", margin: "16px auto 0", background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Change market</button>
+        </div>
+      )}
+
+      {/* ═══ FREE PLAY NEIGHBORHOOD PICKER ═══ */}
+      {view === "fpPicker" && (
+        <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan, marginBottom: 2 }}>CHOOSE YOUR MARKET</div>
+            <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
+            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Select where you want to guess property prices</div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {SF_NEIGHBORHOODS.map((hood, idx) => (
+              <button
+                key={idx}
+                onClick={() => { enterFreePlay(hood.zip); }}
+                style={{
+                  padding: "16px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card,
+                  fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
+                  cursor: "pointer", transition: "all 0.2s",
+                  display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
+                  minHeight: 56,
+                  aspectRatio: hood.name.length > 12 ? "auto" : "1"
+                }}
+                onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.accent; }}
+                onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}
+              >
+                {hood.name}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 24, textAlign: "center" }}>
+            <button onClick={() => setView("postDaily")} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>
+              Back
+            </button>
+          </div>
         </div>
       )}
 
@@ -880,7 +1059,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
-      {/* ═══ LEADERBOARD ═══ */}
+      {/* ═══ LEADERBOARD (with Today / Weekly / All Time tabs) ═══ */}
       {view === "leaderboard" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.3s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -888,33 +1067,70 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>LEADERBOARD</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label}</div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {streak > 0 && <StatPill value={`${streak}d`} label="streak" color={T.orange} />}
-              <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
-            </div>
           </div>
-          {[
-            { name: "Sarah K.", role: "Realtor", accuracy: 97.2, guesses: 21 },
-            { name: "Mike T.", role: "Buyer", accuracy: 95.8, guesses: 15 },
-            { name: "Jessica R.", role: "Realtor", accuracy: 94.1, guesses: 19 },
-            { name: "You", role: "", accuracy: avgAccuracy != null ? parseFloat((100 - avgAccuracy).toFixed(1)) : 0, guesses: allResults.length, isYou: true },
-            { name: "David L.", role: "Buyer", accuracy: 91.5, guesses: 12 },
-            { name: "Amanda W.", role: "Realtor", accuracy: 89.3, guesses: 9 },
-          ].sort((a, b) => b.accuracy - a.accuracy).map((entry, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${T.accent}12` : T.card, border: `1px solid ${entry.isYou ? `${T.accent}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: MONO,
-                background: i === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : i === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : i === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
-                color: i < 3 ? "#fff" : T.textSecondary }}>{i + 1}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? T.accent : T.text, fontFamily: FONT }}>{entry.name}</div>
-                {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: entry.isYou ? T.accent : T.green }}>{entry.accuracy}%</div>
-                <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary }}>{entry.guesses} guesses</div>
-              </div>
-            </div>
-          ))}
+
+          {/* Leaderboard Tabs */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {[
+              { id: "today", label: "Today" },
+              { id: "weekly", label: "Weekly" },
+              { id: "alltime", label: "All Time" },
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setLeaderboardTab(tab.id)} style={{
+                flex: 1, padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: FONT,
+                border: `1px solid ${leaderboardTab === tab.id ? "transparent" : T.cardBorder}`,
+                background: leaderboardTab === tab.id ? T.accent : T.card,
+                color: leaderboardTab === tab.id ? "#fff" : T.textSecondary,
+                cursor: "pointer", transition: "all 0.2s"
+              }}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Mock leaderboard data */}
+          {(() => {
+            const mockData = [
+              { name: "Sarah K.", role: "Realtor", accuracy: 97.2, guesses: 21 },
+              { name: "Mike T.", role: "Buyer", accuracy: 95.8, guesses: 15 },
+              { name: "Jessica R.", role: "Realtor", accuracy: 94.1, guesses: 19 },
+              { name: "You", role: "", accuracy: avgAccuracy != null ? parseFloat((100 - avgAccuracy).toFixed(1)) : 0, guesses: allResults.length, isYou: true },
+              { name: "David L.", role: "Buyer", accuracy: 91.5, guesses: 12 },
+              { name: "Amanda W.", role: "Realtor", accuracy: 89.3, guesses: 9 },
+            ];
+            const sorted = [...mockData].sort((a, b) => b.accuracy - a.accuracy);
+            const hasData = sorted.some(e => !e.isYou) || sorted.some(e => e.isYou && e.guesses > 0);
+
+            return (
+              <>
+                {hasData ? (
+                  <>
+                    {sorted.map((entry, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${T.accent}12` : T.card, border: `1px solid ${entry.isYou ? `${T.accent}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: MONO,
+                          background: i === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : i === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : i === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
+                          color: i < 3 ? "#fff" : T.textSecondary }}>{i + 1}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? T.accent : T.text, fontFamily: FONT }}>{entry.name}</div>
+                          {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: entry.isYou ? T.accent : T.green }}>{entry.accuracy}%</div>
+                          <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary }}>{entry.guesses} guesses</div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "40px 20px", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 8, fontFamily: FONT }}>Coming soon</div>
+                    <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>Play to earn your spot on the leaderboard</div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
           <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: T.textTertiary, padding: 16, background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, fontFamily: FONT }}>
             Leaderboard updates daily at midnight.<br />Play more dailies to climb the rankings.
           </div>
