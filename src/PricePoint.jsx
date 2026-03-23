@@ -353,17 +353,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     else setView("daily");
   };
 
-  // ── Format guess input ──
+  // ── Format guess input — store raw digits only, format visually ──
   const handleGuessInput = (e) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
-    if (!raw) { setGuessInput(""); return; }
-    setGuessInput(parseInt(raw).toLocaleString("en-US"));
+    setGuessInput(raw);
   };
   const handleFpGuessInput = (e) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
-    if (!raw) { setFpGuessInput(""); return; }
-    setFpGuessInput(parseInt(raw).toLocaleString("en-US"));
+    setFpGuessInput(raw);
   };
+  const fmtGuess = (raw) => raw ? parseInt(raw).toLocaleString("en-US") : "";
 
   // ── Submit Daily Guess ──
   const handleDailyGuess = () => {
@@ -524,15 +523,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {/* Guess */}
           <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>What do you think it sold for?</div>
-          <div style={{ position: "relative", width: "100%" }}>
-            {guess && <div style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", fontSize: 28, fontWeight: 800, color: T.text, fontFamily: MONO, pointerEvents: "none", zIndex: 1 }}>$</div>}
-            <input value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} placeholder="$0" inputMode="numeric"
-              style={{ width: "100%", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: guess ? "16px 20px 16px 40px" : "16px 20px", fontSize: 28, fontWeight: 800, color: T.text, textAlign: guess ? "left" : "center", outline: "none", fontFamily: MONO, transition: "border-color 0.2s", boxSizing: "border-box" }}
-              onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = T.cardBorder} />
-          </div>
+          {guess && <div style={{ textAlign: "center", fontSize: 32, fontWeight: 900, color: T.text, fontFamily: MONO, marginBottom: 8, letterSpacing: "-0.02em" }}>${parseInt(guess).toLocaleString("en-US")}</div>}
+          <input value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} placeholder="Enter price" inputMode="numeric" autoComplete="off"
+            style={{ width: "100%", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "14px 20px", fontSize: 18, fontWeight: 600, color: T.text, textAlign: "center", outline: "none", fontFamily: MONO, boxSizing: "border-box" }}
+            onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = T.cardBorder} />
           {/* Live feedback */}
           {guess && (() => {
-            const v = parseInt(guess.replace(/[^0-9]/g, ""));
+            const v = parseInt(guess);
             if (!v) return null;
             const d = ((v - listing.listPrice) / listing.listPrice * 100).toFixed(1);
             return <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 8, fontFamily: MONO }}>{d > 0 ? "+" : ""}{d}% vs list{listing.sqft ? ` · $${Math.round(v / listing.sqft)}/sf` : ""}</div>;
