@@ -924,7 +924,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {[
               { id: "daily", label: "Daily", icon: "target" },
               { id: "free", label: "Free", icon: "play" },
-              { id: "stats", label: "Stats", icon: "bar-chart-2" },
+              { id: "stats", label: "Stats", icon: "bar-chart" },
               { id: "board", label: "Board", icon: "award" },
             ].map(tab => {
               const active = TAB_VIEWS[tab.id];
