@@ -80,7 +80,7 @@ const getInsight = (listing, pctOff, guessedHigher) => {
   const listVsSold = Math.abs(((listing.soldPrice - listing.listPrice) / listing.listPrice) * 100).toFixed(0);
 
   if (listing.soldPrice > listing.listPrice && !guessedHigher) {
-    return `This home went ${listVsSold}% over asking — competitive market in ${listing.neighborhood}.`;
+    return `This home went ${listVsSold}% over asking — competitive market in ${listing.neighborhood || listing.city || "this area"}.`;
   }
   if (listing.soldPrice < listing.listPrice && guessedHigher) {
     return `This one sold ${listVsSold}% under list — sat on the market ${listing.daysOnMarket} days.`;
@@ -91,7 +91,7 @@ const getInsight = (listing, pctOff, guessedHigher) => {
   if (listing.daysOnMarket <= 7) {
     return `Only ${listing.daysOnMarket} days on market — fast sales often signal competitive offers above asking.`;
   }
-  return `${listing.neighborhood} is shifting — this ${overUnder}-asking result is worth noting.`;
+  return `${listing.neighborhood || listing.city || "This area"} is shifting — this ${overUnder}-asking result is worth noting.`;
 };
 
 // ── Level System ──
@@ -546,11 +546,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             )}
           </div>
           {/* Neighborhood badge — pinned bottom-left of photo for quick scanning */}
-          {listing.neighborhood && (
+          {(listing.neighborhood || listing.city) && (
             <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
               <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <Icon name="map-pin" size={13} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{listing.neighborhood}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{listing.neighborhood || listing.city}</span>
               </div>
             </div>
           )}
@@ -558,7 +558,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 18px 20px" }}>
           {/* Neighborhood — address hidden! */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{listing.neighborhood}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{listing.neighborhood || listing.city || "Unknown Area"}</div>
           </div>
           <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{listing.city}, {listing.state} {listing.zip}{showExtras && listing.propertyType ? ` · ${listing.propertyType}` : ""}</div>
           {/* MLS Description — expandable, Free Play only */}
