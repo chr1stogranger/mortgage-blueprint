@@ -588,20 +588,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             )}
           </div>
-          {/* Guess */}
-          <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>What do you think it sold for?</div>
-          <div style={{ textAlign: "center", fontSize: 32, fontWeight: 900, color: T.text, fontFamily: MONO, marginBottom: 8, letterSpacing: "-0.02em", minHeight: 40, visibility: guess ? "visible" : "hidden" }}>{guess ? `$${parseInt(guess).toLocaleString("en-US")}` : "\u00A0"}</div>
-          <input value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} placeholder="Enter price" inputMode="numeric" autoComplete="off"
-            style={{ width: "100%", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "14px 20px", fontSize: 18, fontWeight: 600, color: T.text, textAlign: "center", outline: "none", fontFamily: MONO, boxSizing: "border-box" }}
-            onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = T.cardBorder} />
+          {/* Guess — Cash App style: tap the display to type, hidden input captures keys */}
+          <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 6, fontFamily: FONT }}>What do you think it sold for?</div>
+          <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
+            style={{ position: "relative", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 20px", cursor: "text", textAlign: "center", marginBottom: 4, transition: "border-color 0.2s" }}>
+            <div style={{ fontSize: guess ? 28 : 18, fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: MONO, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s" }}>
+              {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : "Tap to enter price"}
+            </div>
+            <input id={`pp-guess-${badge || "d"}`} value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} inputMode="numeric" autoComplete="off"
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, fontSize: 18, border: "none", outline: "none", background: "none", boxSizing: "border-box" }}
+              onFocus={e => e.target.parentElement.style.borderColor = accent} onBlur={e => e.target.parentElement.style.borderColor = T.cardBorder} />
+          </div>
           {/* Live feedback — always render to keep DOM stable */}
-          <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 8, fontFamily: MONO, minHeight: 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
+          <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 6, fontFamily: MONO, minHeight: 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
             const v = parseInt(guess);
-            if (!v) return "\u00A0";
+            if (!v || !listing.listPrice) return "\u00A0";
             const d = ((v - listing.listPrice) / listing.listPrice * 100).toFixed(1);
             return `${d > 0 ? "+" : ""}${d}% vs list${listing.sqft ? ` · $${Math.round(v / listing.sqft)}/sf` : ""}`;
           })()}</div>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 14 }}>
             <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan}>Final Answer</PillButton>
           </div>
         </div>
