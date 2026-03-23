@@ -285,8 +285,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, []);
 
-  // ── Countdown timer ──
+  // ── Countdown timer — only run when visible (prevents input-killing re-renders) ──
+  const countdownRef = useRef(null);
   useEffect(() => {
+    if (view !== "postDaily" && view !== "tomorrow") {
+      if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+      return;
+    }
     const update = () => {
       const now = new Date();
       const tomorrow = new Date(now);
@@ -296,9 +301,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setCountdown(`${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m ${Math.floor((diff % 60000) / 1000)}s`);
     };
     update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    countdownRef.current = setInterval(update, 1000);
+    return () => { if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; } };
+  }, [view]);
 
   // ── Auto-fetch ──
   useEffect(() => {
@@ -461,26 +466,33 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ═══════════════════════════════════════════════════════════════
   // RENDER HELPERS
   // ═══════════════════════════════════════════════════════════════
-  const OverlineLabel = ({ children }) => (
-    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>{children}</div>
+  // ── Memoized sub-components — stable references prevent input focus loss ──
+  const OverlineLabel = useMemo(() =>
+    function OverlineLabel({ children }) {
+      return <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>{children}</div>;
+    }, [T.textTertiary]
   );
 
-  const StatPill = ({ value, label, color }) => (
-    <div style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: color || T.accent, background: `${color || T.accent}18`, padding: "4px 10px", borderRadius: 8, border: `1px solid ${color || T.accent}30` }}>
-      {value}{label ? ` ${label}` : ""}
-    </div>
+  const StatPill = useMemo(() =>
+    function StatPill({ value, label, color }) {
+      return <div style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: color || T.accent, background: `${color || T.accent}18`, padding: "4px 10px", borderRadius: 8, border: `1px solid ${color || T.accent}30` }}>
+        {value}{label ? ` ${label}` : ""}
+      </div>;
+    }, [T.accent]
   );
 
-  const PillButton = ({ children, onClick, disabled, accent, secondary, tealAccent, style: s }) => (
-    <button onClick={onClick} disabled={disabled} style={{
-      width: "100%", padding: "14px", borderRadius: 9999, fontSize: 15, fontWeight: 700,
-      cursor: disabled ? "not-allowed" : "pointer", fontFamily: FONT, transition: "all 0.2s",
-      border: secondary ? `1px solid ${T.cardBorder}` : "none",
-      background: disabled ? T.inputBg : tealAccent ? "linear-gradient(135deg, #06B6D4, #3B82F6)" : accent ? "linear-gradient(135deg, #6366F1, #3B82F6)" : secondary ? "transparent" : "linear-gradient(135deg, #6366F1, #3B82F6)",
-      color: disabled ? T.textTertiary : secondary ? T.textSecondary : "#fff",
-      boxShadow: disabled || secondary ? "none" : accent ? "0 0 20px rgba(99,102,241,0.3)" : tealAccent ? "0 0 20px rgba(6,182,212,0.3)" : "0 0 20px rgba(99,102,241,0.3)",
-      ...s,
-    }}>{children}</button>
+  const PillButton = useMemo(() =>
+    function PillButton({ children, onClick, disabled, accent, secondary, tealAccent, style: s }) {
+      return <button onClick={onClick} disabled={disabled} style={{
+        width: "100%", padding: "14px", borderRadius: 9999, fontSize: 15, fontWeight: 700,
+        cursor: disabled ? "not-allowed" : "pointer", fontFamily: FONT, transition: "all 0.2s",
+        border: secondary ? `1px solid ${T.cardBorder}` : "none",
+        background: disabled ? T.inputBg : tealAccent ? "linear-gradient(135deg, #06B6D4, #3B82F6)" : accent ? "linear-gradient(135deg, #6366F1, #3B82F6)" : secondary ? "transparent" : "linear-gradient(135deg, #6366F1, #3B82F6)",
+        color: disabled ? T.textTertiary : secondary ? T.textSecondary : "#fff",
+        boxShadow: disabled || secondary ? "none" : accent ? "0 0 20px rgba(99,102,241,0.3)" : tealAccent ? "0 0 20px rgba(6,182,212,0.3)" : "0 0 20px rgba(99,102,241,0.3)",
+        ...s,
+      }}>{children}</button>;
+    }, [T, FONT]
   );
 
   // ── Property card (shared daily & free play) ──
@@ -523,17 +535,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {/* Guess */}
           <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>What do you think it sold for?</div>
-          {guess && <div style={{ textAlign: "center", fontSize: 32, fontWeight: 900, color: T.text, fontFamily: MONO, marginBottom: 8, letterSpacing: "-0.02em" }}>${parseInt(guess).toLocaleString("en-US")}</div>}
+          <div style={{ textAlign: "center", fontSize: 32, fontWeight: 900, color: T.text, fontFamily: MONO, marginBottom: 8, letterSpacing: "-0.02em", minHeight: 40, visibility: guess ? "visible" : "hidden" }}>{guess ? `$${parseInt(guess).toLocaleString("en-US")}` : "\u00A0"}</div>
           <input value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} placeholder="Enter price" inputMode="numeric" autoComplete="off"
             style={{ width: "100%", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "14px 20px", fontSize: 18, fontWeight: 600, color: T.text, textAlign: "center", outline: "none", fontFamily: MONO, boxSizing: "border-box" }}
             onFocus={e => e.target.style.borderColor = accent} onBlur={e => e.target.style.borderColor = T.cardBorder} />
-          {/* Live feedback */}
-          {guess && (() => {
+          {/* Live feedback — always render to keep DOM stable */}
+          <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 8, fontFamily: MONO, minHeight: 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
             const v = parseInt(guess);
-            if (!v) return null;
+            if (!v) return "\u00A0";
             const d = ((v - listing.listPrice) / listing.listPrice * 100).toFixed(1);
-            return <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 8, fontFamily: MONO }}>{d > 0 ? "+" : ""}{d}% vs list{listing.sqft ? ` · $${Math.round(v / listing.sqft)}/sf` : ""}</div>;
-          })()}
+            return `${d > 0 ? "+" : ""}${d}% vs list${listing.sqft ? ` · $${Math.round(v / listing.sqft)}/sf` : ""}`;
+          })()}</div>
           <div style={{ marginTop: 16 }}>
             <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan}>Final Answer</PillButton>
           </div>
@@ -806,8 +818,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ textAlign: "center", marginTop: 10, fontSize: 12, color: T.textTertiary, fontFamily: MONO }}>{fpListings.length - fpIdx - 1} more in queue</div>
             </>
           ) : fpResult ? (
-            {RevealCard({ result: fpResult, onContinue: fpNextProperty,
-              onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })}
+            RevealCard({ result: fpResult, onContinue: fpNextProperty,
+              onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
