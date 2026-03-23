@@ -545,6 +545,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
             )}
           </div>
+          {/* Neighborhood badge — pinned bottom-left of photo for quick scanning */}
+          {listing.neighborhood && (
+            <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="map-pin" size={13} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{listing.neighborhood}</span>
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ padding: "16px 18px 20px" }}>
           {/* Neighborhood — address hidden! */}
