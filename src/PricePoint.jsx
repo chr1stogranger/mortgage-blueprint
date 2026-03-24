@@ -264,6 +264,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [mlsExpanded, setMlsExpanded] = useState(false);
   const [fpSelectedNeighborhood, setFpSelectedNeighborhood] = useState(null);
 
+  // ── Active Listings (for Live Mode) ──
+  const [activeListings, setActiveListings] = useState([]);
+
   // ── Live Mode State ──
   const [liveListings, setLiveListings] = useState([]);
   const [liveIdx, setLiveIdx] = useState(0);
@@ -382,6 +385,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (data.error) throw new Error(data.error);
       if (data.soldListings && data.soldListings.length > 0) {
         setSoldListings(data.soldListings);
+        if (data.activeListings && data.activeListings.length > 0) {
+          setActiveListings(data.activeListings);
+        }
         const label = data.location || searchValue;
         setLocationLabel(label);
         return { success: true, label };
@@ -530,10 +536,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Live Mode ──
   const enterLiveMode = () => {
-    // Use activeListings from soldListings data, or filter for active status
-    const actives = soldListings.filter(l => l.status === "for_sale" || l.status === "pending");
-    // If no active listings available, use all listings and show a note
-    const pool = actives.length > 0 ? actives : soldListings.slice(0, 10);
+    // Use actual active/pending listings from API, fall back to sold listings
+    const pool = activeListings.length > 0 ? activeListings : soldListings.slice(0, 10);
     setLiveListings([...pool].sort(() => Math.random() - 0.5));
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
   };

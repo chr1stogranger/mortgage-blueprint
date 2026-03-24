@@ -80,6 +80,7 @@ function normalizeProperty(raw, index, prefix, isSold) {
     rentZestimate: raw.rentZestimate || null,
     detailUrl: raw.detailUrl || null,
     listingAgent: raw.attributionInfo?.agentName || raw.listingAgent?.name || raw.agentName || raw.brokerName || raw.attributionInfo?.brokerName || null,
+    description: raw.description || raw.homeDescription || raw.hdpData?.homeInfo?.description || null,
   };
 }
 
