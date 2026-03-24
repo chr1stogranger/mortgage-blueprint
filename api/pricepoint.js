@@ -112,12 +112,24 @@ function normalizeSoldDate(raw) {
 
 // ─── Fetch from RapidAPI ───
 async function fetchListings(location, homeStatus, apiKey, apiHost) {
-  const params = new URLSearchParams({
-    location,
-    home_status: homeStatus,
-  });
+  // The RapidAPI "Real-Time Real-Estate Data" endpoint uses "status" not "home_status"
+  // for the search endpoint. It also supports "forSale", "recentlySold" style values.
+  // We'll try the documented parameter names.
+  const params = new URLSearchParams({ location });
+
+  // Map our status names to what the API actually expects
+  if (homeStatus === "FOR_SALE") {
+    params.set("status", "forSale");
+  } else if (homeStatus === "PENDING") {
+    params.set("status", "forSale");       // pending listings come back within forSale
+  } else if (homeStatus === "RECENTLY_SOLD") {
+    params.set("status", "recentlySold");
+  } else {
+    params.set("status", homeStatus);
+  }
 
   const url = `https://${apiHost}/search?${params}`;
+  console.error(`[PricePoint] Fetching: ${url.replace(apiKey, "***")}`);
 
   const res = await fetch(url, {
     method: "GET",
@@ -129,10 +141,29 @@ async function fetchListings(location, homeStatus, apiKey, apiHost) {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    console.error(`[PricePoint] API error ${res.status} for ${homeStatus}: ${body.slice(0, 300)}`);
     throw new Error(`API ${res.status}: ${body.slice(0, 200)}`);
   }
 
   const data = await res.json();
+
+  // Diagnostic: log response shape and counts
+  const topKeys = Object.keys(data).join(", ");
+  const dataCount = Array.isArray(data.data) ? data.data.length : "not-array";
+  const resultsCount = Array.isArray(data.results) ? data.results.length : "not-array";
+  const propsCount = Array.isArray(data.props) ? data.props.length : "not-array";
+  console.error(`[PricePoint] Response for ${homeStatus}: keys=[${topKeys}], data=${dataCount}, results=${resultsCount}, props=${propsCount}`);
+
+  // Log first listing's keys for shape discovery
+  const firstItem = Array.isArray(data.data) ? data.data[0]
+    : Array.isArray(data.results) ? data.results[0]
+    : Array.isArray(data.props) ? data.props[0]
+    : null;
+  if (firstItem) {
+    console.error(`[PricePoint] First ${homeStatus} item keys: ${Object.keys(firstItem).slice(0, 15).join(", ")}`);
+    console.error(`[PricePoint] First ${homeStatus} item: zpid=${firstItem.zpid}, price=${firstItem.price}, status=${firstItem.homeStatus}, homeType=${firstItem.homeType}`);
+  }
+
   return data;
 }
 
@@ -156,7 +187,8 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { zip, city, state, location: locParam } = req.query;
+    const { zip, city, state, location: locParam, fresh, debug } = req.query;
+    const skipCache = fresh === "1" || debug === "1";
 
     // Build location string
     let location;
@@ -174,11 +206,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // Check cache
+    // Check cache (skip if ?fresh=1 or ?debug=1)
     const cacheKey = location.toLowerCase().trim();
-    const cached = getCached(cacheKey);
-    if (cached) {
-      return res.status(200).json({ ...cached, cached: true });
+    if (!skipCache) {
+      const cached = getCached(cacheKey);
+      if (cached) {
+        return res.status(200).json({ ...cached, cached: true });
+      }
+    } else {
+      cache.delete(cacheKey); // clear stale entry
+      console.error(`[PricePoint] Cache bypassed for ${location}`);
     }
 
     // API credentials
@@ -189,47 +226,52 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    // Fetch active, pending, and sold in parallel
-    const [activeData, pendingData, soldData] = await Promise.allSettled([
+    // Fetch active and sold in parallel (pending comes within forSale results)
+    const [activeData, soldData] = await Promise.allSettled([
       fetchListings(location, "FOR_SALE", apiKey, apiHost),
-      fetchListings(location, "PENDING", apiKey, apiHost),
       fetchListings(location, "RECENTLY_SOLD", apiKey, apiHost),
     ]);
 
-    // Parse active listings — response shape: { status, data: [...] }
-    let active = [];
-    if (activeData.status === "fulfilled" && activeData.value?.data) {
-      const results = activeData.value.data;
-      active = results
-        .filter(r => r.zpid && r.price)
-        .slice(0, 15)
-        .map((r, i) => normalizeProperty(r, i, "pp", false));
-    } else {
-      const reason = activeData.status === "rejected" ? activeData.reason?.message : "no data";
-      console.error(`[PricePoint] Active failed: ${reason}`);
+    // Helper: extract listings array from response (handles multiple shapes)
+    function extractListings(response) {
+      if (!response) return [];
+      if (Array.isArray(response.data)) return response.data;
+      if (Array.isArray(response.results)) return response.results;
+      if (Array.isArray(response.props)) return response.props;
+      if (Array.isArray(response.searchResults)) return response.searchResults;
+      if (Array.isArray(response)) return response;
+      // Some endpoints nest under data.results
+      if (response.data && Array.isArray(response.data.results)) return response.data.results;
+      return [];
     }
 
-    // Merge pending listings into active pool
-    if (pendingData.status === "fulfilled" && pendingData.value?.data) {
-      const pendingResults = pendingData.value.data;
-      const pendingNormalized = pendingResults
+    // Parse active listings
+    let active = [];
+    if (activeData.status === "fulfilled") {
+      const results = extractListings(activeData.value);
+      console.error(`[PricePoint] Active raw count: ${results.length}, with zpid+price: ${results.filter(r => r.zpid && r.price).length}`);
+
+      // Separate active vs pending from the forSale results
+      active = results
         .filter(r => r.zpid && r.price)
-        .slice(0, 5)
-        .map((r, i) => normalizeProperty(r, active.length + i, "ppp", false));
-      active = [...active, ...pendingNormalized];
+        .slice(0, 20)
+        .map((r, i) => normalizeProperty(r, i, "pp", false));
+    } else {
+      console.error(`[PricePoint] Active failed: ${activeData.reason?.message}`);
     }
 
     // Parse sold listings
     let sold = [];
-    if (soldData.status === "fulfilled" && soldData.value?.data) {
-      const results = soldData.value.data;
+    if (soldData.status === "fulfilled") {
+      const results = extractListings(soldData.value);
+      console.error(`[PricePoint] Sold raw count: ${results.length}, with zpid+price: ${results.filter(r => r.zpid && r.price).length}`);
+
       sold = results
         .filter(r => r.zpid && r.price)
         .slice(0, 20)
         .map((r, i) => normalizeProperty(r, i, "pps", true));
     } else {
-      const reason = soldData.status === "rejected" ? soldData.reason?.message : "no data";
-      console.error(`[PricePoint] Sold failed: ${reason}`);
+      console.error(`[PricePoint] Sold failed: ${soldData.reason?.message}`);
     }
 
     // Log counts for debugging
@@ -245,12 +287,32 @@ export default async function handler(req, res) {
       cached: false,
     };
 
+    // Debug mode: include raw API response shapes for troubleshooting
+    if (debug === "1") {
+      result._debug = {
+        activeStatus: activeData.status,
+        activeTopKeys: activeData.status === "fulfilled" ? Object.keys(activeData.value || {}) : null,
+        activeRawCount: activeData.status === "fulfilled" ? extractListings(activeData.value).length : 0,
+        activeError: activeData.status === "rejected" ? activeData.reason?.message : null,
+        soldStatus: soldData.status,
+        soldTopKeys: soldData.status === "fulfilled" ? Object.keys(soldData.value || {}) : null,
+        soldRawCount: soldData.status === "fulfilled" ? extractListings(soldData.value).length : 0,
+        soldError: soldData.status === "rejected" ? soldData.reason?.message : null,
+        apiHost,
+      };
+    }
+
     // Only cache if we got results
     if (active.length > 0 || sold.length > 0) {
       setCache(cacheKey, result);
     }
 
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+    // Don't CDN-cache debug/fresh requests
+    if (skipCache) {
+      res.setHeader("Cache-Control", "no-store");
+    } else {
+      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+    }
     return res.status(200).json(result);
   } catch (err) {
     console.error("[PricePoint] Error:", err);
