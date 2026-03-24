@@ -374,9 +374,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return () => { if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; } };
   }, [view]);
 
-  // ── Auto-fetch ──
+  // ── Auto-fetch — also fetch if we have no active listings (for Live mode) ──
   useEffect(() => {
-    if (market && soldListings === SAMPLE_SOLD) {
+    if (market && (soldListings === SAMPLE_SOLD || activeListings.length === 0)) {
       fetchListings(market.zip || market.city || market.label);
     }
   }, [market]);
@@ -546,9 +546,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Live Mode ──
   const enterLiveMode = () => {
-    // Use actual active/pending listings from API, fall back to sold listings
-    const pool = activeListings.length > 0 ? activeListings : soldListings.slice(0, 10);
-    setLiveListings([...pool].sort(() => Math.random() - 0.5));
+    // Only use real active/pending listings — no sold fallback
+    const pool = activeListings.length > 0 ? [...activeListings].sort(() => Math.random() - 0.5) : [];
+    setLiveListings(pool);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
   };
 
@@ -1277,11 +1277,34 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <PillButton onClick={liveNextProperty} secondary>Next Property</PillButton>
               </div>
             </div>
+          ) : liveListings.length === 0 ? (
+            /* No active listings available from the API */
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.red}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.red}20` }}>
+                <Icon name="radio" size={24} style={{ color: T.red }} />
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>No active listings right now</div>
+              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 8, fontFamily: FONT, lineHeight: 1.5 }}>
+                We couldn't find active or pending listings in {locationLabel || market?.label || "your market"}.
+              </div>
+              <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
+                New listings drop daily — check back soon.
+              </div>
+              <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Free Play Instead</PillButton>
+              <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
+            </div>
           ) : (
-            <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            /* Went through all available active listings */
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.green}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.green}20` }}>
+                <Icon name="check" size={24} style={{ color: T.green }} />
+              </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
-              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 20, fontFamily: FONT }}>You've locked in predictions on all active listings.</div>
-              <PillButton onClick={() => setView("postDaily")} accent>Back to Home</PillButton>
+              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
+                You've locked in predictions on all {liveListings.length} active listing{liveListings.length !== 1 ? "s" : ""}. We'll let you know when they close.
+              </div>
+              <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Free Play</PillButton>
+              <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
           )}
         </div>

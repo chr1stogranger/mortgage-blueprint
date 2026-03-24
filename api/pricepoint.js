@@ -232,6 +232,9 @@ export default async function handler(req, res) {
       console.error(`[PricePoint] Sold failed: ${reason}`);
     }
 
+    // Log counts for debugging
+    console.error(`[PricePoint] ${location}: ${active.length} active, ${sold.length} sold`);
+
     const result = {
       location,
       activeListings: active,
