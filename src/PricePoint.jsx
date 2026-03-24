@@ -76,6 +76,16 @@ const getRandomMessage = (feedback) =>
 // ── Insight generator — turns a miss into a learning moment ──
 const getInsight = (listing, pctOff, guessedHigher) => {
   if (pctOff <= 10) return null;
+  // Guard: if listPrice is null/0, skip list-vs-sold insights
+  if (!listing.listPrice) {
+    if (listing.daysOnMarket > 30) {
+      return `${listing.daysOnMarket} days on market tends to mean price reductions. Good to know for next time.`;
+    }
+    if (listing.daysOnMarket && listing.daysOnMarket <= 7) {
+      return `Only ${listing.daysOnMarket} days on market — fast sales often signal competitive offers above asking.`;
+    }
+    return `${resolveNeighborhood(listing)} is a market worth watching — this one was tricky to read.`;
+  }
   const overUnder = listing.soldPrice > listing.listPrice ? "over" : "under";
   const listVsSold = Math.abs(((listing.soldPrice - listing.listPrice) / listing.listPrice) * 100).toFixed(0);
 
@@ -610,11 +620,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
       else setView("daily");
     } else if (tab === "free") {
+      // If already in free play flow, stay there
+      if (view === "freeplay" || view === "fpPicker") return;
       if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("fpPicker");
-      else setView("daily"); // gate: must play daily first
+      else setView("daily");
     } else if (tab === "live") {
-      if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("live");
-      else setView("daily"); // gate: must play daily first
+      // If already in live flow, stay there
+      if (view === "live") return;
+      if (dailyResult && dailyResult.dailyNumber === dailyNumber) enterLiveMode();
+      else setView("daily");
     } else if (tab === "stats") {
       setView("tomorrow");
     } else if (tab === "board") {
