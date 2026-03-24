@@ -233,7 +233,7 @@ const resolveNeighborhood = (listing) =>
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
-export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode }) {
+export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange }) {
 
   // ── Game State ──
   const [view, setView] = useState("daily");
@@ -637,6 +637,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   const showTabBar = view !== "onboarding" && view !== "reveal";
 
+  // ── Desktop sidebar tab sync ──
+  // When parent sends a sidebarTab change, navigate to that tab
+  useEffect(() => {
+    if (sidebarTab) handleTab(sidebarTab);
+  }, [sidebarTab, sidebarTabKey]);
+
+  // Report current active tab to parent for sidebar highlighting
+  const currentTab = TAB_VIEWS.daily ? "daily" : TAB_VIEWS.free ? "free" : TAB_VIEWS.live ? "live" : TAB_VIEWS.stats ? "stats" : TAB_VIEWS.board ? "board" : "daily";
+  useEffect(() => {
+    if (onTabChange) onTabChange(currentTab);
+  }, [currentTab]);
+
   // ═══════════════════════════════════════════════════════════════
   // RENDER HELPERS
   // ═══════════════════════════════════════════════════════════════
@@ -670,7 +682,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   );
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showAddress, labelOverrides }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     return (
@@ -697,11 +709,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           )}
         </div>
         <div style={{ padding: "16px 18px 20px" }}>
-          {/* Neighborhood — address hidden! */}
+          {/* Address or Neighborhood heading */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{resolveNeighborhood(listing)}</div>
+            <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
           </div>
-          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{listing.city}, {listing.state} {listing.zip}{showExtras && listing.propertyType ? ` · ${listing.propertyType}` : ""}</div>
+          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
+            {showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{showExtras && listing.propertyType ? ` · ${listing.propertyType}` : ""}
+          </div>
           {/* MLS Description — expandable, Free Play only */}
           {showExtras && listing.description && (
             <div style={{ marginTop: 10, background: T.inputBg, borderRadius: 10, padding: "10px 14px", border: `1px solid ${T.cardBorder}` }}>
@@ -739,7 +753,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             )}
           </div>
           {/* Guess — Cash App style: tap the display to type, hidden input captures keys */}
-          <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 6, fontFamily: FONT }}>What do you think it sold for?</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 6, fontFamily: FONT }}>{labelOverrides?.guessLabel || "What do you think it sold for?"}</div>
           <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
             style={{ position: "relative", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 20px", cursor: "text", textAlign: "center", marginBottom: 4, transition: "border-color 0.2s" }}>
             <div style={{ fontSize: guess ? 28 : 18, fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: MONO, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s" }}>
@@ -757,7 +771,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             return `${d > 0 ? "+" : ""}${d}% vs list${listing.sqft ? ` · $${Math.round(v / listing.sqft)}/sf` : ""}`;
           })()}</div>
           <div style={{ marginTop: 14 }}>
-            <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan}>Final Answer</PillButton>
+            <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan}>{labelOverrides?.buttonLabel || "Final Answer"}</PillButton>
           </div>
         </div>
       </div>
@@ -1234,18 +1248,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true })}
-              <div style={{ marginTop: 16, padding: "20px", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 12 }}>Your Prediction</div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginBottom: 16 }}>
-                  <span style={{ fontSize: 13, fontFamily: MONO, color: T.textTertiary }}>$</span>
-                  <input
-                    type="text" placeholder="0" value={fmtGuess(liveGuessInput)} onChange={handleLiveGuessInput}
-                    style={{ flex: 1, fontSize: 32, fontWeight: 800, fontFamily: MONO, color: T.text, background: "transparent", border: "none", outline: "none", padding: "4px 0", paddingBottom: 0, borderBottom: `2px solid ${T.accent}` }}
-                  />
-                </div>
-                <PillButton onClick={handleLiveGuess} accent>Lock In Prediction</PillButton>
-              </div>
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" } })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>

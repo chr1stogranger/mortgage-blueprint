@@ -1403,6 +1403,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'blueprint') return 'blueprint'; if (p.get('mode') === 'markets') return 'markets'; } catch {}
   return 'pricepoint';
  });
+ // ── PricePoint sidebar tab sync ──
+ const [ppSidebarTab, setPpSidebarTab] = useState(null); // triggers PricePoint tab navigation
+ const [ppSidebarTabCounter, setPpSidebarTabCounter] = useState(0); // force re-trigger same tab
+ const [ppCurrentTab, setPpCurrentTab] = useState("daily"); // PricePoint reports its active tab
+ const triggerPPTab = (tab) => { setPpSidebarTab(tab); setPpSidebarTabCounter(c => c + 1); };
+
  // ── Split-Screen Mode (desktop only) ──
  const [splitMode, setSplitMode] = useState(false); // is split active?
  const [splitApp, setSplitApp] = useState(null); // which mode is in the right pane
@@ -3902,13 +3908,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        );
       })}
       {/* PricePoint nav (when PP is primary) */}
-      {appMode === "pricepoint" && !sidebarCollapsed && [["cards","crosshair","Play"],["results","clock","History"],["stats","bar-chart-2","Stats"],["leaderboard","award","Board"]].map(([k,ico,l]) => (
-       <div key={k} className="bp-sidebar-item" style={{
-        padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
-        background: "transparent",
-        color: T.textSecondary,
-       }}><Icon name={ico} size={15} /><span style={{ fontSize: 13, fontWeight: 500 }}>{l}</span></div>
-      ))}
+      {appMode === "pricepoint" && !sidebarCollapsed && [["daily","crosshair","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
+       const active = ppCurrentTab === k;
+       return (
+        <div key={k} className="bp-sidebar-item" onClick={() => triggerPPTab(k)} style={{
+         padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
+         background: active ? `${T.blue}15` : "transparent",
+         borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
+         color: active ? T.blue : T.textSecondary,
+        }}>
+         <Icon name={ico} size={15} />
+         <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : T.text }}>{l}</span>
+        </div>
+       );
+      })}
       {/* Markets nav (when Markets is primary) */}
       {appMode === "markets" && !sidebarCollapsed && [["live","trending-up","Live Markets"],["practice","target","Practice"],["portfolio","banknote","Portfolio"]].map(([k,ico,l]) => (
        <div key={k} className="bp-sidebar-item" style={{
@@ -8495,6 +8508,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      realtorPartner={realtorPartner}
      appMode={null}
      setAppMode={null}
+     sidebarTab={ppSidebarTab}
+     sidebarTabKey={ppSidebarTabCounter}
+     onTabChange={setPpCurrentTab}
      onRunNumbers={({ price, state, city, zip }) => {
       if (price) setSalesPrice(price);
       if (state) setPropertyState(state);
