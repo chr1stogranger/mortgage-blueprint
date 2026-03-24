@@ -287,6 +287,42 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   });
   const [showLevelModal, setShowLevelModal] = useState(false);
 
+  // ── Property Details (lazy-fetched for Live mode: photos + description) ──
+  const [propertyDetails, setPropertyDetails] = useState({}); // keyed by zpid
+  const [detailsLoading, setDetailsLoading] = useState(null); // zpid currently loading
+  const detailsCacheRef = useRef({}); // persist across re-renders
+
+  const fetchPropertyDetails = useCallback(async (zpid) => {
+    if (!zpid || detailsCacheRef.current[zpid]) {
+      if (detailsCacheRef.current[zpid]) setPropertyDetails(prev => ({ ...prev, [zpid]: detailsCacheRef.current[zpid] }));
+      return;
+    }
+    setDetailsLoading(zpid);
+    try {
+      const res = await fetch(`/api/propertydetails?zpid=${zpid}`);
+      if (res.ok) {
+        const data = await res.json();
+        detailsCacheRef.current[zpid] = data;
+        setPropertyDetails(prev => ({ ...prev, [zpid]: data }));
+      }
+    } catch (e) {
+      console.error("[PricePoint] Failed to fetch details for zpid", zpid, e);
+    } finally {
+      setDetailsLoading(null);
+    }
+  }, []);
+
+  // Auto-fetch details when live listing changes
+  useEffect(() => {
+    if (view === "live" && liveListings[liveIdx]?.zpid) {
+      fetchPropertyDetails(liveListings[liveIdx].zpid);
+      // Prefetch next listing too
+      if (liveListings[liveIdx + 1]?.zpid) {
+        fetchPropertyDetails(liveListings[liveIdx + 1].zpid);
+      }
+    }
+  }, [view, liveIdx, liveListings, fetchPropertyDetails]);
+
   // ── Countdown ──
   const [countdown, setCountdown] = useState("");
 
@@ -601,6 +637,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const liveNextProperty = () => {
     setLivePrediction(null);
     setLiveGuessInput("");
+    setMlsExpanded(false);
     setLiveIdx(prev => prev + 1);
   };
 
@@ -681,12 +718,77 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, [T, FONT]
   );
 
+  // ── Photo Carousel (for Live mode with property details) ──
+  const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, listing, FONT, MONO }) => {
+    const [idx, setIdx] = useState(0);
+    const touchStartX = useRef(null);
+    const allPhotos = photos && photos.length > 0 ? photos : [fallbackPhoto || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"];
+    const count = allPhotos.length;
+    const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
+    return (
+      <div style={{ position: "relative", touchAction: "pan-y" }}
+        onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={e => {
+          if (touchStartX.current === null) return;
+          const dx = e.changedTouches[0].clientX - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
+        }}>
+        <img src={allPhotos[idx]} alt="" style={{ width: "100%", height: 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+          onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+        {/* Top badges */}
+        <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
+          {badge && (
+            <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
+          )}
+          {showExtras && pType && (
+            <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
+          )}
+        </div>
+        {/* Photo count pill — top right */}
+        {count > 1 && (
+          <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: MONO }}>{idx + 1} / {count}</div>
+        )}
+        {/* Prev / Next arrows */}
+        {count > 1 && (
+          <>
+            <button onClick={() => go("prev")} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-left" size={16} /></button>
+            <button onClick={() => go("next")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-right" size={16} /></button>
+          </>
+        )}
+        {/* Dot indicators */}
+        {count > 1 && count <= 12 && (
+          <div style={{ position: "absolute", bottom: listing && resolveNeighborhood(listing) !== "Unknown Area" ? 48 : 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+            {allPhotos.map((_, i) => (
+              <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? 16 : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
+            ))}
+          </div>
+        )}
+        {/* Neighborhood badge */}
+        {listing && resolveNeighborhood(listing) !== "Unknown Area" && (
+          <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Icon name="map-pin" size={13} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showAddress, labelOverrides }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showAddress, labelOverrides, details }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
+    const hasCarousel = details?.photos?.length > 1;
+    const desc = details?.description || listing.description;
+    const yearBuilt = listing.yearBuilt || details?.yearBuilt;
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
+        {hasCarousel ? (
+          <PhotoCarousel photos={details.photos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showExtras} listing={listing} FONT={FONT} MONO={MONO} />
+        ) : (
         <div style={{ position: "relative" }}>
           <img src={listing.photo} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
             onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
@@ -708,6 +810,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           )}
         </div>
+        )}
         <div style={{ padding: "16px 18px 20px" }}>
           {/* Address or Neighborhood heading */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -716,23 +819,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
             {showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{showExtras && listing.propertyType ? ` · ${listing.propertyType}` : ""}
           </div>
-          {/* MLS Description — expandable, Free Play only */}
-          {showExtras && listing.description && (
+          {/* MLS Description — from details API or listing */}
+          {showExtras && desc && (
             <div style={{ marginTop: 10, background: T.inputBg, borderRadius: 10, padding: "10px 14px", border: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.55, fontFamily: FONT, overflow: "hidden", maxHeight: mlsExpanded ? "none" : 54, position: "relative" }}>
-                {listing.description}
-                {!mlsExpanded && listing.description.length > 120 && (
+                {desc}
+                {!mlsExpanded && desc.length > 120 && (
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 28, background: `linear-gradient(transparent, ${T.inputBg})` }} />
                 )}
               </div>
-              {listing.description.length > 120 && (
+              {desc.length > 120 && (
                 <button onClick={() => setMlsExpanded(!mlsExpanded)} style={{ background: "none", border: "none", color: accent, fontSize: 11, fontWeight: 600, fontFamily: MONO, letterSpacing: 1, cursor: "pointer", padding: "6px 0 0", textTransform: "uppercase" }}>{mlsExpanded ? "Show less" : "Read more"}</button>
               )}
             </div>
           )}
           {/* Specs */}
           <div style={{ display: "flex", gap: 6, margin: "14px 0", flexWrap: "wrap" }}>
-            {[[listing.beds, "Beds"], [listing.baths, "Baths"], [(listing.sqft || 0).toLocaleString(), "SqFt"], [listing.yearBuilt, "Built"]].map(([v, l], i) => (
+            {[[listing.beds, "Beds"], [listing.baths, "Baths"], [(listing.sqft || 0).toLocaleString(), "SqFt"], [yearBuilt, "Built"]].map(([v, l], i) => (
               <div key={i} style={{ background: T.inputBg, borderRadius: 10, padding: "8px 14px", textAlign: "center", flex: 1, minWidth: 60, border: `1px solid ${T.cardBorder}` }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: MONO }}>{v}</div>
                 <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{l}</div>
@@ -1248,7 +1351,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" } })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
