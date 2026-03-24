@@ -292,11 +292,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [detailsLoading, setDetailsLoading] = useState(null); // zpid currently loading
   const detailsCacheRef = useRef({}); // persist across re-renders
 
+  const fetchingRef = useRef({}); // track in-flight fetches to avoid duplicates
   const fetchPropertyDetails = useCallback(async (zpid) => {
-    if (!zpid || detailsCacheRef.current[zpid]) {
-      if (detailsCacheRef.current[zpid]) setPropertyDetails(prev => ({ ...prev, [zpid]: detailsCacheRef.current[zpid] }));
+    if (!zpid) return;
+    // Already have it cached — just ensure state is synced
+    if (detailsCacheRef.current[zpid]) {
+      setPropertyDetails(prev => prev[zpid] ? prev : { ...prev, [zpid]: detailsCacheRef.current[zpid] });
       return;
     }
+    // Already fetching this zpid
+    if (fetchingRef.current[zpid]) return;
+    fetchingRef.current[zpid] = true;
     setDetailsLoading(zpid);
     try {
       const res = await fetch(`/api/propertydetails?zpid=${zpid}`);
@@ -308,17 +314,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     } catch (e) {
       console.error("[PricePoint] Failed to fetch details for zpid", zpid, e);
     } finally {
-      setDetailsLoading(null);
+      fetchingRef.current[zpid] = false;
+      setDetailsLoading(prev => prev === zpid ? null : prev);
     }
   }, []);
 
-  // Auto-fetch details when live listing changes
+  // Auto-fetch details when live listing changes — prefetch current + next 3
   useEffect(() => {
-    if (view === "live" && liveListings[liveIdx]?.zpid) {
-      fetchPropertyDetails(liveListings[liveIdx].zpid);
-      // Prefetch next listing too
-      if (liveListings[liveIdx + 1]?.zpid) {
-        fetchPropertyDetails(liveListings[liveIdx + 1].zpid);
+    if (view === "live" && liveListings.length > 0) {
+      for (let i = liveIdx; i < Math.min(liveIdx + 4, liveListings.length); i++) {
+        if (liveListings[i]?.zpid) {
+          fetchPropertyDetails(liveListings[i].zpid);
+        }
       }
     }
   }, [view, liveIdx, liveListings, fetchPropertyDetails]);
@@ -778,7 +785,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showAddress, labelOverrides, details }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showAddress, labelOverrides, details, isLoadingDetails }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const hasCarousel = details?.photos?.length > 1;
@@ -800,6 +807,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
             )}
           </div>
+          {/* Loading photos indicator */}
+          {isLoadingDetails && (
+            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: MONO, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
+          )}
           {/* Neighborhood badge — pinned bottom-left of photo for quick scanning */}
           {resolveNeighborhood(listing) !== "Unknown Area" && (
             <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
@@ -1351,7 +1362,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
