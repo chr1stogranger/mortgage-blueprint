@@ -1400,8 +1400,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [tab, setTab] = useState("setup");
  // ── App Mode: Blueprint or PricePoint ──
  const [appMode, setAppMode] = useState(() => {
-  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'pricepoint') return 'pricepoint'; if (p.get('mode') === 'markets') return 'markets'; } catch {}
-  return 'blueprint';
+  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'blueprint') return 'blueprint'; if (p.get('mode') === 'markets') return 'markets'; } catch {}
+  return 'pricepoint';
  });
  // ── Split-Screen Mode (desktop only) ──
  const [splitMode, setSplitMode] = useState(false); // is split active?
