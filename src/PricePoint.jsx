@@ -231,6 +231,39 @@ const resolveNeighborhood = (listing) =>
   listing.neighborhood || (listing.zip && ZIP_TO_HOOD[listing.zip]) || listing.city || "Unknown Area";
 
 // ═══════════════════════════════════════════════════════════════
+// ── Level-Up Sound (Web Audio API — ascending C-E-G-C chord) ──
+const playLevelUpSound = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + i * 0.12 + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + i * 0.12);
+      osc.stop(ctx.currentTime + i * 0.12 + 0.6);
+    });
+    // Shimmer overlay — high soft tone
+    const shimmer = ctx.createOscillator();
+    const sGain = ctx.createGain();
+    shimmer.type = "triangle";
+    shimmer.frequency.value = 2093; // C7
+    sGain.gain.setValueAtTime(0, ctx.currentTime + 0.4);
+    sGain.gain.linearRampToValueAtTime(0.06, ctx.currentTime + 0.5);
+    sGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+    shimmer.connect(sGain);
+    sGain.connect(ctx.destination);
+    shimmer.start(ctx.currentTime + 0.4);
+    shimmer.stop(ctx.currentTime + 1.2);
+  } catch (e) { /* Audio not available — silent fallback */ }
+};
+
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange }) {
@@ -286,6 +319,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
   });
   const [showLevelModal, setShowLevelModal] = useState(false);
+
+  // ── Level-Up Celebration ──
+  const [levelUpData, setLevelUpData] = useState(null); // { newLevel, oldLevel, xp }
+  const [showLevelUpShare, setShowLevelUpShare] = useState(false);
+  const prevLevelRef = useRef(null);
 
   // ── Property Details (lazy-fetched for Live mode: photos + description) ──
   const [propertyDetails, setPropertyDetails] = useState({}); // keyed by zpid
@@ -347,6 +385,28 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const xp = useMemo(() => calcXP(allResults), [allResults]);
   const currentLevel = useMemo(() => getLevel(xp), [xp]);
   const nextLevel = useMemo(() => LEVELS.find(l => l.req > xp), [xp]);
+
+  // ── Detect level-up and trigger celebration ──
+  useEffect(() => {
+    if (prevLevelRef.current === null) {
+      // First render — just store, don't celebrate
+      prevLevelRef.current = currentLevel.level;
+      return;
+    }
+    if (currentLevel.level > prevLevelRef.current) {
+      const oldLevel = LEVELS.find(l => l.level === prevLevelRef.current) || LEVELS[0];
+      setLevelUpData({ newLevel: currentLevel, oldLevel, xp });
+      // Haptic feedback + sound
+      if (navigator.vibrate) navigator.vibrate([50, 30, 100, 50, 200]);
+      playLevelUpSound();
+      // Auto-dismiss after 4.5s → show share card
+      setTimeout(() => {
+        setLevelUpData(null);
+        setShowLevelUpShare(true);
+      }, 4500);
+    }
+    prevLevelRef.current = currentLevel.level;
+  }, [currentLevel.level]);
 
   // ── Streak (consecutive days played) ──
   const streak = useMemo(() => {
@@ -955,11 +1015,253 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         @keyframes ppSlideUp { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: translateY(0) } }
         @keyframes ppPulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
         @keyframes ppScaleIn { from { opacity: 0; transform: scale(0.9) } to { opacity: 1; transform: scale(1) } }
+        @keyframes lvlSpring {
+          0% { transform: scale(0); opacity: 0 }
+          50% { transform: scale(1.3); opacity: 1 }
+          70% { transform: scale(0.9) }
+          85% { transform: scale(1.05) }
+          100% { transform: scale(1) }
+        }
+        @keyframes lvlGlow {
+          0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.6) }
+          50% { box-shadow: 0 0 60px 30px rgba(99,102,241,0.3) }
+          100% { box-shadow: 0 0 80px 40px rgba(99,102,241,0) }
+        }
+        @keyframes lvlBarFill {
+          0% { width: 70% }
+          60% { width: 100% }
+          70% { width: 100%; filter: brightness(1.5) }
+          100% { width: 100%; filter: brightness(1) }
+        }
+        @keyframes lvlParticle {
+          0% { transform: translate(0, 0) scale(1); opacity: 1 }
+          100% { transform: translate(var(--px), var(--py)) scale(0); opacity: 0 }
+        }
+        @keyframes lvlRing {
+          0% { transform: scale(0.3); opacity: 0.8; border-width: 4px }
+          100% { transform: scale(2.5); opacity: 0; border-width: 1px }
+        }
+        @keyframes lvlUnlockSlide {
+          0% { transform: translateY(30px); opacity: 0 }
+          100% { transform: translateY(0); opacity: 1 }
+        }
+        @keyframes lvlShimmer {
+          0% { background-position: -200% center }
+          100% { background-position: 200% center }
+        }
+        @keyframes lvlFadeOut {
+          0% { opacity: 1 }
+          80% { opacity: 1 }
+          100% { opacity: 0 }
+        }
       `}</style>
 
       {shareToast && (
         <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, padding: "12px 24px", borderRadius: 12, background: T.accent, color: "#fff", fontSize: 14, fontWeight: 600, animation: "ppSlideUp 0.3s ease", boxShadow: "0 8px 32px rgba(99,102,241,0.3)", fontFamily: FONT }}>
           Copied to clipboard
+        </div>
+      )}
+
+      {/* ═══ LEVEL-UP CELEBRATION ═══ */}
+      {levelUpData && (() => {
+        const particles = Array.from({ length: 24 }, (_, i) => {
+          const angle = (i / 24) * Math.PI * 2;
+          const dist = 80 + Math.random() * 120;
+          const colors = ["#6366F1", "#3B82F6", "#06B6D4", "#10B981", "#F59E0B", "#EC4899", "#A5B4FC", "#818CF8"];
+          return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, color: colors[i % colors.length], size: 4 + Math.random() * 6, delay: Math.random() * 0.3 };
+        });
+        return (
+          <div style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 500,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            animation: "ppFadeIn 0.3s ease, lvlFadeOut 4.5s ease forwards",
+            pointerEvents: "none",
+          }}>
+            {/* Dark overlay */}
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)" }} />
+
+            {/* Expanding ring */}
+            <div style={{
+              position: "absolute", width: 200, height: 200, borderRadius: "50%",
+              border: "3px solid #6366F1", animation: "lvlRing 1.2s ease-out forwards",
+              animationDelay: "0.4s", opacity: 0,
+            }} />
+            <div style={{
+              position: "absolute", width: 200, height: 200, borderRadius: "50%",
+              border: "3px solid #3B82F6", animation: "lvlRing 1.2s ease-out forwards",
+              animationDelay: "0.6s", opacity: 0,
+            }} />
+
+            {/* Particles */}
+            {particles.map((p, i) => (
+              <div key={i} style={{
+                position: "absolute", width: p.size, height: p.size, borderRadius: "50%",
+                background: p.color,
+                "--px": `${p.x}px`, "--py": `${p.y}px`,
+                animation: `lvlParticle 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                animationDelay: `${0.3 + p.delay}s`, opacity: 0,
+              }} />
+            ))}
+
+            {/* XP bar fill animation */}
+            <div style={{
+              position: "relative", zIndex: 2, width: 200, marginBottom: 32,
+            }}>
+              <div style={{ height: 8, background: "rgba(255,255,255,0.1)", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", borderRadius: 4,
+                  background: "linear-gradient(90deg, #6366F1, #3B82F6, #06B6D4)",
+                  animation: "lvlBarFill 1s ease-in-out forwards",
+                }} />
+              </div>
+              <div style={{
+                textAlign: "center", fontSize: 10, fontFamily: MONO, color: "rgba(255,255,255,0.5)",
+                marginTop: 6, letterSpacing: 2, textTransform: "uppercase",
+              }}>MAX</div>
+            </div>
+
+            {/* Level icon + number (spring animation) */}
+            <div style={{
+              position: "relative", zIndex: 2, textAlign: "center",
+              animation: "lvlSpring 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, lvlGlow 1.5s ease-out 0.5s",
+              animationDelay: "0.5s", opacity: 0,
+              animationFillMode: "forwards",
+            }}>
+              {/* Icon circle */}
+              <div style={{
+                width: 80, height: 80, borderRadius: "50%", margin: "0 auto 16px",
+                background: "linear-gradient(135deg, #6366F1, #3B82F6, #06B6D4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 0 40px rgba(99,102,241,0.4)",
+              }}>
+                <Icon name={levelUpData.newLevel.icon} size={36} style={{ color: "#fff" }} />
+              </div>
+
+              {/* LEVEL UP text */}
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase",
+                fontFamily: MONO, marginBottom: 8,
+                background: "linear-gradient(90deg, #A5B4FC, #6366F1, #3B82F6, #06B6D4, #A5B4FC)",
+                backgroundSize: "200% auto",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                animation: "lvlShimmer 2s linear infinite",
+              }}>LEVEL UP</div>
+
+              {/* Level number + name */}
+              <div style={{ fontSize: 48, fontWeight: 900, color: "#fff", fontFamily: MONO, letterSpacing: "-0.03em", lineHeight: 1 }}>
+                {levelUpData.newLevel.level}
+              </div>
+              <div style={{
+                fontSize: 20, fontWeight: 700, color: "#fff", fontFamily: FONT, marginTop: 8,
+                textShadow: "0 0 20px rgba(99,102,241,0.5)",
+              }}>
+                {levelUpData.newLevel.name}
+              </div>
+            </div>
+
+            {/* Unlock message */}
+            <div style={{
+              position: "relative", zIndex: 2, marginTop: 28,
+              animation: "lvlUnlockSlide 0.6s ease forwards",
+              animationDelay: "1.8s", opacity: 0,
+            }}>
+              <div style={{
+                background: "rgba(255,255,255,0.08)", backdropFilter: "blur(12px)",
+                borderRadius: 14, padding: "12px 24px", border: "1px solid rgba(255,255,255,0.12)",
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 4 }}>UNLOCKED</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
+                  {levelUpData.newLevel.level >= 10 ? "Luxury Market Insights" :
+                   levelUpData.newLevel.level >= 7 ? "Advanced Analytics" :
+                   levelUpData.newLevel.level >= 5 ? "Neighborhood Deep Dive" :
+                   levelUpData.newLevel.level >= 3 ? "Free Play Mode" :
+                   "Keep Going!"}
+                </div>
+              </div>
+            </div>
+
+            {/* XP earned line */}
+            <div style={{
+              position: "relative", zIndex: 2, marginTop: 16,
+              animation: "lvlUnlockSlide 0.6s ease forwards",
+              animationDelay: "2.2s", opacity: 0,
+              fontSize: 12, fontFamily: MONO, color: "rgba(255,255,255,0.4)", letterSpacing: 1,
+            }}>
+              {levelUpData.xp} XP EARNED
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ═══ LEVEL-UP SHARE CARD ═══ */}
+      {showLevelUpShare && (
+        <div onClick={() => setShowLevelUpShare(false)} style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 400,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20, animation: "ppFadeIn 0.3s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: 24, padding: "28px 24px", maxWidth: 340,
+            width: "100%", border: `1px solid ${T.cardBorder}`,
+            animation: "ppScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}>
+            {/* Share card header */}
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%", margin: "0 auto 12px",
+                background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Icon name={currentLevel.icon} size={28} style={{ color: "#fff" }} />
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>LEVEL UP</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: T.text, fontFamily: MONO }}>Level {currentLevel.level}</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{currentLevel.name}</div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              <div style={{ flex: 1, background: T.inputBg, borderRadius: 12, padding: "10px 12px", textAlign: "center", border: `1px solid ${T.cardBorder}` }}>
+                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.text }}>{allResults.length}</div>
+                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>GUESSES</div>
+              </div>
+              <div style={{ flex: 1, background: T.inputBg, borderRadius: 12, padding: "10px 12px", textAlign: "center", border: `1px solid ${T.cardBorder}` }}>
+                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.text }}>{xp}</div>
+                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>TOTAL XP</div>
+              </div>
+              <div style={{ flex: 1, background: T.inputBg, borderRadius: 12, padding: "10px 12px", textAlign: "center", border: `1px solid ${T.cardBorder}` }}>
+                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.accent }}>{allResults.length > 0 ? (100 - (allResults.reduce((s, r) => s + (r.pctOff || 0), 0) / allResults.length)).toFixed(1) : "—"}%</div>
+                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>ACCURACY</div>
+              </div>
+            </div>
+
+            {/* Share button */}
+            <button onClick={() => {
+              const avg = allResults.length > 0 ? (100 - (allResults.reduce((s, r) => s + (r.pctOff || 0), 0) / allResults.length)).toFixed(1) : "—";
+              const text = `I just reached Level ${currentLevel.level} — ${currentLevel.name} on PricePoint!\n\n${allResults.length} guesses · ${avg}% accuracy · ${xp} XP\n\nThink you know real estate prices? Try it: blueprint.realstack.app`;
+              if (navigator.share) {
+                navigator.share({ text }).catch(() => {});
+              } else {
+                navigator.clipboard.writeText(text).then(() => { setShareToast(true); setTimeout(() => setShareToast(false), 2000); });
+              }
+            }} style={{
+              width: "100%", padding: "14px", borderRadius: 9999,
+              background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+              fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT,
+              boxShadow: "0 0 20px rgba(99,102,241,0.3)", marginBottom: 8,
+            }}>
+              Share Achievement
+            </button>
+            <button onClick={() => setShowLevelUpShare(false)} style={{
+              width: "100%", padding: "12px", borderRadius: 9999,
+              background: "transparent", color: T.textSecondary,
+              fontSize: 14, fontWeight: 500, border: `1px solid ${T.cardBorder}`, cursor: "pointer", fontFamily: FONT,
+            }}>
+              Continue Playing
+            </button>
+          </div>
         </div>
       )}
 
