@@ -202,29 +202,85 @@ const SAMPLE_SOLD = [
   { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909,description:"Move-in ready 3BR/2BA with a flexible floor plan. Renovated kitchen with breakfast bar, updated bathrooms, and gleaming hardwood throughout. Large primary suite with walk-in closet. Finished garage with laundry. Excellent Central Sunset location near shopping, dining, and express bus lines." },
 ];
 
-// ── SF Neighborhoods mapped to zip codes ──
-const SF_NEIGHBORHOODS = [
-  { name: "All of SF", zip: null },
-  { name: "Sunset", zip: "94122" },
-  { name: "Richmond", zip: "94118" },
-  { name: "Marina", zip: "94123" },
-  { name: "Pacific Heights", zip: "94115" },
-  { name: "Noe Valley", zip: "94114" },
-  { name: "Mission", zip: "94110" },
-  { name: "Castro", zip: "94114" },
-  { name: "SOMA", zip: "94103" },
-  { name: "Hayes Valley", zip: "94102" },
-  { name: "Bernal Heights", zip: "94110" },
-  { name: "Potrero Hill", zip: "94107" },
-  { name: "Excelsior", zip: "94112" },
-  { name: "Bayview", zip: "94124" },
-  { name: "Twin Peaks", zip: "94131" },
-  { name: "Glen Park", zip: "94131" },
+// ── Launch Markets — 4 cities with neighborhoods ──
+const LAUNCH_MARKETS = [
+  {
+    id: "sf", name: "San Francisco", state: "CA", icon: "landmark",
+    zips: ["94102","94103","94104","94105","94107","94108","94109","94110","94111","94112","94114","94115","94116","94117","94118","94119","94120","94121","94122","94123","94124","94127","94129","94130","94131","94132","94133","94134","94158"],
+    neighborhoods: [
+      { name: "All of SF", zip: null },
+      { name: "Sunset", zip: "94122" },
+      { name: "Richmond", zip: "94118" },
+      { name: "Marina", zip: "94123" },
+      { name: "Pacific Heights", zip: "94115" },
+      { name: "Noe Valley", zip: "94114" },
+      { name: "Mission", zip: "94110" },
+      { name: "Castro", zip: "94114" },
+      { name: "SOMA", zip: "94103" },
+      { name: "Hayes Valley", zip: "94102" },
+      { name: "Bernal Heights", zip: "94110" },
+      { name: "Potrero Hill", zip: "94107" },
+      { name: "Excelsior", zip: "94112" },
+      { name: "Bayview", zip: "94124" },
+      { name: "Twin Peaks", zip: "94131" },
+      { name: "Glen Park", zip: "94131" },
+    ],
+  },
+  {
+    id: "oakland", name: "Oakland", state: "CA", icon: "home",
+    zips: ["94601","94602","94603","94605","94606","94607","94608","94609","94610","94611","94612","94613","94618","94619","94621"],
+    neighborhoods: [
+      { name: "All of Oakland", zip: null },
+      { name: "Rockridge", zip: "94618" },
+      { name: "Temescal", zip: "94609" },
+      { name: "Montclair", zip: "94611" },
+      { name: "Lake Merritt", zip: "94612" },
+      { name: "Grand Lake", zip: "94610" },
+      { name: "Piedmont Ave", zip: "94611" },
+      { name: "Fruitvale", zip: "94601" },
+      { name: "Jack London", zip: "94607" },
+      { name: "West Oakland", zip: "94608" },
+      { name: "East Oakland", zip: "94621" },
+      { name: "Dimond", zip: "94602" },
+      { name: "Laurel", zip: "94619" },
+    ],
+  },
+  {
+    id: "berkeley", name: "Berkeley", state: "CA", icon: "graduation-cap",
+    zips: ["94702","94703","94704","94705","94706","94707","94708","94709","94710"],
+    neighborhoods: [
+      { name: "All of Berkeley", zip: null },
+      { name: "North Berkeley", zip: "94707" },
+      { name: "South Berkeley", zip: "94703" },
+      { name: "West Berkeley", zip: "94710" },
+      { name: "Elmwood", zip: "94705" },
+      { name: "Claremont", zip: "94705" },
+      { name: "Berkeley Hills", zip: "94708" },
+      { name: "Downtown", zip: "94704" },
+    ],
+  },
+  {
+    id: "alameda", name: "Alameda", state: "CA", icon: "landmark",
+    zips: ["94501","94502"],
+    neighborhoods: [
+      { name: "All of Alameda", zip: null },
+      { name: "West End", zip: "94501" },
+      { name: "East End", zip: "94501" },
+      { name: "Bay Farm Island", zip: "94502" },
+    ],
+  },
 ];
 
-// Reverse lookup: zip → neighborhood name (first match wins for shared zips)
+// Backward compat: SF_NEIGHBORHOODS points to the SF market neighborhoods
+const SF_NEIGHBORHOODS = LAUNCH_MARKETS[0].neighborhoods;
+
+// Reverse lookup: zip → neighborhood name (all markets)
 const ZIP_TO_HOOD = {};
-SF_NEIGHBORHOODS.forEach(h => { if (h.zip && !ZIP_TO_HOOD[h.zip]) ZIP_TO_HOOD[h.zip] = h.name; });
+LAUNCH_MARKETS.forEach(m => {
+  m.neighborhoods.forEach(h => {
+    if (h.zip && !ZIP_TO_HOOD[h.zip]) ZIP_TO_HOOD[h.zip] = h.name;
+  });
+});
 
 // Resolve neighborhood: API field → zip lookup → city fallback
 const resolveNeighborhood = (listing) =>
@@ -319,6 +375,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
   });
   const [showLevelModal, setShowLevelModal] = useState(false);
+  const [showMarketSwitcher, setShowMarketSwitcher] = useState(false);
 
   // ── Level-Up Celebration ──
   const [levelUpData, setLevelUpData] = useState(null); // { newLevel, oldLevel, xp }
@@ -517,17 +574,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, []);
 
-  // ── Set Market ──
+  // ── Select a launch market (from picker or switcher) ──
+  const selectMarket = async (launchMarket) => {
+    const mkt = { id: launchMarket.id, city: launchMarket.name, label: `${launchMarket.name}, ${launchMarket.state}`, zip: launchMarket.zips[0] };
+    setMarket(mkt);
+    setLocationLabel(mkt.label);
+    setShowMarketSwitcher(false);
+    try { localStorage.setItem("pp-market", JSON.stringify(mkt)); localStorage.setItem("pp-location-label", mkt.label); } catch {}
+    await fetchListings(launchMarket.name);
+    if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
+    else if (view === "onboarding") setView("daily");
+  };
+
+  // ── Legacy: Set Market from text input (backward compat) ──
   const handleSetMarket = async () => {
     const val = marketInput.trim();
     if (!val) return;
+    // Check if input matches a launch market
+    const match = LAUNCH_MARKETS.find(m => m.name.toLowerCase() === val.toLowerCase() || m.zips.includes(val));
+    if (match) { selectMarket(match); return; }
     const isZip = /^\d{5}$/.test(val);
     const result = await fetchListings(val);
     const label = result?.label || val;
     const mkt = isZip ? { zip: val, label } : { city: val, label };
     setMarket(mkt);
     setLocationLabel(label);
-    // Also save as pp-hometown for backward compat
     try { localStorage.setItem("pp-hometown", JSON.stringify(mkt)); } catch {}
     if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
     else setView("daily");
@@ -1286,24 +1357,42 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
-      {/* ═══ ONBOARDING ═══ */}
+      {/* ═══ ONBOARDING — Market Picker ═══ */}
       {view === "onboarding" && (
         <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "100vh", animation: "ppFadeIn 0.5s ease" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <div style={{ textAlign: "center", marginBottom: 36 }}>
             <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 16 }}>PRICEPOINT</div>
             <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-0.04em", margin: "0 0 16px", color: T.text, fontFamily: FONT }}>How well do you<br />know your market?</h1>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: T.textSecondary, margin: 0, fontFamily: FONT }}>One home. One guess. Every day.<br />See the list price, predict the sold price.</p>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: T.textSecondary, margin: 0, fontFamily: FONT }}>One home. One guess. Every day.<br />Pick your city to start playing.</p>
           </div>
-          <div>
-            <OverlineLabel>YOUR MARKET</OverlineLabel>
-            <input value={marketInput} onChange={e => setMarketInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSetMarket()} placeholder="ZIP code or city..." autoFocus
-              style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "16px 20px", fontSize: 18, fontWeight: 600, color: T.text, outline: "none", textAlign: "center", fontFamily: FONT, transition: "border-color 0.2s", boxSizing: "border-box" }}
-              onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.inputBorder} />
-            {error && <div style={{ marginTop: 8, fontSize: 12, color: T.orange, textAlign: "center", fontFamily: FONT }}>{error}</div>}
-            <div style={{ marginTop: 16 }}><PillButton onClick={handleSetMarket} disabled={!marketInput.trim() || loading} accent>{loading ? "Finding listings..." : "Start Playing"}</PillButton></div>
-            <button onClick={() => { setSoldListings(SAMPLE_SOLD); setMarket({ city: "San Francisco", label: "San Francisco, CA" }); setLocationLabel("San Francisco, CA"); setView(dailyResult && dailyResult.dailyNumber === dailyNumber ? "tomorrow" : "daily"); }}
-              style={{ display: "block", margin: "16px auto 0", background: "none", border: "none", color: T.textTertiary, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Skip — try with sample data</button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {LAUNCH_MARKETS.map(m => (
+              <button key={m.id} onClick={() => selectMarket(m)} disabled={loading}
+                style={{
+                  background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16,
+                  padding: "20px 16px", cursor: "pointer", textAlign: "center",
+                  transition: "all 0.2s", position: "relative", overflow: "hidden",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = `${T.accent}08`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.background = T.card; }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12, margin: "0 auto 10px",
+                  background: `${T.accent}15`, display: "flex", alignItems: "center", justifyContent: "center",
+                  color: T.accent,
+                }}>
+                  <Icon name={m.icon} size={20} />
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{m.name}</div>
+                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, marginTop: 4, letterSpacing: 1 }}>
+                  {m.neighborhoods.length - 1} NEIGHBORHOODS
+                </div>
+              </button>
+            ))}
           </div>
+          {loading && (
+            <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading listings...</div>
+          )}
+          {error && <div style={{ marginTop: 12, fontSize: 12, color: T.orange, textAlign: "center", fontFamily: FONT }}>{error}</div>}
         </div>
       )}
 
@@ -1313,7 +1402,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label || "Your Market"}</div>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {streak > 0 && <StatPill value={`${streak}d`} label="streak" color={T.orange} />}
@@ -1384,7 +1473,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>YOUR STATS</div>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label}</div>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
           </div>
 
@@ -1647,7 +1736,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </>
           )}
 
-          <button onClick={() => { setMarketInput(market?.label || ""); setView("onboarding"); }} style={{ display: "block", margin: "16px auto 0", background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Change market</button>
+          <button onClick={() => setShowMarketSwitcher(true)} style={{ display: "block", margin: "16px auto 0", background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Change market</button>
         </div>
       )}
 
@@ -1657,7 +1746,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red }}>LIVE</div>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label} · Round {liveIdx + 1}</div>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} · Round {liveIdx + 1} <Icon name="chevron-down" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
@@ -1740,7 +1829,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {SF_NEIGHBORHOODS.map((hood, idx) => (
+            {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => (
               <button
                 key={idx}
                 onClick={() => { enterFreePlay(hood.zip); }}
@@ -1774,7 +1863,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan }}>FREE PLAY</div>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label} · Round {fpIdx + 1}</div>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} · Round {fpIdx + 1} <Icon name="chevron-down" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatPill value={`${fpListings.length - fpIdx - 1}`} label="left" color={T.cyan} />
@@ -1803,7 +1892,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>LEADERBOARD</div>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label}</div>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
           </div>
 
@@ -1954,6 +2043,58 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MARKET SWITCHER BOTTOM SHEET ═══ */}
+      {showMarketSwitcher && (
+        <div onClick={() => setShowMarketSwitcher(false)} style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          animation: "ppFadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: "20px 20px 0 0", padding: "24px 20px 32px",
+            maxWidth: 420, width: "100%", border: `1px solid ${T.cardBorder}`, borderBottom: "none",
+            animation: "ppSlideUp 0.3s ease",
+          }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px" }} />
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>SWITCH MARKET</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>Choose your city</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {LAUNCH_MARKETS.map(m => {
+                const isActive = market?.id === m.id || market?.city === m.name;
+                return (
+                  <button key={m.id} onClick={() => { if (!isActive) selectMarket(m); else setShowMarketSwitcher(false); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+                      background: isActive ? `${T.accent}12` : T.inputBg,
+                      border: `1px solid ${isActive ? `${T.accent}30` : T.cardBorder}`,
+                      borderRadius: 14, cursor: "pointer", width: "100%", textAlign: "left",
+                      transition: "all 0.15s",
+                    }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                      background: isActive ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.inputBg,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: isActive ? "#fff" : T.textTertiary,
+                      border: isActive ? "none" : `1px solid ${T.cardBorder}`,
+                    }}>
+                      <Icon name={m.icon} size={18} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: isActive ? T.text : T.textSecondary, fontFamily: FONT }}>{m.name}</div>
+                      <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, marginTop: 1 }}>{m.neighborhoods.length - 1} neighborhoods</div>
+                    </div>
+                    {isActive && (
+                      <div style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, color: T.accent, background: `${T.accent}18`, padding: "3px 8px", borderRadius: 6, letterSpacing: 1 }}>ACTIVE</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
