@@ -3908,7 +3908,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        );
       })}
       {/* PricePoint nav (when PP is primary) */}
-      {appMode === "pricepoint" && !sidebarCollapsed && [["daily","crosshair","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
+      {appMode === "pricepoint" && !sidebarCollapsed && [["daily","target","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
        const active = ppCurrentTab === k;
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => triggerPPTab(k)} style={{

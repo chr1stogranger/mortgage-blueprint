@@ -845,16 +845,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showAddress, labelOverrides, details, isLoadingDetails }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, labelOverrides, details, isLoadingDetails }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
+    const showType = showExtras || showPropertyType;
     const hasCarousel = details?.photos?.length > 1;
     const desc = details?.description || listing.description;
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
         {hasCarousel ? (
-          <PhotoCarousel photos={details.photos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showExtras} listing={listing} FONT={FONT} MONO={MONO} />
+          <PhotoCarousel photos={details.photos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} listing={listing} FONT={FONT} MONO={MONO} />
         ) : (
         <div style={{ position: "relative" }}>
           <img src={listing.photo} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
@@ -863,7 +864,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {badge && (
               <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
             )}
-            {showExtras && pType && (
+            {showType && pType && (
               <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
             )}
           </div>
@@ -888,7 +889,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
           </div>
           <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
-            {showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{showExtras && listing.propertyType ? ` · ${listing.propertyType}` : ""}
+            {showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{(showExtras || showPropertyType) && listing.propertyType ? ` · ${listing.propertyType}` : ""}
           </div>
           {/* MLS Description — from details API or listing */}
           {showExtras && desc && (
@@ -1319,7 +1320,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
             </div>
           </div>
-          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent })}
+          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent, showPropertyType: true })}
         </div>
       )}
 
