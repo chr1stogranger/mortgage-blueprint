@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
+import {
+  getOrCreatePlayer, getDeviceId,
+  submitGuess, submitPrediction, syncPlayerXP,
+  fetchDaily, getExistingDailyGuess,
+} from './lib/pricePointDB';
 
 // ═══════════════════════════════════════════════════════════════
 // PRICEPOINT — Daily Real Estate Price Challenge
@@ -177,6 +182,21 @@ const getDailyIndices = (soldListings, market, days) => {
 
 // ── Helpers ──
 const fmt = (n) => n?.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }) ?? "—";
+const getAccuracyBand = (pctOff) => {
+  if (pctOff <= 2) return 'bullseye';
+  if (pctOff <= 5) return 'sharp';
+  if (pctOff <= 10) return 'solid';
+  if (pctOff <= 20) return 'tricky';
+  return 'surprise';
+};
+const getXpForGuess = (pctOff) => {
+  let xpEarned = 10; // base XP
+  if (pctOff <= 1) xpEarned += 50;
+  else if (pctOff <= 2) xpEarned += 40;
+  else if (pctOff <= 5) xpEarned += 25;
+  else if (pctOff <= 10) xpEarned += 15;
+  return xpEarned;
+};
 
 const propTypeShort = (type) => {
   if (!type) return null;
@@ -382,6 +402,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [showLevelUpShare, setShowLevelUpShare] = useState(false);
   const prevLevelRef = useRef(null);
 
+  // ── Supabase Player ID (anonymous-first) ──
+  const [playerId, setPlayerId] = useState(() => {
+    try { return localStorage.getItem('pp-player-id') || null; } catch { return null; }
+  });
+  const [supabaseDaily, setSupabaseDaily] = useState(null); // server-side daily challenge
+
   // ── Property Details (lazy-fetched for Live mode: photos + description) ──
   const [propertyDetails, setPropertyDetails] = useState({}); // keyed by zpid
   const [detailsLoading, setDetailsLoading] = useState(null); // zpid currently loading
@@ -514,6 +540,41 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, []);
 
+  // ── Supabase: Register anonymous player + fetch server-side daily ──
+  useEffect(() => {
+    const initSupabase = async () => {
+      try {
+        const marketId = market?.id || 'sf';
+        // 1. Get or create player
+        let pid = playerId;
+        if (!pid) {
+          pid = await getOrCreatePlayer(marketId);
+          if (pid) {
+            setPlayerId(pid);
+            try { localStorage.setItem('pp-player-id', pid); } catch {}
+          }
+        }
+        // 2. Fetch today's server-side daily challenge
+        const daily = await fetchDaily(marketId);
+        if (daily) {
+          setSupabaseDaily(daily);
+          // Check if we already guessed (e.g. returning user)
+          if (pid && daily.id) {
+            const existing = await getExistingDailyGuess(pid, daily.id);
+            if (existing && !dailyResult) {
+              // Player already guessed today — reconstruct result from DB
+              // (The sold_price reveal comes via separate API call)
+              console.log('[PricePoint] Existing daily guess found in Supabase');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[PricePoint] Supabase init failed (offline mode):', err.message);
+      }
+    };
+    if (market) initSupabase();
+  }, [market?.id]);
+
   // ── Countdown timer — only run when visible (prevents input-killing re-renders) ──
   const countdownRef = useRef(null);
   useEffect(() => {
@@ -635,6 +696,29 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setDailyResult(result);
     setAllResults(prev => [...prev, result]);
     startReveal();
+
+    // ── Supabase: persist daily guess (fire-and-forget) ──
+    if (playerId) {
+      const pctOffRound = parseFloat(pctOff.toFixed(1));
+      const band = getAccuracyBand(pctOffRound);
+      const xpEarned = getXpForGuess(pctOffRound);
+      const newTotalXp = calcXP([...allResults, result]);
+      const newLevel = getLevel(newTotalXp);
+      submitGuess({
+        playerId, marketId: market?.id || 'sf', mode: 'daily',
+        dailyId: supabaseDaily?.id || null,
+        zpid: dailyProperty.zpid || null,
+        address: dailyProperty.address, neighborhood: dailyProperty.neighborhood,
+        city: dailyProperty.city, zip: dailyProperty.zip,
+        propertyType: dailyProperty.propertyType || '',
+        beds: dailyProperty.beds, baths: dailyProperty.baths, sqft: dailyProperty.sqft,
+        listPrice: dailyProperty.listPrice, photo: dailyProperty.photo,
+        guess: val, soldPrice: dailyProperty.soldPrice,
+        pctOff: pctOffRound, accuracyBand: band, xpEarned,
+      }).catch(e => console.warn('[PricePoint] Supabase daily guess failed:', e));
+      syncPlayerXP(playerId, newTotalXp, newLevel.level)
+        .catch(e => console.warn('[PricePoint] XP sync failed:', e));
+    }
   };
 
   // ── Reveal Animation ──
@@ -685,21 +769,44 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const pctOff = Math.abs((val - listing.soldPrice) / listing.soldPrice) * 100;
     const feedback = getFeedback(pctOff);
     const insight = getInsight(listing, pctOff, val > listing.soldPrice);
+    const pctOffRound = parseFloat(pctOff.toFixed(1));
     setFpResult({
       guess: val, soldPrice: listing.soldPrice, listPrice: listing.listPrice,
       address: listing.address, neighborhood: listing.neighborhood,
       city: listing.city, state: listing.state, beds: listing.beds, baths: listing.baths,
-      sqft: listing.sqft, photo: listing.photo, pctOff: parseFloat(pctOff.toFixed(1)),
+      sqft: listing.sqft, photo: listing.photo, pctOff: pctOffRound,
       feedback, feedbackMessage: getRandomMessage(feedback), insight,
       dailyNumber: null, timestamp: Date.now(), revealed: true, isDaily: false,
     });
-    setAllResults(prev => [...prev, {
-      guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)),
+    const newResult = {
+      guess: val, soldPrice: listing.soldPrice, pctOff: pctOffRound,
       revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now(),
       propertyType: listing.propertyType || null,
       neighborhood: listing.neighborhood || null,
       city: listing.city || null,
-    }]);
+    };
+    setAllResults(prev => [...prev, newResult]);
+
+    // ── Supabase: persist free play guess (fire-and-forget) ──
+    if (playerId) {
+      const band = getAccuracyBand(pctOffRound);
+      const xpEarned = getXpForGuess(pctOffRound);
+      const newTotalXp = calcXP([...allResults, newResult]);
+      const newLevel = getLevel(newTotalXp);
+      submitGuess({
+        playerId, marketId: market?.id || 'sf', mode: 'freeplay',
+        zpid: listing.zpid || null,
+        address: listing.address, neighborhood: listing.neighborhood,
+        city: listing.city, zip: listing.zip,
+        propertyType: listing.propertyType || '',
+        beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+        listPrice: listing.listPrice, photo: listing.photo,
+        guess: val, soldPrice: listing.soldPrice,
+        pctOff: pctOffRound, accuracyBand: band, xpEarned,
+      }).catch(e => console.warn('[PricePoint] Supabase freeplay guess failed:', e));
+      syncPlayerXP(playerId, newTotalXp, newLevel.level)
+        .catch(e => console.warn('[PricePoint] XP sync failed:', e));
+    }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
   const enterFreePlay = (zip) => {
@@ -762,14 +869,46 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLivePrediction(prediction);
     setAllPredictions(prev => [...prev, prediction]);
     // Award XP for making a prediction
-    setAllResults(prev => [...prev, {
+    const newResult = {
       guess: val, soldPrice: listing.listPrice || val, pctOff: Math.abs(parseFloat(vsListPct || 0)),
       revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now(),
       propertyType: listing.propertyType || null,
       neighborhood: listing.neighborhood || null,
       city: listing.city || null,
       isLive: true,
-    }]);
+    };
+    setAllResults(prev => [...prev, newResult]);
+
+    // ── Supabase: persist live guess + prediction (fire-and-forget) ──
+    if (playerId) {
+      const xpEarned = 10; // base XP for live prediction (no accuracy yet)
+      const newTotalXp = calcXP([...allResults, newResult]);
+      const newLevel = getLevel(newTotalXp);
+      submitGuess({
+        playerId, marketId: market?.id || 'sf', mode: 'live',
+        zpid: listing.zpid || null,
+        address: listing.address, neighborhood: listing.neighborhood,
+        city: listing.city, zip: listing.zip,
+        propertyType: listing.propertyType || '',
+        beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+        listPrice: listing.listPrice, photo: listing.photo,
+        guess: val, soldPrice: null, pctOff: null, accuracyBand: null,
+        xpEarned,
+      }).then(guessRow => {
+        // Also create prediction record for future resolution
+        if (guessRow) {
+          submitPrediction({
+            playerId, marketId: market?.id || 'sf',
+            guessId: guessRow.id,
+            zpid: listing.zpid || '',
+            address: listing.address, neighborhood: listing.neighborhood,
+            listPrice: listing.listPrice, predictedPrice: val,
+          }).catch(e => console.warn('[PricePoint] Supabase prediction failed:', e));
+        }
+      }).catch(e => console.warn('[PricePoint] Supabase live guess failed:', e));
+      syncPlayerXP(playerId, newTotalXp, newLevel.level)
+        .catch(e => console.warn('[PricePoint] XP sync failed:', e));
+    }
   };
 
   const liveNextProperty = () => {
