@@ -657,6 +657,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveListings, setLiveListings] = useState([]);
   const [liveIdx, setLiveIdx] = useState(0);
   const [liveGuessInput, setLiveGuessInput] = useState("");
+  const [liveHoodFilter, setLiveHoodFilter] = useState(null); // null = all, or zip string
   const [livePrediction, setLivePrediction] = useState(null);
   const [allPredictions, setAllPredictions] = useState(() => {
     try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
@@ -1162,10 +1163,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Live Mode ──
-  const enterLiveMode = () => {
+  const enterLiveMode = (zipFilter) => {
     // Only use real active/pending listings — no sold fallback
-    const pool = activeListings.length > 0 ? [...activeListings].sort(() => Math.random() - 0.5) : [];
+    let pool = activeListings.length > 0 ? [...activeListings] : [];
+    if (zipFilter) {
+      pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
+    }
+    pool.sort(() => Math.random() - 0.5);
     setLiveListings(pool);
+    setLiveHoodFilter(zipFilter || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
   };
 
@@ -2244,6 +2250,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
             </div>
           </div>
+          {/* Neighborhood filter pills */}
+          {(() => {
+            const hoods = LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || [];
+            if (hoods.length <= 1) return null;
+            return (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 4, WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                {hoods.map((hood, idx) => {
+                  const isActive = hood.zip === null ? !liveHoodFilter : liveHoodFilter === hood.zip;
+                  return (
+                    <button key={idx} onClick={() => enterLiveMode(hood.zip)} style={{
+                      padding: "6px 14px", borderRadius: 9999, fontSize: 12, fontWeight: 600, fontFamily: FONT,
+                      whiteSpace: "nowrap", cursor: "pointer", flexShrink: 0,
+                      border: `1px solid ${isActive ? "transparent" : T.cardBorder}`,
+                      background: isActive ? T.red : T.card,
+                      color: isActive ? "#fff" : T.textSecondary,
+                      transition: "all 0.2s",
+                    }}>
+                      {hood.name}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {liveListings[liveIdx] && !livePrediction ? (
             <>
               {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
