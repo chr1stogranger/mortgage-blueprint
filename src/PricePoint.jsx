@@ -1351,12 +1351,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, [T, FONT]
   );
 
+  // ── Static map URL builder (OpenStreetMap) ──
+  const getStaticMapUrl = (lat, lng) => {
+    if (!lat || !lng) return null;
+    // Use OpenStreetMap static map via Geoapify (free tier: 3000/day, no key needed for low usage)
+    // Fallback: OSM static map service
+    return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x520&markers=${lat},${lng},ol-marker-blue`;
+  };
+
   // ── Photo Carousel (for Live mode with property details) ──
   const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, listing, FONT, MONO }) => {
     const [idx, setIdx] = useState(0);
     const touchStartX = useRef(null);
-    const allPhotos = photos && photos.length > 0 ? photos : [fallbackPhoto || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"];
+    const basePhotos = photos && photos.length > 0 ? photos : [fallbackPhoto || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"];
+    // Append map as last slide if lat/lng available
+    const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
+    const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
+    const photoCount = basePhotos.length; // real photos only (for counter display)
     const count = allPhotos.length;
+    const isMapSlide = mapUrl && idx === count - 1;
     const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
     return (
       <div style={{ position: "relative", touchAction: "pan-y" }}
@@ -1367,20 +1380,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           touchStartX.current = null;
           if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
         }}>
-        <img src={allPhotos[idx]} alt="" style={{ width: "100%", height: 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+        <img src={allPhotos[idx]} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
           onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
-        {/* Top badges */}
-        <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
-          {badge && (
-            <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
-          )}
-          {showExtras && pType && (
-            <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
-          )}
-        </div>
-        {/* Photo count pill — top right */}
+        {/* Map slide "Location" label — top left on map, replaces badges */}
+        {isMapSlide ? (
+          <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
+            <div style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+              <Icon name="map-pin" size={12} /> LOCATION
+            </div>
+          </div>
+        ) : (
+          /* Top badges — photos only */
+          <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
+            {badge && (
+              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
+            )}
+            {showExtras && pType && (
+              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
+            )}
+          </div>
+        )}
+        {/* Photo count pill — top right. Shows "1/3" for photos, "MAP" on map slide */}
         {count > 1 && (
-          <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: MONO }}>{idx + 1} / {count}</div>
+          <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: MONO }}>
+            {isMapSlide ? (<span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon name="map-pin" size={10} /> MAP</span>) : `${idx + 1} / ${photoCount}`}
+          </div>
         )}
         {/* Prev / Next arrows */}
         {count > 1 && (
@@ -1391,14 +1415,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         )}
         {/* Dot indicators */}
         {count > 1 && count <= 12 && (
-          <div style={{ position: "absolute", bottom: listing && resolveNeighborhood(listing) !== "Unknown Area" ? 48 : 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
-            {allPhotos.map((_, i) => (
-              <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? 16 : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
-            ))}
+          <div style={{ position: "absolute", bottom: listing && resolveNeighborhood(listing) !== "Unknown Area" && !isMapSlide ? 48 : 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+            {allPhotos.map((_, i) => {
+              const isMap = mapUrl && i === count - 1;
+              return (
+                <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? (isMap ? 20 : 16) : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : isMap ? "rgba(99,102,241,0.6)" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
+              );
+            })}
           </div>
         )}
-        {/* Neighborhood badge */}
-        {listing && resolveNeighborhood(listing) !== "Unknown Area" && (
+        {/* Neighborhood badge — hidden on map slide (map already shows location) */}
+        {!isMapSlide && listing && resolveNeighborhood(listing) !== "Unknown Area" && (
           <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Icon name="map-pin" size={13} />
@@ -1415,13 +1442,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
-    const hasCarousel = details?.photos?.length > 1;
+    const hasMultiplePhotos = details?.photos?.length > 1;
+    const hasMap = !!(listing.latitude && listing.longitude);
+    const useCarousel = hasMultiplePhotos || hasMap; // map slide gives every geolocated listing a carousel
     const desc = details?.description || listing.description;
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
-        {hasCarousel ? (
-          <PhotoCarousel photos={details.photos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} listing={listing} FONT={FONT} MONO={MONO} />
+        {useCarousel ? (
+          <PhotoCarousel photos={details?.photos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} listing={listing} FONT={FONT} MONO={MONO} />
         ) : (
         <div style={{ position: "relative" }}>
           <img src={listing.photo} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
