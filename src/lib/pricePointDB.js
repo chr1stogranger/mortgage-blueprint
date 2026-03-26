@@ -266,6 +266,31 @@ export async function syncPlayerXP(playerId, totalXp, currentLevel) {
 }
 
 
+// ── Display Name ──────────────────────────────────────────────────────
+
+/**
+ * Update player's display name via RPC.
+ * Uses SECURITY DEFINER function that validates device_id ownership.
+ */
+export async function updateDisplayName(playerId, displayName) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !playerId) return false;
+
+  const deviceId = getDeviceId();
+  const { data, error } = await supabase.rpc('pp_set_display_name', {
+    p_player_id: playerId,
+    p_device_id: deviceId,
+    p_name: displayName.trim().slice(0, 20),
+  });
+
+  if (error) {
+    console.error('[PricePointDB] updateDisplayName error:', error.message);
+    return false;
+  }
+  return data === true;
+}
+
+
 // ── Leaderboard ────────────────────────────────────────────────────────
 
 /**

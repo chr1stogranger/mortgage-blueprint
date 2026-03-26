@@ -4,6 +4,7 @@ import {
   getOrCreatePlayer, getDeviceId,
   submitGuess, submitPrediction, syncPlayerXP,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
+  updateDisplayName, getPlayer,
 } from './lib/pricePointDB';
 
 // ═══════════════════════════════════════════════════════════════
@@ -497,6 +498,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [lbData, setLbData] = useState([]); // Supabase leaderboard rows
   const [lbLoading, setLbLoading] = useState(false);
 
+  // ── Nickname ──
+  const [showNicknamePrompt, setShowNicknamePrompt] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [displayName, setDisplayName] = useState(() => {
+    try { return localStorage.getItem('pp-display-name') || ""; } catch { return ""; }
+  });
+
   // ── Refs ──
   const revealCounterRef = useRef(null);
 
@@ -528,6 +537,27 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
     prevLevelRef.current = currentLevel.level;
   }, [currentLevel.level]);
+
+  // ── Nickname prompt — show after 3rd guess if no display_name set ──
+  const nicknamePromptShownRef = useRef(false);
+  useEffect(() => {
+    if (
+      allResults.length >= 3 &&
+      !displayName &&
+      !nicknamePromptShownRef.current &&
+      !showNicknamePrompt &&
+      !levelUpData &&
+      !showLevelUpShare &&
+      playerId
+    ) {
+      // Small delay so it doesn't collide with the reveal animation
+      const timer = setTimeout(() => {
+        nicknamePromptShownRef.current = true;
+        setShowNicknamePrompt(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [allResults.length, displayName, playerId, levelUpData, showLevelUpShare]);
 
   // ── Streak (consecutive days played) ──
   const streak = useMemo(() => {
@@ -737,6 +767,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setFpGuessInput(raw);
   };
   const fmtGuess = (raw) => raw ? parseInt(raw).toLocaleString("en-US") : "";
+
+  // ── Save nickname ──
+  const handleSaveNickname = async () => {
+    const name = nicknameInput.trim();
+    if (!name || name.length < 2) return;
+    setNicknameSaving(true);
+    const success = await updateDisplayName(playerId, name);
+    if (success) {
+      setDisplayName(name);
+      try { localStorage.setItem('pp-display-name', name); } catch {}
+      setShowNicknamePrompt(false);
+    }
+    setNicknameSaving(false);
+  };
 
   // ── Submit Daily Guess ──
   const handleDailyGuess = () => {
@@ -1676,6 +1720,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>YOUR STATS</div>
               <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
+            {displayName ? (
+              <button onClick={() => { setNicknameInput(displayName); setShowNicknamePrompt(true); }} style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9999,
+                background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
+                fontSize: 13, fontWeight: 600, color: T.accent, fontFamily: FONT,
+              }}>
+                {displayName} <Icon name="edit-2" size={12} />
+              </button>
+            ) : (
+              <button onClick={() => setShowNicknamePrompt(true)} style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 9999,
+                background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
+                fontSize: 12, fontWeight: 600, color: T.accent, fontFamily: FONT,
+              }}>
+                Set name <Icon name="user" size={12} />
+              </button>
+            )}
           </div>
 
           {/* Stats Tabs */}
@@ -2252,6 +2313,74 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ NICKNAME PROMPT ═══ */}
+      {showNicknamePrompt && (
+        <div onClick={() => setShowNicknamePrompt(false)} style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 250,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "ppFadeIn 0.3s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: 20, padding: 32, width: "90%", maxWidth: 360,
+            border: `1px solid ${T.cardBorder}`, textAlign: "center",
+          }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: `${T.accent}18`,
+              display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <Icon name="user" size={24} style={{ color: T.accent }} />
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>
+              Claim your spot
+            </div>
+            <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginBottom: 20, lineHeight: 1.5 }}>
+              Pick a name to show on the leaderboard. Keep it short and fun.
+            </div>
+            <input
+              type="text"
+              value={nicknameInput}
+              onChange={e => setNicknameInput(e.target.value.slice(0, 20))}
+              onKeyDown={e => e.key === "Enter" && handleSaveNickname()}
+              placeholder="e.g. Chris G."
+              autoFocus
+              style={{
+                width: "100%", padding: "12px 16px", fontSize: 16, fontFamily: FONT,
+                background: T.inputBg, color: T.text, border: `1px solid ${T.cardBorder}`,
+                borderRadius: 12, outline: "none", textAlign: "center",
+                boxSizing: "border-box",
+              }}
+              onFocus={e => e.target.style.borderColor = T.accent}
+              onBlur={e => e.target.style.borderColor = T.cardBorder}
+            />
+            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, marginTop: 6 }}>
+              {nicknameInput.length}/20
+            </div>
+            <button
+              onClick={handleSaveNickname}
+              disabled={nicknameInput.trim().length < 2 || nicknameSaving}
+              style={{
+                width: "100%", padding: "12px 0", marginTop: 16, fontSize: 15, fontWeight: 700,
+                fontFamily: FONT, borderRadius: 9999, border: "none", cursor: "pointer",
+                background: nicknameInput.trim().length >= 2 ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.inputBg,
+                color: nicknameInput.trim().length >= 2 ? "#fff" : T.textTertiary,
+                opacity: nicknameSaving ? 0.6 : 1,
+                boxShadow: nicknameInput.trim().length >= 2 ? "0 0 20px rgba(99,102,241,0.3)" : "none",
+              }}
+            >
+              {nicknameSaving ? "Saving..." : "Join the Board"}
+            </button>
+            <button
+              onClick={() => setShowNicknamePrompt(false)}
+              style={{
+                marginTop: 12, fontSize: 13, color: T.textTertiary, fontFamily: FONT,
+                background: "none", border: "none", cursor: "pointer", padding: 8,
+              }}
+            >
+              Maybe later
+            </button>
           </div>
         </div>
       )}
