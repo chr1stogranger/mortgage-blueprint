@@ -3,7 +3,7 @@ import Icon from './Icon';
 import {
   getOrCreatePlayer, getDeviceId,
   submitGuess, submitPrediction, syncPlayerXP,
-  fetchDaily, getExistingDailyGuess,
+  fetchDaily, getExistingDailyGuess, getLeaderboard,
 } from './lib/pricePointDB';
 
 // ═══════════════════════════════════════════════════════════════
@@ -458,6 +458,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [statsTab, setStatsTab] = useState("daily"); // "daily", "freeplay", or "live"
   const [leaderboardTab, setLeaderboardTab] = useState("today"); // "today", "weekly", or "alltime"
   const [leaderboardMode, setLeaderboardMode] = useState("daily"); // "daily", "free", or "live"
+  const [lbData, setLbData] = useState([]); // Supabase leaderboard rows
+  const [lbLoading, setLbLoading] = useState(false);
 
   // ── Refs ──
   const revealCounterRef = useRef(null);
@@ -574,6 +576,30 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     };
     if (market) initSupabase();
   }, [market?.id]);
+
+  // ── Fetch leaderboard from Supabase when mode/tab/market changes ──
+  useEffect(() => {
+    const fetchLB = async () => {
+      if (!market?.id) return;
+      setLbLoading(true);
+      try {
+        const periodMap = { today: 'today', weekly: 'week', alltime: 'all' };
+        const modeMap = { daily: 'daily', free: 'freeplay', live: 'live' };
+        const rows = await getLeaderboard(
+          market.id,
+          modeMap[leaderboardMode] || 'daily',
+          periodMap[leaderboardTab] || 'all',
+          20
+        );
+        setLbData(rows || []);
+      } catch (err) {
+        console.warn('[PricePoint] Leaderboard fetch failed:', err.message);
+        setLbData([]);
+      }
+      setLbLoading(false);
+    };
+    fetchLB();
+  }, [market?.id, leaderboardMode, leaderboardTab]);
 
   // ── Countdown timer — only run when visible (prevents input-killing re-renders) ──
   const countdownRef = useRef(null);
@@ -2093,36 +2119,44 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               : leaderboardMode === "free" ? userFreeResults.length
               : userLiveResults.length;
 
-            // Mock data per mode
-            const mockByMode = {
-              daily: [
-                { name: "Sarah K.", role: "Realtor", accuracy: 97.2, count: 21 },
-                { name: "Mike T.", role: "Buyer", accuracy: 95.8, count: 15 },
-                { name: "Jessica R.", role: "Realtor", accuracy: 94.1, count: 19 },
-                { name: "David L.", role: "Buyer", accuracy: 91.5, count: 12 },
-                { name: "Amanda W.", role: "Realtor", accuracy: 89.3, count: 9 },
-              ],
-              free: [
-                { name: "Mike T.", role: "Buyer", accuracy: 96.4, count: 87 },
-                { name: "Sarah K.", role: "Realtor", accuracy: 95.1, count: 64 },
-                { name: "Raj P.", role: "Investor", accuracy: 93.8, count: 112 },
-                { name: "Lily C.", role: "Buyer", accuracy: 92.0, count: 45 },
-                { name: "Amanda W.", role: "Realtor", accuracy: 90.7, count: 38 },
-              ],
-              live: [
-                { name: "Jessica R.", role: "Realtor", accuracy: 94.5, count: 34 },
-                { name: "Raj P.", role: "Investor", accuracy: 93.2, count: 51 },
-                { name: "Sarah K.", role: "Realtor", accuracy: 91.8, count: 28 },
-                { name: "Mike T.", role: "Buyer", accuracy: 90.1, count: 22 },
-                { name: "Lily C.", role: "Buyer", accuracy: 88.6, count: 19 },
-              ],
-            };
+            // Build leaderboard from Supabase data + current user
+            const supabaseEntries = (lbData || []).map(row => ({
+              name: row.display_name || `Player ${(row.player_id || '').slice(0, 4)}`,
+              role: "",
+              accuracy: row.avg_pct_off != null ? parseFloat((100 - row.avg_pct_off).toFixed(1)) : 0,
+              count: row.guess_count || 0,
+              isYou: row.player_id === playerId,
+            }));
 
-            const mockData = [
-              ...mockByMode[leaderboardMode],
-              { name: "You", role: "", accuracy: userAccuracy, count: userCount, isYou: true },
+            // Check if "You" already in Supabase results
+            const youInResults = supabaseEntries.some(e => e.isYou);
+
+            // Build final list: Supabase rows + user row if not already included
+            const entries = [
+              ...supabaseEntries.map(e => e.isYou ? { ...e, name: "You", accuracy: Math.max(e.accuracy, userAccuracy), count: Math.max(e.count, userCount) } : e),
+              ...(!youInResults && userCount > 0 ? [{ name: "You", role: "", accuracy: userAccuracy, count: userCount, isYou: true }] : []),
             ];
-            const sorted = [...mockData].sort((a, b) => b.accuracy - a.accuracy);
+            const sorted = [...entries].sort((a, b) => b.accuracy - a.accuracy);
+
+            if (lbLoading) {
+              return (
+                <div style={{ textAlign: "center", padding: 40, color: T.textTertiary, fontFamily: FONT, fontSize: 13 }}>
+                  Loading leaderboard...
+                </div>
+              );
+            }
+
+            if (sorted.length === 0) {
+              return (
+                <div style={{ textAlign: "center", padding: 40, color: T.textTertiary, fontFamily: FONT }}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>
+                    <Icon name="award" size={32} />
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>No rankings yet</div>
+                  <div style={{ fontSize: 12 }}>Play at least 3 rounds to appear on the board.</div>
+                </div>
+              );
+            }
 
             return (
               <>
