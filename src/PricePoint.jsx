@@ -720,6 +720,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, [view, liveIdx, liveListings, fetchPropertyDetails]);
 
+  // Auto-fetch details for Free Play — prefetch current + next 2
+  useEffect(() => {
+    if (view === "freeplay" && fpListings.length > 0) {
+      for (let i = fpIdx; i < Math.min(fpIdx + 3, fpListings.length); i++) {
+        if (fpListings[i]?.zpid) {
+          fetchPropertyDetails(fpListings[i].zpid);
+        }
+      }
+    }
+  }, [view, fpIdx, fpListings, fetchPropertyDetails]);
+
   // ── Countdown ──
   const [countdown, setCountdown] = useState("");
 
@@ -2418,7 +2429,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {fpListings[fpIdx] && !fpResult ? (
             <>
-              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true })}
+              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid })}
             </>
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
