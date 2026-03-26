@@ -658,6 +658,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveIdx, setLiveIdx] = useState(0);
   const [liveGuessInput, setLiveGuessInput] = useState("");
   const [liveHoodFilter, setLiveHoodFilter] = useState(null); // null = all, or zip string
+  const [liveHoodName, setLiveHoodName] = useState(null); // display name of selected neighborhood
   const [livePrediction, setLivePrediction] = useState(null);
   const [allPredictions, setAllPredictions] = useState(() => {
     try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
@@ -1146,7 +1147,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
-  const enterFreePlay = (zip) => {
+  const enterFreePlay = (zip, hoodName) => {
     // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
     const excludedIndices = getDailyIndices(soldListings, market?.label || "", 30);
     let pool = soldListings.filter((_, i) => !excludedIndices.has(i));
@@ -1159,11 +1160,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // If exclusion removed too many (small dataset), fall back to all minus today only
     const safePool = pool.length >= 3 ? pool : soldListings.filter((_, i) => i !== (dailyProperty ? soldListings.indexOf(dailyProperty) : -1));
     setFpListings([...safePool].sort(() => Math.random() - 0.5));
+    setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
   };
 
   // ── Live Mode ──
-  const enterLiveMode = (zipFilter) => {
+  const enterLiveMode = (zipFilter, hoodName) => {
     // Only use real active/pending listings — no sold fallback
     let pool = activeListings.length > 0 ? [...activeListings] : [];
     if (zipFilter) {
@@ -1172,6 +1174,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     pool.sort(() => Math.random() - 0.5);
     setLiveListings(pool);
     setLiveHoodFilter(zipFilter || null);
+    setLiveHoodName(hoodName || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
   };
 
@@ -1267,7 +1270,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const TAB_VIEWS = {
     daily: view === "daily" || view === "postDaily",
     free: view === "freeplay" || view === "fpPicker",
-    live: view === "live",
+    live: view === "live" || view === "livePicker",
     stats: view === "tomorrow",
     board: view === "leaderboard",
   };
@@ -1282,8 +1285,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       else setView("daily");
     } else if (tab === "live") {
       // If already in live flow, stay there
-      if (view === "live") return;
-      if (dailyResult && dailyResult.dailyNumber === dailyNumber) enterLiveMode();
+      if (view === "live" || view === "livePicker") return;
+      if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("livePicker");
       else setView("daily");
     } else if (tab === "stats") {
       setView("tomorrow");
@@ -2244,37 +2247,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red }}>LIVE</div>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} · Round {liveIdx + 1} <Icon name="chevron-down" size={12} /></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
+                <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
+                <div onClick={() => setView("livePicker")} style={{ fontSize: 13, color: T.red, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>{liveHoodName || "All"} <Icon name="chevron-right" size={12} /></div>
+              </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
             </div>
           </div>
-          {/* Neighborhood filter pills */}
-          {(() => {
-            const hoods = LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || [];
-            if (hoods.length <= 1) return null;
-            return (
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 4, WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none" }}>
-                {hoods.map((hood, idx) => {
-                  const isActive = hood.zip === null ? !liveHoodFilter : liveHoodFilter === hood.zip;
-                  return (
-                    <button key={idx} onClick={() => enterLiveMode(hood.zip)} style={{
-                      padding: "6px 14px", borderRadius: 9999, fontSize: 12, fontWeight: 600, fontFamily: FONT,
-                      whiteSpace: "nowrap", cursor: "pointer", flexShrink: 0,
-                      border: `1px solid ${isActive ? "transparent" : T.cardBorder}`,
-                      background: isActive ? T.red : T.card,
-                      color: isActive ? "#fff" : T.textSecondary,
-                      transition: "all 0.2s",
-                    }}>
-                      {hood.name}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
           {liveListings[liveIdx] && !livePrediction ? (
             <>
               {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
@@ -2335,10 +2317,48 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
                 You've locked in predictions on all {liveListings.length} active listing{liveListings.length !== 1 ? "s" : ""}. We'll let you know when they close.
               </div>
+              <PillButton onClick={() => setView("livePicker")} style={{ marginBottom: 10, background: T.red, color: "#fff" }}>Try Another Neighborhood</PillButton>
               <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Free Play</PillButton>
               <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ LIVE NEIGHBORHOOD PICKER ═══ */}
+      {view === "livePicker" && (
+        <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red, marginBottom: 2 }}>LIVE PREDICTIONS</div>
+            <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
+            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Predict sale prices on active listings</div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => (
+              <button
+                key={idx}
+                onClick={() => { enterLiveMode(hood.zip, hood.name); }}
+                style={{
+                  padding: "16px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card,
+                  fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
+                  cursor: "pointer", transition: "all 0.2s",
+                  display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
+                  minHeight: 56,
+                }}
+                onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.red; }}
+                onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}
+              >
+                {hood.name}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 24, textAlign: "center" }}>
+            <button onClick={() => setView("postDaily")} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>
+              Back
+            </button>
+          </div>
         </div>
       )}
 
@@ -2355,7 +2375,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => (
               <button
                 key={idx}
-                onClick={() => { enterFreePlay(hood.zip); }}
+                onClick={() => { enterFreePlay(hood.zip, hood.name); }}
                 style={{
                   padding: "16px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card,
                   fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
@@ -2386,7 +2406,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan }}>FREE PLAY</div>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} · Round {fpIdx + 1} <Icon name="chevron-down" size={12} /></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
+                <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
+                <div onClick={() => setView("fpPicker")} style={{ fontSize: 13, color: T.cyan, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>{fpSelectedNeighborhood || "All"} <Icon name="chevron-right" size={12} /></div>
+              </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatPill value={`${fpListings.length - fpIdx - 1}`} label="left" color={T.cyan} />
