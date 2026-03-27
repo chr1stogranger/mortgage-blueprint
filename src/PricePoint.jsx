@@ -718,25 +718,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, []);
 
-  // Auto-fetch details when live listing changes — prefetch current + next 3
+  // Auto-fetch details when live listing changes — prefetch current + next 3 in PARALLEL
   useEffect(() => {
     if (view === "live" && liveListings.length > 0) {
-      for (let i = liveIdx; i < Math.min(liveIdx + 4, liveListings.length); i++) {
-        if (liveListings[i]?.zpid) {
-          fetchPropertyDetails(liveListings[i].zpid);
-        }
-      }
+      const zpids = liveListings.slice(liveIdx, liveIdx + 4).map(l => l?.zpid).filter(Boolean);
+      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
     }
   }, [view, liveIdx, liveListings, fetchPropertyDetails]);
 
-  // Auto-fetch details for Free Play — prefetch current + next 2
+  // Auto-fetch details for Free Play — prefetch current + next 2 in PARALLEL
   useEffect(() => {
     if (view === "freeplay" && fpListings.length > 0) {
-      for (let i = fpIdx; i < Math.min(fpIdx + 3, fpListings.length); i++) {
-        if (fpListings[i]?.zpid) {
-          fetchPropertyDetails(fpListings[i].zpid);
-        }
-      }
+      const zpids = fpListings.slice(fpIdx, fpIdx + 3).map(l => l?.zpid).filter(Boolean);
+      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
     }
   }, [view, fpIdx, fpListings, fetchPropertyDetails]);
 
@@ -831,12 +825,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return revealed.reduce((sum, r) => sum + Math.abs((r.guess - r.soldPrice) / r.soldPrice) * 100, 0) / revealed.length;
   }, [allResults]);
 
-  // ── Persistence ──
-  useEffect(() => { try { if (market) localStorage.setItem("pp-market", JSON.stringify(market)); if (locationLabel) localStorage.setItem("pp-location-label", locationLabel); } catch {} }, [market, locationLabel]);
-  useEffect(() => { try { localStorage.setItem("pp-all-results", JSON.stringify(allResults)); } catch {} }, [allResults]);
-  useEffect(() => { try { if (dailyResult) localStorage.setItem("pp-daily-result", JSON.stringify(dailyResult)); } catch {} }, [dailyResult]);
-  useEffect(() => { try { if (soldListings !== SAMPLE_SOLD) localStorage.setItem("pp-sold-listings", JSON.stringify(soldListings)); } catch {} }, [soldListings]);
-  useEffect(() => { try { localStorage.setItem("pp-predictions", JSON.stringify(allPredictions)); } catch {} }, [allPredictions]);
+  // ── Persistence (debounced single write — avoids 5 separate effects thrashing localStorage) ──
+  const persistTimerRef = useRef(null);
+  useEffect(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      try {
+        if (market) { localStorage.setItem("pp-market", JSON.stringify(market)); localStorage.setItem("pp-location-label", locationLabel || ""); }
+        localStorage.setItem("pp-all-results", JSON.stringify(allResults));
+        if (dailyResult) localStorage.setItem("pp-daily-result", JSON.stringify(dailyResult));
+        if (soldListings !== SAMPLE_SOLD) localStorage.setItem("pp-sold-listings", JSON.stringify(soldListings));
+        localStorage.setItem("pp-predictions", JSON.stringify(allPredictions));
+      } catch {}
+    }, 500);
+    return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current); };
+  }, [market, locationLabel, allResults, dailyResult, soldListings, allPredictions]);
 
   // ── Initialize view ──
   useEffect(() => {
@@ -1263,12 +1266,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
 
-    // Trigger property details prefetch immediately for first 3 listings
-    // (belt-and-suspenders — useEffect also does this, but async timing can delay it)
+    // Trigger property details prefetch immediately for first 3 listings in PARALLEL
     setTimeout(() => {
-      for (let i = 0; i < Math.min(3, shuffled.length); i++) {
-        if (shuffled[i]?.zpid) fetchPropertyDetails(shuffled[i].zpid);
-      }
+      const zpids = shuffled.slice(0, 3).map(l => l?.zpid).filter(Boolean);
+      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
     }, 100);
   };
 
@@ -1308,12 +1309,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveHoodName(hoodName || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
 
-    // Trigger property details prefetch immediately for first 3 listings
-    // (belt-and-suspenders — useEffect also does this, but async timing can delay it)
+    // Trigger property details prefetch immediately for first 3 listings in PARALLEL
     setTimeout(() => {
-      for (let i = 0; i < Math.min(3, pool.length); i++) {
-        if (pool[i]?.zpid) fetchPropertyDetails(pool[i].zpid);
-      }
+      const zpids = pool.slice(0, 3).map(l => l?.zpid).filter(Boolean);
+      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
     }, 100);
   };
 

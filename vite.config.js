@@ -4,6 +4,24 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    // ── Performance: code splitting + minification ──
+    target: 'es2020',
+    minify: 'terser',
+    terserOptions: {
+      compress: { drop_console: false, passes: 2 },
+      mangle: true,
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
   plugins: [
     react(),
     VitePWA({

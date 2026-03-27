@@ -5,10 +5,10 @@ import Icon from "./Icon";
 // Lazy load heavy components for faster initial page load
 const PricePoint = lazy(() => import("./PricePoint"));
 const Markets = lazy(() => import("./Markets"));
-import WorkspaceView from "./WorkspaceView";
+const WorkspaceView = lazy(() => import("./WorkspaceView"));
+const BlueprintPane = lazy(() => import("./BlueprintPane"));
+const SellerNetPane = lazy(() => import("./SellerNetPane"));
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
-import BlueprintPane from "./BlueprintPane";
-import SellerNetPane from "./SellerNetPane";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
@@ -1192,6 +1192,7 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
  const { updatePaneCalc, updatePaneState, updateLinkedValue, linkedValues, workspaceMode } = useWorkspace();
  const isSellBuy = workspaceMode === "sell-buy";
  return (
+  <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: T.textSecondary, fontSize: 13 }}>Loading Workspace...</div>}>
   <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
    <WorkspaceView
     T={T}
@@ -1249,6 +1250,7 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
     )}
    />
   </div>
+  </Suspense>
  );
 }
 export default function MortgageBlueprint({ initialState, borrowerMode }) {
@@ -1345,7 +1347,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setThemeMode(next);
   try { localStorage.setItem('bp_theme_mode', next); } catch {}
  };
- T = darkMode ? DARK : LIGHT;
+ T = darkMode ? DARK : LIGHT; // DARK/LIGHT are constant objects — reference is stable per mode
  // ── Desktop sidebar collapsed state ──
  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
  // ── iOS Safe Area: ensure viewport-fit=cover ──
