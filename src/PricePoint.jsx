@@ -689,9 +689,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const fetchingRef = useRef({}); // track in-flight fetches to avoid duplicates
   const fetchPropertyDetails = useCallback(async (zpid) => {
     if (!zpid) return;
-    // Already have it cached — just ensure state is synced
-    if (detailsCacheRef.current[zpid]) {
-      setPropertyDetails(prev => prev[zpid] ? prev : { ...prev, [zpid]: detailsCacheRef.current[zpid] });
+    // Already have it cached WITH content — just ensure state is synced
+    const cached = detailsCacheRef.current[zpid];
+    if (cached && (cached.photos?.length > 0 || cached.description)) {
+      setPropertyDetails(prev => prev[zpid] ? prev : { ...prev, [zpid]: cached });
       return;
     }
     // Already fetching this zpid
@@ -702,7 +703,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const res = await fetch(`/api/propertydetails?zpid=${zpid}`);
       if (res.ok) {
         const data = await res.json();
-        detailsCacheRef.current[zpid] = data;
+        // Only cache results that have actual content (photos or description)
+        // Empty results will be re-fetched next time
+        if (data.photos?.length > 0 || data.description) {
+          detailsCacheRef.current[zpid] = data;
+        }
         setPropertyDetails(prev => ({ ...prev, [zpid]: data }));
       }
     } catch (e) {
