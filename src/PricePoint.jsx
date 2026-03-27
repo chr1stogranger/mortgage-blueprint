@@ -1493,7 +1493,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, labelOverrides, details, isLoadingDetails }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, labelOverrides, details, isLoadingDetails }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
@@ -1577,6 +1577,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             )}
           </div>
+          {/* View on Zillow link — Live mode only, shown before guess to enable informed predictions */}
+          {showZillowLink && listing.detailUrl && (
+            <a href={`https://www.zillow.com${listing.detailUrl}`} target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 16px", marginBottom: 14, borderRadius: 10, border: `1px solid ${T.cardBorder}`, background: T.inputBg, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.color = T.text; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.color = T.textSecondary; }}>
+              <Icon name="external-link" size={13} /> View Full Listing on Zillow
+            </a>
+          )}
           {/* Guess — Cash App style: tap the display to type, hidden input captures keys */}
           <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 6, fontFamily: FONT }}>{labelOverrides?.guessLabel || "What do you think it sold for?"}</div>
           <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
@@ -2354,7 +2363,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
