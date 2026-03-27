@@ -81,6 +81,10 @@ function normalizeProperty(raw, index, prefix, isSold) {
     detailUrl: raw.detailUrl || null,
     listingAgent: raw.attributionInfo?.agentName || raw.listingAgent?.name || raw.agentName || raw.brokerName || raw.attributionInfo?.brokerName || null,
     description: raw.description || raw.homeDescription || raw.hdpData?.homeInfo?.description || null,
+    // Immutable source tag: which API endpoint returned this listing.
+    // "sold_api" = from recentlySold call, "active_api" = from forSale call.
+    // Client uses this to enforce mode separation (Free Play vs Live).
+    _source: isSold ? "sold_api" : "active_api",
   };
 }
 

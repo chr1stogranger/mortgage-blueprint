@@ -211,16 +211,16 @@ const propTypeShort = (type) => {
 
 // ── Sample Sold Listings (fallback) ──
 const SAMPLE_SOLD = [
-  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:931,description:"Beautifully updated 3BR/2BA home in the heart of Central Sunset. Open floor plan with renovated kitchen featuring quartz countertops, stainless appliances, and custom cabinetry. Hardwood floors throughout. Spacious backyard with mature landscaping. One-car garage plus driveway parking. Steps from Golden Gate Park." },
-  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Parkside",pricePerSqft:977,description:"Charming 2BR/1BA Parkside bungalow with original character and modern updates. Sun-filled living room, eat-in kitchen with gas range, and generous closet space. Full basement with laundry and expansion potential. Low-maintenance yard. Close to Stern Grove and L-Taraval." },
-  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:953,description:"Spacious 4BR/2BA Inner Sunset home with sweeping city views from the upper level. Remodeled baths, chef's kitchen with island, and large family room opening to a deck. Garage plus storage. Two blocks from UCSF and Irving Street shops. Highly sought-after Ulloa Elementary school district." },
-  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905,description:"Well-maintained 3BR/1BA on a quiet block of Noriega. Original hardwood floors, updated electrical, and newer roof. Bright living and dining rooms with period details. Full garage with interior access. Nearby N-Judah and Noriega corridor dining. A solid home with great bones and upside." },
-  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962,description:"Turnkey 3BR/2BA with a thoughtful remodel throughout. Open-concept main level, designer kitchen with waterfall island, and spa-inspired primary bath. South-facing backyard floods the home with natural light. Finished lower level with bonus room. Walk to Ocean Beach and Outerlands." },
-  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:692,description:"Top-floor 2BR/2BA condo in a boutique 6-unit building. In-unit laundry, one-car deeded parking, and private storage. Updated kitchen with dishwasher. Dual-pane windows and radiant heat keep it cozy. HOA covers water, garbage, and common insurance. Steps to GG Park and N-Judah." },
-  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:906,description:"Classic 3BR/1BA Parkside home with garage and full basement. Updated kitchen with granite counters. Freshly painted interior and refinished hardwood floors. Large backyard perfect for entertaining. Nearby parks, schools, and public transit. A great entry point into SF homeownership." },
-  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:823,description:"Stunning 4BR/3BA with panoramic views from Sutro Tower to downtown. Fully renovated top to bottom — open chef's kitchen, marble baths, and white oak floors. Two-car garage, large deck, and landscaped yard. Legal in-law unit on lower level with separate entrance. An exceptional Inner Sunset offering." },
-  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962,description:"Cozy 2BR/1BA starter home with tons of potential. Original layout with separate living and dining rooms. Full basement ready for expansion (plans available). Sunny rear yard with fruit trees. One block from Sunset Blvd transit. Estate sale — priced to sell as-is." },
-  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909,description:"Move-in ready 3BR/2BA with a flexible floor plan. Renovated kitchen with breakfast bar, updated bathrooms, and gleaming hardwood throughout. Large primary suite with walk-in closet. Finished garage with laundry. Excellent Central Sunset location near shopping, dining, and express bus lines." },
+  { id:"pps1",zpid:"15201001",address:"1456 25th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1450,lotSqft:2500,yearBuilt:1941,propertyType:"Single Family",listPrice:1295000,zestimate:1380000,soldPrice:1350000,soldDate:"2025-12-15",daysOnMarket:18,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:931,description:"Beautifully updated 3BR/2BA home in the heart of Central Sunset. Open floor plan with renovated kitchen featuring quartz countertops, stainless appliances, and custom cabinetry. Hardwood floors throughout. Spacious backyard with mature landscaping. One-car garage plus driveway parking. Steps from Golden Gate Park." },
+  { id:"pps2",zpid:"15302112",address:"2280 42nd Ave",city:"San Francisco",state:"CA",zip:"94116",beds:2,baths:1,sqft:1100,lotSqft:2500,yearBuilt:1938,propertyType:"Single Family",listPrice:998000,zestimate:1050000,soldPrice:1075000,soldDate:"2025-11-22",daysOnMarket:14,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=800&q=80",neighborhood:"Parkside",pricePerSqft:977,description:"Charming 2BR/1BA Parkside bungalow with original character and modern updates. Sun-filled living room, eat-in kitchen with gas range, and generous closet space. Full basement with laundry and expansion potential. Low-maintenance yard. Close to Stern Grove and L-Taraval." },
+  { id:"pps3",zpid:"15403223",address:"1738 16th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:2,sqft:1900,lotSqft:2500,yearBuilt:1947,propertyType:"Single Family",listPrice:1695000,zestimate:1750000,soldPrice:1810000,soldDate:"2026-01-08",daysOnMarket:9,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:953,description:"Spacious 4BR/2BA Inner Sunset home with sweeping city views from the upper level. Remodeled baths, chef's kitchen with island, and large family room opening to a deck. Garage plus storage. Two blocks from UCSF and Irving Street shops. Highly sought-after Ulloa Elementary school district." },
+  { id:"pps4",zpid:"15504334",address:"3642 Noriega St",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:1,sqft:1320,lotSqft:2500,yearBuilt:1951,propertyType:"Single Family",listPrice:1175000,zestimate:1220000,soldPrice:1195000,soldDate:"2025-10-30",daysOnMarket:22,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:905,description:"Well-maintained 3BR/1BA on a quiet block of Noriega. Original hardwood floors, updated electrical, and newer roof. Bright living and dining rooms with period details. Full garage with interior access. Nearby N-Judah and Noriega corridor dining. A solid home with great bones and upside." },
+  { id:"pps5",zpid:"15605445",address:"1891 31st Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1580,lotSqft:2500,yearBuilt:1944,propertyType:"Single Family",listPrice:1425000,zestimate:1490000,soldPrice:1520000,soldDate:"2025-12-04",daysOnMarket:11,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962,description:"Turnkey 3BR/2BA with a thoughtful remodel throughout. Open-concept main level, designer kitchen with waterfall island, and spa-inspired primary bath. South-facing backyard floods the home with natural light. Finished lower level with bonus room. Walk to Ocean Beach and Outerlands." },
+  { id:"pps6",zpid:"15706556",address:"755 Kirkham St",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:2,sqft:1250,lotSqft:0,yearBuilt:1962,propertyType:"Condo",listPrice:849000,zestimate:880000,soldPrice:865000,soldDate:"2026-01-18",daysOnMarket:31,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:692,description:"Top-floor 2BR/2BA condo in a boutique 6-unit building. In-unit laundry, one-car deeded parking, and private storage. Updated kitchen with dishwasher. Dual-pane windows and radiant heat keep it cozy. HOA covers water, garbage, and common insurance. Steps to GG Park and N-Judah." },
+  { id:"pps7",zpid:"15807667",address:"2415 47th Ave",city:"San Francisco",state:"CA",zip:"94116",beds:3,baths:1,sqft:1280,lotSqft:2500,yearBuilt:1940,propertyType:"Single Family",listPrice:1095000,zestimate:1140000,soldPrice:1160000,soldDate:"2025-11-11",daysOnMarket:16,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80",neighborhood:"Parkside",pricePerSqft:906,description:"Classic 3BR/1BA Parkside home with garage and full basement. Updated kitchen with granite counters. Freshly painted interior and refinished hardwood floors. Large backyard perfect for entertaining. Nearby parks, schools, and public transit. A great entry point into SF homeownership." },
+  { id:"pps8",zpid:"15908778",address:"1347 10th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:4,baths:3,sqft:2400,lotSqft:2800,yearBuilt:1950,propertyType:"Single Family",listPrice:1850000,zestimate:1920000,soldPrice:1975000,soldDate:"2026-01-25",daysOnMarket:8,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80",neighborhood:"Inner Sunset",pricePerSqft:823,description:"Stunning 4BR/3BA with panoramic views from Sutro Tower to downtown. Fully renovated top to bottom — open chef's kitchen, marble baths, and white oak floors. Two-car garage, large deck, and landscaped yard. Legal in-law unit on lower level with separate entrance. An exceptional Inner Sunset offering." },
+  { id:"pps9",zpid:"16009889",address:"1633 38th Ave",city:"San Francisco",state:"CA",zip:"94122",beds:2,baths:1,sqft:1050,lotSqft:2500,yearBuilt:1936,propertyType:"Single Family",listPrice:949000,zestimate:990000,soldPrice:1010000,soldDate:"2025-09-28",daysOnMarket:19,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80",neighborhood:"Outer Sunset",pricePerSqft:962,description:"Cozy 2BR/1BA starter home with tons of potential. Original layout with separate living and dining rooms. Full basement ready for expansion (plans available). Sunny rear yard with fruit trees. One block from Sunset Blvd transit. Estate sale — priced to sell as-is." },
+  { id:"pps10",zpid:"16110990",address:"1982 22nd Ave",city:"San Francisco",state:"CA",zip:"94122",beds:3,baths:2,sqft:1700,lotSqft:2500,yearBuilt:1946,propertyType:"Single Family",listPrice:1495000,zestimate:1560000,soldPrice:1545000,soldDate:"2025-10-14",daysOnMarket:13,status:"sold",_source:"sold_api",photo:"https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80",neighborhood:"Central Sunset",pricePerSqft:909,description:"Move-in ready 3BR/2BA with a flexible floor plan. Renovated kitchen with breakfast bar, updated bathrooms, and gleaming hardwood throughout. Large primary suite with walk-in closet. Finished garage with laundry. Excellent Central Sunset location near shopping, dining, and express bus lines." },
 ];
 
 // ── Launch Markets — 4 cities with neighborhoods ──
@@ -961,32 +961,29 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (!resp.ok) throw new Error(`API returned ${resp.status}`);
       const data = await resp.json();
       if (data.error) throw new Error(data.error);
+      // ── Clean ingestion: trust _source tags, no heuristics ──
+      // Active listings (_source: "active_api") → Live mode pool
+      if (data.activeListings && data.activeListings.length > 0) {
+        setActiveListings(data.activeListings);
+      }
+      // Sold listings (_source: "sold_api") → Free Play pool
+      // Merge with existing (SAMPLE_SOLD + prior data), deduplicate by zpid
       if (data.soldListings && data.soldListings.length > 0) {
-        // Detect unreliable sold data: if most "sold" zpids also appear in active results,
-        // the API is just relabeling active listings as sold. In that case, merge with
-        // existing data (SAMPLE_SOLD) rather than replacing it.
-        const activeZpidSet = new Set((data.activeListings || []).map(l => l.zpid));
-        const overlapCount = data.soldListings.filter(l => activeZpidSet.has(l.zpid)).length;
-        const overlapRatio = data.soldListings.length > 0 ? overlapCount / data.soldListings.length : 0;
-        if (overlapRatio > 0.5) {
-          // API sold data is unreliable — merge with existing (keeps SAMPLE_SOLD + any good prior data)
-          console.log(`[PricePoint] Sold data unreliable (${(overlapRatio * 100).toFixed(0)}% overlap with active). Merging with existing.`);
-          const existingZpids = new Set(soldListings.map(l => l.zpid));
-          const genuineNew = data.soldListings.filter(l => !activeZpidSet.has(l.zpid) && !existingZpids.has(l.zpid));
-          if (genuineNew.length > 0) {
-            setSoldListings(prev => [...prev, ...genuineNew]);
-          }
-        } else {
-          setSoldListings(data.soldListings);
-        }
-        if (data.activeListings && data.activeListings.length > 0) {
-          setActiveListings(data.activeListings);
-        }
+        setSoldListings(prev => {
+          const existingZpids = new Set(prev.map(l => l.zpid));
+          const newOnes = data.soldListings.filter(l => !existingZpids.has(l.zpid));
+          return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+        });
+        const label = data.location || searchValue;
+        setLocationLabel(label);
+        return { success: true, label };
+      } else if (data.activeListings && data.activeListings.length > 0) {
+        // We got active but no sold — still a partial success
         const label = data.location || searchValue;
         setLocationLabel(label);
         return { success: true, label };
       } else {
-        setError("No sold listings found. Using sample data.");
+        setError("No listings found. Using sample data.");
         return { success: false };
       }
     } catch (err) {
@@ -1186,77 +1183,48 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
-  // Helper: basic sold validation — must have soldPrice and sold status
-  const isBasicSold = (l) => l.soldPrice && l.status === "sold";
 
-  const enterFreePlay = async (zip, hoodName) => {
-    // Use city-wide soldListings as the trusted pool
-    // (Per-zip "recentlySold" queries return the same zpids as active listings — unreliable)
-    const trueSold = soldListings.filter(isBasicSold);
+  // ═══════════════════════════════════════════════════════════════
+  // FIRST-PRINCIPLES MODE SEPARATION
+  // ─────────────────────────────────────────────────────────────
+  // The _source field (set by the API) is the ONLY truth for mode separation:
+  //   _source === "sold_api"   → Free Play (sold in last 3 months)
+  //   _source === "active_api" → Live mode (active + pending on market)
+  //
+  // enterFreePlay and enterLiveMode are SYNCHRONOUS — zero API calls.
+  // All data is pre-loaded when the market is selected. Tapping a
+  // neighborhood is an instant in-memory filter, not a network request.
+  // ═══════════════════════════════════════════════════════════════
 
-    // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
+  // Trusted sold = came from the recentlySold API endpoint AND has a real soldPrice
+  const isTrueSold = (l) => l._source === "sold_api" && l.soldPrice;
+  // Trusted active = came from the forSale API endpoint (active or pending)
+  const isTrueActive = (l) => l._source === "active_api";
+
+  const enterFreePlay = (zip, hoodName) => {
+    // Step 1: Filter to trusted sold listings only
+    let trueSold = soldListings.filter(isTrueSold);
+
+    // Step 2: Exclude daily spoilers
     const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
     let pool = trueSold.filter((_, i) => !excludedIndices.has(i));
 
-    // If zip is provided, filter to that neighborhood
-    if (zip) {
-      pool = pool.filter(listing => listing.zip === zip);
-    }
+    // Step 3: Filter to zip if provided
+    if (zip) pool = pool.filter(l => l.zip === zip);
 
-    // If pool is thin, try city-wide fetch with the specific city+state to get more sold data
-    // NOTE: We do NOT use per-zip "recentlySold" data because RapidAPI returns active listings
-    // relabeled as sold for zip-level queries. Only city-wide sold data is trustworthy.
-    if (zip && pool.length < 5) {
-      try {
-        console.log(`[PricePoint] FP pool thin (${pool.length}) for ${zip}, fetching city-wide...`);
-        // Try the city-wide fetch which returns real sold listings
-        const city = market?.city || "San Francisco";
-        const state = market?.state || "CA";
-        const resp = await fetch(`/api/pricepoint?city=${encodeURIComponent(city)}&state=${state}&fresh=1`);
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.soldListings && data.soldListings.length > 0) {
-            const existingZpids = new Set(soldListings.map(l => l.zpid));
-            const newListings = data.soldListings.filter(l => isBasicSold(l) && !existingZpids.has(l.zpid));
-            if (newListings.length > 0) {
-              const merged = [...soldListings, ...newListings];
-              setSoldListings(merged);
-              // Rebuild pool from merged data for this zip
-              pool = merged.filter(l => isBasicSold(l) && l.zip === zip);
-              // Re-exclude dailies
-              const newExcludes = getDailyIndices(pool, market?.label || "", 30);
-              pool = pool.filter((_, i) => !newExcludes.has(i));
-              console.log(`[PricePoint] Refreshed city data, ${zip} pool now ${pool.length}`);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[PricePoint] City-wide refresh failed:', err.message);
-      }
-    }
-
-    // If zip filter left too few results, try without daily exclusion but KEEP zip filter
+    // Step 4: If zip filter left too few, relax daily exclusion
     if (zip && pool.length < 3) {
-      pool = trueSold.filter(listing => listing.zip === zip);
+      pool = trueSold.filter(l => l.zip === zip);
     }
 
-    // Last resort: include SAMPLE_SOLD listings for this zip (deduplicated)
-    // These are curated listings that always have soldPrice, soldDate, and descriptions
-    if (zip && pool.length < 3) {
+    // Step 5: Backfill with SAMPLE_SOLD (curated, always have _source:"sold_api")
+    if (pool.length < 3) {
       const poolZpids = new Set(pool.map(l => l.zpid));
-      const sampleForZip = SAMPLE_SOLD.filter(l => l.zip === zip && !poolZpids.has(l.zpid));
-      if (sampleForZip.length > 0) {
-        pool = [...pool, ...sampleForZip];
-        console.log(`[PricePoint] Added ${sampleForZip.length} sample listings for ${zip}, pool now ${pool.length}`);
-      }
+      const samples = (zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : SAMPLE_SOLD).filter(l => !poolZpids.has(l.zpid));
+      pool = [...pool, ...samples];
     }
 
-    // Only fall back to all listings if NO zip was requested (i.e. "All of City")
-    if (pool.length === 0 && !zip) {
-      pool = trueSold.filter((_, i) => !excludedIndices.has(i));
-    }
-
-    // Final fallback: if still empty, use all SAMPLE_SOLD
+    // Step 6: Final fallback
     if (pool.length === 0) {
       pool = zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : [...SAMPLE_SOLD];
     }
@@ -1266,41 +1234,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
 
-    // Trigger property details prefetch immediately for first 3 listings in PARALLEL
+    // Prefetch property details for first 3 in PARALLEL
     setTimeout(() => {
       const zpids = shuffled.slice(0, 3).map(l => l?.zpid).filter(Boolean);
       if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
     }, 100);
   };
 
-  // ── Live Mode ──
-  const enterLiveMode = async (zipFilter, hoodName) => {
-    let pool = activeListings.length > 0 ? [...activeListings] : [];
+  // ── Live Mode — SYNCHRONOUS, no API calls ──
+  const enterLiveMode = (zipFilter, hoodName) => {
+    // Only show listings from the forSale API endpoint
+    let pool = activeListings.filter(isTrueActive);
+
     if (zipFilter) {
       pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
-    }
-
-    // If pool is thin/empty for this zip, fetch active listings specifically for this zip
-    if (zipFilter && pool.length < 5) {
-      try {
-        console.log(`[PricePoint] Live pool thin (${pool.length}) for ${zipFilter}, fetching more...`);
-        const resp = await fetch(`/api/pricepoint?zip=${zipFilter}`);
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.activeListings && data.activeListings.length > 0) {
-            const existingZpids = new Set(activeListings.map(l => l.zpid));
-            const newActive = data.activeListings.filter(l => !existingZpids.has(l.zpid));
-            if (newActive.length > 0) {
-              const merged = [...activeListings, ...newActive];
-              setActiveListings(merged);
-              pool = merged.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
-              console.log(`[PricePoint] Fetched ${newActive.length} active for ${zipFilter}, pool now ${pool.length}`);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[PricePoint] Live per-zip fetch failed:', err.message);
-      }
     }
 
     pool.sort(() => Math.random() - 0.5);
@@ -1309,7 +1256,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveHoodName(hoodName || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
 
-    // Trigger property details prefetch immediately for first 3 listings in PARALLEL
+    // Prefetch property details for first 3 in PARALLEL
     setTimeout(() => {
       const zpids = pool.slice(0, 3).map(l => l?.zpid).filter(Boolean);
       if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
