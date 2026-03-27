@@ -1167,20 +1167,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
-  // Helper: validate a listing is genuinely sold (not an active listing misclassified by Zillow)
-  // Note: RapidAPI search doesn't always return dateSold, so we can't require it.
-  // Instead, we deduplicate against activeListings by zpid to catch misclassified listings.
-  const isVerifiedSold = (l, activeZpidSet) => {
-    if (!l.soldPrice || l.status !== "sold") return false;
-    // If this zpid also appears in active listings, it's probably not actually sold
-    if (activeZpidSet && activeZpidSet.has(l.zpid)) return false;
-    return true;
-  };
+  // Helper: basic sold validation — must have soldPrice and sold status
+  const isBasicSold = (l) => l.soldPrice && l.status === "sold";
 
   const enterFreePlay = async (zip, hoodName) => {
-    // Build set of active listing zpids to exclude from sold pool
-    const activeZpids = new Set(activeListings.map(l => l.zpid));
-    const trueSold = soldListings.filter(l => isVerifiedSold(l, activeZpids));
+    // Use city-wide soldListings as the trusted pool
+    // (Per-zip "recentlySold" queries return the same zpids as active listings — unreliable)
+    const trueSold = soldListings.filter(isBasicSold);
 
     // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
     const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
@@ -1191,32 +1184,35 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = pool.filter(listing => listing.zip === zip);
     }
 
-    // If pool is thin (< 15 listings), fetch more specifically for this zip
-    if (zip && pool.length < 15) {
+    // If pool is thin, try city-wide fetch with the specific city+state to get more sold data
+    // NOTE: We do NOT use per-zip "recentlySold" data because RapidAPI returns active listings
+    // relabeled as sold for zip-level queries. Only city-wide sold data is trustworthy.
+    if (zip && pool.length < 5) {
       try {
-        console.log(`[PricePoint] Pool thin (${pool.length}) for ${zip}, fetching more...`);
-        const resp = await fetch(`/api/pricepoint?zip=${zip}`);
+        console.log(`[PricePoint] FP pool thin (${pool.length}) for ${zip}, fetching city-wide...`);
+        // Try the city-wide fetch which returns real sold listings
+        const city = market?.city || "San Francisco";
+        const state = market?.state || "CA";
+        const resp = await fetch(`/api/pricepoint?city=${encodeURIComponent(city)}&state=${state}&fresh=1`);
         if (resp.ok) {
           const data = await resp.json();
           if (data.soldListings && data.soldListings.length > 0) {
-            // Update active zpids with any new active listings from this fetch
-            if (data.activeListings) {
-              data.activeListings.forEach(l => activeZpids.add(l.zpid));
-            }
-            // Merge new listings, deduplicate by zpid
             const existingZpids = new Set(soldListings.map(l => l.zpid));
-            const newListings = data.soldListings.filter(l => isVerifiedSold(l, activeZpids) && !existingZpids.has(l.zpid));
+            const newListings = data.soldListings.filter(l => isBasicSold(l) && !existingZpids.has(l.zpid));
             if (newListings.length > 0) {
               const merged = [...soldListings, ...newListings];
               setSoldListings(merged);
-              // Rebuild pool from merged data
-              pool = merged.filter(l => isVerifiedSold(l, activeZpids) && l.zip === zip);
-              console.log(`[PricePoint] Fetched ${newListings.length} verified sold for ${zip}, pool now ${pool.length}`);
+              // Rebuild pool from merged data for this zip
+              pool = merged.filter(l => isBasicSold(l) && l.zip === zip);
+              // Re-exclude dailies
+              const newExcludes = getDailyIndices(pool, market?.label || "", 30);
+              pool = pool.filter((_, i) => !newExcludes.has(i));
+              console.log(`[PricePoint] Refreshed city data, ${zip} pool now ${pool.length}`);
             }
           }
         }
       } catch (err) {
-        console.warn('[PricePoint] Per-zip fetch failed:', err.message);
+        console.warn('[PricePoint] City-wide refresh failed:', err.message);
       }
     }
 
