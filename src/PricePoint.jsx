@@ -1162,13 +1162,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
-  // Helper: validate a listing is genuinely sold (not active/pending misclassified by Zillow)
-  const isVerifiedSold = (l) => l.soldPrice && l.status === "sold" && l.soldDate;
+  // Helper: validate a listing is genuinely sold (not an active listing misclassified by Zillow)
+  // Note: RapidAPI search doesn't always return dateSold, so we can't require it.
+  // Instead, we deduplicate against activeListings by zpid to catch misclassified listings.
+  const isVerifiedSold = (l, activeZpidSet) => {
+    if (!l.soldPrice || l.status !== "sold") return false;
+    // If this zpid also appears in active listings, it's probably not actually sold
+    if (activeZpidSet && activeZpidSet.has(l.zpid)) return false;
+    return true;
+  };
 
   const enterFreePlay = async (zip, hoodName) => {
-    // Only use verified sold listings — must have soldPrice, sold status, AND a soldDate
-    // This prevents active/pending listings that Zillow returns in "recentlySold" results
-    const trueSold = soldListings.filter(isVerifiedSold);
+    // Build set of active listing zpids to exclude from sold pool
+    const activeZpids = new Set(activeListings.map(l => l.zpid));
+    const trueSold = soldListings.filter(l => isVerifiedSold(l, activeZpids));
 
     // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
     const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
@@ -1187,14 +1194,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         if (resp.ok) {
           const data = await resp.json();
           if (data.soldListings && data.soldListings.length > 0) {
-            // Merge new listings, deduplicate by zpid, verified sold only
+            // Update active zpids with any new active listings from this fetch
+            if (data.activeListings) {
+              data.activeListings.forEach(l => activeZpids.add(l.zpid));
+            }
+            // Merge new listings, deduplicate by zpid
             const existingZpids = new Set(soldListings.map(l => l.zpid));
-            const newListings = data.soldListings.filter(l => isVerifiedSold(l) && !existingZpids.has(l.zpid));
+            const newListings = data.soldListings.filter(l => isVerifiedSold(l, activeZpids) && !existingZpids.has(l.zpid));
             if (newListings.length > 0) {
               const merged = [...soldListings, ...newListings];
               setSoldListings(merged);
               // Rebuild pool from merged data
-              pool = merged.filter(l => isVerifiedSold(l) && l.zip === zip);
+              pool = merged.filter(l => isVerifiedSold(l, activeZpids) && l.zip === zip);
               console.log(`[PricePoint] Fetched ${newListings.length} verified sold for ${zip}, pool now ${pool.length}`);
             }
           }
