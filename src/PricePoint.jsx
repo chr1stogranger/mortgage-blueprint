@@ -2382,6 +2382,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ LIVE NEIGHBORHOOD PICKER ═══ */}
       {view === "livePicker" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
+          {/* Market switcher pill */}
+          <div style={{ marginBottom: 16 }}>
+            <button onClick={() => setShowMarketSwitcher(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, cursor: "pointer" }}>
+              <Icon name="map-pin" size={14} /> {market?.label || "Select City"} <Icon name="chevron-down" size={12} />
+            </button>
+          </div>
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red, marginBottom: 2 }}>LIVE PREDICTIONS</div>
             <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
@@ -2419,8 +2425,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ FREE PLAY NEIGHBORHOOD PICKER ═══ */}
       {view === "fpPicker" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
+          {/* Market switcher pill */}
+          <div style={{ marginBottom: 16 }}>
+            <button onClick={() => setShowMarketSwitcher(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, cursor: "pointer" }}>
+              <Icon name="map-pin" size={14} /> {market?.label || "Select City"} <Icon name="chevron-down" size={12} />
+            </button>
+          </div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan, marginBottom: 2 }}>CHOOSE YOUR MARKET</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan, marginBottom: 2 }}>FREE PLAY</div>
             <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Select where you want to guess property prices</div>
           </div>
