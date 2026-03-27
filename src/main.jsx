@@ -62,8 +62,9 @@ class ErrorBoundary extends Component {
   }
 }
 
-// API keys are now served via backend proxy routes (/api/rates, /api/propertydetails)
-// No client-side key exposure needed. Legacy window properties kept as empty for backward compat.
+// API keys served via backend proxy routes (/api/rates, /api/propertydetails)
+// No client-side key exposure. Empty strings for backward compatibility with
+// any code that checks window.__FRED_API_KEY__ before calling the proxy.
 window.__FRED_API_KEY__ = "";
 window.__GOOGLE_PLACES_KEY__ = "";
 

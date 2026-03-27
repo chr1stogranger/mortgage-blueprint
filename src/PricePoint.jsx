@@ -612,8 +612,8 @@ const playLevelUpSound = () => {
 };
 
 // ── Data Version — bump this to force all clients to clear stale localStorage and re-fetch ──
-// v2: added _source field for mode separation (sold_api vs active_api)
-const PP_DATA_VERSION = 2;
+// v3: server-side dedup + city-wide fetch (zip-level was only returning 1 neighborhood)
+const PP_DATA_VERSION = 3;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -971,8 +971,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const needsData = soldListings === SAMPLE_SOLD || activeListings.length === 0 || needsFreshFetch;
     if (needsData && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      // After version migration, bypass CDN cache to get data with _source tags
-      fetchListings(market.zip || market.city || market.label, needsFreshFetch);
+      // ALWAYS fetch by city name — zip-level queries only return listings for that
+      // one zip, not the whole market. City-wide gives us all neighborhoods.
+      fetchListings(market.city || market.label, needsFreshFetch);
     }
   }, [market]);
 
