@@ -29,15 +29,24 @@ export default async function handler(req, res) {
   }
 
   const zpid = req.query.zpid;
+  const skipCache = req.query.fresh === "1";
   if (!zpid) {
     return res.status(400).json({ error: "zpid required" });
   }
 
-  // Check cache
-  const cached = cache.get(zpid);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
-    return res.status(200).json({ ...cached.data, cached: true });
+  // Check cache (skip if ?fresh=1, or if cached result has no photos — re-fetch to get real data)
+  if (!skipCache) {
+    const cached = cache.get(zpid);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0) {
+      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+      return res.status(200).json({ ...cached.data, cached: true });
+    }
+    // Clear stale/empty cached entries
+    if (cached && (!cached.data.photos?.length || Date.now() - cached.timestamp > CACHE_TTL)) {
+      cache.delete(zpid);
+    }
+  } else {
+    cache.delete(zpid);
   }
 
   try {
@@ -124,8 +133,11 @@ export default async function handler(req, res) {
       cached: false,
     };
 
-    // Cache the result
-    cache.set(zpid, { data: result, timestamp: Date.now() });
+    // Only cache results that have actual content (photos or description)
+    // Empty results should be re-fetched next time
+    if (photos.length > 0 || description) {
+      cache.set(zpid, { data: result, timestamp: Date.now() });
+    }
     // Evict old entries if cache grows too large
     if (cache.size > 200) {
       const now = Date.now();
@@ -134,7 +146,12 @@ export default async function handler(req, res) {
       }
     }
 
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+    // Only CDN-cache responses with real content; empty results get no-store so they're re-fetched
+    if (photos.length > 0 || description) {
+      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+    } else {
+      res.setHeader("Cache-Control", "no-store");
+    }
     return res.status(200).json(result);
   } catch (err) {
     console.error("[PropertyDetails] Error:", err);
