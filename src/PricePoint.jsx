@@ -2846,13 +2846,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         }}>
           <div onClick={e => e.stopPropagation()} style={{
             background: T.card, borderRadius: "20px 20px 0 0", padding: "24px 20px 32px",
-            maxWidth: 420, width: "100%", border: `1px solid ${T.cardBorder}`, borderBottom: "none",
+            maxWidth: 420, width: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column",
+            border: `1px solid ${T.cardBorder}`, borderBottom: "none",
             animation: "ppSlideUp 0.3s ease",
           }}>
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px" }} />
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>SWITCH MARKET</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>Choose your city</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px", flexShrink: 0 }} />
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4, flexShrink: 0 }}>SWITCH MARKET</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20, flexShrink: 0 }}>Choose your city</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0, paddingBottom: 8 }}>
               {LAUNCH_MARKETS.map(m => {
                 const isActive = market?.id === m.id || market?.city === m.name;
                 return (

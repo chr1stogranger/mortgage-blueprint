@@ -70,6 +70,19 @@ export default async function handler(req, res) {
     const raw = await response.json();
     const d = raw.data || raw;
 
+    // Debug mode: return ALL raw keys + sold-related fields
+    if (req.query.debug === "1") {
+      const allKeys = Object.keys(d);
+      const soldFields = {};
+      for (const k of ["priceHistory","taxHistory","nearbyHomes","comps","recentlySold","nearbyProperties","dateSold","homeStatus","price","listPrice","zestimate","contingentListingType","homeStatusForHDP"]) {
+        if (d[k] !== undefined) {
+          const v = d[k];
+          soldFields[k] = Array.isArray(v) ? { type: "array", length: v.length, first: v[0] } : typeof v === "object" && v ? { type: "object", keys: Object.keys(v) } : v;
+        }
+      }
+      return res.status(200).json({ zpid, allKeys, keyCount: allKeys.length, soldFields, homeStatus: d.homeStatus, dateSold: d.dateSold });
+    }
+
     // Diagnostic logging — what does the API actually return?
     const topKeys = Object.keys(d).slice(0, 20).join(", ");
     const photoField = d.photos ? `array(${d.photos.length})` : d.carouselPhotos ? `carousel(${d.carouselPhotos.length})` : d.responsivePhotos ? `responsive(${d.responsivePhotos.length})` : "none";
