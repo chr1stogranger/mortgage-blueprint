@@ -611,9 +611,31 @@ const playLevelUpSound = () => {
   } catch (e) { /* Audio not available — silent fallback */ }
 };
 
+// ── Data Version — bump this to force all clients to clear stale localStorage and re-fetch ──
+// v2: added _source field for mode separation (sold_api vs active_api)
+const PP_DATA_VERSION = 2;
+function migrateLocalStorage() {
+  try {
+    const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
+    if (stored < PP_DATA_VERSION) {
+      // Clear stale listing data (keep player ID, display name, market selection)
+      localStorage.removeItem("pp-sold-listings");
+      localStorage.removeItem("pp-all-results");
+      localStorage.removeItem("pp-daily-result");
+      localStorage.removeItem("pp-predictions");
+      localStorage.setItem("pp-data-version", String(PP_DATA_VERSION));
+      console.log(`[PricePoint] Data version upgraded ${stored} → ${PP_DATA_VERSION}, cleared stale listings`);
+      return true; // signal: need fresh fetch
+    }
+  } catch {}
+  return false;
+}
+
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange }) {
+  // Run migration BEFORE any useState initializers read localStorage
+  const [needsFreshFetch] = useState(() => migrateLocalStorage());
 
   // ── Game State ──
   const [view, setView] = useState("daily");
@@ -942,21 +964,27 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return () => { if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; } };
   }, [view]);
 
-  // ── Auto-fetch — also fetch if we have no active listings (for Live mode) ──
+  // ── Auto-fetch — fetch fresh data when market is set, or after version migration ──
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
-    if (market && (soldListings === SAMPLE_SOLD || activeListings.length === 0)) {
-      fetchListings(market.zip || market.city || market.label);
+    if (!market) return;
+    const needsData = soldListings === SAMPLE_SOLD || activeListings.length === 0 || needsFreshFetch;
+    if (needsData && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      // After version migration, bypass CDN cache to get data with _source tags
+      fetchListings(market.zip || market.city || market.label, needsFreshFetch);
     }
   }, [market]);
 
-  // ── Fetch live listings ──
-  const fetchListings = useCallback(async (searchValue) => {
+  // ── Fetch listings from API ──
+  const fetchListings = useCallback(async (searchValue, bypassCache = false) => {
     if (!searchValue || searchValue.trim().length < 2) return;
     setLoading(true);
     setError(null);
     try {
       const isZip = /^\d{5}$/.test(searchValue.trim());
-      const params = isZip ? `zip=${searchValue.trim()}` : `city=${encodeURIComponent(searchValue.trim())}&state=CA`;
+      let params = isZip ? `zip=${searchValue.trim()}` : `city=${encodeURIComponent(searchValue.trim())}&state=CA`;
+      if (bypassCache) params += "&fresh=1";
       const resp = await fetch(`/api/pricepoint?${params}`);
       if (!resp.ok) throw new Error(`API returned ${resp.status}`);
       const data = await resp.json();
