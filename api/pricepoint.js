@@ -278,8 +278,24 @@ export default async function handler(req, res) {
       console.error(`[PricePoint] Sold failed: ${soldData.reason?.message}`);
     }
 
-    // Log counts for debugging
-    console.error(`[PricePoint] ${location}: ${active.length} active, ${sold.length} sold`);
+    // ═══════════════════════════════════════════════════════════════
+    // SERVER-SIDE DEDUP: Strip fake "sold" listings
+    // ─────────────────────────────────────────────────────────────
+    // RapidAPI's "recentlySold" endpoint frequently returns the same
+    // listings as "forSale" — just relabeled with status="sold" and
+    // soldPrice set to the list price. These are NOT real sales.
+    //
+    // Fix: any "sold" listing whose zpid also appears in the active
+    // results is fake and gets removed. What survives is genuinely
+    // sold. This is the ONLY reliable dedup — it runs server-side
+    // where both responses are available simultaneously.
+    // ═══════════════════════════════════════════════════════════════
+    const activeZpidSet = new Set(active.map(a => a.zpid));
+    const soldBeforeDedup = sold.length;
+    sold = sold.filter(s => !activeZpidSet.has(s.zpid));
+    const dedupRemoved = soldBeforeDedup - sold.length;
+
+    console.error(`[PricePoint] ${location}: ${active.length} active, ${soldBeforeDedup} sold raw, ${dedupRemoved} fake (zpid overlap), ${sold.length} genuine sold`);
 
     const result = {
       location,
@@ -302,6 +318,9 @@ export default async function handler(req, res) {
         soldTopKeys: soldData.status === "fulfilled" ? Object.keys(soldData.value || {}) : null,
         soldRawCount: soldData.status === "fulfilled" ? extractListings(soldData.value).length : 0,
         soldError: soldData.status === "rejected" ? soldData.reason?.message : null,
+        soldBeforeDedup,
+        dedupRemoved,
+        soldAfterDedup: sold.length,
         apiHost,
       };
     }
