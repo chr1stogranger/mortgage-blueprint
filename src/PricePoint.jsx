@@ -1351,12 +1351,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, [T, FONT]
   );
 
-  // ── Static map URL builder (OpenStreetMap) ──
+  // ── Static map URL builder (Mapbox) ──
   const getStaticMapUrl = (lat, lng) => {
     if (!lat || !lng) return null;
-    // Use OpenStreetMap static map via Geoapify (free tier: 3000/day, no key needed for low usage)
-    // Fallback: OSM static map service
-    return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x520&markers=${lat},${lng},ol-marker-blue`;
+    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+    if (!token) return null;
+    // Mapbox Static Images API — dark style, indigo marker, retina (@2x)
+    const marker = `pin-s+6366f1(${lng},${lat})`;
+    return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${marker}/${lng},${lat},14.5,0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
   };
 
   // ── Photo Carousel (for Live mode with property details) ──
