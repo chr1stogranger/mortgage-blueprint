@@ -1264,16 +1264,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = trueSold.filter(l => l.zip === zip);
     }
 
-    // Step 5: Backfill with SAMPLE_SOLD (curated, always have _source:"sold_api")
+    // Step 5: If zip filter left too few, use ALL real sold listings city-wide
+    // (better to show a real property from another SF neighborhood than stock photos)
     if (pool.length < 3) {
       const poolZpids = new Set(pool.map(l => l.zpid));
-      const samples = (zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : SAMPLE_SOLD).filter(l => !poolZpids.has(l.zpid));
-      pool = [...pool, ...samples];
+      const cityWide = trueSold.filter(l => !poolZpids.has(l.zpid));
+      pool = [...pool, ...cityWide];
     }
 
-    // Step 6: Final fallback
+    // Step 6: Only fall back to SAMPLE_SOLD if we have zero real data
     if (pool.length === 0) {
-      pool = zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : [...SAMPLE_SOLD];
+      const samples = zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : [...SAMPLE_SOLD];
+      pool = samples.length > 0 ? samples : [...SAMPLE_SOLD];
     }
 
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
