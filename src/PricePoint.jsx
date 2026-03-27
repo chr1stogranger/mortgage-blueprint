@@ -569,9 +569,13 @@ LAUNCH_MARKETS.forEach(m => {
   });
 });
 
-// Resolve neighborhood: API field → zip lookup → city fallback
+// Resolve neighborhood: zip lookup (our markets) → API field → city fallback
+// Zip-based lookup takes priority because Zillow neighborhood labels often
+// don't match zip boundaries (e.g. Zillow may label a 94122 property as
+// "Noe Valley" when it's in the Sunset zip). Our markets define the
+// authoritative neighborhood-to-zip mapping.
 const resolveNeighborhood = (listing) =>
-  listing.neighborhood || (listing.zip && ZIP_TO_HOOD[listing.zip]) || listing.city || "Unknown Area";
+  (listing.zip && ZIP_TO_HOOD[listing.zip]) || listing.neighborhood || listing.city || "Unknown Area";
 
 // ═══════════════════════════════════════════════════════════════
 // ── Level-Up Sound (Web Audio API — ascending C-E-G-C chord) ──
