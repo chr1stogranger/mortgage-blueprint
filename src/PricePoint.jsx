@@ -612,8 +612,8 @@ const playLevelUpSound = () => {
 };
 
 // ── Data Version — bump this to force all clients to clear stale localStorage and re-fetch ──
-// v3: server-side dedup + city-wide fetch (zip-level was only returning 1 neighborhood)
-const PP_DATA_VERSION = 3;
+// v4: real sold comps from property-details priceHistory (search API returns fake sold data)
+const PP_DATA_VERSION = 4;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -986,35 +986,53 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const isZip = /^\d{5}$/.test(searchValue.trim());
       let params = isZip ? `zip=${searchValue.trim()}` : `city=${encodeURIComponent(searchValue.trim())}&state=CA`;
       if (bypassCache) params += "&fresh=1";
-      const resp = await fetch(`/api/pricepoint?${params}`);
-      if (!resp.ok) throw new Error(`API returned ${resp.status}`);
-      const data = await resp.json();
-      if (data.error) throw new Error(data.error);
-      // ── Clean ingestion: trust _source tags, no heuristics ──
+
+      // Fetch active/sold search AND real sold comps in parallel
+      const cityName = isZip ? null : searchValue.trim();
+      const [ppResp, compsResp] = await Promise.allSettled([
+        fetch(`/api/pricepoint?${params}`).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        cityName ? fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+      ]);
+
+      const data = ppResp.status === "fulfilled" ? ppResp.value : null;
+      const compsData = compsResp.status === "fulfilled" ? compsResp.value : null;
+
+      if (data?.error) throw new Error(data.error);
+      if (!data && !compsData) throw new Error("Both APIs failed");
+
       // Active listings (_source: "active_api") → Live mode pool
-      if (data.activeListings && data.activeListings.length > 0) {
+      if (data?.activeListings?.length > 0) {
         setActiveListings(data.activeListings);
       }
-      // Sold listings (_source: "sold_api") → Free Play pool
-      // Merge with existing (SAMPLE_SOLD + prior data), deduplicate by zpid
-      if (data.soldListings && data.soldListings.length > 0) {
-        setSoldListings(prev => {
-          const existingZpids = new Set(prev.map(l => l.zpid));
-          const newOnes = data.soldListings.filter(l => !existingZpids.has(l.zpid));
-          return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
-        });
-        const label = data.location || searchValue;
-        setLocationLabel(label);
-        return { success: true, label };
-      } else if (data.activeListings && data.activeListings.length > 0) {
-        // We got active but no sold — still a partial success
-        const label = data.location || searchValue;
-        setLocationLabel(label);
-        return { success: true, label };
-      } else {
-        setError("No listings found. Using sample data.");
-        return { success: false };
+
+      // ── Sold listings: prefer real sold-comps, fall back to search API ──
+      let soldFromComps = [];
+      if (compsData?.soldListings?.length > 0) {
+        // Real sold data from property-details priceHistory
+        soldFromComps = compsData.soldListings.map(l => ({ ...l, _source: "sold_api" }));
+        console.log(`[PricePoint] Got ${soldFromComps.length} real sold comps from /api/sold-comps`);
       }
+
+      let soldFromSearch = [];
+      if (data?.soldListings?.length > 0) {
+        soldFromSearch = data.soldListings;
+      }
+
+      // Merge: sold-comps first (they're real), then search results, dedup by zpid
+      const allSold = [...soldFromComps, ...soldFromSearch];
+      if (allSold.length > 0) {
+        setSoldListings(prev => {
+          // Start fresh with real data if we have comps (don't keep SAMPLE_SOLD)
+          const base = soldFromComps.length > 0 ? [] : prev;
+          const existingZpids = new Set(base.map(l => l.zpid));
+          const newOnes = allSold.filter(l => !existingZpids.has(l.zpid));
+          return newOnes.length > 0 ? [...base, ...newOnes] : (base.length > 0 ? base : allSold);
+        });
+      }
+
+      const label = data?.location || searchValue;
+      setLocationLabel(label);
+      return { success: true, label };
     } catch (err) {
       console.error("PricePoint fetch error:", err);
       setError("Could not load live data. Using sample data.");
@@ -1226,7 +1244,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ═══════════════════════════════════════════════════════════════
 
   // Trusted sold = came from the recentlySold API endpoint AND has a real soldPrice
-  const isTrueSold = (l) => l._source === "sold_api" && l.soldPrice;
+  const isTrueSold = (l) => (l._source === "sold_api" || l._source === "sold_comps") && l.soldPrice;
   // Trusted active = came from the forSale API endpoint (active or pending)
   const isTrueActive = (l) => l._source === "active_api";
 
