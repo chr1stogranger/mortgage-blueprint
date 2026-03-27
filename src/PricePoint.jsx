@@ -1162,24 +1162,53 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
-  const enterFreePlay = (zip, hoodName) => {
+  const enterFreePlay = async (zip, hoodName) => {
+    // Only use truly sold listings (must have soldPrice) — no active/pending
+    const trueSold = soldListings.filter(l => l.soldPrice && l.status === "sold");
+
     // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
-    const excludedIndices = getDailyIndices(soldListings, market?.label || "", 30);
-    let pool = soldListings.filter((_, i) => !excludedIndices.has(i));
+    const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
+    let pool = trueSold.filter((_, i) => !excludedIndices.has(i));
 
     // If zip is provided, filter to that neighborhood
     if (zip) {
       pool = pool.filter(listing => listing.zip === zip);
     }
 
+    // If pool is thin (< 15 listings), fetch more specifically for this zip
+    if (zip && pool.length < 15) {
+      try {
+        console.log(`[PricePoint] Pool thin (${pool.length}) for ${zip}, fetching more...`);
+        const resp = await fetch(`/api/pricepoint?zip=${zip}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.soldListings && data.soldListings.length > 0) {
+            // Merge new listings, deduplicate by zpid
+            const existingZpids = new Set(soldListings.map(l => l.zpid));
+            const newListings = data.soldListings.filter(l => l.soldPrice && l.status === "sold" && !existingZpids.has(l.zpid));
+            if (newListings.length > 0) {
+              const merged = [...soldListings, ...newListings];
+              setSoldListings(merged);
+              // Rebuild pool from merged data
+              const mergedSold = merged.filter(l => l.soldPrice && l.status === "sold");
+              pool = mergedSold.filter(l => l.zip === zip);
+              console.log(`[PricePoint] Fetched ${newListings.length} new listings for ${zip}, pool now ${pool.length}`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[PricePoint] Per-zip fetch failed:', err.message);
+      }
+    }
+
     // If zip filter left too few results, try without daily exclusion but KEEP zip filter
     if (zip && pool.length < 3) {
-      pool = soldListings.filter(listing => listing.zip === zip);
+      pool = trueSold.filter(listing => listing.zip === zip);
     }
 
     // Only fall back to all listings if NO zip was requested (i.e. "All of City")
-    if (pool.length === 0) {
-      pool = soldListings.filter((_, i) => !excludedIndices.has(i));
+    if (pool.length === 0 && !zip) {
+      pool = trueSold.filter((_, i) => !excludedIndices.has(i));
     }
 
     setFpListings([...pool].sort(() => Math.random() - 0.5));
