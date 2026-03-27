@@ -959,7 +959,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const data = await resp.json();
       if (data.error) throw new Error(data.error);
       if (data.soldListings && data.soldListings.length > 0) {
-        setSoldListings(data.soldListings);
+        // Detect unreliable sold data: if most "sold" zpids also appear in active results,
+        // the API is just relabeling active listings as sold. In that case, merge with
+        // existing data (SAMPLE_SOLD) rather than replacing it.
+        const activeZpidSet = new Set((data.activeListings || []).map(l => l.zpid));
+        const overlapCount = data.soldListings.filter(l => activeZpidSet.has(l.zpid)).length;
+        const overlapRatio = data.soldListings.length > 0 ? overlapCount / data.soldListings.length : 0;
+        if (overlapRatio > 0.5) {
+          // API sold data is unreliable — merge with existing (keeps SAMPLE_SOLD + any good prior data)
+          console.log(`[PricePoint] Sold data unreliable (${(overlapRatio * 100).toFixed(0)}% overlap with active). Merging with existing.`);
+          const existingZpids = new Set(soldListings.map(l => l.zpid));
+          const genuineNew = data.soldListings.filter(l => !activeZpidSet.has(l.zpid) && !existingZpids.has(l.zpid));
+          if (genuineNew.length > 0) {
+            setSoldListings(prev => [...prev, ...genuineNew]);
+          }
+        } else {
+          setSoldListings(data.soldListings);
+        }
         if (data.activeListings && data.activeListings.length > 0) {
           setActiveListings(data.activeListings);
         }
@@ -1221,9 +1237,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = trueSold.filter(listing => listing.zip === zip);
     }
 
+    // Last resort: include SAMPLE_SOLD listings for this zip (deduplicated)
+    // These are curated listings that always have soldPrice, soldDate, and descriptions
+    if (zip && pool.length < 3) {
+      const poolZpids = new Set(pool.map(l => l.zpid));
+      const sampleForZip = SAMPLE_SOLD.filter(l => l.zip === zip && !poolZpids.has(l.zpid));
+      if (sampleForZip.length > 0) {
+        pool = [...pool, ...sampleForZip];
+        console.log(`[PricePoint] Added ${sampleForZip.length} sample listings for ${zip}, pool now ${pool.length}`);
+      }
+    }
+
     // Only fall back to all listings if NO zip was requested (i.e. "All of City")
     if (pool.length === 0 && !zip) {
       pool = trueSold.filter((_, i) => !excludedIndices.has(i));
+    }
+
+    // Final fallback: if still empty, use all SAMPLE_SOLD
+    if (pool.length === 0) {
+      pool = zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : [...SAMPLE_SOLD];
     }
 
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
