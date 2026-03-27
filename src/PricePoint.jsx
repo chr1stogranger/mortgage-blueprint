@@ -1263,6 +1263,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveHoodFilter(zipFilter || null);
     setLiveHoodName(hoodName || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
+
+    // Trigger property details prefetch immediately for first 3 listings
+    // (belt-and-suspenders — useEffect also does this, but async timing can delay it)
+    setTimeout(() => {
+      for (let i = 0; i < Math.min(3, pool.length); i++) {
+        if (pool[i]?.zpid) fetchPropertyDetails(pool[i].zpid);
+      }
+    }, 100);
   };
 
   const handleLiveGuessInput = (e) => {
@@ -2552,7 +2560,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <StatPill value={`${fpListings.length - fpIdx - 1}`} label="left" color={T.cyan} />
+              <StatPill value={`${Math.max(0, fpListings.length - fpIdx - 1)}`} label="left" color={T.cyan} />
             </div>
           </div>
           {fpListings[fpIdx] && !fpResult ? (
