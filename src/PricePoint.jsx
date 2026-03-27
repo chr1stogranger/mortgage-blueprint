@@ -1162,9 +1162,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
   const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
+  // Helper: validate a listing is genuinely sold (not active/pending misclassified by Zillow)
+  const isVerifiedSold = (l) => l.soldPrice && l.status === "sold" && l.soldDate;
+
   const enterFreePlay = async (zip, hoodName) => {
-    // Only use truly sold listings (must have soldPrice) — no active/pending
-    const trueSold = soldListings.filter(l => l.soldPrice && l.status === "sold");
+    // Only use verified sold listings — must have soldPrice, sold status, AND a soldDate
+    // This prevents active/pending listings that Zillow returns in "recentlySold" results
+    const trueSold = soldListings.filter(isVerifiedSold);
 
     // Exclude today's daily + next 30 days of dailies from Free Play pool (no spoilers)
     const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
@@ -1183,16 +1187,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         if (resp.ok) {
           const data = await resp.json();
           if (data.soldListings && data.soldListings.length > 0) {
-            // Merge new listings, deduplicate by zpid
+            // Merge new listings, deduplicate by zpid, verified sold only
             const existingZpids = new Set(soldListings.map(l => l.zpid));
-            const newListings = data.soldListings.filter(l => l.soldPrice && l.status === "sold" && !existingZpids.has(l.zpid));
+            const newListings = data.soldListings.filter(l => isVerifiedSold(l) && !existingZpids.has(l.zpid));
             if (newListings.length > 0) {
               const merged = [...soldListings, ...newListings];
               setSoldListings(merged);
               // Rebuild pool from merged data
-              const mergedSold = merged.filter(l => l.soldPrice && l.status === "sold");
-              pool = mergedSold.filter(l => l.zip === zip);
-              console.log(`[PricePoint] Fetched ${newListings.length} new listings for ${zip}, pool now ${pool.length}`);
+              pool = merged.filter(l => isVerifiedSold(l) && l.zip === zip);
+              console.log(`[PricePoint] Fetched ${newListings.length} verified sold for ${zip}, pool now ${pool.length}`);
             }
           }
         }
@@ -1211,9 +1214,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = trueSold.filter((_, i) => !excludedIndices.has(i));
     }
 
-    setFpListings([...pool].sort(() => Math.random() - 0.5));
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    setFpListings(shuffled);
     setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
+
+    // Trigger property details prefetch immediately for first 3 listings
+    // (belt-and-suspenders — useEffect also does this, but async timing can delay it)
+    setTimeout(() => {
+      for (let i = 0; i < Math.min(3, shuffled.length); i++) {
+        if (shuffled[i]?.zpid) fetchPropertyDetails(shuffled[i].zpid);
+      }
+    }, 100);
   };
 
   // ── Live Mode ──
