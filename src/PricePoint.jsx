@@ -1229,12 +1229,35 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Live Mode ──
-  const enterLiveMode = (zipFilter, hoodName) => {
-    // Only use real active/pending listings — no sold fallback
+  const enterLiveMode = async (zipFilter, hoodName) => {
     let pool = activeListings.length > 0 ? [...activeListings] : [];
     if (zipFilter) {
       pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
     }
+
+    // If pool is thin/empty for this zip, fetch active listings specifically for this zip
+    if (zipFilter && pool.length < 5) {
+      try {
+        console.log(`[PricePoint] Live pool thin (${pool.length}) for ${zipFilter}, fetching more...`);
+        const resp = await fetch(`/api/pricepoint?zip=${zipFilter}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.activeListings && data.activeListings.length > 0) {
+            const existingZpids = new Set(activeListings.map(l => l.zpid));
+            const newActive = data.activeListings.filter(l => !existingZpids.has(l.zpid));
+            if (newActive.length > 0) {
+              const merged = [...activeListings, ...newActive];
+              setActiveListings(merged);
+              pool = merged.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
+              console.log(`[PricePoint] Fetched ${newActive.length} active for ${zipFilter}, pool now ${pool.length}`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[PricePoint] Live per-zip fetch failed:', err.message);
+      }
+    }
+
     pool.sort(() => Math.random() - 0.5);
     setLiveListings(pool);
     setLiveHoodFilter(zipFilter || null);
