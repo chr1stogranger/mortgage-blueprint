@@ -1172,9 +1172,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = pool.filter(listing => listing.zip === zip);
     }
 
-    // If exclusion removed too many (small dataset), fall back to all minus today only
-    const safePool = pool.length >= 3 ? pool : soldListings.filter((_, i) => i !== (dailyProperty ? soldListings.indexOf(dailyProperty) : -1));
-    setFpListings([...safePool].sort(() => Math.random() - 0.5));
+    // If zip filter left too few results, try without daily exclusion but KEEP zip filter
+    if (zip && pool.length < 3) {
+      pool = soldListings.filter(listing => listing.zip === zip);
+    }
+
+    // Only fall back to all listings if NO zip was requested (i.e. "All of City")
+    if (pool.length === 0) {
+      pool = soldListings.filter((_, i) => !excludedIndices.has(i));
+    }
+
+    setFpListings([...pool].sort(() => Math.random() - 0.5));
     setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
   };
