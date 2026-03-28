@@ -163,13 +163,13 @@ const hashDayAndMarket = (dayNum, market) => {
 
 const getDailyProperty = (soldListings, market) => {
   if (!soldListings || soldListings.length === 0) return null;
-  // Prefer real sold data — filter out SAMPLE_SOLD (tagged _source:"sample")
+  // ONLY use real sold data — never show SAMPLE_SOLD in the Daily
   const realSold = soldListings.filter(l => l._source !== "sample" && l.soldPrice);
-  const pool = realSold.length > 0 ? realSold : soldListings;
+  if (realSold.length === 0) return null; // wait for API data
   const dayNum = getDailyNumber();
   const hash = hashDayAndMarket(dayNum, market);
-  const idx = Math.abs(hash) % pool.length;
-  return { ...pool[idx], dailyNumber: dayNum };
+  const idx = Math.abs(hash) % realSold.length;
+  return { ...realSold[idx], dailyNumber: dayNum };
 };
 
 // ── Get indices of next N daily properties (for exclusion from Free Play) ──
@@ -615,9 +615,11 @@ const playLevelUpSound = () => {
 };
 
 // ── Data Version — bump this to force all clients to clear stale localStorage and re-fetch ──
-// v6: remove daily gate for Free Play/Live, tag SAMPLE_SOLD as "sample" source,
-// daily prefers real sold data over sample data
-const PP_DATA_VERSION = 6;
+// v4: real sold comps from property-details priceHistory (search API returns fake sold data)
+// v5: fix — don't merge fake search API sold data with real sold-comps
+// v7: SAMPLE_SOLD tagged as "sample" source, getDailyProperty filters out samples,
+// Free Play/Live tabs no longer gated behind daily completion
+const PP_DATA_VERSION = 7;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -1404,9 +1406,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
       else setView("daily");
     } else if (tab === "free") {
+      // If already in free play flow, stay there
       if (view === "freeplay" || view === "fpPicker") return;
       setView("fpPicker");
     } else if (tab === "live") {
+      // If already in live flow, stay there
       if (view === "live" || view === "livePicker") return;
       setView("livePicker");
     } else if (tab === "stats") {
@@ -1728,6 +1732,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   return (
     <div style={{ maxWidth: isDesktop ? 520 : 480, margin: "0 auto", width: "100%", minHeight: "100vh", fontFamily: FONT, color: T.text, boxSizing: "border-box", position: "relative" }}>
       <style>{`
+        @keyframes ppSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes ppFadeIn { from { opacity: 0 } to { opacity: 1 } }
         @keyframes ppSlideUp { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: translateY(0) } }
         @keyframes ppPulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
@@ -2038,6 +2043,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading listings...</div>
           )}
           {error && <div style={{ marginTop: 12, fontSize: 12, color: T.orange, textAlign: "center", fontFamily: FONT }}>{error}</div>}
+        </div>
+      )}
+
+      {/* ═══ DAILY CHALLENGE — loading state while waiting for real sold data ═══ */}
+      {view === "daily" && !dailyProperty && (
+        <div style={{ padding: "60px 16px 100px", textAlign: "center", animation: "ppSlideUp 0.5s ease-out" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 12 }}>DAILY CHALLENGE #{dailyNumber}</div>
+          <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT }}>Loading today's property...</div>
+          <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+            <div style={{ width: 28, height: 28, border: `2px solid ${T.border}`, borderTopColor: T.accent, borderRadius: "50%", animation: "ppSpin 0.8s linear infinite" }} />
+          </div>
         </div>
       )}
 
