@@ -620,7 +620,8 @@ const playLevelUpSound = () => {
 // v5: fix — don't merge fake search API sold data with real sold-comps
 // v7: SAMPLE_SOLD tagged as "sample" source, getDailyProperty filters out samples,
 // Free Play/Live tabs no longer gated behind daily completion
-const PP_DATA_VERSION = 7;
+// v8: Fix neighborhood mismatch (no more city-wide fallback), fix photos (use listing.photos from sold-comps)
+const PP_DATA_VERSION = 8;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -1261,15 +1262,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = trueSold.filter(l => l.zip === zip);
     }
 
-    // Step 5: If zip filter left too few, use ALL real sold listings city-wide
-    // (better to show a real property from another SF neighborhood than stock photos)
-    if (pool.length < 3) {
-      const poolZpids = new Set(pool.map(l => l.zpid));
-      const cityWide = trueSold.filter(l => !poolZpids.has(l.zpid));
-      pool = [...pool, ...cityWide];
+    // Step 5: If still too few, try neighboring zips that share the same neighborhood group
+    // (e.g., Sunset spans 94116/94122, Mission spans 94110) — but NEVER pull from unrelated areas
+    if (zip && pool.length < 3) {
+      // Find all zips associated with the same neighborhood name(s) as this zip
+      const currentMarket = LAUNCH_MARKETS.find(m => m.id === (market?.id || "sf"));
+      if (currentMarket) {
+        const hoodsForZip = currentMarket.neighborhoods.filter(n => n.zip === zip).map(n => n.name);
+        const relatedZips = new Set(
+          currentMarket.neighborhoods.filter(n => hoodsForZip.includes(n.name)).map(n => n.zip).filter(Boolean)
+        );
+        if (relatedZips.size > 1) {
+          const poolZpids = new Set(pool.map(l => l.zpid));
+          const neighbors = trueSold.filter(l => relatedZips.has(l.zip) && !poolZpids.has(l.zpid));
+          pool = [...pool, ...neighbors];
+        }
+      }
     }
 
-    // Step 6: Only fall back to SAMPLE_SOLD if we have zero real data
+    // Step 6: Only fall back to SAMPLE_SOLD if we have zero real data for this zip
     if (pool.length === 0) {
       const samples = zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : [...SAMPLE_SOLD];
       pool = samples.length > 0 ? samples : [...SAMPLE_SOLD];
@@ -1562,7 +1573,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
-    const hasMultiplePhotos = details?.photos?.length > 1;
+    // Merge photo sources: prefer details API photos (up to 12), fall back to listing.photos from sold-comps (up to 6)
+    const mergedPhotos = (details?.photos?.length > 0 ? details.photos : null) || (listing.photos?.length > 0 ? listing.photos : null) || null;
+    const hasMultiplePhotos = mergedPhotos?.length > 1;
     const hasMap = !!(listing.latitude && listing.longitude);
     const useCarousel = hasMultiplePhotos || hasMap; // map slide gives every geolocated listing a carousel
     const desc = details?.description || listing.description;
@@ -1570,7 +1583,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
         {useCarousel ? (
-          <PhotoCarousel photos={details?.photos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} listing={listing} FONT={FONT} MONO={MONO} />
+          <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} listing={listing} FONT={FONT} MONO={MONO} />
         ) : (
         <div style={{ position: "relative" }}>
           <img src={listing.photo} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
