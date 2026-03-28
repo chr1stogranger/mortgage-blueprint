@@ -1994,7 +1994,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
 
-            {/* Unlock message */}
+            {/* Achievement message */}
             <div style={{
               position: "relative", zIndex: 2, marginTop: 28,
               animation: "lvlUnlockSlide 0.6s ease forwards",
@@ -2005,12 +2005,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 borderRadius: 14, padding: "12px 24px", border: "1px solid rgba(255,255,255,0.12)",
                 textAlign: "center",
               }}>
-                <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 4 }}>UNLOCKED</div>
+                <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 4 }}>ACHIEVEMENT</div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-                  {levelUpData.newLevel.level >= 10 ? "Luxury Market Insights" :
-                   levelUpData.newLevel.level >= 7 ? "Advanced Analytics" :
-                   levelUpData.newLevel.level >= 5 ? "Neighborhood Deep Dive" :
-                   levelUpData.newLevel.level >= 3 ? "Free Play Mode" :
+                  {levelUpData.newLevel.level >= 10 ? "Market Expert Status" :
+                   levelUpData.newLevel.level >= 7 ? "Sharpening Your Edge" :
+                   levelUpData.newLevel.level >= 5 ? "Building Real Instincts" :
+                   levelUpData.newLevel.level >= 3 ? "Getting Dialed In" :
                    "Keep Going!"}
                 </div>
               </div>
