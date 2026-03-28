@@ -367,3 +367,118 @@ export async function getPlayerPredictions(playerId, resolved = false) {
 
   return data || [];
 }
+
+
+// ── Notifications ─────────────────────────────────────────────────────
+
+/**
+ * Fetch notifications for a player.
+ * @param {string} playerId
+ * @param {boolean} all - If true, fetch all (not just unread)
+ */
+export async function fetchNotifications(playerId, all = false) {
+  if (!playerId) return { notifications: [], unreadCount: 0 };
+  try {
+    const url = `/api/notifications?playerId=${playerId}${all ? '&all=1' : ''}`;
+    const res = await fetch(url);
+    if (!res.ok) return { notifications: [], unreadCount: 0 };
+    return await res.json();
+  } catch (err) {
+    console.error('[PricePointDB] fetchNotifications error:', err.message);
+    return { notifications: [], unreadCount: 0 };
+  }
+}
+
+/**
+ * Mark notifications as read.
+ */
+export async function markNotificationsRead(playerId, notificationIds = null) {
+  if (!playerId) return false;
+  try {
+    const body = { playerId };
+    if (notificationIds) {
+      body.notificationIds = notificationIds;
+    } else {
+      body.markAllRead = true;
+    }
+    const res = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[PricePointDB] markNotificationsRead error:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Register a device token for push notifications.
+ */
+export async function registerDeviceToken(playerId, token, platform) {
+  if (!playerId || !token) return false;
+  try {
+    const res = await fetch('/api/register-device', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, token, platform }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[PricePointDB] registerDeviceToken error:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Unregister a device token.
+ */
+export async function unregisterDeviceToken(playerId, token) {
+  if (!playerId || !token) return false;
+  try {
+    const res = await fetch('/api/register-device', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, token }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[PricePointDB] unregisterDeviceToken error:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Get notification preferences for a player.
+ */
+export async function getNotificationPreferences(playerId) {
+  if (!playerId) return null;
+  try {
+    const res = await fetch(`/api/notification-preferences?playerId=${playerId}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('[PricePointDB] getNotificationPreferences error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Update notification preferences.
+ */
+export async function updateNotificationPreferences(playerId, prefs) {
+  if (!playerId) return null;
+  try {
+    const res = await fetch('/api/notification-preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, ...prefs }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('[PricePointDB] updateNotificationPreferences error:', err.message);
+    return null;
+  }
+}

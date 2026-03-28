@@ -29,5 +29,15 @@
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com https://*.unsplash.com https://*.zillowstatic.com https://*.cloudfront.net https://api.mapbox.com; connect-src 'self' https://ops.realstack.app https://*.realstack.app https://accounts.google.com https://www.googleapis.com https://*.supabase.co wss://*.supabase.co https://api.stlouisfed.org https://*.rapidapi.com; frame-src https://accounts.google.com; frame-ancestors 'self' https://christogranger.com https://www.christogranger.com https://chris-granger-lo.vercel.app https://realstack.app https://www.realstack.app; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-resolve",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron-deliver",
+      "schedule": "0 9 * * *"
+    }
   ]
 }

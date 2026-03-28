@@ -5,6 +5,8 @@ import {
   submitGuess, submitPrediction, syncPlayerXP,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
+  fetchNotifications, markNotificationsRead,
+  getNotificationPreferences, updateNotificationPreferences,
 } from './lib/pricePointDB';
 
 // ═══════════════════════════════════════════════════════════════
@@ -687,6 +689,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpLoadingMore, setFpLoadingMore] = useState(false);
   const [fpHasMore, setFpHasMore] = useState(true); // assume more available until proven otherwise
   const fpZipRef = useRef(null); // track current free play zip for Load More
+
+  // ── Notification State ──
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifDrawer, setShowNotifDrawer] = useState(false);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState({ push_enabled: false, email_enabled: false, sms_enabled: false, email: '', phone: '' });
+  const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
+  const [notifEmailInput, setNotifEmailInput] = useState('');
+  const [notifPhoneInput, setNotifPhoneInput] = useState('');
 
   // ── Active Listings (for Live Mode) ──
   const [activeListings, setActiveListings] = useState([]);
@@ -1532,6 +1544,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   const showTabBar = view !== "onboarding" && view !== "reveal";
 
+  // ── Notification polling ──
+  useEffect(() => {
+    if (!playerId) return;
+    const poll = async () => {
+      const result = await fetchNotifications(playerId, false);
+      if (result) {
+        setNotifications(result.notifications || []);
+        setUnreadCount(result.unreadCount || 0);
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 60000); // poll every 60s
+    return () => clearInterval(interval);
+  }, [playerId]);
+
   // ── Desktop sidebar tab sync ──
   // When parent sends a sidebarTab change, navigate to that tab
   useEffect(() => {
@@ -2255,6 +2282,26 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 Set name <Icon name="user" size={12} />
               </button>
             )}
+            <button onClick={async () => {
+              const result = await fetchNotifications(playerId, true);
+              if (result) { setNotifications(result.notifications || []); setUnreadCount(result.unreadCount || 0); }
+              setShowNotifDrawer(true);
+            }} style={{
+              position: "relative", width: 36, height: 36, borderRadius: 9999,
+              background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <Icon name="bell" size={16} style={{ color: T.accent }} />
+              {unreadCount > 0 && (
+                <div style={{
+                  position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
+                  borderRadius: 8, background: T.red || "#EF4444", color: "#fff",
+                  fontSize: 9, fontWeight: 800, fontFamily: MONO,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: "0 4px", border: `2px solid ${T.card}`,
+                }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
+              )}
+            </button>
           </div>
 
           {/* Stats Tabs */}
@@ -2997,6 +3044,219 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             >
               Maybe later
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ NOTIFICATION DRAWER ═══ */}
+      {showNotifDrawer && (
+        <div onClick={() => setShowNotifDrawer(false)} style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          animation: "ppFadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: "20px 20px 0 0", padding: "24px 20px 32px",
+            maxWidth: 420, width: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column",
+            border: `1px solid ${T.cardBorder}`, borderBottom: "none",
+            animation: "ppSlideUp 0.3s ease",
+          }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px", flexShrink: 0 }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>NOTIFICATIONS</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {unreadCount > 0 && (
+                  <button onClick={async () => {
+                    await markNotificationsRead(playerId);
+                    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                    setUnreadCount(0);
+                  }} style={{
+                    fontSize: 11, fontWeight: 600, color: T.accent, background: `${T.accent}12`,
+                    border: `1px solid ${T.accent}30`, borderRadius: 8, padding: "4px 10px",
+                    cursor: "pointer", fontFamily: MONO,
+                  }}>Mark all read</button>
+                )}
+                <button onClick={async () => {
+                  setShowNotifDrawer(false);
+                  const prefs = await getNotificationPreferences(playerId);
+                  if (prefs) { setNotifPrefs(prefs); setNotifEmailInput(prefs.email || ''); setNotifPhoneInput(prefs.phone || ''); }
+                  setShowNotifSettings(true);
+                }} style={{
+                  fontSize: 11, fontWeight: 600, color: T.textSecondary, background: T.inputBg,
+                  border: `1px solid ${T.cardBorder}`, borderRadius: 8, padding: "4px 10px",
+                  cursor: "pointer", fontFamily: MONO,
+                }}>
+                  <Icon name="settings" size={12} />
+                </button>
+              </div>
+            </div>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {notifications.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                  <Icon name="bell-off" size={32} style={{ color: T.textTertiary, marginBottom: 12 }} />
+                  <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT }}>No notifications yet</div>
+                  <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginTop: 4 }}>
+                    When your Live predictions resolve, you'll see them here.
+                  </div>
+                </div>
+              ) : (
+                notifications.map(n => (
+                  <div key={n.id} onClick={async () => {
+                    if (!n.read) {
+                      await markNotificationsRead(playerId, [n.id]);
+                      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
+                      setUnreadCount(prev => Math.max(0, prev - 1));
+                    }
+                  }} style={{
+                    padding: "12px 14px", borderRadius: 12,
+                    background: n.read ? T.inputBg : `${T.accent}08`,
+                    border: `1px solid ${n.read ? T.cardBorder : `${T.accent}20`}`,
+                    cursor: "pointer", transition: "all 0.15s",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, marginBottom: 4 }}>{n.title}</div>
+                        <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5 }}>{n.body}</div>
+                        <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: MONO, marginTop: 6, letterSpacing: 1 }}>
+                          {new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </div>
+                      </div>
+                      {!n.read && (
+                        <div style={{ width: 8, height: 8, borderRadius: 4, background: T.accent, flexShrink: 0, marginTop: 4 }} />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ NOTIFICATION SETTINGS ═══ */}
+      {showNotifSettings && (
+        <div onClick={() => setShowNotifSettings(false)} style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20, animation: "ppFadeIn 0.2s ease",
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: T.card, borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 380,
+            border: `1px solid ${T.cardBorder}`, animation: "ppScaleIn 0.3s ease",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>NOTIFICATION SETTINGS</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>How do you want to be notified?</div>
+
+            {/* Toggle: In-App (always on) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>In-App Alerts</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.green || "#10B981", fontFamily: MONO }}>ALWAYS ON</div>
+            </div>
+
+            {/* Toggle: Email */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>Email</div>
+              <button onClick={async () => {
+                const newVal = !notifPrefs.email_enabled;
+                setNotifPrefs(p => ({ ...p, email_enabled: newVal }));
+                await updateNotificationPreferences(playerId, { email_enabled: newVal });
+              }} style={{
+                width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                background: notifPrefs.email_enabled ? (T.green || "#10B981") : T.inputBg,
+                position: "relative", transition: "background 0.2s",
+              }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: 9, background: "#fff",
+                  position: "absolute", top: 3,
+                  left: notifPrefs.email_enabled ? 23 : 3,
+                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
+              </button>
+            </div>
+            {notifPrefs.email_enabled && (
+              <div style={{ padding: "8px 0 12px" }}>
+                <input
+                  type="email" placeholder="your@email.com"
+                  value={notifEmailInput}
+                  onChange={e => setNotifEmailInput(e.target.value)}
+                  onBlur={async () => {
+                    if (notifEmailInput && notifEmailInput.includes('@')) {
+                      await updateNotificationPreferences(playerId, { email: notifEmailInput });
+                      setNotifPrefs(p => ({ ...p, email: notifEmailInput }));
+                    }
+                  }}
+                  style={{
+                    width: "100%", padding: "10px 14px", fontSize: 14, fontFamily: FONT,
+                    background: T.inputBg, color: T.text, border: `1px solid ${T.cardBorder}`,
+                    borderRadius: 10, outline: "none", boxSizing: "border-box",
+                  }}
+                  onFocus={e => e.target.style.borderColor = T.accent}
+                />
+              </div>
+            )}
+
+            {/* Toggle: SMS */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>SMS</div>
+              <button onClick={async () => {
+                const newVal = !notifPrefs.sms_enabled;
+                setNotifPrefs(p => ({ ...p, sms_enabled: newVal }));
+                await updateNotificationPreferences(playerId, { sms_enabled: newVal });
+              }} style={{
+                width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                background: notifPrefs.sms_enabled ? (T.green || "#10B981") : T.inputBg,
+                position: "relative", transition: "background 0.2s",
+              }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: 9, background: "#fff",
+                  position: "absolute", top: 3,
+                  left: notifPrefs.sms_enabled ? 23 : 3,
+                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }} />
+              </button>
+            </div>
+            {notifPrefs.sms_enabled && (
+              <div style={{ padding: "8px 0 12px" }}>
+                <input
+                  type="tel" placeholder="+1 (555) 123-4567"
+                  value={notifPhoneInput}
+                  onChange={e => setNotifPhoneInput(e.target.value)}
+                  onBlur={async () => {
+                    if (notifPhoneInput && notifPhoneInput.length >= 10) {
+                      await updateNotificationPreferences(playerId, { phone: notifPhoneInput });
+                      setNotifPrefs(p => ({ ...p, phone: notifPhoneInput }));
+                    }
+                  }}
+                  style={{
+                    width: "100%", padding: "10px 14px", fontSize: 14, fontFamily: FONT,
+                    background: T.inputBg, color: T.text, border: `1px solid ${T.cardBorder}`,
+                    borderRadius: 10, outline: "none", boxSizing: "border-box",
+                  }}
+                  onFocus={e => e.target.style.borderColor = T.accent}
+                />
+              </div>
+            )}
+
+            {/* Toggle: Push (future — when app is installed) */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: T.textTertiary, fontFamily: FONT }}>Push Notifications</div>
+                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, marginTop: 2 }}>Coming with the app</div>
+              </div>
+              <div style={{
+                width: 44, height: 24, borderRadius: 12, background: T.inputBg, opacity: 0.5,
+              }} />
+            </div>
+
+            <button onClick={() => setShowNotifSettings(false)} style={{
+              width: "100%", marginTop: 16, padding: "14px", borderRadius: 9999,
+              background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+              fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT,
+            }}>Done</button>
           </div>
         </div>
       )}
