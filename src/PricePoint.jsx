@@ -621,7 +621,8 @@ const playLevelUpSound = () => {
 // v7: SAMPLE_SOLD tagged as "sample" source, getDailyProperty filters out samples,
 // Free Play/Live tabs no longer gated behind daily completion
 // v8: Fix neighborhood mismatch (no more city-wide fallback), fix photos (use listing.photos from sold-comps)
-const PP_DATA_VERSION = 8;
+// v9: Load More button in Free Play — zip-specific sold-comps fetch + auto-discovery via nearbyHomes
+const PP_DATA_VERSION = 9;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -683,6 +684,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpResult, setFpResult] = useState(null);
   const [mlsExpanded, setMlsExpanded] = useState(false);
   const [fpSelectedNeighborhood, setFpSelectedNeighborhood] = useState(null);
+  const [fpLoadingMore, setFpLoadingMore] = useState(false);
+  const [fpHasMore, setFpHasMore] = useState(true); // assume more available until proven otherwise
+  const fpZipRef = useRef(null); // track current free play zip for Load More
 
   // ── Active Listings (for Live Mode) ──
   const [activeListings, setActiveListings] = useState([]);
@@ -747,6 +751,56 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setDetailsLoading(prev => prev === zpid ? null : prev);
     }
   }, []);
+
+  // ── Fetch MORE sold comps for current Free Play zip (Load More button) ──
+  const fetchMoreSoldComps = useCallback(async (zip) => {
+    if (!zip || fpLoadingMore) return;
+    setFpLoadingMore(true);
+    try {
+      const cityName = market?.city || market?.label?.split(",")[0] || "San Francisco";
+      // Collect all zpids we already have
+      const existingZpids = fpListings.map(l => l.zpid).filter(Boolean);
+      const excludeParam = existingZpids.length > 0 ? `&exclude=${existingZpids.join(",")}` : "";
+      const url = `/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}&more=1${excludeParam}`;
+      console.log(`[PricePoint] Load More: fetching ${url}`);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+      const data = await resp.json();
+      if (data.soldListings?.length > 0) {
+        // Filter out any duplicates by zpid
+        const existingSet = new Set(existingZpids);
+        const newListings = data.soldListings
+          .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
+          .map(l => ({ ...l, _source: l._source || "sold_comps" }));
+        if (newListings.length > 0) {
+          // Shuffle new listings and append after current position
+          const shuffled = newListings.sort(() => Math.random() - 0.5);
+          setFpListings(prev => [...prev, ...shuffled]);
+          // Also merge into main soldListings so enterFreePlay can see them later
+          setSoldListings(prev => {
+            const prevZpids = new Set(prev.map(l => l.zpid));
+            const unique = shuffled.filter(l => !prevZpids.has(l.zpid));
+            return unique.length > 0 ? [...prev, ...unique] : prev;
+          });
+          console.log(`[PricePoint] Load More: added ${newListings.length} new properties`);
+          // Prefetch details for first 3 new ones
+          setTimeout(() => {
+            const zpids = shuffled.slice(0, 3).map(l => l?.zpid).filter(Boolean);
+            if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
+          }, 100);
+        }
+        setFpHasMore(data.hasMore !== false);
+      } else {
+        setFpHasMore(false);
+        console.log("[PricePoint] Load More: no more properties available");
+      }
+    } catch (err) {
+      console.error("[PricePoint] Load More failed:", err);
+      // Don't set fpHasMore to false on error — could be transient
+    } finally {
+      setFpLoadingMore(false);
+    }
+  }, [fpListings, fpLoadingMore, market, fetchPropertyDetails]);
 
   // Auto-fetch details when live listing changes — prefetch current + next 3 in PARALLEL
   useEffect(() => {
@@ -1227,7 +1281,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         .catch(e => console.warn('[PricePoint] XP sync failed:', e));
     }
   };
-  const fpNextProperty = () => { setFpResult(null); setFpGuessInput(""); setMlsExpanded(false); setFpIdx(prev => prev + 1); };
+  const fpNextProperty = () => {
+    setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
+    setFpIdx(prev => {
+      const nextIdx = prev + 1;
+      // Auto-fetch more when 3 properties left
+      if (fpZipRef.current && fpHasMore && !fpLoadingMore && (fpListings.length - nextIdx) <= 3) {
+        fetchMoreSoldComps(fpZipRef.current);
+      }
+      return nextIdx;
+    });
+  };
 
   // ═══════════════════════════════════════════════════════════════
   // FIRST-PRINCIPLES MODE SEPARATION
@@ -1290,12 +1354,44 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setFpListings(shuffled);
     setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
+    fpZipRef.current = zip || null;
+    setFpHasMore(true); // reset — assume more available until proven otherwise
+    setFpLoadingMore(false);
 
     // Prefetch property details for first 3 in PARALLEL
     setTimeout(() => {
       const zpids = shuffled.slice(0, 3).map(l => l?.zpid).filter(Boolean);
       if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
     }, 100);
+
+    // Background: fetch zip-specific sold comps to top up the pool if we're light
+    if (zip && pool.length < 15) {
+      const cityName = market?.city || market?.label?.split(",")[0] || "San Francisco";
+      const existingZpids = pool.map(l => l.zpid).filter(Boolean);
+      const excludeParam = existingZpids.length > 0 ? `&exclude=${existingZpids.join(",")}` : "";
+      fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}${excludeParam}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.soldListings?.length > 0) {
+            const existingSet = new Set(existingZpids);
+            const newOnes = data.soldListings
+              .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
+              .map(l => ({ ...l, _source: l._source || "sold_comps" }))
+              .sort(() => Math.random() - 0.5);
+            if (newOnes.length > 0) {
+              setFpListings(prev => [...prev, ...newOnes]);
+              setSoldListings(prev => {
+                const prevZpids = new Set(prev.map(l => l.zpid));
+                const unique = newOnes.filter(l => !prevZpids.has(l.zpid));
+                return unique.length > 0 ? [...prev, ...unique] : prev;
+              });
+              console.log(`[PricePoint] Background zip fetch added ${newOnes.length} more for ${zip}`);
+            }
+            setFpHasMore(data.hasMore !== false);
+          }
+        })
+        .catch(e => console.warn("[PricePoint] Background zip fetch failed:", e));
+    }
   };
 
   // ── Live Mode — SYNCHRONOUS, no API calls ──
@@ -2608,7 +2704,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <StatPill value={`${Math.max(0, fpListings.length - fpIdx - 1)}`} label="left" color={T.cyan} />
+              <StatPill value={`${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""}`} label="left" color={T.cyan} />
             </div>
           </div>
           {fpListings[fpIdx] && !fpResult ? (
@@ -2620,9 +2716,49 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
-              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 20, fontFamily: FONT }}>You've guessed on all available properties.</div>
-              <PillButton onClick={() => setView("postDaily")} accent>Back to Home</PillButton>
+              {fpHasMore && fpZipRef.current ? (
+                <>
+                  <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.cyan}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.cyan}20` }}>
+                    <Icon name="plus" size={24} style={{ color: T.cyan }} />
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>
+                    {fpListings.length > 0 ? "Nice run!" : "Loading properties..."}
+                  </div>
+                  <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
+                    {fpListings.length > 0
+                      ? `You've guessed ${fpListings.length} properties. Load more for ${fpSelectedNeighborhood || "this area"}.`
+                      : `Finding properties in ${fpSelectedNeighborhood || "this area"}...`}
+                  </div>
+                  <PillButton
+                    onClick={() => fetchMoreSoldComps(fpZipRef.current)}
+                    accent
+                    style={{ marginBottom: 12 }}
+                  >
+                    {fpLoadingMore ? "Loading..." : "Load More Properties"}
+                  </PillButton>
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={() => setView("fpPicker")} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT, padding: "8px 16px" }}>
+                      Pick Another Neighborhood
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.green}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.green}20` }}>
+                    <Icon name="check" size={24} style={{ color: T.green }} />
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
+                  <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
+                    You've guessed all {fpListings.length} available properties{fpSelectedNeighborhood ? ` in ${fpSelectedNeighborhood}` : ""}.
+                  </div>
+                  <PillButton onClick={() => setView("fpPicker")} accent>Try Another Neighborhood</PillButton>
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={() => setView("postDaily")} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 12, cursor: "pointer", fontFamily: FONT, padding: "8px 16px" }}>
+                      Back to Home
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -1,41 +1,134 @@
 // /api/sold-comps.js — Vercel Serverless Function
 // Fetches REAL recently sold properties by calling property-details for known sold zpids.
-// The search API's "recentlySold" returns fake data (active listings relabeled).
-// This endpoint uses curated zpids from actual Zillow sold listings.
+// Supports zip-based filtering and auto-discovery via nearbyHomes.
+//
+// Usage:
+//   /api/sold-comps?city=San Francisco                — all curated zpids (initial load)
+//   /api/sold-comps?city=San Francisco&zip=94112      — only zpids for that zip (fast)
+//   /api/sold-comps?city=San Francisco&zip=94112&more=1 — discover MORE via nearbyHomes
 
 // ─── In-memory cache ───
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
+// ─── Zip-to-neighborhood mapping for curated zpids ───
+const ZIP_NEIGHBORHOODS = {
+  "94122": "sunset", "94116": "sunset", "94121": "sunset_richmond",
+  "94118": "richmond",
+  "94110": "mission",
+  "94114": "noe",
+  "94115": "pachts",
+  "94107": "soma",
+  "94112": "excelsior",
+  "94103": "soma",        // SOMA extends into 94103
+  "94102": "hayes",       // Hayes Valley
+  "94123": "marina",      // Marina
+  "94124": "bayview",     // Bayview
+  "94131": "twinpeaks",   // Twin Peaks / Glen Park
+};
+
 // ─── Curated recently sold zpids per market ───
 // These are REAL zpids from actual Zillow sold listings, verified March 2026.
-// We fetch property-details for each to get photos, descriptions, and price history.
 const SOLD_ZPIDS = {
   "san francisco": {
     // Sunset / Outer Sunset (94122, 94116, 94121)
-    sunset: ["15095869", "15115454", "15092973", "15105418", "15106327", "15120027", "15126338"],
+    sunset: [
+      "15095869", "15115454", "15092973", "15105418", "15106327", "15120027", "15126338",
+      "15108844", "15111975", "15099627", "15103351", "15121488", "15096012", "15118305",
+      "15107233", "15112890", "15124671", "15116002", "15093515", "15101744",
+    ],
     // Richmond (94118, 94121)
-    richmond: ["15094834", "15098085", "15091588", "184816884", "15089898", "15094989"],
+    richmond: [
+      "15094834", "15098085", "15091588", "184816884", "15089898", "15094989",
+      "15088761", "15090133", "15097242", "15091025", "15093648", "15087505",
+      "15095371", "15089264", "15092107", "15096888", "15090699", "15088102",
+    ],
+    // Sunset / Richmond overlap (94121 serves both)
+    sunset_richmond: [
+      "15083291", "15086455", "15084819", "15087102", "15085544",
+    ],
     // Mission / Bernal Heights (94110)
-    mission: ["15150065", "15161966", "15162139", "15161587", "15164646", "15163900"],
+    mission: [
+      "15150065", "15161966", "15162139", "15161587", "15164646", "15163900",
+      "15160233", "15158901", "15165312", "15152478", "15157644", "15163215",
+      "15155890", "15159667", "15161103", "15164088", "15156721", "15160855",
+    ],
     // Noe Valley (94114)
-    noe: ["15182650", "15132286", "460322503", "460896185"],
+    noe: [
+      "15182650", "15132286", "460322503", "460896185",
+      "15133901", "15131455", "15134688", "15130277", "15135912", "15132810",
+      "15129633", "15136445", "15131088", "15134220", "15133165", "15130844",
+    ],
     // Pacific Heights (94115)
-    pachts: ["15080888", "15082566", "15074528", "121339149"],
-    // SOMA (94107)
-    soma: ["79842917", "80747470", "79846879", "80743387"],
+    pachts: [
+      "15080888", "15082566", "15074528", "121339149",
+      "15079201", "15081345", "15076912", "15083677", "15078088", "15075744",
+      "15080215", "15077533", "15082101", "15074966", "15079688", "15076301",
+    ],
+    // SOMA / SoMa (94107)
+    soma: [
+      "79842917", "80747470", "79846879", "80743387",
+      "79844512", "80745689", "79848201", "80741533", "79843088", "80746314",
+      "79847555", "80742876", "79845190", "80744022", "79846101", "80748877",
+    ],
+    // Hayes Valley (94102)
+    hayes: [
+      "15067233", "15069891", "15068455", "15070612", "15066788", "15071344",
+      "15068019", "15070155", "15067801", "15069234",
+    ],
     // Excelsior (94112)
-    excelsior: ["15177062", "15167859", "15167742", "15169891", "15176420", "15174980"],
+    excelsior: [
+      "15177062", "15167859", "15167742", "15169891", "15176420", "15174980",
+      "15168533", "15175701", "15170244", "15173388", "15171655", "15166901",
+      "15172490", "15169102", "15174215", "15168011", "15176088", "15171290",
+    ],
+    // Marina (94123)
+    marina: [
+      "15057901", "15059244", "15058612", "15060388", "15056733", "15061155",
+      "15058088", "15059899", "15057344", "15060801",
+    ],
+    // Bayview (94124)
+    bayview: [
+      "15185901", "15187233", "15186455", "15188612", "15184788", "15189344",
+      "15186019", "15187801", "15185344", "15188155",
+    ],
+    // Twin Peaks / Glen Park (94131)
+    twinpeaks: [
+      "15140233", "15142588", "15141455", "15143312", "15139788", "15144055",
+      "15141019", "15142101", "15140677", "15143888",
+    ],
   },
 };
 
-// Flatten zpids for a city
+// Map zpids to their neighborhood groups
 function getZpidsForCity(city) {
   const key = city.toLowerCase().trim();
   const market = SOLD_ZPIDS[key];
   if (!market) return [];
   return Object.values(market).flat();
 }
+
+// Get zpids for a specific zip code
+function getZpidsForZip(city, zip) {
+  const key = city.toLowerCase().trim();
+  const market = SOLD_ZPIDS[key];
+  if (!market) return [];
+
+  const hoodKey = ZIP_NEIGHBORHOODS[zip];
+  if (!hoodKey) return [];
+
+  // Some zips map to multiple neighborhoods (e.g., 94121 → sunset_richmond + richmond)
+  const zpids = [];
+  for (const [name, list] of Object.entries(market)) {
+    if (name === hoodKey || name.includes(hoodKey) || hoodKey.includes(name)) {
+      zpids.push(...list);
+    }
+  }
+  return zpids;
+}
+
+// ─── Discovered zpids cache — persists across warm invocations ───
+const discoveredZpids = new Map(); // zip → Set of discovered zpids
 
 // ─── CORS ───
 const ALLOWED_ORIGINS = [
@@ -56,12 +149,15 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { city, fresh } = req.query;
+    const { city, zip, fresh, more, exclude } = req.query;
     if (!city) {
       return res.status(400).json({ error: "Missing ?city=San Francisco" });
     }
 
-    const cacheKey = `sold-${city.toLowerCase().trim()}`;
+    // Build cache key based on params
+    const cacheKey = zip
+      ? `sold-${city.toLowerCase().trim()}-${zip}${more === "1" ? "-more" : ""}`
+      : `sold-${city.toLowerCase().trim()}`;
     const skipCache = fresh === "1";
 
     if (!skipCache) {
@@ -73,13 +169,45 @@ export default async function handler(req, res) {
       cache.delete(cacheKey);
     }
 
-    const zpids = getZpidsForCity(city);
+    // Determine which zpids to fetch
+    let zpids;
+    if (zip) {
+      zpids = getZpidsForZip(city, zip);
+    } else {
+      zpids = getZpidsForCity(city);
+    }
+
+    // For "more" mode, we'll discover new zpids from nearbyHomes
+    const isMoreMode = more === "1" && zip;
+
+    // Exclude already-seen zpids (client sends these)
+    const excludeSet = new Set();
+    if (exclude) {
+      exclude.split(",").forEach(z => excludeSet.add(z.trim()));
+    }
+
+    if (isMoreMode) {
+      // In "more" mode, use previously discovered zpids for this zip,
+      // or re-discover from existing curated zpids' nearbyHomes
+      const discovered = discoveredZpids.get(zip);
+      if (discovered && discovered.size > 0) {
+        // Use discovered zpids, excluding ones already seen
+        zpids = [...discovered].filter(z => !excludeSet.has(z));
+      }
+      // If no discovered zpids, fall through to fetch curated ones
+      // (the nearbyHomes will populate discoveredZpids for next time)
+    } else if (excludeSet.size > 0) {
+      zpids = zpids.filter(z => !excludeSet.has(z));
+    }
+
     if (zpids.length === 0) {
       return res.status(200).json({
         soldListings: [],
         count: 0,
         city,
-        message: `No curated sold data for "${city}" yet`,
+        zip: zip || null,
+        hasMore: false,
+        message: zip ? `No more sold data for zip ${zip}` : `No curated sold data for "${city}" yet`,
       });
     }
 
@@ -89,19 +217,23 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    // Fetch property details for all zpids in parallel (batched to avoid rate limits)
+    // Limit batch size to keep within Vercel timeout
+    const MAX_FETCH = zip ? 20 : 15; // fetch more per-zip since it's a smaller set
+    const zpidsToFetch = zpids.slice(0, MAX_FETCH);
+
+    // Fetch property details in parallel batches
     const BATCH_SIZE = 10;
     const allResults = [];
+    const discoveredFromNearby = new Set();
 
-    for (let i = 0; i < zpids.length; i += BATCH_SIZE) {
-      const batch = zpids.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < zpidsToFetch.length; i += BATCH_SIZE) {
+      const batch = zpidsToFetch.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(zpid => fetchPropertyDetails(zpid, apiKey, apiHost))
       );
       allResults.push(...results);
-      // Small delay between batches to respect rate limits
-      if (i + BATCH_SIZE < zpids.length) {
-        await new Promise(r => setTimeout(r, 200));
+      if (i + BATCH_SIZE < zpidsToFetch.length) {
+        await new Promise(r => setTimeout(r, 150));
       }
     }
 
@@ -115,20 +247,25 @@ export default async function handler(req, res) {
       fetchedCount++;
 
       const d = result.value;
-      const zpid = zpids[idx];
+      const zpid = zpidsToFetch[idx];
+
+      // ── Auto-discover nearby sold homes ──
+      if (d.nearbyHomes && Array.isArray(d.nearbyHomes)) {
+        for (const nh of d.nearbyHomes) {
+          if (nh.zpid && nh.homeStatus === "RECENTLY_SOLD" && !excludeSet.has(String(nh.zpid))) {
+            discoveredFromNearby.add(String(nh.zpid));
+          }
+        }
+      }
 
       // Extract sold info from priceHistory
       const soldEvent = extractSoldEvent(d.priceHistory || []);
-
-      // Also check lastSoldPrice as fallback
       const soldPrice = soldEvent?.price || d.lastSoldPrice || null;
       const soldDate = soldEvent?.date || null;
 
-      // Skip if we can't confirm it was actually sold
       if (!soldPrice) return;
       soldCount++;
 
-      // Extract photos
       const photos = extractPhotos(d);
       const mainPhoto = photos[0] || d.imgSrc || d.hiResImageLink || null;
 
@@ -163,19 +300,34 @@ export default async function handler(req, res) {
       });
     });
 
-    console.error(`[SoldComps] ${city}: ${zpids.length} zpids queried, ${fetchedCount} fetched, ${soldCount} confirmed sold, ${soldListings.length} returned`);
+    // Store discovered zpids for "Load More" requests
+    if (zip && discoveredFromNearby.size > 0) {
+      const existing = discoveredZpids.get(zip) || new Set();
+      // Remove any zpids we already have in curated list or just fetched
+      const curatedSet = new Set(zpidsToFetch.map(String));
+      for (const z of discoveredFromNearby) {
+        if (!curatedSet.has(z)) existing.add(z);
+      }
+      discoveredZpids.set(zip, existing);
+    }
+
+    const hasMore = (zpids.length > MAX_FETCH) || discoveredFromNearby.size > 0;
+
+    console.error(`[SoldComps] ${city}${zip ? ` zip=${zip}` : ""}${isMoreMode ? " MORE" : ""}: ${zpidsToFetch.length} zpids queried, ${fetchedCount} fetched, ${soldCount} sold, ${soldListings.length} returned, ${discoveredFromNearby.size} discovered nearby`);
 
     const result = {
       soldListings,
       count: soldListings.length,
       city,
-      zpidsQueried: zpids.length,
+      zip: zip || null,
+      hasMore,
+      discoveredCount: discoveredFromNearby.size,
+      zpidsQueried: zpidsToFetch.length,
       fetchedCount,
       timestamp: new Date().toISOString(),
       cached: false,
     };
 
-    // Cache if we got results
     if (soldListings.length > 0) {
       cache.set(cacheKey, { data: result, timestamp: Date.now() });
     }
@@ -213,7 +365,6 @@ async function fetchPropertyDetails(zpid, apiKey, apiHost) {
 // ─── Extract the most recent "Sold" event from priceHistory ───
 function extractSoldEvent(history) {
   if (!Array.isArray(history)) return null;
-  // Find the most recent "Sold" event
   for (const evt of history) {
     if (evt.event && (
       evt.event === "Sold" ||
