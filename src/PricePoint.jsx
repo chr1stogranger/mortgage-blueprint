@@ -2581,6 +2581,26 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
+              <button onClick={async () => {
+                const result = await fetchNotifications(playerId, true);
+                if (result) { setNotifications(result.notifications || []); setUnreadCount(result.unreadCount || 0); }
+                setShowNotifDrawer(true);
+              }} style={{
+                position: "relative", width: 36, height: 36, borderRadius: 9999,
+                background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <Icon name="bell" size={16} style={{ color: T.accent }} />
+                {unreadCount > 0 && (
+                  <div style={{
+                    position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
+                    borderRadius: 8, background: T.red || "#EF4444", color: "#fff",
+                    fontSize: 9, fontWeight: 800, fontFamily: MONO,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "0 4px", border: `2px solid ${T.card}`,
+                  }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
+                )}
+              </button>
             </div>
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
