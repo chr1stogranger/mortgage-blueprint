@@ -612,8 +612,8 @@ const playLevelUpSound = () => {
 };
 
 // ── Data Version — bump this to force all clients to clear stale localStorage and re-fetch ──
-// v4: real sold comps from property-details priceHistory (search API returns fake sold data)
-const PP_DATA_VERSION = 4;
+// v5: fix — don't merge fake search API sold data with real sold-comps
+const PP_DATA_VERSION = 5;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -1005,29 +1005,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         setActiveListings(data.activeListings);
       }
 
-      // ── Sold listings: prefer real sold-comps, fall back to search API ──
-      let soldFromComps = [];
+      // ── Sold listings: use real sold-comps ONLY, ignore fake search API sold data ──
+      // The search API's recentlySold returns fake data (active listings relabeled as sold).
+      // When we have real sold-comps from property-details priceHistory, use ONLY those.
       if (compsData?.soldListings?.length > 0) {
-        // Real sold data from property-details priceHistory
-        soldFromComps = compsData.soldListings.map(l => ({ ...l, _source: "sold_api" }));
-        console.log(`[PricePoint] Got ${soldFromComps.length} real sold comps from /api/sold-comps`);
-      }
-
-      let soldFromSearch = [];
-      if (data?.soldListings?.length > 0) {
-        soldFromSearch = data.soldListings;
-      }
-
-      // Merge: sold-comps first (they're real), then search results, dedup by zpid
-      const allSold = [...soldFromComps, ...soldFromSearch];
-      if (allSold.length > 0) {
-        setSoldListings(prev => {
-          // Start fresh with real data if we have comps (don't keep SAMPLE_SOLD)
-          const base = soldFromComps.length > 0 ? [] : prev;
-          const existingZpids = new Set(base.map(l => l.zpid));
-          const newOnes = allSold.filter(l => !existingZpids.has(l.zpid));
-          return newOnes.length > 0 ? [...base, ...newOnes] : (base.length > 0 ? base : allSold);
-        });
+        const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_api" }));
+        console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
+        setSoldListings(realSold);
+      } else if (data?.soldListings?.length > 0) {
+        // Fallback: use search API sold data only if sold-comps returned nothing
+        setSoldListings(data.soldListings);
       }
 
       const label = data?.location || searchValue;
