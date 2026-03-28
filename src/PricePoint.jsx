@@ -631,6 +631,7 @@ function migrateLocalStorage() {
     if (stored < PP_DATA_VERSION) {
       // Clear stale listing data (keep player ID, display name, market selection)
       localStorage.removeItem("pp-sold-listings");
+      localStorage.removeItem("pp-active-listings");
       localStorage.removeItem("pp-all-results");
       localStorage.removeItem("pp-daily-result");
       localStorage.removeItem("pp-predictions");
@@ -700,8 +701,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [notifEmailInput, setNotifEmailInput] = useState('');
   const [notifPhoneInput, setNotifPhoneInput] = useState('');
 
-  // ── Active Listings (for Live Mode) ──
-  const [activeListings, setActiveListings] = useState([]);
+  // ── Active Listings (for Live Mode) — persisted to localStorage ──
+  const [activeListings, setActiveListings] = useState(() => {
+    try {
+      const cached = localStorage.getItem("pp-active-listings");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`[PricePoint] Loaded ${parsed.length} active listings from cache`);
+          return parsed;
+        }
+      }
+    } catch {}
+    return [];
+  });
 
   // ── Live Mode State ──
   const [liveListings, setLiveListings] = useState([]);
@@ -931,11 +944,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         localStorage.setItem("pp-all-results", JSON.stringify(allResults));
         if (dailyResult) localStorage.setItem("pp-daily-result", JSON.stringify(dailyResult));
         if (soldListings !== SAMPLE_SOLD) localStorage.setItem("pp-sold-listings", JSON.stringify(soldListings));
+        if (activeListings.length > 0) localStorage.setItem("pp-active-listings", JSON.stringify(activeListings));
         localStorage.setItem("pp-predictions", JSON.stringify(allPredictions));
       } catch {}
     }, 500);
     return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current); };
-  }, [market, locationLabel, allResults, dailyResult, soldListings, allPredictions]);
+  }, [market, locationLabel, allResults, dailyResult, soldListings, activeListings, allPredictions]);
 
   // ── Initialize view ──
   useEffect(() => {
@@ -1080,6 +1094,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // Active listings (_source: "active_api") → Live mode pool
       if (data?.activeListings?.length > 0) {
         setActiveListings(data.activeListings);
+        // Persist immediately so Live mode works on next page load
+        try { localStorage.setItem("pp-active-listings", JSON.stringify(data.activeListings)); } catch {}
+        console.log(`[PricePoint] Cached ${data.activeListings.length} active listings`);
       }
 
       // ── Sold listings: use real sold-comps ONLY, ignore fake search API sold data ──
@@ -1100,6 +1117,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     } catch (err) {
       console.error("PricePoint fetch error:", err);
       setError("Could not load live data. Using sample data.");
+      hasFetchedRef.current = false; // Allow retry on next attempt
       return { success: false };
     } finally {
       setLoading(false);
@@ -1406,10 +1424,34 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
 
-  // ── Live Mode — SYNCHRONOUS, no API calls ──
-  const enterLiveMode = (zipFilter, hoodName) => {
+  // ── Live Mode — re-fetches if activeListings cache is empty ──
+  const enterLiveMode = async (zipFilter, hoodName) => {
+    let listings = activeListings;
+
+    // Safety net: if no active listings in state, try re-fetching
+    if (listings.filter(isTrueActive).length === 0 && market) {
+      console.log("[PricePoint] No active listings in state — re-fetching for Live mode...");
+      setLoading(true);
+      try {
+        const resp = await fetch(`/api/pricepoint?city=${encodeURIComponent(market.city || market.label)}&state=CA`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data?.activeListings?.length > 0) {
+            listings = data.activeListings;
+            setActiveListings(listings);
+            try { localStorage.setItem("pp-active-listings", JSON.stringify(listings)); } catch {}
+            console.log(`[PricePoint] Live mode re-fetch got ${listings.length} active listings`);
+          }
+        }
+      } catch (e) {
+        console.warn("[PricePoint] Live mode re-fetch failed:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     // Only show listings from the forSale API endpoint
-    let pool = activeListings.filter(isTrueActive);
+    let pool = listings.filter(isTrueActive);
 
     if (zipFilter) {
       pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
