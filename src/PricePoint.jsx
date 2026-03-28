@@ -163,13 +163,14 @@ const hashDayAndMarket = (dayNum, market) => {
 
 const getDailyProperty = (soldListings, market) => {
   if (!soldListings || soldListings.length === 0) return null;
-  // ONLY use real sold data — never show SAMPLE_SOLD in the Daily
+  // Prefer real sold data over SAMPLE_SOLD
   const realSold = soldListings.filter(l => l._source !== "sample" && l.soldPrice);
-  if (realSold.length === 0) return null; // wait for API data
+  const pool = realSold.length > 0 ? realSold : soldListings.filter(l => l.soldPrice);
+  if (pool.length === 0) return null;
   const dayNum = getDailyNumber();
   const hash = hashDayAndMarket(dayNum, market);
-  const idx = Math.abs(hash) % realSold.length;
-  return { ...realSold[idx], dailyNumber: dayNum };
+  const idx = Math.abs(hash) % pool.length;
+  return { ...pool[idx], dailyNumber: dayNum };
 };
 
 // ── Get indices of next N daily properties (for exclusion from Free Play) ──
@@ -997,7 +998,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const cityName = isZip ? null : searchValue.trim();
       const [ppResp, compsResp] = await Promise.allSettled([
         fetch(`/api/pricepoint?${params}`).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-        cityName ? fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`).then(r => r.ok ? r.json() : null).catch(() => null) : Promise.resolve(null),
+        cityName ? Promise.race([
+          fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`).then(r => r.ok ? r.json() : null).catch(() => null),
+          new Promise(resolve => setTimeout(() => resolve(null), 8000)), // 8s timeout
+        ]) : Promise.resolve(null),
       ]);
 
       const data = ppResp.status === "fulfilled" ? ppResp.value : null;
@@ -2043,17 +2047,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading listings...</div>
           )}
           {error && <div style={{ marginTop: 12, fontSize: 12, color: T.orange, textAlign: "center", fontFamily: FONT }}>{error}</div>}
-        </div>
-      )}
-
-      {/* ═══ DAILY CHALLENGE — loading state while waiting for real sold data ═══ */}
-      {view === "daily" && !dailyProperty && (
-        <div style={{ padding: "60px 16px 100px", textAlign: "center", animation: "ppSlideUp 0.5s ease-out" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 12 }}>DAILY CHALLENGE #{dailyNumber}</div>
-          <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT }}>Loading today's property...</div>
-          <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
-            <div style={{ width: 28, height: 28, border: `2px solid ${T.border}`, borderTopColor: T.accent, borderRadius: "50%", animation: "ppSpin 0.8s linear infinite" }} />
-          </div>
         </div>
       )}
 
