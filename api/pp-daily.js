@@ -49,42 +49,45 @@ async function fetchSoldListings(market, marketId, dailyNumber) {
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
       : 'https://blueprint.realstack.app');
 
-  // Try zip-specific first, fall back to city-wide
+  // Fire zip-specific AND city-wide in parallel — use first one with data
   const zips = MARKET_ZIPS[marketId] || [];
   const zip = zips.length > 0 ? zips[dailyNumber % zips.length] : null;
-  const urls = [];
-  if (zip) urls.push(`${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}&zip=${zip}`);
-  urls.push(`${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}`); // city-wide fallback
 
-  for (const url of urls) {
+  const cityUrl = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}`;
+  const zipUrl = zip ? `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}&zip=${zip}` : null;
+
+  console.log(`[pp-daily] Fetching sold comps: city=${cityUrl}${zipUrl ? `, zip=${zipUrl}` : ''}`);
+
+  const fetchOne = async (url) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
-      console.log(`[pp-daily] Fetching sold comps from: ${url}`);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 7000);
-
-      const res = await fetch(url, {
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
       clearTimeout(timer);
-
-      if (!res.ok) {
-        console.error('[pp-daily] sold-comps error:', res.status);
-        continue;
-      }
-
+      if (!res.ok) return [];
       const data = await res.json();
-      const listings = data.soldListings || [];
-      if (listings.length > 0) {
-        console.log(`[pp-daily] Got ${listings.length} sold listings from ${url}`);
-        return listings;
-      }
-      console.log(`[pp-daily] 0 sold from ${url}, trying next...`);
+      return data.soldListings || [];
     } catch (err) {
-      console.error('[pp-daily] fetchSoldListings error:', err.message);
+      clearTimeout(timer);
+      console.error(`[pp-daily] fetch error for ${url}:`, err.message);
+      return [];
+    }
+  };
+
+  // Run in parallel
+  const promises = [fetchOne(cityUrl)];
+  if (zipUrl) promises.push(fetchOne(zipUrl));
+
+  const results = await Promise.allSettled(promises);
+  // Prefer the result with the most listings
+  let best = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value.length > best.length) {
+      best = r.value;
     }
   }
-  return [];
+  console.log(`[pp-daily] Best result: ${best.length} sold listings`);
+  return best;
 }
 
 // ── Normalize a sold-comps listing into daily challenge format ──
