@@ -217,25 +217,24 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    // Limit batch size to keep within Vercel timeout
-    const MAX_FETCH = zip ? 20 : 15; // fetch more per-zip since it's a smaller set
-    const zpidsToFetch = zpids.slice(0, MAX_FETCH);
+    // Limit batch size to stay well within Vercel 10s timeout
+    // City-wide: only 5 zpids (enough for Daily + Free Play seed)
+    // Zip-specific: up to 8 zpids (targeted neighborhood load)
+    const MAX_FETCH = zip ? 8 : 5;
+    // Shuffle zpids deterministically so we don't always get the same ones
+    const dayHash = new Date().getDate();
+    const shuffled = [...zpids].sort((a, b) => ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997));
+    const zpidsToFetch = shuffled.slice(0, MAX_FETCH);
 
-    // Fetch property details in parallel batches
-    const BATCH_SIZE = 10;
+    // Fetch property details in parallel — single batch, all at once
+    const TIMEOUT_MS = 6000; // 6s per-request timeout
     const allResults = [];
     const discoveredFromNearby = new Set();
 
-    for (let i = 0; i < zpidsToFetch.length; i += BATCH_SIZE) {
-      const batch = zpidsToFetch.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(zpid => fetchPropertyDetails(zpid, apiKey, apiHost))
-      );
-      allResults.push(...results);
-      if (i + BATCH_SIZE < zpidsToFetch.length) {
-        await new Promise(r => setTimeout(r, 150));
-      }
-    }
+    const results = await Promise.allSettled(
+      zpidsToFetch.map(zpid => fetchPropertyDetails(zpid, apiKey, apiHost, TIMEOUT_MS))
+    );
+    allResults.push(...results);
 
     // Process results into sold listings
     const soldListings = [];
@@ -354,21 +353,28 @@ export default async function handler(req, res) {
   }
 }
 
-// ─── Fetch property details from RapidAPI ───
-async function fetchPropertyDetails(zpid, apiKey, apiHost) {
-  const url = `https://${apiHost}/property-details?zpid=${zpid}`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "X-RapidAPI-Key": apiKey,
-      "X-RapidAPI-Host": apiHost,
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`API ${res.status} for zpid ${zpid}`);
+// ─── Fetch property details from RapidAPI with timeout ───
+async function fetchPropertyDetails(zpid, apiKey, apiHost, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = `https://${apiHost}/property-details?zpid=${zpid}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": apiHost,
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`API ${res.status} for zpid ${zpid}`);
+    }
+    const raw = await res.json();
+    return raw.data || raw;
+  } finally {
+    clearTimeout(timer);
   }
-  const raw = await res.json();
-  return raw.data || raw;
 }
 
 // ─── Extract the most recent "Sold" event from priceHistory ───

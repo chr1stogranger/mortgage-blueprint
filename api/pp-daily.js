@@ -33,19 +33,41 @@ function getTodayDate() {
 }
 
 // ── Fetch sold listings via internal sold-comps endpoint ──
-// Uses the same property-details + priceHistory approach that returns REAL sold data
-async function fetchSoldListings(market) {
+// Uses a rotating zip code to keep the request small and fast (avoids Vercel timeout).
+// Each day picks a different neighborhood so the daily challenge varies.
+const MARKET_ZIPS = {
+  sf: ["94122", "94118", "94110", "94114", "94115", "94107", "94112", "94103", "94102", "94123", "94124", "94131"],
+  oakland: ["94601", "94602", "94603", "94606", "94607", "94609", "94610", "94611", "94612"],
+  berkeley: ["94702", "94703", "94704", "94705", "94707", "94708", "94709", "94710"],
+  alameda: ["94501", "94502"],
+};
+
+async function fetchSoldListings(market, marketId, dailyNumber) {
   try {
-    // Use the Vercel deployment URL or localhost for internal API call
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : (process.env.VERCEL_PROJECT_PRODUCTION_URL
         ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
         : 'https://blueprint.realstack.app');
-    const url = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}`;
+
+    // Pick a zip based on daily number to rotate neighborhoods
+    const zips = MARKET_ZIPS[marketId] || [];
+    const zip = zips.length > 0 ? zips[dailyNumber % zips.length] : null;
+    const zipParam = zip ? `&zip=${zip}` : '';
+
+    const url = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}${zipParam}`;
     console.log(`[pp-daily] Fetching sold comps from: ${url}`);
 
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    // Add timeout to avoid cascading Vercel timeouts
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
     if (!res.ok) {
       console.error('[pp-daily] sold-comps error:', res.status);
       return [];
@@ -161,7 +183,7 @@ export default async function handler(req, res) {
     if (!daily) {
       console.log(`[pp-daily] Seeding daily for ${marketId} on ${today} (#${dailyNumber})`);
 
-      const listings = await fetchSoldListings(MARKETS[marketId]);
+      const listings = await fetchSoldListings(MARKETS[marketId], marketId, dailyNumber);
       const property = pickDailyProperty(listings, dailyNumber);
 
       if (!property) {
