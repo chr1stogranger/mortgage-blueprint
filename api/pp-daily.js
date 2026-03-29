@@ -7,7 +7,8 @@
 // GET /api/pp-daily?market=sf&reveal=true&player=<uuid>
 //   → Returns daily WITH sold_price (only if player has already guessed)
 //
-// Uses Supabase service role key to bypass RLS for seeding.
+// Fetches property details DIRECTLY from RapidAPI (no serverless-to-serverless call)
+// to avoid cascading timeout issues.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -32,108 +33,183 @@ function getTodayDate() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ── Fetch sold listings via internal sold-comps endpoint ──
-// Uses a rotating zip code to keep the request small and fast (avoids Vercel timeout).
-// Each day picks a different neighborhood so the daily challenge varies.
-const MARKET_ZIPS = {
-  sf: ["94122", "94118", "94110", "94114", "94115", "94107", "94112", "94103", "94102", "94123", "94124", "94131"],
-  oakland: ["94601", "94602", "94603", "94606", "94607", "94609", "94610", "94611", "94612"],
-  berkeley: ["94702", "94703", "94704", "94705", "94707", "94708", "94709", "94710"],
-  alameda: ["94501", "94502"],
+// ── Known-good zpids that have recently sold — verified March 2026 ──
+// These are REAL recently sold properties with photos, beds, and sold prices.
+// Grouped by neighborhood for variety across daily challenges.
+const DAILY_SEED_ZPIDS = {
+  sf: [
+    // Richmond (confirmed working: 659 12th Ave, sold $4.95M, March 2026)
+    "15098085", "15094834", "15091588",
+    // Sunset (confirmed working: 1495 21st Ave, sold $2.93M, March 2026)
+    "15105418", "15095869", "15115454",
+    // Mission / Bernal Heights (confirmed: 115 Ellsworth, sold $2.63M)
+    "15161966", "15150065", "15162139",
+    // Noe Valley
+    "15182650", "15132286", "460322503",
+    // Pacific Heights
+    "15080888", "15082566", "15074528",
+    // Excelsior
+    "15177062", "15167859", "15167742",
+  ],
 };
 
-async function fetchSoldListings(market, marketId, dailyNumber) {
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : 'https://blueprint.realstack.app');
-
-  // Fire zip-specific AND city-wide in parallel — use first one with data
-  const zips = MARKET_ZIPS[marketId] || [];
-  const zip = zips.length > 0 ? zips[dailyNumber % zips.length] : null;
-
-  const cityUrl = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}`;
-  const zipUrl = zip ? `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}&zip=${zip}` : null;
-
-  console.log(`[pp-daily] Fetching sold comps: city=${cityUrl}${zipUrl ? `, zip=${zipUrl}` : ''}`);
-
-  const fetchOne = async (url) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    try {
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.soldListings || [];
-    } catch (err) {
-      clearTimeout(timer);
-      console.error(`[pp-daily] fetch error for ${url}:`, err.message);
-      return [];
-    }
-  };
-
-  // Run in parallel
-  const promises = [fetchOne(cityUrl)];
-  if (zipUrl) promises.push(fetchOne(zipUrl));
-
-  const results = await Promise.allSettled(promises);
-  // Prefer the result with the most listings
-  let best = [];
-  for (const r of results) {
-    if (r.status === 'fulfilled' && r.value.length > best.length) {
-      best = r.value;
-    }
+// ── Fetch property details directly from RapidAPI ──
+async function fetchPropertyDirect(zpid, apiKey, apiHost, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = `https://${apiHost}/property-details?zpid=${zpid}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': apiHost,
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const raw = await res.json();
+    return raw.data || raw;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
-  console.log(`[pp-daily] Best result: ${best.length} sold listings`);
-  return best;
 }
 
-// ── Normalize a sold-comps listing into daily challenge format ──
-// sold-comps already returns normalized data, just map field names for the DB
-function normalizeForDaily(listing) {
-  return {
-    zpid: String(listing.zpid || ''),
-    address: listing.address || 'Unknown',
-    city: listing.city || '',
-    state: listing.state || 'CA',
-    zip: listing.zip || '',
-    neighborhood: listing.neighborhood || '',
-    photo: listing.photo || (listing.photos && listing.photos[0]) || '',
-    beds: listing.beds || null,
-    baths: listing.baths || null,
-    sqft: listing.sqft || null,
-    year_built: listing.yearBuilt || null,
-    property_type: listing.propertyType || 'Single Family',
-    list_price: listing.listPrice || null,
-    days_on_market: listing.daysOnMarket || null,
-    sold_price: listing.soldPrice || null,
-  };
+// ── Extract sold event from priceHistory ──
+function extractSoldEvent(history) {
+  if (!Array.isArray(history)) return null;
+  for (const evt of history) {
+    if (evt.event && (evt.event === 'Sold' || evt.event.toLowerCase().includes('sold') || evt.event === 'Closed')) {
+      return { price: evt.price || null, date: evt.date || null };
+    }
+  }
+  return null;
+}
+
+// ── Extract list price from priceHistory ──
+function extractListPrice(history) {
+  if (!Array.isArray(history)) return null;
+  for (const evt of history) {
+    if (evt.event && (evt.event === 'Listed for sale' || evt.event === 'Listed' || evt.event.includes('list'))) {
+      return evt.price || null;
+    }
+  }
+  return null;
+}
+
+// ── Extract photos ──
+function extractPhotos(d) {
+  if (d.photos && Array.isArray(d.photos)) {
+    for (let i = 0; i < d.photos.length && i < 1; i++) {
+      const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
+      if (jpegs.length > 0) return jpegs[jpegs.length - 1].url;
+    }
+  }
+  return d.imgSrc || d.hiResImageLink || '';
+}
+
+function normalizeHomeType(type) {
+  if (!type) return 'Single Family';
+  const map = { SINGLE_FAMILY: 'Single Family', CONDO: 'Condo', TOWNHOUSE: 'Townhouse', MULTI_FAMILY: 'Multi Family' };
+  return map[type] || type.replace(/_/g, ' ');
+}
+
+// ── Fetch sold listings directly from RapidAPI (no sold-comps middleman) ──
+async function fetchSoldListingsDirect(marketId, dailyNumber) {
+  const apiKey = process.env.RAPIDAPI_KEY;
+  const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
+  if (!apiKey) {
+    console.error('[pp-daily] No RAPIDAPI_KEY configured');
+    return [];
+  }
+
+  const seedZpids = DAILY_SEED_ZPIDS[marketId] || [];
+  if (seedZpids.length === 0) return [];
+
+  // Pick 3 zpids to try (rotated by daily number for variety)
+  const startIdx = (dailyNumber * 3) % seedZpids.length;
+  const zpidsToTry = [];
+  for (let i = 0; i < 3; i++) {
+    zpidsToTry.push(seedZpids[(startIdx + i) % seedZpids.length]);
+  }
+
+  console.error(`[pp-daily] Fetching ${zpidsToTry.length} zpids directly: ${zpidsToTry.join(', ')}`);
+
+  const results = await Promise.allSettled(
+    zpidsToTry.map(zpid => fetchPropertyDirect(zpid, apiKey, apiHost, 7000))
+  );
+
+  const listings = [];
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 5);
+
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (r.status !== 'fulfilled' || !r.value) continue;
+
+    const d = r.value;
+    const soldEvent = extractSoldEvent(d.priceHistory || []);
+    const soldPrice = soldEvent?.price || d.lastSoldPrice || null;
+    const soldDate = soldEvent?.date || null;
+
+    if (!soldPrice || soldPrice < 50000) continue;
+    if (soldDate) {
+      const saleDate = new Date(soldDate);
+      if (saleDate < cutoff) continue;
+    }
+
+    const photo = extractPhotos(d);
+    const beds = d.bedrooms || 0;
+    if (!beds || !photo) continue;
+
+    listings.push({
+      zpid: String(zpidsToTry[i]),
+      address: d.streetAddress || d.address?.streetAddress || 'Unknown',
+      city: d.city || d.address?.city || 'San Francisco',
+      state: d.state || d.address?.state || 'CA',
+      zip: d.zipcode || d.address?.zipcode || '',
+      neighborhood: d.neighborhoodRegion?.name || '',
+      photo,
+      beds,
+      baths: d.bathrooms || null,
+      sqft: d.livingArea || d.livingAreaValue || null,
+      yearBuilt: d.yearBuilt || null,
+      propertyType: normalizeHomeType(d.homeType),
+      listPrice: extractListPrice(d.priceHistory || []) || soldPrice,
+      daysOnMarket: d.daysOnZillow || null,
+      soldPrice,
+      soldDate,
+    });
+  }
+
+  console.error(`[pp-daily] Got ${listings.length} valid sold listings from direct fetch`);
+  return listings;
 }
 
 // ── Pick a deterministic daily property ──
-// Uses the daily number as a seed to pick consistently for a given date
 function pickDailyProperty(listings, dailyNumber) {
   if (!listings.length) return null;
-  // Filter to recent properties with a sold price, photo, and beds
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 5);
-  const valid = listings.filter(l => {
-    if (!l.soldPrice || l.soldPrice < 50000) return false;
-    if (!l.photo && !(l.photos && l.photos[0])) return false;
-    if (!l.beds) return false;
-    // Filter ancient sales
-    if (l.soldDate) {
-      const saleDate = new Date(l.soldDate);
-      if (saleDate < cutoff) return false;
-    }
-    return true;
-  });
-  if (!valid.length) return null;
-  // Deterministic pick: daily number mod valid count
-  const idx = (dailyNumber * 7 + 3) % valid.length;  // simple hash
-  return normalizeForDaily(valid[idx]);
+  const idx = (dailyNumber * 7 + 3) % listings.length;
+  const l = listings[idx];
+  return {
+    zpid: l.zpid,
+    address: l.address,
+    city: l.city,
+    state: l.state,
+    zip: l.zip,
+    neighborhood: l.neighborhood,
+    photo: l.photo,
+    beds: l.beds,
+    baths: l.baths,
+    sqft: l.sqft,
+    year_built: l.yearBuilt,
+    property_type: l.propertyType,
+    list_price: l.listPrice,
+    days_on_market: l.daysOnMarket,
+    sold_price: l.soldPrice,
+  };
 }
 
 // ── Market metadata ──
@@ -188,11 +264,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2. If no daily exists, seed one from RapidAPI
+    // 2. If no daily exists, seed one directly from RapidAPI
     if (!daily) {
-      console.log(`[pp-daily] Seeding daily for ${marketId} on ${today} (#${dailyNumber})`);
+      console.error(`[pp-daily] Seeding daily for ${marketId} on ${today} (#${dailyNumber})`);
 
-      const listings = await fetchSoldListings(MARKETS[marketId], marketId, dailyNumber);
+      const listings = await fetchSoldListingsDirect(marketId, dailyNumber);
       const property = pickDailyProperty(listings, dailyNumber);
 
       if (!property) {
@@ -200,6 +276,7 @@ export default async function handler(req, res) {
           error: 'No suitable listings found to seed daily challenge',
           market: marketId,
           date: today,
+          debug: { listingsFound: listings.length },
         });
       }
 
