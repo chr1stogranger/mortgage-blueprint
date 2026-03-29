@@ -1396,7 +1396,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       }
     }
 
-    // Step 6: Only fall back to SAMPLE_SOLD if we have zero real data for this zip
+    // Step 6: If no real data for this zip, fall back to ALL city-wide real sold data
+    // (better to show real properties from other neighborhoods than fake sample data)
+    if (pool.length === 0 && trueSold.length > 0) {
+      console.log(`[FreePlay] No sold data for zip ${zip} — using all ${trueSold.length} city-wide real listings`);
+      pool = [...trueSold];
+    }
+
+    // Step 7: Only fall back to SAMPLE_SOLD as absolute last resort
     if (pool.length === 0) {
       const samples = zip ? SAMPLE_SOLD.filter(l => l.zip === zip) : [...SAMPLE_SOLD];
       pool = samples.length > 0 ? samples : [...SAMPLE_SOLD];
