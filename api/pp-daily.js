@@ -43,42 +43,48 @@ const MARKET_ZIPS = {
 };
 
 async function fetchSoldListings(market, marketId, dailyNumber) {
-  try {
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : (process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-        : 'https://blueprint.realstack.app');
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : 'https://blueprint.realstack.app');
 
-    // Pick a zip based on daily number to rotate neighborhoods
-    const zips = MARKET_ZIPS[marketId] || [];
-    const zip = zips.length > 0 ? zips[dailyNumber % zips.length] : null;
-    const zipParam = zip ? `&zip=${zip}` : '';
+  // Try zip-specific first, fall back to city-wide
+  const zips = MARKET_ZIPS[marketId] || [];
+  const zip = zips.length > 0 ? zips[dailyNumber % zips.length] : null;
+  const urls = [];
+  if (zip) urls.push(`${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}&zip=${zip}`);
+  urls.push(`${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}`); // city-wide fallback
 
-    const url = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}${zipParam}`;
-    console.log(`[pp-daily] Fetching sold comps from: ${url}`);
+  for (const url of urls) {
+    try {
+      console.log(`[pp-daily] Fetching sold comps from: ${url}`);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 7000);
 
-    // Add timeout to avoid cascading Vercel timeouts
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
 
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
+      if (!res.ok) {
+        console.error('[pp-daily] sold-comps error:', res.status);
+        continue;
+      }
 
-    if (!res.ok) {
-      console.error('[pp-daily] sold-comps error:', res.status);
-      return [];
+      const data = await res.json();
+      const listings = data.soldListings || [];
+      if (listings.length > 0) {
+        console.log(`[pp-daily] Got ${listings.length} sold listings from ${url}`);
+        return listings;
+      }
+      console.log(`[pp-daily] 0 sold from ${url}, trying next...`);
+    } catch (err) {
+      console.error('[pp-daily] fetchSoldListings error:', err.message);
     }
-
-    const data = await res.json();
-    return data.soldListings || [];
-  } catch (err) {
-    console.error('[pp-daily] fetchSoldListings error:', err.message);
-    return [];
   }
+  return [];
 }
 
 // ── Normalize a sold-comps listing into daily challenge format ──
