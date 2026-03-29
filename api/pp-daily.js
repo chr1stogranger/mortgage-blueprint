@@ -108,8 +108,8 @@ function normalizeForDaily(listing) {
 function pickDailyProperty(listings, dailyNumber) {
   if (!listings.length) return null;
   // Filter to recent properties with a sold price, photo, and beds
-  const threeYearsAgo = new Date();
-  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 5);
   const valid = listings.filter(l => {
     if (!l.soldPrice || l.soldPrice < 50000) return false;
     if (!l.photo && !(l.photos && l.photos[0])) return false;
@@ -117,7 +117,7 @@ function pickDailyProperty(listings, dailyNumber) {
     // Filter ancient sales
     if (l.soldDate) {
       const saleDate = new Date(l.soldDate);
-      if (saleDate < threeYearsAgo) return false;
+      if (saleDate < cutoff) return false;
     }
     return true;
   });

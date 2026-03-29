@@ -264,12 +264,12 @@ export default async function handler(req, res) {
 
       if (!soldPrice) return;
 
-      // Filter out ancient sales (older than 3 years)
+      // Filter out ancient sales (older than 5 years)
       if (soldDate) {
         const saleDate = new Date(soldDate);
-        const threeYearsAgo = new Date();
-        threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-        if (saleDate < threeYearsAgo) return;
+        const cutoff = new Date();
+        cutoff.setFullYear(cutoff.getFullYear() - 5);
+        if (saleDate < cutoff) return;
       }
 
       soldCount++;
@@ -308,10 +308,71 @@ export default async function handler(req, res) {
       });
     });
 
+    // ── Self-healing: if 0 sold from curated zpids, immediately fetch discovered nearby ──
+    if (soldListings.length === 0 && discoveredFromNearby.size > 0) {
+      const discoveryZpids = [...discoveredFromNearby].slice(0, 4); // max 4 more
+      console.error(`[SoldComps] 0 sold from curated — fetching ${discoveryZpids.length} discovered nearby zpids`);
+      const discoveryResults = await Promise.allSettled(
+        discoveryZpids.map(z => fetchPropertyDetails(z, apiKey, apiHost, TIMEOUT_MS))
+      );
+      discoveryResults.forEach((result, idx) => {
+        if (result.status !== "fulfilled" || !result.value) return;
+        fetchedCount++;
+        const d = result.value;
+        const zpid = discoveryZpids[idx];
+
+        const soldEvent = extractSoldEvent(d.priceHistory || []);
+        const soldPrice = soldEvent?.price || d.lastSoldPrice || null;
+        const soldDate = soldEvent?.date || null;
+        if (!soldPrice) return;
+
+        // 5-year filter
+        if (soldDate) {
+          const saleDate = new Date(soldDate);
+          const cutoff = new Date();
+          cutoff.setFullYear(cutoff.getFullYear() - 5);
+          if (saleDate < cutoff) return;
+        }
+
+        soldCount++;
+        const photos = extractPhotos(d);
+        const mainPhoto = photos[0] || d.imgSrc || d.hiResImageLink || null;
+
+        soldListings.push({
+          id: `sc${soldListings.length + 1}`,
+          zpid: String(zpid),
+          address: d.streetAddress || d.address?.streetAddress || "Unknown",
+          city: d.city || d.address?.city || "San Francisco",
+          state: d.state || d.address?.state || "CA",
+          zip: d.zipcode || d.address?.zipcode || "",
+          beds: d.bedrooms || 0,
+          baths: d.bathrooms || 0,
+          sqft: d.livingArea || d.livingAreaValue || 0,
+          lotSqft: d.lotAreaValue ? (d.lotAreaUnits === "acres" ? Math.round(d.lotAreaValue * 43560) : Math.round(d.lotAreaValue)) : 0,
+          yearBuilt: d.yearBuilt || null,
+          propertyType: normalizeHomeType(d.homeType),
+          listPrice: extractListPrice(d.priceHistory || []) || soldPrice,
+          zestimate: d.zestimate || null,
+          soldPrice,
+          soldDate,
+          daysOnMarket: d.daysOnZillow || 0,
+          status: "sold",
+          photo: mainPhoto,
+          photos: photos.slice(0, 6),
+          neighborhood: d.neighborhoodRegion?.name || "",
+          pricePerSqft: (d.livingArea && soldPrice) ? Math.round(soldPrice / d.livingArea) : 0,
+          latitude: d.latitude || null,
+          longitude: d.longitude || null,
+          description: d.description || "",
+          detailUrl: d.hdpUrl ? `https://www.zillow.com${d.hdpUrl}` : null,
+          _source: "sold_comps",
+        });
+      });
+    }
+
     // Store discovered zpids for "Load More" requests
     if (zip && discoveredFromNearby.size > 0) {
       const existing = discoveredZpids.get(zip) || new Set();
-      // Remove any zpids we already have in curated list or just fetched
       const curatedSet = new Set(zpidsToFetch.map(String));
       for (const z of discoveredFromNearby) {
         if (!curatedSet.has(z)) existing.add(z);
@@ -321,7 +382,7 @@ export default async function handler(req, res) {
 
     const hasMore = (zpids.length > MAX_FETCH) || discoveredFromNearby.size > 0;
 
-    console.error(`[SoldComps] ${city}${zip ? ` zip=${zip}` : ""}${isMoreMode ? " MORE" : ""}: ${zpidsToFetch.length} zpids queried, ${fetchedCount} fetched, ${soldCount} sold, ${soldListings.length} returned, ${discoveredFromNearby.size} discovered nearby`);
+    console.error(`[SoldComps] ${city}${zip ? ` zip=${zip}` : ""}${isMoreMode ? " MORE" : ""}: ${zpidsToFetch.length}+${discoveredFromNearby.size > 0 && soldListings.length > 0 ? 'discovery' : '0'} zpids, ${fetchedCount} fetched, ${soldCount} sold, ${soldListings.length} returned`);
 
     const result = {
       soldListings,

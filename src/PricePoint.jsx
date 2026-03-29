@@ -166,9 +166,9 @@ const hashDayAndMarket = (dayNum, market) => {
 const isRecentSale = (l) => {
   if (!l.soldDate) return true; // no date = assume recent
   const saleDate = new Date(l.soldDate);
-  const threeYearsAgo = new Date();
-  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-  return saleDate >= threeYearsAgo;
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 5); // 5-year window
+  return saleDate >= cutoff;
 };
 
 const getDailyProperty = (soldListings, market) => {
