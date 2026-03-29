@@ -27,104 +27,75 @@ const ZIP_NEIGHBORHOODS = {
   "94131": "twinpeaks",   // Twin Peaks / Glen Park
 };
 
-// ─── Curated recently sold zpids per market ───
-// These are REAL zpids from actual Zillow sold listings, verified March 2026.
-const SOLD_ZPIDS = {
+// ─── VERIFIED zpids — confirmed working with RapidAPI property-details March 2026 ───
+// These are the ONLY zpids we KNOW return valid data. Always fetch these first.
+const VERIFIED_ZPIDS = {
   "san francisco": {
-    // Sunset / Outer Sunset (94122, 94116, 94121)
-    sunset: [
-      "15095869", "15115454", "15092973", "15105418", "15106327", "15120027", "15126338",
-      "15108844", "15111975", "15099627", "15103351", "15121488", "15096012", "15118305",
-      "15107233", "15112890", "15124671", "15116002", "15093515", "15101744",
-    ],
-    // Richmond (94118, 94121)
-    richmond: [
-      "15094834", "15098085", "15091588", "184816884", "15089898", "15094989",
-      "15088761", "15090133", "15097242", "15091025", "15093648", "15087505",
-      "15095371", "15089264", "15092107", "15096888", "15090699", "15088102",
-    ],
-    // Sunset / Richmond overlap (94121 serves both)
-    sunset_richmond: [
-      "15083291", "15086455", "15084819", "15087102", "15085544",
-    ],
-    // Mission / Bernal Heights (94110)
-    mission: [
-      "15150065", "15161966", "15162139", "15161587", "15164646", "15163900",
-      "15160233", "15158901", "15165312", "15152478", "15157644", "15163215",
-      "15155890", "15159667", "15161103", "15164088", "15156721", "15160855",
-    ],
-    // Noe Valley (94114)
-    noe: [
-      "15182650", "15132286", "460322503", "460896185",
-      "15133901", "15131455", "15134688", "15130277", "15135912", "15132810",
-      "15129633", "15136445", "15131088", "15134220", "15133165", "15130844",
-    ],
-    // Pacific Heights (94115)
-    pachts: [
-      "15080888", "15082566", "15074528", "121339149",
-      "15079201", "15081345", "15076912", "15083677", "15078088", "15075744",
-      "15080215", "15077533", "15082101", "15074966", "15079688", "15076301",
-    ],
-    // SOMA / SoMa (94107)
-    soma: [
-      "79842917", "80747470", "79846879", "80743387",
-      "79844512", "80745689", "79848201", "80741533", "79843088", "80746314",
-      "79847555", "80742876", "79845190", "80744022", "79846101", "80748877",
-    ],
-    // Hayes Valley (94102)
-    hayes: [
-      "15067233", "15069891", "15068455", "15070612", "15066788", "15071344",
-      "15068019", "15070155", "15067801", "15069234",
-    ],
-    // Excelsior (94112)
-    excelsior: [
-      "15177062", "15167859", "15167742", "15169891", "15176420", "15174980",
-      "15168533", "15175701", "15170244", "15173388", "15171655", "15166901",
-      "15172490", "15169102", "15174215", "15168011", "15176088", "15171290",
-    ],
-    // Marina (94123)
-    marina: [
-      "15057901", "15059244", "15058612", "15060388", "15056733", "15061155",
-      "15058088", "15059899", "15057344", "15060801",
-    ],
-    // Bayview (94124)
-    bayview: [
-      "15185901", "15187233", "15186455", "15188612", "15184788", "15189344",
-      "15186019", "15187801", "15185344", "15188155",
-    ],
-    // Twin Peaks / Glen Park (94131)
-    twinpeaks: [
-      "15140233", "15142588", "15141455", "15143312", "15139788", "15144055",
-      "15141019", "15142101", "15140677", "15143888",
-    ],
+    // Richmond (confirmed: 659 12th Ave $4.95M, etc.)
+    richmond: ["15098085", "15094834", "15091588"],
+    // Sunset (confirmed: 1495 21st Ave $2.93M, etc.)
+    sunset: ["15105418", "15095869", "15115454"],
+    // Mission / Bernal Heights (confirmed: 115 Ellsworth $2.63M, etc.)
+    mission: ["15161966", "15150065", "15162139"],
+    // Noe Valley
+    noe: ["15182650", "15132286", "460322503"],
+    // Pacific Heights
+    pachts: ["15080888", "15082566", "15074528"],
+    // Excelsior (confirmed: 907 Athens St)
+    excelsior: ["15177062", "15167859", "15167742"],
   },
 };
 
-// Map zpids to their neighborhood groups
+// ─── Additional UNVERIFIED zpids — may or may not work, used as fallback ───
+// These extend neighborhood coverage but haven't been individually confirmed.
+const EXTRA_ZPIDS = {
+  "san francisco": {
+    sunset: ["15092973", "15106327", "15120027", "15126338", "15108844", "15111975"],
+    richmond: ["184816884", "15089898", "15094989", "15088761", "15090133"],
+    sunset_richmond: ["15083291", "15086455", "15084819"],
+    mission: ["15161587", "15164646", "15163900", "15160233", "15158901"],
+    noe: ["460896185", "15133901", "15131455", "15134688"],
+    pachts: ["121339149", "15079201", "15081345", "15076912"],
+    soma: ["79842917", "80747470", "79846879", "80743387", "79844512"],
+    hayes: ["15067233", "15069891", "15068455", "15070612"],
+    excelsior: ["15169891", "15176420", "15174980", "15168533"],
+    marina: ["15057901", "15059244", "15058612", "15060388"],
+    bayview: ["15185901", "15187233", "15186455", "15188612"],
+    twinpeaks: ["15140233", "15142588", "15141455", "15143312"],
+  },
+};
+
+// Get zpids for a city — verified first, then extras
 function getZpidsForCity(city) {
   const key = city.toLowerCase().trim();
-  const market = SOLD_ZPIDS[key];
-  if (!market) return [];
-  return Object.values(market).flat();
+  const verified = VERIFIED_ZPIDS[key] || {};
+  const extras = EXTRA_ZPIDS[key] || {};
+  // Verified zpids come first so they're always in the fetch batch
+  const verifiedList = Object.values(verified).flat();
+  const extraList = Object.values(extras).flat();
+  return { verified: verifiedList, extras: extraList, all: [...verifiedList, ...extraList] };
 }
 
-// Get zpids for a specific zip code
+// Get zpids for a specific zip code — verified first
 function getZpidsForZip(city, zip) {
   const key = city.toLowerCase().trim();
-  const market = SOLD_ZPIDS[key];
-  if (!market) return [];
+  const verified = VERIFIED_ZPIDS[key] || {};
+  const extras = EXTRA_ZPIDS[key] || {};
 
   const hoodKey = ZIP_NEIGHBORHOODS[zip];
-  if (!hoodKey) return [];
+  if (!hoodKey) return { verified: [], extras: [], all: [] };
 
-  // Some zips map to multiple neighborhoods (e.g., 94121 → sunset_richmond + richmond)
-  const zpids = [];
-  for (const [name, list] of Object.entries(market)) {
-    if (name === hoodKey || name.includes(hoodKey) || hoodKey.includes(name)) {
-      zpids.push(...list);
-    }
+  const matchHood = (name) => name === hoodKey || name.includes(hoodKey) || hoodKey.includes(name);
+
+  const vList = [];
+  for (const [name, list] of Object.entries(verified)) {
+    if (matchHood(name)) vList.push(...list);
   }
-  return zpids;
+  const eList = [];
+  for (const [name, list] of Object.entries(extras)) {
+    if (matchHood(name)) eList.push(...list);
+  }
+  return { verified: vList, extras: eList, all: [...vList, ...eList] };
 }
 
 // ─── Discovered zpids cache — persists across warm invocations ───
@@ -169,13 +140,8 @@ export default async function handler(req, res) {
       cache.delete(cacheKey);
     }
 
-    // Determine which zpids to fetch
-    let zpids;
-    if (zip) {
-      zpids = getZpidsForZip(city, zip);
-    } else {
-      zpids = getZpidsForCity(city);
-    }
+    // Determine which zpids to fetch (verified first, then extras)
+    const zpidData = zip ? getZpidsForZip(city, zip) : getZpidsForCity(city);
 
     // For "more" mode, we'll discover new zpids from nearbyHomes
     const isMoreMode = more === "1" && zip;
@@ -186,21 +152,18 @@ export default async function handler(req, res) {
       exclude.split(",").forEach(z => excludeSet.add(z.trim()));
     }
 
+    let verifiedZpids = zpidData.verified.filter(z => !excludeSet.has(z));
+    let extraZpids = zpidData.extras.filter(z => !excludeSet.has(z));
+
     if (isMoreMode) {
-      // In "more" mode, use previously discovered zpids for this zip,
-      // or re-discover from existing curated zpids' nearbyHomes
+      // In "more" mode, use previously discovered zpids for this zip
       const discovered = discoveredZpids.get(zip);
       if (discovered && discovered.size > 0) {
-        // Use discovered zpids, excluding ones already seen
-        zpids = [...discovered].filter(z => !excludeSet.has(z));
+        extraZpids = [...discovered].filter(z => !excludeSet.has(z));
       }
-      // If no discovered zpids, fall through to fetch curated ones
-      // (the nearbyHomes will populate discoveredZpids for next time)
-    } else if (excludeSet.size > 0) {
-      zpids = zpids.filter(z => !excludeSet.has(z));
     }
 
-    if (zpids.length === 0) {
+    if (verifiedZpids.length === 0 && extraZpids.length === 0) {
       return res.status(200).json({
         soldListings: [],
         count: 0,
@@ -217,14 +180,26 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    // Limit batch size to stay well within Vercel 10s timeout
-    // City-wide: only 5 zpids (enough for Daily + Free Play seed)
-    // Zip-specific: up to 8 zpids (targeted neighborhood load)
-    const MAX_FETCH = zip ? 8 : 5;
-    // Shuffle zpids deterministically so we don't always get the same ones
+    // ── Build fetch batch: ALL verified zpids first, then fill with extras ──
+    // Verified zpids are confirmed working, so always include them.
+    // City-wide: up to 8 total (all 18 verified if available, then extras)
+    // Zip-specific: up to 6 total
+    const MAX_FETCH = zip ? 6 : 8;
     const dayHash = new Date().getDate();
-    const shuffled = [...zpids].sort((a, b) => ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997));
-    const zpidsToFetch = shuffled.slice(0, MAX_FETCH);
+    // Shuffle extras deterministically for variety
+    const shuffledExtras = [...extraZpids].sort((a, b) => ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997));
+    // Rotate verified zpids too for daily variety
+    const rotatedVerified = [...verifiedZpids];
+    const rotateBy = dayHash % Math.max(rotatedVerified.length, 1);
+    for (let i = 0; i < rotateBy; i++) rotatedVerified.push(rotatedVerified.shift());
+
+    // Verified first, then fill remaining slots with extras
+    const zpidsToFetch = [
+      ...rotatedVerified.slice(0, MAX_FETCH),
+      ...shuffledExtras.slice(0, Math.max(0, MAX_FETCH - rotatedVerified.length)),
+    ].slice(0, MAX_FETCH);
+
+    console.error(`[SoldComps] Batch: ${rotatedVerified.length} verified + ${shuffledExtras.length} extras → fetching ${zpidsToFetch.length}`);
 
     // Fetch property details in parallel — single batch, all at once
     const TIMEOUT_MS = 6000; // 6s per-request timeout
@@ -380,7 +355,8 @@ export default async function handler(req, res) {
       discoveredZpids.set(zip, existing);
     }
 
-    const hasMore = (zpids.length > MAX_FETCH) || discoveredFromNearby.size > 0;
+    const totalAvailable = verifiedZpids.length + extraZpids.length;
+    const hasMore = (totalAvailable > MAX_FETCH) || discoveredFromNearby.size > 0;
 
     console.error(`[SoldComps] ${city}${zip ? ` zip=${zip}` : ""}${isMoreMode ? " MORE" : ""}: ${zpidsToFetch.length}+${discoveredFromNearby.size > 0 && soldListings.length > 0 ? 'discovery' : '0'} zpids, ${fetchedCount} fetched, ${soldCount} sold, ${soldListings.length} returned`);
 
