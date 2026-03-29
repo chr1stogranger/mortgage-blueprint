@@ -163,12 +163,27 @@ const hashDayAndMarket = (dayNum, market) => {
   return hash;
 };
 
+const isRecentSale = (l) => {
+  if (!l.soldDate) return true; // no date = assume recent
+  const saleDate = new Date(l.soldDate);
+  const threeYearsAgo = new Date();
+  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+  return saleDate >= threeYearsAgo;
+};
+
 const getDailyProperty = (soldListings, market) => {
   if (!soldListings || soldListings.length === 0) return null;
-  // Prefer real sold data over SAMPLE_SOLD
-  const realSold = soldListings.filter(l => l._source !== "sample" && l.soldPrice);
-  const pool = realSold.length > 0 ? realSold : soldListings.filter(l => l.soldPrice);
-  if (pool.length === 0) return null;
+  // Prefer real, recent sold data over SAMPLE_SOLD
+  const realSold = soldListings.filter(l => l._source !== "sample" && l.soldPrice && isRecentSale(l));
+  const pool = realSold.length > 0 ? realSold : soldListings.filter(l => l.soldPrice && isRecentSale(l));
+  if (pool.length === 0) {
+    // Last resort: any listing with a sold price (even sample)
+    const fallback = soldListings.filter(l => l.soldPrice);
+    if (fallback.length === 0) return null;
+    const dayNum = getDailyNumber();
+    const hash = hashDayAndMarket(dayNum, market);
+    return { ...fallback[Math.abs(hash) % fallback.length], dailyNumber: dayNum };
+  }
   const dayNum = getDailyNumber();
   const hash = hashDayAndMarket(dayNum, market);
   const idx = Math.abs(hash) % pool.length;
@@ -1056,12 +1071,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const hasFetchedRef = useRef(false);
   useEffect(() => {
     if (!market) return;
-    const needsData = soldListings === SAMPLE_SOLD || activeListings.length === 0 || needsFreshFetch;
+    // Check if sold data is sample/missing (works even after localStorage reload)
+    const isSampleData = soldListings === SAMPLE_SOLD || soldListings.every(l => l._source === "sample");
+    // Check if data is stale (older than 6 hours)
+    const lastFetch = parseInt(localStorage.getItem("pp-last-fetch") || "0", 10);
+    const isStale = Date.now() - lastFetch > 6 * 60 * 60 * 1000;
+    const needsData = isSampleData || activeListings.length === 0 || needsFreshFetch || isStale;
     if (needsData && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
       // ALWAYS fetch by city name — zip-level queries only return listings for that
       // one zip, not the whole market. City-wide gives us all neighborhoods.
-      fetchListings(market.city || market.label, needsFreshFetch);
+      fetchListings(market.city || market.label, needsFreshFetch || isStale);
     }
   }, [market]);
 
@@ -1113,6 +1133,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       const label = data?.location || searchValue;
       setLocationLabel(label);
+      // Record fetch timestamp for staleness check
+      try { localStorage.setItem("pp-last-fetch", String(Date.now())); } catch {}
       return { success: true, label };
     } catch (err) {
       console.error("PricePoint fetch error:", err);
@@ -1336,7 +1358,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ═══════════════════════════════════════════════════════════════
 
   // Trusted sold = came from the recentlySold API endpoint AND has a real soldPrice
-  const isTrueSold = (l) => (l._source === "sold_api" || l._source === "sold_comps") && l.soldPrice;
+  const isTrueSold = (l) => (l._source === "sold_api" || l._source === "sold_comps") && l.soldPrice && isRecentSale(l);
   // Trusted active = came from the forSale API endpoint (active or pending)
   const isTrueActive = (l) => l._source === "active_api";
 

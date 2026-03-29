@@ -32,60 +32,52 @@ function getTodayDate() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ── Fetch sold listings from RapidAPI (reuses pricepoint.js logic) ──
+// ── Fetch sold listings via internal sold-comps endpoint ──
+// Uses the same property-details + priceHistory approach that returns REAL sold data
 async function fetchSoldListings(market) {
-  const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-  if (!RAPIDAPI_KEY) {
-    console.error('[pp-daily] Missing RAPIDAPI_KEY');
-    return [];
-  }
+  try {
+    // Use the Vercel deployment URL or localhost for internal API call
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : 'https://blueprint.realstack.app');
+    const url = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market.name)}`;
+    console.log(`[pp-daily] Fetching sold comps from: ${url}`);
 
-  const res = await fetch(
-    `https://zillow-com-api.p.rapidapi.com/search?location=${encodeURIComponent(market.name + ', ' + market.state)}&listingStatus=sold&home_type=Houses,Condos,Townhomes,MultiFamily&sortSelection=priorityscore&page=1`,
-    {
-      headers: {
-        'x-rapidapi-key': RAPIDAPI_KEY,
-        'x-rapidapi-host': 'zillow-com-api.p.rapidapi.com',
-      },
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) {
+      console.error('[pp-daily] sold-comps error:', res.status);
+      return [];
     }
-  );
 
-  if (!res.ok) {
-    console.error('[pp-daily] RapidAPI error:', res.status);
+    const data = await res.json();
+    return data.soldListings || [];
+  } catch (err) {
+    console.error('[pp-daily] fetchSoldListings error:', err.message);
     return [];
   }
-
-  const data = await res.json();
-  // Extract listings from various response shapes
-  const props = data.searchResults || data.props || data.results || data.data?.results || [];
-  return Array.isArray(props) ? props : [];
 }
 
-// ── Normalize a raw listing into daily challenge format ──
-function normalizeForDaily(raw) {
-  const sqft = raw.livingArea || 0;
-  let homeType = raw.homeType || raw.propertyType || '';
-  if (homeType === 'SINGLE_FAMILY') homeType = 'SingleFamily';
-  else if (homeType === 'CONDO') homeType = 'Condo';
-  else if (homeType === 'TOWNHOUSE') homeType = 'Townhouse';
-  else if (homeType === 'MULTI_FAMILY') homeType = 'MultiFamily';
-
+// ── Normalize a sold-comps listing into daily challenge format ──
+// sold-comps already returns normalized data, just map field names for the DB
+function normalizeForDaily(listing) {
   return {
-    zpid: String(raw.zpid || ''),
-    address: raw.streetAddress || raw.address || 'Unknown',
-    city: raw.city || '',
-    state: raw.state || 'CA',
-    zip: raw.zipcode || raw.zip || '',
-    neighborhood: raw.neighborhood || '',
-    photo: raw.imgSrc || raw.image || raw.photos?.[0] || '',
-    beds: raw.bedrooms || raw.beds || null,
-    baths: raw.bathrooms || raw.baths || null,
-    sqft: sqft || null,
-    year_built: raw.yearBuilt || null,
-    property_type: homeType,
-    list_price: raw.listPrice || raw.originalListPrice || null,
-    days_on_market: raw.daysOnZillow || raw.daysOnMarket || null,
-    sold_price: raw.price || raw.soldPrice || null,
+    zpid: String(listing.zpid || ''),
+    address: listing.address || 'Unknown',
+    city: listing.city || '',
+    state: listing.state || 'CA',
+    zip: listing.zip || '',
+    neighborhood: listing.neighborhood || '',
+    photo: listing.photo || (listing.photos && listing.photos[0]) || '',
+    beds: listing.beds || null,
+    baths: listing.baths || null,
+    sqft: listing.sqft || null,
+    year_built: listing.yearBuilt || null,
+    property_type: listing.propertyType || 'Single Family',
+    list_price: listing.listPrice || null,
+    days_on_market: listing.daysOnMarket || null,
+    sold_price: listing.soldPrice || null,
   };
 }
 
@@ -93,10 +85,19 @@ function normalizeForDaily(raw) {
 // Uses the daily number as a seed to pick consistently for a given date
 function pickDailyProperty(listings, dailyNumber) {
   if (!listings.length) return null;
-  // Filter to properties with a sold price and photo
+  // Filter to recent properties with a sold price, photo, and beds
+  const threeYearsAgo = new Date();
+  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
   const valid = listings.filter(l => {
-    const p = normalizeForDaily(l);
-    return p.sold_price && p.sold_price > 50000 && p.photo && p.beds;
+    if (!l.soldPrice || l.soldPrice < 50000) return false;
+    if (!l.photo && !(l.photos && l.photos[0])) return false;
+    if (!l.beds) return false;
+    // Filter ancient sales
+    if (l.soldDate) {
+      const saleDate = new Date(l.soldDate);
+      if (saleDate < threeYearsAgo) return false;
+    }
+    return true;
   });
   if (!valid.length) return null;
   // Deterministic pick: daily number mod valid count

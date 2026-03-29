@@ -264,6 +264,15 @@ export default async function handler(req, res) {
       const soldDate = soldEvent?.date || null;
 
       if (!soldPrice) return;
+
+      // Filter out ancient sales (older than 3 years)
+      if (soldDate) {
+        const saleDate = new Date(soldDate);
+        const threeYearsAgo = new Date();
+        threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+        if (saleDate < threeYearsAgo) return;
+      }
+
       soldCount++;
 
       const photos = extractPhotos(d);
