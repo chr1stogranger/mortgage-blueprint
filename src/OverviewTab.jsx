@@ -271,7 +271,7 @@ export default function OverviewTab({
   }, []);
 
   return (
-    <div style={{ marginTop: 12, paddingBottom: 80 }}>
+    <div style={{ marginTop: 0, paddingBottom: 80 }}>
       {/* ═══════════════════════════════════════
           SECTION 1: LOAN STRUCTURE (EDITABLE)
           ═══════════════════════════════════════ */}
@@ -341,26 +341,24 @@ export default function OverviewTab({
       <SectionDivider T={T} />
       <CollapsibleSection title="Monthly Payment" T={T} id="overview-payment">
         <OCard T={T}>
-          <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", alignItems: "center", gap: isDesktop ? 24 : 12 }}>
-            {/* PayRing */}
-            <div style={{ flexShrink: 0 }}>
-              <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 240 : 180} />
-            </div>
-            {/* Line items */}
-            <div style={{ flex: 1, width: "100%" }}>
-              {paySegs.filter(s => s.v > 0).map((s, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.separator}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.c }} />
-                    <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
-                  </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(s.v)}</span>
+          {/* PayRing — centered above breakdown */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 200 : 170} />
+          </div>
+          {/* Line items — full width below */}
+          <div>
+            {paySegs.filter(s => s.v > 0).map((s, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${T.separator}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.c }} />
+                  <span style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
                 </div>
-              ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", marginTop: 4 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
-                <span style={{ fontSize: 17, fontWeight: 700, color: T.blue, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
+                <span style={{ fontSize: 15, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(s.v)}</span>
               </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 2px", marginTop: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: T.blue, fontFamily: MONO, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
             </div>
           </div>
         </OCard>
@@ -566,16 +564,16 @@ export default function OverviewTab({
               </div>
             </OCard>
             {calc.yearlyInc > 0 && (
-              <OCard T={T} pad={14}>
+              <OCard T={T} pad={16}>
                 {/* Itemized vs Standard */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, fontSize: 12, marginBottom: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 12, marginBottom: 8 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Itemized Deductions</div>
-                    <div style={{ fontWeight: 700, fontFamily: FONT }}>{fmt(calc.fedItemized)}</div>
+                    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Itemized Deductions</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, fontFamily: MONO, letterSpacing: "-0.02em" }}>{fmt(calc.fedItemized)}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Standard Deduction</div>
-                    <div style={{ fontWeight: 700, fontFamily: FONT }}>{fmt(calc.fedStdDeduction)}</div>
+                    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Standard Deduction</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, fontFamily: MONO, letterSpacing: "-0.02em" }}>{fmt(calc.fedStdDeduction)}</div>
                   </div>
                 </div>
                 {calc.fedItemizes && (

@@ -4263,7 +4263,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ── */}
-   <div style={{ paddingTop: isDesktop ? 60 : (isCloud && !isBorrower ? 110 : 100) }} />
+   <div style={{ paddingTop: isDesktop ? 68 : (isCloud && !isBorrower ? 120 : 108) }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
