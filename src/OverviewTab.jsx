@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import OverviewStickyBar from "./OverviewStickyBar";
+// OverviewStickyBar moved to MortgageBlueprint.jsx to show on all tabs
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -87,7 +87,7 @@ function FeeRow({ label, value, T, indent, bold, color }) {
 }
 
 /* ─── IFW-style category header ─── */
-function FeeCategory({ title, total, T, children, defaultOpen = false }) {
+function FeeCategory({ title, total, T, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: 2 }}>
@@ -125,7 +125,7 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
           {isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}
         </div>
         {/* 1) Down Payment (purchase only) */}
-        {!isRefi && <FeeRow T={T} label="Down Payment" value={`${fmt(calc.dp)} (${downPct}%)`} bold />}
+        {!isRefi && <FeeRow T={T} label="Down Payment" value={fmt(calc.dp)} bold />}
         {/* 2) Closing Costs = Lender + Third Party + Gov */}
         <FeeRow T={T} label="Closing Costs" value={fmt(calc.totalClosingCosts)} bold />
         {/* 3) Prepaid Expenses = Prepaids + Initial Escrow */}
@@ -272,28 +272,6 @@ export default function OverviewTab({
 
   return (
     <div style={{ marginTop: 12, paddingBottom: 80 }}>
-      {/* ── Sticky Bar (appears on scroll) ── */}
-      <OverviewStickyBar
-        salesPrice={salesPrice}
-        calc={calc}
-        creditScore={creditScore}
-        downPct={downPct}
-        loanType={loanType}
-        isRefi={isRefi}
-        refiPurpose={refiPurpose}
-        firstTimeBuyer={firstTimeBuyer}
-        isDesktop={isDesktop}
-        darkMode={darkMode}
-        T={T}
-        allGood={allGood}
-        someGood={someGood}
-        purchPillarCount={purchPillarCount}
-        refiPillarCount={refiPillarCount}
-        dpOk={dpOk}
-        refiLtvCheck={refiLtvCheck}
-        onPillarStripClick={scrollToQualification}
-      />
-
       {/* ═══════════════════════════════════════
           SECTION 1: LOAN STRUCTURE (EDITABLE)
           ═══════════════════════════════════════ */}

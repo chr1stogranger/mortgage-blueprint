@@ -9,6 +9,7 @@ const WorkspaceView = lazy(() => import("./WorkspaceView"));
 const BlueprintPane = lazy(() => import("./BlueprintPane"));
 const SellerNetPane = lazy(() => import("./SellerNetPane"));
 const OverviewTab = lazy(() => import("./OverviewTab"));
+import OverviewStickyBar from "./OverviewStickyBar";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
@@ -2366,7 +2367,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
    // Cash to Close — 3-5 bucket summary + detailed breakdown
    html += `<table>${hdr("Estimated Funds to Close")}`;
-   html += row("Down Payment", fmt(c.dp) + " (" + downPct + "%)");
+   html += row("Down Payment", fmt(c.dp));
    html += row("Closing Costs", fmt(c.totalClosingCosts));
    // Sub-items for closing costs
    const subStyle = 'padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0';
@@ -3978,6 +3979,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
    <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop && !isBorrower ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
+  {/* ═══ STICKY BAR — shows on ALL Blueprint tabs ═══ */}
+  {appMode === "blueprint" && !isBorrower && (
+   <OverviewStickyBar
+    salesPrice={salesPrice} calc={calc} creditScore={creditScore}
+    downPct={downPct} loanType={loanType} isRefi={isRefi}
+    refiPurpose={refiPurpose} firstTimeBuyer={firstTimeBuyer}
+    isDesktop={isDesktop} darkMode={darkMode} T={T}
+    allGood={allGood} someGood={someGood}
+    purchPillarCount={purchPillarCount} refiPillarCount={refiPillarCount}
+    dpOk={dpOk} refiLtvCheck={refiLtvCheck}
+    sidebarCollapsed={sidebarCollapsed}
+    onPillarStripClick={() => { setTab("overview"); setTimeout(() => { const el = document.getElementById("overview-qualification"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100); }}
+   />
+  )}
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ── Borrower mode header bar ── */}
   {isBorrower && (
