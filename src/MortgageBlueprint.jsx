@@ -6433,7 +6433,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    realtorCredit={realtorCredit}
    emd={emd}
    discountPts={discountPts}
-   payoffAtClosing={payoffAtClosing}
+   payoffAtClosing={calc.payoffAtClosing}
   />
  </Suspense>
 )}
