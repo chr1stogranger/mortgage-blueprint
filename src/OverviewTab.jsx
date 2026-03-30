@@ -76,6 +76,123 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, action
   );
 }
 
+/* ─── IFW-style fee line item ─── */
+function FeeRow({ label, value, T, indent, bold, color }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "5px 0", paddingLeft: indent ? 12 : 0 }}>
+      <span style={{ fontSize: bold ? 13 : 12, fontWeight: bold ? 600 : 400, color: bold ? (color || T.text) : T.textSecondary, fontFamily: FONT }}>{label}</span>
+      <span style={{ fontSize: bold ? 13 : 12, fontWeight: bold ? 600 : 500, fontFamily: MONO, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
+    </div>
+  );
+}
+
+/* ─── IFW-style category header ─── */
+function FeeCategory({ title, total, T, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom: 2 }}>
+      <div onClick={() => setOpen(!open)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${T.separator}`, cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", lineHeight: 1 }}>▾</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>{title}</span>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.text }}>{total}</span>
+      </div>
+      {open && <div style={{ padding: "4px 0 8px", borderBottom: `1px solid ${T.separator}` }}>{children}</div>}
+    </div>
+  );
+}
+
+/* ─── IFW-style Cash to Close section ─── */
+function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingFee,
+  appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
+  titleInsurance, titleSearch, settlementFee, escrowFee,
+  recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  discountPts, payoffAtClosing, setTab }) {
+
+  return (
+    <div id="overview-costs">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28, marginBottom: 12, paddingLeft: 4 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>
+          {isRefi ? "Estimated Refi Costs" : "Cash to Close"}
+        </h2>
+        <button onClick={() => setTab("costs")} style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Full Breakdown →</button>
+      </div>
+
+      {/* ── Always-visible summary (green card) ── */}
+      <OCard T={T} style={{ background: `${T.green}08`, border: `1px solid ${T.green}20` }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: T.green, textTransform: "uppercase", letterSpacing: 1.5, fontFamily: MONO, marginBottom: 10 }}>
+          {isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}
+        </div>
+        {!isRefi && <FeeRow T={T} label="Down Payment" value={`${fmt(calc.dp)} (${downPct}%)`} bold />}
+        <FeeRow T={T} label="Lender Fees" value={fmt(calc.origCharges)} bold />
+        <FeeRow T={T} label="Third Party Fees" value={fmt(calc.cannotShop + calc.canShop)} bold />
+        <FeeRow T={T} label="Taxes & Government Fees" value={fmt(calc.govCharges)} bold />
+        <FeeRow T={T} label="Prepaids & Initial Escrow" value={fmt(calc.totalPrepaidExp)} bold />
+        {isRefi && payoffAtClosing > 0 && <FeeRow T={T} label="Est. Total Payoffs" value={fmt(payoffAtClosing)} bold />}
+        {!isRefi && <FeeRow T={T} label="Funds Due from Borrower" value={fmt(calc.cashToClose + calc.totalCredits)} bold />}
+        {calc.totalCredits > 0 && <FeeRow T={T} label="Credits Applied" value={`(${fmt(calc.totalCredits)})`} bold color={T.green} />}
+        <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
+          <FeeRow T={T} label={isRefi ? "ESTIMATED TOTAL REFI COSTS" : "ESTIMATED CASH FROM BORROWER"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)} bold color={T.green} />
+        </div>
+      </OCard>
+
+      {/* ── Collapsible detailed breakdown ── */}
+      <CollapsibleSection title="Fee Breakdown" T={T} defaultOpen={false}>
+        <OCard T={T} pad={16}>
+          {/* Lender Fees */}
+          <FeeCategory title="Lender Fees" total={fmt(calc.origCharges)} T={T}>
+            {underwritingFee > 0 && <FeeRow T={T} label="Underwriting Fee" value={fmt(underwritingFee)} indent />}
+            {processingFee > 0 && <FeeRow T={T} label="Processing Fee" value={fmt(processingFee)} indent />}
+            {calc.pointsCost > 0 && <FeeRow T={T} label={`Discount Points (${discountPts}%)`} value={fmt(calc.pointsCost)} indent />}
+          </FeeCategory>
+
+          {/* Services You Cannot Shop For */}
+          <FeeCategory title="Services You Cannot Shop For" total={fmt(calc.cannotShop)} T={T}>
+            {appraisalFee > 0 && <FeeRow T={T} label="Appraisal Fee" value={fmt(appraisalFee)} indent />}
+            {creditReportFee > 0 && <FeeRow T={T} label="Credit Report" value={fmt(creditReportFee)} indent />}
+            {floodCertFee > 0 && <FeeRow T={T} label="Flood Certification" value={fmt(floodCertFee)} indent />}
+            {mersFee > 0 && <FeeRow T={T} label="MERS Fee" value={fmt(mersFee)} indent />}
+            {taxServiceFee > 0 && <FeeRow T={T} label="Tax Service Fee" value={fmt(taxServiceFee)} indent />}
+          </FeeCategory>
+
+          {/* Services You Can Shop For */}
+          <FeeCategory title="Services You Can Shop For" total={fmt(calc.canShop)} T={T}>
+            {titleInsurance > 0 && <FeeRow T={T} label="Title Insurance" value={fmt(titleInsurance)} indent />}
+            {titleSearch > 0 && <FeeRow T={T} label="Title Search" value={fmt(titleSearch)} indent />}
+            {settlementFee > 0 && <FeeRow T={T} label="Settlement / Closing Fee" value={fmt(settlementFee)} indent />}
+            {escrowFee > 0 && <FeeRow T={T} label="Escrow Fee" value={fmt(escrowFee)} indent />}
+            {calc.hoaCert > 0 && <FeeRow T={T} label="HOA Certification" value={fmt(calc.hoaCert)} indent />}
+          </FeeCategory>
+
+          {/* Taxes & Government Fees */}
+          <FeeCategory title="Taxes & Government Fees" total={fmt(calc.govCharges)} T={T}>
+            {calc.buyerCityTT > 0 && <FeeRow T={T} label="Transfer Tax (City)" value={fmt(calc.buyerCityTT)} indent />}
+            {recordingFee > 0 && <FeeRow T={T} label="Recording Fees" value={fmt(recordingFee)} indent />}
+          </FeeCategory>
+
+          {/* Prepaids & Initial Escrow */}
+          <FeeCategory title="Prepaids & Initial Escrow" total={fmt(calc.totalPrepaidExp)} T={T}>
+            {calc.prepaidInt > 0 && <FeeRow T={T} label={`Prepaid Interest (${calc.autoPrepaidDays} days)`} value={fmt2(calc.prepaidInt)} indent />}
+            {calc.prepaidIns > 0 && <FeeRow T={T} label="Prepaid Homeowner's Insurance (12 mo)" value={fmt(calc.prepaidIns)} indent />}
+            {calc.initialEscrow > 0 && <FeeRow T={T} label={`Initial Escrow (${calc.escrowTaxMonths} mo tax + ${calc.escrowInsMonths} mo ins)`} value={fmt(calc.initialEscrow)} indent />}
+          </FeeCategory>
+
+          {/* Credits */}
+          {calc.totalCredits > 0 && (
+            <FeeCategory title="Credits" total={`(${fmt(calc.totalCredits)})`} T={T}>
+              {lenderCredit > 0 && <FeeRow T={T} label="Lender Credit" value={`(${fmt(lenderCredit)})`} indent color={T.green} />}
+              {!isRefi && sellerCredit > 0 && <FeeRow T={T} label="Seller Credit" value={`(${fmt(sellerCredit)})`} indent color={T.green} />}
+              {!isRefi && realtorCredit > 0 && <FeeRow T={T} label="Realtor Credit" value={`(${fmt(realtorCredit)})`} indent color={T.green} />}
+              {!isRefi && emd > 0 && <FeeRow T={T} label="Earnest Money Deposit" value={`(${fmt(emd)})`} indent color={T.green} />}
+            </FeeCategory>
+          )}
+        </OCard>
+      </CollapsibleSection>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    OVERVIEW TAB — The full-page scrollable deal view
    ═══════════════════════════════════════════════════════════════ */
@@ -137,6 +254,12 @@ export default function OverviewTab({
   isBorrower,
   /* REO */
   reos,
+  /* Individual fees for IFW-style breakdown */
+  underwritingFee, processingFee, appraisalFee, creditReportFee,
+  floodCertFee, mersFee, taxServiceFee,
+  titleInsurance, titleSearch, settlementFee, escrowFee,
+  recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  discountPts, payoffAtClosing,
 }) {
   const qualRef = useRef(null);
 
@@ -315,48 +438,21 @@ export default function OverviewTab({
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 3: CASH TO CLOSE SUMMARY
+          SECTION 3: CASH TO CLOSE — IFW STYLE
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs" action="Full Breakdown →" onAction={() => setTab("costs")}>
-        {/* Summary cards */}
-        {!isRefi && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <OCard T={T} pad={12}>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>Down Payment</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.dp)}</div>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>{downPct}%</div>
-            </OCard>
-            <OCard T={T} pad={12}>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>Closing Costs</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.totalClosingCosts)}</div>
-            </OCard>
-          </div>
-        )}
-        {!isRefi && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <OCard T={T} pad={12}>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>Prepaids & Escrow</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.orange }}>{fmt(calc.totalPrepaidExp)}</div>
-            </OCard>
-            <OCard T={T} pad={12}>
-              <div style={{ fontSize: 10, color: T.textTertiary }}>Credits</div>
-              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green }}>-{fmt(calc.totalCredits)}</div>
-            </OCard>
-          </div>
-        )}
-
-        {/* Total */}
-        <OCard T={T} style={{ background: `${T.green}10`, border: `1px solid ${T.green}25` }}>
-          <OMRow T={T} label={isRefi ? "Total Refi Costs" : "Down Payment"} value={isRefi ? "" : fmt(calc.dp)} />
-          {!isRefi && <OMRow T={T} label="Closing Costs" value={fmt(calc.totalClosingCosts)} />}
-          <OMRow T={T} label={isRefi ? "Closing + Prepaids" : "Prepaids & Escrow"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.totalPrepaidExp)} />
-          {!isRefi && calc.totalCredits > 0 && <OMRow T={T} label="Credits" value={`-${fmt(calc.totalCredits)}`} color={T.green} />}
-          <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
-            <OMRow T={T} label={isRefi ? "TOTAL REFI COSTS" : "ESTIMATED CASH TO CLOSE"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)} color={T.green} bold />
-          </div>
-        </OCard>
-      </CollapsibleSection>
+      <IFWCashToClose
+        T={T} calc={calc} isRefi={isRefi} downPct={downPct}
+        underwritingFee={underwritingFee} processingFee={processingFee}
+        appraisalFee={appraisalFee} creditReportFee={creditReportFee}
+        floodCertFee={floodCertFee} mersFee={mersFee} taxServiceFee={taxServiceFee}
+        titleInsurance={titleInsurance} titleSearch={titleSearch}
+        settlementFee={settlementFee} escrowFee={escrowFee}
+        recordingFee={recordingFee} lenderCredit={lenderCredit}
+        sellerCredit={sellerCredit} realtorCredit={realtorCredit}
+        emd={emd} discountPts={discountPts} payoffAtClosing={payoffAtClosing}
+        setTab={setTab}
+      />
 
       {/* ═══════════════════════════════════════
           SECTION 4: QUALIFICATION (5 PILLARS)

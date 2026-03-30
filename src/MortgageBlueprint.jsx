@@ -2364,7 +2364,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (hoa > 0) html += row("HOA Dues",fmt(hoa));
    html += `${row("TOTAL PAYMENT",fmt(c.housingPayment),true,"#1e3a5f")}</table>`;
 
-   html += `<table>${hdr("Cash to Close")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Prepaids & Escrow Reserves",fmt(c.totalPrepaidExp))}${row("Down Payment",fmt(c.dp))}${row("TOTAL CASH TO CLOSE",fmt(c.cashToClose),true,"#1e3a5f")}</table>`;
+   // IFW-style Cash to Close breakdown
+   html += `<table>${hdr("Estimated Funds to Close")}`;
+   html += row("Down Payment", fmt(c.dp) + " (" + downPct + "%)");
+   html += row("Lender Fees", fmt(c.origCharges));
+   if (underwritingFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Underwriting Fee</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(underwritingFee)}</td></tr>`;
+   if (processingFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Processing Fee</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(processingFee)}</td></tr>`;
+   if (c.pointsCost > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Discount Points (${discountPts}%)</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(c.pointsCost)}</td></tr>`;
+   html += row("Third Party Fees", fmt(c.cannotShop + c.canShop));
+   if (appraisalFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Appraisal</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(appraisalFee)}</td></tr>`;
+   if (creditReportFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Credit Report</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(creditReportFee)}</td></tr>`;
+   if (titleInsurance > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Title Insurance</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(titleInsurance)}</td></tr>`;
+   if (escrowFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Escrow Fee</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(escrowFee)}</td></tr>`;
+   html += row("Taxes & Government Fees", fmt(c.govCharges));
+   html += row("Prepaids & Initial Escrow", fmt(c.totalPrepaidExp));
+   if (c.totalCredits > 0) html += row("Credits Applied", "(" + fmt(c.totalCredits) + ")", false, "#16a34a");
+   html += row("ESTIMATED CASH FROM BORROWER", fmt(c.cashToClose), true, "#1e3a5f");
+   html += `</table>`;
 
    if (calc.yearlyInc > 0) {
     html += `<table>${hdr("Qualification Snapshot")}${row("Gross Monthly Income",fmt(calc.monthlyGross))}${row("Front-End DTI (Housing)",calc.frontDti.toFixed(1)+"%")}${row("Back-End DTI (Total Debt)",calc.dti.toFixed(1)+"%")}${row("After-Tax Monthly Payment",fmt(calc.afterTaxPayment))}</table>`;
@@ -6399,6 +6415,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    scenarioName={scenarioName}
    isBorrower={isBorrower}
    reos={reos}
+   /* Individual fee state for IFW-style breakdown */
+   underwritingFee={underwritingFee}
+   processingFee={processingFee}
+   appraisalFee={appraisalFee}
+   creditReportFee={creditReportFee}
+   floodCertFee={floodCertFee}
+   mersFee={mersFee}
+   taxServiceFee={taxServiceFee}
+   titleInsurance={titleInsurance}
+   titleSearch={titleSearch}
+   settlementFee={settlementFee}
+   escrowFee={escrowFee}
+   recordingFee={recordingFee}
+   lenderCredit={lenderCredit}
+   sellerCredit={sellerCredit}
+   realtorCredit={realtorCredit}
+   emd={emd}
+   discountPts={discountPts}
+   payoffAtClosing={payoffAtClosing}
   />
  </Suspense>
 )}
