@@ -1481,6 +1481,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [propertyCounty, setPropertyCounty] = useState("");
  const [hoa, setHoa] = useState(0);
  const [annualIns, setAnnualIns] = useState(1500);
+ const [propTaxMode, setPropTaxMode] = useState("auto"); // "auto" or "custom"
+ const [taxBaseRateOverride, setTaxBaseRateOverride] = useState(0); // e.g. 1.2127 (percent, not decimal)
+ const [fixedAssessments, setFixedAssessments] = useState(0); // annual Mello-Roos / bonds / special assessments
+ const [taxExemptionOverride, setTaxExemptionOverride] = useState(7000); // primary res exemption (CA default $7K)
  const [includeEscrow, setIncludeEscrow] = useState(true);
  const [subjectRentalIncome, setSubjectRentalIncome] = useState(0);
  const [transferTaxCity, setTransferTaxCity] = useState("Alameda");
@@ -1671,6 +1675,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
+  propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
   prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -1705,6 +1710,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.propertyState) setPropertyState(s.propertyState);
   if (s.hoa !== undefined) setHoa(s.hoa);
   if (s.annualIns !== undefined) setAnnualIns(s.annualIns);
+  if (s.propTaxMode) setPropTaxMode(s.propTaxMode);
+  if (s.taxBaseRateOverride !== undefined) setTaxBaseRateOverride(s.taxBaseRateOverride);
+  if (s.fixedAssessments !== undefined) setFixedAssessments(s.fixedAssessments);
+  if (s.taxExemptionOverride !== undefined) setTaxExemptionOverride(s.taxExemptionOverride);
   if (s.subjectRentalIncome !== undefined) setSubjectRentalIncome(s.subjectRentalIncome);
   if (s.includeEscrow !== undefined) setIncludeEscrow(s.includeEscrow);
   if (s.transferTaxCity) {
@@ -2001,6 +2010,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
+  propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
@@ -2094,7 +2104,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const r = (s.rate || 6.5) / 100 / 12;
   const n = (s.term || 30) * 12;
   const pi = r > 0 ? loan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : loan / n;
-  const yearlyTax = sp * (1.25 / 100);
+  const qAutoRate = (s.propertyState || propertyState) === "California" ? (CITY_TAX_RATES[s.city || city] || 0.012) : (STATE_PROPERTY_TAX_RATES[s.propertyState || propertyState] || 0.0102);
+  const qTaxRate = propTaxMode === "custom" && taxBaseRateOverride > 0 ? taxBaseRateOverride / 100 : qAutoRate;
+  const qExempt = propTaxMode === "custom" ? (taxExemptionOverride || 0) : ((s.loanPurpose || loanPurpose) === "Purchase Primary" ? 7000 : 0);
+  const yearlyTax = Math.max(0, sp - qExempt) * qTaxRate + (propTaxMode === "custom" ? (fixedAssessments || 0) : 0);
   const monthlyTax = yearlyTax / 12;
   const ins = (s.annualIns || 1500) / 12;
   let mi = 0;
@@ -2942,8 +2955,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Auto-fill refi tax and insurance from setup values
  useEffect(() => {
   if (!isRefi) return;
-  const taxRate = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
-  const yearlyTax = salesPrice * taxRate;
+  const autoRate = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
+  const effRate = propTaxMode === "custom" && taxBaseRateOverride > 0 ? taxBaseRateOverride / 100 : autoRate;
+  const exempt = propTaxMode === "custom" ? (taxExemptionOverride || 0) : 7000;
+  const yearlyTax = Math.max(0, salesPrice - exempt) * effRate + (propTaxMode === "custom" ? (fixedAssessments || 0) : 0);
   if (refiAnnualTax === 0 && yearlyTax > 0) setRefiAnnualTax(Math.round(yearlyTax));
   if (refiAnnualIns === 0 && annualIns > 0) setRefiAnnualIns(annualIns);
  }, [isRefi, salesPrice, city, propertyState, annualIns]);
@@ -3004,10 +3019,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const loan = baseLoan + fhaUp + vaFundingFee + usdaFee;
   const mr = rate / 100 / 12, np = term * 12;
   const pi = calcPI(loan, rate, term);
-  const taxRate = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
-  const yearlyTax = salesPrice * taxRate;
-  const exemption = loanPurpose === "Purchase Primary" ? 7000 : 0;
-  const monthlyTax = (yearlyTax - exemption * taxRate) / 12;
+  // ── Property Tax Calculator ──
+  const autoTaxRate = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
+  const taxRate = propTaxMode === "custom" && taxBaseRateOverride > 0 ? taxBaseRateOverride / 100 : autoTaxRate;
+  const exemption = propTaxMode === "custom" ? (taxExemptionOverride || 0) : (loanPurpose === "Purchase Primary" ? 7000 : 0);
+  const taxableValue = Math.max(0, salesPrice - exemption);
+  const baseTax = taxableValue * taxRate;
+  const yearlyFixedAssess = propTaxMode === "custom" ? (fixedAssessments || 0) : 0;
+  const yearlyTax = baseTax + yearlyFixedAssess;
+  const effectiveTaxRate = salesPrice > 0 ? yearlyTax / salesPrice : 0;
+  const monthlyTax = yearlyTax / 12;
   const ins = annualIns / 12;
   const pmiRate = ltv > 0.80 ? getPMIRate(ltv, creditScore) : 0;
   const monthlyPMI = loanType === "Conventional" ? (baseLoan * pmiRate) / 12 : 0;
@@ -3414,6 +3435,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    : displayPayment;
   return {
    dp, baseLoan, loan, fhaUp, vaFundingFee, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, monthlyPMI, monthlyMIP, monthlyMI,
+   taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
    housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
@@ -3455,6 +3477,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
+  propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
   sellerTaxBasis, prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -4565,12 +4588,99 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ) : (
    <>
     <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
-    <div style={{ background: `${T.blue}08`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, marginTop: -6 }}>
-     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Using {propertyState} average effective rate of {((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(2)}%. For a precise rate, check your county assessor.</div>
-    </div>
+    {propTaxMode === "auto" && (
+     <div style={{ background: `${T.blue}08`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, marginTop: -6 }}>
+      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Using {propertyState} average effective rate of {((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(2)}%. For a precise rate, check your county assessor.</div>
+     </div>
+    )}
    </>
   )}
   </div>{/* end state+city 2-col grid */}
+  {/* ── Property Tax Calculator ── */}
+  {(() => {
+   const autoRate = calc.autoTaxRate;
+   const ptExpanded = propTaxMode === "custom";
+   return (
+    <div style={{ background: T.card, borderRadius: 16, border: `1px solid ${ptExpanded ? `${T.blue}40` : T.cardBorder}`, marginBottom: 12, overflow: "hidden", transition: "all 0.3s" }}>
+     {/* Header row — always visible */}
+     <div onClick={() => {
+      if (propTaxMode === "auto") {
+       setPropTaxMode("custom");
+       if (taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4)));
+      } else {
+       setPropTaxMode("auto");
+      }
+     }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", cursor: "pointer" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+       <Icon name="calculator" size={16} style={{ color: T.blue }} />
+       <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Property Tax</span>
+       <span style={{ fontSize: 12, color: T.textTertiary, fontFamily: MONO }}>{fmt(calc.monthlyTax)}/mo</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+       <span style={{ fontSize: 11, fontWeight: 600, fontFamily: MONO, color: ptExpanded ? T.blue : T.textTertiary, background: ptExpanded ? `${T.blue}15` : T.pillBg, borderRadius: 99, padding: "3px 10px" }}>{ptExpanded ? "CUSTOM" : "AUTO"}</span>
+       <span style={{ color: T.textTertiary, fontSize: 12, transition: "transform 0.2s", transform: ptExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+      </div>
+     </div>
+     {/* Summary line in auto mode */}
+     {!ptExpanded && (
+      <div style={{ padding: "0 16px 12px", fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: -6 }}>
+       {propertyState === "California" ? `${city || "California"} base rate: ` : `${propertyState} avg rate: `}
+       <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(autoRate * 100).toFixed(3)}%</span>
+       {" → "}
+       <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
+       <span style={{ marginLeft: 6, color: T.blue, fontWeight: 500, cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setPropTaxMode("custom"); if (taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4))); }}>Customize →</span>
+      </div>
+     )}
+     {/* Expanded: Full Prop Tax Calculator */}
+     {ptExpanded && (
+      <div style={{ padding: "0 16px 16px" }}>
+       <div style={{ height: 1, background: T.separator, marginBottom: 14 }} />
+       {/* Base Rate + Exemption row */}
+       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <Inp label="Base Tax Rate" value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm tip="The ad valorem tax rate for this jurisdiction. In CA, Prop 13 sets the base at 1%, but voter-approved bonds add more. Check your county assessor's website for the exact rate." />
+        <Inp label="Exemption" value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm tip="Primary residence exemption reduces your assessed value. CA Homeowner's Exemption is $7,000. Other states vary — TX is $100K, FL up to $50K, etc." />
+       </div>
+       {/* Fixed Assessments */}
+       <Inp label="Fixed Assessments" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm tip="Annual fixed charges like Mello-Roos (CFD), special district bonds, mosquito abatement, school parcel taxes, etc. These are flat dollar amounts on top of the ad valorem tax. Check your county tax bill." />
+       {/* Breakdown table */}
+       <div style={{ marginTop: 14, background: T.bg, borderRadius: 12, padding: "12px 14px" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 10 }}>Property Tax Calculation</div>
+        {[
+         ["Sales Price", fmt(salesPrice)],
+         ["Primary Res Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
+         ["Taxable Value", fmt(calc.taxableValue)],
+         ["Base Tax Rate", `${taxBaseRateOverride.toFixed(4)}%`],
+         ["Base Tax", fmt2(calc.baseTax)],
+         ...(fixedAssessments > 0 ? [["Fixed Assessments", fmt(fixedAssessments)]] : []),
+        ].map(([label, value], i) => (
+         <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.separator}` }}>
+          <span style={{ fontSize: 13, color: T.textSecondary }}>{label}</span>
+          <span style={{ fontSize: 13, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+         </div>
+        ))}
+        {/* Totals */}
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 4px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+         <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Yearly Total</span>
+         <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: `${T.orange}15`, borderRadius: 10, marginTop: 8 }}>
+         <span style={{ fontSize: 14, fontWeight: 700, color: T.orange }}>Monthly Prop Tax</span>
+         <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.orange }}>{fmt2(calc.monthlyTax)}</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", marginTop: 6 }}>
+         <span style={{ fontSize: 12, color: T.textTertiary }}>Effective Rate</span>
+         <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.textSecondary }}>{(calc.effectiveTaxRate * 100).toFixed(4)}%</span>
+        </div>
+       </div>
+       {/* Reset to auto link */}
+       <div style={{ textAlign: "center", marginTop: 10 }}>
+        <span onClick={() => { setPropTaxMode("auto"); setTaxBaseRateOverride(0); setFixedAssessments(0); setTaxExemptionOverride(7000); }} style={{ fontSize: 12, color: T.textTertiary, cursor: "pointer", textDecoration: "underline" }}>Reset to auto-estimate</span>
+       </div>
+      </div>
+     )}
+    </div>
+   );
+  })()}
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
    <Inp label="Insurance" value={annualIns} onChange={setAnnualIns} suffix="/yr" max={50000} sm tip="Annual homeowner's insurance premium. Required by all lenders. Typically 0.3-1% of home value per year." />
    <Inp label="HOA" value={hoa} onChange={setHoa} suffix="/mo" max={10000} sm tip="Monthly Homeowners Association fee. Common in condos and planned communities. This counts toward your DTI." />
@@ -6419,7 +6529,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
     {(city && propertyState) && (
      <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
-      ✓ {city}, {propertyCounty ? propertyCounty + " County, " : ""}{propertyState} — Tax rate: {((CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES[propertyState] || 0.012) * 100).toFixed(3)}%
+      ✓ {city}, {propertyCounty ? propertyCounty + " County, " : ""}{propertyState} — Tax rate: {(calc.taxRate * 100).toFixed(3)}%{propTaxMode === "custom" ? " (custom)" : ""}
      </div>
     )}
 
@@ -6544,7 +6654,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Zip summary — Tax, Transfer, AMI right below estimate ── */}
    {(city && propertyState) && (
     <div style={{ marginTop: 6, padding: "6px 14px", display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
-     <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propertyState === "California" ? ((CITY_TAX_RATES[city] || 0.012) * 100).toFixed(3) : ((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(3)}%</span></span>
+     <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propTaxMode === "custom" ? (calc.effectiveTaxRate * 100).toFixed(3) : (calc.taxRate * 100).toFixed(3)}%</span>{propTaxMode === "custom" && <span style={{ color: T.blue, fontSize: 10, marginLeft: 3 }}>eff.</span>}</span>
      {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
      {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
     </div>
