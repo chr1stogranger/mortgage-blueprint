@@ -440,18 +440,6 @@ export default function OverviewTab({
             </div>
           </OCard>
 
-          {/* Pre-Approved CTA */}
-          {allGood && !isRefi && (
-            <OCard T={T} style={{ background: `${T.green}15`, textAlign: "center", padding: 20 }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>PRE-QUALIFIED</div>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>All 5 pillars cleared — based on the information you provided.</div>
-              <button onClick={() => window.open("https://2179191.my1003app.com/952015/register", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
-              </button>
-            </OCard>
-          )}
-
           {/* DTI Summary (if income entered) */}
           {calc.qualifyingIncome > 0 && (
             <OCard T={T} pad={14}>
