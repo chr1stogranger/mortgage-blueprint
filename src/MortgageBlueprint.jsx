@@ -8,6 +8,7 @@ const Markets = lazy(() => import("./Markets"));
 const WorkspaceView = lazy(() => import("./WorkspaceView"));
 const BlueprintPane = lazy(() => import("./BlueprintPane"));
 const SellerNetPane = lazy(() => import("./SellerNetPane"));
+const OverviewTab = lazy(() => import("./OverviewTab"));
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
@@ -1399,7 +1400,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, []);
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
- const [tab, setTab] = useState("setup");
+ const [tab, setTab] = useState("overview");
  // ── App Mode: Blueprint or PricePoint ──
  const [appMode, setAppMode] = useState(() => {
   try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'blueprint') return 'blueprint'; if (p.get('mode') === 'markets') return 'markets'; } catch {}
@@ -3655,7 +3656,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // PRICEPOINT — Now in PricePoint.jsx
  // ═══════════════════════════════════════════
  // (all PricePoint logic moved to PricePoint.jsx)
- const TABS = [["setup","Setup"],["calc","Calculator"],
+ const TABS = [["overview","Overview"],["setup","Setup"],["calc","Calculator"],
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
   ["costs","Costs"],["income","Income"],["debts","Debts"],
   ...(ownsProperties ? [["reo","REO"]] : []),
@@ -3892,7 +3893,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        const locked = !isTabUnlocked(k);
        const completed = !!completedTabs[k];
        const active = tab === k;
-       const icons = { setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
+       const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; } }}
          style={{
@@ -6345,6 +6346,59 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
  <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
+)}
+{/* ═══ OVERVIEW ═══ */}
+{tab === "overview" && (
+ <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
+  <OverviewTab
+   salesPrice={salesPrice} setSalesPrice={setSalesPrice}
+   downPct={downPct} setDownPct={setDownPct}
+   downMode={downMode} setDownMode={setDownMode}
+   rate={rate} setRate={setRate}
+   term={term} setTerm={setTerm}
+   loanType={loanType} setLoanType={setLoanType}
+   propType={propType} setPropType={setPropType}
+   loanPurpose={loanPurpose} setLoanPurpose={setLoanPurpose}
+   propertyState={propertyState} setPropertyState={setPropertyState}
+   city={city} setCity={setCity}
+   propertyZip={propertyZip}
+   annualIns={annualIns} setAnnualIns={setAnnualIns}
+   hoa={hoa} setHoa={setHoa}
+   includeEscrow={includeEscrow} setIncludeEscrow={setIncludeEscrow}
+   closingMonth={closingMonth} closingDay={closingDay}
+   isRefi={isRefi}
+   firstTimeBuyer={firstTimeBuyer}
+   creditScore={creditScore}
+   married={married}
+   taxState={taxState}
+   darkMode={darkMode}
+   isDesktop={isDesktop}
+   T={T}
+   calc={calc}
+   paySegs={paySegs}
+   allGood={allGood} someGood={someGood}
+   purchPillarCount={purchPillarCount} refiPillarCount={refiPillarCount}
+   dpOk={dpOk} refiLtvCheck={refiLtvCheck}
+   refiPurpose={refiPurpose}
+   debts={debts} debtFree={debtFree}
+   ownsProperties={ownsProperties}
+   incomes={incomes}
+   assets={assets}
+   payExtra={payExtra} setPayExtra={setPayExtra}
+   extraPayment={extraPayment} setExtraPayment={setExtraPayment}
+   appreciationRate={appreciationRate} setAppreciationRate={setAppreciationRate}
+   hasSellProperty={hasSellProperty}
+   sellPrice={sellPrice} sellMortgagePayoff={sellMortgagePayoff}
+   setTab={setTab}
+   PayRing={PayRing} StopLight={StopLight} AmortChart={AmortChart} Progress={Progress}
+   Inp={Inp} Sel={Sel} SearchSelect={SearchSelect} Note={Note} InfoTip={InfoTip}
+   liveRates={liveRates} fetchRates={fetchRates} ratesLoading={ratesLoading} ratesError={ratesError} fredApiKey={fredApiKey}
+   loanTypes={LOAN_TYPES} propTypes={PROP_TYPES} closingMonths={[1,2,3,4,5,6,7,8,9,10,11,12]}
+   scenarioName={scenarioName}
+   isBorrower={isBorrower}
+   reos={reos}
+  />
+ </Suspense>
 )}
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
