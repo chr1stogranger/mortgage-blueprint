@@ -16,9 +16,10 @@ export default function OverviewStickyBar({
   sidebarCollapsed,
   onPillarStripClick,
 }) {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(() => typeof window !== "undefined" && window.scrollY > 280);
   useEffect(() => {
     const handleScroll = () => setVisible(window.scrollY > 280);
+    handleScroll(); // run immediately in case page is already scrolled
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
