@@ -9,7 +9,7 @@ const WorkspaceView = lazy(() => import("./WorkspaceView"));
 const BlueprintPane = lazy(() => import("./BlueprintPane"));
 const SellerNetPane = lazy(() => import("./SellerNetPane"));
 const OverviewTab = lazy(() => import("./OverviewTab"));
-import OverviewStickyBar from "./OverviewStickyBar";
+import UnifiedHeader from "./UnifiedHeader";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, createBorrower, updateBorrower,
@@ -3979,18 +3979,62 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
    <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop && !isBorrower ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
-  {/* ═══ STICKY BAR — shows on ALL Blueprint tabs ═══ */}
+  {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══ */}
   {appMode === "blueprint" && !isBorrower && (
-   <OverviewStickyBar
+   <UnifiedHeader
     salesPrice={salesPrice} calc={calc} creditScore={creditScore}
     downPct={downPct} loanType={loanType} isRefi={isRefi}
     refiPurpose={refiPurpose} firstTimeBuyer={firstTimeBuyer}
-    isDesktop={isDesktop} darkMode={darkMode} T={T}
     allGood={allGood} someGood={someGood}
     purchPillarCount={purchPillarCount} refiPillarCount={refiPillarCount}
     dpOk={dpOk} refiLtvCheck={refiLtvCheck}
-    sidebarCollapsed={sidebarCollapsed}
-    onPillarStripClick={() => { setTab("overview"); setTimeout(() => { const el = document.getElementById("overview-qualification"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100); }}
+    scenarioName={scenarioName} scenarioList={scenarioList} switchScenario={switchScenario}
+    saving={saving} loaded={loaded} cloudSyncStatus={cloudSyncStatus} sync={sync}
+    darkMode={darkMode} themeMode={themeMode} cycleTheme={cycleTheme}
+    privacyMode={privacyMode} setPrivacyMode={setPrivacyMode}
+    isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}
+    setTab={setTab} onCompare={() => setTab("compare")}
+    isCloud={isCloud} isBorrower={isBorrower} auth={auth}
+    borrowerList={borrowerList} activeBorrower={activeBorrower}
+    borrowerLoading={borrowerLoading}
+    borrowerScenarios={borrowerScenarios}
+    borrowerScenariosLoading={borrowerScenariosLoading}
+    BorrowerPicker={BorrowerPicker}
+    borrowerPickerCallbacks={{
+     onSelect: async (b) => {
+      if (!b) { setActiveBorrower(null); setActiveScenarioId(null); setBorrowerScenarios([]); return; }
+      setActiveBorrower(b); setActiveScenarioId(null); setBorrowerScenariosLoading(true);
+      try { const scens = await apiFetchScenarios(b.id); setBorrowerScenarios(scens || []); }
+      catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); setBorrowerScenarios([]); }
+      setBorrowerScenariosLoading(false);
+     },
+     onSelectScenario: (scenario) => {
+      if (scenario.state_data) loadState(scenario.state_data);
+      setActiveScenarioId(scenario.id);
+      setScenarioName(scenario.name || 'Scenario 1');
+      sync.initSync(scenario.state_data, scenario.locked_fields);
+     },
+     onAutoCreateScenario: async (borrower) => {
+      try {
+       let prefillState = {};
+       try { const r = await fetchBorrowerPrefill(borrower.id); if (r?.prefill) prefillState = r.prefill; } catch {}
+       const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: prefillState, calc_summary: {} });
+       const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
+       if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); }
+      } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
+     },
+     onCreateNew: async (prefillName) => {
+      const name = prefillName || prompt("New client name:"); if (!name) return;
+      try { const result = await createBorrower({ name, status: 'active' }); const newB = result?.[0] || result;
+       if (newB?.id) { setBorrowerList(prev => [...prev, newB]); setActiveBorrower(newB); setActiveScenarioId(null); setBorrowerScenarios([]); }
+      } catch (err) { alert('Failed to create client: ' + err.message); }
+     },
+    }}
+    mobileTabBar={!isDesktop ? (
+     <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
+      {TABS.map(([k, l]) => <Tab key={k} tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} />)}
+     </div>
+    ) : null}
    />
   )}
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
@@ -4218,190 +4262,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
-   {/* ── Sticky Header ── */}
-   <div style={{ position: "sticky", top: isDesktop ? 0 : 44, zIndex: 50, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", background: T.headerBg, maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box" }}>
-    <div style={{ padding: "16px 20px 8px" }}>
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-      <div>
-       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: T.text }}>Blueprint</span>
-       </div>
-       <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2, flexWrap: "nowrap", overflow: "hidden" }}>
-        {scenarioList.length > 1 ? scenarioList.map(name => (
-         <span key={name} onClick={() => name !== scenarioName ? switchScenario(name) : null}
-          style={{ fontSize: 12, fontWeight: name === scenarioName ? 700 : 400, color: name === scenarioName ? T.blue : T.textTertiary, cursor: name === scenarioName ? "default" : "pointer", textDecoration: name === scenarioName ? "none" : "underline", whiteSpace: "nowrap", transition: "all 0.2s" }}>
-          {name}
-         </span>
-        )) : <span style={{ fontSize: 12, fontWeight: 500, color: T.blue }}>{scenarioName}</span>}
-        {scenarioList.length > 1 && <span onClick={() => setTab("compare")} style={{ fontSize: 10, fontWeight: 700, color: T.blue, background: `${T.blue}15`, borderRadius: 6, padding: "2px 6px", cursor: "pointer", whiteSpace: "nowrap", marginLeft: 2 }}>Compare</span>}
-        {saving && <span style={{ fontSize: 10, color: T.textTertiary, fontStyle: "italic" }}>saving...</span>}
-        {!saving && loaded && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
-        {cloudSyncStatus === 'saving' && <span style={{ fontSize: 10, color: T.blue, fontStyle: "italic" }}></span>}
-        {cloudSyncStatus === 'saved' && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
-        {cloudSyncStatus === 'error' && <span style={{ fontSize: 10, color: T.red }}>✗</span>}
-        {sync.status === 'saving' && <span style={{ fontSize: 10, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
-        {sync.status === 'saved' && <span style={{ fontSize: 10, color: '#10B981' }}>live ✓</span>}
-        {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
-       </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-       <div style={{ textAlign: "right", marginRight: 4 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 4, justifyContent: "flex-end" }}>
-         <span style={{ fontSize: 18, fontWeight: 800, color: T.text, letterSpacing: "-0.03em" }}>{fmt(calc.housingPayment)}</span>
-         <span style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary }}>/mo</span>
-        </div>
-        <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{fmt(calc.cashToClose)} to close</div>
-       </div>
-       <button onClick={cycleTheme} title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'} style={{ background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 32, height: 32, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text }}>
-        {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
-       </button>
-       <button onClick={() => setPrivacyMode(!privacyMode)} title={privacyMode ? "Show values" : "Hide values"} style={{ background: privacyMode ? `${T.blue}20` : T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 10, width: 32, height: 32, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0, color: T.textSecondary }}>
-        {privacyMode ? "⊘" : <Icon name="eye" size={14} />}
-       </button>
-      </div>
-     </div>
-     {/* ── Borrower Picker (LO only — hidden in borrower mode) ── */}
-     {isCloud && !isBorrower && (
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-       {auth?.userPill}
-       <BorrowerPicker
-        borrowers={borrowerList}
-        activeBorrower={activeBorrower}
-        loading={borrowerLoading}
-        scenarios={borrowerScenarios}
-        scenariosLoading={borrowerScenariosLoading}
-        T={T}
-        onSelect={async (b) => {
-         if (!b) { setActiveBorrower(null); setActiveScenarioId(null); setBorrowerScenarios([]); return; }
-         setActiveBorrower(b);
-         setActiveScenarioId(null);
-         setBorrowerScenariosLoading(true);
-         // Load scenarios for step 2
-         try {
-          const scens = await apiFetchScenarios(b.id);
-          setBorrowerScenarios(scens || []);
-         } catch (err) {
-          console.warn('[Blueprint] Failed to load scenarios:', err.message);
-          setBorrowerScenarios([]);
-         }
-         setBorrowerScenariosLoading(false);
-        }}
-        onSelectScenario={(scenario) => {
-         // Step 2: user picked a specific scenario
-         if (scenario.state_data) loadState(scenario.state_data);
-         setActiveScenarioId(scenario.id);
-         setScenarioName(scenario.name || 'Scenario 1');
-         sync.initSync(scenario.state_data, scenario.locked_fields);
-        }}
-        onAutoCreateScenario={async (borrower) => {
-         // Auto-create "Scenario 1" with Arive pre-fill
-         try {
-          let prefillState = {};
-          try {
-           const prefillResult = await fetchBorrowerPrefill(borrower.id);
-           if (prefillResult?.prefill) prefillState = prefillResult.prefill;
-          } catch { /* no prefill data — proceed with blank */ }
-
-          const newScenario = await apiCreateScenario({
-           borrower_id: borrower.id,
-           name: 'Scenario 1',
-           type: 'purchase',
-           state_data: prefillState,
-           calc_summary: {},
-          });
-          const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
-          if (s?.id) {
-           if (Object.keys(prefillState).length > 0) loadState(prefillState);
-           setActiveScenarioId(s.id);
-           setScenarioName(s.name || 'Scenario 1');
-           sync.initSync(prefillState, null);
-           setBorrowerScenarios([s]);
-          }
-         } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
-        }}
-        onCreateNew={async (prefillName) => {
-         const name = prefillName || prompt("New client name:");
-         if (!name) return;
-         try {
-          const result = await createBorrower({ name, status: 'active' });
-          const newB = result?.[0] || result;
-          if (newB?.id) {
-           setBorrowerList(prev => [...prev, newB]);
-           setActiveBorrower(newB);
-           setActiveScenarioId(null);
-           setBorrowerScenarios([]);
-          }
-         } catch (err) { alert('Failed to create client: ' + err.message); }
-        }}
-       />
-       {/* Copy Share Link button */}
-       {activeBorrower?.share_token && (
-        <button
-         onClick={() => {
-          const url = `${window.location.origin}?share=${activeBorrower.share_token}`;
-          navigator.clipboard.writeText(url).then(() => {
-           const btn = document.getElementById('bp-copy-share-btn');
-           if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Share Link'; }, 2000); }
-          }).catch(() => {
-           prompt('Copy this share link:', url);
-          });
-         }}
-         id="bp-copy-share-btn"
-         style={{
-          fontSize: 11, fontWeight: 600, color: '#6366F1',
-          background: 'rgba(99,102,241,0.08)',
-          border: '1px solid rgba(99,102,241,0.2)',
-          borderRadius: 8, padding: '5px 10px',
-          cursor: 'pointer', fontFamily: FONT,
-          whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
-         }}
-        >
-         <Icon name="link" size={12} />
-         Share Link
-        </button>
-       )}
-      </div>
-     )}
-     {/* ── Sign-in prompt when not authenticated ── */}
-     {!isCloud && !auth?.localMode && auth?.requestLogin && (
-      <div style={{ marginTop: 6 }}>
-       <button onClick={auth.requestLogin} style={{ fontSize: 11, color: T.blue, background: "none", border: `1px solid ${T.blue}30`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "Inter, system-ui, sans-serif" }}>
-        Sign in to sync across devices
-       </button>
-      </div>
-     )}
-     {/* ── Qualification Pillars Strip ── */}
-     <div onClick={() => setTab("qualify")} style={{ marginTop: 10, padding: "8px 12px", background: allGood ? T.successBg : someGood ? T.warningBg : T.pillBg, borderRadius: 12, cursor: "pointer", transition: "all 0.3s" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-       <span style={{ display: "flex", alignItems: "center", color: allGood ? T.green : someGood ? T.orange : T.textTertiary }}><Icon name={allGood ? "trophy" : someGood ? "unlock" : "lock"} size={14} /></span>
-       <span style={{ fontSize: 13, fontWeight: 600, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, flex: 1 }}>{allGood ? (isRefi ? "Refi Qualified" : "Pre-Qualified") : someGood ? `${isRefi ? refiPillarCount : purchPillarCount}/${isRefi ? 3 : 5} Pillars` : `${isRefi ? 3 : 5} Qualification Pillars`}</span>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
-       {(isRefi ? [
-        { label: "FICO", c: calc.ficoCheck === "Good!" ? "g" : calc.ficoCheck === "—" ? "n" : "r" },
-        { label: "DTI", c: calc.dtiCheck === "Good!" ? "g" : calc.dtiCheck === "—" ? "n" : "r" },
-        { label: "LTV", c: refiLtvCheck === "Good!" ? "g" : refiLtvCheck === "—" ? "n" : "r" },
-       ] : [
-        { label: "FICO", c: calc.ficoCheck === "Good!" ? "g" : calc.ficoCheck === "—" ? "n" : "r" },
-        { label: "Down", c: dpOk ? "g" : calc.dpWarning === "—" ? "n" : "r" },
-        { label: "DTI", c: calc.dtiCheck === "Good!" ? "g" : calc.dtiCheck === "—" ? "n" : "r" },
-        { label: "Cash", c: calc.cashCheck === "Good!" ? "g" : calc.cashCheck === "—" ? "n" : "r" },
-        { label: "Reserves", c: calc.resCheck === "Good!" ? "g" : calc.resCheck === "—" ? "n" : "r" },
-       ]).map((p, i) => (
-        <div key={i} style={{ flex: 1, textAlign: "center" }}>
-         <div style={{ width: 10, height: 10, borderRadius: "50%", background: p.c === "g" ? T.green : p.c === "w" ? T.orange : p.c === "n" ? T.ringTrack : T.red, boxShadow: p.c === "g" ? `0 0 4px ${T.green}60` : "none", transition: "all 0.3s", margin: "0 auto 3px" }} />
-         <div style={{ fontSize: 9, fontWeight: 600, color: p.c === "g" ? T.green : p.c === "n" ? T.textTertiary : p.c === "w" ? T.orange : T.red, letterSpacing: "0.02em" }}>{p.label}</div>
-        </div>
-       ))}
-      </div>
-     </div>
-    </div>
-    {!isDesktop && (
-     <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
-      {TABS.map(([k, l]) => <Tab key={k} tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} />)}
-     </div>
-    )}
-   </div>
+   {/* ── Content area (pushed down by fixed UnifiedHeader) ── */}
+   <div style={{ paddingTop: isDesktop ? 60 : (isCloud && !isBorrower ? 110 : 100) }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}

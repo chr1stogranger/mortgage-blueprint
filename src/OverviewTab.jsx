@@ -275,58 +275,21 @@ export default function OverviewTab({
       {/* ═══════════════════════════════════════
           SECTION 1: LOAN STRUCTURE (EDITABLE)
           ═══════════════════════════════════════ */}
-      <div style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 34, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
           {isRefi ? "Refinance" : "Purchase"} Overview
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
-          {scenarioName || "Your complete loan picture"}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+          {(city || propertyZip) && (
+            <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: MONO, letterSpacing: "0.01em" }}>
+              {city}{city && propertyState ? ", " : ""}{propertyState ? (propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
+            </span>
+          )}
+          {(city || propertyZip) && scenarioName && <span style={{ color: T.textTertiary, fontSize: 10 }}>·</span>}
+          <span style={{ fontSize: 12, fontWeight: 500, color: T.textTertiary, fontFamily: FONT }}>
+            {scenarioName || "Your complete loan picture"}
+          </span>
         </div>
-      </div>
-
-      {/* Qualification Badge — large, prominent */}
-      <OCard T={T} style={{
-        background: allGood ? `${T.green}12` : someGood ? `${T.orange}08` : `${T.card}`,
-        border: `1px solid ${allGood ? T.green + "30" : someGood ? T.orange + "25" : T.separator}`,
-        marginTop: 16,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 12, height: 12, borderRadius: "50%",
-              background: allGood ? T.green : someGood ? T.orange : T.textTertiary,
-            }} />
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: allGood ? T.green : someGood ? T.orange : T.text, fontFamily: FONT }}>
-                {allGood ? "Pre-Qualified" : someGood ? "Almost There" : "Complete Your Info"}
-              </div>
-              <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
-                {isRefi ? refiPillarCount : purchPillarCount} of {isRefi ? 3 : 5} pillars cleared
-              </div>
-            </div>
-          </div>
-          <div onClick={scrollToQualification} style={{ padding: "6px 12px", background: T.blue, borderRadius: 8, cursor: "pointer" }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT }}>Details</span>
-          </div>
-        </div>
-      </OCard>
-
-      {/* Key Stats Bar */}
-      <div style={{ display: "grid", gridTemplateColumns: isRefi ? "1fr 1fr 1fr" : "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
-        {(isRefi ? [
-          { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue },
-          { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange },
-          { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green },
-        ] : [
-          { l: "Loan Amount", v: fmt(calc.loan), c: T.blue },
-          { l: "LTV", v: pct(calc.ltv, 0), c: T.orange },
-          { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green },
-        ]).map((m, i) => (
-          <OCard key={i} T={T} pad={14}>
-            <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 500, marginBottom: 4 }}>{m.l}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
-          </OCard>
-        ))}
       </div>
 
       {/* Loan Inputs */}
