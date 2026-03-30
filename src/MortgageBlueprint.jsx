@@ -2364,22 +2364,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (hoa > 0) html += row("HOA Dues",fmt(hoa));
    html += `${row("TOTAL PAYMENT",fmt(c.housingPayment),true,"#1e3a5f")}</table>`;
 
-   // IFW-style Cash to Close breakdown
+   // Cash to Close — 3-5 bucket summary + detailed breakdown
    html += `<table>${hdr("Estimated Funds to Close")}`;
    html += row("Down Payment", fmt(c.dp) + " (" + downPct + "%)");
-   html += row("Lender Fees", fmt(c.origCharges));
-   if (underwritingFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Underwriting Fee</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(underwritingFee)}</td></tr>`;
-   if (processingFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Processing Fee</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(processingFee)}</td></tr>`;
-   if (c.pointsCost > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Discount Points (${discountPts}%)</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(c.pointsCost)}</td></tr>`;
-   html += row("Third Party Fees", fmt(c.cannotShop + c.canShop));
-   if (appraisalFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Appraisal</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(appraisalFee)}</td></tr>`;
-   if (creditReportFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Credit Report</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(creditReportFee)}</td></tr>`;
-   if (titleInsurance > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Title Insurance</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(titleInsurance)}</td></tr>`;
-   if (escrowFee > 0) html += `<tr><td style="padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0">Escrow Fee</td><td style="padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0">${fmt(escrowFee)}</td></tr>`;
-   html += row("Taxes & Government Fees", fmt(c.govCharges));
-   html += row("Prepaids & Initial Escrow", fmt(c.totalPrepaidExp));
-   if (c.totalCredits > 0) html += row("Credits Applied", "(" + fmt(c.totalCredits) + ")", false, "#16a34a");
-   html += row("ESTIMATED CASH FROM BORROWER", fmt(c.cashToClose), true, "#1e3a5f");
+   html += row("Closing Costs", fmt(c.totalClosingCosts));
+   // Sub-items for closing costs
+   const subStyle = 'padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0';
+   const subValStyle = 'padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0';
+   html += `<tr><td style="${subStyle}">Lender Fees</td><td style="${subValStyle}">${fmt(c.origCharges)}</td></tr>`;
+   html += `<tr><td style="${subStyle}">Third Party Fees</td><td style="${subValStyle}">${fmt(c.cannotShop + c.canShop)}</td></tr>`;
+   html += `<tr><td style="${subStyle}">Taxes & Gov't Fees</td><td style="${subValStyle}">${fmt(c.govCharges)}</td></tr>`;
+   html += row("Prepaid Expenses", fmt(c.totalPrepaidExp));
+   html += `<tr><td style="${subStyle}">Prepaid Interest (${c.autoPrepaidDays} days)</td><td style="${subValStyle}">${fmt2(c.prepaidInt)}</td></tr>`;
+   html += `<tr><td style="${subStyle}">Prepaid Insurance (12 mo)</td><td style="${subValStyle}">${fmt(c.prepaidIns)}</td></tr>`;
+   if (c.initialEscrow > 0) html += `<tr><td style="${subStyle}">Initial Escrow (${c.escrowTaxMonths} mo tax + ${c.escrowInsMonths} mo ins)</td><td style="${subValStyle}">${fmt(c.initialEscrow)}</td></tr>`;
+   if (c.payoffAtClosing > 0) html += row("Loans Paid Off at Closing", fmt(c.payoffAtClosing));
+   if (c.totalCredits > 0) html += row("Credits", "(" + fmt(c.totalCredits) + ")", false, "#16a34a");
+   html += row("ESTIMATED CASH TO CLOSE", fmt(c.cashToClose), true, "#1e3a5f");
    html += `</table>`;
 
    if (calc.yearlyInc > 0) {
@@ -3808,7 +3809,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ═══ DESKTOP SIDEBAR (hidden in borrower mode) ═══ */}
    {isDesktop && !isBorrower && (
     <div className="bp-sidebar" style={{
-     width: sidebarCollapsed ? 56 : 180, minWidth: sidebarCollapsed ? 56 : 180, height: "100vh", position: "sticky", top: 0,
+     width: sidebarCollapsed ? 56 : 180, minWidth: sidebarCollapsed ? 56 : 180, height: "100vh", position: "fixed", top: 0, left: 0,
      background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
      display: "flex", flexDirection: "column", transition: "width 0.2s, min-width 0.2s", overflow: "hidden", zIndex: 60, flexShrink: 0
     }}>
@@ -3976,7 +3977,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop && !isBorrower ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ── Borrower mode header bar ── */}
   {isBorrower && (

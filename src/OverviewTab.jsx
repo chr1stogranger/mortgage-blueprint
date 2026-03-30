@@ -119,21 +119,23 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
         <button onClick={() => setTab("costs")} style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Full Breakdown →</button>
       </div>
 
-      {/* ── Always-visible summary (green card) ── */}
+      {/* ── Always-visible summary (green card) — 3-5 buckets ── */}
       <OCard T={T} style={{ background: `${T.green}08`, border: `1px solid ${T.green}20` }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: T.green, textTransform: "uppercase", letterSpacing: 1.5, fontFamily: MONO, marginBottom: 10 }}>
           {isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}
         </div>
+        {/* 1) Down Payment (purchase only) */}
         {!isRefi && <FeeRow T={T} label="Down Payment" value={`${fmt(calc.dp)} (${downPct}%)`} bold />}
-        <FeeRow T={T} label="Lender Fees" value={fmt(calc.origCharges)} bold />
-        <FeeRow T={T} label="Third Party Fees" value={fmt(calc.cannotShop + calc.canShop)} bold />
-        <FeeRow T={T} label="Taxes & Government Fees" value={fmt(calc.govCharges)} bold />
-        <FeeRow T={T} label="Prepaids & Initial Escrow" value={fmt(calc.totalPrepaidExp)} bold />
-        {isRefi && payoffAtClosing > 0 && <FeeRow T={T} label="Est. Total Payoffs" value={fmt(payoffAtClosing)} bold />}
-        {!isRefi && <FeeRow T={T} label="Funds Due from Borrower" value={fmt(calc.cashToClose + calc.totalCredits)} bold />}
-        {calc.totalCredits > 0 && <FeeRow T={T} label="Credits Applied" value={`(${fmt(calc.totalCredits)})`} bold color={T.green} />}
+        {/* 2) Closing Costs = Lender + Third Party + Gov */}
+        <FeeRow T={T} label="Closing Costs" value={fmt(calc.totalClosingCosts)} bold />
+        {/* 3) Prepaid Expenses = Prepaids + Initial Escrow */}
+        <FeeRow T={T} label="Prepaid Expenses" value={fmt(calc.totalPrepaidExp)} bold />
+        {/* 4) Debts / Loans to be Paid Off (if applicable) */}
+        {payoffAtClosing > 0 && <FeeRow T={T} label="Loans Paid Off at Closing" value={fmt(payoffAtClosing)} bold />}
+        {/* 5) Credits (if applicable) */}
+        {calc.totalCredits > 0 && <FeeRow T={T} label="Credits" value={`(${fmt(calc.totalCredits)})`} bold color={T.green} />}
         <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
-          <FeeRow T={T} label={isRefi ? "ESTIMATED TOTAL REFI COSTS" : "ESTIMATED CASH FROM BORROWER"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)} bold color={T.green} />
+          <FeeRow T={T} label={isRefi ? "ESTIMATED TOTAL REFI COSTS" : "ESTIMATED CASH TO CLOSE"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp + payoffAtClosing - calc.totalCredits : calc.cashToClose)} bold color={T.green} />
         </div>
       </OCard>
 
