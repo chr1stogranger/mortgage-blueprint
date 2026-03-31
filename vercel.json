@@ -1,4 +1,18 @@
 {
+  "redirects": [
+    {
+      "source": "/:path(.*)",
+      "has": [{ "type": "host", "value": "mortgageblueprint.app" }],
+      "destination": "https://blueprint.realstack.app/:path",
+      "permanent": true
+    },
+    {
+      "source": "/:path(.*)",
+      "has": [{ "type": "host", "value": "www.mortgageblueprint.app" }],
+      "destination": "https://blueprint.realstack.app/:path",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/privacy", "destination": "/api/privacy.html" },
     { "source": "/terms", "destination": "/api/terms.html" },
