@@ -173,51 +173,83 @@ export default function UnifiedHeader({
           <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
         </>}
 
-        {/* Right: Qualification badge + Pillar dots + Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: isDesktop ? 12 : 6, flexShrink: 0 }}>
-          {/* Qualification badge pill */}
-          <div
-            onClick={() => setTab("qualify")}
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              background: `${badgeColor}18`,
-              borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 8px",
-              cursor: "pointer", transition: "all 0.2s",
-            }}
-          >
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, boxShadow: allGood ? `0 0 6px ${T.green}60` : "none" }} />
-            <span style={{
-              fontSize: isDesktop ? 11 : 9, fontWeight: 700,
-              color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
-            }}>{badgeLabel}</span>
-          </div>
-
-          {/* Pillar dots */}
-          <div
-            onClick={() => setTab("qualify")}
-            style={{ display: "flex", alignItems: "center", gap: isDesktop ? 6 : 3, cursor: "pointer", flexShrink: 0 }}
-          >
-            {pillars.map((p, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <div style={{
+        {/* Center (mobile): Qualification badge + Pillar dots */}
+        {!isDesktop && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}>
+            <div
+              onClick={() => setTab("qualify")}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: `${badgeColor}18`,
+                borderRadius: 9999, padding: "4px 8px",
+                cursor: "pointer", transition: "all 0.2s",
+              }}
+            >
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, boxShadow: allGood ? `0 0 6px ${T.green}60` : "none" }} />
+              <span style={{
+                fontSize: 9, fontWeight: 700,
+                color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
+              }}>{badgeLabel}</span>
+            </div>
+            <div
+              onClick={() => setTab("qualify")}
+              style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}
+            >
+              {pillars.map((p, i) => (
+                <div key={i} style={{
                   width: 6, height: 6, borderRadius: "50%",
                   background: p.color, transition: "all 0.3s",
                   boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : "none",
                 }} />
-                {isDesktop && (
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Desktop: Qualification badge + Pillar dots + Controls together */}
+        {isDesktop && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+            <div
+              onClick={() => setTab("qualify")}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: `${badgeColor}18`,
+                borderRadius: 9999, padding: "5px 12px",
+                cursor: "pointer", transition: "all 0.2s",
+              }}
+            >
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, boxShadow: allGood ? `0 0 6px ${T.green}60` : "none" }} />
+              <span style={{
+                fontSize: 11, fontWeight: 700,
+                color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
+              }}>{badgeLabel}</span>
+            </div>
+            <div
+              onClick={() => setTab("qualify")}
+              style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flexShrink: 0 }}
+            >
+              {pillars.map((p, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <div style={{
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: p.color, transition: "all 0.3s",
+                    boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : "none",
+                  }} />
                   <span style={{
                     fontSize: 8, fontWeight: 600, color: p.color,
                     fontFamily: MONO, letterSpacing: 0.3, opacity: 0.85,
                   }}>{p.label}</span>
-                )}
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
           </div>
+        )}
 
-          {/* Divider before controls */}
-          <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
+        {/* Divider before controls */}
+        <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
 
-          {/* Dark/Light toggle */}
+        {/* Controls: Dark/Light + Privacy */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <button
             onClick={cycleTheme}
             title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'}
@@ -234,7 +266,6 @@ export default function UnifiedHeader({
             {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
           </button>
 
-          {/* Privacy toggle */}
           <button
             onClick={() => setPrivacyMode(!privacyMode)}
             title={privacyMode ? "Show values" : "Hide values"}
