@@ -363,14 +363,23 @@ export default function OverviewTab({
           </div>
           {/* Line items — full width below */}
           <div>
-            {paySegs.filter(s => s.v > 0).map((s, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${T.separator}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.c }} />
-                  <span style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
+            {paySegs.filter(s => s.v > 0).map((s, i, arr) => (
+              <React.Fragment key={i}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${T.separator}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: s.c }} />
+                    <span style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(s.v)}</span>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(s.v)}</span>
-              </div>
+                {/* P&I subtotal — shown after Interest row */}
+                {s.l === "Interest" && calc.pi > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0 5px 18px", borderBottom: `1px solid ${T.separator}` }}>
+                    <span style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, fontStyle: "italic" }}>P&I</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, fontFamily: MONO, color: T.textTertiary }}>{fmt(calc.pi)}</span>
+                  </div>
+                )}
+              </React.Fragment>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0 2px", marginTop: 4 }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
