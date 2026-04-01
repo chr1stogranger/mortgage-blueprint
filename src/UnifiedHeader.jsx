@@ -92,16 +92,16 @@ export default function UnifiedHeader({
 
   // ── Stat cell ──
   const Stat = ({ label, value, color }) => (
-    <div style={{ textAlign: "center", minWidth: 0, flex: 1 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1 }}>
       <div style={{
         fontSize: 9, color: T.textTertiary, fontWeight: 600,
         letterSpacing: 1.2, fontFamily: MONO, textTransform: "uppercase",
-        marginBottom: 2, whiteSpace: "nowrap",
+        marginBottom: 2, whiteSpace: "nowrap", textAlign: "center",
       }}>{label}</div>
       <div style={{
         fontSize: isDesktop ? 15 : 13, fontWeight: 700,
         color: color || T.text, fontFamily: MONO,
-        letterSpacing: "-0.02em", whiteSpace: "nowrap",
+        letterSpacing: "-0.02em", whiteSpace: "nowrap", textAlign: "center",
       }}>{value}</div>
     </div>
   );
@@ -129,7 +129,7 @@ export default function UnifiedHeader({
         gap: isDesktop ? 16 : 8,
         minHeight: isDesktop ? 48 : 40,
       }}>
-        {/* Left: Logo + Scenario */}
+        {/* Left: Logo + Sync */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0 }}>
           {/* Blueprint wordmark */}
           <span style={{
@@ -137,37 +137,6 @@ export default function UnifiedHeader({
             letterSpacing: "-0.03em", color: T.text,
             whiteSpace: "nowrap",
           }}>Blueprint</span>
-
-          {/* Scenario selector */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 4,
-            background: T.pillBg, borderRadius: 8, padding: "3px 8px",
-          }}>
-            {scenarioList.length > 1 ? scenarioList.map(name => (
-              <span key={name}
-                onClick={() => name !== scenarioName ? switchScenario(name) : null}
-                style={{
-                  fontSize: 11, fontWeight: name === scenarioName ? 700 : 400,
-                  color: name === scenarioName ? T.blue : T.textTertiary,
-                  cursor: name === scenarioName ? "default" : "pointer",
-                  textDecoration: name === scenarioName ? "none" : "underline",
-                  whiteSpace: "nowrap", transition: "all 0.2s",
-                }}>
-                {name}
-              </span>
-            )) : (
-              <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, whiteSpace: "nowrap" }}>
-                {scenarioName}
-              </span>
-            )}
-            {scenarioList.length > 1 && (
-              <span onClick={onCompare} style={{
-                fontSize: 9, fontWeight: 700, color: T.blue,
-                background: `${T.blue}15`, borderRadius: 5,
-                padding: "1px 5px", cursor: "pointer", whiteSpace: "nowrap",
-              }}>Compare</span>
-            )}
-          </div>
 
           {/* Sync indicators */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -303,12 +272,55 @@ export default function UnifiedHeader({
         </div>
       )}
 
-      {/* ── Row 2 (LO mode): Borrower picker + Share link ── */}
-      {isCloud && !isBorrower && BorrowerPicker && (
+      {/* ── Utility row: Scenario selector + Sign-in / Borrower picker ── */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: isDesktop ? "0 24px 6px" : "0 14px 6px", flexWrap: "wrap",
+      }}>
+        {/* Scenario selector */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "0 24px 8px", flexWrap: "wrap",
+          display: "flex", alignItems: "center", gap: 4,
+          background: T.pillBg, borderRadius: 8, padding: "3px 8px",
         }}>
+          {scenarioList.length > 1 ? scenarioList.map(name => (
+            <span key={name}
+              onClick={() => name !== scenarioName ? switchScenario(name) : null}
+              style={{
+                fontSize: 11, fontWeight: name === scenarioName ? 700 : 400,
+                color: name === scenarioName ? T.blue : T.textTertiary,
+                cursor: name === scenarioName ? "default" : "pointer",
+                textDecoration: name === scenarioName ? "none" : "underline",
+                whiteSpace: "nowrap", transition: "all 0.2s",
+              }}>
+              {name}
+            </span>
+          )) : (
+            <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, whiteSpace: "nowrap" }}>
+              {scenarioName}
+            </span>
+          )}
+          {scenarioList.length > 1 && (
+            <span onClick={onCompare} style={{
+              fontSize: 9, fontWeight: 700, color: T.blue,
+              background: `${T.blue}15`, borderRadius: 5,
+              padding: "1px 5px", cursor: "pointer", whiteSpace: "nowrap",
+            }}>Compare</span>
+          )}
+        </div>
+
+        {/* Sign-in prompt (non-cloud) */}
+        {!isCloud && !auth?.localMode && auth?.requestLogin && (
+          <button onClick={auth.requestLogin} style={{
+            fontSize: 10, color: T.blue, background: "none",
+            border: `1px solid ${T.blue}30`, borderRadius: 8,
+            padding: "3px 8px", cursor: "pointer", fontFamily: FONT,
+          }}>
+            Sign in to sync across devices
+          </button>
+        )}
+
+        {/* LO mode: Borrower picker + Share link */}
+        {isCloud && !isBorrower && BorrowerPicker && <>
           {auth?.userPill}
           <BorrowerPicker
             borrowers={borrowerList}
@@ -345,21 +357,8 @@ export default function UnifiedHeader({
               Share Link
             </button>
           )}
-        </div>
-      )}
-
-      {/* ── Row 2 alt: Sign-in prompt ── */}
-      {!isCloud && !auth?.localMode && auth?.requestLogin && (
-        <div style={{ padding: "0 24px 6px" }}>
-          <button onClick={auth.requestLogin} style={{
-            fontSize: 10, color: T.blue, background: "none",
-            border: `1px solid ${T.blue}30`, borderRadius: 8,
-            padding: "3px 8px", cursor: "pointer", fontFamily: FONT,
-          }}>
-            Sign in to sync across devices
-          </button>
-        </div>
-      )}
+        </>}
+      </div>
 
       {/* ── Mobile tab bar ── */}
       {mobileTabBar}
