@@ -1,18 +1,18 @@
-// /api/pp-daily.js — Vercel Serverless Function
+// /api/pp-daily.js â Vercel Serverless Function
 // Manages PricePoint Daily challenges: fetches or seeds today's challenge per market.
 //
 // GET /api/pp-daily?market=sf
-//   → Returns today's daily challenge (without sold_price)
+//   â Returns today's daily challenge (without sold_price)
 //
 // GET /api/pp-daily?market=sf&reveal=true&player=<uuid>
-//   → Returns daily WITH sold_price (only if player has already guessed)
+//   â Returns daily WITH sold_price (only if player has already guessed)
 //
 // Fetches property details DIRECTLY from RapidAPI (no serverless-to-serverless call)
 // to avoid cascading timeout issues.
 
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase admin client (server-side only — uses SERVICE key)
+// Supabase admin client (server-side only â uses SERVICE key)
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -20,7 +20,7 @@ function getSupabaseAdmin() {
   return createClient(url, key);
 }
 
-// ── Daily number: days since epoch (per market) ──
+// ââ Daily number: days since epoch (per market) ââ
 function getDailyNumber(marketId) {
   const epoch = new Date('2026-03-25').getTime(); // PricePoint launch date
   const today = new Date();
@@ -33,7 +33,7 @@ function getTodayDate() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ── Known-good zpids that have recently sold — verified March 2026 ──
+// ââ Known-good zpids that have recently sold â verified March 2026 ââ
 // These are REAL recently sold properties with photos, beds, and sold prices.
 // Grouped by neighborhood for variety across daily challenges.
 const DAILY_SEED_ZPIDS = {
@@ -53,7 +53,7 @@ const DAILY_SEED_ZPIDS = {
   ],
 };
 
-// ── Fetch property details directly from RapidAPI ──
+// ââ Fetch property details directly from RapidAPI ââ
 async function fetchPropertyDirect(zpid, apiKey, apiHost, timeoutMs = 6000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -77,7 +77,7 @@ async function fetchPropertyDirect(zpid, apiKey, apiHost, timeoutMs = 6000) {
   }
 }
 
-// ── Extract sold event from priceHistory ──
+// ââ Extract sold event from priceHistory ââ
 function extractSoldEvent(history) {
   if (!Array.isArray(history)) return null;
   for (const evt of history) {
@@ -88,7 +88,7 @@ function extractSoldEvent(history) {
   return null;
 }
 
-// ── Extract list price from priceHistory ──
+// ââ Extract list price from priceHistory ââ
 function extractListPrice(history) {
   if (!Array.isArray(history)) return null;
   for (const evt of history) {
@@ -99,14 +99,16 @@ function extractListPrice(history) {
   return null;
 }
 
-// ── Extract photos ──
+// ââ Extract photos ââ
 function extractPhotos(d) {
+  const urls = [];
   if (d.photos && Array.isArray(d.photos)) {
-    for (let i = 0; i < d.photos.length && i < 1; i++) {
+    for (let i = 0; i < d.photos.length && urls.length < 12; i++) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
-      if (jpegs.length > 0) return jpegs[jpegs.length - 1].url;
+      if (jpegs.length > 0) urls.push(jpegs[jpegs.length - 1].url);
     }
   }
+  if (urls.length > 0) return urls[0]; // primary photo (full array available via propertydetails)
   return d.imgSrc || d.hiResImageLink || '';
 }
 
@@ -116,7 +118,7 @@ function normalizeHomeType(type) {
   return map[type] || type.replace(/_/g, ' ');
 }
 
-// ── Fetch sold listings directly from RapidAPI (no sold-comps middleman) ──
+// ââ Fetch sold listings directly from RapidAPI (no sold-comps middleman) ââ
 async function fetchSoldListingsDirect(marketId, dailyNumber) {
   const apiKey = process.env.RAPIDAPI_KEY;
   const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
@@ -188,7 +190,7 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
   return listings;
 }
 
-// ── Pick a deterministic daily property ──
+// ââ Pick a deterministic daily property ââ
 function pickDailyProperty(listings, dailyNumber) {
   if (!listings.length) return null;
   const idx = (dailyNumber * 7 + 3) % listings.length;
@@ -212,7 +214,7 @@ function pickDailyProperty(listings, dailyNumber) {
   };
 }
 
-// ── Market metadata ──
+// ââ Market metadata ââ
 const MARKETS = {
   sf: { name: 'San Francisco', state: 'CA' },
   oakland: { name: 'Oakland', state: 'CA' },
@@ -220,7 +222,7 @@ const MARKETS = {
   alameda: { name: 'Alameda', state: 'CA' },
 };
 
-// ── In-memory cache for seeded dailies (survives warm starts) ──
+// ââ In-memory cache for seeded dailies (survives warm starts) ââ
 const dailyCache = new Map();
 
 export default async function handler(req, res) {
@@ -318,7 +320,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to load daily challenge' });
     }
 
-    // 3. Build response — strip sold_price unless reveal is requested
+    // 3. Build response â strip sold_price unless reveal is requested
     const response = {
       id: daily.id,
       marketId: daily.market_id,
