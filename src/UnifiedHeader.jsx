@@ -302,7 +302,7 @@ export default function UnifiedHeader({
           <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
           <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
           <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
-          <Stat label="LTV" value={pct(calc.ltv, 0)} />
+          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} />
           {calc.qualifyingIncome > 0 && (
             <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
           )}
