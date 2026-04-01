@@ -1958,19 +1958,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
               <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{result.neighborhood} · {result.city}, {result.state}</div>
             </div>
-            {result.detailUrl && (
-              <a href={result.detailUrl.startsWith("http") ? result.detailUrl : `https://www.zillow.com${result.detailUrl}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 16px", marginTop: 14, borderRadius: 10, border: `1px solid ${T.cardBorder}`, background: T.inputBg, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, transition: "all 0.2s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.color = T.text; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.color = T.textSecondary; }}>
-                <Icon name="external-link" size={13} /> View Full Listing on Zillow
-              </a>
-            )}
           </div>
         )}
         {(!showPhases || revealPhase >= 2) && (
           <div style={{ animation: "ppSlideUp 0.3s ease" }}>
             {onShare && <PillButton onClick={() => onShare(result)} accent style={{ marginBottom: 10 }}>Share Your Result</PillButton>}
+            {result.detailUrl && (
+              <a href={result.detailUrl.startsWith("http") ? result.detailUrl : `https://www.zillow.com${result.detailUrl}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 6, padding: 12, marginBottom: 10, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: "transparent", textDecoration: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.color = T.text; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.color = T.textSecondary; }}>
+                <Icon name="external-link" size={14} /> View on Zillow
+              </a>
+            )}
             {onRunNumbersClick && (
               <button onClick={() => onRunNumbersClick(result)} style={{ width: "100%", padding: 12, borderRadius: 9999, border: `1px solid ${T.blue}40`, background: `${T.blue}12`, color: T.blue, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="calculator" size={14} /> Run Numbers in Blueprint
@@ -2893,7 +2893,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {fpListings[fpIdx] && !fpResult ? (
             <>
-              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showZillowLink: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid })}
+              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid })}
             </>
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
