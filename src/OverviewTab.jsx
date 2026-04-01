@@ -357,9 +357,34 @@ export default function OverviewTab({
       <SectionDivider T={T} />
       <CollapsibleSection title="Monthly Payment" T={T} id="overview-payment">
         <OCard T={T}>
-          {/* PayRing — centered above breakdown */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-            <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 200 : 170} hideLegend />
+          {/* PayRing + escrow toggle beside it */}
+          <div style={{ position: "relative", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 200 : 170} hideLegend />
+            </div>
+            {/* Escrow toggle — tucked to the right of the donut */}
+            <div style={{
+              position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            }}>
+              <button
+                onClick={() => { if (loanType !== "FHA" && loanType !== "VA") setIncludeEscrow(!includeEscrow); }}
+                style={{
+                  width: 32, height: 18, borderRadius: 9, border: "none",
+                  cursor: (loanType === "FHA" || loanType === "VA") ? "not-allowed" : "pointer",
+                  background: includeEscrow ? T.green : T.inputBorder,
+                  position: "relative", transition: "background 0.2s",
+                  opacity: (loanType === "FHA" || loanType === "VA") ? 0.6 : 1,
+                }}
+              >
+                <div style={{
+                  width: 14, height: 14, borderRadius: 7, background: "#fff",
+                  position: "absolute", top: 2, left: includeEscrow ? 16 : 2,
+                  transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                }} />
+              </button>
+              <span style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>Escrow</span>
+            </div>
           </div>
           {/* Line items — full width below */}
           <div>
@@ -377,30 +402,6 @@ export default function OverviewTab({
               <span style={{ fontSize: 17, fontWeight: 700, color: T.blue, fontFamily: MONO, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
             </div>
           </div>
-
-          {/* Escrow toggle */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 8, borderTop: `1px solid ${T.separator}` }}>
-            <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Include Escrow (Tax & Ins)</span>
-            <button
-              onClick={() => { if (loanType !== "FHA" && loanType !== "VA") setIncludeEscrow(!includeEscrow); }}
-              style={{
-                width: 40, height: 22, borderRadius: 11, border: "none",
-                cursor: (loanType === "FHA" || loanType === "VA") ? "not-allowed" : "pointer",
-                background: includeEscrow ? T.green : T.inputBorder,
-                position: "relative", transition: "background 0.2s",
-                opacity: (loanType === "FHA" || loanType === "VA") ? 0.6 : 1,
-              }}
-            >
-              <div style={{
-                width: 18, height: 18, borderRadius: 9, background: "#fff",
-                position: "absolute", top: 2, left: includeEscrow ? 20 : 2,
-                transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              }} />
-            </button>
-          </div>
-          {(loanType === "FHA" || loanType === "VA") && (
-            <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{loanType} loans require escrow — cannot be toggled off.</div>
-          )}
         </OCard>
 
         {/* Closing date info */}
