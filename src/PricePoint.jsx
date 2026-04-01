@@ -656,7 +656,10 @@ const playLevelUpSound = () => {
 // v9: Load More button in Free Play — zip-specific sold-comps fetch + auto-discovery via nearbyHomes
 // v10: Remove SAMPLE_SOLD fake data, fix neighborhood zip groups (Sunset = 94122+94116),
 //      fix photos (extractPhotos loop), fix neighborhood labels (zip-to-hood server-side)
-const PP_DATA_VERSION = 10;
+// v11: Strict neighborhood filtering (no city-wide fallback), cross-neighborhood dedup,
+//      validate search-API sold data (require soldDate, soldPrice != listPrice),
+//      Zillow link in Free Play + RevealCard
+const PP_DATA_VERSION = 11;
 function migrateLocalStorage() {
   try {
     const stored = parseInt(localStorage.getItem("pp-data-version") || "0", 10);
@@ -667,6 +670,7 @@ function migrateLocalStorage() {
       localStorage.removeItem("pp-all-results");
       localStorage.removeItem("pp-daily-result");
       localStorage.removeItem("pp-predictions");
+      localStorage.removeItem("pp-fp-guessed-zpids");
       localStorage.setItem("pp-data-version", String(PP_DATA_VERSION));
       console.log(`[PricePoint] Data version upgraded ${stored} → ${PP_DATA_VERSION}, cleared stale listings`);
       return true; // signal: need fresh fetch
@@ -1089,7 +1093,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   useEffect(() => {
     if (!market) return;
     // Check if sold data is sample/missing (works even after localStorage reload)
-    const isSampleData = soldListings === SAMPLE_SOLD || soldListings.every(l => l._source === "sample");
+    const isSampleData = soldListings === SAMPLE_SOLD || soldListings.length === 0 || soldListings.every(l => l._source === "sample");
     // Check if data is stale (older than 6 hours)
     const lastFetch = parseInt(localStorage.getItem("pp-last-fetch") || "0", 10);
     const isStale = Date.now() - lastFetch > 6 * 60 * 60 * 1000;
@@ -1138,14 +1142,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       // ── Sold listings: use real sold-comps ONLY, ignore fake search API sold data ──
       // The search API's recentlySold returns fake data (active listings relabeled as sold).
-      // When we have real sold-comps from property-details priceHistory, use ONLY those.
+      // Real sold-comps come from property-details priceHistory — these are ALWAYS preferred.
       if (compsData?.soldListings?.length > 0) {
-        const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_api" }));
+        const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_comps" }));
         console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
         setSoldListings(realSold);
       } else if (data?.soldListings?.length > 0) {
-        // Fallback: use search API sold data only if sold-comps returned nothing
-        setSoldListings(data.soldListings);
+        // Fallback: search API sold data — tag as "sold_search" (less trusted than sold_comps).
+        // These may include active listings relabeled as "sold" by RapidAPI.
+        // Additional validation: require soldDate AND soldPrice differs from listPrice.
+        const validated = data.soldListings
+          .filter(l => l.soldDate && l.soldPrice && (l.soldPrice !== l.listPrice || !l.listPrice))
+          .map(l => ({ ...l, _source: "sold_search" }));
+        if (validated.length > 0) {
+          console.log(`[PricePoint] Using ${validated.length} validated search-API sold (of ${data.soldListings.length} raw)`);
+          setSoldListings(validated);
+        }
       }
 
       const label = data?.location || searchValue;
@@ -1308,6 +1320,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const val = parseInt(fpGuessInput.replace(/[^0-9]/g, ""));
     const listing = fpListings[fpIdx];
     if (!val || !listing) return;
+    // Track this zpid as guessed (cross-neighborhood dedup)
+    if (listing.zpid) {
+      fpGuessedZpidsRef.current.add(listing.zpid);
+      try { localStorage.setItem("pp-fp-guessed-zpids", JSON.stringify([...fpGuessedZpidsRef.current])); } catch {}
+    }
     const pctOff = Math.abs((val - listing.soldPrice) / listing.soldPrice) * 100;
     const feedback = getFeedback(pctOff);
     const insight = getInsight(listing, pctOff, val > listing.soldPrice);
@@ -1317,6 +1334,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       address: listing.address, neighborhood: listing.neighborhood,
       city: listing.city, state: listing.state, beds: listing.beds, baths: listing.baths,
       sqft: listing.sqft, photo: listing.photo, pctOff: pctOffRound,
+      zpid: listing.zpid, detailUrl: listing.detailUrl,
       feedback, feedbackMessage: getRandomMessage(feedback), insight,
       dailyNumber: null, timestamp: Date.now(), revealed: true, isDaily: false,
     });
@@ -1374,49 +1392,60 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // neighborhood is an instant in-memory filter, not a network request.
   // ═══════════════════════════════════════════════════════════════
 
-  // Trusted sold = came from the recentlySold API endpoint AND has a real soldPrice
-  const isTrueSold = (l) => (l._source === "sold_api" || l._source === "sold_comps") && l.soldPrice && isRecentSale(l);
+  // Trusted sold = came from a real sold-data endpoint AND has a real soldPrice + soldDate
+  // "sold_comps" = from property-details priceHistory (most trusted)
+  // "sold_search" = from search API recentlySold (less trusted, validated on ingest)
+  // "sold_api" = legacy tag, treat as trusted
+  const TRUSTED_SOLD_SOURCES = new Set(["sold_api", "sold_comps", "sold_search"]);
+  const isTrueSold = (l) => TRUSTED_SOLD_SOURCES.has(l._source) && l.soldPrice && isRecentSale(l);
   // Trusted active = came from the forSale API endpoint (active or pending)
   const isTrueActive = (l) => l._source === "active_api";
+
+  // Track guessed zpids across all Free Play sessions (so switching neighborhoods won't re-show them)
+  const fpGuessedZpidsRef = useRef(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("pp-fp-guessed-zpids") || "[]");
+      return new Set(stored);
+    } catch { return new Set(); }
+  });
+  // Lazy init
+  if (typeof fpGuessedZpidsRef.current === "function") fpGuessedZpidsRef.current = fpGuessedZpidsRef.current();
 
   const enterFreePlay = (zip, hoodName) => {
     // Step 1: Filter to trusted sold listings only
     let trueSold = soldListings.filter(isTrueSold);
 
-    // Step 2: Exclude daily spoilers
+    // Step 2: Exclude daily spoilers AND previously guessed properties
     const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
-    let pool = trueSold.filter((_, i) => !excludedIndices.has(i));
+    const guessedZpids = fpGuessedZpidsRef.current;
+    let pool = trueSold.filter((l, i) => !excludedIndices.has(i) && (!l.zpid || !guessedZpids.has(l.zpid)));
 
     // Step 3: Filter to zip GROUP (e.g., Sunset = 94122 + 94116, not just 94122)
-    // A neighborhood often spans multiple zip codes. Use HOOD_ZIP_GROUPS to find all sibling zips.
+    // STRICT: Never mix neighborhoods. If Sunset is selected, only show Sunset zips.
     let zipGroup = null;
     if (zip) {
-      const hoodName = ZIP_TO_HOOD[zip];
-      if (hoodName) {
-        zipGroup = HOOD_ZIP_GROUPS[hoodName.toLowerCase()] || new Set([zip]);
+      const resolvedHood = hoodName || ZIP_TO_HOOD[zip];
+      if (resolvedHood) {
+        zipGroup = HOOD_ZIP_GROUPS[resolvedHood.toLowerCase()] || new Set([zip]);
       } else {
         zipGroup = new Set([zip]);
       }
       pool = pool.filter(l => zipGroup.has(l.zip));
     }
 
-
-    // Step 4: If zip filter left too few, relax daily exclusion but keep zip group
+    // Step 4: If zip filter left too few, relax daily exclusion but keep zip group + guessed dedup
     if (zip && pool.length < 3) {
-      pool = trueSold.filter(l => zipGroup.has(l.zip));
+      pool = trueSold.filter(l => zipGroup.has(l.zip) && (!l.zpid || !guessedZpids.has(l.zpid)));
     }
 
     // Step 5: (removed — zip group already covers neighboring zips)
 
-    // Step 6: If no data for this zip group, fall back to ALL city-wide real sold data
-    // (better to show real properties from other neighborhoods than nothing)
-    if (pool.length === 0 && trueSold.length > 0) {
-      console.log(`[FreePlay] No sold data for zip group ${zip} — using all ${trueSold.length} city-wide real listings`);
-      pool = [...trueSold];
-    }
+    // Step 6: If no data for this neighborhood — do NOT fall back to other neighborhoods.
+    // Show empty state and trigger background fetch for this specific zip group.
+    // Mixing neighborhoods (e.g., showing Richmond in Sunset) is a bug, not a feature.
 
     // Step 7: If still empty — no fake data. Show empty state and trigger background fetch.
-    // NEVER fall back to SAMPLE_SOLD.
+    // NEVER fall back to SAMPLE_SOLD or other neighborhoods.
 
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
     setFpListings(shuffled);
@@ -1929,6 +1958,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
               <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{result.neighborhood} · {result.city}, {result.state}</div>
             </div>
+            {result.detailUrl && (
+              <a href={result.detailUrl.startsWith("http") ? result.detailUrl : `https://www.zillow.com${result.detailUrl}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 16px", marginTop: 14, borderRadius: 10, border: `1px solid ${T.cardBorder}`, background: T.inputBg, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.color = T.text; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.color = T.textSecondary; }}>
+                <Icon name="external-link" size={13} /> View Full Listing on Zillow
+              </a>
+            )}
           </div>
         )}
         {(!showPhases || revealPhase >= 2) && (
@@ -2856,7 +2893,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {fpListings[fpIdx] && !fpResult ? (
             <>
-              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid })}
+              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showZillowLink: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid })}
             </>
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
