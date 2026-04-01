@@ -309,55 +309,12 @@ export default function UnifiedHeader({
         </div>
       )}
 
-      {/* ── Utility row: Scenario selector + Sign-in / Borrower picker ── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: isDesktop ? "0 24px 6px" : "0 14px 6px", flexWrap: "wrap",
-      }}>
-        {/* Scenario selector */}
+      {/* ── LO mode row: Borrower picker + Share link ── */}
+      {isCloud && !isBorrower && BorrowerPicker && (
         <div style={{
-          display: "flex", alignItems: "center", gap: 4,
-          background: T.pillBg, borderRadius: 8, padding: "3px 8px",
+          display: "flex", alignItems: "center", gap: 8,
+          padding: isDesktop ? "0 24px 6px" : "0 14px 6px", flexWrap: "wrap",
         }}>
-          {scenarioList.length > 1 ? scenarioList.map(name => (
-            <span key={name}
-              onClick={() => name !== scenarioName ? switchScenario(name) : null}
-              style={{
-                fontSize: 11, fontWeight: name === scenarioName ? 700 : 400,
-                color: name === scenarioName ? T.blue : T.textTertiary,
-                cursor: name === scenarioName ? "default" : "pointer",
-                textDecoration: name === scenarioName ? "none" : "underline",
-                whiteSpace: "nowrap", transition: "all 0.2s",
-              }}>
-              {name}
-            </span>
-          )) : (
-            <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, whiteSpace: "nowrap" }}>
-              {scenarioName}
-            </span>
-          )}
-          {scenarioList.length > 1 && (
-            <span onClick={onCompare} style={{
-              fontSize: 9, fontWeight: 700, color: T.blue,
-              background: `${T.blue}15`, borderRadius: 5,
-              padding: "1px 5px", cursor: "pointer", whiteSpace: "nowrap",
-            }}>Compare</span>
-          )}
-        </div>
-
-        {/* Sign-in prompt (non-cloud) */}
-        {!isCloud && !auth?.localMode && auth?.requestLogin && (
-          <button onClick={auth.requestLogin} style={{
-            fontSize: 10, color: T.blue, background: "none",
-            border: `1px solid ${T.blue}30`, borderRadius: 8,
-            padding: "3px 8px", cursor: "pointer", fontFamily: FONT,
-          }}>
-            Sign in to sync across devices
-          </button>
-        )}
-
-        {/* LO mode: Borrower picker + Share link */}
-        {isCloud && !isBorrower && BorrowerPicker && <>
           {auth?.userPill}
           <BorrowerPicker
             borrowers={borrowerList}
@@ -394,8 +351,8 @@ export default function UnifiedHeader({
               Share Link
             </button>
           )}
-        </>}
-      </div>
+        </div>
+      )}
 
       {/* ── Mobile tab bar ── */}
       {mobileTabBar}

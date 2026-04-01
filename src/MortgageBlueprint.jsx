@@ -4294,7 +4294,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ── */}
-   <div style={{ paddingTop: isDesktop ? 92 : (isCloud && !isBorrower ? 156 : 144) }} />
+   <div style={{ paddingTop: isDesktop ? 72 : (isCloud && !isBorrower ? 144 : 120) }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
@@ -6409,6 +6409,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    liveRates={liveRates} fetchRates={fetchRates} ratesLoading={ratesLoading} ratesError={ratesError} fredApiKey={fredApiKey}
    loanTypes={LOAN_TYPES} propTypes={PROP_TYPES} closingMonths={[1,2,3,4,5,6,7,8,9,10,11,12]}
    scenarioName={scenarioName}
+   scenarioList={scenarioList} switchScenario={switchScenario} onCompare={() => setTab("compare")}
+   isCloud={isCloud} auth={auth}
    isBorrower={isBorrower}
    reos={reos}
    /* Individual fee state for IFW-style breakdown */

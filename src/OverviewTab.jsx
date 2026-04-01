@@ -253,6 +253,8 @@ export default function OverviewTab({
   /* Misc */
   loanTypes, propTypes, closingMonths,
   scenarioName,
+  scenarioList, switchScenario, onCompare,
+  isCloud, auth,
   isBorrower,
   /* REO */
   reos,
@@ -279,16 +281,53 @@ export default function OverviewTab({
         <div style={{ fontSize: 34, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
           {isRefi ? "Refinance" : "Purchase"} Overview
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
           {(city || propertyZip) && (
             <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: MONO, letterSpacing: "0.01em" }}>
               {city}{city && propertyState ? ", " : ""}{propertyState ? (propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
             </span>
           )}
-          {(city || propertyZip) && scenarioName && <span style={{ color: T.textTertiary, fontSize: 10 }}>·</span>}
-          <span style={{ fontSize: 12, fontWeight: 500, color: T.textTertiary, fontFamily: FONT }}>
-            {scenarioName || "Your complete loan picture"}
-          </span>
+          {(city || propertyZip) && <span style={{ color: T.textTertiary, fontSize: 10 }}>·</span>}
+          {/* Scenario selector pill */}
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            background: T.pillBg, borderRadius: 8, padding: "2px 8px",
+          }}>
+            {(scenarioList || []).length > 1 ? (scenarioList || []).map(name => (
+              <span key={name}
+                onClick={() => name !== scenarioName ? switchScenario(name) : null}
+                style={{
+                  fontSize: 11, fontWeight: name === scenarioName ? 700 : 400,
+                  color: name === scenarioName ? T.blue : T.textTertiary,
+                  cursor: name === scenarioName ? "default" : "pointer",
+                  textDecoration: name === scenarioName ? "none" : "underline",
+                  whiteSpace: "nowrap", transition: "all 0.2s",
+                }}>
+                {name}
+              </span>
+            )) : (
+              <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, whiteSpace: "nowrap" }}>
+                {scenarioName || "Scenario 1"}
+              </span>
+            )}
+            {(scenarioList || []).length > 1 && onCompare && (
+              <span onClick={onCompare} style={{
+                fontSize: 9, fontWeight: 700, color: T.blue,
+                background: `${T.blue}15`, borderRadius: 5,
+                padding: "1px 5px", cursor: "pointer", whiteSpace: "nowrap",
+              }}>Compare</span>
+            )}
+          </div>
+          {/* Sign-in prompt */}
+          {!isCloud && !auth?.localMode && auth?.requestLogin && (
+            <button onClick={auth.requestLogin} style={{
+              fontSize: 10, color: T.blue, background: "none",
+              border: `1px solid ${T.blue}30`, borderRadius: 8,
+              padding: "2px 8px", cursor: "pointer", fontFamily: FONT,
+            }}>
+              Sign in to sync
+            </button>
+          )}
         </div>
       </div>
 
@@ -362,28 +401,29 @@ export default function OverviewTab({
             <div style={{ display: "flex", justifyContent: "center" }}>
               <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 200 : 170} hideLegend />
             </div>
-            {/* Escrow toggle — tucked to the right of the donut */}
+            {/* Escrow toggle — bottom-right corner, just above line items */}
             <div style={{
-              position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+              position: "absolute", right: 0, bottom: 4,
+              display: "flex", alignItems: "center", gap: 6,
             }}>
+              <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>Escrow</span>
               <button
                 onClick={() => { if (loanType !== "FHA" && loanType !== "VA") setIncludeEscrow(!includeEscrow); }}
                 style={{
-                  width: 32, height: 18, borderRadius: 9, border: "none",
+                  width: 40, height: 22, borderRadius: 11, border: "none", padding: 0,
                   cursor: (loanType === "FHA" || loanType === "VA") ? "not-allowed" : "pointer",
                   background: includeEscrow ? T.green : T.inputBorder,
                   position: "relative", transition: "background 0.2s",
                   opacity: (loanType === "FHA" || loanType === "VA") ? 0.6 : 1,
+                  flexShrink: 0,
                 }}
               >
                 <div style={{
-                  width: 14, height: 14, borderRadius: 7, background: "#fff",
-                  position: "absolute", top: 2, left: includeEscrow ? 16 : 2,
-                  transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                  width: 18, height: 18, borderRadius: 9, background: "#fff",
+                  position: "absolute", top: 2, left: includeEscrow ? 20 : 2,
+                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
                 }} />
               </button>
-              <span style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>Escrow</span>
             </div>
           </div>
           {/* Line items — full width below */}
