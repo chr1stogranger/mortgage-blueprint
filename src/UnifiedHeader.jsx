@@ -120,7 +120,7 @@ export default function UnifiedHeader({
       transition: "left 0.2s",
       fontFamily: FONT,
     }}>
-      {/* ── Row 1: Logo / Scenario / Badge + Controls (mobile: no stats) ── */}
+      {/* ── Row 1: Logo / Badge (centered) / Controls ── */}
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -128,9 +128,10 @@ export default function UnifiedHeader({
         paddingTop: isDesktop ? 10 : "max(8px, env(safe-area-inset-top))",
         gap: isDesktop ? 16 : 8,
         minHeight: isDesktop ? 48 : 40,
+        position: !isDesktop ? "relative" : undefined,
       }}>
         {/* Left: Logo + Sync */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
           {/* Blueprint wordmark */}
           <span style={{
             fontSize: isDesktop ? 16 : 14, fontWeight: 800,
@@ -173,9 +174,13 @@ export default function UnifiedHeader({
           <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
         </>}
 
-        {/* Center (mobile): Qualification badge + Pillar dots */}
+        {/* Center (mobile): Qualification badge + Pillar dots — absolutely centered */}
         {!isDesktop && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flex: 1 }}>
+          <div style={{
+            position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, pointerEvents: "none",
+          }}>
             <div
               onClick={() => setTab("qualify")}
               style={{
@@ -183,6 +188,7 @@ export default function UnifiedHeader({
                 background: `${badgeColor}18`,
                 borderRadius: 9999, padding: "4px 8px",
                 cursor: "pointer", transition: "all 0.2s",
+                pointerEvents: "auto",
               }}
             >
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, boxShadow: allGood ? `0 0 6px ${T.green}60` : "none" }} />
@@ -193,7 +199,7 @@ export default function UnifiedHeader({
             </div>
             <div
               onClick={() => setTab("qualify")}
-              style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", pointerEvents: "auto" }}
             >
               {pillars.map((p, i) => (
                 <div key={i} style={{
