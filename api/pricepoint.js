@@ -34,6 +34,23 @@ function setCache(key, data) {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
+// ─── Zip → neighborhood mapping (canonical, covers all launch markets) ───
+const ZIP_TO_NEIGHBORHOOD = {
+  // SF
+  "94102": "Hayes Valley", "94103": "SOMA", "94104": "FiDi", "94105": "Rincon Hill",
+  "94107": "Potrero Hill", "94108": "Chinatown", "94109": "Nob Hill", "94110": "Mission",
+  "94111": "Embarcadero", "94112": "Excelsior", "94114": "Castro", "94115": "Pacific Heights",
+  "94116": "Sunset", "94117": "Haight", "94118": "Richmond", "94121": "Outer Richmond",
+  "94122": "Sunset", "94123": "Marina", "94124": "Bayview", "94127": "St. Francis Wood",
+  "94129": "Presidio", "94130": "Treasure Island", "94131": "Twin Peaks", "94132": "Lake Merced",
+  "94133": "North Beach", "94134": "Visitacion Valley", "94158": "Mission Bay",
+  // Oakland
+  "94601": "Fruitvale", "94602": "Dimond", "94603": "East Oakland", "94605": "Seminary",
+  "94606": "San Antonio", "94607": "Jack London", "94608": "West Oakland", "94609": "Temescal",
+  "94610": "Grand Lake", "94611": "Montclair", "94612": "Lake Merritt", "94618": "Rockridge",
+  "94619": "Laurel", "94621": "East Oakland",
+};
+
 // ─── Normalize listing → PricePoint shape ───
 function normalizeProperty(raw, index, prefix, isSold) {
   const sqft = raw.livingArea || 0;
@@ -73,7 +90,7 @@ function normalizeProperty(raw, index, prefix, isSold) {
     daysOnMarket: raw.daysOnZillow || 0,
     status: isSold ? "sold" : (raw.homeStatus === "PENDING" || raw.homeStatus === "PENDING_UNDER_CONTRACT") ? "pending" : "active",
     photo: raw.imgSrc || raw.hiResImageLink || null,
-    neighborhood: raw.buildingName || "",
+    neighborhood: ZIP_TO_NEIGHBORHOOD[raw.zipcode] || raw.buildingName || "",
     pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
     latitude: raw.latitude || null,
     longitude: raw.longitude || null,
