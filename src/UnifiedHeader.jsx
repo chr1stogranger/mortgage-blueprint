@@ -120,7 +120,7 @@ export default function UnifiedHeader({
       transition: "left 0.2s",
       fontFamily: FONT,
     }}>
-      {/* ── Row 1: Logo / Scenario / Stats / Badge + Controls ── */}
+      {/* ── Row 1: Logo / Scenario / Badge + Controls (mobile: no stats) ── */}
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -182,26 +182,27 @@ export default function UnifiedHeader({
           </div>
         </div>
 
-        {/* Divider */}
-        <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
+        {/* Spacer pushes right section to edge */}
+        <div style={{ flex: 1 }} />
 
-        {/* Center: Key Stats */}
-        <div style={{
-          display: "flex", alignItems: "center", flex: 1,
-          justifyContent: "space-around", gap: isDesktop ? 8 : 2,
-          overflow: "hidden",
-        }}>
-          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
-          <Stat label="LTV" value={pct(calc.ltv, 0)} />
-          {(isDesktop || calc.qualifyingIncome > 0) && calc.qualifyingIncome > 0 && (
-            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
-          )}
-        </div>
-
-        {/* Divider */}
-        <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
+        {/* Desktop only: Key Stats inline */}
+        {isDesktop && <>
+          <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
+          <div style={{
+            display: "flex", alignItems: "center", flex: 1,
+            justifyContent: "space-around", gap: 8,
+            overflow: "hidden",
+          }}>
+            <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
+            <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+            <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
+            <Stat label="LTV" value={pct(calc.ltv, 0)} />
+            {calc.qualifyingIncome > 0 && (
+              <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
+            )}
+          </div>
+          <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
+        </>}
 
         {/* Right: Qualification badge + Pillar dots + Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: isDesktop ? 12 : 6, flexShrink: 0 }}>
@@ -282,6 +283,25 @@ export default function UnifiedHeader({
           </button>
         </div>
       </div>
+
+      {/* ── Row 2 (Mobile only): Key Stats strip ── */}
+      {!isDesktop && (
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-around",
+          padding: "4px 14px 6px",
+          borderTop: `1px solid ${T.separator}`,
+          gap: 2,
+        }}>
+          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
+          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
+          <Stat label="LTV" value={pct(calc.ltv, 0)} />
+          {calc.qualifyingIncome > 0 && (
+            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
+          )}
+        </div>
+      )}
 
       {/* ── Row 2 (LO mode): Borrower picker + Share link ── */}
       {isCloud && !isBorrower && BorrowerPicker && (

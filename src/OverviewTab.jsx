@@ -343,7 +343,7 @@ export default function OverviewTab({
         <OCard T={T}>
           {/* PayRing — centered above breakdown */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-            <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 200 : 170} />
+            <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 200 : 170} hideLegend />
           </div>
           {/* Line items — full width below */}
           <div>

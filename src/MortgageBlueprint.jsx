@@ -740,24 +740,24 @@ function RefiTestLight({ passed, label, detail }) {
   </div>
  </div>);
 }
-function PayRing({ segments, total, size }) {
+function PayRing({ segments, total, size, hideLegend }) {
  const sz = size || 200, sw = size ? Math.max(18, Math.round(size / 10)) : 22, r = (sz - sw) / 2, c = 2 * Math.PI * r;
  let cum = 0;
- return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
+ return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: hideLegend ? "8px 0 4px" : "8px 0 20px" }}>
   <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={sw} />
    {segments.filter(s => s.v > 0).map((s, i) => { const p = total > 0 ? s.v / total : 0; const dash = p * c, gap = c - dash, off = -cum * c + c * 0.25; cum += p; return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={off} style={{ transition: "all 0.6s ease" }} />; })}
-   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="500" fontFamily={FONT}>MONTHLY</text>
-   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
+   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="600" fontFamily={MONO} letterSpacing="1.2" textTransform="uppercase">MONTHLY</text>
+   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={MONO} letterSpacing="-0.03em">{fmt(total)}</text>
   </svg>
-  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>
+  {!hideLegend && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>
    {segments.filter(s => s.v > 0).map((s, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
     <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.c }} />
     <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
-    <span style={{ fontSize: 12, color: T.text, fontFamily: FONT, fontWeight: 600 }}>{fmt(s.v)}</span>
+    <span style={{ fontSize: 12, color: T.text, fontFamily: MONO, fontWeight: 600 }}>{fmt(s.v)}</span>
     {s.tip && <InfoTip text={s.tip} />}
    </div>))}
-  </div>
+  </div>}
  </div>);
 }
 function Tab({ label, active, onClick, locked, completed, tabId }) {
@@ -4294,7 +4294,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ── */}
-   <div style={{ paddingTop: isDesktop ? 68 : (isCloud && !isBorrower ? 120 : 108) }} />
+   <div style={{ paddingTop: isDesktop ? 68 : (isCloud && !isBorrower ? 144 : 132) }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
