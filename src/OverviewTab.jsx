@@ -321,6 +321,22 @@ export default function OverviewTab({
         </div>
         {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
 
+        {/* Loan Amount — derived, editable (back-calculates down %) */}
+        <div style={{ marginTop: 4 }}>
+          <Inp
+            label="Loan Amount"
+            value={Math.round(salesPrice - (salesPrice * downPct / 100))}
+            onChange={v => {
+              if (salesPrice > 0) {
+                const newDp = ((salesPrice - v) / salesPrice) * 100;
+                setDownPct(Math.round(Math.max(0, Math.min(100, newDp)) * 100) / 100);
+              }
+            }}
+            max={salesPrice}
+            sm
+          />
+        </div>
+
         {/* Rate + Term + Type */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 8 } : { marginTop: 8 }}>
           <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
