@@ -1017,45 +1017,54 @@ export default function OverviewTab({
 
       {/* Loan Inputs */}
       <OCard T={T} style={{ marginTop: 4 }}>
-        {/* Zip Code — editable inline, auto-fills city/state */}
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, marginBottom: 6 }}>Zip Code</div>
-          <input
-            value={propertyZip}
-            onChange={e => { if (typeof setPropertyZip === "function") { const clean = e.target.value.replace(/\D/g, "").slice(0, 5); setPropertyZip(clean); } }}
-            placeholder="Enter zip"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            style={{
-              width: "100%", boxSizing: "border-box",
-              background: T.inputBg, borderRadius: 12,
-              border: `1px solid ${T.inputBorder}`, padding: "12px 14px",
-              color: T.text, fontSize: 15, fontWeight: 600, fontFamily: FONT,
-              letterSpacing: "-0.02em", outline: "none",
-            }}
-            onFocus={e => { e.target.style.borderColor = T.blue; }}
-            onBlur={e => { e.target.style.borderColor = T.inputBorder; }}
-          />
-        </div>
-        {/* Property Type + Occupancy — context-setting, set once */}
-        {!isRefi && (
-          <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 6 } : { marginBottom: 6 }}>
-            <Sel label="Property Type" value={propType} onChange={setPropType} options={propTypes} sm req />
-            <Sel label="Occupancy" value={loanPurpose} onChange={v => {
-              setLoanPurpose(v);
-              if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
-                setShowInvestor(true);
-              }
-            }} options={[
-              { value: "Purchase Primary", label: "Primary" },
-              { value: "Purchase 2nd Home", label: "Second Home" },
-              { value: "Purchase Investment", label: "Investment" }
-            ]} sm req />
+        {/* ── Row 1: Zip | Property Type | Occupancy ── */}
+        <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 6 } : { marginBottom: 6 }}>
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
+              Zip Code<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+            </div>
+            <input
+              value={propertyZip}
+              onChange={e => { if (typeof setPropertyZip === "function") { const clean = e.target.value.replace(/\D/g, "").slice(0, 5); setPropertyZip(clean); } }}
+              placeholder="Enter zip"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: T.inputBg, borderRadius: 12,
+                border: `1px solid ${T.inputBorder}`, padding: "10px 12px",
+                color: T.text, fontSize: 13, fontWeight: 500, fontFamily: FONT,
+                outline: "none",
+              }}
+              onFocus={e => { e.target.style.border = `2px solid ${T.blue}`; }}
+              onBlur={e => { e.target.style.border = `1px solid ${T.inputBorder}`; }}
+            />
           </div>
-        )}
-        {/* Price + Down Payment */}
-        <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
-          <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
+          {!isRefi ? (
+            <>
+              <Sel label="Property Type" value={propType} onChange={setPropType} options={propTypes} sm req />
+              <Sel label="Occupancy" value={loanPurpose} onChange={v => {
+                setLoanPurpose(v);
+                if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
+                  setShowInvestor(true);
+                }
+              }} options={[
+                { value: "Purchase Primary", label: "Primary" },
+                { value: "Purchase 2nd Home", label: "Second Home" },
+                { value: "Purchase Investment", label: "Investment" }
+              ]} sm req />
+            </>
+          ) : (
+            <>
+              <Sel label="Property Type" value={propType} onChange={setPropType} options={propTypes} sm req />
+              <div />
+            </>
+          )}
+        </div>
+
+        {/* ── Row 2: Price | Down Payment | Loan Amount ── */}
+        <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, alignItems: "start" } : {}}>
+          <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} sm req />
           {!isRefi && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -1077,11 +1086,6 @@ export default function OverviewTab({
               </div>
             </div>
           )}
-        </div>
-        {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
-
-        {/* Loan Amount — derived, editable (back-calculates down %) */}
-        <div style={{ marginTop: 4 }}>
           <Inp
             label="Loan Amount"
             value={Math.round(salesPrice - (salesPrice * downPct / 100))}
@@ -1095,8 +1099,9 @@ export default function OverviewTab({
             sm
           />
         </div>
+        {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
 
-        {/* Rate + Term + Type */}
+        {/* ── Row 3: Rate | Term | Loan Type ── */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 8 } : { marginTop: 8 }}>
           <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
           <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[{value:30,label:"30 Year"},{value:25,label:"25 Year"},{value:20,label:"20 Year"},{value:15,label:"15 Year"},{value:10,label:"10 Year"}]} sm req />
