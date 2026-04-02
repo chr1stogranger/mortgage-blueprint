@@ -675,7 +675,7 @@ function VAFundingFeePill({ T, calc, Inp, fmt, fmt2, isDesktop, downPct, vaUsage
 
 /* ─── Cash to Close Pill (3-layer) ─── */
 function CashToClosePill({ T, calc, isRefi, salesPrice, downPct, payoffAtClosing, setTab, fmt, fmt2 }) {
-  const [showCalc, setShowCalc] = useState(false);
+  const [showCalc, setShowCalc] = useState(true);
   const label = isRefi ? "Estimated Refi Costs" : "Cash to Close";
   const total = isRefi ? (calc.totalClosingCosts + calc.totalPrepaidExp + payoffAtClosing - calc.totalCredits) : calc.cashToClose;
   const pctOfPrice = salesPrice > 0 ? (total / salesPrice * 100).toFixed(1) : "0.0";
