@@ -126,10 +126,10 @@ export default function UnifiedHeader({
       <div style={{
         display: "flex",
         alignItems: "center",
-        padding: isDesktop ? "10px 24px" : "8px 14px",
+        padding: isDesktop ? "10px 32px" : "8px 14px",
         paddingTop: isDesktop ? 10 : "max(8px, env(safe-area-inset-top))",
-        gap: isDesktop ? 16 : 8,
-        minHeight: isDesktop ? 48 : 40,
+        gap: isDesktop ? 20 : 8,
+        minHeight: isDesktop ? 52 : 40,
         position: !isDesktop ? "relative" : undefined,
       }}>
         {/* Left: Logo + Sync */}
@@ -181,10 +181,10 @@ export default function UnifiedHeader({
 
         {/* Desktop only: Key Stats inline */}
         {isDesktop && <>
-          <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
+          <div style={{ width: 1, height: 32, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
           <div style={{
             display: "flex", alignItems: "center", flex: 1,
-            justifyContent: "space-around", gap: 8,
+            justifyContent: "space-around", gap: 16,
             overflow: "hidden",
           }}>
             <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
@@ -195,7 +195,7 @@ export default function UnifiedHeader({
               <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
             )}
           </div>
-          <div style={{ width: 1, height: 28, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
+          <div style={{ width: 1, height: 32, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
         </>}
 
         {/* Center (mobile): Qualification badge + Pillar dots — absolutely centered */}
@@ -238,7 +238,7 @@ export default function UnifiedHeader({
 
         {/* Desktop: Qualification badge + Pillar dots + Controls together */}
         {isDesktop && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
             <div
               onClick={() => setTab("qualify")}
               style={{

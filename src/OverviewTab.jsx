@@ -1087,6 +1087,23 @@ export default function OverviewTab({
           <Sel label="Loan Type" value={loanType} onChange={setLoanType} options={["Conventional","FHA","VA","Jumbo","USDA"]} sm req />
         </div>
 
+        {/* Property Type + Occupancy */}
+        {!isRefi && (
+          <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 } : { marginTop: 8 }}>
+            <Sel label="Property Type" value={propType} onChange={setPropType} options={propTypes} sm req />
+            <Sel label="Occupancy" value={loanPurpose} onChange={v => {
+              setLoanPurpose(v);
+              if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
+                setShowInvestor(true);
+              }
+            }} options={[
+              { value: "Purchase Primary", label: "Primary" },
+              { value: "Purchase 2nd Home", label: "Second Home" },
+              { value: "Purchase Investment", label: "Investment" }
+            ]} sm req />
+          </div>
+        )}
+
         {/* Live Rates — below Rate/Term/Type */}
         <div style={{ marginTop: 8 }}>
           <button
