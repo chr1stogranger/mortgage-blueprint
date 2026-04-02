@@ -692,8 +692,8 @@ function CashToClosePill({ T, calc, isRefi, salesPrice, downPct, payoffAtClosing
       {/* Layer 1: Pill */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: T.inputBg, borderRadius: 12, padding: "12px 14px",
-        border: `1px solid ${T.inputBorder}`,
+        background: T.card, borderRadius: 12, padding: "12px 14px",
+        border: `1px solid ${T.cardBorder || T.inputBorder}`,
       }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
           {fmt(total)}
@@ -714,7 +714,7 @@ function CashToClosePill({ T, calc, isRefi, salesPrice, downPct, payoffAtClosing
 
       {showCalc && (
         <div style={{ marginTop: 4 }}>
-          <div style={{ background: T.inputBg || `${T.textTertiary}08`, borderRadius: 10, padding: "10px 12px" }}>
+          <div style={{ background: T.card, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.cardBorder || T.separator}` }}>
             {rows.map(([label, value], i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
                 <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
@@ -1107,8 +1107,8 @@ export default function OverviewTab({
               width: '100%',
               padding: '10px 14px',
               borderRadius: 12,
-              border: `1px solid ${liveRates ? T.green + '33' : T.blue + '33'}`,
-              background: liveRates ? T.successBg : `${T.blue}18`,
+              border: `1px solid ${T.blue}33`,
+              background: `${T.blue}${liveRates ? '18' : '10'}`,
               cursor: ratesLoading ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1116,7 +1116,7 @@ export default function OverviewTab({
               transition: 'all 0.2s'
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: FONT }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
               {ratesLoading ? 'Fetching rates...' : liveRates ? '\u2713 Live Rates Applied' : '\u25C9 Get Today\'s Rates'}
             </span>
             {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || 'Today'}</span>}
@@ -1130,6 +1130,7 @@ export default function OverviewTab({
               display: 'grid',
               gridTemplateColumns: '1fr 1fr 1fr',
               gap: 6,
+              marginTop: 10,
               marginBottom: 14
             }}>
               {[
