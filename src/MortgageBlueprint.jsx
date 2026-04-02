@@ -1716,7 +1716,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.annualIns !== undefined) setAnnualIns(s.annualIns);
   if (s.propTaxMode) setPropTaxMode(s.propTaxMode);
   if (s.taxBaseRateOverride !== undefined) setTaxBaseRateOverride(s.taxBaseRateOverride);
-  if (s.fixedAssessments !== undefined) setFixedAssessments(s.fixedAssessments);
+  setFixedAssessments(s.fixedAssessments || 1500); // default $1,500 for older scenarios that saved 0
   if (s.taxExemptionOverride !== undefined) setTaxExemptionOverride(s.taxExemptionOverride);
   if (s.taxRateLocked !== undefined) setTaxRateLocked(s.taxRateLocked);
   if (s.taxExemptionLocked !== undefined) setTaxExemptionLocked(s.taxExemptionLocked);
