@@ -381,8 +381,8 @@ function MortgageInsurancePill({ T, calc, salesPrice, loanType, creditScore, Inp
   let footnote = "";
   if (isConv) {
     breakdownRows = [
-      ["Loan Amount", fmt(calc.baseLoan)],
       ["Home Value", fmt(salesPrice)],
+      ["Loan Amount", fmt(calc.baseLoan)],
       ["LTV", `${(calc.ltv * 100).toFixed(1)}%`],
       ["Credit Score", creditScore > 0 ? String(creditScore) : "—"],
       ["PMI Rate (Radian matrix)", `${(calc.pmiRate * 100).toFixed(3)}%`],
@@ -688,11 +688,8 @@ function CashToClosePill({ T, calc, isRefi, salesPrice, downPct, payoffAtClosing
   if (payoffAtClosing > 0) rows.push(["Loans Paid Off at Close", fmt(payoffAtClosing)]);
 
   return (
-    <div style={{ marginTop: 8, marginBottom: 6 }}>
+    <div style={{ marginBottom: 6 }}>
       {/* Layer 1: Pill */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{label}</span>
-      </div>
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         background: T.inputBg, borderRadius: 12, padding: "12px 14px",
@@ -748,13 +745,6 @@ function CashToClosePill({ T, calc, isRefi, salesPrice, downPct, payoffAtClosing
                 ? "Closing costs + prepaids \u2212 credits. No down payment on refi."
                 : "Down payment + closing costs + prepaids \u2212 credits. See Fee Breakdown below for full detail."}
             </div>
-          </div>
-          {/* Link to Costs tab instead of Layer 3 */}
-          <div style={{ textAlign: "center", marginTop: 8 }}>
-            <span
-              onClick={() => setTab("costs")}
-              style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}
-            >Edit closing costs →</span>
           </div>
         </div>
       )}
@@ -1068,8 +1058,11 @@ export default function OverviewTab({
           {!isRefi && (
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-                  Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700 }}>*</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+                  Down Payment<span style={{ color: T.red, fontSize: 13, fontWeight: 700 }}>*</span>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, fontFamily: MONO }}>
+                    {downMode === "pct" ? fmt(Math.round(salesPrice * downPct / 100)) : `${downPct.toFixed(1)}%`}
+                  </span>
                 </div>
                 <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
                   <button onClick={() => setDownMode("pct")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary }}>%</button>
@@ -1081,9 +1074,6 @@ export default function OverviewTab({
               ) : (
                 <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
               )}
-              <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
-                {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
-              </div>
             </div>
           )}
           <Inp
@@ -1397,16 +1387,12 @@ export default function OverviewTab({
           SECTION 3: CASH TO CLOSE — IFW STYLE
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      {/* ── Cash to Close 3-Layer Pill ── */}
-      <div id="overview-costs" style={{ marginTop: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em", paddingLeft: 4, marginBottom: 4 }}>
-          {isRefi ? "Estimated Refi Costs" : "Cash to Close"}
-        </h2>
+      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs" action="Edit Costs →" onAction={() => setTab("costs")}>
         <CashToClosePill
           T={T} calc={calc} isRefi={isRefi} salesPrice={salesPrice} downPct={downPct}
           payoffAtClosing={payoffAtClosing} setTab={setTab} fmt={fmt} fmt2={fmt2}
         />
-      </div>
+      </CollapsibleSection>
       {/* ── Detailed Fee Breakdown (kept from IFWCashToClose) ── */}
       <IFWCashToClose
         T={T} calc={calc} isRefi={isRefi} downPct={downPct}
