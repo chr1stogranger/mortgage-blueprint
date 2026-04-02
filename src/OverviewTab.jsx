@@ -1187,30 +1187,54 @@ export default function OverviewTab({
           )}
         </div>
 
-        {/* ── Property Tax — expandable pill ── */}
-        <PropertyTaxPill
-          T={T} calc={calc} salesPrice={salesPrice}
-          propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
-          taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
-          taxExemptionOverride={taxExemptionOverride} setTaxExemptionOverride={setTaxExemptionOverride}
-          fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
-          propertyState={propertyState} city={city} loanPurpose={loanPurpose}
-          Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
-          taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
-          taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
-        />
-
-        {/* ── Mortgage Insurance — expandable pill (only when MI > 0) ── */}
-        {calc.monthlyMI > 0 && (
-          <MortgageInsurancePill
-            T={T} calc={calc} salesPrice={salesPrice} loanType={loanType}
-            creditScore={creditScore} Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
-            pmiRateLocked={pmiRateLocked} setPmiRateLocked={setPmiRateLocked}
-            pmiRateOverride={pmiRateOverride} setPmiRateOverride={setPmiRateOverride}
-          />
+        {/* ── Cost Pills: Property Tax + MI side-by-side on desktop ── */}
+        {isDesktop ? (
+          <div style={{ display: "grid", gridTemplateColumns: calc.monthlyMI > 0 ? "1fr 1fr" : "1fr", gap: 12, alignItems: "start", marginTop: 4 }}>
+            <PropertyTaxPill
+              T={T} calc={calc} salesPrice={salesPrice}
+              propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
+              taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
+              taxExemptionOverride={taxExemptionOverride} setTaxExemptionOverride={setTaxExemptionOverride}
+              fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
+              propertyState={propertyState} city={city} loanPurpose={loanPurpose}
+              Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+              taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
+              taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
+            />
+            {calc.monthlyMI > 0 && (
+              <MortgageInsurancePill
+                T={T} calc={calc} salesPrice={salesPrice} loanType={loanType}
+                creditScore={creditScore} Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+                pmiRateLocked={pmiRateLocked} setPmiRateLocked={setPmiRateLocked}
+                pmiRateOverride={pmiRateOverride} setPmiRateOverride={setPmiRateOverride}
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            <PropertyTaxPill
+              T={T} calc={calc} salesPrice={salesPrice}
+              propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
+              taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
+              taxExemptionOverride={taxExemptionOverride} setTaxExemptionOverride={setTaxExemptionOverride}
+              fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
+              propertyState={propertyState} city={city} loanPurpose={loanPurpose}
+              Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+              taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
+              taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
+            />
+            {calc.monthlyMI > 0 && (
+              <MortgageInsurancePill
+                T={T} calc={calc} salesPrice={salesPrice} loanType={loanType}
+                creditScore={creditScore} Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+                pmiRateLocked={pmiRateLocked} setPmiRateLocked={setPmiRateLocked}
+                pmiRateOverride={pmiRateOverride} setPmiRateOverride={setPmiRateOverride}
+              />
+            )}
+          </>
         )}
 
-        {/* ── VA Funding Fee — expandable pill (VA loans only) ── */}
+        {/* ── VA Funding Fee — conditional, own row ── */}
         {loanType === "VA" && calc.vaFundingFee > 0 && (
           <VAFundingFeePill
             T={T} calc={calc} Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
@@ -1220,7 +1244,7 @@ export default function OverviewTab({
           />
         )}
 
-        {/* Property details */}
+        {/* ── Insurance + HOA — always 2-col on desktop ── */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 } : { marginTop: 4 }}>
           <Inp label="Insurance" value={annualIns} onChange={setAnnualIns} suffix="/yr" max={50000} sm />
           <Inp label="HOA" value={hoa} onChange={setHoa} suffix="/mo" max={10000} sm />
