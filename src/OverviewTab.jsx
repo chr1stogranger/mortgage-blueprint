@@ -1037,6 +1037,22 @@ export default function OverviewTab({
             onBlur={e => { e.target.style.borderColor = T.inputBorder; }}
           />
         </div>
+        {/* Property Type + Occupancy — context-setting, set once */}
+        {!isRefi && (
+          <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 6 } : { marginBottom: 6 }}>
+            <Sel label="Property Type" value={propType} onChange={setPropType} options={propTypes} sm req />
+            <Sel label="Occupancy" value={loanPurpose} onChange={v => {
+              setLoanPurpose(v);
+              if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
+                setShowInvestor(true);
+              }
+            }} options={[
+              { value: "Purchase Primary", label: "Primary" },
+              { value: "Purchase 2nd Home", label: "Second Home" },
+              { value: "Purchase Investment", label: "Investment" }
+            ]} sm req />
+          </div>
+        )}
         {/* Price + Down Payment */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
           <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
@@ -1086,23 +1102,6 @@ export default function OverviewTab({
           <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[{value:30,label:"30 Year"},{value:25,label:"25 Year"},{value:20,label:"20 Year"},{value:15,label:"15 Year"},{value:10,label:"10 Year"}]} sm req />
           <Sel label="Loan Type" value={loanType} onChange={setLoanType} options={["Conventional","FHA","VA","Jumbo","USDA"]} sm req />
         </div>
-
-        {/* Property Type + Occupancy */}
-        {!isRefi && (
-          <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 } : { marginTop: 8 }}>
-            <Sel label="Property Type" value={propType} onChange={setPropType} options={propTypes} sm req />
-            <Sel label="Occupancy" value={loanPurpose} onChange={v => {
-              setLoanPurpose(v);
-              if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
-                setShowInvestor(true);
-              }
-            }} options={[
-              { value: "Purchase Primary", label: "Primary" },
-              { value: "Purchase 2nd Home", label: "Second Home" },
-              { value: "Purchase Investment", label: "Investment" }
-            ]} sm req />
-          </div>
-        )}
 
         {/* Live Rates — below Rate/Term/Type */}
         <div style={{ marginTop: 8 }}>
