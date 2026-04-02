@@ -7,12 +7,13 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 /**
  * UnifiedHeader
  *
- * Persistent top bar for ALL Blueprint tabs. Merges the old:
- *   - Header bar (Blueprint logo, scenario picker, payment, dark/light, privacy)
- *   - Qualification strip (Pre-Qualified banner + pillar dots)
- *   - OverviewStickyBar (key stats on scroll)
+ * Persistent top bar for ALL Blueprint tabs.
  *
- * Always visible. Single source of truth for deal summary + controls.
+ * Desktop: 2-row layout
+ *   Row 1 — Brand + qualification badge + pillar dots + controls
+ *   Row 2 — Stats dashboard (Price, Payment, Cash Close, LTV, DTI)
+ *
+ * Mobile: unchanged (compact single row + stats strip below)
  */
 export default function UnifiedHeader({
   /* Financials */
@@ -92,16 +93,16 @@ export default function UnifiedHeader({
 
   const sidebarW = isDesktop ? (sidebarCollapsed ? 56 : 180) : 0;
 
-  // ── Stat cell ──
+  // ── Stat cell (responsive sizing) ──
   const Stat = ({ label, value, color }) => (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1 }}>
       <div style={{
-        fontSize: 9, color: T.textTertiary, fontWeight: 600,
+        fontSize: isDesktop ? 10 : 9, color: T.textTertiary, fontWeight: 600,
         letterSpacing: 1.2, fontFamily: MONO, textTransform: "uppercase",
-        marginBottom: 2, whiteSpace: "nowrap", textAlign: "center",
+        marginBottom: isDesktop ? 3 : 2, whiteSpace: "nowrap", textAlign: "center",
       }}>{label}</div>
       <div style={{
-        fontSize: isDesktop ? 15 : 13, fontWeight: 700,
+        fontSize: isDesktop ? 17 : 13, fontWeight: 700,
         color: color || T.text, fontFamily: MONO,
         letterSpacing: "-0.02em", whiteSpace: "nowrap", textAlign: "center",
       }}>{value}</div>
@@ -122,17 +123,20 @@ export default function UnifiedHeader({
       transition: "left 0.2s",
       fontFamily: FONT,
     }}>
-      {/* ── Row 1: Logo / Badge (centered) / Controls ── */}
+      {/* ══════════════════════════════════════════════════════════
+          ROW 1 — Brand + Qualification + Controls
+          Desktop: 44px   Mobile: 40px
+         ══════════════════════════════════════════════════════════ */}
       <div style={{
         display: "flex",
         alignItems: "center",
-        padding: isDesktop ? "10px 32px" : "8px 14px",
-        paddingTop: isDesktop ? 10 : "max(8px, env(safe-area-inset-top))",
-        gap: isDesktop ? 20 : 8,
-        minHeight: isDesktop ? 52 : 40,
+        padding: isDesktop ? "0 32px" : "0 14px",
+        paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
+        gap: isDesktop ? 16 : 8,
+        height: isDesktop ? 44 : 40,
         position: !isDesktop ? "relative" : undefined,
       }}>
-        {/* Left: Logo + Sync */}
+        {/* Left: Logo + Skill Badge + Sync */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
           {/* Blueprint wordmark */}
           <span style={{
@@ -176,29 +180,10 @@ export default function UnifiedHeader({
           </div>
         </div>
 
-        {/* Spacer pushes right section to edge */}
+        {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Desktop only: Key Stats inline */}
-        {isDesktop && <>
-          <div style={{ width: 1, height: 32, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
-          <div style={{
-            display: "flex", alignItems: "center", flex: 1,
-            justifyContent: "space-around", gap: 16,
-            overflow: "hidden",
-          }}>
-            <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-            <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
-            <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
-            <Stat label="LTV" value={pct(calc.ltv, 0)} />
-            {calc.qualifyingIncome > 0 && (
-              <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
-            )}
-          </div>
-          <div style={{ width: 1, height: 32, background: T.separator, flexShrink: 0, opacity: 0.5 }} />
-        </>}
-
-        {/* Center (mobile): Qualification badge + Pillar dots — absolutely centered */}
+        {/* Center (mobile only): Qualification badge + Pillar dots — absolutely centered */}
         {!isDesktop && (
           <div style={{
             position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
@@ -236,7 +221,7 @@ export default function UnifiedHeader({
           </div>
         )}
 
-        {/* Desktop: Qualification badge + Pillar dots + Controls together */}
+        {/* Desktop: Qualification badge + Pillar dots */}
         {isDesktop && (
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
             <div
@@ -314,8 +299,28 @@ export default function UnifiedHeader({
         </div>
       </div>
 
-      {/* ── Row 2 (Mobile only): Key Stats strip ── */}
-      {!isDesktop && (
+      {/* ══════════════════════════════════════════════════════════
+          ROW 2 — Stats Dashboard
+          Desktop: dedicated row with breathing room (48px)
+          Mobile: compact strip (unchanged)
+         ══════════════════════════════════════════════════════════ */}
+      {isDesktop ? (
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-around",
+          padding: "0 48px",
+          height: 48,
+          borderTop: `1px solid ${T.separator}`,
+        }}>
+          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
+          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
+          <Stat label="LTV" value={pct(calc.ltv, 0)} />
+          {calc.qualifyingIncome > 0 && (
+            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
+          )}
+        </div>
+      ) : (
         <div style={{
           display: "flex", alignItems: "center",
           justifyContent: "space-around",
@@ -337,7 +342,7 @@ export default function UnifiedHeader({
       {isCloud && !isBorrower && BorrowerPicker && (
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
-          padding: isDesktop ? "0 24px 6px" : "0 14px 6px", flexWrap: "wrap",
+          padding: isDesktop ? "0 32px 6px" : "0 14px 6px", flexWrap: "wrap",
         }}>
           {auth?.userPill}
           <BorrowerPicker
