@@ -1,6 +1,6 @@
 import { ImageResponse } from '@vercel/og';
 
-export const config = { runtime: 'edge' };
+export const config = { maxDuration: 10 };
 
 export default async function handler(req) {
   try {
