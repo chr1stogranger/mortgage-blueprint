@@ -1682,7 +1682,7 @@ export default function OverviewTab({
               { value: "HOH", label: "Head of Household" }
             ]} sm />
             <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 12, paddingLeft: 2, fontFamily: FONT }}>
-              Affects tax bracket, standard deduction ({married === 'MFJ' ? '$32,200' : married === 'HOH' ? '$24,150' : '$16,100'}), and SALT cap
+              Affects tax bracket, standard deduction ({married === 'MFJ' ? '$32,200' : married === 'HOH' ? '$24,150' : '$16,100'}), and SALT cap ({fmt(calc.saltCap)})
             </div>
             <OCard T={T}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>

@@ -881,7 +881,7 @@ const COURSE_CHAPTERS = [
  // ── PHASE 3: THE FINISH ──
  { id: 8, phase: 3, phaseLabel: "The Finish", title: "Tax Savings & Deductions", icon: "file", housePart: "siding",
   tabLink: "tax", tabLabel: "Tax Savings",
-  lesson: "Homeownership comes with real tax benefits that renters don't get. Understanding them changes the true \"cost\" of owning.\n\n**Mortgage Interest Deduction:** You can deduct interest paid on up to $750K of mortgage debt ($375K if married filing separately). On a $640K loan at 6.5%, that's ~$41K in year-one interest — a significant deduction.\n\n**Property Tax Deduction:** Deductible up to the SALT cap of $40,000 (as of 2026). Combined with state income tax, this cap matters in high-tax states like California.\n\n**How it actually saves you money:**\nYour tax savings = (mortgage interest + property tax deduction) × your marginal tax rate.\n\nIf you're in the 24% federal bracket + 9.3% CA state bracket, your effective rate is ~33%. A $41K interest deduction saves you about $13,500 in taxes in year one.\n\n**The net cost of homeownership:** Monthly payment $5,000 minus ~$1,125/mo in tax savings = effective cost of $3,875/mo. Compare THAT number to your rent, not the full payment.\n\n**Standard deduction note:** You only benefit if your itemized deductions exceed the standard deduction ($32,200 MFJ in 2026). Most homeowners in expensive markets will itemize.",
+  lesson: "Homeownership comes with real tax benefits that renters don't get. Understanding them changes the true \"cost\" of owning.\n\n**Mortgage Interest Deduction:** You can deduct interest paid on up to $750K of mortgage debt ($375K if married filing separately). On a $640K loan at 6.5%, that's ~$41K in year-one interest — a significant deduction.\n\n**Property Tax Deduction:** Deductible up to the SALT cap of $40,400 (as of 2026, phases down for MAGI above $505K). Combined with state income tax, this cap matters in high-tax states like California.\n\n**How it actually saves you money:**\nYour tax savings = (mortgage interest + property tax deduction) × your marginal tax rate.\n\nIf you're in the 24% federal bracket + 9.3% CA state bracket, your effective rate is ~33%. A $41K interest deduction saves you about $13,500 in taxes in year one.\n\n**The net cost of homeownership:** Monthly payment $5,000 minus ~$1,125/mo in tax savings = effective cost of $3,875/mo. Compare THAT number to your rent, not the full payment.\n\n**Standard deduction note:** You only benefit if your itemized deductions exceed the standard deduction ($32,200 MFJ in 2026). Most homeowners in expensive markets will itemize.",
   quiz: [
    { q: "The mortgage interest deduction limit for MFJ is:", opts: ["$500,000", "$750,000", "$1,000,000", "Unlimited"], a: 1 },
    { q: "To benefit from mortgage interest deduction, you must:", opts: ["Own for at least 5 years", "Put 20% down", "Itemize deductions exceeding the standard deduction", "Have an FHA loan"], a: 2 },
@@ -3232,7 +3232,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const stStdKey = married === "MFJ" ? "m" : married === "HOH" ? "h" : "s";
   const stStdDeduction = stInfo.std ? (stInfo.std[stStdKey] || stInfo.std.s || 0) : 0;
   const stFlatRate = stInfo.rate || 0;
-  const saltCap = married === "MFS" ? 20000 : 40000;
+  // 2026 SALT cap: $40,400 base ($20,200 MFS)
+  // Phase-out: above $505K MAGI, cap reduces by 30% of excess, floor $10,000 ($5,000 MFS)
+  const saltBase = married === "MFS" ? 20200 : 40400;
+  const saltFloor = married === "MFS" ? 5000 : 10000;
+  const saltPhaseoutStart = married === "MFS" ? 252500 : 505000;
+  const saltCap = yearlyInc > saltPhaseoutStart
+    ? Math.max(saltFloor, Math.round(saltBase - 0.30 * (yearlyInc - saltPhaseoutStart)))
+    : saltBase;
   const fedPropTax = Math.min(yearlyTax, saltCap);
   const mortIntDeductLimit = married === "MFS" ? 375000 : 750000;
   const deductibleLoanPct = loan > 0 ? Math.min(1, mortIntDeductLimit / loan) : 1;
@@ -6013,7 +6020,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <div style={{ fontSize: 40, marginBottom: 12 }}></div>
     <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Second Home — No Additional Tax Benefit</div>
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
-     Second homes do not qualify for the same tax deductions as a primary residence. Mortgage interest may still be deductible if your total mortgage debt (primary + second home) is under the {married === "MFS" ? "$375K" : "$750K"} TCJA cap, but property taxes are subject to the {married === "MFS" ? "$20K" : "$40K"} SALT cap across all properties combined.
+     Second homes do not qualify for the same tax deductions as a primary residence. Mortgage interest may still be deductible if your total mortgage debt (primary + second home) is under the {married === "MFS" ? "$375K" : "$750K"} TCJA cap, but property taxes are subject to the {married === "MFS" ? "$20,200" : "$40,400"} SALT cap across all properties combined.
     </div>
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "12px auto 0" }}>
      If you rent the property out for more than 14 days/year, it becomes a rental property and IRS rules change significantly. Consult your CPA for your specific situation.
@@ -6148,7 +6155,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.stateItemizes ? T.green : T.orange }}>{calc.stateItemizes ? fmt(calc.stateDelta) : "$0"}</span>
     </div>
     {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is deductible federally.</Note>}
-    <Note color={T.blue}>SALT cap: {married === "MFS" ? "$20,000" : "$40,000"} (One Big Beautiful Bill). Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
+    <Note color={T.blue}>SALT cap: {fmt(calc.saltCap)} (One Big Beautiful Bill){calc.saltCap < (married === "MFS" ? 20200 : 40400) ? ` — phased down from ${married === "MFS" ? "$20,200" : "$40,400"} (income above ${married === "MFS" ? "$252,500" : "$505,000"})` : ""}. Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
    </Card>
   </Sec>
   {/* ── THE DELTA EXPLANATION ── */}
@@ -6267,7 +6274,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <span style={{ textAlign: "right", fontWeight: 600, color: T.text }}>{(b.rate * 100).toFixed(1)}%</span>
       </div>
      ))}
-     <div style={{ padding: "8px 0 0", fontSize: 12, color: T.textTertiary }}>Standard Deduction: <strong style={{ color: T.text }}>{fmt(FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single)}</strong> · SALT Cap: <strong style={{ color: T.text }}>{married === "MFS" ? "$20,000" : "$40,000"}</strong></div>
+     <div style={{ padding: "8px 0 0", fontSize: 12, color: T.textTertiary }}>Standard Deduction: <strong style={{ color: T.text }}>{fmt(FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single)}</strong> · SALT Cap: <strong style={{ color: T.text }}>{fmt(calc.saltCap)}</strong>{calc.saltCap < (married === "MFS" ? 20200 : 40400) ? <span style={{ color: T.orange }}> (phased down)</span> : ""}</div>
     </div>}
    </Card>
   </Sec>
