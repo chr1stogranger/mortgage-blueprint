@@ -6155,7 +6155,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.stateItemizes ? T.green : T.orange }}>{calc.stateItemizes ? fmt(calc.stateDelta) : "$0"}</span>
     </div>
     {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is deductible federally.</Note>}
-    <Note color={T.blue}>SALT cap: {fmt(calc.saltCap)} (One Big Beautiful Bill){calc.saltCap < (married === "MFS" ? 20200 : 40400) ? ` — phased down from ${married === "MFS" ? "$20,200" : "$40,400"} (income above ${married === "MFS" ? "$252,500" : "$505,000"})` : ""}. Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
+    <Note color={T.blue}>SALT cap: {fmt(calc.saltCap)} (OBBBA 2026){calc.saltCap < (married === "MFS" ? 20200 : 40400) ? ` — phased down from ${married === "MFS" ? "$20,200" : "$40,400"}. For every $10K earned above ${married === "MFS" ? "$252,500" : "$505,000"}, your cap drops $${married === "MFS" ? "1,500" : "3,000"}. Floor: ${married === "MFS" ? "$5,000" : "$10,000"}.` : `. Base cap: ${married === "MFS" ? "$20,200" : "$40,400"} — phases down for income above ${married === "MFS" ? "$252,500" : "$505,000"}.`} Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
    </Card>
   </Sec>
   {/* ── THE DELTA EXPLANATION ── */}

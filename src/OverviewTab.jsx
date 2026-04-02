@@ -129,11 +129,22 @@ function TaxDetailsCollapsible({ T, calc, fmt, fmt2, pct, taxState }) {
             <span style={{ fontSize: 12, color: T.textSecondary }}>Property Tax (SALT-capped)</span>
             <span style={{ fontSize: 12, fontFamily: MONO, color: T.text }}>{fmt(calc.fedPropTax)}</span>
           </div>
-          {calc.yearlyTax > calc.fedPropTax && (
-            <div style={{ fontSize: 10, color: T.orange, padding: "2px 0 4px 12px" }}>
-              Actual property tax: {fmt(calc.yearlyTax)} — SALT cap: {fmt(calc.saltCap)}
-            </div>
-          )}
+          {calc.yearlyTax > calc.fedPropTax && (() => {
+            const saltBase = married === "MFS" ? 20200 : 40400;
+            const saltThreshold = married === "MFS" ? 252500 : 505000;
+            const isPhased = calc.saltCap < saltBase;
+            return (<>
+              <div style={{ fontSize: 10, color: T.orange, padding: "2px 0 0 12px" }}>
+                Actual property tax: {fmt(calc.yearlyTax)} — SALT cap: {fmt(calc.saltCap)}
+              </div>
+              {isPhased && (
+                <div style={{ fontSize: 10, color: T.textTertiary, padding: "2px 0 4px 12px", lineHeight: 1.5 }}>
+                  Cap phases down ${married === "MFS" ? "1,500" : "3,000"} for every $10K earned above {fmt(saltThreshold)}. Floor: {fmt(married === "MFS" ? 5000 : 10000)}.
+                </div>
+              )}
+              {!isPhased && <div style={{ height: 4 }} />}
+            </>);
+          })()}
           <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontWeight: 600 }}>
             <span style={{ fontSize: 12, color: T.text }}>Total Federal Itemized</span>
             <span style={{ fontSize: 12, fontFamily: MONO, color: T.text }}>{fmt(calc.fedItemized)}</span>
