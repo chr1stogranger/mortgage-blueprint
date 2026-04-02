@@ -574,21 +574,22 @@ export default function OverviewTab({
 
       {/* Loan Inputs */}
       <OCard T={T} style={{ marginTop: 4 }}>
-        {/* Location pill — editable */}
+        {/* Location — styled like Inp fields */}
         {(propertyZip || city) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${T.separator}` }}>
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, marginBottom: 6 }}>Property</div>
             <div
               onClick={() => { if (typeof setTab === "function") setTab("setup"); }}
               style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                fontSize: 11, fontWeight: 600, fontFamily: MONO, letterSpacing: "0.5px",
-                color: T.blue, background: `${T.blue}10`,
-                borderRadius: 99, padding: "3px 10px", cursor: "pointer",
-                border: `1px solid ${T.blue}25`, transition: "all 0.2s",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: T.inputBg, borderRadius: 12, padding: "10px 12px",
+                border: `1px solid ${T.inputBorder}`, cursor: "pointer", transition: "border 0.2s",
               }}
             >
-              {city || ""}{city && propertyZip ? " · " : ""}{propertyZip}{(city || propertyZip) && propertyState ? `, ${propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState}` : ""}
-              <span style={{ fontSize: 9, opacity: 0.7 }}>&#9998;</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+                {city || ""}{city && propertyZip ? " · " : ""}{propertyZip}{(city || propertyZip) && propertyState ? `, ${propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState}` : ""}
+              </span>
+              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>Edit</span>
             </div>
           </div>
         )}
