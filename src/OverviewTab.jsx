@@ -771,34 +771,7 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, salesPrice }) {
 
   return (
-    <div id="overview-costs">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28, marginBottom: 12, paddingLeft: 4 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>
-          {isRefi ? "Estimated Refi Costs" : "Cash to Close"}
-        </h2>
-        <button onClick={() => setTab("costs")} style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Full Breakdown →</button>
-      </div>
-
-      {/* ── Always-visible summary (green card) — 3-5 buckets ── */}
-      <OCard T={T} style={{ background: `${T.green}08`, border: `1px solid ${T.green}20` }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: T.green, textTransform: "uppercase", letterSpacing: 1.5, fontFamily: MONO, marginBottom: 10 }}>
-          {isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}
-        </div>
-        {/* 1) Down Payment (purchase only) */}
-        {!isRefi && <FeeRow T={T} label="Down Payment" value={fmt(calc.dp)} bold />}
-        {/* 2) Closing Costs = Lender + Third Party + Gov */}
-        <FeeRow T={T} label="Closing Costs" value={fmt(calc.totalClosingCosts)} bold />
-        {/* 3) Prepaid Expenses = Prepaids + Initial Escrow */}
-        <FeeRow T={T} label="Prepaid Expenses" value={fmt(calc.totalPrepaidExp)} bold />
-        {/* 4) Debts / Loans to be Paid Off (if applicable) */}
-        {payoffAtClosing > 0 && <FeeRow T={T} label="Loans Paid Off at Closing" value={fmt(payoffAtClosing)} bold />}
-        {/* 5) Credits (if applicable) */}
-        {calc.totalCredits > 0 && <FeeRow T={T} label="Credits" value={`(${fmt(calc.totalCredits)})`} bold color={T.green} />}
-        <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
-          <FeeRow T={T} label={isRefi ? "ESTIMATED TOTAL REFI COSTS" : "ESTIMATED CASH TO CLOSE"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp + payoffAtClosing - calc.totalCredits : calc.cashToClose)} bold color={T.green} />
-        </div>
-      </OCard>
-
+    <div>
       {/* ── Collapsible detailed breakdown ── */}
       <CollapsibleSection title="Fee Breakdown" T={T} defaultOpen={false}>
         <OCard T={T} pad={16}>
@@ -1379,6 +1352,17 @@ export default function OverviewTab({
           SECTION 3: CASH TO CLOSE — IFW STYLE
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
+      {/* ── Cash to Close 3-Layer Pill ── */}
+      <div id="overview-costs" style={{ marginTop: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em", paddingLeft: 4, marginBottom: 4 }}>
+          {isRefi ? "Estimated Refi Costs" : "Cash to Close"}
+        </h2>
+        <CashToClosePill
+          T={T} calc={calc} isRefi={isRefi} salesPrice={salesPrice} downPct={downPct}
+          payoffAtClosing={payoffAtClosing} setTab={setTab} fmt={fmt} fmt2={fmt2}
+        />
+      </div>
+      {/* ── Detailed Fee Breakdown (kept from IFWCashToClose) ── */}
       <IFWCashToClose
         T={T} calc={calc} isRefi={isRefi} downPct={downPct}
         underwritingFee={underwritingFee} processingFee={processingFee}
