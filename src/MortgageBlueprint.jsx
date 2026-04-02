@@ -4295,7 +4295,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ── */}
-   <div style={{ paddingTop: isDesktop ? 72 : (isCloud && !isBorrower ? 144 : 120) }} />
+   <div style={{ paddingTop: isDesktop ? 72 : `calc(${isCloud && !isBorrower ? 110 : 86}px + env(safe-area-inset-top, 20px))` }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
@@ -6394,7 +6394,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    loanPurpose={loanPurpose} setLoanPurpose={setLoanPurpose}
    propertyState={propertyState} setPropertyState={setPropertyState}
    city={city} setCity={setCity}
-   propertyZip={propertyZip}
+   propertyZip={propertyZip} setPropertyZip={setPropertyZip}
    annualIns={annualIns} setAnnualIns={setAnnualIns}
    hoa={hoa} setHoa={setHoa}
    includeEscrow={includeEscrow} setIncludeEscrow={setIncludeEscrow}

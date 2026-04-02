@@ -445,7 +445,7 @@ export default function OverviewTab({
   loanPurpose, setLoanPurpose,
   propertyState, setPropertyState,
   city, setCity,
-  propertyZip,
+  propertyZip, setPropertyZip,
   annualIns, setAnnualIns,
   hoa, setHoa,
   includeEscrow, setIncludeEscrow,
@@ -574,25 +574,26 @@ export default function OverviewTab({
 
       {/* Loan Inputs */}
       <OCard T={T} style={{ marginTop: 4 }}>
-        {/* Location — styled like Inp fields */}
-        {(propertyZip || city) && (
-          <div style={{ marginBottom: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, marginBottom: 6 }}>Property</div>
-            <div
-              onClick={() => { if (typeof setTab === "function") setTab("setup"); }}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: T.inputBg, borderRadius: 12, padding: "10px 12px",
-                border: `1px solid ${T.inputBorder}`, cursor: "pointer", transition: "border 0.2s",
-              }}
-            >
-              <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
-                {city || ""}{city && propertyZip ? " · " : ""}{propertyZip}{(city || propertyZip) && propertyState ? `, ${propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState}` : ""}
-              </span>
-              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>Edit</span>
-            </div>
-          </div>
-        )}
+        {/* Zip Code — editable inline, auto-fills city/state */}
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, marginBottom: 6 }}>Zip Code</div>
+          <input
+            value={propertyZip}
+            onChange={e => { if (typeof setPropertyZip === "function") { const clean = e.target.value.replace(/\D/g, "").slice(0, 5); setPropertyZip(clean); } }}
+            placeholder="Enter zip"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: T.inputBg, borderRadius: 12,
+              border: `1px solid ${T.inputBorder}`, padding: "12px 14px",
+              color: T.text, fontSize: 15, fontWeight: 600, fontFamily: FONT,
+              letterSpacing: "-0.02em", outline: "none",
+            }}
+            onFocus={e => { e.target.style.borderColor = T.blue; }}
+            onBlur={e => { e.target.style.borderColor = T.inputBorder; }}
+          />
+        </div>
         {/* Price + Down Payment */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
           <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
@@ -847,6 +848,57 @@ export default function OverviewTab({
           {!debtFree && debts.length === 0 && (
             <div style={{ textAlign: "center", padding: 16, color: T.textTertiary, fontSize: 13 }}>
               No debts entered — <span onClick={() => setTab("debts")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add debts</span>
+            </div>
+          )}
+        </OCard>
+      </CollapsibleSection>
+
+      {/* ═══════════════════════════════════════
+          SECTION 6B: ASSETS
+          ═══════════════════════════════════════ */}
+      <SectionDivider T={T} />
+      <CollapsibleSection title="Assets" T={T} action="Edit Assets →" onAction={() => setTab("assets")}>
+        <OCard T={T}>
+          {assets.length > 0 ? (
+            <>
+              {/* Total + Cash to Close + Reserves row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase" }}>Total</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.cyan, letterSpacing: "-0.02em" }}>{fmt(calc.totalAssetValue)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase" }}>For Closing</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.totalForClosing >= calc.cashToClose ? T.green : T.text, letterSpacing: "-0.02em" }}>{fmt(calc.totalForClosing)}</div>
+                  <div style={{ fontSize: 10, color: calc.totalForClosing >= calc.cashToClose ? T.green : T.orange, fontWeight: 500 }}>
+                    {calc.totalForClosing >= calc.cashToClose ? `✓ Covers ${fmt(calc.cashToClose)}` : `${fmt(calc.cashToClose - calc.totalForClosing)} short`}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, letterSpacing: 1, textTransform: "uppercase" }}>Reserves</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.totalReserves >= calc.reservesReq ? T.green : T.text, letterSpacing: "-0.02em" }}>{fmt(calc.totalReserves)}</div>
+                  <div style={{ fontSize: 10, color: calc.totalReserves >= calc.reservesReq ? T.green : T.orange, fontWeight: 500 }}>
+                    {calc.reservesReq > 0 ? (calc.totalReserves >= calc.reservesReq ? `✓ Covers ${calc.reserveMonths} mo` : `${fmt(calc.reservesReq - calc.totalReserves)} short`) : "N/A"}
+                  </div>
+                </div>
+              </div>
+              {/* Account list */}
+              {assets.map((a, i) => (
+                <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "8px 0", borderTop: i === 0 ? `1px solid ${T.separator}` : `1px solid ${T.separator}` }}>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: T.text, fontFamily: FONT }}>{a.bank || a.type || "Account"}</span>
+                    {a.bank && a.type && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 6 }}>{a.type}</span>}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(a.value)}</span>
+                    {a.forClosing > 0 && <div style={{ fontSize: 10, color: T.green, fontWeight: 500 }}>{fmt(a.forClosing)} closing</div>}
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "12px 0", fontSize: 13, color: T.textTertiary }}>
+              No assets entered — <span onClick={() => setTab("assets")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add assets</span>
             </div>
           )}
         </OCard>
