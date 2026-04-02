@@ -1510,9 +1510,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [realtorCredit, setRealtorCredit] = useState(0);
  const [emd, setEmd] = useState(0);
  // Section H: Other Costs
- const [ownersTitleIns, setOwnersTitleIns] = useState(1500);
+ const [ownersTitleIns, setOwnersTitleIns] = useState(2000);
  const [homeWarranty, setHomeWarranty] = useState(500);
- const [hoaTransferFee, setHoaTransferFee] = useState(500);
+ const [hoaTransferFee, setHoaTransferFee] = useState(0); // auto-set to 1 month HOA
  const [buyerPaysComm, setBuyerPaysComm] = useState(false);
  const [buyerCommPct, setBuyerCommPct] = useState(2.5);
  const [sellerTaxBasis, setSellerTaxBasis] = useState(5000);
@@ -2637,7 +2637,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    totalSteps = TAB_PROGRESSION.length;
    progressPct = (stepNum / totalSteps) * 100;
   }
-  if (tab === "settings" || tab === "compare" || tab === "summary") return null;
+  if (tab === "overview" || tab === "settings" || tab === "compare" || tab === "summary") return null;
   const fieldsComplete = isTabFieldsComplete(tab);
   const isReady = fieldsComplete && scrolledPast80;
   const handleNext = () => {
@@ -3179,7 +3179,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const canShop = titleEscrowTotal + hoaCert;
   const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
   const buyerCommAmt = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
-  const sectionH = (isRefi ? 0 : ownersTitleIns) + (isRefi ? 0 : homeWarranty) + (isRefi ? 0 : hoaTransferFee) + buyerCommAmt;
+  const hoaTransferActual = hoa > 0 ? (hoaTransferFee > 0 ? hoaTransferFee : hoa) : 0;
+  const sectionH = (isRefi ? 0 : ownersTitleIns) + (isRefi ? 0 : homeWarranty) + (isRefi ? 0 : hoaTransferActual) + buyerCommAmt;
   const totalClosingCosts = origCharges + cannotShop + canShop + govCharges + sectionH;
   const closeYear = new Date().getFullYear();
   const closeDate = new Date(closeYear, closingMonth - 1, closingDay);
@@ -3491,7 +3492,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
    ttEntry, buyerCityTT, buyerCountyTT, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
-   govCharges, sectionH, buyerCommAmt, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
+   govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose,
    reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck, resCheck, minDPpct, recDPpct, dpWarning,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
@@ -5165,7 +5166,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <Inp label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} sm tip="Protects the buyer's ownership interest. One-time premium paid at closing. Separate from the lender's title policy in Section C." />
     <Inp label="Home Warranty" value={homeWarranty} onChange={setHomeWarranty} sm tip="Annual home warranty plan covering major systems and appliances. Typically $400–$600." />
    </div>
-   <Inp label="HOA Transfer Fee" value={hoaTransferFee} onChange={setHoaTransferFee} sm tip="Fee charged by the HOA when ownership transfers. Covers document prep, account setup, and move-in/out processing." />
+   {hoa > 0 && (
+    <>
+     <Inp label="HOA Transfer Fee" value={hoaTransferFee || hoa} onChange={setHoaTransferFee} sm tip="Fee charged by the HOA when ownership transfers. Defaults to 1 month of HOA dues. Covers document prep, account setup, and move-in/out processing." />
+     {hoaTransferFee === 0 && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -6, marginBottom: 8, paddingLeft: 2 }}>Auto: 1 month HOA ({fmt(hoa)})</div>}
+    </>
+   )}
    {/* Buyer Agent Commission — toggle + % input */}
    <div style={{ marginTop: 8, padding: "12px 14px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.cardBorder}` }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: buyerPaysComm ? 10 : 0 }}>

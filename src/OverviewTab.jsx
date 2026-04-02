@@ -428,7 +428,7 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
             <FeeCategory title="H. Other Costs" total={fmt(calc.sectionH)} T={T}>
               {ownersTitleIns > 0 && <FeeRow T={T} label="Owner's Title Insurance" value={fmt(ownersTitleIns)} indent />}
               {homeWarranty > 0 && <FeeRow T={T} label="Home Warranty" value={fmt(homeWarranty)} indent />}
-              {hoaTransferFee > 0 && <FeeRow T={T} label="HOA Transfer Fee" value={fmt(hoaTransferFee)} indent />}
+              {calc.hoaTransferActual > 0 && <FeeRow T={T} label="HOA Transfer Fee" value={fmt(calc.hoaTransferActual)} indent />}
               {calc.buyerCommAmt > 0 && <FeeRow T={T} label={`Buyer Agent Commission (${buyerCommPct}%)`} value={fmt(calc.buyerCommAmt)} indent />}
             </FeeCategory>
           )}
