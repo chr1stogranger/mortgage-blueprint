@@ -357,7 +357,8 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
   appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
   titleInsurance, titleSearch, settlementFee, escrowFee,
   recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
-  discountPts, payoffAtClosing, setTab, closingMonth, closingDay }) {
+  discountPts, payoffAtClosing, setTab, closingMonth, closingDay,
+  ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, salesPrice }) {
 
   return (
     <div id="overview-costs">
@@ -421,6 +422,21 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
             {calc.buyerCityTT > 0 && <FeeRow T={T} label="Transfer Tax (City)" value={fmt(calc.buyerCityTT)} indent />}
             {recordingFee > 0 && <FeeRow T={T} label="Recording Fees" value={fmt(recordingFee)} indent />}
           </FeeCategory>
+
+          {/* H. Other Costs (purchase only) */}
+          {!isRefi && calc.sectionH > 0 && (
+            <FeeCategory title="H. Other Costs" total={fmt(calc.sectionH)} T={T}>
+              {ownersTitleIns > 0 && <FeeRow T={T} label="Owner's Title Insurance" value={fmt(ownersTitleIns)} indent />}
+              {homeWarranty > 0 && <FeeRow T={T} label="Home Warranty" value={fmt(homeWarranty)} indent />}
+              {hoaTransferFee > 0 && <FeeRow T={T} label="HOA Transfer Fee" value={fmt(hoaTransferFee)} indent />}
+              {calc.buyerCommAmt > 0 && <FeeRow T={T} label={`Buyer Agent Commission (${buyerCommPct}%)`} value={fmt(calc.buyerCommAmt)} indent />}
+            </FeeCategory>
+          )}
+
+          {/* Closing Costs Subtotal */}
+          <div style={{ borderTop: `2px solid ${T.blue}40`, marginTop: 8, paddingTop: 8, marginBottom: 8 }}>
+            <FeeRow T={T} label={isRefi ? "Total Closing Costs (A\u2013D)" : "Total Closing Costs (A\u2013D,H)"} value={fmt(calc.totalClosingCosts)} bold color={T.blue} />
+          </div>
 
           {/* F. Prepaids & G. Initial Escrow */}
           <FeeCategory title="F/G. Prepaids & Initial Escrow" total={fmt(calc.totalPrepaidExp)} T={T}>
@@ -526,6 +542,8 @@ export default function OverviewTab({
   titleInsurance, titleSearch, settlementFee, escrowFee,
   recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
   discountPts, payoffAtClosing,
+  /* Section H: Other Costs */
+  ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct,
   /* Property tax calculator */
   propTaxMode, setPropTaxMode,
   taxBaseRateOverride, setTaxBaseRateOverride,
@@ -928,6 +946,9 @@ export default function OverviewTab({
         sellerCredit={sellerCredit} realtorCredit={realtorCredit}
         emd={emd} discountPts={discountPts} payoffAtClosing={payoffAtClosing}
         setTab={setTab} closingMonth={closingMonth} closingDay={closingDay}
+        ownersTitleIns={ownersTitleIns} homeWarranty={homeWarranty}
+        hoaTransferFee={hoaTransferFee} buyerPaysComm={buyerPaysComm}
+        buyerCommPct={buyerCommPct} salesPrice={salesPrice}
       />
 
       {/* ═══════════════════════════════════════

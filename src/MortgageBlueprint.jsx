@@ -1509,6 +1509,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [sellerCredit, setSellerCredit] = useState(0);
  const [realtorCredit, setRealtorCredit] = useState(0);
  const [emd, setEmd] = useState(0);
+ // Section H: Other Costs
+ const [ownersTitleIns, setOwnersTitleIns] = useState(1500);
+ const [homeWarranty, setHomeWarranty] = useState(500);
+ const [hoaTransferFee, setHoaTransferFee] = useState(500);
+ const [buyerPaysComm, setBuyerPaysComm] = useState(false);
+ const [buyerCommPct, setBuyerCommPct] = useState(2.5);
  const [sellerTaxBasis, setSellerTaxBasis] = useState(5000);
  const [prepaidDays, setPrepaidDays] = useState(15);
  const [coeDays, setCoeDays] = useState(30);
@@ -1680,7 +1686,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const getState = () => ({
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
+  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
   prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
@@ -1743,6 +1750,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.sellerCredit !== undefined) setSellerCredit(s.sellerCredit);
   if (s.realtorCredit !== undefined) setRealtorCredit(s.realtorCredit);
   if (s.emd !== undefined) setEmd(s.emd);
+  if (s.ownersTitleIns !== undefined) setOwnersTitleIns(s.ownersTitleIns);
+  if (s.homeWarranty !== undefined) setHomeWarranty(s.homeWarranty);
+  if (s.hoaTransferFee !== undefined) setHoaTransferFee(s.hoaTransferFee);
+  if (s.buyerPaysComm !== undefined) setBuyerPaysComm(s.buyerPaysComm);
+  if (s.buyerCommPct !== undefined) setBuyerCommPct(s.buyerCommPct);
   if (s.sellerTaxBasis !== undefined) setSellerTaxBasis(s.sellerTaxBasis);
   if (s.prepaidDays !== undefined) setPrepaidDays(s.prepaidDays);
   if (s.coeDays !== undefined) setCoeDays(s.coeDays);
@@ -2017,7 +2029,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, sellerTaxBasis,
+  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
@@ -3165,7 +3178,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const titleEscrowTotal = titleInsurance + titleSearch + settlementFee + escrowFee;
   const canShop = titleEscrowTotal + hoaCert;
   const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
-  const totalClosingCosts = origCharges + cannotShop + canShop + govCharges;
+  const buyerCommAmt = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
+  const sectionH = (isRefi ? 0 : ownersTitleIns) + (isRefi ? 0 : homeWarranty) + (isRefi ? 0 : hoaTransferFee) + buyerCommAmt;
+  const totalClosingCosts = origCharges + cannotShop + canShop + govCharges + sectionH;
   const closeYear = new Date().getFullYear();
   const closeDate = new Date(closeYear, closingMonth - 1, closingDay);
   const daysInCloseMonth = new Date(closeYear, closingMonth, 0).getDate();
@@ -3476,7 +3491,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
    ttEntry, buyerCityTT, buyerCountyTT, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
-   govCharges, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
+   govCharges, sectionH, buyerCommAmt, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose,
    reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck, resCheck, minDPpct, recDPpct, dpWarning,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
@@ -5037,7 +5052,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  {isDesktop && (
  <Card style={{ background: `${T.blue}10`, border: `1px solid ${T.blue}25` }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-   {[["A. Lender Fees", fmt2(calc.origCharges)], ["B. Cannot Shop", fmt2(calc.cannotShop)], ["C. Can Shop", fmt2(calc.canShop)], ["D. Government", fmt2(calc.govCharges)]].map(([l, v], i) => (
+   {[["A. Lender Fees", fmt2(calc.origCharges)], ["B. Cannot Shop", fmt2(calc.cannotShop)], ["C. Can Shop", fmt2(calc.canShop)], ["D. Government", fmt2(calc.govCharges)], ...(!isRefi ? [["H. Other Costs", fmt2(calc.sectionH)]] : [])].map(([l, v], i) => (
     <div key={i} style={{ padding: "6px 12px", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
      <span style={{ color: T.textSecondary }}>{l}</span>
      <span style={{ fontWeight: 600, fontFamily: FONT }}>{v}</span>
@@ -5055,7 +5070,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Card style={{ background: T.successBg, border: `1px solid ${T.green}30`, marginTop: 12 }}>
   <div style={{ fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>{isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}</div>
   {!isRefi && <MRow label="Down Payment" value={fmt(calc.dp)} />}
-  <MRow label="A–D. Total Closing Costs" value={fmt(calc.totalClosingCosts)} />
+  <MRow label={isRefi ? "A\u2013D. Total Closing Costs" : "A\u2013D,H. Total Closing Costs"} value={fmt(calc.totalClosingCosts)} />
   <MRow label={includeEscrow ? "E–F. Prepaids & Escrow" : "E. Prepaids"} value={fmt(calc.totalPrepaidExp)} />
   {calc.totalCredits > 0 && <MRow label="G. Credits Applied" value={`-${fmt(calc.totalCredits)}`} color={T.green} />}
   <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
@@ -5142,10 +5157,55 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
  </Sec>
 
+ {/* ── H. OTHER COSTS ── */}
+ {!isRefi && (
+ <Sec title="H. Other Costs">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} sm tip="Protects the buyer's ownership interest. One-time premium paid at closing. Separate from the lender's title policy in Section C." />
+    <Inp label="Home Warranty" value={homeWarranty} onChange={setHomeWarranty} sm tip="Annual home warranty plan covering major systems and appliances. Typically $400–$600." />
+   </div>
+   <Inp label="HOA Transfer Fee" value={hoaTransferFee} onChange={setHoaTransferFee} sm tip="Fee charged by the HOA when ownership transfers. Covers document prep, account setup, and move-in/out processing." />
+   {/* Buyer Agent Commission — toggle + % input */}
+   <div style={{ marginTop: 8, padding: "12px 14px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.cardBorder}` }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: buyerPaysComm ? 10 : 0 }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Buyer Pays Agent Commission</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>Toggle on if buyer is responsible for their agent's fee</div>
+     </div>
+     <button
+      onClick={() => setBuyerPaysComm(!buyerPaysComm)}
+      style={{
+       width: 40, height: 22, borderRadius: 9999, border: "none",
+       background: buyerPaysComm ? T.blue : T.separator,
+       position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0
+      }}
+     >
+      <div style={{
+       width: 18, height: 18, borderRadius: "50%", background: "#fff",
+       position: "absolute", top: 2, left: buyerPaysComm ? 20 : 2,
+       transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+      }} />
+     </button>
+    </div>
+    {buyerPaysComm && (
+     <>
+      <Inp label="Commission Rate" value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
+      <MRow label="Buyer Agent Commission" value={fmt(calc.buyerCommAmt)} sub={`${buyerCommPct}% of ${fmt(salesPrice)}`} color={T.orange} />
+     </>
+    )}
+   </div>
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Total Other Costs" value={fmt2(calc.sectionH)} bold />
+   </div>
+  </Card>
+ </Sec>
+ )}
+
  {/* ── CLOSING COSTS SUBTOTAL (mobile only — desktop shows in left column) ── */}
  {!isDesktop && <Card style={{ background: `${T.blue}10`, border: `1px solid ${T.blue}25` }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-   {[["A. Lender Fees", fmt2(calc.origCharges)], ["B. Cannot Shop", fmt2(calc.cannotShop)], ["C. Can Shop", fmt2(calc.canShop)], ["D. Government", fmt2(calc.govCharges)]].map(([l, v], i) => (
+   {[["A. Lender Fees", fmt2(calc.origCharges)], ["B. Cannot Shop", fmt2(calc.cannotShop)], ["C. Can Shop", fmt2(calc.canShop)], ["D. Government", fmt2(calc.govCharges)], ...(!isRefi ? [["H. Other Costs", fmt2(calc.sectionH)]] : [])].map(([l, v], i) => (
     <div key={i} style={{ padding: "6px 12px", fontSize: 12, display: "flex", justifyContent: "space-between" }}>
      <span style={{ color: T.textSecondary }}>{l}</span>
      <span style={{ fontWeight: 600, fontFamily: FONT }}>{v}</span>
@@ -5232,8 +5292,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Card style={{ background: T.successBg, border: `1px solid ${T.green}30` }}>
   <div style={{ fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>{isRefi ? "Estimated Refi Costs" : "Estimated Funds to Close"}</div>
   {!isRefi && <MRow label="Down Payment" value={fmt(calc.dp)} />}
-  <MRow label="A–D. Total Closing Costs" value={fmt(calc.totalClosingCosts)} />
-  <MRow label={includeEscrow ? "E–F. Prepaids & Escrow" : "E. Prepaids"} value={fmt(calc.totalPrepaidExp)} />
+  <MRow label={isRefi ? "A\u2013D. Total Closing Costs" : "A\u2013D,H. Total Closing Costs"} value={fmt(calc.totalClosingCosts)} />
+  <MRow label={includeEscrow ? "E\u2013F. Prepaids & Escrow" : "E. Prepaids"} value={fmt(calc.totalPrepaidExp)} />
   {calc.totalCredits > 0 && <MRow label="G. Credits Applied" value={`-${fmt(calc.totalCredits)}`} color={T.green} />}
   <div style={{ borderTop: `2px solid ${T.green}40`, marginTop: 8, paddingTop: 8 }}>
    <MRow label={isRefi ? "TOTAL REFI COSTS" : "ESTIMATED CASH FROM BORROWER"} value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)} color={T.green} bold />
@@ -6587,6 +6647,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    emd={emd}
    discountPts={discountPts}
    payoffAtClosing={calc.payoffAtClosing}
+   /* Section H: Other Costs */
+   ownersTitleIns={ownersTitleIns} homeWarranty={homeWarranty}
+   hoaTransferFee={hoaTransferFee} buyerPaysComm={buyerPaysComm} buyerCommPct={buyerCommPct}
    /* Property tax calculator */
    propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
    taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
