@@ -457,6 +457,11 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
             })()}
           </FeeCategory>
 
+          {/* Prepaids Subtotal */}
+          <div style={{ borderTop: `2px solid ${T.blue}40`, marginTop: 8, paddingTop: 8, marginBottom: 8 }}>
+            <FeeRow T={T} label="Total Prepaids & Escrow (F/G)" value={fmt(calc.totalPrepaidExp)} bold color={T.blue} />
+          </div>
+
           {/* J. Credits */}
           {calc.totalCredits > 0 && (
             <FeeCategory title="J. Credits" total={`(${fmt(calc.totalCredits)})`} T={T}>
@@ -520,6 +525,7 @@ export default function OverviewTab({
   /* Sell */
   hasSellProperty, setHasSellProperty,
   showInvestor, setShowInvestor,
+  showRentVsBuy, setShowRentVsBuy,
   sellPrice, sellMortgagePayoff,
   /* Navigation */
   setTab,
@@ -832,6 +838,7 @@ export default function OverviewTab({
               { label: 'Own Properties?', desc: 'Show Real Estate Owned analysis', val: ownsProperties, set: setOwnsProperties },
               { label: 'Selling a Property?', desc: 'Show Seller Net Proceeds calculator', val: hasSellProperty, set: setHasSellProperty },
               { label: 'Investment Analysis?', desc: 'Show NOI, Cap Rate, DSCR metrics', val: showInvestor, set: setShowInvestor },
+              ...(!isRefi ? [{ label: 'Buy vs Rent?', desc: 'Compare buying vs renting over time', val: showRentVsBuy, set: setShowRentVsBuy }] : []),
             ].map(m => (
               <div key={m.label} style={{
                 display: 'flex',
@@ -1215,56 +1222,13 @@ export default function OverviewTab({
           <SectionDivider T={T} />
           <CollapsibleSection title="Tax Savings" T={T} action="Full Analysis →" onAction={() => setTab("tax")}>
             {/* Filing Status */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 14,
-              padding: '10px 14px',
-              background: T.inputBg,
-              borderRadius: 10,
-              border: `1px solid ${T.cardBorder}`
-            }}>
-              <span style={{
-                fontFamily: MONO,
-                fontSize: '0.6rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                color: T.textTertiary,
-                whiteSpace: 'nowrap'
-              }}>Filing Status</span>
-              <select
-                value={married}
-                onChange={e => setMarried(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: T.card,
-                  border: `1px solid ${T.inputBorder}`,
-                  borderRadius: 8,
-                  padding: '8px 10px',
-                  color: T.text,
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  cursor: 'pointer',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 10px center',
-                  outline: 'none',
-                }}
-                onFocus={e => e.target.style.borderColor = T.blue}
-                onBlur={e => e.target.style.borderColor = T.inputBorder}
-              >
-                <option value="Single">Single</option>
-                <option value="MFJ">Married Filing Jointly</option>
-                <option value="MFS">Married Filing Separately</option>
-                <option value="HOH">Head of Household</option>
-              </select>
-            </div>
-            <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 12, paddingLeft: 2, marginTop: -8 }}>
+            <Sel label="Filing Status" value={married} onChange={v => setMarried(v)} options={[
+              { value: "Single", label: "Single" },
+              { value: "MFJ", label: "Married Filing Jointly" },
+              { value: "MFS", label: "Married Filing Separately" },
+              { value: "HOH", label: "Head of Household" }
+            ]} sm />
+            <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 12, paddingLeft: 2, fontFamily: FONT }}>
               Affects tax bracket, standard deduction ({married === 'MFJ' ? '$29,200' : married === 'HOH' ? '$21,900' : '$14,600'}), and SALT cap
             </div>
             <OCard T={T}>

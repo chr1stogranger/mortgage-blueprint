@@ -1564,6 +1564,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [realtorName, setRealtorName] = useState("");
  const [reos, setReos] = useState([]);
  const [showInvestor, setShowInvestor] = useState(false);
+ const [showRentVsBuy, setShowRentVsBuy] = useState(false);
  const [invMonthlyRent, setInvMonthlyRent] = useState(4500);
  const [invVacancy, setInvVacancy] = useState(5);
  const [invMgmt, setInvMgmt] = useState(8);
@@ -1698,7 +1699,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
-  showInvestor, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
+  showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   darkMode, themeMode,
  });
@@ -1836,6 +1837,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.themeMode) { setThemeMode(s.themeMode); try { localStorage.setItem('bp_theme_mode', s.themeMode); } catch {} }
   else if (s.darkMode !== undefined) { setThemeMode(s.darkMode ? 'dark' : 'light'); try { localStorage.setItem('bp_theme_mode', s.darkMode ? 'dark' : 'light'); } catch {} }
   if (s.showInvestor !== undefined) setShowInvestor(s.showInvestor);
+  if (s.showRentVsBuy !== undefined) setShowRentVsBuy(s.showRentVsBuy);
   if (s.invMonthlyRent !== undefined) setInvMonthlyRent(s.invMonthlyRent);
   if (s.invVacancy !== undefined) setInvVacancy(s.invVacancy);
   if (s.invMgmt !== undefined) setInvMgmt(s.invMgmt);
@@ -3768,7 +3770,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ["tax","Tax Savings"],["amort","Amortization"],
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
   ...(showInvestor ? [["invest","Investor"]] : []),
-  ...(firstTimeBuyer && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
+  ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
   ["summary","Share"],
   ...(isBorrower ? [] : [["settings","Settings"]])];
@@ -6617,6 +6619,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    debts={debts} debtFree={debtFree}
    ownsProperties={ownsProperties} setOwnsProperties={setOwnsProperties}
    showInvestor={showInvestor} setShowInvestor={setShowInvestor}
+   showRentVsBuy={showRentVsBuy} setShowRentVsBuy={setShowRentVsBuy}
    incomes={incomes}
    assets={assets}
    payExtra={payExtra} setPayExtra={setPayExtra}
