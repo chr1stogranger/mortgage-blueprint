@@ -26,8 +26,8 @@ export default function handler(req, res) {
 
   const title = `PricePoint Challenge — ${accuracy}% on ${hood}`;
   const description = `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;
-  // Static fallback OG image (dynamic OG generator removed to stay within Hobby plan function limit)
-  const ogImageUrl = `https://blueprint.realstack.app/og-pricepoint.png`;
+  // Dynamic OG image with challenge data
+  const ogImageUrl = `https://blueprint.realstack.app/api/og-pricepoint?c=${encodeURIComponent(c)}`;
   const canonicalUrl = `https://blueprint.realstack.app/?c=${encodeURIComponent(c)}`;
 
   // Serve HTML with OG tags, then JS redirect to the SPA

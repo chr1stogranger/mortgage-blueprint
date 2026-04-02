@@ -209,61 +209,81 @@ function TaxDetailsCollapsible({ T, calc, fmt, fmt2, pct, taxState }) {
 function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
   taxBaseRateOverride, setTaxBaseRateOverride, taxExemptionOverride, setTaxExemptionOverride,
   fixedAssessments, setFixedAssessments, propertyState, city, loanPurpose, Inp, fmt, fmt2, isDesktop }) {
-  const expanded = propTaxMode === "custom";
+  const [isExpanded, setIsExpanded] = useState(propTaxMode === "custom");
   const autoRate = calc.autoTaxRate || 0;
+  const isCustom = propTaxMode === "custom";
+  const cityLabel = propertyState === "California" ? (city || "CA") : (propertyState || "State");
 
   return (
-    <div style={{ marginTop: 8, borderRadius: 12, border: `1px solid ${expanded ? `${T.blue}40` : T.cardBorder}`, overflow: "hidden", transition: "all 0.3s" }}>
+    <div style={{ marginTop: 8, borderRadius: 12, border: `1px solid ${isExpanded ? `${T.blue}40` : T.cardBorder}`, overflow: "hidden", transition: "all 0.3s" }}>
       {/* Header — always visible */}
       <div
         onClick={() => {
-          if (propTaxMode === "auto") {
+          const opening = !isExpanded;
+          setIsExpanded(opening);
+          if (opening && !isCustom) {
             setPropTaxMode("custom");
             if (taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4)));
-          } else {
-            setPropTaxMode("auto");
           }
         }}
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer", background: expanded ? `${T.blue}06` : "transparent" }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer", background: isExpanded ? `${T.blue}06` : "transparent" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Property Tax</span>
+          <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>({cityLabel})</span>
           <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: MONO }}>{fmt(calc.monthlyTax)}/mo</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{
             fontSize: 10, fontWeight: 700, fontFamily: MONO,
-            color: expanded ? T.blue : T.textTertiary,
-            background: expanded ? `${T.blue}15` : T.pillBg || `${T.textTertiary}12`,
+            color: isCustom ? T.blue : T.textTertiary,
+            background: isCustom ? `${T.blue}15` : T.pillBg || `${T.textTertiary}12`,
             borderRadius: 99, padding: "2px 8px",
-          }}>{expanded ? "CUSTOM" : "AUTO"}</span>
-          <span style={{ color: T.textTertiary, fontSize: 11, transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+          }}>{isCustom ? "ADVANCED" : "AUTO"}</span>
+          <span style={{ color: T.textTertiary, fontSize: 11, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
         </div>
       </div>
 
-      {/* Auto mode: one-liner showing rate + annual */}
-      {!expanded && (
+      {/* Collapsed summary */}
+      {!isExpanded && (
         <div style={{ padding: "0 14px 10px", fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginTop: -4 }}>
-          {propertyState === "California" ? `${city || "CA"} base: ` : `${propertyState || "State"} avg: `}
-          <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(autoRate * 100).toFixed(3)}%</span>
-          {" → "}
-          <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
+          {isCustom ? (
+            <>
+              <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(taxBaseRateOverride || 0).toFixed(3)}%</span>
+              {fixedAssessments > 0 && <> + <span style={{ fontFamily: MONO, color: T.textSecondary }}>{fmt(fixedAssessments)}/yr fixed</span></>}
+              {" → "}
+              <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
+            </>
+          ) : (
+            <>
+              {propertyState === "California" ? `${cityLabel} base: ` : `${cityLabel} avg: `}
+              <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(autoRate * 100).toFixed(3)}%</span>
+              {fixedAssessments > 0 && <> + <span style={{ fontFamily: MONO, color: T.textSecondary }}>{fmt(fixedAssessments)}/yr fixed</span></>}
+              {" → "}
+              <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
+            </>
+          )}
         </div>
       )}
 
       {/* Expanded: full property tax calculator */}
-      {expanded && (
+      {isExpanded && (
         <div style={{ padding: "0 14px 14px" }}>
           <div style={{ height: 1, background: T.separator, marginBottom: 12 }} />
 
           {/* Base Rate + Exemption */}
           <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 } : { marginBottom: 8 }}>
-            <Inp label="Base Tax Rate" value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm />
-            <Inp label="Exemption" value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm />
+            <Inp label={<>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11 }}>({cityLabel})</span></>} value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm />
+            <Inp label={<>Exemption <span style={{ color: T.textTertiary, fontSize: 10 }}>*</span></>} value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm />
           </div>
 
           {/* Fixed Assessments */}
-          <Inp label="Fixed Assessments (Mello-Roos, bonds, etc.)" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm />
+          <Inp label={<>Fixed Assessments <span style={{ color: T.textTertiary, fontSize: 10 }}>*</span></>} value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm />
+
+          {/* Explainer footnotes */}
+          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4, lineHeight: 1.6, fontFamily: FONT }}>
+            <span style={{ color: T.textTertiary }}>*</span> Exemption: primary residence reduction (CA default $7K). Fixed Assessments: Mello-Roos, bonds, parcel taxes.
+          </div>
 
           {/* Breakdown table */}
           <div style={{ marginTop: 12, background: T.inputBg || `${T.textTertiary}08`, borderRadius: 10, padding: "10px 12px" }}>
@@ -295,6 +315,11 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
                 Effective rate: {(calc.effectiveTaxRate * 100).toFixed(3)}%
               </div>
             )}
+          </div>
+
+          {/* Reset to auto */}
+          <div style={{ textAlign: "center", marginTop: 8 }}>
+            <span onClick={() => { setPropTaxMode("auto"); setTaxBaseRateOverride(0); setFixedAssessments(1500); setTaxExemptionOverride(7000); setIsExpanded(false); }} style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline" }}>Reset to auto-estimate</span>
           </div>
         </div>
       )}
@@ -549,13 +574,22 @@ export default function OverviewTab({
 
       {/* Loan Inputs */}
       <OCard T={T} style={{ marginTop: 4 }}>
-        {/* Location tag */}
+        {/* Location pill — editable */}
         {(propertyZip || city) && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${T.separator}` }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.blue, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, fontWeight: 600, fontFamily: MONO, letterSpacing: "0.5px", color: T.textSecondary }}>
-              {propertyZip}{propertyZip && city ? " · " : ""}{city}{(city || propertyZip) && propertyState ? `, ${propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState}` : ""}
-            </span>
+            <div
+              onClick={() => { if (typeof setTab === "function") setTab("setup"); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 11, fontWeight: 600, fontFamily: MONO, letterSpacing: "0.5px",
+                color: T.blue, background: `${T.blue}10`,
+                borderRadius: 99, padding: "3px 10px", cursor: "pointer",
+                border: `1px solid ${T.blue}25`, transition: "all 0.2s",
+              }}
+            >
+              {city || ""}{city && propertyZip ? " · " : ""}{propertyZip}{(city || propertyZip) && propertyState ? `, ${propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState}` : ""}
+              <span style={{ fontSize: 9, opacity: 0.7 }}>&#9998;</span>
+            </div>
           </div>
         )}
         {/* Price + Down Payment */}

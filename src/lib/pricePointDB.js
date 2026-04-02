@@ -419,7 +419,7 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
 export async function registerDeviceToken(playerId, token, platform) {
   if (!playerId || !token) return false;
   try {
-    const res = await fetch('/api/register-device', {
+    const res = await fetch('/api/notifications?action=register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, token, platform }),
@@ -437,7 +437,7 @@ export async function registerDeviceToken(playerId, token, platform) {
 export async function unregisterDeviceToken(playerId, token) {
   if (!playerId || !token) return false;
   try {
-    const res = await fetch('/api/register-device', {
+    const res = await fetch('/api/notifications', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, token }),
@@ -455,7 +455,7 @@ export async function unregisterDeviceToken(playerId, token) {
 export async function getNotificationPreferences(playerId) {
   if (!playerId) return null;
   try {
-    const res = await fetch(`/api/notification-preferences?playerId=${playerId}`);
+    const res = await fetch(`/api/notifications?action=preferences&playerId=${playerId}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -470,7 +470,7 @@ export async function getNotificationPreferences(playerId) {
 export async function updateNotificationPreferences(playerId, prefs) {
   if (!playerId) return null;
   try {
-    const res = await fetch('/api/notification-preferences', {
+    const res = await fetch('/api/notifications', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, ...prefs }),
