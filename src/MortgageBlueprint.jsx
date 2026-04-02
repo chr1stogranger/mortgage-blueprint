@@ -4660,7 +4660,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
         <div>
          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11 }}>({cityLabel})</span></span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11, marginLeft: 3 }}>({cityLabel})</span></span>
           <button onClick={() => {
            if (taxRateLocked) { setTaxRateLocked(false); }
            else { setTaxRateLocked(true); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); }
@@ -4697,7 +4697,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          ["Sales Price", fmt(salesPrice)],
          ["Primary Res Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
          ["Taxable Value", fmt(calc.taxableValue)],
-         ["Base Tax Rate", `${(taxBaseRateOverride > 0 ? taxBaseRateOverride : autoRate * 100).toFixed(4)}%`],
+         [`Base Rate (${cityLabel})`, `${(taxBaseRateOverride > 0 ? taxBaseRateOverride : autoRate * 100).toFixed(4)}%`],
          ["Base Tax", fmt2(calc.baseTax)],
          ...(fixedAssessments > 0 ? [["Fixed Assessments", fmt(fixedAssessments)]] : []),
         ].map(([label, value], i) => (

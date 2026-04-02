@@ -246,7 +246,6 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Property Tax</span>
-          <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>({cityLabel})</span>
           <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: MONO }}>{fmt(calc.monthlyTax)}/mo</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -277,7 +276,7 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
           <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 } : { marginBottom: 8 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11 }}>({cityLabel})</span></span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11, marginLeft: 3 }}>({cityLabel})</span></span>
                 <LockBtn locked={taxRateLocked} onToggle={() => {
                   if (taxRateLocked) { setTaxRateLocked(false); }
                   else { setTaxRateLocked(true); setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4))); }
@@ -317,7 +316,7 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
               ["Home Value", fmt(salesPrice)],
               ["Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
               ["Taxable Value", fmt(calc.taxableValue)],
-              ["Base Rate", `${displayRate.toFixed(4)}%`],
+              [`Base Rate (${cityLabel})`, `${displayRate.toFixed(4)}%`],
               ["Base Tax", fmt2(calc.baseTax)],
               ...(fixedAssessments > 0 ? [["Fixed Assessments", fmt(fixedAssessments)]] : []),
             ].map(([label, value], i) => (
