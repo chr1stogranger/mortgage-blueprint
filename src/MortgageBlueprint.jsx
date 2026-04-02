@@ -943,7 +943,7 @@ const Haptics = {
 };
 
 // ── Tab Progression System ──
-const TAB_PROGRESSION = ["setup","calc","costs","income","debts","assets","qualify","tax","amort","learn","compare","summary"];
+const TAB_PROGRESSION = ["overview","setup","calc","costs","income","debts","assets","qualify","tax","amort","learn","compare","summary"];
 const HOUSE_STAGES = [
  { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
  { tab: "calc", part: "Foundation", desc: "Concrete slab poured" },
@@ -2700,17 +2700,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const unlockedIndex = getUnlockedIndex();
  const isTabUnlocked = (tabId) => {
+  // Overview is always accessible
+  if (tabId === 'overview') return true;
+  // If not in game mode or expert, unlock all
   if (!gameMode || unlockAll || skillLevel === "expert") return true;
+  // Setup and Calculator always accessible
+  if (tabId === 'setup' || tabId === 'calc') return true;
   const idx = TAB_PROGRESSION.indexOf(tabId);
   if (idx === -1) {
    // Conditional tabs (refi, reo, sell, invest, rentvbuy) — unlock if their prerequisite is met AND parent area is unlocked
-   if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 1; // need calc unlocked
-   if (tabId === "reo") return unlockedIndex >= 6; // need assets area
-   if (tabId === "workspace") return unlockedIndex >= 7; // need qualify area
-   if (tabId === "sell") return unlockedIndex >= 8; // need amort area
-   if (tabId === "invest") return unlockedIndex >= 8;
-   if (tabId === "rentvbuy") return unlockedIndex >= 8;
+   if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 2; // need calc unlocked
+   if (tabId === "reo") return unlockedIndex >= 7; // need assets area
+   if (tabId === "workspace") return unlockedIndex >= 8; // need qualify area
+   if (tabId === "sell") return unlockedIndex >= 9; // need amort area
+   if (tabId === "invest") return unlockedIndex >= 9;
+   if (tabId === "rentvbuy") return unlockedIndex >= 9;
    return true;
+  }
+  // For beginners: check if core inputs are filled before unlocking deeper tabs
+  if (skillLevel === 'beginner') {
+   const coreInputsFilled = propertyZip && (salesPrice > 0) && creditScore > 0;
+   if (!coreInputsFilled) {
+    // Only allow overview, setup, calc (already handled above)
+    return idx <= 2; // overview(0), setup(1), calc(2)
+   }
   }
   return idx <= unlockedIndex;
  };
@@ -4046,6 +4059,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     darkMode={darkMode} themeMode={themeMode} cycleTheme={cycleTheme}
     privacyMode={privacyMode} setPrivacyMode={setPrivacyMode}
     isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}
+    skillLevel={skillLevel}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
     borrowerList={borrowerList} activeBorrower={activeBorrower}
@@ -4311,6 +4325,99 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        )}
       </div>
      </div>
+    </div>
+   )}
+   {/* ── Welcome Modal — shown only on first visit when no skill level set ── */}
+   {appMode === "blueprint" && skillLevel === null && (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.7)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      padding: 20
+    }}>
+      <div style={{
+        background: T.card,
+        borderRadius: 20,
+        padding: isDesktop ? 40 : 28,
+        maxWidth: 420,
+        width: '100%',
+        textAlign: 'center',
+        border: `1px solid ${T.cardBorder}`,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
+      }}>
+        <div style={{
+          fontFamily: MONO,
+          fontSize: '0.6rem',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '2px',
+          color: T.textTertiary,
+          marginBottom: 16
+        }}>REALSTACK BLUEPRINT</div>
+        <h2 style={{
+          fontFamily: FONT,
+          fontSize: 22,
+          fontWeight: 800,
+          color: T.text,
+          margin: '0 0 8px 0',
+          letterSpacing: '-0.03em'
+        }}>Welcome</h2>
+        <p style={{
+          fontSize: 14,
+          color: T.textSecondary,
+          margin: '0 0 24px 0',
+          lineHeight: 1.5
+        }}>Choose your experience level. This controls how much detail you see upfront.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            { level: 'beginner', title: 'First-Time Buyer', desc: "Guided walkthrough \u2014 I'll show you one section at a time", icon: '\u2302' },
+            { level: 'experienced', title: 'Repeat Buyer', desc: 'Core features unlocked \u2014 I know the basics', icon: '\u25C8' },
+            { level: 'expert', title: 'Investor / Pro', desc: 'Full access to everything \u2014 skip the training wheels', icon: '\u2699' },
+          ].map(opt => (
+            <button
+              key={opt.level}
+              onClick={() => { saveSkillLevel(opt.level); }}
+              style={{
+                padding: '16px 18px',
+                borderRadius: 14,
+                border: `1px solid ${T.cardBorder}`,
+                background: T.inputBg,
+                cursor: 'pointer',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = T.blue; e.currentTarget.style.background = T.blue + '10'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.background = T.inputBg; }}
+            >
+              <div style={{
+                width: 40, height: 40,
+                borderRadius: 10,
+                background: T.blue + '15',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                color: T.blue,
+                flexShrink: 0
+              }}>{opt.icon}</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{opt.title}</div>
+                <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>{opt.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 16 }}>You can change this anytime in Settings</div>
+      </div>
     </div>
    )}
    {/* ── Blueprint Mode ── */}
@@ -6428,9 +6535,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    includeEscrow={includeEscrow} setIncludeEscrow={setIncludeEscrow}
    closingMonth={closingMonth} closingDay={closingDay}
    isRefi={isRefi}
-   firstTimeBuyer={firstTimeBuyer}
-   creditScore={creditScore}
-   married={married}
+   firstTimeBuyer={firstTimeBuyer} setFirstTimeBuyer={setFirstTimeBuyer}
+   creditScore={creditScore} setCreditScore={setCreditScore}
+   married={married} setMarried={setMarried}
    taxState={taxState}
    darkMode={darkMode}
    isDesktop={isDesktop}
@@ -6442,13 +6549,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    dpOk={dpOk} refiLtvCheck={refiLtvCheck}
    refiPurpose={refiPurpose}
    debts={debts} debtFree={debtFree}
-   ownsProperties={ownsProperties}
+   ownsProperties={ownsProperties} setOwnsProperties={setOwnsProperties}
+   showInvestor={showInvestor} setShowInvestor={setShowInvestor}
    incomes={incomes}
    assets={assets}
    payExtra={payExtra} setPayExtra={setPayExtra}
    extraPayment={extraPayment} setExtraPayment={setExtraPayment}
    appreciationRate={appreciationRate} setAppreciationRate={setAppreciationRate}
-   hasSellProperty={hasSellProperty}
+   hasSellProperty={hasSellProperty} setHasSellProperty={setHasSellProperty}
    sellPrice={sellPrice} sellMortgagePayoff={sellMortgagePayoff}
    setTab={setTab}
    PayRing={PayRing} StopLight={StopLight} AmortChart={AmortChart} Progress={Progress}

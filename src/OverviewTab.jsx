@@ -476,9 +476,9 @@ export default function OverviewTab({
   includeEscrow, setIncludeEscrow,
   closingMonth, closingDay,
   isRefi,
-  firstTimeBuyer,
-  creditScore,
-  married,
+  firstTimeBuyer, setFirstTimeBuyer,
+  creditScore, setCreditScore,
+  married, setMarried,
   taxState,
   darkMode,
   isDesktop,
@@ -492,7 +492,7 @@ export default function OverviewTab({
   refiPurpose,
   /* Debts */
   debts, debtFree,
-  ownsProperties,
+  ownsProperties, setOwnsProperties,
   /* Income */
   incomes,
   /* Assets */
@@ -502,7 +502,8 @@ export default function OverviewTab({
   extraPayment, setExtraPayment,
   appreciationRate, setAppreciationRate,
   /* Sell */
-  hasSellProperty,
+  hasSellProperty, setHasSellProperty,
+  showInvestor, setShowInvestor,
   sellPrice, sellMortgagePayoff,
   /* Navigation */
   setTab,
@@ -534,6 +535,7 @@ export default function OverviewTab({
   taxExemptionLocked, setTaxExemptionLocked,
 }) {
   const qualRef = useRef(null);
+  const [showModules, setShowModules] = useState(false);
 
   const scrollToQualification = useCallback(() => {
     const el = document.getElementById("overview-qualification");
@@ -671,6 +673,85 @@ export default function OverviewTab({
           <Sel label="Loan Type" value={loanType} onChange={setLoanType} options={["Conventional","FHA","VA","Jumbo","USDA"]} sm req />
         </div>
 
+        {/* Live Rates — below Rate/Term/Type */}
+        <div style={{ marginTop: 8 }}>
+          <button
+            onClick={fetchRates}
+            disabled={ratesLoading}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: `1px solid ${liveRates ? T.green + '40' : T.blue + '40'}`,
+              background: liveRates ? T.green + '10' : T.blue + '10',
+              color: liveRates ? T.green : T.blue,
+              fontFamily: MONO,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: ratesLoading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.2s'
+            }}
+          >
+            {ratesLoading ? 'Fetching...' : liveRates ? `\u2713 Live Rates Applied \u2014 ${liveRates.date || 'Today'}` : '\u25C9 Get Today\'s Rates'}
+          </button>
+          {ratesError && (
+            <div style={{ fontSize: 11, color: T.red, marginTop: 4, textAlign: 'center' }}>{ratesError}</div>
+          )}
+          {liveRates && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 6,
+              marginTop: 8
+            }}>
+              {[
+                { label: '30yr Fixed', key: '30yr_fixed' },
+                { label: '15yr Fixed', key: '15yr_fixed' },
+                { label: 'FHA 30yr', key: '30yr_fha' },
+                { label: 'VA 30yr', key: '30yr_va' },
+                { label: 'Jumbo', key: '30yr_jumbo' },
+                { label: '5/1 ARM', key: '5yr_arm' },
+              ].filter(r => liveRates[r.key] != null).map(r => {
+                const isActive = (() => {
+                  if (loanType === 'FHA' && r.key === '30yr_fha') return true;
+                  if (loanType === 'VA' && r.key === '30yr_va') return true;
+                  if (loanType === 'Jumbo' && r.key === '30yr_jumbo') return true;
+                  if (loanType === 'Conventional' && term === 15 && r.key === '15yr_fixed') return true;
+                  if (loanType === 'Conventional' && term !== 15 && r.key === '30yr_fixed') return true;
+                  if (loanType === 'USDA' && r.key === '30yr_fixed') return true;
+                  return false;
+                })();
+                return (
+                  <button
+                    key={r.key}
+                    onClick={() => setRate(liveRates[r.key])}
+                    style={{
+                      padding: '8px 6px',
+                      borderRadius: 8,
+                      border: `1px solid ${isActive ? T.blue : T.cardBorder}`,
+                      background: isActive ? T.blue + '15' : T.card,
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: MONO, fontWeight: 500 }}>{r.label}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: MONO }}>{liveRates[r.key]}%</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {liveRates && (
+            <div style={{ fontSize: 10, color: T.textTertiary, textAlign: 'center', marginTop: 4, fontFamily: MONO }}>
+              Source: {liveRates.source || 'Freddie Mac PMMS'}
+            </div>
+          )}
+        </div>
+
         {/* ── Property Tax — expandable pill ── */}
         <PropertyTaxPill
           T={T} calc={calc} salesPrice={salesPrice}
@@ -690,6 +771,91 @@ export default function OverviewTab({
           <Inp label="HOA" value={hoa} onChange={setHoa} suffix="/mo" max={10000} sm />
         </div>
       </OCard>
+
+      {/* Module Toggles — collapsible "More Options" */}
+      <div style={{ marginTop: 14 }}>
+        <button
+          onClick={() => setShowModules(!showModules)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: T.textSecondary,
+            fontFamily: MONO,
+            fontSize: '0.6rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            cursor: 'pointer',
+            padding: '6px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}
+        >
+          <span style={{
+            display: 'inline-block',
+            transform: showModules ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s'
+          }}>{'\u25B8'}</span>
+          Additional Modules
+        </button>
+        {showModules && (
+          <div style={{
+            marginTop: 8,
+            padding: 14,
+            background: T.inputBg,
+            borderRadius: 12,
+            border: `1px solid ${T.cardBorder}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10
+          }}>
+            {[
+              { label: 'Own Properties?', desc: 'Show Real Estate Owned analysis', val: ownsProperties, set: setOwnsProperties },
+              { label: 'Selling a Property?', desc: 'Show Seller Net Proceeds calculator', val: hasSellProperty, set: setHasSellProperty },
+              { label: 'Investment Analysis?', desc: 'Show NOI, Cap Rate, DSCR metrics', val: showInvestor, set: setShowInvestor },
+            ].map(m => (
+              <div key={m.label} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{m.label}</div>
+                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>{m.desc}</div>
+                </div>
+                <button
+                  onClick={() => m.set(!m.val)}
+                  style={{
+                    width: 40,
+                    height: 22,
+                    borderRadius: 9999,
+                    border: 'none',
+                    background: m.val ? T.blue : T.separator,
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                    flexShrink: 0
+                  }}
+                >
+                  <div style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    position: 'absolute',
+                    top: 2,
+                    left: m.val ? 20 : 2,
+                    transition: 'left 0.2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ═══════════════════════════════════════
           SECTION 2: MONTHLY PAYMENT BREAKDOWN
@@ -770,6 +936,93 @@ export default function OverviewTab({
       <SectionDivider T={T} />
       <div id="overview-qualification">
         <CollapsibleSection title="Qualification" T={T} action="Full Details →" onAction={() => setTab("qualify")}>
+          {/* FICO Score Input */}
+          <div style={{
+            display: 'flex',
+            alignItems: isDesktop ? 'center' : 'flex-start',
+            flexDirection: isDesktop ? 'row' : 'column',
+            gap: 12,
+            marginBottom: 16,
+            padding: 16,
+            background: T.inputBg,
+            borderRadius: 12,
+            border: `1px solid ${T.cardBorder}`
+          }}>
+            <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+              <div style={{
+                fontFamily: MONO,
+                fontSize: '0.6rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                color: T.textTertiary,
+                marginBottom: 6
+              }}>FICO Score</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={creditScore || ''}
+                  placeholder="750"
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setCreditScore(+v || 0);
+                  }}
+                  style={{
+                    width: 72,
+                    textAlign: 'center',
+                    background: T.card,
+                    border: `1px solid ${T.inputBorder}`,
+                    borderRadius: 10,
+                    padding: '10px 8px',
+                    color: T.text,
+                    fontFamily: MONO,
+                    fontSize: 17,
+                    fontWeight: 700,
+                    outline: 'none',
+                  }}
+                  onFocus={e => e.target.style.borderColor = T.blue}
+                  onBlur={e => { e.target.style.borderColor = T.inputBorder; if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
+                />
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="range"
+                    min={300}
+                    max={850}
+                    value={creditScore || 300}
+                    onChange={e => setCreditScore(+e.target.value)}
+                    style={{ width: '100%', accentColor: creditScore >= 740 ? T.green : creditScore >= 670 ? T.orange : T.red }}
+                  />
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 10,
+                    fontFamily: MONO,
+                    color: T.textTertiary,
+                    marginTop: 2
+                  }}>
+                    <span>300</span>
+                    <span>850</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {creditScore > 0 && (
+              <div style={{
+                padding: '6px 12px',
+                borderRadius: 9999,
+                fontSize: 11,
+                fontFamily: MONO,
+                fontWeight: 600,
+                background: calc.ficoCheck === 'Good!' ? T.green + '18' : T.red + '18',
+                color: calc.ficoCheck === 'Good!' ? T.green : T.red,
+                whiteSpace: 'nowrap'
+              }}>
+                {creditScore} / {calc.ficoMin}+ {calc.ficoCheck === 'Good!' ? '\u2713' : `need ${calc.ficoMin - creditScore} pts`}
+              </div>
+            )}
+          </div>
           <StopLight
             onPillarClick={(pillarLabel) => {
               if (pillarLabel === "FICO" || pillarLabel === "Credit") setTab("setup");
@@ -940,6 +1193,59 @@ export default function OverviewTab({
         <>
           <SectionDivider T={T} />
           <CollapsibleSection title="Tax Savings" T={T} action="Full Analysis →" onAction={() => setTab("tax")}>
+            {/* Filing Status */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              marginBottom: 14,
+              padding: '10px 14px',
+              background: T.inputBg,
+              borderRadius: 10,
+              border: `1px solid ${T.cardBorder}`
+            }}>
+              <span style={{
+                fontFamily: MONO,
+                fontSize: '0.6rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                color: T.textTertiary,
+                whiteSpace: 'nowrap'
+              }}>Filing Status</span>
+              <select
+                value={married}
+                onChange={e => setMarried(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: T.card,
+                  border: `1px solid ${T.inputBorder}`,
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                  color: T.text,
+                  fontFamily: MONO,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  cursor: 'pointer',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 10px center',
+                  outline: 'none',
+                }}
+                onFocus={e => e.target.style.borderColor = T.blue}
+                onBlur={e => e.target.style.borderColor = T.inputBorder}
+              >
+                <option value="Single">Single</option>
+                <option value="MFJ">Married Filing Jointly</option>
+                <option value="MFS">Married Filing Separately</option>
+                <option value="HOH">Head of Household</option>
+              </select>
+            </div>
+            <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 12, paddingLeft: 2, marginTop: -8 }}>
+              Affects tax bracket, standard deduction ({married === 'MFJ' ? '$29,200' : married === 'HOH' ? '$21,900' : '$14,600'}), and SALT cap
+            </div>
             <OCard T={T}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <div>

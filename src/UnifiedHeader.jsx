@@ -37,6 +37,8 @@ export default function UnifiedHeader({
   borrowerList, activeBorrower, borrowerLoading,
   borrowerScenarios, borrowerScenariosLoading,
   BorrowerPicker, borrowerPickerCallbacks,
+  /* Skill level */
+  skillLevel,
   /* Mobile tab bar */
   mobileTabBar,
 }) {
@@ -139,6 +141,28 @@ export default function UnifiedHeader({
             whiteSpace: "nowrap",
           }}>Blueprint</span>
 
+          {/* Experience badge */}
+          {skillLevel && (
+            <div
+              onClick={() => setTab('settings')}
+              title="Change in Settings"
+              style={{
+                padding: '3px 8px',
+                borderRadius: 9999,
+                fontSize: 9,
+                fontFamily: MONO,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                background: T.blue + '15',
+                color: T.blue,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              {skillLevel === 'beginner' ? 'GUIDED' : skillLevel === 'experienced' ? 'STANDARD' : 'PRO'}
+            </div>
+          )}
           {/* Sync indicators */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             {saving && <span style={{ fontSize: 9, color: T.textTertiary, fontStyle: "italic" }}>saving...</span>}
