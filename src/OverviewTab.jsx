@@ -208,11 +208,28 @@ function TaxDetailsCollapsible({ T, calc, fmt, fmt2, pct, taxState }) {
 /* ─── Property Tax expandable pill for Overview ─── */
 function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
   taxBaseRateOverride, setTaxBaseRateOverride, taxExemptionOverride, setTaxExemptionOverride,
-  fixedAssessments, setFixedAssessments, propertyState, city, loanPurpose, Inp, fmt, fmt2, isDesktop }) {
-  const [isExpanded, setIsExpanded] = useState(propTaxMode === "custom");
+  fixedAssessments, setFixedAssessments, propertyState, city, loanPurpose, Inp, fmt, fmt2, isDesktop,
+  taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked }) {
+  const [isExpanded, setIsExpanded] = useState(!taxRateLocked || !taxExemptionLocked);
   const autoRate = calc.autoTaxRate || 0;
-  const isCustom = propTaxMode === "custom";
+  const anyUnlocked = !taxRateLocked || !taxExemptionLocked;
   const cityLabel = propertyState === "California" ? (city || "CA") : (propertyState || "State");
+  const displayRate = taxBaseRateOverride > 0 ? taxBaseRateOverride : autoRate * 100;
+
+  /* Tiny lock toggle button */
+  const LockBtn = ({ locked, onToggle, lockedTip, unlockedTip }) => (
+    <button onClick={e => { e.stopPropagation(); onToggle(); }}
+      title={locked ? lockedTip : unlockedTip}
+      style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", lineHeight: 1 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={locked ? T.textTertiary : T.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        {locked
+          ? <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          : <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+        }
+      </svg>
+    </button>
+  );
 
   return (
     <div style={{ marginTop: 8, borderRadius: 12, border: `1px solid ${isExpanded ? `${T.blue}40` : T.cardBorder}`, overflow: "hidden", transition: "all 0.3s" }}>
@@ -221,9 +238,8 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
         onClick={() => {
           const opening = !isExpanded;
           setIsExpanded(opening);
-          if (opening && !isCustom) {
-            setPropTaxMode("custom");
-            if (taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4)));
+          if (opening && taxRateLocked && taxBaseRateOverride === 0) {
+            setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4)));
           }
         }}
         style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer", background: isExpanded ? `${T.blue}06` : "transparent" }}
@@ -234,12 +250,10 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
           <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: MONO }}>{fmt(calc.monthlyTax)}/mo</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{
-            fontSize: 10, fontWeight: 700, fontFamily: MONO,
-            color: isCustom ? T.blue : T.textTertiary,
-            background: isCustom ? `${T.blue}15` : T.pillBg || `${T.textTertiary}12`,
-            borderRadius: 99, padding: "2px 8px",
-          }}>{isCustom ? "ADVANCED" : "AUTO"}</span>
+          {anyUnlocked && <span style={{
+            fontSize: 10, fontWeight: 700, fontFamily: MONO, color: T.blue,
+            background: `${T.blue}15`, borderRadius: 99, padding: "2px 8px",
+          }}>CUSTOM</span>}
           <span style={{ color: T.textTertiary, fontSize: 11, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
         </div>
       </div>
@@ -247,22 +261,10 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
       {/* Collapsed summary */}
       {!isExpanded && (
         <div style={{ padding: "0 14px 10px", fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginTop: -4 }}>
-          {isCustom ? (
-            <>
-              <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(taxBaseRateOverride || 0).toFixed(3)}%</span>
-              {fixedAssessments > 0 && <> + <span style={{ fontFamily: MONO, color: T.textSecondary }}>{fmt(fixedAssessments)}/yr fixed</span></>}
-              {" → "}
-              <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
-            </>
-          ) : (
-            <>
-              {propertyState === "California" ? `${cityLabel} base: ` : `${cityLabel} avg: `}
-              <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(autoRate * 100).toFixed(3)}%</span>
-              {fixedAssessments > 0 && <> + <span style={{ fontFamily: MONO, color: T.textSecondary }}>{fmt(fixedAssessments)}/yr fixed</span></>}
-              {" → "}
-              <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
-            </>
-          )}
+          <span style={{ fontFamily: MONO, color: T.textSecondary }}>{displayRate.toFixed(3)}%</span>
+          {fixedAssessments > 0 && <> + <span style={{ fontFamily: MONO, color: T.textSecondary }}>{fmt(fixedAssessments)}/yr fixed</span></>}
+          {" → "}
+          <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
         </div>
       )}
 
@@ -271,10 +273,33 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
         <div style={{ padding: "0 14px 14px" }}>
           <div style={{ height: 1, background: T.separator, marginBottom: 12 }} />
 
-          {/* Base Rate + Exemption */}
+          {/* Base Rate + lock */}
           <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 } : { marginBottom: 8 }}>
-            <Inp label={<>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11 }}>({cityLabel})</span></>} value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm />
-            <Inp label={<>Exemption <span style={{ color: T.textTertiary, fontSize: 10 }}>*</span></>} value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm />
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11 }}>({cityLabel})</span></span>
+                <LockBtn locked={taxRateLocked} onToggle={() => {
+                  if (taxRateLocked) { setTaxRateLocked(false); }
+                  else { setTaxRateLocked(true); setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4))); }
+                }} lockedTip="Unlock to customize" unlockedTip="Lock to auto-sync" />
+              </div>
+              <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}>
+                <Inp value={taxBaseRateOverride} onChange={taxRateLocked ? () => {} : setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm />
+              </div>
+            </div>
+            {/* Exemption + lock */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Exemption <span style={{ color: T.textTertiary, fontSize: 10 }}>*</span></span>
+                <LockBtn locked={taxExemptionLocked} onToggle={() => {
+                  if (taxExemptionLocked) { setTaxExemptionLocked(false); }
+                  else { setTaxExemptionLocked(true); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); }
+                }} lockedTip="Unlock to customize" unlockedTip="Lock to auto-sync" />
+              </div>
+              <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}>
+                <Inp value={taxExemptionOverride} onChange={taxExemptionLocked ? () => {} : setTaxExemptionOverride} prefix="$" max={500000} sm />
+              </div>
+            </div>
           </div>
 
           {/* Fixed Assessments */}
@@ -292,7 +317,7 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
               ["Home Value", fmt(salesPrice)],
               ["Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
               ["Taxable Value", fmt(calc.taxableValue)],
-              ["Base Rate", `${(taxBaseRateOverride || 0).toFixed(4)}%`],
+              ["Base Rate", `${displayRate.toFixed(4)}%`],
               ["Base Tax", fmt2(calc.baseTax)],
               ...(fixedAssessments > 0 ? [["Fixed Assessments", fmt(fixedAssessments)]] : []),
             ].map(([label, value], i) => (
@@ -505,6 +530,8 @@ export default function OverviewTab({
   taxBaseRateOverride, setTaxBaseRateOverride,
   taxExemptionOverride, setTaxExemptionOverride,
   fixedAssessments, setFixedAssessments,
+  taxRateLocked, setTaxRateLocked,
+  taxExemptionLocked, setTaxExemptionLocked,
 }) {
   const qualRef = useRef(null);
 
@@ -653,6 +680,8 @@ export default function OverviewTab({
           fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
           propertyState={propertyState} city={city} loanPurpose={loanPurpose}
           Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+          taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
+          taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
         />
 
         {/* Property details */}
