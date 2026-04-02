@@ -283,7 +283,7 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
                 }} lockedTip="Unlock to customize" unlockedTip="Lock to auto-sync" />
               </div>
               <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}>
-                <Inp value={taxBaseRateOverride} onChange={taxRateLocked ? () => {} : setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm />
+                <Inp value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm readOnly={taxRateLocked} />
               </div>
             </div>
             {/* Exemption + lock */}
@@ -296,7 +296,7 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
                 }} lockedTip="Unlock to customize" unlockedTip="Lock to auto-sync" />
               </div>
               <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}>
-                <Inp value={taxExemptionOverride} onChange={taxExemptionLocked ? () => {} : setTaxExemptionOverride} prefix="$" max={500000} sm />
+                <Inp value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm readOnly={taxExemptionLocked} />
               </div>
             </div>
           </div>

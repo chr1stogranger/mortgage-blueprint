@@ -492,7 +492,7 @@ function FieldLabel({ label, tip, req, filled }) {
  if (!label) return null;
  return (<div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</div>);
 }
-function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder }) {
+function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder, readOnly }) {
  const [focused, setFocused] = useState(false);
  const [editStr, setEditStr] = useState(null);
  const inputRef = useRef(null);
@@ -511,7 +511,7 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
   <FieldLabel label={label} tip={tip} req={req} filled={filled} />
   <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 12, padding: sm ? "10px 12px" : "12px 14px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT }}>{prefix}</span>}
-   <input ref={inputRef} type="text" inputMode={isText ? "text" : "decimal"} value={display} onFocus={() => { setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
+   <input ref={inputRef} type="text" inputMode={isText ? "text" : "decimal"} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
     placeholder={placeholder || ""}
     style={{ background: "transparent", border: "none", outline: "none", color: T.text, fontSize: sm ? 15 : 17, fontWeight: isText ? 500 : 600, fontFamily: FONT, width: "100%", letterSpacing: "-0.02em" }} />
    {suffix && <span style={{ color: T.textTertiary, fontSize: 13, marginLeft: 6, fontFamily: FONT }}>{suffix}</span>}
@@ -4668,7 +4668,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
            <Icon name={taxRateLocked ? "lock" : "unlock"} size={14} style={{ color: taxRateLocked ? T.textTertiary : T.blue }} />
           </button>
          </div>
-         <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}><Inp value={taxBaseRateOverride} onChange={taxRateLocked ? () => {} : setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm /></div>
+         <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}><Inp value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm readOnly={taxRateLocked} /></div>
         </div>
         {/* Exemption + lock */}
         <div>
@@ -4681,7 +4681,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
            <Icon name={taxExemptionLocked ? "lock" : "unlock"} size={14} style={{ color: taxExemptionLocked ? T.textTertiary : T.blue }} />
           </button>
          </div>
-         <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}><Inp value={taxExemptionOverride} onChange={taxExemptionLocked ? () => {} : setTaxExemptionOverride} prefix="$" max={500000} sm /></div>
+         <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}><Inp value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm readOnly={taxExemptionLocked} /></div>
         </div>
        </div>
        {/* Fixed Assessments */}
