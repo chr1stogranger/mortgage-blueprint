@@ -6432,6 +6432,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    emd={emd}
    discountPts={discountPts}
    payoffAtClosing={calc.payoffAtClosing}
+   /* Property tax calculator */
+   propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
+   taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
+   taxExemptionOverride={taxExemptionOverride} setTaxExemptionOverride={setTaxExemptionOverride}
+   fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
   />
  </Suspense>
 )}

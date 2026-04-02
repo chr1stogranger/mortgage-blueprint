@@ -103,12 +103,211 @@ function FeeCategory({ title, total, T, children, defaultOpen = true }) {
   );
 }
 
+/* ─── Collapsible tax deduction details ─── */
+function TaxDetailsCollapsible({ T, calc, fmt, fmt2, pct, taxState }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "6px 0" }}>
+        <span style={{ fontSize: 11, color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", lineHeight: 1 }}>▾</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How This Is Calculated</span>
+      </div>
+      {open && (
+        <div style={{ paddingTop: 8, animation: "fadeIn 0.2s ease" }}>
+          {/* Deduction line items */}
+          <div style={{ fontSize: 10, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1.5, fontFamily: MONO, marginBottom: 6 }}>Federal Itemized Deductions</div>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+            <span style={{ fontSize: 12, color: T.textSecondary }}>Mortgage Interest (Year 1)</span>
+            <span style={{ fontSize: 12, fontFamily: MONO, color: T.text }}>{fmt(calc.fedMortInt)}</span>
+          </div>
+          {calc.mortIntDeductLimit && calc.totalMortInt > calc.fedMortInt && (
+            <div style={{ fontSize: 10, color: T.orange, padding: "2px 0 4px 12px" }}>
+              Limited to {fmt(calc.mortIntDeductLimit)} loan balance ({pct(calc.deductibleLoanPct, 0)} of total interest)
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+            <span style={{ fontSize: 12, color: T.textSecondary }}>Property Tax (SALT-capped)</span>
+            <span style={{ fontSize: 12, fontFamily: MONO, color: T.text }}>{fmt(calc.fedPropTax)}</span>
+          </div>
+          {calc.yearlyTax > calc.fedPropTax && (
+            <div style={{ fontSize: 10, color: T.orange, padding: "2px 0 4px 12px" }}>
+              Actual property tax: {fmt(calc.yearlyTax)} — SALT cap: {fmt(calc.saltCap)}
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: T.text }}>Total Federal Itemized</span>
+            <span style={{ fontSize: 12, fontFamily: MONO, color: T.text }}>{fmt(calc.fedItemized)}</span>
+          </div>
+
+          {/* Bracket waterfall */}
+          {calc.fedWaterfall && calc.fedWaterfall.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1.5, fontFamily: MONO, marginTop: 14, marginBottom: 6 }}>Federal Tax Bracket Savings</div>
+              {calc.fedWaterfall.map((w, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "4px 0", borderBottom: `1px solid ${T.separator}` }}>
+                  <span style={{ fontSize: 12, color: T.textSecondary }}>{(w.rate * 100).toFixed(0)}% bracket — {fmt(w.amount)}</span>
+                  <span style={{ fontSize: 12, fontFamily: MONO, color: T.green, fontWeight: 600 }}>{fmt(w.savings)}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontWeight: 600 }}>
+                <span style={{ fontSize: 12, color: T.text }}>Federal Savings</span>
+                <span style={{ fontSize: 12, fontFamily: MONO, color: T.green }}>{fmt(calc.fedSavings)}</span>
+              </div>
+            </>
+          )}
+
+          {/* State savings */}
+          {(calc.stateSavings > 0 || calc.stTopRate > 0) && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1.5, fontFamily: MONO, marginTop: 14, marginBottom: 6 }}>State Tax Savings{taxState ? ` (${taxState})` : ""}</div>
+              {calc.stateItemized > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+                  <span style={{ fontSize: 12, color: T.textSecondary }}>State Itemized Deductions</span>
+                  <span style={{ fontSize: 12, fontFamily: MONO, color: T.text }}>{fmt(calc.stateItemized)}</span>
+                </div>
+              )}
+              {calc.stWaterfall && calc.stWaterfall.length > 0 && calc.stWaterfall.map((w, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "4px 0", borderBottom: `1px solid ${T.separator}` }}>
+                  <span style={{ fontSize: 12, color: T.textSecondary }}>{(w.rate * 100).toFixed(1)}% bracket — {fmt(w.amount)}</span>
+                  <span style={{ fontSize: 12, fontFamily: MONO, color: T.green, fontWeight: 600 }}>{fmt(w.savings)}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontWeight: 600 }}>
+                <span style={{ fontSize: 12, color: T.text }}>State Savings</span>
+                <span style={{ fontSize: 12, fontFamily: MONO, color: T.green }}>{fmt(calc.stateSavings)}</span>
+              </div>
+            </>
+          )}
+
+          {/* Combined summary */}
+          <div style={{ background: `${T.purple}10`, borderRadius: 10, padding: "10px 12px", marginTop: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: T.purple }}>Combined Top Marginal Rate</span>
+              <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.purple }}>{(calc.combinedTopRate * 100).toFixed(1)}%</span>
+            </div>
+            <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
+              Every dollar of mortgage interest or property tax above the standard deduction saves {(calc.combinedTopRate * 100).toFixed(0)} cents in combined taxes.
+            </div>
+          </div>
+
+          {/* Monthly breakdown */}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", marginTop: 8 }}>
+            <span style={{ fontSize: 12, color: T.textSecondary }}>Monthly tax savings</span>
+            <span style={{ fontSize: 12, fontFamily: MONO, fontWeight: 600, color: T.purple }}>{fmt(calc.monthlyTaxSavings)}/mo</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+            <span style={{ fontSize: 12, color: T.textSecondary }}>After-tax payment</span>
+            <span style={{ fontSize: 12, fontFamily: MONO, fontWeight: 600, color: T.text }}>{fmt(calc.afterTaxPayment)}/mo</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Property Tax expandable pill for Overview ─── */
+function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
+  taxBaseRateOverride, setTaxBaseRateOverride, taxExemptionOverride, setTaxExemptionOverride,
+  fixedAssessments, setFixedAssessments, propertyState, city, loanPurpose, Inp, fmt, fmt2, isDesktop }) {
+  const expanded = propTaxMode === "custom";
+  const autoRate = calc.autoTaxRate || 0;
+
+  return (
+    <div style={{ marginTop: 8, borderRadius: 12, border: `1px solid ${expanded ? `${T.blue}40` : T.cardBorder}`, overflow: "hidden", transition: "all 0.3s" }}>
+      {/* Header — always visible */}
+      <div
+        onClick={() => {
+          if (propTaxMode === "auto") {
+            setPropTaxMode("custom");
+            if (taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4)));
+          } else {
+            setPropTaxMode("auto");
+          }
+        }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", cursor: "pointer", background: expanded ? `${T.blue}06` : "transparent" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Property Tax</span>
+          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: MONO }}>{fmt(calc.monthlyTax)}/mo</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, fontFamily: MONO,
+            color: expanded ? T.blue : T.textTertiary,
+            background: expanded ? `${T.blue}15` : T.pillBg || `${T.textTertiary}12`,
+            borderRadius: 99, padding: "2px 8px",
+          }}>{expanded ? "CUSTOM" : "AUTO"}</span>
+          <span style={{ color: T.textTertiary, fontSize: 11, transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+        </div>
+      </div>
+
+      {/* Auto mode: one-liner showing rate + annual */}
+      {!expanded && (
+        <div style={{ padding: "0 14px 10px", fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginTop: -4 }}>
+          {propertyState === "California" ? `${city || "CA"} base: ` : `${propertyState || "State"} avg: `}
+          <span style={{ fontFamily: MONO, color: T.textSecondary }}>{(autoRate * 100).toFixed(3)}%</span>
+          {" → "}
+          <span style={{ fontFamily: MONO, color: T.text, fontWeight: 600 }}>{fmt(calc.yearlyTax)}/yr</span>
+        </div>
+      )}
+
+      {/* Expanded: full property tax calculator */}
+      {expanded && (
+        <div style={{ padding: "0 14px 14px" }}>
+          <div style={{ height: 1, background: T.separator, marginBottom: 12 }} />
+
+          {/* Base Rate + Exemption */}
+          <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 } : { marginBottom: 8 }}>
+            <Inp label="Base Tax Rate" value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm />
+            <Inp label="Exemption" value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm />
+          </div>
+
+          {/* Fixed Assessments */}
+          <Inp label="Fixed Assessments (Mello-Roos, bonds, etc.)" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm />
+
+          {/* Breakdown table */}
+          <div style={{ marginTop: 12, background: T.inputBg || `${T.textTertiary}08`, borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 }}>Property Tax Calculation</div>
+            {[
+              ["Home Value", fmt(salesPrice)],
+              ["Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
+              ["Taxable Value", fmt(calc.taxableValue)],
+              ["Base Rate", `${(taxBaseRateOverride || 0).toFixed(4)}%`],
+              ["Base Tax", fmt2(calc.baseTax)],
+              ...(fixedAssessments > 0 ? [["Fixed Assessments", fmt(fixedAssessments)]] : []),
+            ].map(([label, value], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+              </div>
+            ))}
+            {/* Total */}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Annual Total</span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 10px", background: `${T.orange}12`, borderRadius: 8, marginTop: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: T.orange }}>Monthly</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.orange }}>{fmt2(calc.monthlyTax)}</span>
+            </div>
+            {calc.effectiveTaxRate > 0 && (
+              <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 6 }}>
+                Effective rate: {(calc.effectiveTaxRate * 100).toFixed(3)}%
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── IFW-style Cash to Close section ─── */
 function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingFee,
   appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
   titleInsurance, titleSearch, settlementFee, escrowFee,
   recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
-  discountPts, payoffAtClosing, setTab }) {
+  discountPts, payoffAtClosing, setTab, closingMonth, closingDay }) {
 
   return (
     <div id="overview-costs">
@@ -142,15 +341,15 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
       {/* ── Collapsible detailed breakdown ── */}
       <CollapsibleSection title="Fee Breakdown" T={T} defaultOpen={false}>
         <OCard T={T} pad={16}>
-          {/* Lender Fees */}
-          <FeeCategory title="Lender Fees" total={fmt(calc.origCharges)} T={T}>
+          {/* A. Lender Fees */}
+          <FeeCategory title="A. Origination Charges" total={fmt(calc.origCharges)} T={T}>
             {underwritingFee > 0 && <FeeRow T={T} label="Underwriting Fee" value={fmt(underwritingFee)} indent />}
             {processingFee > 0 && <FeeRow T={T} label="Processing Fee" value={fmt(processingFee)} indent />}
             {calc.pointsCost > 0 && <FeeRow T={T} label={`Discount Points (${discountPts}%)`} value={fmt(calc.pointsCost)} indent />}
           </FeeCategory>
 
-          {/* Services You Cannot Shop For */}
-          <FeeCategory title="Services You Cannot Shop For" total={fmt(calc.cannotShop)} T={T}>
+          {/* B. Services You Cannot Shop For */}
+          <FeeCategory title="B. Services You Cannot Shop For" total={fmt(calc.cannotShop)} T={T}>
             {appraisalFee > 0 && <FeeRow T={T} label="Appraisal Fee" value={fmt(appraisalFee)} indent />}
             {creditReportFee > 0 && <FeeRow T={T} label="Credit Report" value={fmt(creditReportFee)} indent />}
             {floodCertFee > 0 && <FeeRow T={T} label="Flood Certification" value={fmt(floodCertFee)} indent />}
@@ -158,8 +357,8 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
             {taxServiceFee > 0 && <FeeRow T={T} label="Tax Service Fee" value={fmt(taxServiceFee)} indent />}
           </FeeCategory>
 
-          {/* Services You Can Shop For */}
-          <FeeCategory title="Services You Can Shop For" total={fmt(calc.canShop)} T={T}>
+          {/* C. Services You Can Shop For */}
+          <FeeCategory title="C. Services You Can Shop For" total={fmt(calc.canShop)} T={T}>
             {titleInsurance > 0 && <FeeRow T={T} label="Title Insurance" value={fmt(titleInsurance)} indent />}
             {titleSearch > 0 && <FeeRow T={T} label="Title Search" value={fmt(titleSearch)} indent />}
             {settlementFee > 0 && <FeeRow T={T} label="Settlement / Closing Fee" value={fmt(settlementFee)} indent />}
@@ -167,22 +366,34 @@ function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingF
             {calc.hoaCert > 0 && <FeeRow T={T} label="HOA Certification" value={fmt(calc.hoaCert)} indent />}
           </FeeCategory>
 
-          {/* Taxes & Government Fees */}
-          <FeeCategory title="Taxes & Government Fees" total={fmt(calc.govCharges)} T={T}>
+          {/* E. Taxes & Government Fees */}
+          <FeeCategory title="E. Taxes & Government Fees" total={fmt(calc.govCharges)} T={T}>
             {calc.buyerCityTT > 0 && <FeeRow T={T} label="Transfer Tax (City)" value={fmt(calc.buyerCityTT)} indent />}
             {recordingFee > 0 && <FeeRow T={T} label="Recording Fees" value={fmt(recordingFee)} indent />}
           </FeeCategory>
 
-          {/* Prepaids & Initial Escrow */}
-          <FeeCategory title="Prepaids & Initial Escrow" total={fmt(calc.totalPrepaidExp)} T={T}>
+          {/* F. Prepaids & G. Initial Escrow */}
+          <FeeCategory title="F/G. Prepaids & Initial Escrow" total={fmt(calc.totalPrepaidExp)} T={T}>
             {calc.prepaidInt > 0 && <FeeRow T={T} label={`Prepaid Interest (${calc.autoPrepaidDays} days)`} value={fmt2(calc.prepaidInt)} indent />}
             {calc.prepaidIns > 0 && <FeeRow T={T} label="Prepaid Homeowner's Insurance (12 mo)" value={fmt(calc.prepaidIns)} indent />}
             {calc.initialEscrow > 0 && <FeeRow T={T} label={`Initial Escrow (${calc.escrowTaxMonths} mo tax + ${calc.escrowInsMonths} mo ins)`} value={fmt(calc.initialEscrow)} indent />}
+            {closingMonth > 0 && (() => {
+              const mos = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+              const skipMo = mos[closingMonth % 12];
+              const firstMo = mos[(closingMonth + 1) % 12];
+              return (
+                <div style={{ background: `${T.blue}08`, borderRadius: 8, padding: "8px 10px", marginTop: 6 }}>
+                  <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6 }}>
+                    <span style={{ fontWeight: 600, color: T.blue }}>Close {mos[closingMonth-1]} {closingDay}</span> → {calc.autoPrepaidDays} days prepaid interest · No payment in <strong>{skipMo}</strong> · First payment <strong>{firstMo} 1st</strong>
+                  </div>
+                </div>
+              );
+            })()}
           </FeeCategory>
 
-          {/* Credits */}
+          {/* J. Credits */}
           {calc.totalCredits > 0 && (
-            <FeeCategory title="Credits" total={`(${fmt(calc.totalCredits)})`} T={T}>
+            <FeeCategory title="J. Credits" total={`(${fmt(calc.totalCredits)})`} T={T}>
               {lenderCredit > 0 && <FeeRow T={T} label="Lender Credit" value={`(${fmt(lenderCredit)})`} indent color={T.green} />}
               {!isRefi && sellerCredit > 0 && <FeeRow T={T} label="Seller Credit" value={`(${fmt(sellerCredit)})`} indent color={T.green} />}
               {!isRefi && realtorCredit > 0 && <FeeRow T={T} label="Realtor Credit" value={`(${fmt(realtorCredit)})`} indent color={T.green} />}
@@ -264,6 +475,11 @@ export default function OverviewTab({
   titleInsurance, titleSearch, settlementFee, escrowFee,
   recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
   discountPts, payoffAtClosing,
+  /* Property tax calculator */
+  propTaxMode, setPropTaxMode,
+  taxBaseRateOverride, setTaxBaseRateOverride,
+  taxExemptionOverride, setTaxExemptionOverride,
+  fixedAssessments, setFixedAssessments,
 }) {
   const qualRef = useRef(null);
 
@@ -273,7 +489,7 @@ export default function OverviewTab({
   }, []);
 
   return (
-    <div style={{ marginTop: 0, paddingBottom: 80 }}>
+    <div style={{ marginTop: 0, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: 80 }}>
       {/* ═══════════════════════════════════════
           SECTION 1: LOAN STRUCTURE (EDITABLE)
           ═══════════════════════════════════════ */}
@@ -333,6 +549,15 @@ export default function OverviewTab({
 
       {/* Loan Inputs */}
       <OCard T={T} style={{ marginTop: 4 }}>
+        {/* Location tag */}
+        {(propertyZip || city) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${T.separator}` }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.blue, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: 600, fontFamily: MONO, letterSpacing: "0.5px", color: T.textSecondary }}>
+              {propertyZip}{propertyZip && city ? " · " : ""}{city}{(city || propertyZip) && propertyState ? `, ${propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState}` : ""}
+            </span>
+          </div>
+        )}
         {/* Price + Down Payment */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
           <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req />
@@ -382,6 +607,17 @@ export default function OverviewTab({
           <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[{value:30,label:"30 Year"},{value:25,label:"25 Year"},{value:20,label:"20 Year"},{value:15,label:"15 Year"},{value:10,label:"10 Year"}]} sm req />
           <Sel label="Loan Type" value={loanType} onChange={setLoanType} options={["Conventional","FHA","VA","Jumbo","USDA"]} sm req />
         </div>
+
+        {/* ── Property Tax — expandable pill ── */}
+        <PropertyTaxPill
+          T={T} calc={calc} salesPrice={salesPrice}
+          propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
+          taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
+          taxExemptionOverride={taxExemptionOverride} setTaxExemptionOverride={setTaxExemptionOverride}
+          fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
+          propertyState={propertyState} city={city} loanPurpose={loanPurpose}
+          Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+        />
 
         {/* Property details */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 } : { marginTop: 4 }}>
@@ -444,19 +680,6 @@ export default function OverviewTab({
           </div>
         </OCard>
 
-        {/* Closing date info */}
-        {closingMonth > 0 && (() => {
-          const mos = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-          const skipMo = mos[closingMonth % 12];
-          const firstMo = mos[(closingMonth + 1) % 12];
-          return (
-            <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: "10px 14px", marginTop: -4 }}>
-              <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
-                <span style={{ fontWeight: 600, color: T.blue }}>Close {mos[closingMonth-1]} {closingDay}</span> → {calc.autoPrepaidDays} days prepaid interest · No payment in <strong>{skipMo}</strong> · First payment <strong>{firstMo} 1st</strong>
-              </div>
-            </div>
-          );
-        })()}
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -473,7 +696,7 @@ export default function OverviewTab({
         recordingFee={recordingFee} lenderCredit={lenderCredit}
         sellerCredit={sellerCredit} realtorCredit={realtorCredit}
         emd={emd} discountPts={discountPts} payoffAtClosing={payoffAtClosing}
-        setTab={setTab}
+        setTab={setTab} closingMonth={closingMonth} closingDay={closingDay}
       />
 
       {/* ═══════════════════════════════════════
@@ -501,25 +724,6 @@ export default function OverviewTab({
               { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark" },
             ]}
           />
-
-          {/* Progress bar */}
-          <OCard T={T} pad={14}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary }}>Approval Progress</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, fontFamily: FONT }}>
-                {isRefi ? refiPillarCount : purchPillarCount} / {isRefi ? 3 : 5}
-              </span>
-            </div>
-            <div style={{ height: 12, background: T.ringTrack, borderRadius: 99, overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                width: `${(isRefi ? refiPillarCount / 3 : purchPillarCount / 5) * 100}%`,
-                background: allGood ? T.green : someGood ? T.orange : T.ringTrack,
-                borderRadius: 99,
-                transition: "all 0.6s ease",
-              }} />
-            </div>
-          </OCard>
 
           {/* DTI Summary (if income entered) */}
           {calc.qualifyingIncome > 0 && (
@@ -656,6 +860,9 @@ export default function OverviewTab({
                     <div style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>Standard deduction is higher — no additional federal tax benefit from homeownership yet</div>
                   </div>
                 )}
+
+                {/* ── Collapsible: How This Is Calculated ── */}
+                <TaxDetailsCollapsible T={T} calc={calc} fmt={fmt} fmt2={fmt2} pct={pct} taxState={taxState} />
               </OCard>
             )}
             {calc.yearlyInc <= 0 && (

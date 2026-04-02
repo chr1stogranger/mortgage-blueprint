@@ -21,6 +21,43 @@ import {
 
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
+// ── Challenge Token Encode/Decode (stateless, URL-safe) ──
+const encodeChallenge = ({ listing, result, mode, dailyNumber, locationLabel }) => {
+  const payload = {
+    a: listing.address, h: listing.neighborhood, c: listing.city, s: listing.state, z: listing.zip,
+    b: listing.beds, ba: listing.baths, sf: listing.sqft, yb: listing.yearBuilt, pt: listing.propertyType,
+    lp: listing.listPrice, sp: listing.soldPrice, dm: listing.daysOnMarket, ph: listing.photo,
+    g: result.guess, ac: parseFloat((100 - result.pctOff).toFixed(1)),
+    m: mode === 'daily' ? 'd' : 'f', dn: dailyNumber || 0, lb: locationLabel || '',
+    t: Math.floor(Date.now() / 1000),
+  };
+  const json = JSON.stringify(payload);
+  return btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+const decodeChallenge = (token) => {
+  try {
+    const padded = token.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(padded);
+    const d = JSON.parse(json);
+    return {
+      listing: {
+        address: d.a, neighborhood: d.h, city: d.c, state: d.s, zip: d.z,
+        beds: d.b, baths: d.ba, sqft: d.sf, yearBuilt: d.yb, propertyType: d.pt,
+        listPrice: d.lp, soldPrice: d.sp, daysOnMarket: d.dm, photo: d.ph,
+      },
+      challengerGuess: d.g, challengerAccuracy: d.ac,
+      mode: d.m === 'd' ? 'daily' : 'freeplay', dailyNumber: d.dn,
+      locationLabel: d.lb, timestamp: d.t,
+    };
+  } catch (e) { console.error('Failed to decode challenge:', e); return null; }
+};
+
+const buildChallengeUrl = (token) => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://blueprint.realstack.app';
+  return `${origin}/api/challenge?c=${token}`;
+};
+
 // ── Feedback Messages — Emotional Design ──
 const FEEDBACK = {
   bullseye: {
@@ -727,6 +764,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpHasMore, setFpHasMore] = useState(true); // assume more available until proven otherwise
   const fpZipRef = useRef(null); // track current free play zip for Load More
 
+  // ── Challenge Mode State ──
+  const [challengeData, setChallengeData] = useState(null);
+  const [challengeGuess, setChallengeGuess] = useState("");
+  const [challengeResult, setChallengeResult] = useState(null);
+
   // ── Notification State ──
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -989,6 +1031,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Initialize view ──
   useEffect(() => {
+    // Check for challenge param in URL FIRST
+    const params = new URLSearchParams(window.location.search);
+    const challengeToken = params.get('c');
+    if (challengeToken) {
+      const decoded = decodeChallenge(challengeToken);
+      if (decoded) {
+        setChallengeData(decoded);
+        setView("challenge");
+        window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&]c=[^&]+/, '').replace(/^\?$/, ''));
+        return;
+      }
+    }
     if (!market) {
       try {
         const oldHometown = JSON.parse(localStorage.getItem("pp-hometown"));
@@ -1215,6 +1269,60 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setFpGuessInput(raw);
   };
   const fmtGuess = (raw) => raw ? parseInt(raw).toLocaleString("en-US") : "";
+
+  // ── Challenge Mode Handlers ──
+  const handleChallengeGuessInput = (e) => {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    if (!raw) { setChallengeGuess(""); return; }
+    setChallengeGuess(parseInt(raw).toLocaleString("en-US"));
+  };
+
+  const handleChallengeGuess = () => {
+    if (!challengeData) return;
+    const val = parseInt(challengeGuess.replace(/[^0-9]/g, ""));
+    const listing = challengeData.listing;
+    if (!val || !listing) return;
+    const pctOff = Math.abs((val - listing.soldPrice) / listing.soldPrice) * 100;
+    const feedback = getFeedback(pctOff);
+    const insight = getInsight(listing, pctOff, val > listing.soldPrice);
+    const myAccuracy = parseFloat((100 - pctOff).toFixed(1));
+    setChallengeResult({
+      guess: val, soldPrice: listing.soldPrice, listPrice: listing.listPrice,
+      address: listing.address, neighborhood: listing.neighborhood,
+      city: listing.city, state: listing.state, zip: listing.zip,
+      beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+      photo: listing.photo, pctOff: parseFloat(pctOff.toFixed(1)),
+      feedback, feedbackMessage: getRandomMessage(feedback), insight,
+      myAccuracy, challengerAccuracy: challengeData.challengerAccuracy,
+      challengerGuess: challengeData.challengerGuess,
+      iWon: myAccuracy >= challengeData.challengerAccuracy,
+      dailyNumber: challengeData.dailyNumber, timestamp: Date.now(), revealed: true, isDaily: false,
+    });
+    setView("challenge"); // stay in challenge view to show result
+    setAllResults(prev => [...prev, { guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)), revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now() }]);
+  };
+
+  // ── Share as Challenge (Web Share API + clipboard fallback) ──
+  const shareChallenge = (result, listing, isDaily) => {
+    const token = encodeChallenge({
+      listing, result,
+      mode: isDaily ? 'daily' : 'freeplay',
+      dailyNumber: isDaily ? dailyNumber : 0,
+      locationLabel: locationLabel || market?.label || '',
+    });
+    const url = buildChallengeUrl(token);
+    const accuracy = (100 - result.pctOff).toFixed(1);
+    const text = `I scored ${accuracy}% accuracy on a ${result.neighborhood || result.city} home — think you can beat me?`;
+    if (navigator.share) {
+      navigator.share({ title: 'PricePoint Challenge', text, url }).catch(() => {
+        navigator.clipboard.writeText(`${text}\n${url}`);
+        setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+      });
+    } else {
+      navigator.clipboard.writeText(`${text}\n${url}`);
+      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+    }
+  };
 
   // ── Save nickname ──
   const handleSaveNickname = async () => {
@@ -1923,7 +2031,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Reveal card ──
-  const RevealCard = ({ result, onShare, onContinue, onRunNumbersClick, showPhases }) => {
+  const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison }) => {
     const color = fbColor(result.feedback);
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: 420, width: "100%", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
@@ -1933,6 +2041,29 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
         {(!showPhases || revealPhase >= 1) && (
           <div style={{ animation: "ppSlideUp 0.4s ease" }}>
+            {/* Head-to-head comparison scoreboard (challenge mode) */}
+            {comparison && (
+              <div style={{ background: comparison.iWon ? `${T.green}12` : `${T.orange}12`, border: `1px solid ${comparison.iWon ? `${T.green}30` : `${T.orange}30`}`, borderRadius: 14, padding: "16px", marginBottom: 16, animation: "ppScaleIn 0.4s ease" }}>
+                <div style={{ textAlign: "center", marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 2, color: comparison.iWon ? T.green : T.orange, fontWeight: 700, textTransform: "uppercase" }}>
+                    {comparison.myAccuracy === comparison.challengerAccuracy ? "IT'S A TIE" : comparison.iWon ? "YOU WIN" : "THEY GOT YOU"}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ flex: 1, textAlign: "center", padding: "10px 0", borderRadius: 10, background: `rgba(255,255,255,0.04)` }}>
+                    <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOU</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, marginTop: 4, color: comparison.iWon ? T.green : T.textSecondary }}>{comparison.myAccuracy.toFixed(1)}%</div>
+                    <div style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary, marginTop: 2 }}>{fmt(result.guess)}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", fontSize: 14, fontWeight: 600, color: T.textTertiary, fontFamily: MONO }}>vs</div>
+                  <div style={{ flex: 1, textAlign: "center", padding: "10px 0", borderRadius: 10, background: `rgba(255,255,255,0.04)` }}>
+                    <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>THEM</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, marginTop: 4, color: !comparison.iWon ? T.green : T.textSecondary }}>{comparison.challengerAccuracy.toFixed(1)}%</div>
+                    <div style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary, marginTop: 2 }}>{fmt(comparison.challengerGuess)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 12, marginBottom: 20, background: T.inputBg, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}` }}>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOUR GUESS</div>
@@ -1962,7 +2093,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         )}
         {(!showPhases || revealPhase >= 2) && (
           <div style={{ animation: "ppSlideUp 0.3s ease" }}>
-            {onShare && <PillButton onClick={() => onShare(result)} accent style={{ marginBottom: 10 }}>Share Your Result</PillButton>}
+            {onChallenge && (
+              <button onClick={() => onChallenge(result)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(99,102,241,0.3)", transition: "all 0.2s" }}>
+                <Icon name="send" size={16} /> Challenge a Friend
+              </button>
+            )}
+            {onShare && <PillButton onClick={() => onShare(result)} accent style={{ marginBottom: 10 }}>{onChallenge ? "Share" : "Share Your Result"}</PillButton>}
             {result.detailUrl && (
               <a href={result.detailUrl.startsWith("http") ? result.detailUrl : `https://www.zillow.com${result.detailUrl}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 6, padding: 12, marginBottom: 10, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: "transparent", textDecoration: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, transition: "all 0.2s" }}
@@ -2323,7 +2459,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ REVEAL ═══ */}
       {view === "reveal" && dailyResult && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: 16 }}>
-          {RevealCard({ result: dailyResult, showPhases: true, onShare: shareResult, onContinue: () => setView("postDaily"),
+          {RevealCard({ result: dailyResult, showPhases: true, onShare: shareResult,
+            onChallenge: dailyProperty ? (r) => shareChallenge(r, dailyProperty, true) : null,
+            onContinue: () => setView("postDaily"),
             onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })}
         </div>
       )}
@@ -2346,7 +2484,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, letterSpacing: 1, color: fbColor(dailyResult.feedback) }}>{dailyResult.feedback.label}</div>
                 </div>
               </div>
-              <div style={{ marginTop: 14 }}><PillButton onClick={() => shareResult(dailyResult)} accent>Share Result</PillButton></div>
+              <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+                {dailyProperty && <button onClick={() => shareChallenge(dailyResult, dailyProperty, true)} style={{ flex: 1, padding: 12, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}><Icon name="send" size={14} /> Challenge</button>}
+                <PillButton onClick={() => shareResult(dailyResult)} accent style={{ flex: 1 }}>Share</PillButton>
+              </div>
             </div>
           )}
 
@@ -2831,6 +2972,46 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
+      {/* ═══ CHALLENGE MODE — Incoming ═══ */}
+      {view === "challenge" && challengeData && !challengeResult && (
+        <div style={{ padding: "16px 16px 100px", animation: "ppSlideUp 0.5s ease-out" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.purple || "#8B5CF6" }}>CHALLENGE</div>
+              <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
+                {challengeData.locationLabel || `${challengeData.listing.city}, ${challengeData.listing.state}`}
+                {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : ' · Free Play'}
+              </div>
+            </div>
+          </div>
+          <div style={{ background: `linear-gradient(135deg, ${accent}12, ${T.purple || "#8B5CF6"}12)`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
+              Someone scored <span style={{ color: accent, fontFamily: MONO, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
+            </div>
+            <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
+          </div>
+          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: "CHALLENGE", badgeColor: T.purple || "#8B5CF6", accentColor: T.purple || "#8B5CF6" })}
+        </div>
+      )}
+
+      {/* ═══ CHALLENGE RESULT ═══ */}
+      {view === "challenge" && challengeResult && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: 16 }}>
+          {RevealCard({
+            result: challengeResult,
+            comparison: { myAccuracy: challengeResult.myAccuracy, challengerAccuracy: challengeResult.challengerAccuracy, challengerGuess: challengeResult.challengerGuess, iWon: challengeResult.iWon },
+            onChallenge: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),
+            onShare: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),
+            onContinue: () => {
+              setChallengeData(null); setChallengeResult(null); setChallengeGuess("");
+              if (market) { if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily"); else setView("daily"); }
+              else setView("onboarding");
+            },
+            onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null,
+          })}
+        </div>
+      )}
+
       {/* ═══ FREE PLAY NEIGHBORHOOD PICKER ═══ */}
       {view === "fpPicker" && (
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
@@ -2897,6 +3078,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </>
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
+              onChallenge: (r) => shareChallenge(r, fpListings[fpIdx], false),
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px" }}>
