@@ -1106,22 +1106,21 @@ export default function OverviewTab({
             style={{
               width: '100%',
               padding: '10px 14px',
-              borderRadius: 10,
-              border: `1px solid ${liveRates ? T.green + '40' : T.blue + '40'}`,
-              background: liveRates ? T.green + '10' : T.blue + '10',
-              color: liveRates ? T.green : T.blue,
-              fontFamily: MONO,
-              fontSize: 12,
-              fontWeight: 600,
+              borderRadius: 12,
+              border: `1px solid ${liveRates ? T.green + '33' : T.blue + '33'}`,
+              background: liveRates ? T.successBg : `${T.blue}18`,
               cursor: ratesLoading ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
+              justifyContent: 'space-between',
               transition: 'all 0.2s'
             }}
           >
-            {ratesLoading ? 'Fetching...' : liveRates ? `\u2713 Live Rates Applied \u2014 ${liveRates.date || 'Today'}` : '\u25C9 Get Today\'s Rates'}
+            <span style={{ fontSize: 13, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: FONT }}>
+              {ratesLoading ? 'Fetching rates...' : liveRates ? '\u2713 Live Rates Applied' : '\u25C9 Get Today\'s Rates'}
+            </span>
+            {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || 'Today'}</span>}
+            {!liveRates && !ratesLoading && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>FRED (Freddie Mac PMMS)</span>}
           </button>
           {ratesError && (
             <div style={{ fontSize: 11, color: T.red, marginTop: 4, textAlign: 'center' }}>{ratesError}</div>
@@ -1129,15 +1128,15 @@ export default function OverviewTab({
           {liveRates && (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: '1fr 1fr 1fr',
               gap: 6,
-              marginTop: 8
+              marginBottom: 14
             }}>
               {[
-                { label: '30yr Fixed', key: '30yr_fixed' },
-                { label: '15yr Fixed', key: '15yr_fixed' },
-                { label: 'FHA 30yr', key: '30yr_fha' },
-                { label: 'VA 30yr', key: '30yr_va' },
+                { label: '30yr', key: '30yr_fixed' },
+                { label: '15yr', key: '15yr_fixed' },
+                { label: 'FHA', key: '30yr_fha' },
+                { label: 'VA', key: '30yr_va' },
                 { label: 'Jumbo', key: '30yr_jumbo' },
                 { label: '5/1 ARM', key: '5yr_arm' },
               ].filter(r => liveRates[r.key] != null).map(r => {
@@ -1151,28 +1150,29 @@ export default function OverviewTab({
                   return false;
                 })();
                 return (
-                  <button
+                  <div
                     key={r.key}
                     onClick={() => setRate(liveRates[r.key])}
                     style={{
-                      padding: '8px 6px',
-                      borderRadius: 8,
-                      border: `1px solid ${isActive ? T.blue : T.cardBorder}`,
-                      background: isActive ? T.blue + '15' : T.card,
+                      padding: '8px 10px',
+                      borderRadius: 10,
+                      border: isActive ? `1px solid ${T.blue}55` : '1px solid transparent',
+                      background: isActive ? `${T.blue}20` : T.inputBg,
                       cursor: 'pointer',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      transition: 'all 0.2s'
                     }}
                   >
-                    <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: MONO, fontWeight: 500 }}>{r.label}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: MONO }}>{liveRates[r.key]}%</div>
-                  </button>
+                    <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{r.label}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{liveRates[r.key]}%</div>
+                  </div>
                 );
               })}
             </div>
           )}
           {liveRates && (
-            <div style={{ fontSize: 10, color: T.textTertiary, textAlign: 'center', marginTop: 4, fontFamily: MONO }}>
-              Source: {liveRates.source || 'Freddie Mac PMMS'}
+            <div style={{ fontSize: 10, color: T.textTertiary, textAlign: 'center', marginTop: -8, marginBottom: 8 }}>
+              Source: {liveRates.source || 'FRED / Freddie Mac PMMS'}
             </div>
           )}
         </div>
