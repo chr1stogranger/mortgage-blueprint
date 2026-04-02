@@ -352,6 +352,416 @@ function PropertyTaxPill({ T, calc, salesPrice, propTaxMode, setPropTaxMode,
   );
 }
 
+/* ─── Mortgage Insurance Pill (3-layer) ─── */
+function MortgageInsurancePill({ T, calc, salesPrice, loanType, creditScore, Inp, fmt, fmt2, isDesktop,
+  pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride }) {
+  const [showCalc, setShowCalc] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(!pmiRateLocked);
+  const anyUnlocked = !pmiRateLocked;
+
+  const LockBtn = ({ locked, onToggle }) => (
+    <button onClick={e => { e.stopPropagation(); onToggle(); }}
+      title={locked ? "Unlock to customize" : "Lock to auto-sync"}
+      style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", lineHeight: 1 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={locked ? T.textTertiary : T.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        {locked ? <path d="M7 11V7a5 5 0 0 1 10 0v4" /> : <path d="M7 11V7a5 5 0 0 1 9.9-1" />}
+      </svg>
+    </button>
+  );
+
+  // Determine label and breakdown based on loan type
+  const isConv = loanType === "Conventional";
+  const isFHA = loanType === "FHA";
+  const isUSDA = loanType === "USDA";
+  const label = isConv ? "Private Mortgage Insurance (PMI)" : isFHA ? "Mortgage Insurance Premium (MIP)" : "USDA Mortgage Insurance";
+
+  // Build breakdown rows based on loan type
+  let breakdownRows = [];
+  let footnote = "";
+  if (isConv) {
+    breakdownRows = [
+      ["Loan Amount", fmt(calc.baseLoan)],
+      ["Home Value", fmt(salesPrice)],
+      ["LTV", `${(calc.ltv * 100).toFixed(1)}%`],
+      ["Credit Score", creditScore > 0 ? String(creditScore) : "—"],
+      ["PMI Rate (Radian matrix)", `${(calc.pmiRate * 100).toFixed(3)}%`],
+    ];
+    footnote = "PMI required when LTV > 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.";
+  } else if (isFHA) {
+    breakdownRows = [
+      ["Base Loan Amount", fmt(calc.baseLoan)],
+      ["Upfront MIP (1.75%)", `${fmt(calc.fhaUp)} financed`],
+      ["Total Loan Amount", fmt(calc.loan)],
+      ["Annual MIP Rate", "0.55%"],
+    ];
+    footnote = "FHA MIP is required for the life of the loan regardless of LTV. The only way to remove it is to refinance into a conventional loan. Upfront MIP (1.75%) is financed into the loan amount.";
+  } else if (isUSDA) {
+    breakdownRows = [
+      ["Base Loan Amount", fmt(calc.baseLoan)],
+      ["Upfront Guarantee Fee (1.0%)", `${fmt(calc.usdaFee)} financed`],
+      ["Total Loan Amount", fmt(calc.loan)],
+      ["Annual Fee Rate", "0.35%"],
+    ];
+    footnote = "USDA annual fee is 0.35% of the original loan amount. Upfront guarantee fee (1.0%) is financed into the loan.";
+  }
+
+  const annualPremium = isConv ? calc.baseLoan * calc.pmiRate : isFHA ? calc.loan * 0.0055 : calc.baseLoan * 0.0035;
+  const monthlyPremium = isConv ? calc.monthlyPMI : isFHA ? calc.monthlyMIP : calc.usdaMI;
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 6 }}>
+      {/* Layer 1: Pill */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{label}</span>
+          {anyUnlocked && (
+            <span style={{ fontSize: 9, fontWeight: 700, fontFamily: MONO, color: T.blue, background: `${T.blue}15`, borderRadius: 99, padding: "1px 6px" }}>CUSTOM</span>
+          )}
+        </div>
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: T.inputBg, borderRadius: 12, padding: "12px 14px",
+        border: `1px solid ${T.inputBorder}`,
+      }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+          {fmt(monthlyPremium)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary, marginLeft: 2 }}>/mo</span>
+        </span>
+        <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>
+          {fmt(monthlyPremium * 12)}/yr
+        </span>
+      </div>
+
+      {/* Layer 2: How this is calculated */}
+      <div
+        onClick={() => setShowCalc(!showCalc)}
+        style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
+        <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: showCalc ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+      </div>
+
+      {showCalc && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ background: T.inputBg || `${T.textTertiary}08`, borderRadius: 10, padding: "10px 12px" }}>
+            {breakdownRows.map(([label, value], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+              </div>
+            ))}
+            {/* Separator + totals */}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}`, marginTop: 2 }}>
+              <span style={{ fontSize: 12, color: T.textSecondary }}>Annual Premium</span>
+              <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{fmt2(annualPremium)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt2(monthlyPremium)}</span>
+            </div>
+            <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>{footnote}</div>
+          </div>
+
+          {/* Layer 3: Customize (only for Conventional PMI) */}
+          {isConv && (
+            <>
+              {!showCustomize ? (
+                <div style={{ textAlign: "center", marginTop: 8 }}>
+                  <span
+                    onClick={() => { setShowCustomize(true); if (pmiRateLocked && pmiRateOverride === 0) setPmiRateOverride(parseFloat((calc.autoPmiRate * 100).toFixed(3))); }}
+                    style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}
+                  >Customize PMI rate</span>
+                </div>
+              ) : (
+                <div style={{ marginTop: 10 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Annual PMI Rate</span>
+                      <LockBtn locked={pmiRateLocked} onToggle={() => {
+                        if (pmiRateLocked) { setPmiRateLocked(false); }
+                        else { setPmiRateLocked(true); setPmiRateOverride(0); }
+                      }} />
+                    </div>
+                    <div style={{ opacity: pmiRateLocked ? 0.6 : 1 }}>
+                      <Inp value={pmiRateOverride || parseFloat((calc.autoPmiRate * 100).toFixed(3))} onChange={setPmiRateOverride} prefix="" suffix="%" max={5} step={0.001} sm readOnly={pmiRateLocked} />
+                    </div>
+                    <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4, lineHeight: 1.5 }}>
+                      Override if your lender quoted a different PMI rate. Lock to auto-calculate from LTV and credit score.
+                    </div>
+                  </div>
+                  {!pmiRateLocked && (
+                    <div style={{ textAlign: "center", marginTop: 8 }}>
+                      <span
+                        onClick={() => { setPmiRateLocked(true); setPmiRateOverride(0); }}
+                        style={{ fontSize: 11, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}
+                      >Reset to auto</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── VA Funding Fee Pill (3-layer) ─── */
+function VAFundingFeePill({ T, calc, Inp, fmt, fmt2, isDesktop, downPct, vaUsage,
+  vaFundingFeeLocked, setVaFundingFeeLocked, vaFundingFeeOverride, setVaFundingFeeOverride }) {
+  const [showCalc, setShowCalc] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(!vaFundingFeeLocked);
+  const anyUnlocked = !vaFundingFeeLocked;
+
+  const LockBtn = ({ locked, onToggle }) => (
+    <button onClick={e => { e.stopPropagation(); onToggle(); }}
+      title={locked ? "Unlock to customize" : "Lock to auto-sync"}
+      style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", lineHeight: 1 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={locked ? T.textTertiary : T.blue} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        {locked ? <path d="M7 11V7a5 5 0 0 1 10 0v4" /> : <path d="M7 11V7a5 5 0 0 1 9.9-1" />}
+      </svg>
+    </button>
+  );
+
+  // VA Funding Fee tier matrix
+  const tiers = [
+    { label: "First Use", rates: [2.15, 1.50, 1.25] },
+    { label: "Subsequent", rates: [3.30, 1.50, 1.25] },
+    { label: "Disabled", rates: [0, 0, 0] },
+  ];
+  const dpHeaders = ["0% DP", "5% DP", "10% DP"];
+  const activeTierIdx = vaUsage === "Subsequent" ? 1 : vaUsage === "Disabled" ? 2 : 0;
+  const activeDpIdx = downPct >= 10 ? 2 : downPct >= 5 ? 1 : 0;
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 6 }}>
+      {/* Layer 1: Pill */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>VA Funding Fee</span>
+          {anyUnlocked && (
+            <span style={{ fontSize: 9, fontWeight: 700, fontFamily: MONO, color: T.blue, background: `${T.blue}15`, borderRadius: 99, padding: "1px 6px" }}>CUSTOM</span>
+          )}
+        </div>
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: T.inputBg, borderRadius: 12, padding: "12px 14px",
+        border: `1px solid ${T.inputBorder}`,
+      }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+          {fmt(calc.vaFundingFee)}
+        </span>
+        <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>
+          {calc.baseLoan > 0 ? `${(calc.vaFundingFee / calc.baseLoan * 100).toFixed(2)}% of loan` : "—"}
+        </span>
+      </div>
+
+      {/* Layer 2: How this is calculated */}
+      <div
+        onClick={() => setShowCalc(!showCalc)}
+        style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
+        <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: showCalc ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+      </div>
+
+      {showCalc && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ background: T.inputBg || `${T.textTertiary}08`, borderRadius: 10, padding: "10px 12px" }}>
+            {[
+              ["Base Loan Amount", fmt(calc.baseLoan)],
+              ["VA Usage", vaUsage || "First Use"],
+              ["Down Payment", `${downPct}%`],
+            ].map(([label, value], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}`, marginTop: 2 }}>
+              <span style={{ fontSize: 12, color: T.textSecondary }}>Funding Fee Rate</span>
+              <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{(calc.vaFFRate * 100).toFixed(2)}%</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Funding Fee</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(calc.vaFundingFee)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Total Loan (incl. fee)</span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(calc.loan)}</span>
+            </div>
+
+            {/* VA Funding Fee Tier Matrix */}
+            <div style={{ marginTop: 10, fontSize: 11, fontWeight: 600, color: T.textSecondary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+              VA Funding Fee Rates
+            </div>
+            <div style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${T.separator}` }}>
+              {/* Header row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", background: `${T.blue}10` }}>
+                <div style={{ padding: "6px 8px", fontSize: 10, fontWeight: 600, color: T.textTertiary, fontFamily: MONO }}></div>
+                {dpHeaders.map((h, i) => (
+                  <div key={i} style={{ padding: "6px 4px", fontSize: 10, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, textAlign: "center" }}>{h}</div>
+                ))}
+              </div>
+              {/* Data rows */}
+              {tiers.map((tier, ti) => (
+                <div key={ti} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", borderTop: `1px solid ${T.separator}` }}>
+                  <div style={{ padding: "6px 8px", fontSize: 11, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{tier.label}</div>
+                  {tier.rates.map((r, di) => {
+                    const isActive = ti === activeTierIdx && di === activeDpIdx;
+                    return (
+                      <div key={di} style={{
+                        padding: "6px 4px", fontSize: 11, fontWeight: isActive ? 700 : 400, fontFamily: MONO, textAlign: "center",
+                        color: isActive ? T.blue : T.text,
+                        background: isActive ? `${T.blue}15` : "transparent",
+                      }}>
+                        {r}%
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>
+              The VA Funding Fee is a one-time fee paid to the VA. It can be financed into the loan or paid at closing. Veterans with 10%+ service-connected disability are exempt.
+            </div>
+          </div>
+
+          {/* Layer 3: Customize */}
+          {!showCustomize ? (
+            <div style={{ textAlign: "center", marginTop: 8 }}>
+              <span
+                onClick={() => setShowCustomize(true)}
+                style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}
+              >Customize funding fee</span>
+            </div>
+          ) : (
+            <div style={{ marginTop: 10 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>VA Funding Fee</span>
+                  <LockBtn locked={vaFundingFeeLocked} onToggle={() => {
+                    if (vaFundingFeeLocked) { setVaFundingFeeLocked(false); }
+                    else { setVaFundingFeeLocked(true); setVaFundingFeeOverride(0); }
+                  }} />
+                </div>
+                <div style={{ opacity: vaFundingFeeLocked ? 0.6 : 1 }}>
+                  <Inp value={vaFundingFeeOverride || Math.round(calc.autoVAFF)} onChange={setVaFundingFeeOverride} prefix="$" max={100000} sm readOnly={vaFundingFeeLocked} />
+                </div>
+                <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4, lineHeight: 1.5 }}>
+                  Override if paying out of pocket, negotiated rate, or partial exemption. Lock to auto-calculate from VA usage tier and down payment.
+                </div>
+              </div>
+              {!vaFundingFeeLocked && (
+                <div style={{ textAlign: "center", marginTop: 8 }}>
+                  <span
+                    onClick={() => { setVaFundingFeeLocked(true); setVaFundingFeeOverride(0); }}
+                    style={{ fontSize: 11, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}
+                  >Reset to auto</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Cash to Close Pill (3-layer) ─── */
+function CashToClosePill({ T, calc, isRefi, salesPrice, downPct, payoffAtClosing, setTab, fmt, fmt2 }) {
+  const [showCalc, setShowCalc] = useState(false);
+  const label = isRefi ? "Estimated Refi Costs" : "Cash to Close";
+  const total = isRefi ? (calc.totalClosingCosts + calc.totalPrepaidExp + payoffAtClosing - calc.totalCredits) : calc.cashToClose;
+  const pctOfPrice = salesPrice > 0 ? (total / salesPrice * 100).toFixed(1) : "0.0";
+
+  // Build breakdown rows
+  const rows = [];
+  if (!isRefi) rows.push(["Down Payment (" + downPct + "%)", fmt(calc.dp)]);
+  rows.push(["Closing Costs", fmt(calc.totalClosingCosts)]);
+  rows.push(["Prepaids & Escrow", fmt(calc.totalPrepaidExp)]);
+  if (payoffAtClosing > 0) rows.push(["Loans Paid Off at Close", fmt(payoffAtClosing)]);
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 6 }}>
+      {/* Layer 1: Pill */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{label}</span>
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: T.inputBg, borderRadius: 12, padding: "12px 14px",
+        border: `1px solid ${T.inputBorder}`,
+      }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+          {fmt(total)}
+        </span>
+        <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>
+          {pctOfPrice}% of {isRefi ? "value" : "price"}
+        </span>
+      </div>
+
+      {/* Layer 2: How this is calculated */}
+      <div
+        onClick={() => setShowCalc(!showCalc)}
+        style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
+        <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: showCalc ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+      </div>
+
+      {showCalc && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ background: T.inputBg || `${T.textTertiary}08`, borderRadius: 10, padding: "10px 12px" }}>
+            {rows.map(([label, value], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+              </div>
+            ))}
+            {/* Subtotal */}
+            {!isRefi && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}`, marginTop: 2 }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>Subtotal</span>
+                <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{fmt(calc.dp + calc.totalClosingCosts + calc.totalPrepaidExp + payoffAtClosing)}</span>
+              </div>
+            )}
+            {/* Credits */}
+            {calc.totalCredits > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+                <span style={{ fontSize: 12, color: T.green }}>Credits</span>
+                <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.green }}>-{fmt(calc.totalCredits)}</span>
+              </div>
+            )}
+            {/* Bold total */}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.green }}>{isRefi ? "ESTIMATED REFI COSTS" : "ESTIMATED CASH TO CLOSE"}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmt(total)}</span>
+            </div>
+            <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>
+              {isRefi
+                ? "Closing costs + prepaids \u2212 credits. No down payment on refi."
+                : "Down payment + closing costs + prepaids \u2212 credits. See Fee Breakdown below for full detail."}
+            </div>
+          </div>
+          {/* Link to Costs tab instead of Layer 3 */}
+          <div style={{ textAlign: "center", marginTop: 8 }}>
+            <span
+              onClick={() => setTab("costs")}
+              style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}
+            >Edit closing costs →</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── IFW-style Cash to Close section ─── */
 function IFWCashToClose({ T, calc, isRefi, downPct, underwritingFee, processingFee,
   appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
@@ -557,6 +967,13 @@ export default function OverviewTab({
   fixedAssessments, setFixedAssessments,
   taxRateLocked, setTaxRateLocked,
   taxExemptionLocked, setTaxExemptionLocked,
+  /* PMI pill */
+  pmiRateLocked, setPmiRateLocked,
+  pmiRateOverride, setPmiRateOverride,
+  /* VA Funding Fee pill */
+  vaUsage,
+  vaFundingFeeLocked, setVaFundingFeeLocked,
+  vaFundingFeeOverride, setVaFundingFeeOverride,
 }) {
   const qualRef = useRef(null);
   const [showModules, setShowModules] = useState(false);
@@ -788,6 +1205,26 @@ export default function OverviewTab({
           taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
           taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
         />
+
+        {/* ── Mortgage Insurance — expandable pill (only when MI > 0) ── */}
+        {calc.monthlyMI > 0 && (
+          <MortgageInsurancePill
+            T={T} calc={calc} salesPrice={salesPrice} loanType={loanType}
+            creditScore={creditScore} Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+            pmiRateLocked={pmiRateLocked} setPmiRateLocked={setPmiRateLocked}
+            pmiRateOverride={pmiRateOverride} setPmiRateOverride={setPmiRateOverride}
+          />
+        )}
+
+        {/* ── VA Funding Fee — expandable pill (VA loans only) ── */}
+        {loanType === "VA" && calc.vaFundingFee > 0 && (
+          <VAFundingFeePill
+            T={T} calc={calc} Inp={Inp} fmt={fmt} fmt2={fmt2} isDesktop={isDesktop}
+            downPct={downPct} vaUsage={vaUsage}
+            vaFundingFeeLocked={vaFundingFeeLocked} setVaFundingFeeLocked={setVaFundingFeeLocked}
+            vaFundingFeeOverride={vaFundingFeeOverride} setVaFundingFeeOverride={setVaFundingFeeOverride}
+          />
+        )}
 
         {/* Property details */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 } : { marginTop: 4 }}>
@@ -1229,7 +1666,7 @@ export default function OverviewTab({
               { value: "HOH", label: "Head of Household" }
             ]} sm />
             <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 12, paddingLeft: 2, fontFamily: FONT }}>
-              Affects tax bracket, standard deduction ({married === 'MFJ' ? '$29,200' : married === 'HOH' ? '$21,900' : '$14,600'}), and SALT cap
+              Affects tax bracket, standard deduction ({married === 'MFJ' ? '$32,200' : married === 'HOH' ? '$24,150' : '$16,100'}), and SALT cap
             </div>
             <OCard T={T}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>

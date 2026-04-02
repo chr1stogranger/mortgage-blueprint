@@ -294,7 +294,7 @@ const STATE_TAX = {
  "Louisiana": { type:"progressive", std:{s:0,m:0,h:0},
   s:B([[12500,0.0185],[50000,0.035],[Infinity,0.0425]]),
   m:B([[25000,0.0185],[100000,0.035],[Infinity,0.0425]]) },
- "Maine": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "Maine": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[24500,0.058],[58050,0.0675],[Infinity,0.0715]]),
   m:B([[49050,0.058],[116100,0.0675],[Infinity,0.0715]]) },
  "Maryland": { type:"progressive", std:{s:2550,m:5150,h:2550},
@@ -302,11 +302,11 @@ const STATE_TAX = {
   m:B([[1000,0.02],[2000,0.03],[3000,0.04],[150000,0.0475],[175000,0.05],[225000,0.0525],[300000,0.055],[Infinity,0.0575]]) },
  "Massachusetts": { type:"flat", rate:0.05, surtax:{ threshold:1000000, rate:0.04 } },
  "Michigan": { type:"flat", rate:0.0425 },
- "Minnesota": { type:"progressive", std:{s:14575,m:29150,h:21900},
+ "Minnesota": { type:"progressive", std:{s:15300,m:30600,h:23000},
   s:B([[31690,0.0535],[104090,0.068],[183340,0.0785],[Infinity,0.0985]]),
   m:B([[46330,0.0535],[184040,0.068],[321450,0.0785],[Infinity,0.0985]]) },
  "Mississippi": { type:"flat", rate:0.047 },
- "Missouri": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "Missouri": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[1207,0.02],[2414,0.025],[3621,0.03],[4828,0.035],[6035,0.04],[7242,0.045],[8449,0.05],[Infinity,0.0495]]),
   m:B([[1207,0.02],[2414,0.025],[3621,0.03],[4828,0.035],[6035,0.04],[7242,0.045],[8449,0.05],[Infinity,0.0495]]) },
  "Montana": { type:"progressive", std:{s:5540,m:11080,h:5540},
@@ -319,14 +319,14 @@ const STATE_TAX = {
  "New Jersey": { type:"progressive", std:{s:0,m:0,h:0},
   s:B([[20000,0.014],[35000,0.0175],[40000,0.035],[75000,0.05525],[500000,0.0637],[1000000,0.0897],[Infinity,0.1075]]),
   m:B([[20000,0.014],[50000,0.0175],[70000,0.035],[80000,0.05525],[150000,0.0637],[500000,0.0897],[Infinity,0.1075]]) },
- "New Mexico": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "New Mexico": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[5500,0.017],[11000,0.032],[16000,0.047],[210000,0.049],[Infinity,0.059]]),
   m:B([[8000,0.017],[16000,0.032],[24000,0.047],[315000,0.049],[Infinity,0.059]]) },
  "New York": { type:"progressive", std:{s:8000,m:16050,h:11200},
   s:B([[8500,0.04],[11700,0.045],[13900,0.0525],[80650,0.055],[215400,0.06],[1077550,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]),
   m:B([[17150,0.04],[23600,0.045],[27900,0.0525],[161550,0.055],[323200,0.06],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]) },
  "North Carolina": { type:"flat", rate:0.045 },
- "North Dakota": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "North Dakota": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[44725,0.0195],[Infinity,0.025]]), m:B([[74750,0.0195],[Infinity,0.025]]) },
  "Ohio": { type:"progressive", std:{s:0,m:0,h:0},
   s:B([[26050,0],[46100,0.02765],[92150,0.03226],[Infinity,0.0357]]),
@@ -341,14 +341,14 @@ const STATE_TAX = {
  "Rhode Island": { type:"progressive", std:{s:10550,m:21150,h:15850},
   s:B([[73450,0.0375],[166950,0.0475],[Infinity,0.0599]]),
   m:B([[73450,0.0375],[166950,0.0475],[Infinity,0.0599]]) },
- "South Carolina": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "South Carolina": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[3460,0],[17330,0.03],[Infinity,0.064]]),
   m:B([[3460,0],[17330,0.03],[Infinity,0.064]]) },
  "South Dakota": { type:"none" },
  "Tennessee": { type:"none" },
  "Texas": { type:"none" },
  "Utah": { type:"flat", rate:0.0465 },
- "Vermont": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "Vermont": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[45400,0.0335],[110450,0.066],[229550,0.076],[Infinity,0.0875]]),
   m:B([[76000,0.0335],[184000,0.066],[Infinity,0.0875]]) },
  "Virginia": { type:"progressive", std:{s:8000,m:16000,h:8000},
@@ -362,7 +362,7 @@ const STATE_TAX = {
   s:B([[14320,0.0354],[28640,0.0465],[315310,0.0530],[Infinity,0.0765]]),
   m:B([[19120,0.0354],[38240,0.0465],[420420,0.0530],[Infinity,0.0765]]) },
  "Wyoming": { type:"none" },
- "District of Columbia": { type:"progressive", std:{s:14600,m:29200,h:21900},
+ "District of Columbia": { type:"progressive", std:{s:16100,m:32200,h:24150},
   s:B([[10000,0.04],[40000,0.06],[60000,0.065],[250000,0.085],[500000,0.0925],[1000000,0.0975],[Infinity,0.1075]]),
   m:B([[10000,0.04],[40000,0.06],[60000,0.065],[250000,0.085],[500000,0.0925],[1000000,0.0975],[Infinity,0.1075]]) },
 };
@@ -1541,6 +1541,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [otherIncome, setOtherIncome] = useState(0);
  const [assets, setAssets] = useState([]);
  const [creditScore, setCreditScore] = useState(0);
+ const [pmiRateLocked, setPmiRateLocked] = useState(true);
+ const [pmiRateOverride, setPmiRateOverride] = useState(0);
+ const [vaFundingFeeLocked, setVaFundingFeeLocked] = useState(true);
+ const [vaFundingFeeOverride, setVaFundingFeeOverride] = useState(0);
  const [extraPayment, setExtraPayment] = useState(0);
  const [payExtra, setPayExtra] = useState(false);
  const [amortView, setAmortView] = useState("monthly");
@@ -1693,7 +1697,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
-  incomes, otherIncome, assets, creditScore, extraPayment, payExtra, debtFree, autoJumboSwitch,
+  incomes, otherIncome, assets, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
@@ -1786,6 +1790,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.otherIncome !== undefined) setOtherIncome(s.otherIncome);
   if (s.assets) setAssets(s.assets);
   if (s.creditScore !== undefined) setCreditScore(s.creditScore);
+  if (s.pmiRateLocked !== undefined) setPmiRateLocked(s.pmiRateLocked);
+  if (s.pmiRateOverride !== undefined) setPmiRateOverride(s.pmiRateOverride);
+  if (s.vaFundingFeeLocked !== undefined) setVaFundingFeeLocked(s.vaFundingFeeLocked);
+  if (s.vaFundingFeeOverride !== undefined) setVaFundingFeeOverride(s.vaFundingFeeOverride);
   if (s.extraPayment !== undefined) setExtraPayment(s.extraPayment);
   if (s.payExtra !== undefined) setPayExtra(s.payExtra);
   if (s.debtFree !== undefined) setDebtFree(s.debtFree);
@@ -3063,7 +3071,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const fhaUp = loanType === "FHA" ? baseLoan * 0.0175 : 0;
   const vaFFTier = VA_FUNDING_FEES[vaUsage] || { 0: 0 };
   const vaFFRate = downPct >= 10 ? (vaFFTier[10] || 0) : downPct >= 5 ? (vaFFTier[5] || 0) : (vaFFTier[0] || 0);
-  const vaFundingFee = loanType === "VA" ? baseLoan * vaFFRate : 0;
+  const autoVAFF = loanType === "VA" ? baseLoan * vaFFRate : 0;
+  const vaFundingFee = (!vaFundingFeeLocked && vaFundingFeeOverride > 0) ? vaFundingFeeOverride : autoVAFF;
   const usdaFee = loanType === "USDA" ? baseLoan * 0.01 : 0;
   const loan = baseLoan + fhaUp + vaFundingFee + usdaFee;
   const mr = rate / 100 / 12, np = term * 12;
@@ -3080,7 +3089,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const effectiveTaxRate = salesPrice > 0 ? yearlyTax / salesPrice : 0;
   const monthlyTax = yearlyTax / 12;
   const ins = annualIns / 12;
-  const pmiRate = ltv > 0.80 ? getPMIRate(ltv, creditScore) : 0;
+  const autoPmiRate = ltv > 0.80 ? getPMIRate(ltv, creditScore) : 0;
+  const pmiRate = (!pmiRateLocked && pmiRateOverride > 0) ? pmiRateOverride / 100 : autoPmiRate;
   const monthlyPMI = loanType === "Conventional" ? (baseLoan * pmiRate) / 12 : 0;
   const monthlyMIP = loanType === "FHA" ? (loan * 0.0055) / 12 : 0;
   const usdaMI = loanType === "USDA" ? (baseLoan * 0.0035) / 12 : 0;
@@ -3487,7 +3497,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ? (includeEscrow ? (refiNewPi + refiNewMonthlyTax + refiNewMonthlyIns + refiNewMI + hoa) : (refiNewPi + refiNewMI + hoa))
    : displayPayment;
   return {
-   dp, baseLoan, loan, fhaUp, vaFundingFee, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, monthlyPMI, monthlyMIP, monthlyMI,
+   dp, baseLoan, loan, fhaUp, vaFundingFee, autoVAFF, vaFFRate, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, autoPmiRate, monthlyPMI, monthlyMIP, usdaMI, monthlyMI,
    taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
    housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
@@ -3536,7 +3546,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, assets, payExtra, extraPayment, creditScore,
+  incomes, otherIncome, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
@@ -6666,6 +6676,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
    taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
    taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
+   /* PMI pill */
+   pmiRateLocked={pmiRateLocked} setPmiRateLocked={setPmiRateLocked}
+   pmiRateOverride={pmiRateOverride} setPmiRateOverride={setPmiRateOverride}
+   /* VA Funding Fee pill */
+   vaUsage={vaUsage}
+   vaFundingFeeLocked={vaFundingFeeLocked} setVaFundingFeeLocked={setVaFundingFeeLocked}
+   vaFundingFeeOverride={vaFundingFeeOverride} setVaFundingFeeOverride={setVaFundingFeeOverride}
   />
  </Suspense>
 )}
