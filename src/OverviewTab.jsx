@@ -104,7 +104,7 @@ function FeeCategory({ title, total, T, children, defaultOpen = true }) {
 }
 
 /* ─── Collapsible tax deduction details ─── */
-function TaxDetailsCollapsible({ T, calc, fmt, fmt2, pct, taxState }) {
+function TaxDetailsCollapsible({ T, calc, fmt, fmt2, pct, taxState, married }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ marginTop: 12 }}>
@@ -1733,7 +1733,7 @@ export default function OverviewTab({
                 )}
 
                 {/* ── Collapsible: How This Is Calculated ── */}
-                <TaxDetailsCollapsible T={T} calc={calc} fmt={fmt} fmt2={fmt2} pct={pct} taxState={taxState} />
+                <TaxDetailsCollapsible T={T} calc={calc} fmt={fmt} fmt2={fmt2} pct={pct} taxState={taxState} married={married} />
               </OCard>
             )}
             {calc.yearlyInc <= 0 && (
