@@ -931,135 +931,7 @@ export default function OverviewTab({
       />
 
       {/* ═══════════════════════════════════════
-          SECTION 4: QUALIFICATION (5 PILLARS)
-          ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
-      <div id="overview-qualification">
-        <CollapsibleSection title="Qualification" T={T} action="Full Details →" onAction={() => setTab("qualify")}>
-          {/* FICO Score Input */}
-          <div style={{
-            display: 'flex',
-            alignItems: isDesktop ? 'center' : 'flex-start',
-            flexDirection: isDesktop ? 'row' : 'column',
-            gap: 12,
-            marginBottom: 16,
-            padding: 16,
-            background: T.inputBg,
-            borderRadius: 12,
-            border: `1px solid ${T.cardBorder}`
-          }}>
-            <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
-              <div style={{
-                fontFamily: MONO,
-                fontSize: '0.6rem',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '2px',
-                color: T.textTertiary,
-                marginBottom: 6
-              }}>FICO Score</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={creditScore || ''}
-                  placeholder="750"
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 3);
-                    setCreditScore(+v || 0);
-                  }}
-                  style={{
-                    width: 72,
-                    textAlign: 'center',
-                    background: T.card,
-                    border: `1px solid ${T.inputBorder}`,
-                    borderRadius: 10,
-                    padding: '10px 8px',
-                    color: T.text,
-                    fontFamily: MONO,
-                    fontSize: 17,
-                    fontWeight: 700,
-                    outline: 'none',
-                  }}
-                  onFocus={e => e.target.style.borderColor = T.blue}
-                  onBlur={e => { e.target.style.borderColor = T.inputBorder; if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
-                />
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <input
-                    type="range"
-                    min={300}
-                    max={850}
-                    value={creditScore || 300}
-                    onChange={e => setCreditScore(+e.target.value)}
-                    style={{ width: '100%', accentColor: creditScore >= 740 ? T.green : creditScore >= 670 ? T.orange : T.red }}
-                  />
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: 10,
-                    fontFamily: MONO,
-                    color: T.textTertiary,
-                    marginTop: 2
-                  }}>
-                    <span>300</span>
-                    <span>850</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {creditScore > 0 && (
-              <div style={{
-                padding: '6px 12px',
-                borderRadius: 9999,
-                fontSize: 11,
-                fontFamily: MONO,
-                fontWeight: 600,
-                background: calc.ficoCheck === 'Good!' ? T.green + '18' : T.red + '18',
-                color: calc.ficoCheck === 'Good!' ? T.green : T.red,
-                whiteSpace: 'nowrap'
-              }}>
-                {creditScore} / {calc.ficoMin}+ {calc.ficoCheck === 'Good!' ? '\u2713' : `need ${calc.ficoMin - creditScore} pts`}
-              </div>
-            )}
-          </div>
-          <StopLight
-            onPillarClick={(pillarLabel) => {
-              if (pillarLabel === "FICO" || pillarLabel === "Credit") setTab("setup");
-              else if (pillarLabel === "DTI") setTab("income");
-              else if (pillarLabel === "Cash" || pillarLabel === "Reserves") setTab("assets");
-              else if (pillarLabel === "Down") setTab("calc");
-            }}
-            checks={isRefi ? [
-              { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart" },
-              { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale" },
-              { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan", icon: "home" },
-            ] : [
-              { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart" },
-              { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "home" },
-              { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale" },
-              { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "dollar" },
-              { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark" },
-            ]}
-          />
-
-          {/* DTI Summary (if income entered) */}
-          {calc.qualifyingIncome > 0 && (
-            <OCard T={T} pad={14}>
-              <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6 }}>DTI: {pct(calc.yourDTI, 1)} / {pct(calc.maxDTI, 0)}</div>
-              <div style={{ height: 10, background: T.ringTrack, borderRadius: 99, overflow: "hidden", marginBottom: 6 }}>
-                <div style={{ height: "100%", width: `${Math.min(100, (calc.yourDTI / calc.maxDTI) * 100)}%`, background: calc.yourDTI <= calc.maxDTI ? T.green : T.red, borderRadius: 99 }} />
-              </div>
-              <div style={{ fontSize: 11, color: T.textTertiary }}>
-                Housing: {fmt(calc.totalPayment)}/mo · Income: {fmt(calc.qualifyingIncome)}/mo · Min needed: {fmt(calc.totalPayment / calc.maxDTI)}/mo
-              </div>
-            </OCard>
-          )}
-        </CollapsibleSection>
-      </div>
-
-      {/* ═══════════════════════════════════════
-          SECTION 5: INCOME SUMMARY
+          SECTION 4: INCOME SUMMARY
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Income" T={T} action="Edit Income →" onAction={() => setTab("income")}>
@@ -1187,7 +1059,135 @@ export default function OverviewTab({
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 7: TAX SAVINGS
+          SECTION 7: QUALIFICATION (5 PILLARS)
+          ═══════════════════════════════════════ */}
+      <SectionDivider T={T} />
+      <div id="overview-qualification">
+        <CollapsibleSection title="Qualification" T={T} action="Full Details →" onAction={() => setTab("qualify")}>
+          {/* FICO Score Input */}
+          <div style={{
+            display: 'flex',
+            alignItems: isDesktop ? 'center' : 'flex-start',
+            flexDirection: isDesktop ? 'row' : 'column',
+            gap: 12,
+            marginBottom: 16,
+            padding: 16,
+            background: T.inputBg,
+            borderRadius: 12,
+            border: `1px solid ${T.cardBorder}`
+          }}>
+            <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
+              <div style={{
+                fontFamily: MONO,
+                fontSize: '0.6rem',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                color: T.textTertiary,
+                marginBottom: 6
+              }}>FICO Score</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={creditScore || ''}
+                  placeholder="750"
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setCreditScore(+v || 0);
+                  }}
+                  style={{
+                    width: 72,
+                    textAlign: 'center',
+                    background: T.card,
+                    border: `1px solid ${T.inputBorder}`,
+                    borderRadius: 10,
+                    padding: '10px 8px',
+                    color: T.text,
+                    fontFamily: MONO,
+                    fontSize: 17,
+                    fontWeight: 700,
+                    outline: 'none',
+                  }}
+                  onFocus={e => e.target.style.borderColor = T.blue}
+                  onBlur={e => { e.target.style.borderColor = T.inputBorder; if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
+                />
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="range"
+                    min={300}
+                    max={850}
+                    value={creditScore || 300}
+                    onChange={e => setCreditScore(+e.target.value)}
+                    style={{ width: '100%', accentColor: creditScore >= 740 ? T.green : creditScore >= 670 ? T.orange : T.red }}
+                  />
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 10,
+                    fontFamily: MONO,
+                    color: T.textTertiary,
+                    marginTop: 2
+                  }}>
+                    <span>300</span>
+                    <span>850</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {creditScore > 0 && (
+              <div style={{
+                padding: '6px 12px',
+                borderRadius: 9999,
+                fontSize: 11,
+                fontFamily: MONO,
+                fontWeight: 600,
+                background: calc.ficoCheck === 'Good!' ? T.green + '18' : T.red + '18',
+                color: calc.ficoCheck === 'Good!' ? T.green : T.red,
+                whiteSpace: 'nowrap'
+              }}>
+                {creditScore} / {calc.ficoMin}+ {calc.ficoCheck === 'Good!' ? '\u2713' : `need ${calc.ficoMin - creditScore} pts`}
+              </div>
+            )}
+          </div>
+          <StopLight
+            onPillarClick={(pillarLabel) => {
+              if (pillarLabel === "FICO" || pillarLabel === "Credit") setTab("setup");
+              else if (pillarLabel === "DTI") setTab("income");
+              else if (pillarLabel === "Cash" || pillarLabel === "Reserves") setTab("assets");
+              else if (pillarLabel === "Down") setTab("calc");
+            }}
+            checks={isRefi ? [
+              { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart" },
+              { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale" },
+              { label: "LTV", ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false, sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)} / ${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "Enter loan", icon: "home" },
+            ] : [
+              { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart" },
+              { label: "Down", ok: calc.dpWarning === null ? true : false, sub: `${downPct}% / ${calc.minDPpct}%+`, icon: "home" },
+              { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale" },
+              { label: "Cash", ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? `${fmt(calc.totalForClosing)}` : "Add assets", icon: "dollar" },
+              { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark" },
+            ]}
+          />
+
+          {/* DTI Summary (if income entered) */}
+          {calc.qualifyingIncome > 0 && (
+            <OCard T={T} pad={14}>
+              <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6 }}>DTI: {pct(calc.yourDTI, 1)} / {pct(calc.maxDTI, 0)}</div>
+              <div style={{ height: 10, background: T.ringTrack, borderRadius: 99, overflow: "hidden", marginBottom: 6 }}>
+                <div style={{ height: "100%", width: `${Math.min(100, (calc.yourDTI / calc.maxDTI) * 100)}%`, background: calc.yourDTI <= calc.maxDTI ? T.green : T.red, borderRadius: 99 }} />
+              </div>
+              <div style={{ fontSize: 11, color: T.textTertiary }}>
+                Housing: {fmt(calc.totalPayment)}/mo · Income: {fmt(calc.qualifyingIncome)}/mo · Min needed: {fmt(calc.totalPayment / calc.maxDTI)}/mo
+              </div>
+            </OCard>
+          )}
+        </CollapsibleSection>
+      </div>
+
+      {/* ═══════════════════════════════════════
+          SECTION 8: TAX SAVINGS
           ═══════════════════════════════════════ */}
       {loanPurpose !== "Purchase Investment" && loanPurpose !== "Purchase 2nd Home" && (
         <>
