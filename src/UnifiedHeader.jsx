@@ -201,7 +201,7 @@ export default function UnifiedHeader({
               }}
             >
               {allGood
-                ? <span style={{ fontSize: 10, fontWeight: 700, color: T.green, lineHeight: 1 }}>✓</span>
+                ? <Icon name="check" size={12} style={{ color: T.green, flexShrink: 0 }} />
                 : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
               }
               <span style={{
@@ -237,7 +237,7 @@ export default function UnifiedHeader({
               }}
             >
               {allGood
-                ? <span style={{ fontSize: 12, fontWeight: 700, color: T.green, lineHeight: 1 }}>✓</span>
+                ? <Icon name="check" size={14} style={{ color: T.green, flexShrink: 0 }} />
                 : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
               }
               <span style={{
