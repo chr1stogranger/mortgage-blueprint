@@ -167,15 +167,15 @@ export default function UnifiedHeader({
               {skillLevel === 'beginner' ? 'GUIDED' : skillLevel === 'experienced' ? 'STANDARD' : 'PRO'}
             </div>
           )}
-          {/* Sync indicators */}
+          {/* Sync indicators — dots only, no checkmarks (avoid confusion with badge) */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             {saving && <span style={{ fontSize: 9, color: T.textTertiary, fontStyle: "italic" }}>saving...</span>}
-            {!saving && loaded && <span style={{ fontSize: 9, color: T.green }}>✓</span>}
+            {!saving && loaded && <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.green, flexShrink: 0 }} />}
             {cloudSyncStatus === 'saving' && <span style={{ fontSize: 9, color: T.blue, fontStyle: "italic" }}></span>}
-            {cloudSyncStatus === 'saved' && <span style={{ fontSize: 9, color: T.green }}>✓</span>}
+            {cloudSyncStatus === 'saved' && <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.green, flexShrink: 0 }} />}
             {cloudSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>✗</span>}
             {sync?.status === 'saving' && <span style={{ fontSize: 9, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
-            {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#10B981' }}>live ✓</span>}
+            {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#10B981' }}>live</span>}
             {sync?.onlineUsers?.length > 0 && <span style={{ fontSize: 9, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
           </div>
         </div>
