@@ -200,7 +200,10 @@ export default function UnifiedHeader({
                 pointerEvents: "auto",
               }}
             >
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, boxShadow: allGood ? `0 0 6px ${T.green}60` : "none" }} />
+              {allGood
+                ? <span style={{ fontSize: 10, fontWeight: 700, color: T.green, lineHeight: 1 }}>✓</span>
+                : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
+              }
               <span style={{
                 fontSize: 9, fontWeight: 700,
                 color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
@@ -233,7 +236,10 @@ export default function UnifiedHeader({
                 cursor: "pointer", transition: "all 0.2s",
               }}
             >
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, boxShadow: allGood ? `0 0 6px ${T.green}60` : "none" }} />
+              {allGood
+                ? <span style={{ fontSize: 12, fontWeight: 700, color: T.green, lineHeight: 1 }}>✓</span>
+                : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
+              }
               <span style={{
                 fontSize: 11, fontWeight: 700,
                 color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
