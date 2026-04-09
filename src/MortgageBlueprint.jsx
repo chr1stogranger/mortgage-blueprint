@@ -4321,7 +4321,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   </div>}
    {/* ── App Mode Toggle (mobile only — desktop uses sidebar) ── */}
-   <div style={{ position: "sticky", top: 0, zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block" }}>
+   <div style={{ position: "sticky", top: "env(safe-area-inset-top, 0px)", zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block", paddingTop: "env(safe-area-inset-top, 0px)" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "6px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
       {[["blueprint","Blueprint"],["pricepoint","PricePoint"],["markets","Markets"]].map(([k,l]) => (
@@ -4458,7 +4458,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ── */}
-   <div style={{ paddingTop: isDesktop ? 96 : `calc(${isCloud && !isBorrower ? 66 : 42}px + env(safe-area-inset-top, 0px))` }} />
+   <div style={{ paddingTop: isDesktop ? 96 : (isCloud && !isBorrower ? 66 : 42) }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? 1200 : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
