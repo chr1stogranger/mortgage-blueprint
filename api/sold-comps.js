@@ -202,7 +202,7 @@ export default async function handler(req, res) {
     console.error(`[SoldComps] Batch: ${rotatedVerified.length} verified + ${shuffledExtras.length} extras → fetching ${zpidsToFetch.length}`);
 
     // Fetch property details in parallel — single batch, all at once
-    const TIMEOUT_MS = 6000; // 6s per-request timeout
+    const TIMEOUT_MS = 3500; // 3.5s per-request timeout (was 6s — fast-fail on slow zpids)
     const allResults = [];
     const discoveredFromNearby = new Set();
 

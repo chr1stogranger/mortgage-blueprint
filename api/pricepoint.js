@@ -272,10 +272,9 @@ export default async function handler(req, res) {
       const results = extractListings(activeData.value);
       console.error(`[PricePoint] Active raw count: ${results.length}, with zpid+price: ${results.filter(r => r.zpid && r.price).length}`);
 
-      // Separate active vs pending from the forSale results
+      // All active/pending from forSale results (no cap — Markets + PricePoint get full dataset)
       active = results
         .filter(r => r.zpid && r.price)
-        .slice(0, 50)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
     } else {
       console.error(`[PricePoint] Active failed: ${activeData.reason?.message}`);
@@ -289,7 +288,6 @@ export default async function handler(req, res) {
 
       sold = results
         .filter(r => r.zpid && r.price)
-        .slice(0, 100)
         .map((r, i) => normalizeProperty(r, i, "pps", true));
     } else {
       console.error(`[PricePoint] Sold failed: ${soldData.reason?.message}`);

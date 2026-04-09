@@ -1176,7 +1176,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         fetch(`/api/pricepoint?${params}`).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         cityName ? Promise.race([
           fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`).then(r => r.ok ? r.json() : null).catch(() => null),
-          new Promise(resolve => setTimeout(() => resolve(null), 8000)), // 8s timeout
+          new Promise(resolve => setTimeout(() => resolve(null), 5000)), // 5s timeout (was 8s)
         ]) : Promise.resolve(null),
       ]);
 
