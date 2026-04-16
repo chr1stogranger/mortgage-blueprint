@@ -1552,7 +1552,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [hasSellProperty, setHasSellProperty] = useState(false);
  const [ownsProperties, setOwnsProperties] = useState(false);
  const [isRefi, setIsRefi] = useState(null);
- const [firstTimeBuyer, setFirstTimeBuyer] = useState(false);
+ const [firstTimeBuyer, setFirstTimeBuyer] = useState(null);
  const [loanOfficer, setLoanOfficer] = useState("Chris Granger");
  const [loEmail, setLoEmail] = useState("cgranger@xperthomelending.com");
  const [loPhone, setLoPhone] = useState("(415) 987-8489");
@@ -2578,7 +2578,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { LS.set("app:skillLevel", level); } catch(e) {}
   // Auto-toggle property flags based on tier
   if (level === "guided") {
-   setFirstTimeBuyer(true);
+   setFirstTimeBuyer(null);
    setOwnsProperties(false);
    setHasSellProperty(false);
    setShowInvestor(false);
@@ -6841,8 +6841,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary }}>First-Time Homebuyer?</span>
       <div style={{ display: "flex", gap: 4 }}>
-       <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer ? `${T.green}22` : T.inputBg, border: firstTimeBuyer ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
-       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "5px 12px", background: !firstTimeBuyer ? `${T.blue}22` : T.inputBg, border: !firstTimeBuyer ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: !firstTimeBuyer ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
+       <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === true ? `${T.green}22` : T.inputBg, border: firstTimeBuyer === true ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === true ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
+       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === false ? `${T.blue}22` : T.inputBg, border: firstTimeBuyer === false ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === false ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
       </div>
      </div>
      {firstTimeBuyer && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 4 }}>FTHB unlocked — 3% down conventional available</div>}
