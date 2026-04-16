@@ -6796,7 +6796,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-       <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+       <button key={label} onClick={() => { setIsRefi(val); setTimeout(() => { const zipEl = document.querySelector('[data-field="zip-code"] input'); if (zipEl) { zipEl.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zipEl.focus(), 350); } }, 100); }} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
       ))}
      </div>
     </div>
