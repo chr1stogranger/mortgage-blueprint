@@ -93,7 +93,7 @@ export default function AssetsSheet({
       )}
 
       {/* Reserve factors note */}
-      <Note>Reserve factors: Checking/Saving 100% \u00b7 Stocks/Bonds 70% \u00b7 Retirement 60% \u00b7 Gift TBD</Note>
+      <Note>Reserve factors: Checking/Saving 100% · Stocks/Bonds 70% · Retirement 60% · Gift TBD</Note>
 
       {/* Auto-saved indicator */}
       <div style={{ textAlign: "center", marginTop: 8, marginBottom: 4 }}>

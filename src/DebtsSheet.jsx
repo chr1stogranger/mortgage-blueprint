@@ -62,7 +62,7 @@ export default function DebtsSheet({
           </div>
         )}
         {ownsProperties === false && (
-          <div style={{ marginTop: 10, fontSize: 11, color: T.textTertiary }}>No existing properties \u2014 DTI will only include credit-report liabilities.</div>
+          <div style={{ marginTop: 10, fontSize: 11, color: T.textTertiary }}>No existing properties — DTI will only include credit-report liabilities.</div>
         )}
       </SheetCard>
 
@@ -79,14 +79,14 @@ export default function DebtsSheet({
         </div>
         {debtFree && (
           <div style={{ marginTop: 12, padding: "14px 16px", background: T.successBg, borderRadius: 12, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: T.green }}>No consumer debt \u2014 more buying power</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.green }}>No consumer debt — more buying power</div>
             <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>More of your DTI capacity goes toward your new mortgage, maximizing your purchasing power.</div>
           </div>
         )}
         {debtFree && ownsProperties && (
           <div style={{ marginTop: 10, padding: "10px 14px", background: `${T.blue}10`, borderRadius: 10 }}>
             <div style={{ fontSize: 12, color: T.blue, fontWeight: 600, marginBottom: 3 }}>Owned properties still count</div>
-            <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>Property taxes, insurance, and HOA on your existing properties are still factored into DTI through the REO tab \u2014 this toggle only excludes credit-report debts.</div>
+            <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.5 }}>Property taxes, insurance, and HOA on your existing properties are still factored into DTI through the REO tab — this toggle only excludes credit-report debts.</div>
           </div>
         )}
       </SheetCard>
@@ -130,14 +130,14 @@ export default function DebtsSheet({
               {(d.type === "Mortgage" || d.type === "HELOC") && reos.length === 0 && ownsProperties && (
                 <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8, lineHeight: 1.4 }}>Add properties on the REO tab to link this debt and avoid counting the payment twice in DTI.</div>
               )}
-              {d.linkedReoId && <div style={{ fontSize: 11, color: T.blue, marginBottom: 8, fontWeight: 500 }}>{"\u2713"} Linked to REO \u2014 payment handled via 75% rental offset in DTI, not counted as standalone debt.</div>}
+              {d.linkedReoId && <div style={{ fontSize: 11, color: T.blue, marginBottom: 8, fontWeight: 500 }}>{"\u2713"} Linked to REO — payment handled via 75% rental offset in DTI, not counted as standalone debt.</div>}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <Inp label="Balance" value={d.balance} onChange={v => (d.linkedReoId && (d.type === "Mortgage" || d.type === "HELOC")) ? syncDebtBalance(d.id, v) : updateDebt(d.id, "balance", v)} sm req />
                 <Inp label="Monthly Pmt" value={d.monthly} onChange={v => (d.linkedReoId && (d.type === "Mortgage" || d.type === "HELOC")) ? syncDebtPayment(d.id, v) : updateDebt(d.id, "monthly", v)} sm req />
               </div>
-              <Sel label="Payoff at Close?" value={d.payoff} onChange={v => updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} sm tip="'At Escrow' pays off this debt using closing funds \u2014 removes the payment from DTI but adds the balance to cash needed. 'Omit' excludes it entirely." />
+              <Sel label="Payoff at Close?" value={d.payoff} onChange={v => updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} sm tip="'At Escrow' pays off this debt using closing funds — removes the payment from DTI but adds the balance to cash needed. 'Omit' excludes it entirely." />
               {(d.payoff === "Yes - at Escrow" || d.payoff === "Yes - POC") && (
-                <Note color={T.green}>Payoff {fmt(d.balance)} at escrow \u2014 excluded from DTI</Note>
+                <Note color={T.green}>Payoff {fmt(d.balance)} at escrow — excluded from DTI</Note>
               )}
             </SheetCard>
           ))}

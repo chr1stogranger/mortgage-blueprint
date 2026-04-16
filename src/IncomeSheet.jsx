@@ -61,7 +61,7 @@ export default function IncomeSheet({
                   <div><div style={{ fontSize: 10, color: T.textTertiary }}>Monthly Qualifying</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(varMonthly)}</div></div>
                   <div><div style={{ fontSize: 10, color: T.textTertiary }}>Annual Qualifying</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(varMonthly * 12)}</div></div>
                 </div>
-                {declining && <div style={{ fontSize: 11, color: T.orange, marginTop: 6 }}>Year-over-year decline: {fmt(yr2)} (2024) \u2192 {fmt(yr1)} (2025) \u00b7 {((yr2 - yr1) / yr2 * 100).toFixed(1)}% decrease</div>}
+                {declining && <div style={{ fontSize: 11, color: T.orange, marginTop: 6 }}>Year-over-year decline: {fmt(yr2)} (2024) → {fmt(yr1)} (2025) · {((yr2 - yr1) / yr2 * 100).toFixed(1)}% decrease</div>}
               </div>
             )}
             {yr1 > 0 && yr2 === 0 && <Note color={T.blue}>Enter 2024 income to calculate 2-year average. Using 2025 only: {fmt(yr1 / 12)}/mo</Note>}
