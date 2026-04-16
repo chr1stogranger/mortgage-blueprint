@@ -2679,6 +2679,53 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   );
  };
+ // ── Guided Next Button ──
+ const GuidedNextButton = () => {
+  if (skillLevel !== "guided") return null;
+  const excludedTabs = ["overview", "settings", "learn", "summary", "compare", "workspace"];
+  if (excludedTabs.includes(tab)) return null;
+  if (!isTabFieldsComplete(tab)) return null;
+  const curIdx = visibleTabs.indexOf(tab);
+  const isLastTab = curIdx === -1 || curIdx >= visibleTabs.length - 1;
+  let nextTab = null;
+  for (let i = curIdx + 1; i < visibleTabs.length; i++) {
+   if (!excludedTabs.includes(visibleTabs[i])) { nextTab = visibleTabs[i]; break; }
+  }
+  const isFinale = !nextTab || isLastTab;
+  const buttonLabel = isFinale ? "View Results" : "Next";
+  const targetTab = isFinale ? "overview" : nextTab;
+  const nextTabName = isFinale ? "Overview" : (TABS.find(([k]) => k === targetTab)?.[1] || targetTab);
+  return (
+   <div style={{ marginTop: 24, marginBottom: 16, padding: "0 4px", animation: "fadeSlideUp 0.4s ease both" }}>
+    <button
+     onClick={() => { setTab(targetTab); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+     style={{
+      width: "100%", padding: "16px 24px",
+      background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+      border: "none", borderRadius: 9999, color: "#fff",
+      fontSize: 16, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+      boxShadow: "0 0 20px rgba(99,102,241,0.3)",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      transition: "transform 0.15s ease, box-shadow 0.15s ease",
+      letterSpacing: "-0.01em",
+     }}
+     onMouseDown={e => e.currentTarget.style.transform = "scale(0.98)"}
+     onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+     onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+    >
+     <span>{buttonLabel}</span>
+     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+     </svg>
+    </button>
+    {!isFinale && (
+     <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: "0.03em" }}>
+      NEXT: {nextTabName.toUpperCase()}
+     </div>
+    )}
+   </div>
+  );
+ };
  // Pillar click navigation
  const handlePillarClick = (label) => {
   const targetMap = {
@@ -3852,6 +3899,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     @keyframes floatBarSlide { 0% { transform: translateY(100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
+    @keyframes fadeSlideUp { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
     .pulse-next { box-shadow: 0 0 0 2px rgba(99,102,241,0.5), 0 0 8px rgba(99,102,241,0.15); border-radius: 14px; padding: 4px 5px; transition: box-shadow 0.3s ease; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
@@ -4863,6 +4911,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Card>
  </div>{/* end desktop left column */}
  </div>{/* end desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {tab === "amort" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
@@ -5016,6 +5065,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  })()}
  </div>{/* end amort right column */}
  </div>{/* end amort desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && (<>
@@ -5299,6 +5349,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  )}
  </div>{/* end costs right column */}
  </div>{/* end costs desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && (<>
@@ -5419,6 +5470,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Sec>
  </div>{/* end income right column */}
  </div>{/* end income desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && (<>
@@ -5496,6 +5548,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Note>Reserve factors: Checking/Saving 100% · Stocks/Bonds 70% · Retirement 60% · Gift TBD</Note>
  </div>{/* end assets right column */}
  </div>{/* end assets desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ DEBTS ═══ */}
 {tab === "debts" && (<>
@@ -5625,6 +5678,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </>}
  </div>{/* end debts right column */}
  </div>{/* end debts desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && (<>
@@ -5981,6 +6035,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </>}
  </div>{/* end qualify right column */}
  </div>{/* end qualify desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
 {tab === "tax" && (<>
@@ -6291,6 +6346,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </div>
  </div>
 )}
+ <GuidedNextButton />
 </>)}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && (<>
@@ -6407,6 +6463,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Sec>
  </div>{/* end seller net right column */}
  </div>{/* end seller net desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
@@ -7090,6 +7147,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
  )}
 
+ <GuidedNextButton />
 </>)}
 {/* ═══ REO - Real Estate Owned ═══ */}
 {tab === "reo" && (<>
@@ -7257,6 +7315,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <div data-field="add-reo" className={isPulse("add-reo")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
  <button onClick={addReo} style={{ width: "100%", padding: 14, background: `${T.blue}15`, border: `1px dashed ${T.blue}44`, borderRadius: 12, color: T.blue, fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: FONT, marginTop: 10 }}>+ Add Property</button>
  </div>
+ <GuidedNextButton />
 </>)}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && (<>
@@ -7623,6 +7682,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </Card>
   </Sec>
  )}
+ <GuidedNextButton />
 </>)}
 {/* ═══ INVESTMENT PROPERTY ═══ */}
 {tab === "invest" && (<>
@@ -7787,6 +7847,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Card>
  </div>{/* end invest right column */}
  </div>{/* end invest desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ RENT VS BUY ═══ */}
 {tab === "rentvbuy" && (<>
@@ -7908,6 +7969,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Card>
  </div>{/* end rentvbuy right column */}
  </div>{/* end rentvbuy desktop flex wrapper */}
+ <GuidedNextButton />
 </>)}
 {/* ═══ LEARNING CENTER ═══ */}
 {tab === "learn" && (<>
