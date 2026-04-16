@@ -969,15 +969,17 @@ export default function OverviewTab({
   const hasDebts = () => debtFree || (debts.length > 0);
   const hasAssets = () => assets.length > 0 && assets.some(a => a.value > 0);
 
-  // Auto-advance in guided mode
+  // Auto-advance in guided mode — compute target index in a single pass
   useEffect(() => {
     if (!isGuided) { setGuidedSectionIndex(99); return; }
-    if (guidedSectionIndex === 0 && isSetupComplete()) setGuidedSectionIndex(1);
-    if (guidedSectionIndex === 1 && isRateComplete()) setGuidedSectionIndex(3);
-    if (guidedSectionIndex === 3) setGuidedSectionIndex(4); // costs have defaults
-    if (guidedSectionIndex === 4 && hasIncome()) setGuidedSectionIndex(5);
-    if (guidedSectionIndex === 5 && hasDebts()) setGuidedSectionIndex(6);
-    if (guidedSectionIndex === 6 && hasAssets()) setGuidedSectionIndex(9);
+    let idx = 0;
+    if (isSetupComplete()) idx = 1;
+    if (idx >= 1 && isRateComplete()) idx = 3;
+    if (idx >= 3) idx = 4; // costs section always has defaults, auto-advance
+    if (idx >= 4 && hasIncome()) idx = 5;
+    if (idx >= 5 && hasDebts()) idx = 6;
+    if (idx >= 6 && hasAssets()) idx = 9;
+    setGuidedSectionIndex(idx);
   }, [salesPrice, rate, term, incomes, debts, assets, debtFree, propertyZip, creditScore, isRefi, skillLevel]);
 
   // Auto-scroll to newly revealed section
