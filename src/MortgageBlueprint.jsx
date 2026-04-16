@@ -959,9 +959,8 @@ const HOUSE_STAGES = [
  { tab: "summary", part: "Move-In Ready!", desc: "Welcome home!" },
 ];
 const SKILL_PRESETS = {
- beginner: { label: "Beginner", sub: "First-Time Homebuyer", icon: "home", desc: "Guided step-by-step. Complete each tab to unlock the next. Perfect if this is your first time.", unlockedThrough: 1 },
- experienced: { label: "Experienced", sub: "Repeat Buyer", icon: "key", desc: "Core tabs unlocked. Advanced analysis tabs unlock as you go.", unlockedThrough: 7 },
- expert: { label: "Expert", sub: "Investor / Pro", icon: "settings", desc: "Full access to every tool from the start. No restrictions.", unlockedThrough: 11 },
+ guided: { label: "Guided", sub: "First-Time Homebuyer", icon: "home", desc: "Step-by-step walkthrough. I'll highlight what to fill in next and unlock sections as you go.", unlockedThrough: 1, startsOn: "setup" },
+ standard: { label: "Standard", sub: "I Know the Basics", icon: "key", desc: "Full access to everything. Jump to any section.", unlockedThrough: 11, startsOn: "overview" },
 };
 const TOGGLE_DESCRIPTIONS = {
  firstTimeBuyer: { on: "Enables 3% down conventional (income limits apply). Also unlocks Rent vs Buy analysis.", off: "Standard down payment minimums (5% conv, 3.5% FHA, 0% VA)." },
@@ -2542,7 +2541,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // ── Skill Level & Tab Progression: Load from storage ──
  useEffect(() => {
   (async () => {
-   try { const sl = await LS.get("app:skillLevel"); if (sl?.value) setSkillLevel(sl.value); } catch(e) {}
+   try {
+    const sl = await LS.get("app:skillLevel");
+    if (sl?.value) {
+     let level = sl.value;
+     // Migrate old 3-tier values to new 2-tier
+     if (level === "beginner") level = "guided";
+     if (level === "experienced" || level === "expert") level = "standard";
+     if (level !== sl.value) {
+      try { LS.set("app:skillLevel", level); } catch(e) {}
+     }
+     setSkillLevel(level);
+     // If no saved tab, route based on tier
+     const preset = SKILL_PRESETS[level];
+     if (preset?.startsOn) {
+      // Only set tab if user hasn't navigated yet (still on default "overview")
+      setTab(prev => prev === "overview" ? preset.startsOn : prev);
+     }
+    }
+   } catch(e) {}
    try { const ct = await LS.get("app:completedTabs"); if (ct?.value) setCompletedTabs(JSON.parse(ct.value)); } catch(e) {}
    try { const ua = await LS.get("app:unlockAll"); if (ua?.value === "true") setUnlockAll(true); } catch(e) {}
    try { const gm = await LS.get("app:gameMode"); if (gm?.value === "true") setGameMode(true); } catch(e) {}
@@ -2559,22 +2576,27 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const saveSkillLevel = (level) => {
   setSkillLevel(level);
   try { LS.set("app:skillLevel", level); } catch(e) {}
-  // Auto-toggle property flags based on experience level
-  if (level === "beginner") {
+  // Auto-toggle property flags based on tier
+  if (level === "guided") {
    setFirstTimeBuyer(true);
    setOwnsProperties(false);
    setHasSellProperty(false);
    setShowInvestor(false);
-  } else if (level === "experienced") {
+   // Guided users start in Setup
+   setTab("setup");
+   setGameMode(true);
+   try { LS.set("app:gameMode", "true"); } catch(e) {}
+  } else if (level === "standard") {
    setFirstTimeBuyer(false);
-   setOwnsProperties(true);
-   setHasSellProperty(true);
+   setOwnsProperties(false);
+   setHasSellProperty(false);
    setShowInvestor(false);
-  } else if (level === "expert") {
-   setFirstTimeBuyer(false);
-   setOwnsProperties(true);
-   setHasSellProperty(true);
-   setShowInvestor(true);
+   // Standard users start in Overview
+   setTab("overview");
+   setGameMode(false);
+   try { LS.set("app:gameMode", "false"); } catch(e) {}
+   setUnlockAll(true);
+   try { LS.set("app:unlockAll", "true"); } catch(e) {}
   }
  };
  const saveUnlockAll = (val) => {
@@ -2618,64 +2640,42 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (t === "refi") return refiCurrentRate > 0 && refiCurrentBalance > 0;
   return true;
  };
- const FloatingNextBar = () => {
-  let idx = TAB_PROGRESSION.indexOf(tab);
-  let nextTab, nextName, stepNum, totalSteps, progressPct;
-  // Conditional tabs not in TAB_PROGRESSION — find next visible tab
-  const conditionalTabs = ["reo","refi","refi3","sell","invest","rentvbuy"];
-  if (conditionalTabs.includes(tab)) {
-   const vIdx = visibleTabs.indexOf(tab);
-   if (vIdx < 0 || vIdx >= visibleTabs.length - 1) return null;
-   nextTab = visibleTabs[vIdx + 1];
-   nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
-   // Use parent position for progress display
-   const parentIdx = tab === "reo" ? TAB_PROGRESSION.indexOf("debts") : tab === "sell" ? TAB_PROGRESSION.indexOf("amort") : TAB_PROGRESSION.indexOf("calc");
-   stepNum = parentIdx + 1;
-   totalSteps = TAB_PROGRESSION.length;
-   progressPct = (stepNum / totalSteps) * 100;
-  } else {
-   if (idx < 0 || idx >= TAB_PROGRESSION.length - 1) return null;
-   nextTab = TAB_PROGRESSION[idx + 1];
-   // If there are conditional tabs between current and next, use visibleTabs to find true next
-   const vIdx = visibleTabs.indexOf(tab);
-   if (vIdx >= 0 && vIdx < visibleTabs.length - 1) {
-    const trueNext = visibleTabs[vIdx + 1];
-    if (trueNext !== nextTab && conditionalTabs.includes(trueNext)) nextTab = trueNext;
-   }
-   nextName = TAB_DISPLAY_NAMES[nextTab] || nextTab;
-   stepNum = idx + 1;
-   totalSteps = TAB_PROGRESSION.length;
-   progressPct = (stepNum / totalSteps) * 100;
+ const getTabProgressPct = (tabId) => {
+  if (tabId === "setup") {
+   const fields = [skillLevel, isRefi !== null, propertyZip, creditScore > 0, salesPrice > 0];
+   return Math.round((fields.filter(Boolean).length / fields.length) * 100);
   }
-  if (tab === "overview" || tab === "settings" || tab === "compare" || tab === "summary") return null;
-  const fieldsComplete = isTabFieldsComplete(tab);
-  const isReady = fieldsComplete && scrolledPast80;
-  const handleNext = () => {
-   markTabComplete(tab);
-   setTab(nextTab);
-   window.scrollTo({ top: 0, behavior: "instant" });
-  };
-  const barFirstShow = !floatBarShownRef.current;
-  if (barFirstShow) floatBarShownRef.current = true;
+  if (tabId === "calc") {
+   const fields = [rate > 0, term > 0, loanType];
+   return Math.round((fields.filter(Boolean).length / fields.length) * 100);
+  }
+  // For other tabs, return 0 (no fine-grained progress) or 100 if complete
+  return isTabFieldsComplete(tabId) ? 100 : 0;
+ };
+ const TabProgressUnderline = ({ tabId }) => {
+  // Only show progress for guided users on non-overview tabs
+  if (skillLevel !== "guided" || tabId === "overview" || tabId === "settings") return null;
+  const fieldsComplete = isTabFieldsComplete(tabId);
+  const progressPct = fieldsComplete ? 100 : getTabProgressPct(tabId);
+  if (progressPct === 0) return null;
   return (
-   <div style={{ position: "fixed", bottom: 0, left: isDesktop ? "auto" : "50%", right: isDesktop ? 0 : "auto", transform: isDesktop ? "none" : "translateX(-50%)", width: isDesktop ? "calc(100% - 240px)" : "100%", maxWidth: isDesktop ? "none" : 480, zIndex: 900, animation: barFirstShow ? "floatBarSlide 0.3s ease-out" : "none", pointerEvents: "none", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-    <div style={{ margin: "0 8px 8px", borderRadius: 20, overflow: "hidden", pointerEvents: "auto", border: isReady ? "none" : "2px solid transparent", boxShadow: isReady ? "0 0 24px rgba(10,132,255,0.5), 0 -4px 30px rgba(0,0,0,0.15)" : "0 -4px 30px rgba(0,0,0,0.15)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", transition: "all 0.4s ease" }}>
-     {/* Progress bar — subtle/translucent until complete, then pops solid */}
-     <div style={{ height: 3, background: T.separator }}>
-      <div style={{ height: "100%", width: isReady ? "100%" : `${progressPct}%`, background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : fieldsComplete ? `${T.blue}40` : `${T.blue}18`, borderRadius: 99, transition: "width 0.5s ease, background 0.4s ease" }} />
-     </div>
-     <div onClick={isReady ? handleNext : undefined} style={{ display: "flex", alignItems: "center", padding: "14px 20px", background: isReady ? "linear-gradient(135deg, #0A84FF, #0070E0)" : `${T.card}F0`, transition: "background 0.4s", cursor: isReady ? "pointer" : "default" }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-       <div style={{ fontSize: 11, color: isReady ? "rgba(255,255,255,0.65)" : T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Step {stepNum} of {totalSteps}</div>
-       <div style={{ fontSize: 15, fontWeight: 700, color: isReady ? "#FFFFFF" : fieldsComplete ? T.green : T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
-        {isReady ? `✓ ${TAB_DISPLAY_NAMES[tab]} complete` : fieldsComplete ? `${TAB_DISPLAY_NAMES[tab]} ✓ — scroll down` : TAB_DISPLAY_NAMES[tab]}
-       </div>
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT, color: isReady ? "#FFFFFF" : `${T.blue}60`, letterSpacing: "-0.01em", whiteSpace: "nowrap", transition: "all 0.3s", opacity: isReady ? 1 : 0.5 }}>
-       {nextName} →
-      </div>
-     </div>
-    </div>
+   <div style={{
+    position: "absolute",
+    bottom: 0,
+    left: "10%",
+    width: "80%",
+    height: 2,
+    borderRadius: 1,
+    background: T.separator,
+    overflow: "hidden"
+   }}>
+    <div style={{
+     height: "100%",
+     width: `${progressPct}%`,
+     background: fieldsComplete ? T.green : T.blue,
+     borderRadius: 1,
+     transition: "width 0.4s ease, background 0.3s ease"
+    }} />
    </div>
   );
  };
@@ -2711,7 +2711,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Determine which tabs are unlocked
  const getUnlockedIndex = () => {
-  if (!gameMode || unlockAll || skillLevel === "expert") return TAB_PROGRESSION.length - 1;
+  if (!gameMode || unlockAll || skillLevel === "standard") return TAB_PROGRESSION.length - 1;
   const preset = SKILL_PRESETS[skillLevel];
   let maxUnlocked = preset ? preset.unlockedThrough : 0;
   // Extend by completed tabs
@@ -2725,26 +2725,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const isTabUnlocked = (tabId) => {
   // Overview is always accessible
   if (tabId === 'overview') return true;
-  // If not in game mode or expert, unlock all
-  if (!gameMode || unlockAll || skillLevel === "expert") return true;
+  // If not in game mode, standard, or unlockAll — everything open
+  if (!gameMode || unlockAll || skillLevel === "standard") return true;
   // Setup and Calculator always accessible
   if (tabId === 'setup' || tabId === 'calc') return true;
   const idx = TAB_PROGRESSION.indexOf(tabId);
   if (idx === -1) {
-   // Conditional tabs (refi, reo, sell, invest, rentvbuy) — unlock if their prerequisite is met AND parent area is unlocked
-   if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 2; // need calc unlocked
-   if (tabId === "reo") return unlockedIndex >= 7; // need assets area
-   if (tabId === "workspace") return unlockedIndex >= 8; // need qualify area
-   if (tabId === "sell") return unlockedIndex >= 9; // need amort area
+   // Conditional tabs
+   if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 2;
+   if (tabId === "reo") return unlockedIndex >= 7;
+   if (tabId === "workspace") return unlockedIndex >= 8;
+   if (tabId === "sell") return unlockedIndex >= 9;
    if (tabId === "invest") return unlockedIndex >= 9;
    if (tabId === "rentvbuy") return unlockedIndex >= 9;
    return true;
   }
-  // For beginners: check if core inputs are filled before unlocking deeper tabs
-  if (skillLevel === 'beginner') {
+  // For guided users: check if core inputs are filled before unlocking deeper tabs
+  if (skillLevel === 'guided') {
    const coreInputsFilled = propertyZip && (salesPrice > 0) && creditScore > 0;
    if (!coreInputsFilled) {
-    // Only allow overview, setup, calc (already handled above)
     return idx <= 2; // overview(0), setup(1), calc(2)
    }
   }
@@ -2770,74 +2769,46 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  // Computes which single field should pulse on the current tab.
  // Returns a string matching a data-field attribute, or null if all fields are filled.
+ // CRITICAL PATH ONLY — highlights the single most important next field
  const guideField = (() => {
-  if (tab === "setup") {
-   if (!skillLevel) return "experience-level";
-   if (isRefi === null) return "transaction-type";
-   if (!guideTouched.has("location")) return "zip-code";
-   if (creditScore === 0) return "fico-input";
-   if (!guideTouched.has("filing-status")) return "filing-status";
-   if (!isRefi && !guideTouched.has("price-input")) return "price-input";
-   if (!isRefi && !guideTouched.has("down-payment")) return "down-payment";
-   if (!isRefi && !guideTouched.has("fthb")) return "fthb";
+  // Only show guide highlights for "guided" tier
+  if (skillLevel !== "guided") return null;
+
+  // CRITICAL PATH — these 5 fields are the only ones that pulse
+  // They highlight in order: whichever is the NEXT unfilled critical field
+
+  // 1. Zip code
+  if (!propertyZip || propertyZip.length < 5) {
+   if (tab === "setup") return "zip-code";
+   return null; // Don't pulse on other tabs
+  }
+
+  // 2. Property value / price
+  if (!isRefi && salesPrice === 0) {
+   if (tab === "setup") return "price-input";
    return null;
   }
-  if (tab === "calc") {
-   if (rate === 0) return "calc-rate";
-   if (!guideTouched.has("calc-term")) return "calc-term";
-   if (!guideTouched.has("calc-loantype")) return "calc-loantype";
-   if (!guideTouched.has("calc-proptype")) return "calc-proptype";
+
+  // 3. Down payment (only for purchase)
+  if (!isRefi && downPct === 0 && !guideTouched.has("down-payment")) {
+   if (tab === "setup" || tab === "calc") return "down-payment";
    return null;
   }
-  if (tab === "costs") {
+
+  // 4. Credit score
+  if (creditScore === 0) {
+   if (tab === "setup") return "fico-input";
+   if (tab === "qualify") return "qualify-fico";
    return null;
   }
-  if (tab === "income") {
-   if (incomes.filter(i => i.borrower === 1).length === 0) return "add-income-1";
-   const firstInc = incomes.find(i => i.borrower === 1);
-   if (firstInc && firstInc.amount === 0 && firstInc.py1 === 0) return "income-amount";
+
+  // 5. Income
+  if (incomes.filter(i => i.borrower === 1).length === 0 || !incomes.some(i => i.amount > 0 || i.py1 > 0)) {
+   if (tab === "income") return "add-income-1";
    return null;
   }
-  if (tab === "assets") {
-   if (assets.length === 0) return "add-asset";
-   const firstAsset = assets[0];
-   if (firstAsset && firstAsset.value === 0) return "asset-value";
-   if (firstAsset && firstAsset.forClosing === 0) return "asset-closing";
-   return null;
-  }
-  if (tab === "debts") {
-   if (!guideTouched.has("debt-free-toggle")) return "debt-free-toggle";
-   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
-   return null;
-  }
-  if (tab === "qualify") {
-   if (creditScore === 0) return "qualify-fico";
-   const hasIncome = incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
-   if (!hasIncome) return "qualify-needs-income";
-   const hasAssets = assets.length > 0 && assets.some(a => a.forClosing > 0);
-   if (!hasAssets) return "qualify-needs-assets";
-   return null;
-  }
-  if (tab === "tax") {
-   if (!guideTouched.has("tax-filing")) return "tax-filing";
-   const hasTaxIncome = incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
-   if (!hasTaxIncome) return "tax-needs-income";
-   return null;
-  }
-  if (tab === "amort") {
-   if (!guideTouched.has("amort-section")) return "amort-section";
-   if (payExtra && extraPayment === 0) return "amort-extra";
-   return null;
-  }
-  if (tab === "reo") {
-   if (reos.length === 0) return "add-reo";
-   return null;
-  }
-  if (tab === "refi") {
-   if (refiCurrentRate === 0) return "refi-current-rate";
-   if (refiCurrentBalance === 0) return "refi-current-balance";
-   return null;
-  }
+
+  // All critical fields filled — no more highlights
   return null;
  })();
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
@@ -3880,7 +3851,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
-    .pulse-next { animation: pulseBlue 2s ease-in-out infinite; border-radius: 14px; padding: 4px 5px; }
+    .pulse-next { box-shadow: 0 0 0 2px rgba(99,102,241,0.5), 0 0 8px rgba(99,102,241,0.15); border-radius: 14px; padding: 4px 5px; transition: box-shadow 0.3s ease; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
@@ -4134,7 +4105,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     }}
     mobileTabBar={!isDesktop ? (
      <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
-      {TABS.map(([k, l]) => <Tab key={k} tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} />)}
+      {TABS.map(([k, l]) => <div key={k} style={{ position: "relative" }}><Tab tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} /><TabProgressUnderline tabId={k} /></div>)}
      </div>
     ) : null}
    />
@@ -4408,12 +4379,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           color: T.textSecondary,
           margin: '0 0 24px 0',
           lineHeight: 1.5
-        }}>Choose your experience level. This controls how much detail you see upfront.</p>
+        }}>How familiar are you with the mortgage process?</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { level: 'beginner', title: 'First-Time Buyer', desc: "Guided walkthrough \u2014 I'll show you one section at a time", icon: '\u2302' },
-            { level: 'experienced', title: 'Repeat Buyer', desc: 'Core features unlocked \u2014 I know the basics', icon: '\u25C8' },
-            { level: 'expert', title: 'Investor / Pro', desc: 'Full access to everything \u2014 skip the training wheels', icon: '\u2699' },
+            { level: 'guided', title: 'First-Time Buyer', desc: 'Walk me through it step by step', icon: '\u2302' },
+            { level: 'standard', title: 'I Know the Basics', desc: "Give me full access \u2014 I'll explore on my own", icon: '\u25C8' },
           ].map(opt => (
             <button
               key={opt.level}
@@ -6746,7 +6716,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
       Experience Level
      </div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
        <button key={key} onClick={() => saveSkillLevel(key)}
         style={{ padding: "8px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
@@ -8889,7 +8859,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     />
     </Suspense>
    )}
-   {appMode === "blueprint" && <FloatingNextBar />}
+   {/* FloatingNextBar removed — replaced by TabProgressUnderline */}
 
    {/* ═══════════════════════════════════════════ */}
    {/* SPLIT-SCREEN MODE (desktop only) */}
