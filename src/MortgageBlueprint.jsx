@@ -2642,7 +2642,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const getTabProgressPct = (tabId) => {
   if (tabId === "setup") {
-   const fields = [skillLevel, isRefi !== null, propertyZip, creditScore > 0, salesPrice > 0];
+   const fields = [isRefi !== null, propertyZip && propertyZip.length >= 5, creditScore > 0, guideTouched.has("filing-status"), !isRefi ? salesPrice > 0 : true, !isRefi ? (downPct > 0 || guideTouched.has("down-payment")) : true, !isRefi ? guideTouched.has("fthb") : true, guideTouched.has("modules")];
    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
   }
   if (tabId === "calc") {
@@ -2773,42 +2773,44 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const guideField = (() => {
   // Only show guide highlights for "guided" tier
   if (skillLevel !== "guided") return null;
+  // Only highlight on the Setup tab
+  if (tab !== "setup") return null;
 
-  // CRITICAL PATH — these 5 fields are the only ones that pulse
-  // They highlight in order: whichever is the NEXT unfilled critical field
+  // GUIDED SEQUENCE — highlights one field at a time in this exact order:
+  // 1) Transaction type (Purchase/Refi)
+  // 2) ZIP code
+  // 3) FICO score
+  // 4) Filing status
+  // 5) Sales price (purchase only)
+  // 6) Down payment % (purchase only)
+  // 7) First-time homebuyer (purchase only)
+  // 8) Modules
 
-  // 1. Zip code
-  if (!propertyZip || propertyZip.length < 5) {
-   if (tab === "setup") return "zip-code";
-   return null; // Don't pulse on other tabs
-  }
+  // 1. Transaction type — Purchase or Refinance
+  if (isRefi === null) return "transaction-type";
 
-  // 2. Property value / price
-  if (!isRefi && salesPrice === 0) {
-   if (tab === "setup") return "price-input";
-   return null;
-  }
+  // 2. ZIP code
+  if (!propertyZip || propertyZip.length < 5) return "zip-code";
 
-  // 3. Down payment (only for purchase)
-  if (!isRefi && downPct === 0 && !guideTouched.has("down-payment")) {
-   if (tab === "setup" || tab === "calc") return "down-payment";
-   return null;
-  }
+  // 3. FICO score
+  if (creditScore === 0) return "fico-input";
 
-  // 4. Credit score
-  if (creditScore === 0) {
-   if (tab === "setup") return "fico-input";
-   if (tab === "qualify") return "qualify-fico";
-   return null;
-  }
+  // 4. Filing status — has a default ("Single"), so pulse until explicitly touched
+  if (!guideTouched.has("filing-status")) return "filing-status";
 
-  // 5. Income
-  if (incomes.filter(i => i.borrower === 1).length === 0 || !incomes.some(i => i.amount > 0 || i.py1 > 0)) {
-   if (tab === "income") return "add-income-1";
-   return null;
-  }
+  // 5. Sales price (purchase only)
+  if (!isRefi && salesPrice === 0) return "price-input";
 
-  // All critical fields filled — no more highlights
+  // 6. Down payment % (purchase only)
+  if (!isRefi && downPct === 0 && !guideTouched.has("down-payment")) return "down-payment";
+
+  // 7. First-time homebuyer (purchase only)
+  if (!isRefi && !guideTouched.has("fthb")) return "fthb";
+
+  // 8. Modules — pulse until user has interacted with at least one toggle
+  if (!guideTouched.has("modules")) return "modules";
+
+  // All guided fields complete — no more highlights
   return null;
  })();
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
@@ -6891,10 +6893,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
 
    {/* ── Modules — full-width toggles with descriptions ── */}
-   <div style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden" }}>
+   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s" }}>
     <div style={{ padding: "10px 14px 6px", fontSize: 13, fontWeight: 700, color: T.text }}>Modules</div>
     {/* Own Properties */}
-    <div onClick={() => setOwnsProperties(!ownsProperties)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setOwnsProperties(!ownsProperties); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Own Properties?</div>
       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show REO (Real Estate Owned) tab</div>
@@ -6905,7 +6907,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
     {/* Selling a Property */}
     {!isRefi && (
-    <div onClick={() => setHasSellProperty(!hasSellProperty)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setHasSellProperty(!hasSellProperty); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Selling a Property?</div>
       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Seller Net Sheet tab</div>
@@ -6917,7 +6919,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     )}
     {/* Investment Analysis */}
     {!isRefi && (
-    <div onClick={() => setShowInvestor(!showInvestor)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setShowInvestor(!showInvestor); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Investor tab with ROI metrics</div>
