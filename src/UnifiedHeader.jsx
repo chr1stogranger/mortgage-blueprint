@@ -164,7 +164,7 @@ export default function UnifiedHeader({
                 cursor: 'pointer',
               }}
             >
-              {skillLevel === 'beginner' ? 'GUIDED' : skillLevel === 'experienced' ? 'STANDARD' : 'PRO'}
+              {skillLevel === 'guided' || skillLevel === 'beginner' ? 'GUIDED' : 'STANDARD'}
             </div>
           )}
           {/* Sync indicators — hidden on mobile to avoid visual overlap with centered badge */}
