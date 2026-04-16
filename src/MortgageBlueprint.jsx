@@ -6899,7 +6899,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary }}>First-Time Homebuyer?</span>
       <div style={{ display: "flex", gap: 4 }}>
        <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === true ? `${T.green}22` : T.inputBg, border: firstTimeBuyer === true ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === true ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
-       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === false ? `${T.blue}22` : T.inputBg, border: firstTimeBuyer === false ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === false ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
+       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === false ? `${T.blue}22` : T.inputBg, border: firstTimeBuyer === false ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === false ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
       </div>
      </div>
      {firstTimeBuyer && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 4 }}>FTHB unlocked — 3% down conventional available</div>}
@@ -6950,6 +6950,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
 
    {/* ── Modules — full-width toggles with descriptions ── */}
+   {/* In guided mode, skip modules when FTHB = No (available in Settings) */}
+   {!(skillLevel === "guided" && firstTimeBuyer === false) && (
    <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s" }}>
     <div style={{ padding: "10px 14px 6px", fontSize: 13, fontWeight: 700, color: T.text }}>Modules</div>
     {/* Own Properties */}
@@ -6989,6 +6991,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     {/* Security note */}
     <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.separator}`, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
    </div>
+   )}
   </div>{/* end right column */}
 
  </div>{/* end 2-column grid */}
