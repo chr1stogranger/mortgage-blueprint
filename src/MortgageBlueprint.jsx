@@ -1460,7 +1460,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, []);
  // PricePoint is now its own component — see PricePoint.jsx
  const [salesPrice, setSalesPrice] = useState(0);
- const [downPct, setDownPct] = useState(20);
+ const [downPct, setDownPct] = useState(0);
  const [downMode, setDownMode] = useState("pct"); // "pct" or "dollar"
  const [rate, setRate] = useState(6.5);
  const [term, setTerm] = useState(30);
@@ -2801,7 +2801,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 5. Sales price (purchase only)
   if (!isRefi && salesPrice === 0) return "price-input";
 
-  // 6. Down payment % (purchase only)
+  // 6. Down payment % (purchase only) — starts at 0, pulse until user enters a value
   if (!isRefi && downPct === 0 && !guideTouched.has("down-payment")) return "down-payment";
 
   // 7. First-time homebuyer (purchase only)
