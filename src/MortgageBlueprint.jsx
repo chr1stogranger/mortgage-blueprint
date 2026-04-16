@@ -9,6 +9,10 @@ const WorkspaceView = lazy(() => import("./WorkspaceView"));
 const BlueprintPane = lazy(() => import("./BlueprintPane"));
 const SellerNetPane = lazy(() => import("./SellerNetPane"));
 const OverviewTab = lazy(() => import("./OverviewTab"));
+const BottomSheet = lazy(() => import("./BottomSheet"));
+const IncomeSheet = lazy(() => import("./IncomeSheet"));
+const DebtsSheet = lazy(() => import("./DebtsSheet"));
+const AssetsSheet = lazy(() => import("./AssetsSheet"));
 import UnifiedHeader from "./UnifiedHeader";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
@@ -943,15 +947,13 @@ const Haptics = {
 };
 
 // ── Tab Progression System ──
-const TAB_PROGRESSION = ["overview","setup","calc","costs","income","debts","assets","qualify","tax","amort","learn","compare","summary"];
+const TAB_PROGRESSION = ["overview","setup","income","debts","assets","qualify","tax","amort","learn","compare","summary"];
 const HOUSE_STAGES = [
  { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
- { tab: "calc", part: "Foundation", desc: "Concrete slab poured" },
- { tab: "costs", part: "Floor Framing", desc: "Joists & subfloor laid" },
- { tab: "qualify", part: "Wall Framing", desc: "Studs going up" },
- { tab: "income", part: "Roof Trusses", desc: "Trusses set in place" },
- { tab: "debts", part: "Exterior Walls", desc: "Sheathing applied" },
- { tab: "assets", part: "Roof Shingles", desc: "Weather-tight!" },
+ { tab: "income", part: "Foundation", desc: "Concrete slab poured" },
+ { tab: "debts", part: "Wall Framing", desc: "Studs going up" },
+ { tab: "assets", part: "Roof Trusses", desc: "Trusses set in place" },
+ { tab: "qualify", part: "Exterior Walls", desc: "Sheathing applied" },
  { tab: "tax", part: "Windows & Doors", desc: "Let there be light" },
  { tab: "amort", part: "Siding & Paint", desc: "Looking sharp" },
  { tab: "learn", part: "Interior Finish", desc: "Making it a home" },
@@ -1671,6 +1673,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [showCourseComplete, setShowCourseComplete] = useState(false);
  // ── Skill Level & Tab Progression ──
  const [skillLevel, setSkillLevel] = useState(null);
+ const [sheetContent, setSheetContent] = useState(null); // null | "income" | "debts" | "assets"
  const [completedTabs, setCompletedTabs] = useState({});
  const [scrolledPast80, setScrolledPast80] = useState(false);
  const scrolledPast80Ref = useRef(false);
@@ -2627,8 +2630,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (isRefi) return refiOriginalAmount > 0 && refiCurrentRate > 0;
    return true;
   }
-  if (t === "calc") return salesPrice > 0 && rate > 0;
-  if (t === "costs") return true; // costs have defaults, always "complete"
+  // calc and costs tabs folded into Overview — no longer standalone
+  if (t === "calc" || t === "costs") return true;
   if (t === "income") return incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
   if (t === "assets") return assets.length > 0 && assets.some(a => a.value > 0 && a.forClosing > 0);
   if (t === "debts") return (debtFree || debts.length > 0) && guideTouched.has("owns-properties-toggle");
@@ -2804,6 +2807,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Count completed stages for house graphic
  const houseStagesComplete = TAB_PROGRESSION.filter(t => completedTabs[t]).length;
+
+ // ═══ ONE-SCREEN: Force Overview in guided mode ═══
+ React.useEffect(() => {
+  if (skillLevel === "guided" && !["overview", "summary", "settings"].includes(tab)) {
+   setTab("overview");
+  }
+ }, [skillLevel, tab]);
 
  // ═══ SEQUENTIAL PULSE GUIDE ═══
  // Tracks which fields with defaults have been explicitly interacted with.
@@ -3797,18 +3807,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // PRICEPOINT — Now in PricePoint.jsx
  // ═══════════════════════════════════════════
  // (all PricePoint logic moved to PricePoint.jsx)
- const TABS = [["overview","Overview"],["setup","Setup"],["calc","Calculator"],
+ const TABS = [["overview","Overview"],
+  ...(skillLevel !== "guided" ? [["setup","Setup"]] : []),
+  // calc and costs tabs permanently folded into Overview
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
-  ["costs","Costs"],["income","Income"],["debts","Debts"],
-  ...(ownsProperties ? [["reo","REO"]] : []),
-  ["assets","Assets"],
-  ["qualify","Qualify"],
-  ...(isDesktop ? [["workspace","Workspace"]] : []),
-  ["tax","Tax Savings"],["amort","Amortization"],
-  ...(hasSellProperty ? [["sell","Seller Net"]] : []),
-  ...(showInvestor ? [["invest","Investor"]] : []),
-  ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
-  ["learn","Learn"],
+  ...(skillLevel !== "guided" ? [
+   ["income","Income"],["debts","Debts"],
+   ...(ownsProperties ? [["reo","REO"]] : []),
+   ["assets","Assets"],
+   ["qualify","Qualify"],
+  ] : []),
+  ...(skillLevel !== "guided" ? [
+   ...(isDesktop ? [["workspace","Workspace"]] : []),
+   ["tax","Tax Savings"],["amort","Amortization"],
+   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
+   ...(showInvestor ? [["invest","Investor"]] : []),
+   ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
+   ["learn","Learn"],
+  ] : []),
   ["summary","Share"],
   ...(isBorrower ? [] : [["settings","Settings"]])];
  // Swipe navigation between tabs
@@ -3900,6 +3916,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     @keyframes fadeSlide { 0% { opacity: 0; transform: translateY(-8px); } 100% { opacity: 1; transform: translateY(0); } }
     @keyframes highlightPulse { 0% { background: rgba(10,132,255,0.15); } 100% { background: transparent; } }
     @keyframes fadeSlideUp { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
+    @keyframes sheetFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes sheetFadeOut { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes sheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes sheetSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
     .pulse-next { box-shadow: 0 0 0 2px rgba(99,102,241,0.5), 0 0 8px rgba(99,102,241,0.15); border-radius: 14px; padding: 4px 5px; transition: box-shadow 0.3s ease; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
@@ -4153,7 +4173,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       } catch (err) { alert('Failed to create client: ' + err.message); }
      },
     }}
-    mobileTabBar={!isDesktop ? (
+    mobileTabBar={!isDesktop && skillLevel !== "guided" ? (
      <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
       {TABS.map(([k, l]) => <div key={k} style={{ position: "relative" }}><Tab tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} /><TabProgressUnderline tabId={k} /></div>)}
      </div>
@@ -6719,9 +6739,44 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    vaUsage={vaUsage}
    vaFundingFeeLocked={vaFundingFeeLocked} setVaFundingFeeLocked={setVaFundingFeeLocked}
    vaFundingFeeOverride={vaFundingFeeOverride} setVaFundingFeeOverride={setVaFundingFeeOverride}
+   /* One-Screen Architecture */
+   skillLevel={skillLevel}
+   sheetContent={sheetContent} setSheetContent={setSheetContent}
   />
  </Suspense>
 )}
+{/* ═══ BOTTOM SHEETS (One-Screen Architecture) ═══ */}
+<Suspense fallback={null}>
+ <BottomSheet isOpen={sheetContent === "income"} onClose={() => setSheetContent(null)} title="Income" T={T}>
+  <IncomeSheet
+   incomes={incomes} addIncome={(borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", monthlyIncome: 0 }])}
+   updateIncome={(id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i))}
+   removeIncome={(id) => setIncomes(incomes.filter(i => i.id !== id))}
+   otherIncome={otherIncome} setOtherIncome={setOtherIncome}
+   T={T} Inp={Inp} Sel={Sel} TextInp={TextInp} Note={Note} calc={calc}
+  />
+ </BottomSheet>
+ <BottomSheet isOpen={sheetContent === "debts"} onClose={() => setSheetContent(null)} title="Debts & Liabilities" T={T}>
+  <DebtsSheet
+   debts={debts} addDebt={(type) => setDebts([...debts, { id: Date.now(), name: "", type, balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", linkedReoId: "" }])}
+   updateDebt={(id, f, v) => setDebts(debts.map(d => d.id === id ? { ...d, [f]: v } : d))}
+   removeDebt={(id) => setDebts(debts.filter(d => d.id !== id))}
+   debtFree={debtFree} setDebtFree={setDebtFree}
+   ownsProperties={ownsProperties} setOwnsProperties={setOwnsProperties}
+   reos={reos} setReos={setReos}
+   syncDebtPayment={syncDebtPayment} syncDebtBalance={syncDebtBalance}
+   T={T} Inp={Inp} Sel={Sel} TextInp={TextInp} Note={Note} calc={calc}
+  />
+ </BottomSheet>
+ <BottomSheet isOpen={sheetContent === "assets"} onClose={() => setSheetContent(null)} title="Assets" T={T}>
+  <AssetsSheet
+   assets={assets} addAsset={() => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }])}
+   updateAsset={(id, f, v) => setAssets(assets.map(a => a.id === id ? { ...a, [f]: v } : a))}
+   removeAsset={(id) => setAssets(assets.filter(a => a.id !== id))}
+   T={T} Inp={Inp} Sel={Sel} TextInp={TextInp} Note={Note} calc={calc} Progress={Progress}
+  />
+ </BottomSheet>
+</Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && (<>
  <div style={{ marginTop: 12 }}>

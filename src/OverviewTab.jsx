@@ -948,9 +948,63 @@ export default function OverviewTab({
   vaUsage,
   vaFundingFeeLocked, setVaFundingFeeLocked,
   vaFundingFeeOverride, setVaFundingFeeOverride,
+  /* One-Screen Architecture: guided mode + bottom sheets */
+  skillLevel,
+  sheetContent, setSheetContent,
 }) {
   const qualRef = useRef(null);
   const [showModules, setShowModules] = useState(false);
+
+  /* ─── Guided Mode: Sequential Section Expansion ─── */
+  const isGuided = skillLevel === "guided";
+  const [guidedSectionIndex, setGuidedSectionIndex] = useState(isGuided ? 0 : 99);
+
+  // Completion checks
+  const isSetupComplete = () => {
+    const hasLocation = propertyZip && propertyZip.length >= 5;
+    return isRefi !== null && hasLocation && creditScore > 0 && salesPrice > 0;
+  };
+  const isRateComplete = () => rate > 0 && term > 0;
+  const hasIncome = () => incomes.length > 0 && incomes.some(i => i.amount > 0 || i.py1 > 0);
+  const hasDebts = () => debtFree || (debts.length > 0);
+  const hasAssets = () => assets.length > 0 && assets.some(a => a.value > 0);
+
+  // Auto-advance in guided mode
+  useEffect(() => {
+    if (!isGuided) { setGuidedSectionIndex(99); return; }
+    if (guidedSectionIndex === 0 && isSetupComplete()) setGuidedSectionIndex(1);
+    if (guidedSectionIndex === 1 && isRateComplete()) setGuidedSectionIndex(3);
+    if (guidedSectionIndex === 3) setGuidedSectionIndex(4); // costs have defaults
+    if (guidedSectionIndex === 4 && hasIncome()) setGuidedSectionIndex(5);
+    if (guidedSectionIndex === 5 && hasDebts()) setGuidedSectionIndex(6);
+    if (guidedSectionIndex === 6 && hasAssets()) setGuidedSectionIndex(9);
+  }, [salesPrice, rate, term, incomes, debts, assets, debtFree, propertyZip, creditScore, isRefi, skillLevel]);
+
+  // Auto-scroll to newly revealed section
+  useEffect(() => {
+    if (!isGuided) return;
+    const sectionIds = ["overview-setup", "overview-rate", "overview-payment", "overview-costs", "overview-income", "overview-debts", "overview-assets", "overview-qualification", "overview-tax", "overview-amortization"];
+    const targetId = sectionIds[guidedSectionIndex];
+    if (targetId) {
+      setTimeout(() => {
+        const el = document.getElementById(targetId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 300);
+    }
+  }, [guidedSectionIndex]);
+
+  // Helper: should section be visible in guided mode?
+  const guidedVisible = (sectionIdx) => !isGuided || sectionIdx <= guidedSectionIndex;
+  const guidedOpen = (sectionIdx) => !isGuided || sectionIdx === guidedSectionIndex;
+
+  // Helper: open sheet or navigate to tab based on mode
+  const openEditAction = (sheetName, tabName) => {
+    if (isGuided && setSheetContent) {
+      setSheetContent(sheetName);
+    } else {
+      setTab(tabName);
+    }
+  };
 
   const scrollToQualification = useCallback(() => {
     const el = document.getElementById("overview-qualification");
@@ -1017,6 +1071,7 @@ export default function OverviewTab({
       </div>
 
       {/* Loan Inputs */}
+      <div id="overview-setup">
       <OCard T={T} style={{ marginTop: 4 }}>
         {/* ── Row 1: Zip | Property Type | Occupancy ── */}
         <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 6 } : { marginBottom: 6 }}>
@@ -1252,6 +1307,7 @@ export default function OverviewTab({
           <Inp label="HOA" value={hoa} onChange={setHoa} suffix="/mo" max={10000} sm />
         </div>
       </OCard>
+      </div>{/* end overview-setup */}
 
       {/* Module Toggles — collapsible "More Options" */}
       <div style={{ marginTop: 14 }}>
@@ -1399,7 +1455,7 @@ export default function OverviewTab({
           SECTION 3: CASH TO CLOSE — IFW STYLE
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs" action="Edit Costs →" onAction={() => setTab("costs")}>
+      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs">
         <CashToClosePill
           T={T} calc={calc} isRefi={isRefi} salesPrice={salesPrice} downPct={downPct}
           payoffAtClosing={payoffAtClosing} setTab={setTab} fmt={fmt} fmt2={fmt2}
@@ -1425,8 +1481,11 @@ export default function OverviewTab({
       {/* ═══════════════════════════════════════
           SECTION 4: INCOME SUMMARY
           ═══════════════════════════════════════ */}
+      {guidedVisible(4) && (<>
       <SectionDivider T={T} />
-      <CollapsibleSection title="Income" T={T} action="Edit Income →" onAction={() => setTab("income")}>
+      <CollapsibleSection title="Income" T={T} id="overview-income" defaultOpen={guidedOpen(4)}
+        action={incomes.length > 0 ? "Edit Income \u2192" : "Add Income \u2192"}
+        onAction={() => openEditAction("income", "income")}>
         <OCard T={T}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
             <div>
@@ -1444,7 +1503,7 @@ export default function OverviewTab({
               <div key={inc.id || i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.separator}` }}>
                 <div>
                   <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{inc.source || inc.payType || "Income"}</div>
-                  <div style={{ fontSize: 11, color: T.textTertiary }}>{inc.payType} · Borrower {inc.borrower || 1}</div>
+                  <div style={{ fontSize: 11, color: T.textTertiary }}>{inc.payType} \u00b7 Borrower {inc.borrower || 1}</div>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text }}>
                   {fmt(inc.monthlyQualifying || inc.amount || 0)}/mo
@@ -1453,17 +1512,21 @@ export default function OverviewTab({
             ))
           ) : (
             <div style={{ textAlign: "center", padding: 16, color: T.textTertiary, fontSize: 13 }}>
-              No income entered — <span onClick={() => setTab("income")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add income</span>
+              No income entered — <span onClick={() => openEditAction("income", "income")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add income</span>
             </div>
           )}
         </OCard>
       </CollapsibleSection>
+      </>)}
 
       {/* ═══════════════════════════════════════
           SECTION 6: DEBTS (PARTIALLY EDITABLE)
           ═══════════════════════════════════════ */}
+      {guidedVisible(5) && (<>
       <SectionDivider T={T} />
-      <CollapsibleSection title="Debts & Liabilities" T={T} action="Edit Debts →" onAction={() => setTab("debts")}>
+      <CollapsibleSection title="Debts & Liabilities" T={T} id="overview-debts" defaultOpen={guidedOpen(5)}
+        action={debts.length > 0 || debtFree ? "Edit Debts \u2192" : "Add Debts \u2192"}
+        onAction={() => openEditAction("debts", "debts")}>
         <OCard T={T}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
             <div>
@@ -1479,7 +1542,7 @@ export default function OverviewTab({
             <div key={d.id || i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderTop: `1px solid ${T.separator}` }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{d.name || d.type || "Debt"}</div>
-                <div style={{ fontSize: 11, color: T.textTertiary }}>{d.type}{d.balance > 0 ? ` · Bal: ${fmt(d.balance)}` : ""}</div>
+                <div style={{ fontSize: 11, color: T.textTertiary }}>{d.type}{d.balance > 0 ? ` \u00b7 Bal: ${fmt(d.balance)}` : ""}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: (d.payoff === "Yes - at Escrow" || d.payoff === "Yes - POC") ? T.green : T.text, textDecoration: (d.payoff === "Yes - at Escrow" || d.payoff === "Yes - POC") ? "line-through" : "none" }}>
@@ -1493,17 +1556,21 @@ export default function OverviewTab({
           ))}
           {!debtFree && debts.length === 0 && (
             <div style={{ textAlign: "center", padding: 16, color: T.textTertiary, fontSize: 13 }}>
-              No debts entered — <span onClick={() => setTab("debts")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add debts</span>
+              No debts entered — <span onClick={() => openEditAction("debts", "debts")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add debts</span>
             </div>
           )}
         </OCard>
       </CollapsibleSection>
+      </>)}
 
       {/* ═══════════════════════════════════════
           SECTION 6B: ASSETS
           ═══════════════════════════════════════ */}
+      {guidedVisible(6) && (<>
       <SectionDivider T={T} />
-      <CollapsibleSection title="Assets" T={T} action="Edit Assets →" onAction={() => setTab("assets")}>
+      <CollapsibleSection title="Assets" T={T} id="overview-assets" defaultOpen={guidedOpen(6)}
+        action={assets.length > 0 ? "Edit Assets \u2192" : "Add Assets \u2192"}
+        onAction={() => openEditAction("assets", "assets")}>
         <OCard T={T}>
           {assets.length > 0 ? (
             <>
@@ -1544,18 +1611,20 @@ export default function OverviewTab({
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "12px 0", fontSize: 13, color: T.textTertiary }}>
-              No assets entered — <span onClick={() => setTab("assets")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add assets</span>
+              No assets entered — <span onClick={() => openEditAction("assets", "assets")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add assets</span>
             </div>
           )}
         </OCard>
       </CollapsibleSection>
+      </>)}
 
       {/* ═══════════════════════════════════════
           SECTION 7: QUALIFICATION (5 PILLARS)
           ═══════════════════════════════════════ */}
+      {guidedVisible(7) && (<>
       <SectionDivider T={T} />
       <div id="overview-qualification">
-        <CollapsibleSection title="Qualification" T={T} action="Full Details →" onAction={() => setTab("qualify")}>
+        <CollapsibleSection title="Qualification" T={T} defaultOpen={guidedOpen(7)} action="Full Details \u2192" onAction={() => setTab("qualify")}>
           {/* FICO Score Input */}
           <div style={{
             display: 'flex',
@@ -1677,14 +1746,15 @@ export default function OverviewTab({
           )}
         </CollapsibleSection>
       </div>
+      </>)}
 
       {/* ═══════════════════════════════════════
           SECTION 8: TAX SAVINGS
           ═══════════════════════════════════════ */}
-      {loanPurpose !== "Purchase Investment" && loanPurpose !== "Purchase 2nd Home" && (
+      {guidedVisible(8) && loanPurpose !== "Purchase Investment" && loanPurpose !== "Purchase 2nd Home" && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Tax Savings" T={T} action="Full Analysis →" onAction={() => setTab("tax")}>
+          <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" defaultOpen={guidedOpen(8)} action="Full Analysis \u2192" onAction={() => setTab("tax")}>
             {/* Filing Status */}
             <Sel label="Filing Status" value={married} onChange={v => setMarried(v)} options={[
               { value: "Single", label: "Single" },
@@ -1751,8 +1821,9 @@ export default function OverviewTab({
       {/* ═══════════════════════════════════════
           SECTION 8: AMORTIZATION (EDITABLE)
           ═══════════════════════════════════════ */}
+      {guidedVisible(9) && (<>
       <SectionDivider T={T} />
-      <CollapsibleSection title="Amortization" T={T} action="Full Schedule →" onAction={() => setTab("amort")}>
+      <CollapsibleSection title="Amortization" T={T} id="overview-amortization" defaultOpen={guidedOpen(9)} action="Full Schedule \u2192" onAction={() => setTab("amort")}>
         {/* Hero stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <OCard T={T} pad={14}>
@@ -1836,6 +1907,7 @@ export default function OverviewTab({
           </OCard>
         )}
       </CollapsibleSection>
+      </>)}
 
       {/* ═══════════════════════════════════════
           SECTION 9: NET PROCEEDS (CONDITIONAL)
