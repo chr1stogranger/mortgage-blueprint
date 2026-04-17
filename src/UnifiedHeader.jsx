@@ -190,88 +190,52 @@ export default function UnifiedHeader({
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Center (mobile only): Qualification badge + Pillar dots — absolutely centered */}
-        {!isDesktop && (
-          <div style={{
-            position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 6, pointerEvents: "none",
-          }}>
-            <div
-              onClick={() => setTab("qualify")}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                background: `${badgeColor}18`,
-                borderRadius: 9999, padding: "4px 8px",
-                cursor: "pointer", transition: "all 0.2s",
-                pointerEvents: "auto",
-              }}
-            >
-              {allGood
-                ? <Icon name="check" size={12} style={{ color: T.green, flexShrink: 0 }} />
-                : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
-              }
-              <span style={{
-                fontSize: 9, fontWeight: 700,
-                color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
-              }}>{badgeLabel}</span>
-            </div>
-            <div
-              onClick={() => setTab("qualify")}
-              style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", pointerEvents: "auto" }}
-            >
-              {pillars.map((p, i) => (
-                <div key={i} style={{
+        {/* Absolutely centered Qualification badge + Pillar dots (both mobile & desktop) */}
+        <div style={{
+          position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: isDesktop ? 10 : 6, pointerEvents: "none",
+        }}>
+          <div
+            onClick={() => setTab("qualify")}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: `${badgeColor}18`,
+              borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 8px",
+              cursor: "pointer", transition: "all 0.2s",
+              pointerEvents: "auto",
+            }}
+          >
+            {allGood
+              ? <Icon name="check" size={isDesktop ? 14 : 12} style={{ color: T.green, flexShrink: 0 }} />
+              : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
+            }
+            <span style={{
+              fontSize: isDesktop ? 11 : 9, fontWeight: 700,
+              color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
+            }}>{badgeLabel}</span>
+          </div>
+          <div
+            onClick={() => setTab("qualify")}
+            style={{ display: "flex", alignItems: "center", gap: isDesktop ? 6 : 3, cursor: "pointer", pointerEvents: "auto" }}
+          >
+            {pillars.map((p, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <div style={{
                   width: 6, height: 6, borderRadius: "50%",
                   background: p.color, transition: "all 0.3s",
                   boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : "none",
                 }} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Desktop: Qualification badge + Pillar dots */}
-        {isDesktop && (
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
-            <div
-              onClick={() => setTab("qualify")}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                background: `${badgeColor}18`,
-                borderRadius: 9999, padding: "5px 12px",
-                cursor: "pointer", transition: "all 0.2s",
-              }}
-            >
-              {allGood
-                ? <Icon name="check" size={14} style={{ color: T.green, flexShrink: 0 }} />
-                : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
-              }
-              <span style={{
-                fontSize: 11, fontWeight: 700,
-                color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
-              }}>{badgeLabel}</span>
-            </div>
-            <div
-              onClick={() => setTab("qualify")}
-              style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flexShrink: 0 }}
-            >
-              {pillars.map((p, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <div style={{
-                    width: 6, height: 6, borderRadius: "50%",
-                    background: p.color, transition: "all 0.3s",
-                    boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : "none",
-                  }} />
+                {isDesktop && (
                   <span style={{
                     fontSize: 8, fontWeight: 600, color: p.color,
                     fontFamily: MONO, letterSpacing: 0.3, opacity: 0.85,
                   }}>{p.label}</span>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Divider before controls */}
         <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
