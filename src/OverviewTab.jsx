@@ -22,10 +22,10 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
   if (heroStyle) {
     return (
       <div id={id}>
-        <div onClick={() => setOpen(!open)} style={{ cursor: "pointer", marginTop: 12, marginBottom: open ? 12 : 4, display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <span style={{ fontSize: 28, lineHeight: "1", color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", marginTop: 10, flexShrink: 0 }}>▾</span>
+        <div onClick={() => setOpen(!open)} style={{ cursor: "pointer", marginTop: 12, marginBottom: open ? 12 : 4, display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <span style={{ fontSize: 18, lineHeight: "1", color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", marginTop: 6, flexShrink: 0 }}>▾</span>
           <div>
-            <div style={{ fontSize: 54, fontWeight: 800, fontFamily: FONT, color: T.blue, letterSpacing: "-0.04em", lineHeight: 1.0 }}>
+            <div style={{ fontSize: 34, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
               {title}
             </div>
             {subtitle && (
@@ -81,7 +81,7 @@ export default function OverviewTab(props) {
           HEADER: Title + scenario pills + sign-in
           ═══════════════════════════════════════ */}
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 34, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+        <div style={{ fontSize: 54, fontWeight: 800, fontFamily: FONT, color: T.blue, letterSpacing: "-0.04em", lineHeight: 1.0 }}>
           {isRefi ? "Refinance" : "Purchase"} Overview
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
