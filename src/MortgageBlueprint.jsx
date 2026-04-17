@@ -681,12 +681,13 @@ function MRow({ label, value, sub, color, bold, indent, tip }) {
   <span style={{ fontSize: bold ? 16 : 15, fontWeight: 600, fontFamily: FONT, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
  </div>);
 }
-function StopLight({ checks, onPillarClick }) {
+function StopLight({ checks, onPillarClick, hideBanner }) {
  const allGreen = checks.every(c => c.ok === true);
  const anyGreen = checks.some(c => c.ok === true);
  const [expanded, setExpanded] = React.useState(null);
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
-  {/* Main status badge */}
+  {/* Main status badge — hidden when hideBanner is set (e.g. in the Monthly Payment section) */}
+  {!hideBanner && (
   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: allGreen ? "16px 24px 20px" : "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20, width: "100%" }}>
    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <span style={{ display: "flex", alignItems: "center", color: allGreen ? T.green : anyGreen ? T.orange : T.red }}><Icon name={allGreen ? "trophy" : anyGreen ? "unlock" : "lock"} size={28} /></span>
@@ -703,6 +704,7 @@ function StopLight({ checks, onPillarClick }) {
     </button>
    )}
   </div>
+  )}
   {/* Traffic light row */}
   <div style={{ display: "grid", gridTemplateColumns: `repeat(${checks.length}, 1fr)`, gap: checks.length > 4 ? 8 : 12, width: "100%" }}>
    {checks.map((c, i) => {
