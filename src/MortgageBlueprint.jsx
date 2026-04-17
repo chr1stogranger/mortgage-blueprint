@@ -3909,12 +3909,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ...(skillLevel !== "guided" ? [
    ...(isDesktop ? [["workspace","Workspace"]] : []),
    ["tax","Tax Savings"],
-   ...(showProp19 ? [["prop19","Prop 19"]] : []),
    ["amort","Amortization"],
    ...(hasSellProperty ? [["sell","Seller Net"]] : []),
    ...(showInvestor ? [["invest","Investor"]] : []),
    ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
    ["learn","Learn"],
+   ...(showProp19 ? [["prop19","Prop 19"]] : []),
   ] : []),
   ["summary","Share"],
   ...(isBorrower ? [] : [["settings","Settings"]])];
@@ -6970,6 +6970,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    skillLevel={skillLevel}
    onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
    sheetContent={sheetContent} setSheetContent={setSheetContent}
+   /* Prop 19 props */
+   showProp19={showProp19}
+   prop19={prop19}
+   prop19SaleDate={prop19SaleDate}
+   prop19PurchaseDate={prop19PurchaseDate}
+   /* Rent vs Buy props */
+   monthlyRent={rbCurrentRent}
+   rentGrowth={rbRentGrowth}
+   investReturn={rbInvestReturn}
+   rbCalc={rbCalc}
+   /* Investor props */
+   invCalc={invCalc}
   />
  </Suspense>
 )}

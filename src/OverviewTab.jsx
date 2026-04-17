@@ -951,6 +951,12 @@ export default function OverviewTab({
   /* One-Screen Architecture: guided mode + bottom sheets */
   skillLevel, onToggleSkillLevel,
   sheetContent, setSheetContent,
+  /* Prop 19 props */
+  showProp19, prop19, prop19SaleDate, prop19PurchaseDate,
+  /* Rent vs Buy props */
+  monthlyRent, rentGrowth, investReturn, rbCalc,
+  /* Investor props */
+  invCalc,
 }) {
   const qualRef = useRef(null);
   const [showModules, setShowModules] = useState(false);
@@ -985,7 +991,7 @@ export default function OverviewTab({
   // Auto-scroll to newly revealed section
   useEffect(() => {
     if (!isGuided) return;
-    const sectionIds = ["overview-setup", "overview-rate", "overview-payment", "overview-costs", "overview-income", "overview-debts", "overview-assets", "overview-qualification", "overview-tax", "overview-amortization"];
+    const sectionIds = ["overview-setup", "overview-rate", "overview-payment", "overview-costs", "overview-financial", "overview-qualification", "overview-tax", "overview-equity"];
     const targetId = sectionIds[guidedSectionIndex];
     if (targetId) {
       setTimeout(() => {
@@ -1072,7 +1078,10 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* Loan Inputs */}
+      {/* ═══════════════════════════════════════
+          SECTION 1: QUICK START
+          ═══════════════════════════════════════ */}
+      <CollapsibleSection title="Quick Start" T={T} id="overview-quickstart" defaultOpen={true}>
       <div id="overview-setup">
       <OCard T={T} style={{ marginTop: 4 }}>
         {/* ── Row 1: Zip | Property Type | Occupancy ── */}
@@ -1310,6 +1319,7 @@ export default function OverviewTab({
         </div>
       </OCard>
       </div>{/* end overview-setup */}
+      </CollapsibleSection>
 
       {/* Module Toggles — collapsible "More Options" */}
       <div style={{ marginTop: 14 }}>
@@ -1481,13 +1491,24 @@ export default function OverviewTab({
       />
 
       {/* ═══════════════════════════════════════
-          SECTION 4: INCOME SUMMARY
+          SECTION 4: FINANCIAL INFO (PARENT)
           ═══════════════════════════════════════ */}
       {guidedVisible(4) && (<>
       <SectionDivider T={T} />
-      <CollapsibleSection title="Income" T={T} id="overview-income" defaultOpen={guidedOpen(4)}
-        action={incomes.length > 0 ? "Edit Income \u2192" : "Add Income \u2192"}
-        onAction={() => openEditAction("income", "income")}>
+      <CollapsibleSection title="Financial Info" T={T} id="overview-financial" defaultOpen={true}>
+      {/* ────────────────────────────────────────
+          4a. INCOME SUBSECTION
+          ──────────────────────────────────────── */}
+      <div id="overview-income" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.text }}>Income</h3>
+          <button
+            onClick={() => openEditAction("income", "income")}
+            style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}
+          >
+            {incomes.length > 0 ? "Edit Income \u2192" : "Add Income \u2192"}
+          </button>
+        </div>
         <OCard T={T}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
             <div>
@@ -1518,17 +1539,23 @@ export default function OverviewTab({
             </div>
           )}
         </OCard>
-      </CollapsibleSection>
-      </>)}
+      </div>
+      {/* Separator between subsections */}
+      <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 20 }} />
 
-      {/* ═══════════════════════════════════════
-          SECTION 6: DEBTS (PARTIALLY EDITABLE)
-          ═══════════════════════════════════════ */}
-      {guidedVisible(5) && (<>
-      <SectionDivider T={T} />
-      <CollapsibleSection title="Debts & Liabilities" T={T} id="overview-debts" defaultOpen={guidedOpen(5)}
-        action={debts.length > 0 || debtFree ? "Edit Debts \u2192" : "Add Debts \u2192"}
-        onAction={() => openEditAction("debts", "debts")}>
+      {/* ────────────────────────────────────────
+          4b. DEBTS SUBSECTION
+          ──────────────────────────────────────── */}
+      <div id="overview-debts" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.text }}>Debts & Liabilities</h3>
+          <button
+            onClick={() => openEditAction("debts", "debts")}
+            style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}
+          >
+            {debts.length > 0 || debtFree ? "Edit Debts \u2192" : "Add Debts \u2192"}
+          </button>
+        </div>
         <OCard T={T}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
             <div>
@@ -1562,17 +1589,64 @@ export default function OverviewTab({
             </div>
           )}
         </OCard>
-      </CollapsibleSection>
-      </>)}
+      </div>
+      {/* Separator between subsections */}
+      {ownsProperties && <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 20 }} />}
 
-      {/* ═══════════════════════════════════════
-          SECTION 6B: ASSETS
-          ═══════════════════════════════════════ */}
-      {guidedVisible(6) && (<>
-      <SectionDivider T={T} />
-      <CollapsibleSection title="Assets" T={T} id="overview-assets" defaultOpen={guidedOpen(6)}
-        action={assets.length > 0 ? "Edit Assets \u2192" : "Add Assets \u2192"}
-        onAction={() => openEditAction("assets", "assets")}>
+      {/* ────────────────────────────────────────
+          4c. REAL ESTATE OWNED SUBSECTION (conditional)
+          ──────────────────────────────────────── */}
+      {ownsProperties && (
+        <div id="overview-reo" style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.text }}>Real Estate Owned</h3>
+            <button
+              onClick={() => setTab("reo")}
+              style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}
+            >
+              Edit REO \u2192
+            </button>
+          </div>
+          <OCard T={T}>
+            {reos && reos.length > 0 ? (
+              <>
+                <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>PROPERTIES</div>
+                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.text, marginBottom: 12 }}>
+                  {reos.length} {reos.length === 1 ? "Property" : "Properties"}
+                </div>
+                {reos.map((r, i) => (
+                  <div key={r.id || i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.separator}` }}>
+                    <div>
+                      <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{r.address || `Property ${i + 1}`}</div>
+                      <div style={{ fontSize: 11, color: T.textTertiary }}>{fmt(r.value || 0)} · {fmt(r.payment || 0)}/mo</div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: 16, color: T.textTertiary, fontSize: 13 }}>
+                No properties added — <span onClick={() => setTab("reo")} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}>add REO</span>
+              </div>
+            )}
+          </OCard>
+        </div>
+      )}
+      {/* Separator between subsections */}
+      {ownsProperties && <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 20 }} />}
+
+      {/* ────────────────────────────────────────
+          4d. ASSETS SUBSECTION
+          ──────────────────────────────────────── */}
+      <div id="overview-assets">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.text }}>Assets</h3>
+          <button
+            onClick={() => openEditAction("assets", "assets")}
+            style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}
+          >
+            {assets.length > 0 ? "Edit Assets \u2192" : "Add Assets \u2192"}
+          </button>
+        </div>
         <OCard T={T}>
           {assets.length > 0 ? (
             <>
@@ -1617,16 +1691,17 @@ export default function OverviewTab({
             </div>
           )}
         </OCard>
+      </div>
       </CollapsibleSection>
       </>)}
 
       {/* ═══════════════════════════════════════
-          SECTION 7: QUALIFICATION (5 PILLARS)
+          SECTION 5: QUALIFICATION (5 PILLARS)
           ═══════════════════════════════════════ */}
-      {guidedVisible(7) && (<>
+      {guidedVisible(5) && (<>
       <SectionDivider T={T} />
       <div id="overview-qualification">
-        <CollapsibleSection title="Qualification" T={T} defaultOpen={guidedOpen(7)} action="Full Details \u2192" onAction={() => setTab("qualify")}>
+        <CollapsibleSection title="Qualification" T={T} defaultOpen={guidedOpen(5)} action="Full Details \u2192" onAction={() => setTab("qualify")}>
           {/* FICO Score Input */}
           <div style={{
             display: 'flex',
@@ -1751,12 +1826,12 @@ export default function OverviewTab({
       </>)}
 
       {/* ═══════════════════════════════════════
-          SECTION 8: TAX SAVINGS
+          SECTION 6: TAX SAVINGS
           ═══════════════════════════════════════ */}
-      {guidedVisible(8) && loanPurpose !== "Purchase Investment" && loanPurpose !== "Purchase 2nd Home" && (
+      {!isRefi && loanPurpose === "Purchase Primary" && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" defaultOpen={guidedOpen(8)} action="Full Analysis \u2192" onAction={() => setTab("tax")}>
+          <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" defaultOpen={true} action="Full Analysis \u2192" onAction={() => setTab("tax")}>
             {/* Filing Status */}
             <Sel label="Filing Status" value={married} onChange={v => setMarried(v)} options={[
               { value: "Single", label: "Single" },
@@ -1825,7 +1900,7 @@ export default function OverviewTab({
           ═══════════════════════════════════════ */}
       {guidedVisible(9) && (<>
       <SectionDivider T={T} />
-      <CollapsibleSection title="Amortization" T={T} id="overview-amortization" defaultOpen={guidedOpen(9)} action="Full Schedule \u2192" onAction={() => setTab("amort")}>
+      <CollapsibleSection title="Equity" T={T} id="overview-equity" defaultOpen={true} action="Full Schedule \u2192" onAction={() => setTab("amort")}>
         {/* Hero stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <OCard T={T} pad={14}>
@@ -1912,12 +1987,154 @@ export default function OverviewTab({
       </>)}
 
       {/* ═══════════════════════════════════════
-          SECTION 9: NET PROCEEDS (CONDITIONAL)
+          SECTION 8: RENT VS BUY (CONDITIONAL)
+          ═══════════════════════════════════════ */}
+      {showRentVsBuy && !isRefi && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Rent vs Buy" T={T} id="overview-rentvbuy" defaultOpen={true} action="Full Analysis →" onAction={() => setTab("rentvbuy")}>
+            <OCard T={T}>
+              {/* Two side-by-side tiles: Monthly to Rent vs Monthly to Buy */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div style={{ background: T.elevated, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 4 }}>
+                    Monthly to Rent
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: MONO, color: T.text }}>
+                    {fmt(monthlyRent || 0)}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>
+                    estimated rent
+                  </div>
+                </div>
+                <div style={{ background: T.elevated, borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 4 }}>
+                    Monthly to Buy
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 700, fontFamily: MONO, color: T.text }}>
+                    {fmt((calc.displayPayment || 0) + (hoa || 0))}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>
+                    PITI + HOA
+                  </div>
+                </div>
+              </div>
+
+              {/* Break-even verdict */}
+              {rbCalc && rbCalc.breakEvenYear !== null && (
+                <div style={{ background: T.pillBg, borderRadius: 12, padding: "12px 16px", textAlign: "center" }}>
+                  <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>
+                    After <strong style={{ color: T.blue }}>Year {rbCalc.breakEvenYear}</strong>
+                  </div>
+                  {rbCalc.yr30 && rbCalc.yr30.buyerNet !== undefined && rbCalc.yr30.renterNet !== undefined && (
+                    <div style={{ fontSize: 16, fontWeight: 700, color: (rbCalc.yr30.buyerNet - rbCalc.yr30.renterNet) >= 0 ? T.green : T.red, fontFamily: FONT }}>
+                      {(rbCalc.yr30.buyerNet - rbCalc.yr30.renterNet) >= 0 ? "Buy wins" : "Rent wins"} by {fmt(Math.abs((rbCalc.yr30.buyerNet - rbCalc.yr30.renterNet) || 0))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </OCard>
+          </CollapsibleSection>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════
+          SECTION 9: INVESTOR (CONDITIONAL)
+          ═══════════════════════════════════════ */}
+      {showInvestor && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Investor" T={T} id="overview-investor" defaultOpen={true} action="Full Analysis →" onAction={() => setTab("invest")}>
+            <OCard T={T}>
+              {/* Hero: Monthly cash flow */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: T.textTertiary }}>Monthly Cash Flow</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: MONO, color: (invCalc && invCalc.monthlyCashFlow >= 0) ? T.green : T.red, letterSpacing: "-0.03em" }}>
+                    {fmt((invCalc && invCalc.monthlyCashFlow) || 0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 tiles: NOI, Cap Rate, DSCR, Cash-on-Cash */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ background: T.pillBg, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: (invCalc && invCalc.noi >= 0) ? T.green : T.red, fontFamily: FONT }}>
+                    {fmt((invCalc && invCalc.noi) || 0)}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>NOI/yr</div>
+                </div>
+                <div style={{ background: T.pillBg, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: (invCalc && invCalc.capRate >= 5) ? T.green : (invCalc && invCalc.capRate >= 3) ? T.orange : T.red, fontFamily: FONT }}>
+                    {((invCalc && invCalc.capRate) || 0).toFixed(2)}%
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Cap Rate</div>
+                </div>
+                <div style={{ background: T.pillBg, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: (invCalc && invCalc.dscr >= 1.25) ? T.green : (invCalc && invCalc.dscr >= 1.0) ? T.orange : T.red, fontFamily: FONT }}>
+                    {((invCalc && invCalc.dscr) || 0).toFixed(2)}x
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>DSCR</div>
+                </div>
+                <div style={{ background: T.pillBg, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: (invCalc && invCalc.cashOnCash >= 8) ? T.green : (invCalc && invCalc.cashOnCash >= 4) ? T.orange : T.red, fontFamily: FONT }}>
+                    {((invCalc && invCalc.cashOnCash) || 0).toFixed(1)}%
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>CoC Return</div>
+                </div>
+              </div>
+            </OCard>
+          </CollapsibleSection>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════
+          SECTION 10: PROP 19 (CONDITIONAL - CA ONLY)
+          ═══════════════════════════════════════ */}
+      {showProp19 && propertyState === "California" && !isRefi && prop19 && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Prop 19" T={T} id="overview-prop19" defaultOpen={true} action="Full Analysis →" onAction={() => setTab("prop19")}>
+            <OCard T={T}>
+              {/* Hero: Monthly savings */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: T.textTertiary }}>Monthly Property-Tax Savings</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: MONO, color: (prop19.monthlySavings > 0) ? T.green : T.textSecondary, letterSpacing: "-0.03em" }}>
+                    {fmt(prop19.monthlySavings || 0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub: Annual + 30-year */}
+              <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, fontFamily: FONT }}>
+                {fmt(prop19.annualSavings || 0)}/yr · {fmt(prop19.thirtyYearSavings || 0)} over 30 yrs
+              </div>
+
+              {/* Warning badge if window exceeds 730 days */}
+              {prop19SaleDate && prop19PurchaseDate && (() => {
+                const sd = new Date(prop19SaleDate);
+                const pd = new Date(prop19PurchaseDate);
+                const diffDays = Math.abs(pd - sd) / (1000 * 60 * 60 * 24);
+                return diffDays > 730 ? (
+                  <div style={{ background: `${T.orange}15`, borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: T.orange }}>⚠</span>
+                    <span style={{ fontSize: 11, color: T.orange }}>Window exceeds 730 days ({Math.round(diffDays)} days)</span>
+                  </div>
+                ) : null;
+              })()}
+            </OCard>
+          </CollapsibleSection>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════
+          SECTION 11: NET PROCEEDS (CONDITIONAL)
           ═══════════════════════════════════════ */}
       {hasSellProperty && sellPrice > 0 && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Net Proceeds of Sale" T={T} action="Edit Sale →" onAction={() => setTab("sell")}>
+          <CollapsibleSection title="Seller Net" T={T} id="overview-seller" action="Edit Sale →" onAction={() => setTab("sell")}>
             <OCard T={T} style={{ background: calc.sellNetAfterTax >= 0 ? `${T.green}08` : `${T.red}08` }}>
               <OMRow T={T} label="Sale Price" value={fmt(sellPrice)} bold />
               <OMRow T={T} label="Mortgage Payoff" value={`-${fmt(sellMortgagePayoff)}`} color={T.red} />
