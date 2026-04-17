@@ -26,12 +26,15 @@ export default function SetupContent({
     refiHasEscrow, setRefiHasEscrow, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths,
     refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid,
     refiHomeValue, setRefiHomeValue,
+    hideHero,
   }) {
 
   return (<>
- <div style={{ marginTop: 12 }}>
-  <Hero value={isRefi === null ? "New Loan" : isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
- </div>
+ {!hideHero && (
+  <div style={{ marginTop: 12 }}>
+   <Hero value={isRefi === null ? "New Loan" : isRefi ? "Refinance" : "Purchase"} label="Loan Setup" color={T.blue} sub={scenarioName} />
+  </div>
+ )}
 
  {/* Build Mode progress (Construction House) — shown when gameMode is on */}
  {gameMode && (

@@ -17,8 +17,28 @@ const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 /* ─── Collapsible section wrapper ─── */
-function CollapsibleSection({ title, T, defaultOpen = true, children, id }) {
+function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle }) {
   const [open, setOpen] = useState(defaultOpen);
+  if (heroStyle) {
+    return (
+      <div id={id}>
+        <div onClick={() => setOpen(!open)} style={{ cursor: "pointer", marginTop: 12, marginBottom: open ? 12 : 4, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <span style={{ fontSize: 28, lineHeight: "1", color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", marginTop: 10, flexShrink: 0 }}>▾</span>
+          <div>
+            <div style={{ fontSize: 54, fontWeight: 800, fontFamily: FONT, color: T.blue, letterSpacing: "-0.04em", lineHeight: 1.0 }}>
+              {title}
+            </div>
+            {subtitle && (
+              <div style={{ fontSize: 14, fontWeight: 500, color: T.textTertiary, fontFamily: FONT, marginTop: 4 }}>
+                {subtitle}
+              </div>
+            )}
+          </div>
+        </div>
+        {open && children}
+      </div>
+    );
+  }
   return (
     <div id={id}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28, marginBottom: open ? 12 : 4, paddingLeft: 4 }}>
@@ -93,8 +113,15 @@ export default function OverviewTab(props) {
       {/* ═══════════════════════════════════════
           SECTION 1: QUICK START (full Setup tab)
           ═══════════════════════════════════════ */}
-      <CollapsibleSection title="Quick Start" T={T} id="overview-setup" defaultOpen={true}>
-        <SetupContent {...props} />
+      <CollapsibleSection
+        title="Quick Start"
+        subtitle={`Loan Setup${props.scenarioName ? ` · ${props.scenarioName}` : ""}`}
+        T={T}
+        id="overview-setup"
+        defaultOpen={true}
+        heroStyle={true}
+      >
+        <SetupContent {...props} hideHero={true} />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
