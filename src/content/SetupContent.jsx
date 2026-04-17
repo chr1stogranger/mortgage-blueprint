@@ -67,7 +67,7 @@ export default function SetupContent({
  )}
 
  {/* ── Quick Start — 2-column on desktop ── */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch" } : {}}>
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" } : {}}>
 
   {/* ── LEFT COLUMN: Profile & Location ── */}
   <div>
@@ -243,14 +243,10 @@ export default function SetupContent({
     </div>
    )}
 
-   {/* Flex spacer — on desktop, pushes Modules to the bottom so it
-       bottom-aligns with the left column's Filing Status card */}
-   {isDesktop && <div style={{ flex: 1, minHeight: 10 }} />}
-
    {/* ── Modules — full-width toggles with descriptions ── */}
    {/* In guided mode, skip modules when FTHB = No (available in Settings) */}
    {!(skillLevel === "guided" && firstTimeBuyer === false) && (
-   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: isDesktop ? 0 : 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s" }}>
+   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s" }}>
     <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
     {/* First-Time Homebuyer — Yes/No (purchase only) */}
     {!isRefi && (
