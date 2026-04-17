@@ -6880,110 +6880,154 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ OVERVIEW ═══ */}
 {tab === "overview" && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
-  <OverviewTab
-   salesPrice={salesPrice} setSalesPrice={setSalesPrice}
-   downPct={downPct} setDownPct={setDownPct}
-   downMode={downMode} setDownMode={setDownMode}
-   rate={rate} setRate={setRate}
-   term={term} setTerm={setTerm}
-   loanType={loanType} setLoanType={setLoanType}
-   propType={propType} setPropType={setPropType}
-   loanPurpose={loanPurpose} setLoanPurpose={setLoanPurpose}
-   propertyState={propertyState} setPropertyState={setPropertyState}
-   city={city} setCity={setCity}
-   propertyZip={propertyZip} setPropertyZip={setPropertyZip}
-   annualIns={annualIns} setAnnualIns={setAnnualIns}
-   hoa={hoa} setHoa={setHoa}
-   includeEscrow={includeEscrow} setIncludeEscrow={setIncludeEscrow}
-   closingMonth={closingMonth} closingDay={closingDay}
-   isRefi={isRefi}
-   firstTimeBuyer={firstTimeBuyer} setFirstTimeBuyer={setFirstTimeBuyer}
-   creditScore={creditScore} setCreditScore={setCreditScore}
-   married={married} setMarried={setMarried}
-   taxState={taxState}
-   darkMode={darkMode}
-   isDesktop={isDesktop}
-   T={T}
-   calc={calc}
-   paySegs={paySegs}
-   allGood={allGood} someGood={someGood}
-   purchPillarCount={purchPillarCount} refiPillarCount={refiPillarCount}
-   dpOk={dpOk} refiLtvCheck={refiLtvCheck}
-   refiPurpose={refiPurpose}
-   debts={debts} debtFree={debtFree}
-   ownsProperties={ownsProperties} setOwnsProperties={setOwnsProperties}
-   showInvestor={showInvestor} setShowInvestor={setShowInvestor}
-   showRentVsBuy={showRentVsBuy} setShowRentVsBuy={setShowRentVsBuy}
-   incomes={incomes}
-   assets={assets}
-   payExtra={payExtra} setPayExtra={setPayExtra}
-   extraPayment={extraPayment} setExtraPayment={setExtraPayment}
-   appreciationRate={appreciationRate} setAppreciationRate={setAppreciationRate}
-   hasSellProperty={hasSellProperty} setHasSellProperty={setHasSellProperty}
-   sellPrice={sellPrice} sellMortgagePayoff={sellMortgagePayoff}
-   setTab={setTab}
-   PayRing={PayRing} StopLight={StopLight} AmortChart={AmortChart} Progress={Progress}
-   Inp={Inp} Sel={Sel} SearchSelect={SearchSelect} Note={Note} InfoTip={InfoTip}
-   liveRates={liveRates} fetchRates={fetchRates} ratesLoading={ratesLoading} ratesError={ratesError} fredApiKey={fredApiKey}
-   loanTypes={LOAN_TYPES} propTypes={PROP_TYPES} closingMonths={[1,2,3,4,5,6,7,8,9,10,11,12]}
-   scenarioName={scenarioName}
-   scenarioList={scenarioList} switchScenario={switchScenario} onCompare={() => setTab("compare")}
-   isCloud={isCloud} auth={auth}
-   isBorrower={isBorrower}
-   reos={reos}
-   /* Individual fee state for IFW-style breakdown */
-   underwritingFee={underwritingFee}
-   processingFee={processingFee}
-   appraisalFee={appraisalFee}
-   creditReportFee={creditReportFee}
-   floodCertFee={floodCertFee}
-   mersFee={mersFee}
-   taxServiceFee={taxServiceFee}
-   titleInsurance={titleInsurance}
-   titleSearch={titleSearch}
-   settlementFee={settlementFee}
-   escrowFee={escrowFee}
-   recordingFee={recordingFee}
-   lenderCredit={lenderCredit}
-   sellerCredit={sellerCredit}
-   realtorCredit={realtorCredit}
-   emd={emd}
-   discountPts={discountPts}
-   payoffAtClosing={calc.payoffAtClosing}
-   /* Section H: Other Costs */
-   ownersTitleIns={ownersTitleIns} homeWarranty={homeWarranty}
-   hoaTransferFee={hoaTransferFee} buyerPaysComm={buyerPaysComm} buyerCommPct={buyerCommPct}
-   /* Property tax calculator */
-   propTaxMode={propTaxMode} setPropTaxMode={setPropTaxMode}
-   taxBaseRateOverride={taxBaseRateOverride} setTaxBaseRateOverride={setTaxBaseRateOverride}
-   taxExemptionOverride={taxExemptionOverride} setTaxExemptionOverride={setTaxExemptionOverride}
-   fixedAssessments={fixedAssessments} setFixedAssessments={setFixedAssessments}
-   taxRateLocked={taxRateLocked} setTaxRateLocked={setTaxRateLocked}
-   taxExemptionLocked={taxExemptionLocked} setTaxExemptionLocked={setTaxExemptionLocked}
+  <OverviewTab {...{
+   /* Core */
+   T, isDesktop, darkMode, calc, fmt, fmt2, pct, paySegs, changedFields,
+   setTab, isCloud, auth, isBorrower,
+   /* Scenario */
+   scenarioName, scenarioList, switchScenario, onCompare: () => setTab("compare"),
+   /* Skill / guided */
+   skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'),
+   sheetContent, setSheetContent,
+   isPulse, markTouched, guideField, guideTouched,
+   gameMode, houseStagesComplete, TAB_PROGRESSION, ConstructionHouse, completedTabs, isTabFieldsComplete,
+   SKILL_PRESETS, HOUSE_STAGES, showCompareHint, setShowCompareHint,
+   /* Setup / core loan */
+   salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
+   rate, setRate, term, setTerm, loanType, setLoanType,
+   propType, setPropType, propTypes: PROP_TYPES, PROP_TYPES, UNIT_COUNT,
+   loanPurpose, setLoanPurpose, loanTypes: LOAN_TYPES, LOAN_TYPES,
+   propertyState, setPropertyState, propertyCounty, city, setCity, propertyZip, setPropertyZip,
+   annualIns, setAnnualIns, hoa, setHoa,
+   includeEscrow, setIncludeEscrow,
+   closingMonth, setClosingMonth, closingDay, setClosingDay,
+   closingMonths: [1,2,3,4,5,6,7,8,9,10,11,12],
+   isRefi, setIsRefi,
+   firstTimeBuyer, setFirstTimeBuyer, creditScore, setCreditScore,
+   married, setMarried, taxState, setTaxState,
+   propertyHomeValue, setPropertyHomeValue,
+   currentLoanBalance, setCurrentLoanBalance, currentRate, setCurrentRate,
+   yearsOwnedHome, setYearsOwnedHome,
+   refiPurpose, setRefiPurpose, refiCurrentRate, refiCashOut,
+   refiNewLoanAmtOverride, setRefiNewLoanAmtOverride,
+   /* Qualification */
+   allGood, someGood, purchPillarCount, refiPillarCount, dpOk, refiLtvCheck,
+   affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType,
+   affordTargetDTI, setAffordTargetDTI, confirmAffordApply, setConfirmAffordApply,
+   handlePillarClick, isTabUnlocked, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch,
+   getHighBalLimit,
+   /* Debts */
+   debts, debtFree, setDebtFree,
+   ownsProperties, setOwnsProperties, reos, setReos,
+   syncDebtBalance, syncDebtPayment,
+   DEBT_TYPES, PAYOFF_OPTIONS,
+   /* Modules */
+   showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy,
+   showProp19, setShowProp19,
+   hasSellProperty, setHasSellProperty,
+   /* Income */
+   incomes, addIncome, updateIncome, removeIncome,
+   otherIncome, setOtherIncome,
+   VARIABLE_PAY_TYPES, PAY_TYPES,
+   subjectRentalIncome, setSubjectRentalIncome,
+   /* Assets */
+   assets, addAsset, updateAsset, removeAsset,
+   ASSET_TYPES, RESERVE_FACTORS,
+   /* Amortization */
+   payExtra, setPayExtra, extraPayment, setExtraPayment,
+   amortView, setAmortView,
+   appreciationRate, setAppreciationRate,
+   /* Sell */
+   sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff,
+   sellLinkedReoId, setSellLinkedReoId,
+   sellCommission, setSellCommission,
+   sellTransferTaxCity, setSellTransferTaxCity,
+   sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther,
+   sellSellerCredit, setSellSellerCredit,
+   sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements,
+   sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes,
+   TT_CITY_NAMES,
+   /* Fees for IFW-style costs */
+   underwritingFee, setUnderwritingFee, processingFee, setProcessingFee,
+   discountPts, setDiscountPts,
+   appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee,
+   floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee,
+   titleInsurance, setTitleInsurance, titleSearch, setTitleSearch,
+   settlementFee, setSettlementFee, escrowFee, setEscrowFee,
+   transferTaxCity, setTransferTaxCity,
+   recordingFee, setRecordingFee,
+   lenderCredit, setLenderCredit, sellerCredit, setSellerCredit,
+   realtorCredit, setRealtorCredit, emd, setEmd,
+   ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty,
+   hoaTransferFee, setHoaTransferFee,
+   buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct,
+   payoffAtClosing: calc.payoffAtClosing,
+   /* Property tax */
+   propTaxMode, setPropTaxMode,
+   taxBaseRateOverride, setTaxBaseRateOverride,
+   taxExemptionOverride, setTaxExemptionOverride,
+   fixedAssessments, setFixedAssessments,
+   taxRateLocked, setTaxRateLocked,
+   taxExemptionLocked, setTaxExemptionLocked,
+   propTaxExpanded, setPropTaxExpanded,
+   propTaxCustomize, setPropTaxCustomize,
+   STATE_PROPERTY_TAX_RATES, CITY_TAX_RATES,
    /* PMI pill */
-   pmiRateLocked={pmiRateLocked} setPmiRateLocked={setPmiRateLocked}
-   pmiRateOverride={pmiRateOverride} setPmiRateOverride={setPmiRateOverride}
-   /* VA Funding Fee pill */
-   vaUsage={vaUsage}
-   vaFundingFeeLocked={vaFundingFeeLocked} setVaFundingFeeLocked={setVaFundingFeeLocked}
-   vaFundingFeeOverride={vaFundingFeeOverride} setVaFundingFeeOverride={setVaFundingFeeOverride}
-   /* One-Screen Architecture */
-   skillLevel={skillLevel}
-   onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
-   sheetContent={sheetContent} setSheetContent={setSheetContent}
-   /* Prop 19 props */
-   showProp19={showProp19}
-   prop19={prop19}
-   prop19SaleDate={prop19SaleDate}
-   prop19PurchaseDate={prop19PurchaseDate}
-   /* Rent vs Buy props */
-   monthlyRent={rbCurrentRent}
-   rentGrowth={rbRentGrowth}
-   investReturn={rbInvestReturn}
-   rbCalc={rbCalc}
-   /* Investor props */
-   invCalc={invCalc}
-  />
+   pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride,
+   /* VA Funding Fee */
+   vaUsage, setVaUsage, VA_USAGE,
+   vaFundingFeeLocked, setVaFundingFeeLocked,
+   vaFundingFeeOverride, setVaFundingFeeOverride,
+   /* Tax savings */
+   FILING_STATUSES, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION,
+   showFedBrackets, setShowFedBrackets,
+   showStateBrackets, setShowStateBrackets,
+   /* Prop 19 */
+   prop19, prop19Eligibility, setProp19Eligibility,
+   prop19OldTaxableValue, setProp19OldTaxableValue,
+   prop19OldSalePrice, setProp19OldSalePrice,
+   prop19SaleDate, setProp19SaleDate,
+   prop19PurchaseDate, setProp19PurchaseDate,
+   prop19TransfersUsed, setProp19TransfersUsed,
+   prop19RateOverride, setProp19RateOverride,
+   /* Rent vs Buy */
+   rbCalc, rbCurrentRent, setRbCurrentRent,
+   rbRentGrowth, setRbRentGrowth,
+   rbInvestReturn, setRbInvestReturn,
+   /* Investor */
+   invCalc, invMonthlyRent, setInvMonthlyRent,
+   invVacancy, setInvVacancy, invRentGrowth, setInvRentGrowth,
+   invMgmt, setInvMgmt, invMaintPct, setInvMaintPct, invCapEx, setInvCapEx,
+   invHoldYears, setInvHoldYears,
+   invSellerComm, setInvSellerComm, invSellClosing, setInvSellClosing,
+   /* Refi (for SetupContent) */
+   refiCurrentLoanType, setRefiCurrentLoanType,
+   refiOriginalAmount, setRefiOriginalAmount,
+   refiOriginalTerm, setRefiOriginalTerm, setRefiCurrentRate,
+   refiClosedDate, setRefiClosedDate,
+   refiCurrentBalance, setRefiCurrentBalance,
+   refiRemainingMonths, setRefiRemainingMonths,
+   refiCurrentPayment, setRefiCurrentPayment,
+   refiAnnualTax, setRefiAnnualTax,
+   refiAnnualIns, setRefiAnnualIns,
+   refiCurrentEscrow, setRefiCurrentEscrow,
+   refiHasEscrow, setRefiHasEscrow,
+   refiEscrowBalance, setRefiEscrowBalance,
+   refiSkipMonths, setRefiSkipMonths,
+   refiCurrentMI, setRefiCurrentMI, setRefiCashOut,
+   refiExtraPaid, setRefiExtraPaid,
+   refiHomeValue, setRefiHomeValue,
+   /* Live rates */
+   liveRates, fetchRates, ratesLoading, ratesError, fredApiKey,
+   /* Helper lookups */
+   getTTCitiesForState, getTTForCity, lookupZip,
+   /* Constants */
+   STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, COUNTY_AMI,
+   /* Shared UI components */
+   PayRing, StopLight, AmortChart, Progress, Hero, Card, Sec, MRow,
+   Inp, Sel, TextInp, Note, SearchSelect, InfoTip, Icon, Tab, FieldLabel,
+   GuidedNextButton,
+  }} />
  </Suspense>
 )}
 {/* ═══ BOTTOM SHEETS (One-Screen Architecture) ═══ */}
