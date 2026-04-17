@@ -67,7 +67,7 @@ export default function CalculatorContent({
  {/* ROW 1 — 6-pill quick-edit grid (Zip / PropType / Occupancy / Rate / Term / LoanType) */}
  {/* ─────────────────────────────────────────────────────────────── */}
  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginTop: 20, marginBottom: 16 }}>
-  <Inp label="Zip Code" value={propertyZip} onChange={v => setPropertyZip(String(v).replace(/[^0-9]/g, "").slice(0, 5))} prefix="" suffix="" max={99999} step={1} sm req />
+  <Inp label="Zip Code" value={propertyZip || ""} onChange={v => setPropertyZip(String(v).replace(/[^0-9]/g, "").slice(0, 5))} type="text" placeholder="94501" sm req />
   <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
    <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} sm req />
   </div>
