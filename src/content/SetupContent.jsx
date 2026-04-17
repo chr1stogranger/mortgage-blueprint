@@ -170,10 +170,10 @@ export default function SetupContent({
 
   {/* ── RIGHT COLUMN: Numbers, Estimate & Options ── */}
   <div>
-   <Card>
+   <Card pad={14}>
     {/* 5+6) Price & Down Payment — side by side on desktop, purchase only */}
     {!isRefi && (
-    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 } : { marginBottom: 10 }}>
+    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } : {}}>
      <div data-field="price-input" className={isPulse("price-input")} onClick={() => markTouched("price-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
       <Inp label="Sales Price" value={salesPrice} onChange={v => { setSalesPrice(v); markTouched("price-input"); }} max={100000000} req />
      </div>
@@ -192,7 +192,7 @@ export default function SetupContent({
       ) : (
        <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
       )}
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: -8, marginBottom: 4 }}>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: -8 }}>
        {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
       </div>
      </div>
@@ -319,8 +319,6 @@ export default function SetupContent({
      </div>
     </div>
     )}
-    {/* Security note */}
-    <div style={{ padding: "8px 14px", borderTop: `1px solid ${T.separator}`, fontSize: 10, color: T.textTertiary, lineHeight: 1.5 }}>Your data is stored locally on this device. No account required.</div>
    </div>
    )}
   </div>{/* end right column */}
