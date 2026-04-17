@@ -200,20 +200,6 @@ export default function SetupContent({
     )}
     {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
 
-    {/* 7) First-Time Homebuyer — compact inline */}
-    {!isRefi && (
-    <div data-field="fthb" className={isPulse("fthb")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s", marginBottom: 6 }}>
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary }}>First-Time Homebuyer?</span>
-      <div style={{ display: "flex", gap: 4 }}>
-       <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === true ? `${T.green}22` : T.inputBg, border: firstTimeBuyer === true ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === true ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
-       <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }} style={{ padding: "5px 12px", background: firstTimeBuyer === false ? `${T.blue}22` : T.inputBg, border: firstTimeBuyer === false ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === false ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
-      </div>
-     </div>
-     {firstTimeBuyer && <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 4 }}>FTHB unlocked — 3% down conventional available</div>}
-    </div>
-    )}
-
     {/* Refi: show placeholder when right column would be empty */}
     {isRefi && (
      <div style={{ textAlign: "center", padding: "16px", color: T.textTertiary, fontSize: 12 }}>
@@ -261,67 +247,80 @@ export default function SetupContent({
    {/* In guided mode, skip modules when FTHB = No (available in Settings) */}
    {!(skillLevel === "guided" && firstTimeBuyer === false) && (
    <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s" }}>
-    <div style={{ padding: "10px 14px 6px", fontSize: 13, fontWeight: 700, color: T.text }}>Modules</div>
-    {/* Own Properties */}
-    <div onClick={() => { setOwnsProperties(!ownsProperties); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
+    {/* First-Time Homebuyer — Yes/No (purchase only) */}
+    {!isRefi && (
+    <div data-field="fthb" className={isPulse("fthb")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Own Properties?</div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show REO (Real Estate Owned) tab</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>First-Time Homebuyer?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{firstTimeBuyer === true ? "FTHB unlocked — 3% down conventional available" : "Unlocks first-time buyer loan programs"}</div>
      </div>
-     <div style={{ width: 44, height: 24, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+      <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "4px 10px", background: firstTimeBuyer === true ? `${T.green}22` : T.inputBg, border: firstTimeBuyer === true ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === true ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
+      <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }} style={{ padding: "4px 10px", background: firstTimeBuyer === false ? `${T.blue}22` : T.inputBg, border: firstTimeBuyer === false ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === false ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
+     </div>
+    </div>
+    )}
+    {/* Own Properties */}
+    <div onClick={() => { setOwnsProperties(!ownsProperties); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Own Properties?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show REO (Real Estate Owned) tab</div>
+     </div>
+     <div style={{ width: 38, height: 20, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
      </div>
     </div>
     {/* Selling a Property */}
     {!isRefi && (
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setHasSellProperty(!hasSellProperty); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Selling a Property?</div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Seller Net Sheet tab</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Selling a Property?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Seller Net Sheet tab</div>
      </div>
-     <div style={{ width: 44, height: 24, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     <div style={{ width: 38, height: 20, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
      </div>
     </div>
     )}
     {/* Investment Analysis */}
     {!isRefi && (
-    <div onClick={() => { setShowInvestor(!showInvestor); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setShowInvestor(!showInvestor); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Investor tab with ROI metrics</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Investor tab with ROI metrics</div>
      </div>
-     <div style={{ width: 44, height: 24, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     <div style={{ width: 38, height: 20, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
      </div>
     </div>
     )}
     {/* Buy vs Rent — NEW MODULE */}
     {!isRefi && (
-    <div onClick={() => { setShowRentVsBuy(!showRentVsBuy); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setShowRentVsBuy(!showRentVsBuy); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Buy vs Rent?</div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Show the Rent vs Buy wealth comparison tab</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Buy vs Rent?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Rent vs Buy wealth comparison tab</div>
      </div>
-     <div style={{ width: 44, height: 24, borderRadius: 99, background: showRentVsBuy ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showRentVsBuy ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     <div style={{ width: 38, height: 20, borderRadius: 99, background: showRentVsBuy ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showRentVsBuy ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
      </div>
     </div>
     )}
     {/* California Prop 19 Transfer — CA purchases only */}
     {propertyState === "California" && !isRefi && (
-    <div onClick={() => { setShowProp19(!showProp19); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div onClick={() => { setShowProp19(!showProp19); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>California Prop 19?</div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Transfer your property tax base (55+, disabled, or disaster)</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>California Prop 19?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Transfer your property tax base (55+, disabled, or disaster)</div>
      </div>
-     <div style={{ width: 44, height: 24, borderRadius: 99, background: showProp19 ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showProp19 ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     <div style={{ width: 38, height: 20, borderRadius: 99, background: showProp19 ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showProp19 ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
      </div>
     </div>
     )}
     {/* Security note */}
-    <div style={{ padding: "10px 14px", borderTop: `1px solid ${T.separator}`, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>Your data is stored locally on this device. No account required.</div>
+    <div style={{ padding: "8px 14px", borderTop: `1px solid ${T.separator}`, fontSize: 10, color: T.textTertiary, lineHeight: 1.5 }}>Your data is stored locally on this device. No account required.</div>
    </div>
    )}
   </div>{/* end right column */}
