@@ -2089,7 +2089,26 @@ export default function OverviewTab({
       )}
 
       {/* ═══════════════════════════════════════
-          SECTION 10: PROP 19 (CONDITIONAL - CA ONLY)
+          SECTION 10: SELLER NET (CONDITIONAL)
+          ═══════════════════════════════════════ */}
+      {hasSellProperty && sellPrice > 0 && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Seller Net" T={T} id="overview-seller" action="Edit Sale →" onAction={() => setTab("sell")}>
+            <OCard T={T} style={{ background: calc.sellNetAfterTax >= 0 ? `${T.green}08` : `${T.red}08` }}>
+              <OMRow T={T} label="Sale Price" value={fmt(sellPrice)} bold />
+              <OMRow T={T} label="Mortgage Payoff" value={`-${fmt(sellMortgagePayoff)}`} color={T.red} />
+              <OMRow T={T} label="Total Costs" value={`-${fmt(calc.sellTotalCosts)}`} color={T.red} />
+              <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+                <OMRow T={T} label="Net After Tax" value={fmt(calc.sellNetAfterTax)} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} bold />
+              </div>
+            </OCard>
+          </CollapsibleSection>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════
+          SECTION 11: PROP 19 (CONDITIONAL - CA ONLY)
           ═══════════════════════════════════════ */}
       {showProp19 && propertyState === "California" && !isRefi && prop19 && (
         <>
@@ -2118,30 +2137,11 @@ export default function OverviewTab({
                 const diffDays = Math.abs(pd - sd) / (1000 * 60 * 60 * 24);
                 return diffDays > 730 ? (
                   <div style={{ background: `${T.orange}15`, borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: T.orange }}>⚠</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: T.orange }}>!</span>
                     <span style={{ fontSize: 11, color: T.orange }}>Window exceeds 730 days ({Math.round(diffDays)} days)</span>
                   </div>
                 ) : null;
               })()}
-            </OCard>
-          </CollapsibleSection>
-        </>
-      )}
-
-      {/* ═══════════════════════════════════════
-          SECTION 11: NET PROCEEDS (CONDITIONAL)
-          ═══════════════════════════════════════ */}
-      {hasSellProperty && sellPrice > 0 && (
-        <>
-          <SectionDivider T={T} />
-          <CollapsibleSection title="Seller Net" T={T} id="overview-seller" action="Edit Sale →" onAction={() => setTab("sell")}>
-            <OCard T={T} style={{ background: calc.sellNetAfterTax >= 0 ? `${T.green}08` : `${T.red}08` }}>
-              <OMRow T={T} label="Sale Price" value={fmt(sellPrice)} bold />
-              <OMRow T={T} label="Mortgage Payoff" value={`-${fmt(sellMortgagePayoff)}`} color={T.red} />
-              <OMRow T={T} label="Total Costs" value={`-${fmt(calc.sellTotalCosts)}`} color={T.red} />
-              <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-                <OMRow T={T} label="Net After Tax" value={fmt(calc.sellNetAfterTax)} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} bold />
-              </div>
             </OCard>
           </CollapsibleSection>
         </>
