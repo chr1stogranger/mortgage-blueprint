@@ -415,20 +415,7 @@ export default function CalculatorContent({
   </div>
  )}
 
- {/* State / City for property tax */}
- <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
-  <Sel label="State (property tax)" value={propertyState} onChange={v => { setPropertyState(v); if (v !== "California") setCity(""); }} options={STATE_NAMES_PROP} req />
-  {propertyState === "California" ? (
-   <SearchSelect label="City (tax rate)" value={city} onChange={setCity} options={CITY_NAMES} />
-  ) : (
-   <SearchSelect label="City" value={city} onChange={setCity} options={STATE_CITIES[propertyState] || []} />
-  )}
- </div>
- {propertyState !== "California" && propTaxMode === "auto" && (
-  <div style={{ background: `${T.blue}08`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, marginTop: -6 }}>
-   <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Using {propertyState} average effective rate of {((STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102) * 100).toFixed(2)}%. For a precise rate, check your county assessor.</div>
-  </div>
- )}
+ {/* State / City for property tax are set on the Setup tab — removed from Monthly Payment (redundant). */}
 
  {/* ─────────────────────────────────────────────────────────────── */}
  {/* ROW 4 — 2-col: Property Tax expandable | PMI expandable */}
