@@ -134,7 +134,7 @@ export default function UnifiedHeader({
         paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
         gap: isDesktop ? 16 : 8,
         minHeight: isDesktop ? 44 : 40,
-        position: !isDesktop ? "relative" : undefined,
+        position: "relative",
       }}>
         {/* Left: Logo + Skill Badge + Sync */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
