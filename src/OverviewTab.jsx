@@ -53,7 +53,6 @@ export default function OverviewTab(props) {
     showProp19, prop19, sellPrice,
   } = props;
 
-  const [showModules, setShowModules] = useState(false);
   const isGuided = skillLevel === "guided";
 
   return (
@@ -97,34 +96,6 @@ export default function OverviewTab(props) {
       <CollapsibleSection title="Quick Start" T={T} id="overview-setup" defaultOpen={true}>
         <SetupContent {...props} />
       </CollapsibleSection>
-
-      {/* Module Toggles — collapsible "Additional Modules" */}
-      <div style={{ marginTop: 14 }}>
-        <button onClick={() => setShowModules(!showModules)} style={{ background: 'none', border: 'none', color: T.textSecondary, fontFamily: MONO, fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px', cursor: 'pointer', padding: '6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ display: 'inline-block', transform: showModules ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>{'\u25B8'}</span>
-          Additional Modules
-        </button>
-        {showModules && (
-          <div style={{ marginTop: 8, padding: 14, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.cardBorder}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { label: 'Own Properties?', desc: 'Show Real Estate Owned analysis', val: ownsProperties, set: setOwnsProperties },
-              { label: 'Selling a Property?', desc: 'Show Seller Net Proceeds calculator', val: hasSellProperty, set: setHasSellProperty },
-              { label: 'Investment Analysis?', desc: 'Show NOI, Cap Rate, DSCR metrics', val: showInvestor, set: setShowInvestor },
-              ...(!isRefi ? [{ label: 'Buy vs Rent?', desc: 'Compare buying vs renting over time', val: showRentVsBuy, set: setShowRentVsBuy }] : []),
-            ].map(m => (
-              <div key={m.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{m.label}</div>
-                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>{m.desc}</div>
-                </div>
-                <button onClick={() => m.set(!m.val)} style={{ width: 40, height: 22, borderRadius: 9999, border: 'none', background: m.val ? T.blue : T.separator, position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: m.val ? 20 : 2, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* ═══════════════════════════════════════
           SECTION 2: MONTHLY PAYMENT (Calculator)
