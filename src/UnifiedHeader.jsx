@@ -39,7 +39,7 @@ export default function UnifiedHeader({
   borrowerScenarios, borrowerScenariosLoading,
   BorrowerPicker, borrowerPickerCallbacks,
   /* Skill level */
-  skillLevel,
+  skillLevel, onToggleSkillLevel,
   /* Mobile tab bar */
   mobileTabBar,
 }) {
@@ -145,11 +145,11 @@ export default function UnifiedHeader({
             whiteSpace: "nowrap",
           }}>Blueprint</span>
 
-          {/* Experience badge */}
+          {/* Experience badge — tap to toggle between Guided ↔ Standard */}
           {skillLevel && (
             <div
-              onClick={() => setTab('settings')}
-              title="Change in Settings"
+              onClick={onToggleSkillLevel}
+              title={skillLevel === 'guided' || skillLevel === 'beginner' ? 'Switch to Standard mode' : 'Switch to Guided mode'}
               style={{
                 padding: '3px 8px',
                 borderRadius: 9999,
@@ -162,9 +162,14 @@ export default function UnifiedHeader({
                 color: T.blue,
                 whiteSpace: 'nowrap',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transition: 'all 0.2s',
               }}
             >
               {skillLevel === 'guided' || skillLevel === 'beginner' ? 'GUIDED' : 'STANDARD'}
+              <span style={{ fontSize: 8, opacity: 0.6 }}>⇄</span>
             </div>
           )}
           {/* Sync indicators — hidden on mobile to avoid visual overlap with centered badge */}

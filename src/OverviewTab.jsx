@@ -949,7 +949,7 @@ export default function OverviewTab({
   vaFundingFeeLocked, setVaFundingFeeLocked,
   vaFundingFeeOverride, setVaFundingFeeOverride,
   /* One-Screen Architecture: guided mode + bottom sheets */
-  skillLevel,
+  skillLevel, onToggleSkillLevel,
   sheetContent, setSheetContent,
 }) {
   const qualRef = useRef(null);
@@ -1933,7 +1933,7 @@ export default function OverviewTab({
       {/* ═══════════════════════════════════════
           BOTTOM CTA
           ═══════════════════════════════════════ */}
-      <div style={{ marginTop: 32, textAlign: "center" }}>
+      <div style={{ marginTop: 32, textAlign: "center", paddingBottom: 40 }}>
         <button onClick={() => setTab("summary")} style={{
           padding: "14px 28px",
           background: T.blue,
@@ -1951,6 +1951,32 @@ export default function OverviewTab({
         <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 8 }}>
           Email a branded summary to your client or realtor
         </div>
+
+        {/* Mode switch — especially important in guided mode where no tab bar is visible */}
+        {onToggleSkillLevel && (
+          <div style={{ marginTop: 24, paddingTop: 24, borderTop: `1px solid ${T.separator}` }}>
+            <button onClick={onToggleSkillLevel} style={{
+              padding: "10px 20px",
+              background: "transparent",
+              border: `1px solid ${T.separator}`,
+              borderRadius: 99,
+              color: T.textSecondary,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: FONT,
+              transition: "all 0.2s",
+            }}>
+              {isGuided ? "Switch to Standard Mode →" : "Switch to Guided Mode →"}
+            </button>
+            <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6 }}>
+              {isGuided
+                ? "Unlock all tabs and sections for full control"
+                : "Step-by-step walkthrough for first-time homebuyers"
+              }
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

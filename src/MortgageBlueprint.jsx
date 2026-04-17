@@ -4136,6 +4136,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     privacyMode={privacyMode} setPrivacyMode={setPrivacyMode}
     isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}
     skillLevel={skillLevel}
+    onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
     borrowerList={borrowerList} activeBorrower={activeBorrower}
@@ -6741,6 +6742,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    vaFundingFeeOverride={vaFundingFeeOverride} setVaFundingFeeOverride={setVaFundingFeeOverride}
    /* One-Screen Architecture */
    skillLevel={skillLevel}
+   onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
    sheetContent={sheetContent} setSheetContent={setSheetContent}
   />
  </Suspense>
