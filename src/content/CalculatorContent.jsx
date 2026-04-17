@@ -135,7 +135,7 @@ export default function CalculatorContent({
   <div>
    {/* Donut */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 12 }}>
-    <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} />
+    <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
    </div>
 
    {/* Legend — small pills under the donut */}
