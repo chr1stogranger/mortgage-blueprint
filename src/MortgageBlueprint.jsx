@@ -969,6 +969,7 @@ const TOGGLE_DESCRIPTIONS = {
  ownsProperties: { on: "Opens the REO (Real Estate Owned) tab to track existing properties, rental income, and reserve requirements.", off: "No existing properties to report." },
  hasSellProperty: { on: "Opens the Seller Net tab — calculates your net proceeds, capital gains tax, and how sale funds apply to your new purchase.", off: "Not selling a property as part of this transaction." },
  showInvestor: { on: "Opens the Investor tab with NOI, Cap Rate, Cash-on-Cash, DSCR, and IRR analysis for rental properties.", off: "Standard primary/second home analysis only." },
+ showProp19: { on: "Opens the Prop 19 tab — estimate your transferred property-tax base if you're 55+, disabled, or a disaster victim buying a replacement home in California.", off: "Standard full-reassessment property tax only." },
 };
 
 // ── Construction House SVG — Cape Cod Style ──
@@ -1569,6 +1570,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [realtorName, setRealtorName] = useState("");
  const [reos, setReos] = useState([]);
  const [showInvestor, setShowInvestor] = useState(false);
+ // ── Prop 19 Transfer state (CA only) ──
+ const [showProp19, setShowProp19] = useState(false);
+ const [prop19Eligibility, setProp19Eligibility] = useState("age55"); // "age55" | "disabled" | "disaster"
+ const [prop19OldTaxableValue, setProp19OldTaxableValue] = useState(0);
+ const [prop19OldSalePrice, setProp19OldSalePrice] = useState(0);
+ const [prop19TransfersUsed, setProp19TransfersUsed] = useState(0);
+ const [prop19SaleDate, setProp19SaleDate] = useState("");
+ const [prop19PurchaseDate, setProp19PurchaseDate] = useState("");
+ const [prop19RateOverride, setProp19RateOverride] = useState(0);
  const [showRentVsBuy, setShowRentVsBuy] = useState(false);
  const [invMonthlyRent, setInvMonthlyRent] = useState(4500);
  const [invVacancy, setInvVacancy] = useState(5);
@@ -1707,6 +1717,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
   showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
+  showProp19, prop19Eligibility, prop19OldTaxableValue, prop19OldSalePrice, prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate, prop19RateOverride,
   darkMode, themeMode,
  });
  const loadState = (s) => {
@@ -1860,6 +1871,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.rbCurrentRent !== undefined) setRbCurrentRent(s.rbCurrentRent);
   if (s.rbRentGrowth !== undefined) setRbRentGrowth(s.rbRentGrowth);
   if (s.rbInvestReturn !== undefined) setRbInvestReturn(s.rbInvestReturn);
+  // Prop 19
+  if (s.showProp19 !== undefined) setShowProp19(s.showProp19);
+  if (s.prop19Eligibility) setProp19Eligibility(s.prop19Eligibility);
+  if (s.prop19OldTaxableValue !== undefined) setProp19OldTaxableValue(s.prop19OldTaxableValue);
+  if (s.prop19OldSalePrice !== undefined) setProp19OldSalePrice(s.prop19OldSalePrice);
+  if (s.prop19TransfersUsed !== undefined) setProp19TransfersUsed(s.prop19TransfersUsed);
+  if (s.prop19SaleDate !== undefined) setProp19SaleDate(s.prop19SaleDate);
+  if (s.prop19PurchaseDate !== undefined) setProp19PurchaseDate(s.prop19PurchaseDate);
+  if (s.prop19RateOverride !== undefined) setProp19RateOverride(s.prop19RateOverride);
  };
  // Wire getState/loadState into the sync hook refs
  getStateRef.current = getState;
@@ -2074,6 +2094,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setSellerCredit(0); setRealtorCredit(0); setEmd(0); setDebts([]); setIncomes([]);
   setOtherIncome(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
   setHasSellProperty(false); setOwnsProperties(false); setIsRefi(null); setShowInvestor(false);
+  // Reset Prop 19
+  setShowProp19(false); setProp19Eligibility("age55"); setProp19OldTaxableValue(0); setProp19OldSalePrice(0);
+  setProp19TransfersUsed(0); setProp19SaleDate(""); setProp19PurchaseDate(""); setProp19RateOverride(0);
   // Reset completed tabs so new scenario starts fresh (fixes checkbox bug)
   saveCompletedTabs({});
   // Save the new scenario defaults immediately so Compare can read them
@@ -2081,7 +2104,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
    includeEscrow: true, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
    otherIncome: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
-   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, darkMode, themeMode };
+   hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, showProp19: false, darkMode, themeMode };
   try { await LS.set("scenario:" + name, JSON.stringify(defaults)); } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
   setNewScenarioName("");
@@ -2216,6 +2239,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Sync escrow toggles between purchase flow (includeEscrow) and refi flow (refiHasEscrow)
  React.useEffect(() => { setRefiHasEscrow(includeEscrow); }, [includeEscrow]);
  React.useEffect(() => { if (isRefi) setIncludeEscrow(refiHasEscrow); }, [refiHasEscrow]);
+ // Auto-disable Prop 19 tab when leaving California (Prop 19 is CA-specific)
+ React.useEffect(() => { if (propertyState !== "California" && showProp19) setShowProp19(false); }, [propertyState]);
+ // Auto-disable Prop 19 tab when switching to refinance (Prop 19 applies to purchases)
+ React.useEffect(() => { if (isRefi && showProp19) setShowProp19(false); }, [isRefi]);
  React.useEffect(() => {
   if (tab === "qualify") {
    setConfirmAffordApply(false);
@@ -2585,6 +2612,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setOwnsProperties(false);
    setHasSellProperty(false);
    setShowInvestor(false);
+   setShowProp19(false);
    // Guided users start in Setup
    setTab("setup");
    setGameMode(true);
@@ -2594,6 +2622,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setOwnsProperties(false);
    setHasSellProperty(false);
    setShowInvestor(false);
+   setShowProp19(false);
    // Standard users start in Overview
    setTab("overview");
    setGameMode(false);
@@ -3704,6 +3733,66 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   };
  }, [invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   salesPrice, appreciationRate, hoa, calc]);
+ // === CALIFORNIA PROP 19 TRANSFER CALCULATIONS ===
+ const prop19 = useMemo(() => {
+  // Replacement home = the main calc's subject property.
+  const replacementPrice = salesPrice;
+  // Auto county rate via the same chain the main calc uses.
+  const autoCountyRate = propertyState === "California"
+   ? (CITY_TAX_RATES[city] || 0.012)
+   : 0.012;
+  const countyRate = prop19RateOverride > 0
+   ? prop19RateOverride / 100
+   : autoCountyRate;
+  // Core Prop 19 rule:
+  //   If replacementPrice <= oldSalePrice: newTaxableValue = oldTaxableValue
+  //   Else:                                 newTaxableValue = oldTaxableValue + (replacementPrice - oldSalePrice)
+  const oldTV = Math.max(0, prop19OldTaxableValue);
+  const oldSP = Math.max(0, prop19OldSalePrice);
+  const sameOrLower = replacementPrice <= oldSP;
+  const newTaxableValue = sameOrLower
+   ? oldTV
+   : oldTV + (replacementPrice - oldSP);
+  // CA homeowner's exemption ($7,000) applies on primary residence.
+  const isPrimary = loanPurpose === "Purchase Primary";
+  const exemption = isPrimary ? 7000 : 0;
+  const netTaxable = Math.max(0, newTaxableValue - exemption);
+  const prop19Annual = netTaxable * countyRate;
+  const prop19Monthly = prop19Annual / 12;
+  // Compare vs. full reassessment (what they'd pay without Prop 19)
+  const fullReassessNet = Math.max(0, replacementPrice - exemption);
+  const fullReassessAnnual = fullReassessNet * countyRate;
+  const fullReassessMonthly = fullReassessAnnual / 12;
+  const annualSavings = fullReassessAnnual - prop19Annual;
+  const monthlySavings = annualSavings / 12;
+  const tenYearSavings = annualSavings * 10;
+  const thirtyYearSavings = annualSavings * 30;
+  // Eligibility sanity checks (informational — not gating)
+  const warnings = [];
+  if (replacementPrice <= 0) warnings.push("Enter a replacement home price in Setup.");
+  if (oldTV <= 0) warnings.push("Enter your original home's current taxable value.");
+  if (oldSP <= 0) warnings.push("Enter your original home's sale price.");
+  if (prop19TransfersUsed >= 3) warnings.push("Prop 19 allows a maximum of 3 transfers. You've used 3 already.");
+  if (propertyState !== "California") warnings.push("Prop 19 transfers only apply to California replacement homes.");
+  if (prop19SaleDate && prop19PurchaseDate) {
+   const sd = new Date(prop19SaleDate);
+   const pd = new Date(prop19PurchaseDate);
+   const diffDays = Math.abs(pd - sd) / (1000 * 60 * 60 * 24);
+   if (diffDays > 730) warnings.push("Sale and purchase must be within 2 years (730 days) of each other. You're at " + Math.round(diffDays) + " days.");
+  }
+  return {
+   replacementPrice, oldTV, oldSP, sameOrLower,
+   newTaxableValue, netTaxable, countyRate, exemption,
+   prop19Annual, prop19Monthly,
+   fullReassessAnnual, fullReassessMonthly,
+   annualSavings, monthlySavings, tenYearSavings, thirtyYearSavings,
+   warnings,
+  };
+ }, [
+  salesPrice, city, propertyState, loanPurpose,
+  prop19OldTaxableValue, prop19OldSalePrice, prop19RateOverride,
+  prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate,
+ ]);
  // === RENT VS BUY CALCULATIONS ===
  const rbCalc = useMemo(() => {
   const years = 30;
@@ -3819,7 +3908,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ] : []),
   ...(skillLevel !== "guided" ? [
    ...(isDesktop ? [["workspace","Workspace"]] : []),
-   ["tax","Tax Savings"],["amort","Amortization"],
+   ["tax","Tax Savings"],
+   ...(showProp19 ? [["prop19","Prop 19"]] : []),
+   ["amort","Amortization"],
    ...(hasSellProperty ? [["sell","Seller Net"]] : []),
    ...(showInvestor ? [["invest","Investor"]] : []),
    ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
@@ -6369,6 +6460,141 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 )}
  <GuidedNextButton />
 </>)}
+{/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
+{tab === "prop19" && (<>
+ <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
+  {/* LEFT: Hero + Inputs */}
+  <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+   <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
+    <Hero
+     value={fmt(prop19.monthlySavings)}
+     label="Monthly Property-Tax Savings"
+     color={prop19.monthlySavings > 0 ? T.green : T.textSecondary}
+     sub={`${fmt(prop19.annualSavings)}/yr · ${fmt(prop19.thirtyYearSavings)} over 30 yrs`}
+    />
+   </div>
+   <Note color={T.blue}>
+    This is an informational estimate. Prop 19 eligibility is determined by your county assessor. Always confirm with a tax professional before relying on these numbers.
+   </Note>
+   <Sec title="Your Eligibility Path">
+    <Card>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+      {[["age55","55 or older"],["disabled","Severely disabled"],["disaster","Disaster victim"]].map(([val, lbl]) => (
+       <button key={val} onClick={() => setProp19Eligibility(val)} style={{
+        padding: "10px 8px", borderRadius: 10, fontSize: 12, fontWeight: 600,
+        fontFamily: FONT, cursor: "pointer",
+        background: prop19Eligibility === val ? T.blue : "transparent",
+        color: prop19Eligibility === val ? "#fff" : T.text,
+        border: `1px solid ${prop19Eligibility === val ? T.blue : T.separator}`,
+       }}>{lbl}</button>
+      ))}
+     </div>
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
+      Informational only — we don't gate the calculator on this. Disaster path requires a declared wildfire or governor-declared disaster.
+     </div>
+    </Card>
+   </Sec>
+   <Sec title="Your Original Home">
+    <Card>
+     <Inp label="Current taxable value (from tax bill)" value={prop19OldTaxableValue} onChange={setProp19OldTaxableValue} tip="Your Prop 13 assessed value — check your most recent property-tax bill." />
+     <Inp label="Sale price" value={prop19OldSalePrice} onChange={setProp19OldSalePrice} tip="What the outgoing home sold for (or will sell for)." />
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+      <div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4, fontFamily: MONO, textTransform: "uppercase", letterSpacing: 1 }}>SALE DATE</div>
+       <input type="date" value={prop19SaleDate} onChange={e => setProp19SaleDate(e.target.value)}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontFamily: FONT, fontSize: 14 }} />
+      </div>
+      <div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4, fontFamily: MONO, textTransform: "uppercase", letterSpacing: 1 }}>PURCHASE DATE</div>
+       <input type="date" value={prop19PurchaseDate} onChange={e => setProp19PurchaseDate(e.target.value)}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontFamily: FONT, fontSize: 14 }} />
+      </div>
+     </div>
+    </Card>
+   </Sec>
+   <Sec title="Transfer History">
+    <Card>
+     <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 8 }}>
+      How many Prop 19 base-value transfers have you already used? (Lifetime cap is 3.)
+     </div>
+     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+      {[0,1,2,3].map(n => (
+       <button key={n} onClick={() => setProp19TransfersUsed(n)} style={{
+        padding: "10px 8px", borderRadius: 10, fontSize: 14, fontWeight: 700, fontFamily: MONO, cursor: "pointer",
+        background: prop19TransfersUsed === n ? T.blue : "transparent",
+        color: prop19TransfersUsed === n ? "#fff" : T.text,
+        border: `1px solid ${prop19TransfersUsed === n ? T.blue : T.separator}`,
+       }}>{n}</button>
+      ))}
+     </div>
+    </Card>
+   </Sec>
+   <Sec title="Replacement County Rate">
+    <Card>
+     <MRow label="Replacement home" value={`${city || "—"}${propertyCounty ? ", " + propertyCounty + " Co." : ""}`} />
+     <MRow label="Auto rate (from zip)" value={`${((prop19RateOverride > 0 ? prop19RateOverride/100 : prop19.countyRate) * 100).toFixed(3)}%`} />
+     <Inp label="Override rate (optional)" value={prop19RateOverride} onChange={setProp19RateOverride} prefix="" suffix="%" max={5} step={0.001} />
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>
+      County rate comes from the zip you entered in Setup. Leave override at 0 to use it automatically.
+     </div>
+    </Card>
+   </Sec>
+  </div>
+  {/* RIGHT: Results + Explanation */}
+  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+   {prop19.warnings.length > 0 && (
+    <Sec title="Heads up">
+     <Card>
+      {prop19.warnings.map((w, i) => (
+       <div key={i} style={{ fontSize: 12, color: T.orange, padding: "6px 0", borderBottom: i === prop19.warnings.length - 1 ? "none" : `1px solid ${T.separator}` }}>{w}</div>
+      ))}
+     </Card>
+    </Sec>
+   )}
+   <Sec title="With Prop 19 transfer">
+    <Card>
+     <MRow label="New taxable value" value={fmt(prop19.newTaxableValue)} sub={prop19.sameOrLower ? "Replacement ≤ original sale — full base transferred" : "Replacement > original sale — base + excess"} />
+     <MRow label="Effective rate" value={`${(prop19.countyRate * 100).toFixed(3)}%`} />
+     <MRow label="Annual property tax" value={fmt(prop19.prop19Annual)} bold />
+     <MRow label="Monthly" value={fmt(prop19.prop19Monthly)} color={T.green} />
+    </Card>
+   </Sec>
+   <Sec title="Without Prop 19 (full reassessment)">
+    <Card>
+     <MRow label="Taxable value" value={fmt(prop19.replacementPrice)} />
+     <MRow label="Annual property tax" value={fmt(prop19.fullReassessAnnual)} bold />
+     <MRow label="Monthly" value={fmt(prop19.fullReassessMonthly)} color={T.red} />
+    </Card>
+   </Sec>
+   <Sec title="Your savings">
+    <Card>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      {[["Monthly", fmt(prop19.monthlySavings)],["Annual", fmt(prop19.annualSavings)],["10-year", fmt(prop19.tenYearSavings)],["30-year", fmt(prop19.thirtyYearSavings)]].map(([lbl, val], i) => (
+       <div key={i} style={{ background: T.pillBg, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: prop19.annualSavings > 0 ? T.green : T.textSecondary, fontFamily: MONO }}>{val}</div>
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{lbl}</div>
+       </div>
+      ))}
+     </div>
+    </Card>
+   </Sec>
+   <Sec title="How this was calculated">
+    <Card>
+     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>
+      {prop19.sameOrLower ? (
+       <>Your replacement home price ({fmt(prop19.replacementPrice)}) is <b>less than or equal to</b> your original home's sale price ({fmt(prop19.oldSP)}). Under Prop 19, your full Prop 13 taxable base transfers 1:1. New taxable value = {fmt(prop19.oldTV)}.</>
+      ) : (
+       <>Your replacement home price ({fmt(prop19.replacementPrice)}) is <b>greater than</b> your original home's sale price ({fmt(prop19.oldSP)}). Under Prop 19, the excess is added to your transferred base: {fmt(prop19.oldTV)} + ({fmt(prop19.replacementPrice)} − {fmt(prop19.oldSP)}) = {fmt(prop19.newTaxableValue)}.</>
+      )}
+     </div>
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, lineHeight: 1.5, borderTop: `1px solid ${T.separator}`, paddingTop: 10 }}>
+      Not tax or legal advice. Always confirm eligibility with your county assessor and a qualified professional.
+     </div>
+    </Card>
+   </Sec>
+  </div>
+ </div>
+</>)}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
@@ -7042,6 +7268,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
      <div style={{ width: 44, height: 24, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
       <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+     </div>
+    </div>
+    )}
+    {/* California Prop 19 Transfer — CA purchases only */}
+    {propertyState === "California" && !isRefi && (
+    <div onClick={() => { setShowProp19(!showProp19); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>California Prop 19?</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Transfer your property tax base (55+, disabled, or disaster)</div>
+     </div>
+     <div style={{ width: 44, height: 24, borderRadius: 99, background: showProp19 ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showProp19 ? 22 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
      </div>
     </div>
     )}
