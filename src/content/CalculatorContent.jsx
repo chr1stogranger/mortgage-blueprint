@@ -40,10 +40,9 @@ export default function CalculatorContent({
   PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon,
   GuidedNextButton,
 }) {
+  // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
+  // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
-
-  // PMI is required only for Conventional loans with LTV > 80%. FHA has its own MIP, VA has none.
-  const pmiApplies = loanType === "Conventional" && calc.ltv > 0.80 && (calc.monthlyMI || 0) > 0;
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
   const legendRows = [
@@ -448,8 +447,8 @@ export default function CalculatorContent({
       <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{fmt(calc.yearlyTax)}/yr</span>
      </div>
 
-     {/* Layer 2: "How this is calculated" */}
-     <div onClick={() => setPropTaxExpanded(!propTaxExpanded)}
+     {/* Layer 2: "How this is calculated" — unified toggle expands BOTH Property Tax and PMI */}
+     <div onClick={() => { setPropTaxExpanded(!propTaxExpanded); setPmiExpanded(!propTaxExpanded); }}
       style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
       <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: propTaxExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
@@ -533,57 +532,72 @@ export default function CalculatorContent({
    );
   })()}
 
-  {/* PMI — 3-layer pill (parallel to Property Tax). Only render when applicable. */}
-  {pmiApplies ? (
-   <div style={{ marginBottom: 12 }}>
-    {/* Layer 1: Pill */}
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Private Mortgage Insurance (PMI)</span>
-    </div>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.inputBg, borderRadius: 12, padding: "12px 14px", border: `1px solid ${T.inputBorder}` }}>
-     <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
-      {fmt(calc.monthlyMI || 0)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary, marginLeft: 2 }}>/mo</span>
-     </span>
-     <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{fmt((calc.monthlyMI || 0) * 12)}/yr</span>
-    </div>
-
-    {/* Layer 2: "How this is calculated" */}
-    <div onClick={() => setPmiExpanded(!pmiExpanded)}
-     style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}>
-     <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
-     <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: pmiExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
-    </div>
-
-    {/* Layer 3: Breakdown */}
-    {pmiExpanded && (
-     <div style={{ marginTop: 4, background: T.bg, borderRadius: 12, padding: "12px 14px" }}>
-      {[
-       ["Home Value",    fmt(salesPrice)],
-       ["Loan Amount",   fmt(calc.baseLoan || calc.loan)],
-       ["LTV",           pct(calc.ltv, 1)],
-       ["Credit Score",  creditScore > 0 ? String(creditScore) : "—"],
-       ["PMI Rate (Radian matrix)", `${((calc.pmiRate || 0) * 100).toFixed(3)}%`],
-       ["Annual Premium", fmt((calc.monthlyMI || 0) * 12)],
-      ].map(([label, value], i) => (
-       <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
-        <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
-       </div>
-      ))}
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
-       <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
-       <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(calc.monthlyMI || 0)}</span>
-      </div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
-       PMI required when LTV &gt; 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.
-      </div>
+  {/* PMI — always render (shows $0 when not applicable). MIP label for FHA. */}
+  {(() => {
+   const miLabel = loanType === "FHA" ? "Mortgage Insurance Premium (MIP)"
+                 : loanType === "VA"  ? "VA Funding Fee"
+                 : "Private Mortgage Insurance (PMI)";
+   const monthlyMI = calc.monthlyMI || 0;
+   // Helpful reason when MI is $0
+   const zeroReason = monthlyMI === 0 ? (
+    loanType === "VA" ? "No monthly MI on VA loans (one-time funding fee applies at close)."
+    : loanType === "Jumbo" ? "Jumbo loans typically do not carry PMI."
+    : calc.ltv <= 0.80 ? `Your LTV of ${pct(calc.ltv, 1)} is at or below 80% — no PMI required.`
+    : "Not required for this scenario."
+   ) : null;
+   return (
+    <div style={{ marginBottom: 12 }}>
+     {/* Layer 1: Pill */}
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{miLabel}</span>
      </div>
-    )}
-   </div>
-  ) : (
-   /* Keep the 2-col grid balanced even when PMI is hidden — render a spacer */
-   isDesktop ? <div /> : null
-  )}
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.inputBg, borderRadius: 12, padding: "12px 14px", border: `1px solid ${T.inputBorder}`, opacity: monthlyMI === 0 ? 0.7 : 1 }}>
+      <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+       {fmt(monthlyMI)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary, marginLeft: 2 }}>/mo</span>
+      </span>
+      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{fmt(monthlyMI * 12)}/yr</span>
+     </div>
+
+     {/* Layer 2: "How this is calculated" — unified toggle expands BOTH Property Tax and PMI */}
+     <div onClick={() => { setPropTaxExpanded(!propTaxExpanded); setPmiExpanded(!propTaxExpanded); }}
+      style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
+      <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: propTaxExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+     </div>
+
+     {/* Layer 3: Breakdown (driven by the shared propTaxExpanded) */}
+     {propTaxExpanded && (
+      <div style={{ marginTop: 4, background: T.bg, borderRadius: 12, padding: "12px 14px" }}>
+       {zeroReason && (
+        <div style={{ fontSize: 11, color: T.green, background: `${T.green}10`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, lineHeight: 1.4 }}>
+         {zeroReason}
+        </div>
+       )}
+       {[
+        ["Home Value",    fmt(salesPrice)],
+        ["Loan Amount",   fmt(calc.baseLoan || calc.loan)],
+        ["LTV",           pct(calc.ltv, 1)],
+        ["Credit Score",  creditScore > 0 ? String(creditScore) : "—"],
+        ["PMI Rate (Radian matrix)", `${((calc.pmiRate || 0) * 100).toFixed(3)}%`],
+        ["Annual Premium", fmt(monthlyMI * 12)],
+       ].map(([label, value], i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+         <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+         <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+        </div>
+       ))}
+       <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
+        <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(monthlyMI)}</span>
+       </div>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
+        PMI required when LTV &gt; 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.
+       </div>
+      </div>
+     )}
+    </div>
+   );
+  })()}
 
  </div>
  {/* End Row 4 */}
