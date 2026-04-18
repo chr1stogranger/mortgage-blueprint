@@ -22,6 +22,7 @@ export default function CalculatorContent({
   propType, setPropType, PROP_TYPES,
   subjectRentalIncome, setSubjectRentalIncome,
   propertyState, setPropertyState, setCity,
+  propertyCounty, setPropertyCounty,
   STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES,
   propTaxMode, STATE_PROPERTY_TAX_RATES,
   taxRateLocked, setTaxRateLocked,
@@ -63,13 +64,17 @@ export default function CalculatorContent({
   return (<>
 
  {/* ─────────────────────────────────────────────────────────────── */}
- {/* ROW 1 — 6-pill quick-edit grid (Zip / PropType / Occupancy / Rate / Term / LoanType) */}
+ {/* ROW 1 — Location (Zip / City / County / State) — auto-fill from ZIP */}
+ {/* ROW 2 — Loan details (Occupancy / Prop Type / Loan Type / Term) */}
+ {/* Rate pill removed — redundant with the main Rate input above */}
  {/* ─────────────────────────────────────────────────────────────── */}
- <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginTop: 20, marginBottom: 16 }}>
+ <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginTop: 20, marginBottom: 10 }}>
   <Inp label="Zip Code" value={propertyZip || ""} onChange={v => setPropertyZip(String(v).replace(/[^0-9]/g, "").slice(0, 5))} type="text" placeholder="94501" sm req />
-  <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
-   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} sm req />
-  </div>
+  <Inp label="City" value={city || ""} onChange={setCity} type="text" placeholder="Auto from ZIP" sm />
+  <Inp label="County" value={propertyCounty || ""} onChange={setPropertyCounty} type="text" placeholder="Auto from ZIP" sm />
+  <Inp label="State" value={propertyState || ""} onChange={setPropertyState} type="text" placeholder="Auto from ZIP" sm />
+ </div>
+ <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: 16 }}>
   <Sel label="Occupancy" value={loanPurpose} onChange={v => {
    // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
    if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -82,13 +87,13 @@ export default function CalculatorContent({
    ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
    : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
   } sm req />
-  <div data-field="calc-rate" className={isPulse && isPulse("calc-rate")}>
-   <Inp label="Rate" value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
-  </div>
-  <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
-   <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={[{value:30,label:"30 Year"},{value:25,label:"25 Year"},{value:20,label:"20 Year"},{value:15,label:"15 Year"},{value:10,label:"10 Year"}]} sm req />
+  <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
+   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} sm req />
   </div>
   <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} sm req />
+  <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
+   <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} sm req />
+  </div>
  </div>
 
  {loanPurpose === "Purchase Investment" && (
@@ -178,25 +183,26 @@ export default function CalculatorContent({
         </div>
         {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
        </>) : (<>
-        {/* Purchase: Down Payment with %/$ toggle */}
+        {/* Purchase: Down Payment — full-size input to match Purchase Price; %/$ toggle moved BELOW, inline with Zillow badge */}
         <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onClick={() => markTouched && markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-           Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-           <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
-          </div>
-          <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
+         <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, marginBottom: 6, height: 18 }}>
+          Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+          <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
+         </div>
+         {downMode === "pct" ? (
+          <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+         ) : (
+          <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
+         )}
+         {/* %/$ toggle + summary text — sits on same horizontal line as the Zillow button in the left column */}
+         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -4, marginBottom: 10 }}>
+          <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
            <button onClick={() => setDownMode("pct")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
            <button onClick={() => setDownMode("dollar")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
           </div>
-         </div>
-         {downMode === "pct" ? (
-          <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} sm req />
-         ) : (
-          <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} sm req />
-         )}
-         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 10 }}>
-          {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+          <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>
+           {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+          </div>
          </div>
         </div>
        </>)}

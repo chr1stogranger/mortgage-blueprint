@@ -66,12 +66,12 @@ export default function SetupContent({
   </div>
  )}
 
- {/* ── Quick Start — 2-column on desktop ── */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" } : {}}>
+ {/* ── Quick Start — 2-column on desktop, columns stretch to equal height ── */}
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch" } : {}}>
 
-  {/* ── LEFT COLUMN: Profile & Location ── */}
-  <div>
-   <Card>
+  {/* ── LEFT COLUMN: Profile & Location — stretches to match right column ── */}
+  <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
+   <Card style={isDesktop ? { flex: 1, marginBottom: 0 } : {}}>
     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
      <div style={{ fontSize: 14 }}></div>
      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Quick Start</div>
@@ -118,18 +118,13 @@ export default function SetupContent({
         onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
         onBlur={() => {
           if (creditScore > 0 && creditScore < 300) setCreditScore(300);
-          // Auto-advance: once the user leaves the FICO field with a score entered,
-          // open Filing Status. showPicker() pops the native dropdown on browsers
-          // that support it; focus() is the universal fallback.
+          // Auto-advance: once FICO is entered, scroll to the Monthly Payment section
+          // (Filing Status was removed from Quick Start; modules panel is the next step).
           if (creditScore > 0) {
             setTimeout(() => {
-              const selectEl = document.querySelector('[data-field="filing-status"] select');
-              if (!selectEl) return;
-              selectEl.scrollIntoView({ behavior: "smooth", block: "center" });
-              selectEl.focus({ preventScroll: true });
-              if (typeof selectEl.showPicker === "function") {
-                try { selectEl.showPicker(); } catch {}
-              }
+              const modulesEl = document.querySelector('[data-field="modules"]');
+              if (!modulesEl) return;
+              modulesEl.scrollIntoView({ behavior: "smooth", block: "center" });
             }, 200);
           }
         }}
@@ -155,23 +150,7 @@ export default function SetupContent({
       </span>
      </div>}
     </div>
-
-    {/* 5) Filing Status — below FICO to even out columns */}
-    <div data-field="filing-status" className={isPulse("filing-status")} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
-     <Sel label="Filing Status" value={married} onChange={v => {
-       setMarried(v);
-       markTouched("filing-status");
-       // Auto-advance to Sales Price after a selection is made (purchase only).
-       if (v && !isRefi) {
-         setTimeout(() => {
-           const priceEl = document.querySelector('[data-field="price-input"] input');
-           if (!priceEl) return;
-           priceEl.scrollIntoView({ behavior: "smooth", block: "center" });
-           priceEl.focus({ preventScroll: true });
-         }, 200);
-       }
-     }} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
-    </div>
+    {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
   </div>{/* end left column */}
 
@@ -181,7 +160,7 @@ export default function SetupContent({
    {/* ── Modules — full-width toggles with descriptions ── */}
    {/* In guided mode, skip modules when FTHB = No (available in Settings) */}
    {!(skillLevel === "guided" && firstTimeBuyer === false) && (
-   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s" }}>
+   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
     <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
     {/* First-Time Homebuyer — Yes/No (purchase only) */}
     {!isRefi && (
