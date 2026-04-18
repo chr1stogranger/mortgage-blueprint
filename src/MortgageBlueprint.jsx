@@ -516,10 +516,13 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
  const cursorRef = useRef(null);
  const debounceRef = useRef(null);
  const isText = type === "text";
- const filled = isText ? (value !== "") : (value !== 0 && value !== "");
+ // Defensive: coerce undefined/null/NaN numeric values to 0 so the input
+ // never renders the string "undefined" if state hasn't been hydrated yet.
+ const safeValue = isText ? (value ?? "") : (value == null || (typeof value === "number" && isNaN(value)) ? 0 : value);
+ const filled = isText ? (safeValue !== "") : (safeValue !== 0 && safeValue !== "");
  const clamp = (n) => { if (isNaN(n)) return 0; if (min !== undefined && n < min) return min; if (max !== undefined && n > max) return max; return n; };
- const fmtComma = (n) => { if (n === 0 || n === "") return ""; const parts = String(n).split("."); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return parts.join("."); };
- const display = isText ? value : (editStr !== null ? editStr : (value === 0 && focused ? "" : fmtComma(value)));
+ const fmtComma = (n) => { if (n === "" || n == null) return ""; if (n === 0) return "0"; const parts = String(n).split("."); parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return parts.join("."); };
+ const display = isText ? safeValue : (editStr !== null ? editStr : (safeValue === 0 && focused ? "" : fmtComma(safeValue)));
  const wasFocused = useRef(false);
  useEffect(() => { if (cursorRef.current !== null && inputRef.current) { if (wasFocused.current) inputRef.current.focus(); inputRef.current.setSelectionRange(cursorRef.current, cursorRef.current); cursorRef.current = null; } });
  useEffect(() => { if (!focused && wasFocused.current && inputRef.current && document.activeElement !== inputRef.current) { inputRef.current.focus(); } }, [value]);
