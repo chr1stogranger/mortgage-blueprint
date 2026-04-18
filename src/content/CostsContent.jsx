@@ -151,6 +151,7 @@ export default function CostsContent({
   underwritingFee, setUnderwritingFee,
   processingFee, setProcessingFee,
   discountPts, setDiscountPts,
+  originatorComp, setOriginatorComp,
   appraisalFee, setAppraisalFee,
   creditReportFee, setCreditReportFee,
   floodCertFee, setFloodCertFee,
@@ -232,10 +233,9 @@ export default function CostsContent({
         {/* ─── BOX 1: Lender Fees ─────────────────────────── */}
         <AriveBox title="Lender Fees" total={fmt2(calc.origCharges)}>
           <FeeRow
-            label="__% of Loan Amount (Points)"
+            label={discountPts > 0 ? `${discountPts}% of Loan Amount (Points)` : "__% of Loan Amount (Points)"}
             editKey="points"
             value={calc.pointsCost}
-            readOnly
             editor={
               <>
                 <Inp label="Discount Points" value={discountPts} onChange={setDiscountPts} prefix="" suffix="pts" step={0.125} max={10} sm tip="1 point = 1% of loan amount. Typically reduces rate by ~0.25%." />
@@ -243,7 +243,12 @@ export default function CostsContent({
               </>
             }
           />
-          <FeeRow label="Originator Compensation" value="—" isDollar={false} />
+          <FeeRow
+            label="Originator Compensation"
+            editKey="origComp"
+            value={originatorComp}
+            onChange={setOriginatorComp}
+          />
           <FeeRow
             label="Underwriting Fee"
             editKey="underwriting"
