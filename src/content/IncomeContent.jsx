@@ -6,17 +6,19 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 export default function IncomeContent({
   T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome,
   otherIncome, setOtherIncome,
+  otherIncome2, setOtherIncome2,
   Hero, Card, Sec, TextInp, Inp, Sel, Note,
   VARIABLE_PAY_TYPES, PAY_TYPES, isPulse, GuidedNextButton,
 }) {
   return (<>
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
- {/* LEFT: Hero + Borrower 1 (sticky) */}
- <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
- <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
+ {/* Hero — sits above both columns so Borrower 1 and Borrower 2 headers align horizontally */}
+ <div style={{ marginTop: 20, marginBottom: 16 }}>
   <Hero value={fmt(calc.monthlyIncome)} label="Monthly Income" color={T.green} sub={`${fmt(calc.monthlyIncome * 12)}/yr`} />
  </div>
  {calc.reoPositiveIncome > 0 && <Note color={T.blue}>+{fmt(calc.reoPositiveIncome)}/mo investment property rental income added to qualifying income (75% rule). DTI uses {fmt(calc.qualifyingIncome)}/mo total.</Note>}
+ <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
+ {/* LEFT: Borrower 1 + Borrower 1 Other Income */}
+ <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  <Sec title="Borrower 1" action="+ Add" onAction={() => addIncome(1)}>
   {incomes.filter(i => i.borrower === 1).map((inc, idx) => {
    const isVar = VARIABLE_PAY_TYPES.includes(inc.payType);
@@ -70,8 +72,11 @@ export default function IncomeContent({
    </div>
   )}
  </Sec>
+ <Sec title="Other Income">
+  <Card><Inp label="Other Monthly Income" value={otherIncome2} onChange={setOtherIncome2} tip="Borrower 1 additional qualifying income: alimony received, Social Security, pension, disability, or other documented recurring income." /></Card>
+ </Sec>
  </div>{/* end income left column */}
- {/* RIGHT: Borrower 2 + Other Income (scrollable) */}
+ {/* RIGHT: Borrower 2 + Other Income */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  <Sec title="Borrower 2" action="+ Add" onAction={() => addIncome(2)}>
   {incomes.filter(i => i.borrower === 2).map((inc) => {
@@ -123,7 +128,7 @@ export default function IncomeContent({
   )}
  </Sec>
  <Sec title="Other Income">
-  <Card><Inp label="Other Monthly Income" value={otherIncome} onChange={setOtherIncome} tip="Additional qualifying income: alimony received, Social Security, pension, disability, or other documented recurring income." /></Card>
+  <Card><Inp label="Other Monthly Income" value={otherIncome} onChange={setOtherIncome} tip="Borrower 2 additional qualifying income: alimony received, Social Security, pension, disability, or other documented recurring income." /></Card>
  </Sec>
  </div>{/* end income right column */}
  </div>{/* end income desktop flex wrapper */}

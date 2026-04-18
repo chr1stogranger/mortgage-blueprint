@@ -1560,6 +1560,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [sellLinkedReoId, setSellLinkedReoId] = useState("");
  const [incomes, setIncomes] = useState([]);
  const [otherIncome, setOtherIncome] = useState(0);
+ const [otherIncome2, setOtherIncome2] = useState(0);
  const [assets, setAssets] = useState([]);
  const [creditScore, setCreditScore] = useState(0);
  const [pmiRateLocked, setPmiRateLocked] = useState(true);
@@ -1728,7 +1729,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
-  incomes, otherIncome, assets, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
+  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
@@ -1820,6 +1821,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.sellLinkedReoId !== undefined) setSellLinkedReoId(s.sellLinkedReoId);
   if (s.incomes) setIncomes(s.incomes);
   if (s.otherIncome !== undefined) setOtherIncome(s.otherIncome);
+  if (s.otherIncome2 !== undefined) setOtherIncome2(s.otherIncome2);
   if (s.assets) setAssets(s.assets);
   if (s.creditScore !== undefined) setCreditScore(s.creditScore);
   if (s.pmiRateLocked !== undefined) setPmiRateLocked(s.pmiRateLocked);
@@ -1977,7 +1979,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (i.selection === "2Y") return s + (i.twoYCalc || 0);
     return s + toMonthly(i.amount, i.frequency);
    }, 0);
-   const monthlyInc = totalIncomeCalc + otherIncome;
+   const monthlyInc = totalIncomeCalc + otherIncome + otherIncome2;
    const monthlyDebts = debts.filter(d => d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit").reduce((s, d) => s + (d.monthly || 0), 0);
    const fhaUp = loanType === "FHA" ? baseLoan * 0.0175 : 0;
    const loan = baseLoan + fhaUp;
@@ -2003,7 +2005,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch (e) {
    return { salesPrice, rate, term, loanType, borrowerName };
   }
- }, [salesPrice, downPct, rate, term, loanType, incomes, otherIncome, debts, creditScore, loanPurpose, city, propertyState, borrowerName]);
+ }, [salesPrice, downPct, rate, term, loanType, incomes, otherIncome, otherIncome2, debts, creditScore, loanPurpose, city, propertyState, borrowerName]);
 
  // ── Supabase write-through: save scenario to cloud ──
  const saveToCloud = useCallback(async (stateData, scenarioId) => {
@@ -2085,7 +2087,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
   sellProration, sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, assets, creditScore, extraPayment, payExtra,
+  incomes, otherIncome, otherIncome2, assets, creditScore, extraPayment, payExtra,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
@@ -2111,7 +2113,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
   setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
   setSellerCredit(0); setRealtorCredit(0); setEmd(0); setDebts([]); setIncomes([]);
-  setOtherIncome(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
+  setOtherIncome(0); setOtherIncome2(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
   setHasSellProperty(false); setOwnsProperties(false); setIsRefi(null); setShowInvestor(false);
   // Reset Prop 19
   setShowProp19(false); setProp19Eligibility("age55"); setProp19OldTaxableValue(0); setProp19OldSalePrice(0);
@@ -2122,7 +2124,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const defaults = { salesPrice: 1000000, downPct: 20, rate: 6.5, term: 30, loanType: "Conventional",
    propType: "Single Family", loanPurpose: "Purchase Primary", city: "Alameda", propertyState: "California", hoa: 0, annualIns: 1500,
    includeEscrow: true, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
-   otherIncome: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
+   otherIncome: 0, otherIncome2: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
    hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, showProp19: false, darkMode, themeMode };
   try { await LS.set("scenario:" + name, JSON.stringify(defaults)); } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
@@ -2197,7 +2199,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const cashToClose = dp + closingCosts + prepaids - (s.sellerCredit || 0) - (s.realtorCredit || 0);
   // simplified DTI (including REO with linked debts)
   const incArr = s.incomes || [];
-  const monthlyInc = incArr.reduce((sum, inc) => sum + (inc.monthly || 0), 0) + (s.otherIncome || 0);
+  const monthlyInc = incArr.reduce((sum, inc) => sum + (inc.monthly || 0), 0) + (s.otherIncome || 0) + (s.otherIncome2 || 0);
   const debtArr = s.debts || [];
   const reoArr = s.reos || [];
   // Identify linked debts — only exclude those linked to INVESTMENT REOs
@@ -3196,7 +3198,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (i.selection === "2Y") return s + (i.twoYCalc || 0);
    return s + toMonthly(i.amount, i.frequency);
   }, 0);
-  const monthlyIncome = totalIncomeFromEntries + otherIncome;
+  const monthlyIncome = totalIncomeFromEntries + otherIncome + otherIncome2;
   // REO DTI: Investment properties use 75% rental netting; Primary/Second Home full PITIA counted as debt
   // Only debts linked to INVESTMENT REOs are excluded from normal debt count
   const investmentReoIds = new Set(reos.filter(r => r.propUse === "Investment").map(r => String(r.id)));
@@ -3631,7 +3633,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride,
+  incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
@@ -4641,7 +4643,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, Hero, Card, Sec, TextInp, Inp, Sel, Note, VARIABLE_PAY_TYPES, PAY_TYPES, isPulse, GuidedNextButton}} />}
+{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, Hero, Card, Sec, TextInp, Inp, Sel, Note, VARIABLE_PAY_TYPES, PAY_TYPES, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, guideField, isPulse, GuidedNextButton}} />}
 {/* ═══ DEBTS ═══ */}
@@ -4866,6 +4868,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    /* Income */
    incomes, addIncome, updateIncome, removeIncome,
    otherIncome, setOtherIncome,
+   otherIncome2, setOtherIncome2,
    VARIABLE_PAY_TYPES, PAY_TYPES,
    subjectRentalIncome, setSubjectRentalIncome,
    /* Assets */
@@ -4976,6 +4979,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    updateIncome={(id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i))}
    removeIncome={(id) => setIncomes(incomes.filter(i => i.id !== id))}
    otherIncome={otherIncome} setOtherIncome={setOtherIncome}
+   otherIncome2={otherIncome2} setOtherIncome2={setOtherIncome2}
    T={T} Inp={Inp} Sel={Sel} TextInp={TextInp} Note={Note} calc={calc}
   />
  </BottomSheet>
