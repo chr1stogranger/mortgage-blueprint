@@ -153,7 +153,23 @@ export default function SetupContent({
       <div style={{ flex: "0 0 90px" }}>
        <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
         onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
-        onBlur={() => { if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
+        onBlur={() => {
+          if (creditScore > 0 && creditScore < 300) setCreditScore(300);
+          // Auto-advance: once the user leaves the FICO field with a score entered,
+          // open Filing Status. showPicker() pops the native dropdown on browsers
+          // that support it; focus() is the universal fallback.
+          if (creditScore > 0) {
+            setTimeout(() => {
+              const selectEl = document.querySelector('[data-field="filing-status"] select');
+              if (!selectEl) return;
+              selectEl.scrollIntoView({ behavior: "smooth", block: "center" });
+              selectEl.focus({ preventScroll: true });
+              if (typeof selectEl.showPicker === "function") {
+                try { selectEl.showPicker(); } catch {}
+              }
+            }, 200);
+          }
+        }}
         style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -179,7 +195,19 @@ export default function SetupContent({
 
     {/* 5) Filing Status — below FICO to even out columns */}
     <div data-field="filing-status" className={isPulse("filing-status")} style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.separator}`, borderRadius: 14, transition: "all 0.3s" }}>
-     <Sel label="Filing Status" value={married} onChange={v => { setMarried(v); markTouched("filing-status"); }} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
+     <Sel label="Filing Status" value={married} onChange={v => {
+       setMarried(v);
+       markTouched("filing-status");
+       // Auto-advance to Sales Price after a selection is made (purchase only).
+       if (v && !isRefi) {
+         setTimeout(() => {
+           const priceEl = document.querySelector('[data-field="price-input"] input');
+           if (!priceEl) return;
+           priceEl.scrollIntoView({ behavior: "smooth", block: "center" });
+           priceEl.focus({ preventScroll: true });
+         }, 200);
+       }
+     }} options={FILING_STATUSES} req tip="Your tax filing status. Affects deductions, tax brackets, and SALT cap." sm />
     </div>
    </Card>
   </div>{/* end left column */}
@@ -190,7 +218,23 @@ export default function SetupContent({
     {/* 5+6) Price & Down Payment — side by side on desktop, purchase only */}
     {!isRefi && (
     <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } : {}}>
-     <div data-field="price-input" className={isPulse("price-input")} onClick={() => markTouched("price-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+     <div data-field="price-input"
+      className={isPulse("price-input")}
+      onClick={() => markTouched("price-input")}
+      onBlur={(e) => {
+        // Auto-advance to Down Payment when focus leaves the Sales Price field.
+        // The relatedTarget check ensures we only advance when focus actually
+        // left this container (not when clicking within it).
+        if (!e.currentTarget.contains(e.relatedTarget) && salesPrice > 0) {
+          setTimeout(() => {
+            const dpEl = document.querySelector('[data-field="down-payment"] input');
+            if (!dpEl) return;
+            dpEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            dpEl.focus({ preventScroll: true });
+          }, 150);
+        }
+      }}
+      style={{ borderRadius: 14, transition: "all 0.3s" }}>
       <Inp label="Sales Price" value={salesPrice} onChange={v => { setSalesPrice(v); markTouched("price-input"); }} max={100000000} req />
      </div>
      <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
