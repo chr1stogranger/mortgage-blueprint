@@ -1429,10 +1429,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("overview");
- // ── App Mode: Blueprint or PricePoint ──
+ // ── App Mode: Blueprint is the default landing app. ?mode=pricepoint|markets|blueprint overrides. ──
  const [appMode, setAppMode] = useState(() => {
-  try { const p = new URLSearchParams(window.location.search); if (p.get('mode') === 'blueprint') return 'blueprint'; if (p.get('mode') === 'markets') return 'markets'; } catch {}
-  return 'pricepoint';
+  try { const p = new URLSearchParams(window.location.search); const m = p.get('mode'); if (m === 'pricepoint') return 'pricepoint'; if (m === 'markets') return 'markets'; if (m === 'blueprint') return 'blueprint'; } catch {}
+  return 'blueprint';
  });
  // ── PricePoint sidebar tab sync ──
  const [ppSidebarTab, setPpSidebarTab] = useState(null); // triggers PricePoint tab navigation
