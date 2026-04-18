@@ -112,7 +112,23 @@ export default function SetupContent({
     {/* 3) Property Location — Zip first, then city/state */}
     <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Property Location <span style={{ color: T.red, fontSize: 12, fontWeight: 700 }}>*</span></div>
-     <TextInp label="Zip Code" value={propertyZip} onChange={v => { const clean = v.replace(/\D/g,"").slice(0,5); setPropertyZip(clean); if (clean.length >= 5) setTimeout(() => markTouched("location"), 600); }} placeholder="Enter zip to auto-fill" inputMode="numeric" pattern="[0-9]*" />
+     <TextInp label="Zip Code" value={propertyZip} onChange={v => {
+       const clean = v.replace(/\D/g,"").slice(0,5);
+       setPropertyZip(clean);
+       if (clean.length >= 5) {
+         setTimeout(() => markTouched("location"), 600);
+         // Auto-advance cursor to FICO once zip is complete. The FICO <input> has
+         // inputMode="numeric", which triggers the numeric keypad on mobile.
+         // scrollIntoView keeps the field visible under the mobile keyboard.
+         setTimeout(() => {
+           const ficoEl = document.querySelector('[data-field="fico-input"] input[type="text"]');
+           if (ficoEl) {
+             ficoEl.scrollIntoView({ behavior: "smooth", block: "center" });
+             ficoEl.focus({ preventScroll: true });
+           }
+         }, 200);
+       }
+     }} placeholder="Enter zip to auto-fill" inputMode="numeric" pattern="[0-9]*" />
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
       <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); markTouched("location"); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
       <div>
