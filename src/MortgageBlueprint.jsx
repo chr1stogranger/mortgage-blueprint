@@ -260,7 +260,10 @@ const UNIT_COUNT = { "Single Family": 1, "Condo": 1, "Townhouse": 1, "2-Unit": 2
 const getConfLimit = (pt) => CONF_LIMITS[UNIT_COUNT[pt] || 1] || CONF_LIMITS[1];
 const getHighBalLimit = (pt) => Math.round(getConfLimit(pt) * 1.5);
 const DEBT_TYPES = ["Mortgage", "HELOC", "Auto Loan", "Auto Lease", "Student Loan", "Revolving", "Installment", "Collection", "Other"];
-const PAYOFF_OPTIONS = ["No", "Yes - at Escrow", "Yes - POC", "Omit"];
+// Note: value "Yes - POC" is kept for backward compat with saved scenarios,
+// but the label now reads "Yes - before closing" to match what the field
+// actually means (paid off outside of escrow, prior to closing).
+const PAYOFF_OPTIONS = ["No", "Yes - at Escrow", { value: "Yes - POC", label: "Yes - before closing" }, "Omit"];
 const PAY_TYPES = ["Salary", "Hourly", "Overtime", "Bonus", "Commission", "Self-Employment", "RSU", "Rental", "Retirement", "Social Security", "Disability", "Child Support", "Alimony", "Other"];
 const VARIABLE_PAY_TYPES = ["Hourly", "Overtime", "Bonus", "Commission", "Self-Employment", "RSU"];
 const ASSET_TYPES = ["Checking", "Saving", "Money Market", "Mutual Fund", "Stocks", "Bonds", "Retirement", "Gift", "Gift of Equity", "Trust", "Bridge Loan", "Other"];
@@ -3246,9 +3249,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (rf === null) return s;
    return s + ((a.value - (a.forClosing || 0)) * rf);
   }, 0);
-  const addDebt = (type) => setDebts([...debts, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }]);
-  const updateDebt = (id, f, v) => setDebts(debts.map(d => d.id === id ? { ...d, [f]: v } : d));
-  const removeDebt = (id) => setDebts(debts.filter(d => d.id !== id));
+  const addDebt = (type) => setDebts(prev => [...prev, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }]);
+  const updateDebt = (id, f, v) => setDebts(prev => prev.map(d => d.id === id ? { ...d, [f]: v } : d));
+  const removeDebt = (id) => setDebts(prev => prev.filter(d => d.id !== id));
   const qualifyingDebts = debtFree ? [] : debts.filter(d => d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit" && !reoLinkedDebtIds.has(d.id));
   const totalMonthlyDebts = qualifyingDebts.reduce((s, d) => s + (d.monthly || 0), 0);
   const payoffAtClosing = debtFree ? 0 : debts.filter(d => d.payoff === "Yes - at Escrow").reduce((s, d) => s + (d.balance || 0), 0);
@@ -4985,9 +4988,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
  <BottomSheet isOpen={sheetContent === "debts"} onClose={() => setSheetContent(null)} title="Debts & Liabilities" T={T}>
   <DebtsSheet
-   debts={debts} addDebt={(type) => setDebts([...debts, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }])}
-   updateDebt={(id, f, v) => setDebts(debts.map(d => d.id === id ? { ...d, [f]: v } : d))}
-   removeDebt={(id) => setDebts(debts.filter(d => d.id !== id))}
+   debts={debts} addDebt={(type) => setDebts(prev => [...prev, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }])}
+   updateDebt={(id, f, v) => setDebts(prev => prev.map(d => d.id === id ? { ...d, [f]: v } : d))}
+   removeDebt={(id) => setDebts(prev => prev.filter(d => d.id !== id))}
    debtFree={debtFree} setDebtFree={setDebtFree}
    ownsProperties={ownsProperties} setOwnsProperties={setOwnsProperties}
    reos={reos} setReos={setReos}

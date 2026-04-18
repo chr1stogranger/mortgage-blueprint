@@ -105,6 +105,52 @@ function SelCell({ value, onChange, options, T }) {
   );
 }
 
+// ──────────────────────────────────────────────────────────────
+// Table cell wrappers — MUST be at module scope. If declared inside
+// DebtsContent they'd be a new component type on every parent render,
+// which causes React to unmount+remount every <input> inside them on
+// every keystroke → the user loses focus after each character.
+// ──────────────────────────────────────────────────────────────
+function HeaderCell({ children, align = "left", headBorder, T }) {
+  return (
+    <div style={{
+      padding: "10px 8px",
+      fontSize: 10.5, fontWeight: 700,
+      color: T.text, letterSpacing: "0.04em",
+      textTransform: "uppercase",
+      fontFamily: MONO,
+      textAlign: align, whiteSpace: "nowrap",
+      borderRight: `1px solid ${headBorder}`,
+    }}>{children}</div>
+  );
+}
+
+function DataCell({ children, align = "left", pad = "6px 8px", T }) {
+  return (
+    <div style={{
+      padding: pad, display: "flex", alignItems: "center",
+      justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
+      borderRight: `1px solid ${T.separator}`,
+      borderBottom: `1px solid ${T.separator}`,
+      minWidth: 0,
+      minHeight: 40,
+    }}>{children}</div>
+  );
+}
+
+function TotalCell({ children, align = "right", T }) {
+  return (
+    <div style={{
+      padding: "10px 8px",
+      display: "flex", alignItems: "center",
+      justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
+      fontSize: 12, fontWeight: 700, fontFamily: MONO,
+      color: T.text,
+      borderRight: `1px solid ${T.separator}`,
+    }}>{children}</div>
+  );
+}
+
 export default function DebtsContent({
   T, isDesktop, calc, fmt,
   debts, debtFree, setDebtFree,
@@ -122,11 +168,15 @@ export default function DebtsContent({
   const totalMonthly = debts.reduce((s, d) => s + (Number(d.monthly) || 0), 0);
   const totalBalance = debts.reduce((s, d) => s + (Number(d.balance) || 0), 0);
   const totalInterestYr = debts.reduce((s, d) => s + ((Number(d.balance) || 0) * (Number(d.rate) || 0) / 100), 0);
+  // Only "Yes - at Escrow" contributes to the Payoff Amount column.
+  // "Yes - before closing" (stored as legacy "Yes - POC") is paid outside
+  // of closing and is NOT included in the closing payoff figure.
   const totalPayoff = debts.reduce((s, d) => {
-    if (d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC") return s;
+    if (d.payoff !== "Yes - at Escrow") return s;
     const po = Number(d.payoffAmount) || Number(d.balance) || 0;
     return s + po;
   }, 0);
+
 
   // ACCENT: indigo brand
   const ACCENT = T.blue;
@@ -138,39 +188,6 @@ export default function DebtsContent({
   // Mobile: Type | Creditor | Monthly | Balance | Payoff? + expand chevron
   const COLS_MOBILE = "90px minmax(100px, 1fr) 80px 90px 80px 28px";
 
-  const HeaderCell = ({ children, align = "left" }) => (
-    <div style={{
-      padding: "10px 8px",
-      fontSize: 10.5, fontWeight: 700,
-      color: T.text, letterSpacing: "0.04em",
-      textTransform: "uppercase",
-      fontFamily: MONO,
-      textAlign: align, whiteSpace: "nowrap",
-      borderRight: `1px solid ${HEAD_BORDER}`,
-    }}>{children}</div>
-  );
-
-  const DataCell = ({ children, align = "left", pad = "6px 8px" }) => (
-    <div style={{
-      padding: pad, display: "flex", alignItems: "center",
-      justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
-      borderRight: `1px solid ${T.separator}`,
-      borderBottom: `1px solid ${T.separator}`,
-      minWidth: 0,
-      minHeight: 40,
-    }}>{children}</div>
-  );
-
-  const TotalCell = ({ children, align = "right" }) => (
-    <div style={{
-      padding: "10px 8px",
-      display: "flex", alignItems: "center",
-      justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
-      fontSize: 12, fontWeight: 700, fontFamily: MONO,
-      color: T.text,
-      borderRight: `1px solid ${T.separator}`,
-    }}>{children}</div>
-  );
 
   return (<>
     {/* ─── Hero — full width ─── */}
@@ -286,17 +303,17 @@ export default function DebtsContent({
               background: HEAD_BG,
               borderBottom: `1px solid ${HEAD_BORDER}`,
             }}>
-              <HeaderCell>Type</HeaderCell>
-              <HeaderCell>Borrower</HeaderCell>
-              <HeaderCell>Creditor</HeaderCell>
-              <HeaderCell align="right">Monthly</HeaderCell>
-              <HeaderCell align="right">Balance</HeaderCell>
-              <HeaderCell align="right">% of Bal</HeaderCell>
-              <HeaderCell align="right">Int Rate</HeaderCell>
-              <HeaderCell align="right">Interest (yr)</HeaderCell>
-              <HeaderCell align="center">Payoff?</HeaderCell>
-              <HeaderCell align="right">Payoff Amt</HeaderCell>
-              <HeaderCell align="center"> </HeaderCell>
+              <HeaderCell T={T} headBorder={HEAD_BORDER}>Type</HeaderCell>
+              <HeaderCell T={T} headBorder={HEAD_BORDER}>Borrower</HeaderCell>
+              <HeaderCell T={T} headBorder={HEAD_BORDER}>Creditor</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Monthly</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Balance</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>% of Bal</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Int Rate</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Interest (yr)</HeaderCell>
+              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}>Payoff?</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Payoff Amt</HeaderCell>
+              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}> </HeaderCell>
             </div>
 
             {/* Rows */}
@@ -307,7 +324,9 @@ export default function DebtsContent({
               const pctOfBal = bal > 0 ? (mo / bal * 100) : 0;
               const interestYr = bal * rate / 100;
               const isExpanded = expandedRowId === d.id;
-              const willPayoff = d.payoff === "Yes - at Escrow" || d.payoff === "Yes - POC";
+              // Only "Yes - at Escrow" shows & contributes to the Payoff Amount column.
+              // "Yes - before closing" is paid outside escrow, so no payoff amount there.
+              const willPayoff = d.payoff === "Yes - at Escrow";
               const payoffAmt = willPayoff ? (Number(d.payoffAmount) || bal) : 0;
               const needsLinkUI = d.type === "Mortgage" || d.type === "HELOC";
 
@@ -319,34 +338,34 @@ export default function DebtsContent({
                     background: isExpanded ? `${ACCENT}0A` : "transparent",
                     cursor: needsLinkUI || true ? "default" : "default",
                   }}>
-                    <DataCell><SelCell value={d.type} onChange={v => {
+                    <DataCell T={T}><SelCell value={d.type} onChange={v => {
                       calc.updateDebt(d.id, "type", v);
                       if (v !== "Mortgage" && v !== "HELOC") calc.updateDebt(d.id, "linkedReoId", "");
                     }} options={DEBT_TYPES} T={T} /></DataCell>
-                    <DataCell><SelCell value={d.borrower || "Joint"} onChange={v => calc.updateDebt(d.id, "borrower", v)} options={BORROWER_OPTIONS} T={T} /></DataCell>
-                    <DataCell><TextCell value={d.name} onChange={v => calc.updateDebt(d.id, "name", v)} placeholder="Creditor name" T={T} /></DataCell>
-                    <DataCell align="right"><NumCell value={d.monthly} onChange={v => (d.linkedReoId && needsLinkUI) ? syncDebtPayment(d.id, v) : calc.updateDebt(d.id, "monthly", v)} T={T} /></DataCell>
-                    <DataCell align="right"><NumCell value={d.balance} onChange={v => (d.linkedReoId && needsLinkUI) ? syncDebtBalance(d.id, v) : calc.updateDebt(d.id, "balance", v)} T={T} /></DataCell>
-                    <DataCell align="right">
+                    <DataCell T={T}><SelCell value={d.borrower || "Joint"} onChange={v => calc.updateDebt(d.id, "borrower", v)} options={BORROWER_OPTIONS} T={T} /></DataCell>
+                    <DataCell T={T}><TextCell value={d.name} onChange={v => calc.updateDebt(d.id, "name", v)} placeholder="Creditor name" T={T} /></DataCell>
+                    <DataCell align="right" T={T}><NumCell value={d.monthly} onChange={v => (d.linkedReoId && needsLinkUI) ? syncDebtPayment(d.id, v) : calc.updateDebt(d.id, "monthly", v)} T={T} /></DataCell>
+                    <DataCell align="right" T={T}><NumCell value={d.balance} onChange={v => (d.linkedReoId && needsLinkUI) ? syncDebtBalance(d.id, v) : calc.updateDebt(d.id, "balance", v)} T={T} /></DataCell>
+                    <DataCell align="right" T={T}>
                       <span style={{ fontSize: 12, fontFamily: MONO, color: T.textSecondary, fontWeight: 600 }}>
                         {bal > 0 ? `${pctOfBal.toFixed(1)}%` : "—"}
                       </span>
                     </DataCell>
-                    <DataCell align="right"><NumCell value={d.rate} onChange={v => calc.updateDebt(d.id, "rate", v)} prefix="" suffix="%" T={T} /></DataCell>
-                    <DataCell align="right">
+                    <DataCell align="right" T={T}><NumCell value={d.rate} onChange={v => calc.updateDebt(d.id, "rate", v)} prefix="" suffix="%" T={T} /></DataCell>
+                    <DataCell align="right" T={T}>
                       <span style={{ fontSize: 12, fontFamily: MONO, color: T.textSecondary, fontWeight: 600 }}>
                         {interestYr > 0 ? fmt(interestYr) : "$0"}
                       </span>
                     </DataCell>
-                    <DataCell align="center"><SelCell value={d.payoff} onChange={v => calc.updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} T={T} /></DataCell>
-                    <DataCell align="right">
+                    <DataCell align="center" T={T}><SelCell value={d.payoff} onChange={v => calc.updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} T={T} /></DataCell>
+                    <DataCell align="right" T={T}>
                       {willPayoff ? (
                         <NumCell value={d.payoffAmount || 0} onChange={v => calc.updateDebt(d.id, "payoffAmount", v)} placeholder={String(bal)} T={T} />
                       ) : (
                         <span style={{ fontSize: 12, fontFamily: MONO, color: T.textTertiary }}>—</span>
                       )}
                     </DataCell>
-                    <DataCell align="center" pad="6px 4px">
+                    <DataCell align="center" pad="6px 4px" T={T}>
                       <button onClick={() => {
                         if (needsLinkUI) toggleExpand(d.id);
                         else calc.removeDebt(d.id);
@@ -441,17 +460,17 @@ export default function DebtsContent({
                 background: T.inputBg,
                 borderTop: `1px solid ${HEAD_BORDER}`,
               }}>
-                <TotalCell align="left"><span style={{ paddingLeft: 8, textTransform: "uppercase", letterSpacing: "0.04em", fontSize: 11 }}>Totals</span></TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell align="right">{fmt(totalMonthly)}</TotalCell>
-                <TotalCell align="right">{fmt(totalBalance)}</TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell align="right">{fmt(totalInterestYr)}</TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell align="right">{totalPayoff > 0 ? fmt(totalPayoff) : "—"}</TotalCell>
-                <TotalCell> </TotalCell>
+                <TotalCell align="left" T={T}><span style={{ paddingLeft: 8, textTransform: "uppercase", letterSpacing: "0.04em", fontSize: 11 }}>Totals</span></TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell align="right" T={T}>{fmt(totalMonthly)}</TotalCell>
+                <TotalCell align="right" T={T}>{fmt(totalBalance)}</TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell align="right" T={T}>{fmt(totalInterestYr)}</TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell align="right" T={T}>{totalPayoff > 0 ? fmt(totalPayoff) : "—"}</TotalCell>
+                <TotalCell T={T}> </TotalCell>
               </div>
             )}
           </>
@@ -466,12 +485,12 @@ export default function DebtsContent({
               background: HEAD_BG,
               borderBottom: `1px solid ${HEAD_BORDER}`,
             }}>
-              <HeaderCell>Type</HeaderCell>
-              <HeaderCell>Creditor</HeaderCell>
-              <HeaderCell align="right">Monthly</HeaderCell>
-              <HeaderCell align="right">Balance</HeaderCell>
-              <HeaderCell align="center">Payoff?</HeaderCell>
-              <HeaderCell align="center"> </HeaderCell>
+              <HeaderCell T={T} headBorder={HEAD_BORDER}>Type</HeaderCell>
+              <HeaderCell T={T} headBorder={HEAD_BORDER}>Creditor</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Monthly</HeaderCell>
+              <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Balance</HeaderCell>
+              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}>Payoff?</HeaderCell>
+              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}> </HeaderCell>
             </div>
 
             {debts.map((d) => {
@@ -485,12 +504,12 @@ export default function DebtsContent({
                     gridTemplateColumns: COLS_MOBILE,
                     background: isExpanded ? `${ACCENT}0A` : "transparent",
                   }}>
-                    <DataCell><SelCell value={d.type} onChange={v => calc.updateDebt(d.id, "type", v)} options={DEBT_TYPES} T={T} /></DataCell>
-                    <DataCell><TextCell value={d.name} onChange={v => calc.updateDebt(d.id, "name", v)} placeholder="Creditor" T={T} /></DataCell>
-                    <DataCell align="right"><NumCell value={d.monthly} onChange={v => calc.updateDebt(d.id, "monthly", v)} T={T} /></DataCell>
-                    <DataCell align="right"><NumCell value={d.balance} onChange={v => calc.updateDebt(d.id, "balance", v)} T={T} /></DataCell>
-                    <DataCell align="center"><SelCell value={d.payoff} onChange={v => calc.updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} T={T} /></DataCell>
-                    <DataCell align="center" pad="6px 4px">
+                    <DataCell T={T}><SelCell value={d.type} onChange={v => calc.updateDebt(d.id, "type", v)} options={DEBT_TYPES} T={T} /></DataCell>
+                    <DataCell T={T}><TextCell value={d.name} onChange={v => calc.updateDebt(d.id, "name", v)} placeholder="Creditor" T={T} /></DataCell>
+                    <DataCell align="right" T={T}><NumCell value={d.monthly} onChange={v => calc.updateDebt(d.id, "monthly", v)} T={T} /></DataCell>
+                    <DataCell align="right" T={T}><NumCell value={d.balance} onChange={v => calc.updateDebt(d.id, "balance", v)} T={T} /></DataCell>
+                    <DataCell align="center" T={T}><SelCell value={d.payoff} onChange={v => calc.updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} T={T} /></DataCell>
+                    <DataCell align="center" pad="6px 4px" T={T}>
                       <button onClick={() => toggleExpand(d.id)} aria-label="Expand" style={{
                         width: 22, height: 22, borderRadius: 4,
                         background: "transparent", border: `1px solid ${T.separator}`,
@@ -510,7 +529,7 @@ export default function DebtsContent({
                         <Sel label="Borrower" value={d.borrower || "Joint"} onChange={v => calc.updateDebt(d.id, "borrower", v)} options={BORROWER_OPTIONS} sm />
                         <Inp label="Interest Rate" value={d.rate} onChange={v => calc.updateDebt(d.id, "rate", v)} prefix="" suffix="%" sm step={0.01} />
                       </div>
-                      {(d.payoff === "Yes - at Escrow" || d.payoff === "Yes - POC") && (
+                      {d.payoff === "Yes - at Escrow" && (
                         <Inp label="Payoff Amount" value={d.payoffAmount || 0} onChange={v => calc.updateDebt(d.id, "payoffAmount", v)} sm tip={`Leave 0 to use full balance (${fmt(bal)})`} />
                       )}
                       {needsLinkUI && reos.length > 0 && (
@@ -547,12 +566,12 @@ export default function DebtsContent({
                 background: T.inputBg,
                 borderTop: `1px solid ${HEAD_BORDER}`,
               }}>
-                <TotalCell align="left"><span style={{ paddingLeft: 8, textTransform: "uppercase", letterSpacing: "0.04em", fontSize: 11 }}>Totals</span></TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell align="right">{fmt(totalMonthly)}</TotalCell>
-                <TotalCell align="right">{fmt(totalBalance)}</TotalCell>
-                <TotalCell> </TotalCell>
-                <TotalCell> </TotalCell>
+                <TotalCell align="left" T={T}><span style={{ paddingLeft: 8, textTransform: "uppercase", letterSpacing: "0.04em", fontSize: 11 }}>Totals</span></TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell align="right" T={T}>{fmt(totalMonthly)}</TotalCell>
+                <TotalCell align="right" T={T}>{fmt(totalBalance)}</TotalCell>
+                <TotalCell T={T}> </TotalCell>
+                <TotalCell T={T}> </TotalCell>
               </div>
             )}
           </>
