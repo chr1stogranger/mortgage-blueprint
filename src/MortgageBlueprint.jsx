@@ -17,6 +17,7 @@ import SetupContent from "./content/SetupContent";
 import IncomeContent from "./content/IncomeContent";
 import AssetsContent from "./content/AssetsContent";
 import DebtsContent from "./content/DebtsContent";
+import ReoContent from "./content/ReoContent";
 import AmortContent from "./content/AmortContent";
 import SellContent from "./content/SellContent";
 import RentVsBuyContent from "./content/RentVsBuyContent";
@@ -1615,47 +1616,47 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [rbCurrentRent, setRbCurrentRent] = useState(3000);
  const [rbRentGrowth, setRbRentGrowth] = useState(3);
  const [rbInvestReturn, setRbInvestReturn] = useState(7);
- const addReo = () => setReos([...reos, { id: Date.now(), address: "", value: 0, mortgageBalance: 0, payment: 0, includesTI: true, reoTax: 0, reoIns: 0, reoHoa: 0, rentalIncome: 0, propUse: "Investment", linkedDebtIdx: -1 }]);
- const updateReo = (id, k, v) => setReos(reos.map(r => r.id === id ? { ...r, [k]: v } : r));
+ const addReo = () => setReos(prev => [...prev, { id: Date.now(), address: "", value: 0, mortgageBalance: 0, payment: 0, includesTI: true, reoTax: 0, reoIns: 0, reoHoa: 0, rentalIncome: 0, propUse: "Investment", linkedDebtIdx: -1 }]);
+ const updateReo = (id, k, v) => setReos(prev => prev.map(r => r.id === id ? { ...r, [k]: v } : r));
  // Sync-aware: update REO payment and push to single linked debt (or pull from debts)
  const syncReoPayment = (reoId, newPayment) => {
-  setReos(reos.map(r => r.id === reoId ? { ...r, payment: newPayment } : r));
+  setReos(prev => prev.map(r => r.id === reoId ? { ...r, payment: newPayment } : r));
   const linked = debts.filter(d => d.linkedReoId === String(reoId) && (d.type === "Mortgage" || d.type === "HELOC"));
   if (linked.length === 1) {
-   setDebts(debts.map(d => d.id === linked[0].id ? { ...d, monthly: newPayment } : d));
+   setDebts(prev => prev.map(d => d.id === linked[0].id ? { ...d, monthly: newPayment } : d));
   }
  };
  const syncReoBalance = (reoId, newBalance) => {
-  setReos(reos.map(r => r.id === reoId ? { ...r, mortgageBalance: newBalance } : r));
+  setReos(prev => prev.map(r => r.id === reoId ? { ...r, mortgageBalance: newBalance } : r));
   const linked = debts.filter(d => d.linkedReoId === String(reoId) && (d.type === "Mortgage" || d.type === "HELOC"));
   if (linked.length === 1) {
-   setDebts(debts.map(d => d.id === linked[0].id ? { ...d, balance: newBalance } : d));
+   setDebts(prev => prev.map(d => d.id === linked[0].id ? { ...d, balance: newBalance } : d));
   }
  };
  // Sync-aware: update debt payment and push sum to linked REO
  const syncDebtPayment = (debtId, newPayment) => {
   const debt = debts.find(d => d.id === debtId);
-  setDebts(debts.map(d => d.id === debtId ? { ...d, monthly: newPayment } : d));
+  setDebts(prev => prev.map(d => d.id === debtId ? { ...d, monthly: newPayment } : d));
   if (debt && debt.linkedReoId) {
    const reoId = Number(debt.linkedReoId);
    const otherLinked = debts.filter(d => d.linkedReoId === debt.linkedReoId && d.id !== debtId);
    const total = otherLinked.reduce((s, d) => s + (Number(d.monthly) || 0), 0) + newPayment;
-   setReos(reos.map(r => r.id === reoId ? { ...r, payment: total } : r));
+   setReos(prev => prev.map(r => r.id === reoId ? { ...r, payment: total } : r));
   }
  };
  const syncDebtBalance = (debtId, newBalance) => {
   const debt = debts.find(d => d.id === debtId);
-  setDebts(debts.map(d => d.id === debtId ? { ...d, balance: newBalance } : d));
+  setDebts(prev => prev.map(d => d.id === debtId ? { ...d, balance: newBalance } : d));
   if (debt && debt.linkedReoId) {
    const reoId = Number(debt.linkedReoId);
    const otherLinked = debts.filter(d => d.linkedReoId === debt.linkedReoId && d.id !== debtId);
    const total = otherLinked.reduce((s, d) => s + (Number(d.balance) || 0), 0) + newBalance;
-   setReos(reos.map(r => r.id === reoId ? { ...r, mortgageBalance: total } : r));
+   setReos(prev => prev.map(r => r.id === reoId ? { ...r, mortgageBalance: total } : r));
   }
  };
  const removeReo = (id) => {
-  setReos(reos.filter(r => r.id !== id));
-  setDebts(debts.map(d => d.linkedReoId === String(id) ? { ...d, linkedReoId: "" } : d));
+  setReos(prev => prev.filter(r => r.id !== id));
+  setDebts(prev => prev.map(d => d.linkedReoId === String(id) ? { ...d, linkedReoId: "" } : d));
   if (sellLinkedReoId === String(id)) setSellLinkedReoId("");
  };
  const [refiCurrentRate, setRefiCurrentRate] = useState(7);
@@ -4651,6 +4652,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, guideField, isPulse, GuidedNextButton}} />}
 {/* ═══ DEBTS ═══ */}
 {tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton}} />}
+{/* ═══ REO (Real Estate Owned) ═══ */}
+{tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, setSellPrice, setSellMortgagePayoff, setSellPrimaryRes, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, Note, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit, propType, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}

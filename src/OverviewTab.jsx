@@ -3,6 +3,7 @@ import SetupContent from "./content/SetupContent";
 import IncomeContent from "./content/IncomeContent";
 import AssetsContent from "./content/AssetsContent";
 import DebtsContent from "./content/DebtsContent";
+import ReoContent from "./content/ReoContent";
 import AmortContent from "./content/AmortContent";
 import SellContent from "./content/SellContent";
 import RentVsBuyContent from "./content/RentVsBuyContent";
@@ -141,12 +142,21 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 4: FINANCIAL INFO (Income + Debts + Assets)
+          SECTION 4: FINANCIAL INFO (Income + Debts + Real Estate Owned + Assets)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Financial Info" T={T} id="overview-financial" heroStyle={true}>
         <IncomeContent {...props} />
         <DebtsContent {...props} />
+        {ownsProperties && (
+          <div id="overview-reo" style={{ marginTop: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingLeft: 4 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>Real Estate Owned</h3>
+              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>REO</span>
+            </div>
+            <ReoContent {...props} hideHero={true} />
+          </div>
+        )}
         <AssetsContent {...props} />
       </CollapsibleSection>
 
