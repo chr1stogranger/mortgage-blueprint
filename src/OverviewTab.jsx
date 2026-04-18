@@ -128,7 +128,7 @@ export default function OverviewTab(props) {
           SECTION 2: MONTHLY PAYMENT (Calculator)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Monthly Payment" T={T} id="overview-payment">
+      <CollapsibleSection title="Monthly Payment" T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} />
       </CollapsibleSection>
 
@@ -136,7 +136,7 @@ export default function OverviewTab(props) {
           SECTION 3: CASH TO CLOSE (Costs)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs">
+      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs" heroStyle={true}>
         <CostsContent {...props} />
       </CollapsibleSection>
 
@@ -144,7 +144,7 @@ export default function OverviewTab(props) {
           SECTION 4: FINANCIAL INFO (Income + Debts + Assets)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Financial Info" T={T} id="overview-financial">
+      <CollapsibleSection title="Financial Info" T={T} id="overview-financial" heroStyle={true}>
         <IncomeContent {...props} />
         <DebtsContent {...props} />
         <AssetsContent {...props} />
@@ -154,7 +154,7 @@ export default function OverviewTab(props) {
           SECTION 5: PRE-QUALIFIED? (Qualification)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Pre-Qualified?" T={T} id="overview-qualification">
+      <CollapsibleSection title="Pre-Qualified?" T={T} id="overview-qualification" heroStyle={true}>
         <QualifyContent {...props} />
       </CollapsibleSection>
 
@@ -162,7 +162,7 @@ export default function OverviewTab(props) {
           SECTION 6: TAX SAVINGS
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Tax Savings" T={T} id="overview-tax">
+      <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" heroStyle={true}>
         <TaxContent {...props} />
       </CollapsibleSection>
 
@@ -170,7 +170,7 @@ export default function OverviewTab(props) {
           SECTION 7: EQUITY (Amortization)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Equity" T={T} id="overview-equity">
+      <CollapsibleSection title="Equity" T={T} id="overview-equity" heroStyle={true}>
         <AmortContent {...props} />
       </CollapsibleSection>
 
@@ -180,7 +180,7 @@ export default function OverviewTab(props) {
       {showRentVsBuy && !isRefi && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Rent vs Buy" T={T} id="overview-rentvbuy">
+          <CollapsibleSection title="Rent vs Buy" T={T} id="overview-rentvbuy" heroStyle={true}>
             <RentVsBuyContent {...props} />
           </CollapsibleSection>
         </>
@@ -192,7 +192,7 @@ export default function OverviewTab(props) {
       {showInvestor && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Investor" T={T} id="overview-investor">
+          <CollapsibleSection title="Investor" T={T} id="overview-investor" heroStyle={true}>
             <InvestContent {...props} />
           </CollapsibleSection>
         </>
@@ -204,7 +204,7 @@ export default function OverviewTab(props) {
       {hasSellProperty && sellPrice > 0 && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Seller Net" T={T} id="overview-seller">
+          <CollapsibleSection title="Seller Net" T={T} id="overview-seller" heroStyle={true}>
             <SellContent {...props} />
           </CollapsibleSection>
         </>
@@ -216,7 +216,7 @@ export default function OverviewTab(props) {
       {showProp19 && propertyState === "California" && !isRefi && prop19 && (
         <>
           <SectionDivider T={T} />
-          <CollapsibleSection title="Prop 19 Tax Xfer" T={T} id="overview-prop19">
+          <CollapsibleSection title="Prop 19 Tax Xfer" T={T} id="overview-prop19" heroStyle={true}>
             <Prop19Content {...props} />
           </CollapsibleSection>
         </>
