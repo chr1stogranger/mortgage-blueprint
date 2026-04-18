@@ -47,18 +47,24 @@ export default function CostsContent({
   // ────────────────────────────────────────────────────────────
   // Shared sub-components (Arive-style)
   // ────────────────────────────────────────────────────────────
-  const AMBER = T.orange;        // #F59E0B
-  const HEAD_BG = `${AMBER}18`;   // ~peach
-  const HEAD_BORDER = `${AMBER}45`;
+  const ACCENT = T.blue;          // #6366F1 indigo — on-brand
+  const HEAD_BG = `${ACCENT}14`;   // ~soft indigo tint
+  const HEAD_BORDER = `${ACCENT}38`;
   const BODY_BORDER = T.cardBorder;
 
-  const AriveBox = ({ title, total, children, accent = AMBER, highlightTotal = true }) => (
+  // AriveBox — accepts optional `footer` which is pinned to the bottom of the
+  // card, and the body (`children`) flex-grows to fill. This lets two side-by-side
+  // cards of different row counts still align their footer totals.
+  const AriveBox = ({ title, total, children, footer, accent = ACCENT, highlightTotal = true }) => (
     <div style={{
       background: T.card,
       border: `1px solid ${BODY_BORDER}`,
       borderRadius: 14,
       overflow: "hidden",
       marginBottom: 12,
+      display: "flex",
+      flexDirection: "column",
+      height: "100%",
     }}>
       <div style={{
         background: HEAD_BG,
@@ -67,6 +73,7 @@ export default function CostsContent({
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
+        flexShrink: 0,
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, letterSpacing: "-0.01em" }}>
           {title}
@@ -77,7 +84,10 @@ export default function CostsContent({
           </div>
         )}
       </div>
-      <div style={{ padding: "10px 16px 12px" }}>{children}</div>
+      <div style={{ padding: "10px 16px 12px", flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1 }}>{children}</div>
+        {footer && <div style={{ marginTop: 12 }}>{footer}</div>}
+      </div>
     </div>
   );
 
@@ -113,8 +123,8 @@ export default function CostsContent({
                 aria-label={`Edit ${label}`}
                 style={{
                   width: 18, height: 18, borderRadius: 4,
-                  border: `1px solid ${isOpen ? AMBER : T.inputBorder}`,
-                  background: isOpen ? AMBER : "transparent",
+                  border: `1px solid ${isOpen ? ACCENT : T.inputBorder}`,
+                  background: isOpen ? ACCENT : "transparent",
                   color: isOpen ? "#fff" : T.textSecondary,
                   fontSize: 14, lineHeight: 1, fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -175,12 +185,12 @@ export default function CostsContent({
       <Hero
         value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)}
         label={isRefi ? "Estimated Refi Costs" : "Estimated Cash to Close"}
-        color={AMBER}
+        color={ACCENT}
       />
     </div>
 
     {/* 2-column Arive-style grid */}
-    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "flex-start" } : {}}>
+    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "stretch" } : {}}>
 
       {/* ─── BOX 1: Lender Fees ─────────────────────────────── */}
       <AriveBox title="Lender Fees" total={fmt2(calc.origCharges)}>
@@ -297,7 +307,7 @@ export default function CostsContent({
                 onClick={() => setBuyerPaysComm(!buyerPaysComm)}
                 style={{
                   width: 38, height: 22, borderRadius: 9999, border: "none",
-                  background: buyerPaysComm ? AMBER : T.separator,
+                  background: buyerPaysComm ? ACCENT : T.separator,
                   position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0,
                 }}
                 aria-label="Toggle buyer pays commission"
@@ -403,7 +413,28 @@ export default function CostsContent({
       </AriveBox>
 
       {/* ─── BOX 5: Estimated Proposed Monthly Housing Expense ── */}
-      <AriveBox title="Estimated Proposed Monthly Housing Expense" total={undefined}>
+      <AriveBox
+        title="Estimated Proposed Monthly Housing Expense"
+        total={undefined}
+        footer={
+          <div style={{
+            padding: "12px 14px",
+            border: `1.5px solid ${ACCENT}`,
+            borderRadius: 10,
+            background: HEAD_BG,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Total Estimated Monthly Payment
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: MONO, color: ACCENT }}>
+              {fmt2(monthlyTotal)}
+            </div>
+          </div>
+        }
+      >
         <FeeRow label="First Mortgage P&I" value={firstMortgagePI} readOnly />
         <FeeRow label="Other Financing P&I" value={0} readOnly />
         <FeeRow label="Homeowner's Insurance" value={monthlyIns} readOnly />
@@ -412,27 +443,31 @@ export default function CostsContent({
         <FeeRow label="Mortgage Insurance" value={monthlyMI} readOnly />
         <FeeRow label="Homeowner Assn. Dues" value={hoa || 0} readOnly />
         <FeeRow label="Other" value={0} readOnly />
-        <div style={{
-          marginTop: 12,
-          padding: "12px 14px",
-          border: `1.5px solid ${AMBER}`,
-          borderRadius: 10,
-          background: HEAD_BG,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: AMBER, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Total Estimated Monthly Payment
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, fontFamily: MONO, color: AMBER }}>
-            {fmt2(monthlyTotal)}
-          </div>
-        </div>
       </AriveBox>
 
       {/* ─── BOX 6: Estimated Funds To Close ─────────────── */}
-      <AriveBox title={isRefi ? "Estimated Refi Costs" : "Estimated Funds To Close"} total={undefined}>
+      <AriveBox
+        title={isRefi ? "Estimated Refi Costs" : "Estimated Funds To Close"}
+        total={undefined}
+        footer={
+          <div style={{
+            padding: "12px 14px",
+            border: `1.5px solid ${ACCENT}`,
+            borderRadius: 10,
+            background: HEAD_BG,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              {isRefi ? "Total Refi Costs" : "Cash From Borrower (A−B)"}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: MONO, color: ACCENT }}>
+              {fmt2(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)}
+            </div>
+          </div>
+        }
+      >
         {!isRefi && <FeeRow label="Downpayment / Funds from Borrower" value={calc.dp} bold readOnly />}
         <FeeRow label="Lender Fees" value={calc.origCharges} readOnly />
         <FeeRow label="Third Party Fees" value={thirdPartyTotal} readOnly />
@@ -487,24 +522,6 @@ export default function CostsContent({
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.green }}>
             −{fmt2(calc.totalCredits)}
-          </div>
-        </div>
-
-        <div style={{
-          marginTop: 12,
-          padding: "12px 14px",
-          border: `1.5px solid ${AMBER}`,
-          borderRadius: 10,
-          background: HEAD_BG,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: AMBER, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            {isRefi ? "Total Refi Costs" : "Cash From Borrower (A−B)"}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, fontFamily: MONO, color: AMBER }}>
-            {fmt2(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)}
           </div>
         </div>
       </AriveBox>
