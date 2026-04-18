@@ -104,49 +104,12 @@ export default function SetupContent({
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-       <button key={label} onClick={() => { setIsRefi(val); setTimeout(() => { const zipEl = document.querySelector('[data-field="zip-code"] input'); if (zipEl) { zipEl.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zipEl.focus(), 350); } }, 100); }} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+       <button key={label} onClick={() => { setIsRefi(val); setTimeout(() => { const ficoEl = document.querySelector('[data-field="fico-input"] input[type="text"]'); if (ficoEl) { ficoEl.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => ficoEl.focus(), 350); } }, 100); }} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
       ))}
      </div>
     </div>
 
-    {/* 3) Property Location — Zip first, then city/state */}
-    <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Property Location <span style={{ color: T.red, fontSize: 12, fontWeight: 700 }}>*</span></div>
-     <TextInp label="Zip Code" value={propertyZip} onChange={v => {
-       const clean = v.replace(/\D/g,"").slice(0,5);
-       setPropertyZip(clean);
-       if (clean.length >= 5) {
-         setTimeout(() => markTouched("location"), 600);
-         // Auto-advance cursor to FICO once zip is complete. The FICO <input> has
-         // inputMode="numeric", which triggers the numeric keypad on mobile.
-         // scrollIntoView keeps the field visible under the mobile keyboard.
-         setTimeout(() => {
-           const ficoEl = document.querySelector('[data-field="fico-input"] input[type="text"]');
-           if (ficoEl) {
-             ficoEl.scrollIntoView({ behavior: "smooth", block: "center" });
-             ficoEl.focus({ preventScroll: true });
-           }
-         }, 200);
-       }
-     }} placeholder="Enter zip to auto-fill" inputMode="numeric" pattern="[0-9]*" />
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-      <Sel label="State" value={propertyState} onChange={v => { setPropertyState(v); markTouched("location"); if (v !== "California") { if (CITY_NAMES.includes(city)) setCity(""); } }} options={["California", ...STATE_NAMES_PROP.filter(s => s !== "California")].map(s => ({value:s,label:s}))} req />
-      <div>
-       {propertyState === "California" ? (
-        <SearchSelect label="City" value={city} onChange={v => { setCity(v); markTouched("location"); }} options={CITY_NAMES} req />
-       ) : (
-        <SearchSelect label="City" value={city} onChange={v => { setCity(v); markTouched("location"); }} options={STATE_CITIES[propertyState] || []} req />
-       )}
-      </div>
-     </div>
-    </div>
-    {(city && propertyState) && (
-     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
-      ✓ {city}, {propertyCounty ? propertyCounty + " County, " : ""}{propertyState} — Tax rate: {(calc.taxRate * 100).toFixed(3)}%{propTaxMode === "custom" ? " (custom)" : ""}
-     </div>
-    )}
-
-    {/* 4) FICO with slider */}
+    {/* 3) FICO with slider — Zip/State/City are entered in Monthly Payment section below */}
     <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
      <FieldLabel label="Middle FICO Score" tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." req filled={creditScore > 0} />
      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -212,96 +175,8 @@ export default function SetupContent({
    </Card>
   </div>{/* end left column */}
 
-  {/* ── RIGHT COLUMN: Numbers, Estimate & Options ── */}
+  {/* ── RIGHT COLUMN: Modules only — Price/Down Payment/Live Estimate are in Monthly Payment section ── */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
-   <Card pad={14}>
-    {/* 5+6) Price & Down Payment — side by side on desktop, purchase only */}
-    {!isRefi && (
-    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } : {}}>
-     <div data-field="price-input"
-      className={isPulse("price-input")}
-      onClick={() => markTouched("price-input")}
-      onBlur={(e) => {
-        // Auto-advance to Down Payment when focus leaves the Sales Price field.
-        // The relatedTarget check ensures we only advance when focus actually
-        // left this container (not when clicking within it).
-        if (!e.currentTarget.contains(e.relatedTarget) && salesPrice > 0) {
-          setTimeout(() => {
-            const dpEl = document.querySelector('[data-field="down-payment"] input');
-            if (!dpEl) return;
-            dpEl.scrollIntoView({ behavior: "smooth", block: "center" });
-            dpEl.focus({ preventScroll: true });
-          }, 150);
-        }
-      }}
-      style={{ borderRadius: 14, transition: "all 0.3s" }}>
-      <Inp label="Sales Price" value={salesPrice} onChange={v => { setSalesPrice(v); markTouched("price-input"); }} max={100000000} req />
-     </div>
-     <div data-field="down-payment" className={isPulse("down-payment")} onClick={() => markTouched("down-payment")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-        Down Payment<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-       </div>
-       <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}` }}>
-        <button onClick={() => setDownMode("pct")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
-        <button onClick={() => setDownMode("dollar")} style={{ padding: "3px 8px", fontSize: 10, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
-       </div>
-      </div>
-      {downMode === "pct" ? (
-       <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
-      ) : (
-       <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const pct = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(pct * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
-      )}
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: -8 }}>
-       {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
-      </div>
-     </div>
-    </div>
-    )}
-    {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down. Current: {downPct}%</Note>}
-
-    {/* Refi: show placeholder when right column would be empty */}
-    {isRefi && (
-     <div style={{ textAlign: "center", padding: "16px", color: T.textTertiary, fontSize: 12 }}>
-      Fill in current loan details below to see your savings estimate.
-     </div>
-    )}
-   </Card>
-
-   {/* ── Live Estimate — purchase only ── */}
-   {!isRefi && (
-   <div style={{ background: darkMode ? "linear-gradient(135deg, #1a2a1f, #162030)" : `linear-gradient(135deg, ${T.green}08, ${T.blue}06)`, border: `1px solid ${T.green}30`, borderRadius: 14, padding: "12px 14px", marginTop: isDesktop ? 10 : 0 }}>
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-     <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-      <span style={{ fontSize: 28, fontWeight: 800, color: T.text, fontFamily: FONT }}>{fmt(calc.displayPayment)}</span>
-      <span style={{ fontSize: 12, color: T.textTertiary }}>/mo</span>
-     </div>
-     <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.green, textTransform: "uppercase" }}>LIVE ESTIMATE</span>
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4 }}>
-     {[
-      ["P&I", fmt(calc.pi), T.blue],
-      ["Tax", fmt(calc.monthlyTax), T.orange],
-      ["Ins", fmt(calc.ins), T.green],
-      ["MI", calc.monthlyMI > 0 ? fmt(calc.monthlyMI) : "—", calc.monthlyMI > 0 ? T.red : T.textTertiary],
-     ].map(([label, val, color], i) => (
-      <div key={i} style={{ background: T.pillBg, borderRadius: 8, padding: "5px 4px", textAlign: "center" }}>
-       <div style={{ fontSize: 12, fontWeight: 700, color, fontFamily: FONT }}>{val}</div>
-       <div style={{ fontSize: 8, color: T.textTertiary, marginTop: 1 }}>{label}</div>
-      </div>
-     ))}
-    </div>
-   </div>
-   )}
-
-   {/* ── Zip summary — Tax, Transfer, AMI right below estimate ── */}
-   {(city && propertyState) && (
-    <div style={{ marginTop: 6, padding: "6px 14px", display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 10, color: T.textTertiary }}>
-     <span>Tax: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{propTaxMode === "custom" ? (calc.effectiveTaxRate * 100).toFixed(3) : (calc.taxRate * 100).toFixed(3)}%</span>{propTaxMode === "custom" && <span style={{ color: T.blue, fontSize: 10, marginLeft: 3 }}>eff.</span>}</span>
-     {!isRefi && <span>Transfer: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{getTTCitiesForState(propertyState).includes(city) && city !== "Not listed" ? `${city} ($${getTTForCity(city, salesPrice).rate}/$1K)` : "County ($1.10/$1K)"}</span></span>}
-     {propertyCounty && COUNTY_AMI[propertyCounty] && <span>AMI: <span style={{ color: T.text, fontWeight: 600, fontFamily: MONO }}>{fmt(COUNTY_AMI[propertyCounty])}</span></span>}
-    </div>
-   )}
 
    {/* ── Modules — full-width toggles with descriptions ── */}
    {/* In guided mode, skip modules when FTHB = No (available in Settings) */}
