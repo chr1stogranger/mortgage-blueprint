@@ -4479,16 +4479,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   </div>}
    {/* ── App Mode Toggle (mobile only — desktop uses sidebar) ── */}
+   {/* Markets intentionally hidden on mobile — only Blueprint + PricePoint shown */}
    <div style={{ position: "sticky", top: "env(safe-area-inset-top, 0px)", zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block", paddingTop: "env(safe-area-inset-top, 0px)" }}>
     <div style={{ display: "flex", justifyContent: "center", padding: "6px 20px 0" }}>
      <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
-      {[["blueprint","Blueprint"],["pricepoint","PricePoint"],["markets","Markets"]].map(([k,l]) => (
+      {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
        <button key={k} onClick={() => setAppMode(k)} style={{
-        padding: "8px 16px", borderRadius: 12, border: "none", fontSize: 12, fontWeight: 700,
+        padding: "8px 18px", borderRadius: 12, border: "none", fontSize: 12, fontWeight: 700,
         fontFamily: "'SF Pro Display','Inter',sans-serif", cursor: "pointer", transition: "all 0.25s",
-        background: appMode === k ? (k === "blueprint" ? T.blue : k === "pricepoint" ? "#38bd7e" : "#6366F1") : "transparent",
+        background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
         color: appMode === k ? "#fff" : T.textTertiary,
-        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : k === "pricepoint" ? "0 2px 12px rgba(56,189,126,0.3)" : "0 2px 12px rgba(99,102,241,0.3)") : "none",
+        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : "0 2px 12px rgba(56,189,126,0.3)") : "none",
        }}>{l}</button>
       ))}
      </div>
