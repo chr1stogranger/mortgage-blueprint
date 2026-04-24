@@ -4479,9 +4479,35 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    </div>
   </div>}
-   {/* App Mode Toggle was here (standalone sticky pill) — moved INTO
-       UnifiedHeader on mobile so it isn't visually covered by the 86px fixed
-       header. Desktop continues to use the sidebar switcher. */}
+   {/* App Mode Toggle for NON-Blueprint modes on mobile.
+       In Blueprint mode this pill lives inside UnifiedHeader (so it shares
+       the fixed stacking context). When UnifiedHeader doesn't render
+       (PricePoint / Markets), we still need a persistent way to switch
+       back — this standalone pill handles that case. Desktop uses the
+       sidebar switcher regardless. */}
+   {!isDesktop && appMode !== "blueprint" && (
+    <div style={{
+      position: "sticky", top: "env(safe-area-inset-top, 0px)",
+      zIndex: 60, background: T.headerBg,
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+      borderBottom: `1px solid ${T.separator}`,
+      paddingTop: "env(safe-area-inset-top, 0px)",
+    }}>
+     <div style={{ display: "flex", justifyContent: "center", padding: "6px 20px" }}>
+      <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 2, border: `1px solid ${T.cardBorder || T.separator}`, gap: 2 }}>
+       {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
+        <button key={k} onClick={() => setAppMode(k)} style={{
+         padding: "5px 14px", borderRadius: 10, border: "none", fontSize: 11, fontWeight: 700,
+         fontFamily: FONT, cursor: "pointer", transition: "all 0.25s",
+         background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
+         color: appMode === k ? "#fff" : T.textTertiary,
+         boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 10px ${T.blue}40` : "0 2px 10px rgba(56,189,126,0.3)") : "none",
+        }}>{l}</button>
+       ))}
+      </div>
+     </div>
+    </div>
+   )}
    {/* ── Realtor Partner Co-Brand Bar ── */}
    {realtorPartner && (
     <div style={{ padding: "0 16px 8px" }}>
