@@ -4253,6 +4253,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}
     skillLevel={skillLevel}
     onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
+    appMode={appMode} setAppMode={setAppMode}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
     borrowerList={borrowerList} activeBorrower={activeBorrower}
@@ -4478,23 +4479,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    </div>
   </div>}
-   {/* ── App Mode Toggle (mobile only — desktop uses sidebar) ── */}
-   {/* Markets intentionally hidden on mobile — only Blueprint + PricePoint shown */}
-   <div style={{ position: "sticky", top: "env(safe-area-inset-top, 0px)", zIndex: 60, background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", maxWidth: "100%", width: "100%", overflow: "hidden", boxSizing: "border-box", display: isDesktop ? "none" : "block", paddingTop: "env(safe-area-inset-top, 0px)" }}>
-    <div style={{ display: "flex", justifyContent: "center", padding: "6px 20px 0" }}>
-     <div style={{ display: "flex", background: T.pillBg, borderRadius: 14, padding: 3, border: `1px solid ${T.cardBorder}`, gap: 2 }}>
-      {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
-       <button key={k} onClick={() => setAppMode(k)} style={{
-        padding: "8px 18px", borderRadius: 12, border: "none", fontSize: 12, fontWeight: 700,
-        fontFamily: "'SF Pro Display','Inter',sans-serif", cursor: "pointer", transition: "all 0.25s",
-        background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
-        color: appMode === k ? "#fff" : T.textTertiary,
-        boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 12px ${T.blue}40` : "0 2px 12px rgba(56,189,126,0.3)") : "none",
-       }}>{l}</button>
-      ))}
-     </div>
-    </div>
-   </div>
+   {/* App Mode Toggle was here (standalone sticky pill) — moved INTO
+       UnifiedHeader on mobile so it isn't visually covered by the 86px fixed
+       header. Desktop continues to use the sidebar switcher. */}
    {/* ── Realtor Partner Co-Brand Bar ── */}
    {realtorPartner && (
     <div style={{ padding: "0 16px 8px" }}>

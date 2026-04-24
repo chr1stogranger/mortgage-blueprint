@@ -40,6 +40,8 @@ export default function UnifiedHeader({
   BorrowerPicker, borrowerPickerCallbacks,
   /* Skill level */
   skillLevel, onToggleSkillLevel,
+  /* App mode — shown as pill toggle on mobile (desktop uses sidebar) */
+  appMode, setAppMode,
   /* Mobile tab bar */
   mobileTabBar,
 }) {
@@ -357,6 +359,38 @@ export default function UnifiedHeader({
               Share Link
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Mobile-only App Mode toggle (Blueprint ↔ PricePoint) ──
+          Markets intentionally hidden on mobile. Desktop uses sidebar switcher. */}
+      {!isDesktop && setAppMode && (
+        <div style={{
+          display: "flex", justifyContent: "center",
+          padding: "4px 14px 6px",
+          borderTop: `1px solid ${T.separator}`,
+        }}>
+          <div style={{
+            display: "flex", background: T.pillBg, borderRadius: 12,
+            padding: 2, border: `1px solid ${T.cardBorder || T.separator}`, gap: 2,
+          }}>
+            {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
+              <button key={k} onClick={() => setAppMode(k)} style={{
+                padding: "5px 14px", borderRadius: 10, border: "none",
+                fontSize: 11, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+                transition: "all 0.25s",
+                background: appMode === k
+                  ? (k === "blueprint" ? T.blue : "#38bd7e")
+                  : "transparent",
+                color: appMode === k ? "#fff" : T.textTertiary,
+                boxShadow: appMode === k
+                  ? (k === "blueprint"
+                      ? `0 2px 10px ${T.blue}40`
+                      : "0 2px 10px rgba(56,189,126,0.3)")
+                  : "none",
+              }}>{l}</button>
+            ))}
+          </div>
         </div>
       )}
 
