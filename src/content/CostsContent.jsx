@@ -4,17 +4,21 @@ const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // ──────────────────────────────────────────────────────────────
-// Context lets the Arive-style sub-components (AriveBox, FeeRow,
-// SubHead) live at MODULE scope rather than being re-declared on
-// every render of CostsContent. Re-declaring them inside the
-// functional component creates new function identities each render,
-// which causes React to unmount/remount the children — including
-// live <input> fields, dropping focus mid-keystroke.
+// Context lets the Arive-style sub-components (CollapsibleBox,
+// FeeRow, LetterSection) live at MODULE scope rather than being
+// re-declared on every render of CostsContent. Re-declaring them
+// inside the functional component creates new function identities
+// each render, which causes React to unmount/remount the children —
+// including live <input> fields, dropping focus mid-keystroke.
 // ──────────────────────────────────────────────────────────────
 const CostsCtx = createContext(null);
 
-function AriveBox({ title, total, children, footer, highlightTotal = true }) {
+// Master collapsible "card" — replaces AriveBox for top-level groups.
+// Header is a button that toggles open/closed. Total stays visible
+// in the header even when collapsed (Linear/Vercel pattern).
+function CollapsibleBox({ title, total, totalColor, defaultOpen = true, children }) {
   const { T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER } = useContext(CostsCtx);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{
       background: T.card,
@@ -22,42 +26,126 @@ function AriveBox({ title, total, children, footer, highlightTotal = true }) {
       borderRadius: 14,
       overflow: "hidden",
       marginBottom: 12,
-      display: "flex",
-      flexDirection: "column",
-      height: "100%",
     }}>
-      <div style={{
-        background: HEAD_BG,
-        borderBottom: `1px solid ${HEAD_BORDER}`,
-        padding: "12px 16px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexShrink: 0,
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, letterSpacing: "-0.01em" }}>{title}</div>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        style={{
+          width: "100%",
+          background: HEAD_BG,
+          borderBottom: open ? `1px solid ${HEAD_BORDER}` : "none",
+          padding: "14px 18px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: FONT,
+          textAlign: "left",
+          transition: "background 0.15s",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <span aria-hidden style={{
+            display: "inline-block",
+            width: 0,
+            height: 0,
+            borderLeft: "5px solid transparent",
+            borderRight: "5px solid transparent",
+            borderTop: `6px solid ${ACCENT}`,
+            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+            transition: "transform 0.15s ease",
+            flexShrink: 0,
+          }} />
+          <span style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: T.text,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            fontFamily: MONO,
+          }}>{title}</span>
+        </div>
         {total !== undefined && (
-          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: highlightTotal ? ACCENT : T.text }}>{total}</div>
+          <div style={{
+            fontSize: 14,
+            fontWeight: 700,
+            fontFamily: MONO,
+            color: totalColor || ACCENT,
+            flexShrink: 0,
+          }}>{total}</div>
         )}
-      </div>
-      <div style={{ padding: "10px 16px 12px", flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ flex: 1 }}>{children}</div>
-        {footer && <div style={{ marginTop: 12 }}>{footer}</div>}
-      </div>
+      </button>
+      {open && (
+        <div style={{ padding: "10px 18px 14px" }}>{children}</div>
+      )}
     </div>
   );
 }
 
-function SubHead({ children }) {
+// Lettered subsection inside a CollapsibleBox (A. Origination, B. Cannot Shop, etc.)
+function LetterSection({ letter, title, total, children }) {
   const { T } = useContext(CostsCtx);
   return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        padding: "6px 0",
+        borderBottom: `1px solid ${T.separator}`,
+        marginBottom: 2,
+      }}>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: T.text,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          fontFamily: MONO,
+        }}>
+          <span style={{ color: T.textTertiary, marginRight: 8 }}>{letter}.</span>
+          {title}
+        </div>
+        {total !== undefined && (
+          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>
+            {total}
+          </div>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Computed-total row (e.g. D. Total Loan Costs A+B+C) — looks like a band, not a fee row.
+function TotalBand({ letter, title, total }) {
+  const { T, ACCENT } = useContext(CostsCtx);
+  return (
     <div style={{
-      fontSize: 12,
-      fontWeight: 700,
-      color: T.text,
-      padding: "8px 0 6px",
-      letterSpacing: "-0.01em",
-    }}>{children}</div>
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "10px 12px",
+      marginBottom: 14,
+      background: `${ACCENT}10`,
+      border: `1px solid ${ACCENT}30`,
+      borderRadius: 8,
+    }}>
+      <div style={{
+        fontSize: 11,
+        fontWeight: 700,
+        color: ACCENT,
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        fontFamily: MONO,
+      }}>
+        <span style={{ marginRight: 8 }}>{letter}.</span>
+        {title}
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: ACCENT }}>{total}</div>
+    </div>
   );
 }
 
@@ -117,7 +205,7 @@ function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, p
   );
 }
 
-// Small inline toggle row — used for escrow on/off under Property Taxes
+// Small inline toggle row — used for escrow on/off and buyer-pays-comm
 function ToggleRow({ label, hint, on, onChange }) {
   const { T, ACCENT } = useContext(CostsCtx);
   return (
@@ -141,6 +229,111 @@ function ToggleRow({ label, hint, on, onChange }) {
           transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
         }} />
       </button>
+    </div>
+  );
+}
+
+// Cash-to-Close summary table (top of fees) — brand-kit styled.
+// Sums Down Payment + Closing Costs + Prepaids + Payoffs − Credits.
+function CashToCloseSummary({ T, ACCENT, fmt2, downPayment, closingCosts, prepaids, payoffs, credits, isRefi }) {
+  const total = (isRefi ? 0 : downPayment) + closingCosts + prepaids + payoffs - credits;
+  const rows = [
+    !isRefi && { label: "Down Payment",         sign: "+", value: downPayment },
+    { label: "Closing Costs",         sign: "+", value: closingCosts },
+    { label: "Prepaid Expenses",      sign: "+", value: prepaids },
+    { label: "Loans / Debts to Payoff", sign: "+", value: payoffs },
+    { label: "Credits To Buyer",      sign: "−", value: credits },
+  ].filter(Boolean);
+
+  return (
+    <div style={{
+      background: T.card,
+      border: `1px solid ${T.cardBorder}`,
+      borderRadius: 14,
+      overflow: "hidden",
+      marginBottom: 16,
+      boxShadow: `0 0 0 1px ${ACCENT}10`,
+    }}>
+      {/* Header band */}
+      <div style={{
+        background: `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`,
+        borderBottom: `1px solid ${ACCENT}38`,
+        padding: "12px 18px",
+      }}>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: ACCENT,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          fontFamily: MONO,
+        }}>
+          Cash To Close Summary
+        </div>
+      </div>
+
+      {/* Rows */}
+      <div style={{ padding: "4px 18px 0" }}>
+        {rows.map((r) => (
+          <div key={r.label} style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "11px 0",
+            borderBottom: `1px solid ${T.separator}`,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: T.text, fontFamily: FONT }}>
+              {r.label}
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+              <span style={{
+                fontFamily: MONO,
+                fontSize: 13,
+                color: r.sign === "−" ? T.green : T.textTertiary,
+                fontWeight: 700,
+                width: 12,
+                textAlign: "center",
+              }}>{r.sign}</span>
+              <span style={{
+                fontFamily: MONO,
+                fontSize: 14,
+                fontWeight: 600,
+                color: T.text,
+                minWidth: 110,
+                textAlign: "right",
+              }}>{fmt2(r.value)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Total band */}
+      <div style={{
+        background: `${ACCENT}0E`,
+        borderTop: `1.5px solid ${ACCENT}40`,
+        padding: "16px 18px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}>
+        <div style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: ACCENT,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          fontFamily: MONO,
+        }}>
+          Estimated {isRefi ? "Refi Cost" : "Cash To Close"}
+        </div>
+        <div style={{
+          fontFamily: MONO,
+          fontSize: 22,
+          fontWeight: 800,
+          color: ACCENT,
+          letterSpacing: "-0.02em",
+        }}>{fmt2(total)}</div>
+      </div>
     </div>
   );
 }
@@ -203,14 +396,24 @@ export default function CostsContent({
   const escrowTax_reserve = includeEscrow ? calc.monthlyTax * calc.escrowTaxMonths : 0;
   const escrowMI_reserve = includeEscrow && calc.monthlyMI > 0 ? calc.monthlyMI * 2 : 0;
   const proposedTax_atClosing = includeEscrow ? calc.monthlyTax * calc.escrowTaxMonths : 0;
-  const thirdPartyTotal = calc.cannotShop + calc.canShop + (isRefi ? 0 : (ownersTitleIns + homeWarranty + (hoa > 0 ? (hoaTransferFee > 0 ? hoaTransferFee : hoa) : 0) + liveBuyerComm));
 
-  // Monthly pieces
-  const firstMortgagePI = calc.pi || 0;
+  // H. Other (purchase only) — Owner's Title, Warranty, HOA Transfer, Buyer Comm
+  const otherCostsTotal = isRefi ? 0 : (
+    ownersTitleIns + homeWarranty +
+    (hoa > 0 ? (hoaTransferFee > 0 ? hoaTransferFee : hoa) : 0) +
+    liveBuyerComm
+  );
+
+  // D. Total Loan Costs = A + B + C
+  const totalLoanCosts = calc.origCharges + calc.cannotShop + calc.canShop;
+
+  // Total Closing Costs = A + B + C + E + H
+  const totalClosingCosts = totalLoanCosts + calc.govCharges + otherCostsTotal;
+
+  // Monthly pieces (used inside Prepaids labels)
   const monthlyMI = calc.monthlyMI || 0;
   const monthlyTax = calc.monthlyTax || 0;
   const monthlyIns = calc.ins || 0;
-  const monthlyTotal = calc.displayPayment || (firstMortgagePI + monthlyMI + monthlyTax + monthlyIns + (hoa || 0));
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const monthOptions = monthNames.map((m, i) => ({ value: i + 1, label: m }));
@@ -218,20 +421,26 @@ export default function CostsContent({
 
   return (
     <CostsCtx.Provider value={ctx}>
-      {/* Hero — total cash to close */}
-      <div style={{ marginTop: 20, marginBottom: 16 }}>
-        <Hero
-          value={fmt(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)}
-          label={isRefi ? "Estimated Refi Costs" : "Estimated Cash to Close"}
-          color={ACCENT}
+      {/* Cash To Close Summary — top of fees, brand-kit styled */}
+      <div style={{ marginTop: 20 }}>
+        <CashToCloseSummary
+          T={T}
+          ACCENT={ACCENT}
+          fmt2={fmt2}
+          downPayment={isRefi ? 0 : calc.dp}
+          closingCosts={totalClosingCosts}
+          prepaids={calc.totalPrepaidExp}
+          payoffs={0}
+          credits={calc.totalCredits}
+          isRefi={isRefi}
         />
       </div>
 
-      {/* 2-column Arive-style grid */}
-      <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "stretch" } : {}}>
+      {/* ─── MASTER 1: Closing Costs (default OPEN) ──────────────── */}
+      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={true}>
 
-        {/* ─── BOX 1: Lender Fees ─────────────────────────── */}
-        <AriveBox title="Lender Fees" total={fmt2(calc.origCharges)}>
+        {/* A. Origination Charges */}
+        <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)}>
           <FeeRow
             label={discountPts > 0 ? `${discountPts}% of Loan Amount (Points)` : "__% of Loan Amount (Points)"}
             editKey="points"
@@ -243,31 +452,43 @@ export default function CostsContent({
               </>
             }
           />
-          <FeeRow
-            label="Originator Compensation"
-            editKey="origComp"
-            value={originatorComp}
-            onChange={setOriginatorComp}
-          />
-          <FeeRow
-            label="Underwriting Fee"
-            editKey="underwriting"
-            value={underwritingFee}
-            onChange={setUnderwritingFee}
-          />
+          <FeeRow label="Originator Compensation" editKey="origComp" value={originatorComp} onChange={setOriginatorComp} />
+          <FeeRow label="Underwriting Fee"        editKey="underwriting" value={underwritingFee} onChange={setUnderwritingFee} />
           {processingFee > 0 && (
             <FeeRow label="Processing Fee" editKey="processing" value={processingFee} onChange={setProcessingFee} />
           )}
-        </AriveBox>
+        </LetterSection>
 
-        {/* ─── BOX 2: Taxes & Other Government Fees ────────── */}
-        <AriveBox title="Taxes and Other Government Fees" total={fmt2(calc.govCharges)}>
-          <FeeRow
-            label="Recording Fees"
-            editKey="recording"
-            value={recordingFee}
-            onChange={setRecordingFee}
-          />
+        {/* B. Services You Cannot Shop For */}
+        <LetterSection letter="B" title="Services You Cannot Shop For" total={fmt2(calc.cannotShop)}>
+          <FeeRow label="Appraisal Fee"          editKey="appraisal" value={appraisalFee}    onChange={setAppraisalFee} />
+          <FeeRow label="Credit Report Fee"      editKey="credit"    value={creditReportFee} onChange={setCreditReportFee} />
+          <FeeRow label="Flood Certificate Fee"  editKey="flood"     value={floodCertFee}    onChange={setFloodCertFee} />
+          <FeeRow label="MERS Registration Fee"  editKey="mers"      value={mersFee}         onChange={setMersFee} />
+          <FeeRow label="Tax Service Fee"        editKey="taxsvc"    value={taxServiceFee}   onChange={setTaxServiceFee} />
+        </LetterSection>
+
+        {/* C. Services You Can Shop For */}
+        <LetterSection letter="C" title="Services You Can Shop For" total={fmt2(calc.canShop)}>
+          {isRefi ? (
+            <FeeRow label="Title / Escrow Flat Fee" editKey="escrowRefi" value={escrowFee} onChange={setEscrowFee} note="Refinances use a flat title/escrow fee." />
+          ) : (
+            <>
+              <FeeRow label="Title — Insurance Binder"        editKey="titleIns"    value={titleInsurance} onChange={setTitleInsurance} />
+              <FeeRow label="Title — Settlement Agent Fee"    editKey="settlement"  value={settlementFee}  onChange={setSettlementFee} />
+              <FeeRow label="Title — Title Search"            editKey="titleSearch" value={titleSearch}    onChange={setTitleSearch} />
+              <FeeRow label="Title — Escrow/Settlement Fee"   editKey="escrow"      value={escrowFee}      onChange={setEscrowFee} />
+              {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" />}
+            </>
+          )}
+        </LetterSection>
+
+        {/* D. Total Loan Costs (A + B + C) — computed band */}
+        <TotalBand letter="D" title="Total Loan Costs (A + B + C)" total={fmt2(totalLoanCosts)} />
+
+        {/* E. Taxes and Other Government Charges */}
+        <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)}>
+          <FeeRow label="Recording Fees" editKey="recording" value={recordingFee} onChange={setRecordingFee} />
           <FeeRow
             label="Transfer Taxes"
             editKey="transferTax"
@@ -292,76 +513,53 @@ export default function CostsContent({
               <div style={{ fontSize: 12, color: T.blue }}>No transfer tax on refinances in California.</div>
             )}
           />
-        </AriveBox>
+        </LetterSection>
 
-        {/* ─── BOX 3: Third Party Fees ───────────────────── */}
-        <AriveBox title="Third Party Fees" total={fmt2(thirdPartyTotal)}>
-          <SubHead>Services You Cannot Shop For</SubHead>
-          <FeeRow label="Appraisal Fee" editKey="appraisal" value={appraisalFee} onChange={setAppraisalFee} />
-          <FeeRow label="Credit Report Fee" editKey="credit" value={creditReportFee} onChange={setCreditReportFee} />
-          <FeeRow label="Flood Certificate Fee" editKey="flood" value={floodCertFee} onChange={setFloodCertFee} />
-          <FeeRow label="MERS Registration Fee" editKey="mers" value={mersFee} onChange={setMersFee} />
-          <FeeRow label="Tax Service Fee" editKey="taxsvc" value={taxServiceFee} onChange={setTaxServiceFee} />
-
-          {isRefi ? (
-            <>
-              <SubHead>Services You Can Shop For</SubHead>
-              <FeeRow label="Title / Escrow Flat Fee" editKey="escrowRefi" value={escrowFee} onChange={setEscrowFee} note="Refinances use a flat title/escrow fee." />
-            </>
-          ) : (
-            <>
-              <SubHead>Services You Can Shop For</SubHead>
-              <FeeRow label="Title — Insurance Binder" editKey="titleIns" value={titleInsurance} onChange={setTitleInsurance} />
-              <FeeRow label="Title — Settlement Agent Fee" editKey="settlement" value={settlementFee} onChange={setSettlementFee} />
-              <FeeRow label="Title — Title Search" editKey="titleSearch" value={titleSearch} onChange={setTitleSearch} />
-              <FeeRow label="Title — Escrow/Settlement Fee" editKey="escrow" value={escrowFee} onChange={setEscrowFee} />
-              {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" />}
-            </>
-          )}
-
-          {!isRefi && (
-            <>
-              <SubHead>Other Costs</SubHead>
-              <FeeRow label="Owner's Title Insurance" editKey="ownersTitle" value={ownersTitleIns} onChange={setOwnersTitleIns} />
-              <FeeRow label="Home Warranty" editKey="warranty" value={homeWarranty} onChange={setHomeWarranty} />
-              {hoa > 0 && (
-                <FeeRow
-                  label="HOA Transfer Fee"
-                  editKey="hoaTransfer"
-                  value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
-                  onChange={setHoaTransferFee}
-                  sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
-                />
-              )}
-              <ToggleRow
-                label="Buyer Pays Agent Commission"
-                hint="Toggle on if buyer is responsible for their agent's fee"
-                on={buyerPaysComm}
-                onChange={setBuyerPaysComm}
+        {/* H. Other (purchase only) */}
+        {!isRefi && (
+          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)}>
+            <FeeRow label="Owner's Title Insurance" editKey="ownersTitle" value={ownersTitleIns} onChange={setOwnersTitleIns} />
+            <FeeRow label="Home Warranty"           editKey="warranty"    value={homeWarranty}   onChange={setHomeWarranty} />
+            {hoa > 0 && (
+              <FeeRow
+                label="HOA Transfer Fee"
+                editKey="hoaTransfer"
+                value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
+                onChange={setHoaTransferFee}
+                sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
               />
-              {buyerPaysComm && (
-                <FeeRow
-                  label="Buyer Agent Commission"
-                  editKey="buyerComm"
-                  value={liveBuyerComm}
-                  sub={`${buyerCommPct}% × ${fmt(salesPrice)}`}
-                  editor={
-                    <>
-                      <Inp label="Commission Rate" value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
-                      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
-                        {buyerCommPct}% × {fmt(salesPrice)} = <strong>{fmt2(liveBuyerComm)}</strong>
-                      </div>
-                    </>
-                  }
-                />
-              )}
-            </>
-          )}
-        </AriveBox>
+            )}
+            <ToggleRow
+              label="Buyer Pays Agent Commission"
+              hint="Toggle on if buyer is responsible for their agent's fee"
+              on={buyerPaysComm}
+              onChange={setBuyerPaysComm}
+            />
+            {buyerPaysComm && (
+              <FeeRow
+                label="Buyer Agent Commission"
+                editKey="buyerComm"
+                value={liveBuyerComm}
+                sub={`${buyerCommPct}% × ${fmt(salesPrice)}`}
+                editor={
+                  <>
+                    <Inp label="Commission Rate" value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
+                    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
+                      {buyerCommPct}% × {fmt(salesPrice)} = <strong>{fmt2(liveBuyerComm)}</strong>
+                    </div>
+                  </>
+                }
+              />
+            )}
+          </LetterSection>
+        )}
+      </CollapsibleBox>
 
-        {/* ─── BOX 4: Prepaids & Initial Escrow ─────────── */}
-        <AriveBox title="Prepaids and Initial Escrow Payment at Closing" total={fmt2(calc.totalPrepaidExp)}>
-          <SubHead>Prepaids</SubHead>
+      {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
+      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={true}>
+
+        {/* F. Prepaids */}
+        <LetterSection letter="F" title="Prepaids">
           <FeeRow
             label={`Hazard Insurance Premium (12 Months @ ${fmt2(annualIns / 12)})`}
             editKey="hoi"
@@ -369,12 +567,7 @@ export default function CostsContent({
             onChange={setAnnualIns}
           />
           {monthlyMI > 0 && (
-            <FeeRow
-              label="Mortgage Insurance Premium"
-              value={0}
-              sub="— mo @ —"
-              readOnly
-            />
+            <FeeRow label="Mortgage Insurance Premium" value={0} sub="— mo @ —" readOnly />
           )}
           <FeeRow
             label={`Prepaid Interest (${calc.autoPrepaidDays} Days @ ${fmt2(calc.dailyInt)})`}
@@ -406,8 +599,10 @@ export default function CostsContent({
             on={includeEscrow}
             onChange={setIncludeEscrow}
           />
+        </LetterSection>
 
-          <SubHead>Initial Escrow Payment at Closing</SubHead>
+        {/* G. Initial Escrow Payment at Closing */}
+        <LetterSection letter="G" title="Initial Escrow Payment at Closing">
           {!includeEscrow ? (
             <div style={{ padding: "8px 0", fontSize: 12, color: T.textSecondary }}>
               Escrow waived — taxes and insurance paid separately by borrower.
@@ -436,96 +631,23 @@ export default function CostsContent({
               />
             </>
           )}
-        </AriveBox>
+        </LetterSection>
+      </CollapsibleBox>
 
-        {/* ─── BOX 5: Estimated Proposed Monthly Housing Expense ── */}
-        <AriveBox
-          title="Estimated Proposed Monthly Housing Expense"
-          total={undefined}
-          footer={
-            <div style={{
-              padding: "12px 14px",
-              border: `1.5px solid ${ACCENT}`,
-              borderRadius: 10,
-              background: HEAD_BG,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Total Estimated Monthly Payment
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: MONO, color: ACCENT }}>
-                {fmt2(monthlyTotal)}
-              </div>
-            </div>
-          }
-        >
-          <FeeRow label="First Mortgage P&I" value={firstMortgagePI} readOnly />
-          <FeeRow label="Other Financing P&I" value={0} readOnly />
-          <FeeRow label="Homeowner's Insurance" value={monthlyIns} readOnly />
-          <FeeRow label="Supplemental Property Insurance" value={0} readOnly />
-          <FeeRow label="Property Taxes" value={monthlyTax} readOnly />
-          <FeeRow label="Mortgage Insurance" value={monthlyMI} readOnly />
-          <FeeRow label="Homeowner Assn. Dues" value={hoa || 0} readOnly />
-          <FeeRow label="Other" value={0} readOnly />
-        </AriveBox>
-
-        {/* ─── BOX 6: Estimated Funds To Close ─────────── */}
-        <AriveBox
-          title={isRefi ? "Estimated Refi Costs" : "Estimated Funds To Close"}
-          total={undefined}
-          footer={
-            <div style={{
-              padding: "12px 14px",
-              border: `1.5px solid ${ACCENT}`,
-              borderRadius: 10,
-              background: HEAD_BG,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                {isRefi ? "Total Refi Costs" : "Cash From Borrower (A−B)"}
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: MONO, color: ACCENT }}>
-                {fmt2(isRefi ? calc.totalClosingCosts + calc.totalPrepaidExp - calc.totalCredits : calc.cashToClose)}
-              </div>
-            </div>
-          }
-        >
-          {!isRefi && <FeeRow label="Downpayment / Funds from Borrower" value={calc.dp} bold readOnly />}
-          <FeeRow label="Lender Fees" value={calc.origCharges} readOnly />
-          <FeeRow label="Third Party Fees" value={thirdPartyTotal} readOnly />
-          <FeeRow label="Taxes and Other Government Fees" value={calc.govCharges} readOnly />
-          <FeeRow label="Prepaids and Initial Escrow" value={calc.totalPrepaidExp} readOnly />
-          <FeeRow label="Estimated Total Payoffs" value={0} readOnly />
-
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Funds Due From Borrower (A)</div>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.text }}>
-              {fmt2((isRefi ? 0 : calc.dp) + calc.origCharges + thirdPartyTotal + calc.govCharges + calc.totalPrepaidExp)}
-            </div>
-          </div>
-
-          <FeeRow label="Deposit (EMD)" editKey="emd" value={isRefi ? 0 : emd} onChange={setEmd} readOnly={isRefi} />
-          <FeeRow label="Lender Credits" editKey="lenderCredit" value={lenderCredit} onChange={setLenderCredit} />
-          {!isRefi && (
-            <>
-              <FeeRow label="Seller Credits" editKey="sellerCredit" value={sellerCredit} onChange={setSellerCredit} />
-              <FeeRow label="Realtor Credit" editKey="realtorCredit" value={realtorCredit} onChange={setRealtorCredit} />
-            </>
-          )}
-          <FeeRow label="Adjustments and Other Credits" value={0} readOnly />
-          <FeeRow label="Subordinate Financing" value={0} readOnly />
-
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Total Credits Applied (B)</div>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: T.green }}>−{fmt2(calc.totalCredits)}</div>
-          </div>
-        </AriveBox>
-
-      </div>
+      {/* ─── MASTER 3: Credits to Buyer (default COLLAPSED) ───── */}
+      <CollapsibleBox
+        title="Credits to Buyer"
+        total={`−${fmt2(calc.totalCredits)}`}
+        totalColor={T.green}
+        defaultOpen={false}
+      >
+        <FeeRow label="Earnest Money Deposit (EMD)"   editKey="emd"           value={isRefi ? 0 : emd}    onChange={setEmd} readOnly={isRefi} />
+        {!isRefi && <FeeRow label="Seller Credit"      editKey="sellerCredit"  value={sellerCredit}        onChange={setSellerCredit} />}
+        {!isRefi && <FeeRow label="Realtor Credit"     editKey="realtorCredit" value={realtorCredit}       onChange={setRealtorCredit} />}
+        <FeeRow label="Lender Credits"                 editKey="lenderCredit"  value={lenderCredit}        onChange={setLenderCredit} />
+        <FeeRow label="Adjustments and Other Credits"  value={0} readOnly />
+        <FeeRow label="Subordinate Financing"          value={0} readOnly />
+      </CollapsibleBox>
 
       {/* First-payment explainer */}
       {(() => {
