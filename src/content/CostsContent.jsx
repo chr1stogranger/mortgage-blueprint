@@ -149,10 +149,11 @@ function TotalBand({ letter, title, total }) {
   );
 }
 
-function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, prefix = "$", bold = false, color, step = 1, max, isDollar = true, note, readOnly = false }) {
+function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, prefix = "$", bold = false, color, step = 1, max, isDollar = true, note, readOnly = false, calc, explainer }) {
   const { T, ACCENT, fmt2, openRow, toggleRow, Inp } = useContext(CostsCtx);
   const isOpen = editKey && openRow === editKey;
   const displayVal = isDollar ? (value === 0 ? "$0.00" : fmt2(value)) : value;
+  const hasIndentBtn = editKey && !readOnly;
   return (
     <div style={{ borderBottom: `1px dashed ${T.separator}`, paddingBottom: 2 }}>
       <div style={{
@@ -163,7 +164,7 @@ function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, p
         minHeight: 28,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-          {editKey && !readOnly && (
+          {hasIndentBtn && (
             <button
               onClick={() => toggleRow(editKey)}
               aria-label={`Edit ${label}`}
@@ -193,6 +194,20 @@ function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, p
           marginLeft: 10,
         }}>{displayVal}</div>
       </div>
+      {(calc || explainer) && (
+        <div style={{
+          paddingLeft: hasIndentBtn ? 26 : 0,
+          paddingBottom: 6,
+          marginTop: -3,
+          fontSize: 11,
+          color: T.textTertiary,
+          lineHeight: 1.4,
+        }}>
+          {calc && <span style={{ fontFamily: MONO }}>{calc}</span>}
+          {calc && explainer && <span style={{ margin: "0 6px", color: T.separator }}>·</span>}
+          {explainer && <span style={{ fontStyle: "italic" }}>{explainer}</span>}
+        </div>
+      )}
       {isOpen && (
         <div style={{ padding: "4px 0 10px 26px" }}>
           {editor ? editor : (
@@ -445,6 +460,8 @@ export default function CostsContent({
             label={discountPts > 0 ? `${discountPts}% of Loan Amount (Points)` : "__% of Loan Amount (Points)"}
             editKey="points"
             value={calc.pointsCost}
+            calc={discountPts > 0 ? `${discountPts} pts × ${fmt(calc.loan)} = ${fmt2(calc.pointsCost)}` : undefined}
+            explainer={discountPts > 0 ? "1 point = 1% of loan, typically lowers rate ~0.25%" : "Optional — buy down the rate by paying points upfront"}
             editor={
               <>
                 <Inp label="Discount Points" value={discountPts} onChange={setDiscountPts} prefix="" suffix="pts" step={0.125} max={10} sm tip="1 point = 1% of loan amount. Typically reduces rate by ~0.25%." />
@@ -452,33 +469,33 @@ export default function CostsContent({
               </>
             }
           />
-          <FeeRow label="Originator Compensation" editKey="origComp" value={originatorComp} onChange={setOriginatorComp} />
-          <FeeRow label="Underwriting Fee"        editKey="underwriting" value={underwritingFee} onChange={setUnderwritingFee} />
+          <FeeRow label="Originator Compensation" editKey="origComp"     value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
+          <FeeRow label="Underwriting Fee"        editKey="underwriting" value={underwritingFee} onChange={setUnderwritingFee} explainer="Lender's fee for evaluating the loan" />
           {processingFee > 0 && (
-            <FeeRow label="Processing Fee" editKey="processing" value={processingFee} onChange={setProcessingFee} />
+            <FeeRow label="Processing Fee" editKey="processing" value={processingFee} onChange={setProcessingFee} explainer="Lender's fee for processing loan documents" />
           )}
         </LetterSection>
 
         {/* B. Services You Cannot Shop For */}
         <LetterSection letter="B" title="Services You Cannot Shop For" total={fmt2(calc.cannotShop)}>
-          <FeeRow label="Appraisal Fee"          editKey="appraisal" value={appraisalFee}    onChange={setAppraisalFee} />
-          <FeeRow label="Credit Report Fee"      editKey="credit"    value={creditReportFee} onChange={setCreditReportFee} />
-          <FeeRow label="Flood Certificate Fee"  editKey="flood"     value={floodCertFee}    onChange={setFloodCertFee} />
-          <FeeRow label="MERS Registration Fee"  editKey="mers"      value={mersFee}         onChange={setMersFee} />
-          <FeeRow label="Tax Service Fee"        editKey="taxsvc"    value={taxServiceFee}   onChange={setTaxServiceFee} />
+          <FeeRow label="Appraisal Fee"          editKey="appraisal" value={appraisalFee}    onChange={setAppraisalFee}    explainer="Independent appraiser values the property" />
+          <FeeRow label="Credit Report Fee"      editKey="credit"    value={creditReportFee} onChange={setCreditReportFee} explainer="Pull tri-merge credit report" />
+          <FeeRow label="Flood Certificate Fee"  editKey="flood"     value={floodCertFee}    onChange={setFloodCertFee}    explainer="Determines if property is in a flood zone" />
+          <FeeRow label="MERS Registration Fee"  editKey="mers"      value={mersFee}         onChange={setMersFee}         explainer="Mortgage Electronic Registration System" />
+          <FeeRow label="Tax Service Fee"        editKey="taxsvc"    value={taxServiceFee}   onChange={setTaxServiceFee}   explainer="Lender's tax-monitoring service" />
         </LetterSection>
 
         {/* C. Services You Can Shop For */}
         <LetterSection letter="C" title="Services You Can Shop For" total={fmt2(calc.canShop)}>
           {isRefi ? (
-            <FeeRow label="Title / Escrow Flat Fee" editKey="escrowRefi" value={escrowFee} onChange={setEscrowFee} note="Refinances use a flat title/escrow fee." />
+            <FeeRow label="Title / Escrow Flat Fee" editKey="escrowRefi" value={escrowFee} onChange={setEscrowFee} explainer="Refinances use a flat title/escrow fee" note="Refinances use a flat title/escrow fee." />
           ) : (
             <>
-              <FeeRow label="Title — Insurance Binder"        editKey="titleIns"    value={titleInsurance} onChange={setTitleInsurance} />
-              <FeeRow label="Title — Settlement Agent Fee"    editKey="settlement"  value={settlementFee}  onChange={setSettlementFee} />
-              <FeeRow label="Title — Title Search"            editKey="titleSearch" value={titleSearch}    onChange={setTitleSearch} />
-              <FeeRow label="Title — Escrow/Settlement Fee"   editKey="escrow"      value={escrowFee}      onChange={setEscrowFee} />
-              {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" />}
+              <FeeRow label="Title — Insurance Binder"        editKey="titleIns"    value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
+              <FeeRow label="Title — Settlement Agent Fee"    editKey="settlement"  value={settlementFee}  onChange={setSettlementFee}  explainer="Settlement/closing agent fee" />
+              <FeeRow label="Title — Title Search"            editKey="titleSearch" value={titleSearch}    onChange={setTitleSearch}    explainer="Researches the property's title history" />
+              <FeeRow label="Title — Escrow/Settlement Fee"   editKey="escrow"      value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
+              {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" explainer="Required for condos & townhomes" />}
             </>
           )}
         </LetterSection>
@@ -488,13 +505,17 @@ export default function CostsContent({
 
         {/* E. Taxes and Other Government Charges */}
         <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)}>
-          <FeeRow label="Recording Fees" editKey="recording" value={recordingFee} onChange={setRecordingFee} />
+          <FeeRow label="Recording Fees" editKey="recording" value={recordingFee} onChange={setRecordingFee} explainer="County fees to record the deed and mortgage" />
           <FeeRow
             label="Transfer Taxes"
             editKey="transferTax"
             value={calc.buyerCityTT + calc.buyerCountyTT}
             readOnly
             sub={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0 ? `$${calc.ttEntry.rate}/$1K` : null}
+            calc={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0
+              ? `$${calc.ttEntry.rate}/$1K × ${fmt(salesPrice)} = ${fmt2(calc.ttEntry.rate * salesPrice / 1000)} → buyer 50% = ${fmt2(calc.buyerCityTT + calc.buyerCountyTT)}`
+              : undefined}
+            explainer={isRefi ? "No transfer tax on refinances in California" : "Government tax when property changes hands; buyer customarily pays 50%"}
             editor={!isRefi ? (
               <>
                 <Sel
@@ -518,8 +539,8 @@ export default function CostsContent({
         {/* H. Other (purchase only) */}
         {!isRefi && (
           <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)}>
-            <FeeRow label="Owner's Title Insurance" editKey="ownersTitle" value={ownersTitleIns} onChange={setOwnersTitleIns} />
-            <FeeRow label="Home Warranty"           editKey="warranty"    value={homeWarranty}   onChange={setHomeWarranty} />
+            <FeeRow label="Owner's Title Insurance" editKey="ownersTitle" value={ownersTitleIns} onChange={setOwnersTitleIns} explainer="Optional — protects buyer's ownership rights from title defects" />
+            <FeeRow label="Home Warranty"           editKey="warranty"    value={homeWarranty}   onChange={setHomeWarranty}   explainer="One-year coverage on major home systems" />
             {hoa > 0 && (
               <FeeRow
                 label="HOA Transfer Fee"
@@ -527,6 +548,8 @@ export default function CostsContent({
                 value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
                 onChange={setHoaTransferFee}
                 sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
+                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
+                explainer="HOA's fee to transfer ownership records"
               />
             )}
             <ToggleRow
@@ -540,7 +563,8 @@ export default function CostsContent({
                 label="Buyer Agent Commission"
                 editKey="buyerComm"
                 value={liveBuyerComm}
-                sub={`${buyerCommPct}% × ${fmt(salesPrice)}`}
+                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
+                explainer="Commission paid to buyer's real estate agent"
                 editor={
                   <>
                     <Inp label="Commission Rate" value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
@@ -561,19 +585,28 @@ export default function CostsContent({
         {/* F. Prepaids */}
         <LetterSection letter="F" title="Prepaids">
           <FeeRow
-            label={`Hazard Insurance Premium (12 Months @ ${fmt2(annualIns / 12)})`}
+            label="Hazard Insurance Premium"
             editKey="hoi"
             value={annualIns}
             onChange={setAnnualIns}
+            calc={`12 mo × ${fmt2(annualIns / 12)}/mo = ${fmt2(annualIns)}`}
+            explainer="First-year homeowner's insurance, paid up front at closing"
           />
           {monthlyMI > 0 && (
-            <FeeRow label="Mortgage Insurance Premium" value={0} sub="— mo @ —" readOnly />
+            <FeeRow
+              label="Mortgage Insurance Premium"
+              value={0}
+              readOnly
+              explainer="Upfront MI premium (FHA/USDA only — conv. MI is monthly)"
+            />
           )}
           <FeeRow
-            label={`Prepaid Interest (${calc.autoPrepaidDays} Days @ ${fmt2(calc.dailyInt)})`}
+            label="Prepaid Interest"
             value={calc.prepaidInt}
             editKey="closeDate"
             readOnly
+            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
+            explainer="Interest from closing day through end of month"
             editor={
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -588,9 +621,11 @@ export default function CostsContent({
           />
           {includeEscrow && (
             <FeeRow
-              label={`Property Taxes (${calc.escrowTaxMonths} Months @ ${fmt2(monthlyTax)})`}
+              label="Property Taxes"
               value={proposedTax_atClosing}
               readOnly
+              calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(proposedTax_atClosing)}`}
+              explainer="Property taxes collected at closing to fund escrow account"
             />
           )}
           <ToggleRow
@@ -609,25 +644,41 @@ export default function CostsContent({
             </div>
           ) : (
             <>
-              <FeeRow label="Aggregate Adjustment" value="—" isDollar={false} />
               <FeeRow
-                label={`Hazard Insurance Reserve (${calc.escrowInsMonths} Months @ ${fmt2(monthlyIns)})`}
+                label="Aggregate Adjustment"
+                value="—"
+                isDollar={false}
+                explainer="RESPA-required adjustment to prevent over-collection"
+              />
+              <FeeRow
+                label="Hazard Insurance Reserve"
                 value={escrowHOI_reserve}
                 readOnly
+                calc={`${calc.escrowInsMonths} mo × ${fmt2(monthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
+                explainer="Cushion held by lender for upcoming insurance payments"
               />
               {monthlyMI > 0 ? (
                 <FeeRow
-                  label={`Mortgage Insurance Reserve (2 Months @ ${fmt2(monthlyMI)})`}
+                  label="Mortgage Insurance Reserve"
                   value={escrowMI_reserve}
                   readOnly
+                  calc={`2 mo × ${fmt2(monthlyMI)}/mo = ${fmt2(escrowMI_reserve)}`}
+                  explainer="Cushion for monthly MI payments"
                 />
               ) : (
-                <FeeRow label="Mortgage Insurance Reserve" value="—" isDollar={false} />
+                <FeeRow
+                  label="Mortgage Insurance Reserve"
+                  value="—"
+                  isDollar={false}
+                  explainer="No mortgage insurance required"
+                />
               )}
               <FeeRow
-                label={`Property Taxes (${calc.escrowTaxMonths} Months @ ${fmt2(monthlyTax)})`}
+                label="Property Taxes"
                 value={escrowTax_reserve}
                 readOnly
+                calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
+                explainer="Cushion for upcoming property tax bills"
               />
             </>
           )}
@@ -641,12 +692,29 @@ export default function CostsContent({
         totalColor={T.green}
         defaultOpen={false}
       >
-        <FeeRow label="Earnest Money Deposit (EMD)"   editKey="emd"           value={isRefi ? 0 : emd}    onChange={setEmd} readOnly={isRefi} />
-        {!isRefi && <FeeRow label="Seller Credit"      editKey="sellerCredit"  value={sellerCredit}        onChange={setSellerCredit} />}
-        {!isRefi && <FeeRow label="Realtor Credit"     editKey="realtorCredit" value={realtorCredit}       onChange={setRealtorCredit} />}
-        <FeeRow label="Lender Credits"                 editKey="lenderCredit"  value={lenderCredit}        onChange={setLenderCredit} />
-        <FeeRow label="Adjustments and Other Credits"  value={0} readOnly />
-        <FeeRow label="Subordinate Financing"          value={0} readOnly />
+        <FeeRow
+          label="Earnest Money Deposit (EMD)"
+          editKey="emd"
+          value={isRefi ? 0 : emd}
+          onChange={setEmd}
+          readOnly={isRefi}
+          calc={!isRefi && salesPrice > 0 && emd > 0 ? `${((emd / salesPrice) * 100).toFixed(2)}% of ${fmt(salesPrice)} sales price` : undefined}
+          explainer="Money already paid to seller — reduces cash needed at closing"
+        />
+        {!isRefi && (
+          <FeeRow label="Seller Credit"   editKey="sellerCredit"  value={sellerCredit}  onChange={setSellerCredit}
+            explainer="Negotiated credit from seller toward buyer's closing costs" />
+        )}
+        {!isRefi && (
+          <FeeRow label="Realtor Credit"  editKey="realtorCredit" value={realtorCredit} onChange={setRealtorCredit}
+            explainer="Credit from realtor (sometimes a portion of their commission)" />
+        )}
+        <FeeRow label="Lender Credits"    editKey="lenderCredit"  value={lenderCredit}  onChange={setLenderCredit}
+          explainer="Credit from lender — often in exchange for a slightly higher rate" />
+        <FeeRow label="Adjustments and Other Credits" value={0} readOnly
+          explainer="Other credits or adjustments at closing" />
+        <FeeRow label="Subordinate Financing" value={0} readOnly
+          explainer="Second mortgages or HELOCs financing part of the purchase" />
       </CollapsibleBox>
 
       {/* First-payment explainer */}
