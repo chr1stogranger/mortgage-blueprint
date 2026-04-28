@@ -1,7 +1,68 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
+
+// Inline-editable numeric value for Payment Breakdown rows (Insurance, HOA).
+// Renders as a subtle dashed indigo chip at rest; becomes a focused input on tap.
+// Stores comma-formatted display string while editing, commits the parsed number on blur.
+function InlineEditValue({ value, onChange, T }) {
+  const [focused, setFocused] = useState(false);
+  const [editStr, setEditStr] = useState(null);
+  const inputRef = useRef(null);
+  const fmtComma = (n) => {
+    if (n === 0 || n === "0") return "0";
+    if (n === "" || n == null) return "";
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+  const display = focused
+    ? (editStr !== null ? editStr : (value === 0 ? "" : fmtComma(value)))
+    : `$${fmtComma(value || 0)}`;
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="decimal"
+        value={display}
+        onFocus={() => { setFocused(true); setEditStr(null); }}
+        onBlur={() => {
+          setFocused(false);
+          if (editStr !== null) {
+            const n = parseFloat(editStr.replace(/,/g, ""));
+            onChange(isNaN(n) ? 0 : n);
+            setEditStr(null);
+          }
+        }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^0-9.]/g, "");
+          if (/^\d*\.?\d*$/.test(raw)) {
+            setEditStr(fmtComma(raw));
+            const n = parseFloat(raw);
+            if (!isNaN(n)) onChange(n);
+          }
+        }}
+        style={{
+          background: focused ? T.inputBg : "transparent",
+          border: focused ? `1.5px solid ${T.blue}` : `1px dashed ${T.blue}55`,
+          borderRadius: 6,
+          padding: "3px 8px",
+          color: T.blue,
+          fontSize: 14,
+          fontWeight: 600,
+          fontFamily: MONO,
+          textAlign: "right",
+          width: 88,
+          outline: "none",
+          cursor: "text",
+          transition: "all 0.15s",
+          letterSpacing: "-0.01em",
+        }}
+      />
+      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
+    </div>
+  );
+}
 
 export default function CalculatorContent({
   T, isDesktop, calc, fmt, fmt2, pct,
@@ -44,6 +105,23 @@ export default function CalculatorContent({
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
+
+  // Refs + highlight state for the chevron-jump UX in the Payment Breakdown card.
+  // Tapping the chevron next to the Tax or PMI row scrolls to the corresponding pill
+  // below, auto-expands its breakdown, and briefly highlights it with an indigo glow.
+  const taxPillRef = useRef(null);
+  const pmiPillRef = useRef(null);
+  const [highlightTarget, setHighlightTarget] = useState(null); // "tax" | "pmi" | null
+  const jumpToPill = (target) => {
+    setPropTaxExpanded(true);
+    setPmiExpanded(true);
+    setHighlightTarget(target);
+    const ref = target === "tax" ? taxPillRef : pmiPillRef;
+    setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    setTimeout(() => setHighlightTarget(null), 1800);
+  };
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
   const legendRows = [
@@ -355,22 +433,40 @@ export default function CalculatorContent({
       { label: "Principal", value: calc.monthlyPrinReduction || 0, color: T.cyan || T.blue },
       { label: "Interest",  value: (calc.pi || 0) - (calc.monthlyPrinReduction || 0), color: T.blue },
       ...(includeEscrow ? [
-       { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange },
-       { label: "Insurance", value: calc.ins || 0,        color: T.green },
+       { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange, jumpTo: "tax" },
+       { label: "Insurance", value: calc.ins || 0,        color: T.green,  editable: true, onChange: (v) => setAnnualIns(Math.max(0, v) * 12) },
       ] : []),
       ...((calc.monthlyMI || 0) > 0 ? [
-       { label: loanType === "FHA" ? "MIP" : "PMI", value: calc.monthlyMI || 0, color: T.red },
+       { label: loanType === "FHA" ? "MIP" : "PMI", value: calc.monthlyMI || 0, color: T.red, jumpTo: "pmi" },
       ] : []),
-      ...(hoa > 0 ? [
-       { label: "HOA", value: hoa, color: T.purple || T.blue },
-      ] : []),
+      // HOA: always render so it's discoverable as editable (was previously hidden when 0)
+      { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa },
      ].map((row, i) => (
-      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
         <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{row.label}</span>
+        {row.jumpTo && (
+         <span
+          onClick={() => jumpToPill(row.jumpTo)}
+          title={`Show ${row.label} breakdown`}
+          style={{
+           fontSize: 11,
+           fontWeight: 700,
+           color: T.blue,
+           cursor: "pointer",
+           padding: "0 4px",
+           lineHeight: 1,
+           userSelect: "none",
+           transform: "translateY(-1px)",
+          }}
+         >▾</span>
+        )}
        </div>
-       <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
+       {row.editable
+        ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />
+        : <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
+       }
       </div>
      ))}
      <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -433,8 +529,16 @@ export default function CalculatorContent({
    const cityLabel = propertyState === "California" ? (city || "CA") : (propertyState || "State");
    const anyUnlocked = !taxRateLocked || !taxExemptionLocked;
    const displayRate = taxBaseRateOverride > 0 ? taxBaseRateOverride : autoRate * 100;
+   const isHighlighted = highlightTarget === "tax";
    return (
-    <div style={{ marginBottom: 12 }}>
+    <div ref={taxPillRef} style={{
+     marginBottom: 12,
+     borderRadius: 14,
+     padding: isHighlighted ? 6 : 0,
+     margin: isHighlighted ? "-6px -6px 6px" : undefined,
+     boxShadow: isHighlighted ? `0 0 0 2px ${T.blue}, 0 0 24px ${T.blue}40` : "none",
+     transition: "box-shadow 0.3s, padding 0.3s",
+    }}>
      {/* Layer 1: Pill */}
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -551,8 +655,16 @@ export default function CalculatorContent({
     : calc.ltv <= 0.80 ? `Your LTV of ${pct(calc.ltv, 1)} is at or below 80% — no PMI required.`
     : "Not required for this scenario."
    ) : null;
+   const isHighlighted = highlightTarget === "pmi";
    return (
-    <div style={{ marginBottom: 12 }}>
+    <div ref={pmiPillRef} style={{
+     marginBottom: 12,
+     borderRadius: 14,
+     padding: isHighlighted ? 6 : 0,
+     margin: isHighlighted ? "-6px -6px 6px" : undefined,
+     boxShadow: isHighlighted ? `0 0 0 2px ${T.blue}, 0 0 24px ${T.blue}40` : "none",
+     transition: "box-shadow 0.3s, padding 0.3s",
+    }}>
      {/* Layer 1: Pill */}
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{miLabel}</span>
@@ -608,13 +720,7 @@ export default function CalculatorContent({
  </div>
  {/* End Row 4 */}
 
- {/* ─────────────────────────────────────────────────────────────── */}
- {/* ROW 5 — Insurance + HOA 2-col */}
- {/* ─────────────────────────────────────────────────────────────── */}
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-  <Inp label="Insurance" value={annualIns} onChange={setAnnualIns} suffix="/yr" max={50000} sm tip="Annual homeowner's insurance premium. Required by all lenders. Typically 0.3-1% of home value per year." />
-  <Inp label="HOA" value={hoa} onChange={setHoa} suffix="/mo" max={10000} sm tip="Monthly Homeowners Association fee. Common in condos and planned communities. This counts toward your DTI." />
- </div>
+ {/* Row 5 (Insurance + HOA pills) removed — now inline-editable in the Payment Breakdown card above. */}
 
  <GuidedNextButton />
 </>);
