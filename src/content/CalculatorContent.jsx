@@ -106,22 +106,29 @@ export default function CalculatorContent({
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
 
-  // Refs + highlight state for the chevron-jump UX in the Payment Breakdown card.
-  // Tapping the chevron next to the Tax or PMI row scrolls to the corresponding pill
-  // below, auto-expands its breakdown, and briefly highlights it with an indigo glow.
-  const taxPillRef = useRef(null);
-  const pmiPillRef = useRef(null);
-  const [highlightTarget, setHighlightTarget] = useState(null); // "tax" | "pmi" | null
-  const jumpToPill = (target) => {
-    setPropTaxExpanded(true);
-    setPmiExpanded(true);
-    setHighlightTarget(target);
-    const ref = target === "tax" ? taxPillRef : pmiPillRef;
-    setTimeout(() => {
-      ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 60);
-    setTimeout(() => setHighlightTarget(null), 1800);
-  };
+  // Inline expansion in Payment Breakdown — chevron next to Tax/PMI toggles the
+  // breakdown table directly inside the Payment Breakdown card (no jump-and-scroll).
+  // Reuses the existing propTaxExpanded / pmiExpanded state from the parent.
+  const toggleTaxInline = () => setPropTaxExpanded(!propTaxExpanded);
+  const togglePmiInline = () => setPmiExpanded(!pmiExpanded);
+
+  // Helper values used by the inline Tax breakdown
+  const taxAutoRate = calc.autoTaxRate;
+  const taxCityLabel = propertyState === "California" ? (city || "CA") : (propertyState || "State");
+  const taxAnyUnlocked = !taxRateLocked || !taxExemptionLocked;
+  const taxDisplayRate = taxBaseRateOverride > 0 ? taxBaseRateOverride : taxAutoRate * 100;
+
+  // Helper values used by the inline PMI breakdown
+  const miLabel = loanType === "FHA" ? "Mortgage Insurance Premium (MIP)"
+                : loanType === "VA"  ? "VA Funding Fee"
+                : "Private Mortgage Insurance (PMI)";
+  const monthlyMI = calc.monthlyMI || 0;
+  const miZeroReason = monthlyMI === 0 ? (
+    loanType === "VA" ? "No monthly MI on VA loans (one-time funding fee applies at close)."
+    : loanType === "Jumbo" ? "Jumbo loans typically do not carry PMI."
+    : calc.ltv <= 0.80 ? `Your LTV of ${pct(calc.ltv, 1)} is at or below 80% — no PMI required.`
+    : "Not required for this scenario."
+  ) : null;
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
   const legendRows = [
@@ -478,34 +485,158 @@ export default function CalculatorContent({
       ] : []),
       // HOA: always render so it's discoverable as editable (was previously hidden when 0)
       { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa },
-     ].map((row, i) => (
-      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
-       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{row.label}</span>
-        {row.jumpTo && (
-         <span
-          onClick={() => jumpToPill(row.jumpTo)}
-          title={`Show ${row.label} breakdown`}
-          style={{
-           fontSize: 11,
-           fontWeight: 700,
-           color: T.blue,
-           cursor: "pointer",
-           padding: "0 4px",
-           lineHeight: 1,
-           userSelect: "none",
-           transform: "translateY(-1px)",
-          }}
-         >▾</span>
-        )}
+     ].map((row, i) => {
+      const isExpanded = (row.jumpTo === "tax" && propTaxExpanded) || (row.jumpTo === "pmi" && pmiExpanded);
+      const onToggle = row.jumpTo === "tax" ? toggleTaxInline : row.jumpTo === "pmi" ? togglePmiInline : null;
+      return (
+      <React.Fragment key={i}>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+         <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
+         <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{row.label}</span>
+         {onToggle && (
+          <span
+           onClick={onToggle}
+           title={isExpanded ? "Hide breakdown" : `Show ${row.label} breakdown`}
+           style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: T.blue,
+            cursor: "pointer",
+            padding: "0 4px",
+            lineHeight: 1,
+            userSelect: "none",
+            display: "inline-block",
+            transform: `translateY(-1px) rotate(${isExpanded ? 180 : 0}deg)`,
+            transition: "transform 0.2s",
+           }}
+          >▾</span>
+         )}
+        </div>
+        {row.editable
+         ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />
+         : <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
+        }
        </div>
-       {row.editable
-        ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />
-        : <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
-       }
-      </div>
-     ))}
+
+       {/* Inline Tax breakdown */}
+       {row.jumpTo === "tax" && propTaxExpanded && (
+        <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
+         <div onClick={toggleTaxInline} style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 0 8px", cursor: "pointer" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
+          <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: "rotate(180deg)" }}>▾</span>
+         </div>
+         {/* Breakdown table */}
+         <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
+          {[
+           ["Home Value", fmt(salesPrice)],
+           ["Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
+           ["Taxable Value", fmt(calc.taxableValue)],
+           [`Base Rate (${taxCityLabel})`, `${taxDisplayRate.toFixed(4)}%`],
+           ["Base Tax", fmt2(calc.baseTax)],
+           ...(fixedAssessments > 0 ? [["Fixed Assessments", `${fmt(fixedAssessments)}/yr`]] : []),
+          ].map(([label, value], k) => (
+           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+            <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+           </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+           <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Annual Total</span>
+           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
+          </div>
+          {calc.effectiveTaxRate > 0 && (
+           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Effective rate: {(calc.effectiveTaxRate * 100).toFixed(3)}%</div>
+          )}
+         </div>
+         {/* Customize layer */}
+         {!taxAnyUnlocked && !propTaxCustomize ? (
+          <div style={{ textAlign: "center", marginTop: 8 }}>
+           <span onClick={() => { setPropTaxCustomize(true); if (taxRateLocked && taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((taxAutoRate * 100).toFixed(4))); }}
+            style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Customize rate, exemption, or assessments</span>
+          </div>
+         ) : (
+          <div style={{ marginTop: 10 }}>
+           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <div>
+             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 10, marginLeft: 3 }}>({taxCityLabel})</span></span>
+              <button onClick={() => {
+               if (taxRateLocked) { setTaxRateLocked(false); }
+               else { setTaxRateLocked(true); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); }
+              }} title={taxRateLocked ? "Unlock to customize" : "Lock to auto-sync"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+               <Icon name={taxRateLocked ? "lock" : "unlock"} size={14} style={{ color: taxRateLocked ? T.textTertiary : T.blue }} />
+              </button>
+             </div>
+             <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}><Inp value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm readOnly={taxRateLocked} /></div>
+            </div>
+            <div>
+             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Exemption</span>
+              <button onClick={() => {
+               if (taxExemptionLocked) { setTaxExemptionLocked(false); }
+               else { setTaxExemptionLocked(true); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); }
+              }} title={taxExemptionLocked ? "Unlock to customize" : "Lock to auto-sync"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
+               <Icon name={taxExemptionLocked ? "lock" : "unlock"} size={14} style={{ color: taxExemptionLocked ? T.textTertiary : T.blue }} />
+              </button>
+             </div>
+             <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}><Inp value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm readOnly={taxExemptionLocked} /></div>
+            </div>
+           </div>
+           <Inp label="Fixed Assessments" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm tip="Mello-Roos, bonds, parcel taxes. Check your county tax bill." />
+           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, lineHeight: 1.5, fontFamily: FONT }}>
+            Exemption: primary residence reduction (CA $7K). Fixed Assessments: Mello-Roos, bonds, parcel taxes.
+           </div>
+           {taxAnyUnlocked && (
+            <div style={{ textAlign: "center", marginTop: 6 }}>
+             <span onClick={() => { setTaxRateLocked(true); setTaxExemptionLocked(true); setFixedAssessments(1500); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); setPropTaxCustomize(false); }}
+              style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline" }}>Reset to auto</span>
+            </div>
+           )}
+          </div>
+         )}
+        </div>
+       )}
+
+       {/* Inline PMI breakdown */}
+       {row.jumpTo === "pmi" && pmiExpanded && (
+        <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
+         <div onClick={togglePmiInline} style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 0 8px", cursor: "pointer" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
+          <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: "rotate(180deg)" }}>▾</span>
+         </div>
+         <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
+          {miZeroReason && (
+           <div style={{ fontSize: 11, color: T.green, background: `${T.green}10`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, lineHeight: 1.4 }}>
+            {miZeroReason}
+           </div>
+          )}
+          {[
+           ["Home Value",    fmt(salesPrice)],
+           ["Loan Amount",   fmt(calc.baseLoan || calc.loan)],
+           ["LTV",           pct(calc.ltv, 1)],
+           ["Credit Score",  creditScore > 0 ? String(creditScore) : "—"],
+           ["PMI Rate (Radian matrix)", `${((calc.pmiRate || 0) * 100).toFixed(3)}%`],
+           ["Annual Premium", fmt(monthlyMI * 12)],
+          ].map(([label, value], k) => (
+           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+            <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+           </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+           <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
+           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(monthlyMI)}</span>
+          </div>
+          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
+           PMI required when LTV &gt; 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.
+          </div>
+         </div>
+        </div>
+       )}
+      </React.Fragment>
+      );
+     })}
      <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
       <span style={{ fontSize: 18, fontWeight: 800, color: T.blue, fontFamily: MONO, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
@@ -555,207 +686,7 @@ export default function CalculatorContent({
 
  {/* State / City for property tax are set on the Setup tab — removed from Monthly Payment (redundant). */}
 
- {/* ─────────────────────────────────────────────────────────────── */}
- {/* ROW 4 — 2-col: Property Tax expandable | PMI expandable */}
- {/* ─────────────────────────────────────────────────────────────── */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start", marginBottom: 16 } : {}}>
-
-  {/* Property Tax — 3-layer pill (preserved from original lines 317-426) */}
-  {(() => {
-   const autoRate = calc.autoTaxRate;
-   const cityLabel = propertyState === "California" ? (city || "CA") : (propertyState || "State");
-   const anyUnlocked = !taxRateLocked || !taxExemptionLocked;
-   const displayRate = taxBaseRateOverride > 0 ? taxBaseRateOverride : autoRate * 100;
-   const isHighlighted = highlightTarget === "tax";
-   return (
-    <div ref={taxPillRef} style={{
-     marginBottom: 12,
-     borderRadius: 14,
-     padding: isHighlighted ? 6 : 0,
-     margin: isHighlighted ? "-6px -6px 6px" : undefined,
-     boxShadow: isHighlighted ? `0 0 0 2px ${T.blue}, 0 0 24px ${T.blue}40` : "none",
-     transition: "box-shadow 0.3s, padding 0.3s",
-    }}>
-     {/* Layer 1: Pill */}
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Property Tax</span>
-       {anyUnlocked && <span style={{ fontSize: 9, fontWeight: 700, fontFamily: MONO, color: T.blue, background: `${T.blue}15`, borderRadius: 99, padding: "1px 6px" }}>CUSTOM</span>}
-      </div>
-     </div>
-     <div style={{
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      background: T.inputBg, borderRadius: 12, padding: "12px 14px",
-      border: `1px solid ${T.inputBorder}`,
-     }}>
-      <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
-       {fmt(calc.monthlyTax)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary, marginLeft: 2 }}>/mo</span>
-      </span>
-      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{fmt(calc.yearlyTax)}/yr</span>
-     </div>
-
-     {/* Layer 2: "How this is calculated" — unified toggle expands BOTH Property Tax and PMI */}
-     <div onClick={() => { setPropTaxExpanded(!propTaxExpanded); setPmiExpanded(!propTaxExpanded); }}
-      style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
-      <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: propTaxExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
-     </div>
-
-     {propTaxExpanded && (
-      <div style={{ marginTop: 4 }}>
-       {/* Breakdown table */}
-       <div style={{ background: T.bg, borderRadius: 12, padding: "12px 14px" }}>
-        {[
-         ["Home Value", fmt(salesPrice)],
-         ["Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
-         ["Taxable Value", fmt(calc.taxableValue)],
-         [`Base Rate (${cityLabel})`, `${displayRate.toFixed(4)}%`],
-         ["Base Tax", fmt2(calc.baseTax)],
-         ...(fixedAssessments > 0 ? [["Fixed Assessments", `${fmt(fixedAssessments)}/yr`]] : []),
-        ].map(([label, value], i) => (
-         <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
-          <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-          <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
-         </div>
-        ))}
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
-         <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Annual Total</span>
-         <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
-        </div>
-        {calc.effectiveTaxRate > 0 && (
-         <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Effective rate: {(calc.effectiveTaxRate * 100).toFixed(3)}%</div>
-        )}
-       </div>
-
-       {/* Layer 3: Customize */}
-       {!anyUnlocked && !propTaxCustomize ? (
-        <div style={{ textAlign: "center", marginTop: 8 }}>
-         <span onClick={() => { setPropTaxCustomize(true); if (taxRateLocked && taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((autoRate * 100).toFixed(4))); }}
-          style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Customize rate, exemption, or assessments</span>
-        </div>
-       ) : (
-        <div style={{ marginTop: 10 }}>
-         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-          <div>
-           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 11, marginLeft: 3 }}>({cityLabel})</span></span>
-            <button onClick={() => {
-             if (taxRateLocked) { setTaxRateLocked(false); }
-             else { setTaxRateLocked(true); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); }
-            }} title={taxRateLocked ? "Unlock to customize" : "Lock to auto-sync"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
-             <Icon name={taxRateLocked ? "lock" : "unlock"} size={14} style={{ color: taxRateLocked ? T.textTertiary : T.blue }} />
-            </button>
-           </div>
-           <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}><Inp value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm readOnly={taxRateLocked} /></div>
-          </div>
-          <div>
-           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Exemption</span>
-            <button onClick={() => {
-             if (taxExemptionLocked) { setTaxExemptionLocked(false); }
-             else { setTaxExemptionLocked(true); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); }
-            }} title={taxExemptionLocked ? "Unlock to customize" : "Lock to auto-sync"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
-             <Icon name={taxExemptionLocked ? "lock" : "unlock"} size={14} style={{ color: taxExemptionLocked ? T.textTertiary : T.blue }} />
-            </button>
-           </div>
-           <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}><Inp value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm readOnly={taxExemptionLocked} /></div>
-          </div>
-         </div>
-         <Inp label="Fixed Assessments" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm tip="Mello-Roos, bonds, parcel taxes. Check your county tax bill." />
-         <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, lineHeight: 1.5, fontFamily: FONT }}>
-          Exemption: primary residence reduction (CA $7K). Fixed Assessments: Mello-Roos, bonds, parcel taxes.
-         </div>
-         {anyUnlocked && (
-          <div style={{ textAlign: "center", marginTop: 6 }}>
-           <span onClick={() => { setTaxRateLocked(true); setTaxExemptionLocked(true); setFixedAssessments(1500); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); setPropTaxCustomize(false); }}
-            style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline" }}>Reset to auto</span>
-          </div>
-         )}
-        </div>
-       )}
-      </div>
-     )}
-    </div>
-   );
-  })()}
-
-  {/* PMI — always render (shows $0 when not applicable). MIP label for FHA. */}
-  {(() => {
-   const miLabel = loanType === "FHA" ? "Mortgage Insurance Premium (MIP)"
-                 : loanType === "VA"  ? "VA Funding Fee"
-                 : "Private Mortgage Insurance (PMI)";
-   const monthlyMI = calc.monthlyMI || 0;
-   // Helpful reason when MI is $0
-   const zeroReason = monthlyMI === 0 ? (
-    loanType === "VA" ? "No monthly MI on VA loans (one-time funding fee applies at close)."
-    : loanType === "Jumbo" ? "Jumbo loans typically do not carry PMI."
-    : calc.ltv <= 0.80 ? `Your LTV of ${pct(calc.ltv, 1)} is at or below 80% — no PMI required.`
-    : "Not required for this scenario."
-   ) : null;
-   const isHighlighted = highlightTarget === "pmi";
-   return (
-    <div ref={pmiPillRef} style={{
-     marginBottom: 12,
-     borderRadius: 14,
-     padding: isHighlighted ? 6 : 0,
-     margin: isHighlighted ? "-6px -6px 6px" : undefined,
-     boxShadow: isHighlighted ? `0 0 0 2px ${T.blue}, 0 0 24px ${T.blue}40` : "none",
-     transition: "box-shadow 0.3s, padding 0.3s",
-    }}>
-     {/* Layer 1: Pill */}
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>{miLabel}</span>
-     </div>
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.inputBg, borderRadius: 12, padding: "12px 14px", border: `1px solid ${T.inputBorder}`, opacity: monthlyMI === 0 ? 0.7 : 1 }}>
-      <span style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>
-       {fmt(monthlyMI)}<span style={{ fontSize: 12, fontWeight: 400, color: T.textTertiary, marginLeft: 2 }}>/mo</span>
-      </span>
-      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{fmt(monthlyMI * 12)}/yr</span>
-     </div>
-
-     {/* Layer 2: "How this is calculated" — unified toggle expands BOTH Property Tax and PMI */}
-     <div onClick={() => { setPropTaxExpanded(!propTaxExpanded); setPmiExpanded(!propTaxExpanded); }}
-      style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 0 2px", cursor: "pointer" }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
-      <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: propTaxExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
-     </div>
-
-     {/* Layer 3: Breakdown (driven by the shared propTaxExpanded) */}
-     {propTaxExpanded && (
-      <div style={{ marginTop: 4, background: T.bg, borderRadius: 12, padding: "12px 14px" }}>
-       {zeroReason && (
-        <div style={{ fontSize: 11, color: T.green, background: `${T.green}10`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, lineHeight: 1.4 }}>
-         {zeroReason}
-        </div>
-       )}
-       {[
-        ["Home Value",    fmt(salesPrice)],
-        ["Loan Amount",   fmt(calc.baseLoan || calc.loan)],
-        ["LTV",           pct(calc.ltv, 1)],
-        ["Credit Score",  creditScore > 0 ? String(creditScore) : "—"],
-        ["PMI Rate (Radian matrix)", `${((calc.pmiRate || 0) * 100).toFixed(3)}%`],
-        ["Annual Premium", fmt(monthlyMI * 12)],
-       ].map(([label, value], i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
-         <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-         <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
-        </div>
-       ))}
-       <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
-        <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(monthlyMI)}</span>
-       </div>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
-        PMI required when LTV &gt; 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.
-       </div>
-      </div>
-     )}
-    </div>
-   );
-  })()}
-
- </div>
- {/* End Row 4 */}
+ {/* Row 4 (Tax + PMI standalone pill cards) deleted — content renders inline in Payment Breakdown above. */}
 
  {/* Row 5 (Insurance + HOA pills) removed — now inline-editable in the Payment Breakdown card above. */}
 
