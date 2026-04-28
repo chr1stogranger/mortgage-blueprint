@@ -515,7 +515,12 @@ export default function CalculatorContent({
         </div>
         {row.editable
          ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />
-         : <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
+         : (
+          <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
+           <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
+           <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
+          </div>
+         )
         }
        </div>
 
