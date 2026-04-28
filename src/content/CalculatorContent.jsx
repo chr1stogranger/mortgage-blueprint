@@ -215,9 +215,57 @@ export default function CalculatorContent({
 
   {/* ========== LEFT COLUMN ========== */}
   <div>
-   {/* Donut */}
+   {/* Donut + subtle Escrow toggle in upper-right whitespace */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 12 }}>
-    <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
+    <div style={{ position: "relative", width: isDesktop ? 280 : 200 }}>
+     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
+     {/* Subtle Escrow toggle: small label + compact switch tucked in top-right of donut */}
+     {(() => {
+      const escrowLocked = loanType === "FHA" || loanType === "VA";
+      return (
+       <div
+        title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
+        style={{
+         position: "absolute",
+         top: isDesktop ? 18 : 12,
+         right: isDesktop ? 18 : 12,
+         display: "flex",
+         alignItems: "center",
+         gap: 5,
+         opacity: escrowLocked ? 0.45 : 0.78,
+        }}
+       >
+        <span style={{ fontSize: 8.5, fontFamily: MONO, fontWeight: 600, color: T.textTertiary, letterSpacing: "1.2px", textTransform: "uppercase" }}>Escrow</span>
+        <button
+         onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
+         style={{
+          width: 28,
+          height: 16,
+          borderRadius: 9,
+          border: "none",
+          padding: 0,
+          cursor: escrowLocked ? "not-allowed" : "pointer",
+          background: includeEscrow ? T.green : T.inputBorder,
+          position: "relative",
+          transition: "background 0.2s",
+         }}
+        >
+         <div style={{
+          width: 12,
+          height: 12,
+          borderRadius: 6,
+          background: "#fff",
+          position: "absolute",
+          top: 2,
+          left: includeEscrow ? 14 : 2,
+          transition: "left 0.2s",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
+         }} />
+        </button>
+       </div>
+      );
+     })()}
+    </div>
    </div>
 
    {/* Legend — small pills under the donut */}
@@ -291,13 +339,7 @@ export default function CalculatorContent({
     </div>
    </div>
 
-   {/* Include Escrow toggle */}
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px" }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Include Escrow (Tax & Ins)</span>
-    <button onClick={() => { if (loanType !== "FHA" && loanType !== "VA") setIncludeEscrow(!includeEscrow); }} style={{ width: 48, height: 28, borderRadius: 14, border: "none", cursor: (loanType === "FHA" || loanType === "VA") ? "not-allowed" : "pointer", background: includeEscrow ? T.green : T.inputBorder, position: "relative", transition: "background 0.2s", opacity: (loanType === "FHA" || loanType === "VA") ? 0.6 : 1 }}>
-     <div style={{ width: 22, height: 22, borderRadius: 11, background: "#fff", position: "absolute", top: 3, left: includeEscrow ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-    </button>
-   </div>
+   {/* Escrow toggle moved into the donut's upper-right whitespace (above). Warning notes remain here. */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
    {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note>}
 
