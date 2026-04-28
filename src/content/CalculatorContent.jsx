@@ -306,7 +306,16 @@ export default function CalculatorContent({
        </>) : (<>
         {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
         {(() => {
-         const downSummary = downMode === "pct" ? fmt(Math.round(salesPrice * downPct / 100)) : `${downPct.toFixed(1)}%`;
+         // Compact summary so the label row fits on mobile even at $1M+ down payments
+         const fmtCompactUSD = (n) => {
+          if (n >= 1000000) return `$${(n / 1000000).toFixed(n >= 10000000 ? 0 : 1).replace(/\.0$/, "")}M`;
+          if (n >= 1000) return `$${Math.round(n / 1000)}K`;
+          return `$${Math.round(n)}`;
+         };
+         const fmtCompactPct = (p) => `${p % 1 === 0 ? p.toFixed(0) : p.toFixed(1).replace(/\.0$/, "")}%`;
+         const downSummary = downMode === "pct"
+          ? fmtCompactUSD(salesPrice * downPct / 100)
+          : fmtCompactPct(downPct);
          return (
           <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onClick={() => markTouched && markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down *' on left, summary + %/$ toggle on far right */}
