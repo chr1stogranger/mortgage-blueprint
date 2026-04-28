@@ -4237,7 +4237,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? "100%" : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop && !isBorrower ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? (isBorrower ? "100%" : `calc(100% - ${sidebarCollapsed ? 56 : 180}px)`) : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop && !isBorrower ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: isDesktop && !isBorrower ? `calc(100% - ${sidebarCollapsed ? 56 : 180}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══ */}
   {appMode === "blueprint" && !isBorrower && (
    <UnifiedHeader
