@@ -79,13 +79,10 @@ export default function OverviewTab(props) {
   return (
     <div style={{ marginTop: 0, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: 80 }}>
       {/* ═══════════════════════════════════════
-          HEADER: Title + scenario pills + sign-in
+          HEADER: scenario pills + sign-in (title removed — sticky bar provides context)
           ═══════════════════════════════════════ */}
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 54, fontWeight: 800, fontFamily: FONT, color: T.blue, letterSpacing: "-0.04em", lineHeight: 1.0 }}>
-          {isRefi ? "Refinance" : "Purchase"} Overview
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {(city || propertyZip) && (
             <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: MONO, letterSpacing: "0.01em" }}>
               {city}{city && propertyState ? ", " : ""}{propertyState ? (propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
