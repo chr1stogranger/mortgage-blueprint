@@ -308,12 +308,12 @@ export default function CalculatorContent({
              Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+             <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>
+              {downSummary}
+             </div>
              <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
               <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
               <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
-             </div>
-             <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>
-              {downSummary}
              </div>
             </div>
            </div>
