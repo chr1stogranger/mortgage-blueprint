@@ -299,7 +299,7 @@ export default function CalculatorContent({
        </>) : (<>
         {/* Purchase: Down Payment — label + summary on header row, %/$ toggle docked inside the input pill */}
         {(() => {
-         const downSummary = downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}%`;
+         const downSummary = downMode === "pct" ? fmt(Math.round(salesPrice * downPct / 100)) : `${downPct.toFixed(1)}%`;
          const pctToggle = (
           <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
            <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
