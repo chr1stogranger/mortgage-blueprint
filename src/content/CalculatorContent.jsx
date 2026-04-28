@@ -297,27 +297,29 @@ export default function CalculatorContent({
         </div>
         {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
        </>) : (<>
-        {/* Purchase: Down Payment — full-size input to match Purchase Price; %/$ toggle moved BELOW, inline with Zillow badge */}
+        {/* Purchase: Down Payment — label + %/$ toggle share one row, input below */}
         <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onClick={() => markTouched && markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-         <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, marginBottom: 6, height: 18 }}>
-          Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-          <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
+         {/* Label row: 'Down *' on left, %/$ toggle + summary on far right */}
+         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 18, gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+           Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+           <InfoTip text="The cash you put toward the purchase price. More down = lower loan, lower payment, and possibly no mortgage insurance. You can toggle between entering a percentage or dollar amount." />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+           <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
+            <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "3px 9px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
+            <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "3px 9px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
+           </div>
+           <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
+           </div>
+          </div>
          </div>
          {downMode === "pct" ? (
           <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
          ) : (
           <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" suffix="" step={1000} max={salesPrice} req />
          )}
-         {/* %/$ toggle + summary text — sits on same horizontal line as the Zillow button in the left column */}
-         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -4, marginBottom: 10 }}>
-          <div style={{ display: "flex", background: T.inputBg, borderRadius: 8, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
-           <button onClick={() => setDownMode("pct")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>%</button>
-           <button onClick={() => setDownMode("dollar")} style={{ padding: "4px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s" }}>$</button>
-          </div>
-          <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>
-           {downMode === "pct" ? `${fmt(Math.round(salesPrice * downPct / 100))} down` : `${downPct.toFixed(1)}% of ${fmt(salesPrice)}`}
-          </div>
-         </div>
         </div>
        </>)}
       </div>
