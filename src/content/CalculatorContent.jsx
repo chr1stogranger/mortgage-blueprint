@@ -215,56 +215,50 @@ export default function CalculatorContent({
 
   {/* ========== LEFT COLUMN ========== */}
   <div>
-   {/* Donut + subtle Escrow toggle in upper-right whitespace */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 12 }}>
-    <div style={{ position: "relative", width: isDesktop ? 280 : 200 }}>
-     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
-     {/* Subtle Escrow toggle: small label + compact switch tucked in top-right of donut */}
-     {(() => {
-      const escrowLocked = loanType === "FHA" || loanType === "VA";
-      return (
-       <div
+   {/* Donut block: Escrow toggle row spans the top, donut centered below */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
+    {/* Escrow toggle header row — label upper-left, toggle upper-right */}
+    {(() => {
+     const escrowLocked = loanType === "FHA" || loanType === "VA";
+     return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
+       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
+        Include Escrow (Tax &amp; Ins)
+       </span>
+       <button
+        onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
         title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
         style={{
-         position: "absolute",
-         top: isDesktop ? 18 : 12,
-         right: isDesktop ? 18 : 12,
-         display: "flex",
-         alignItems: "center",
-         gap: 5,
-         opacity: escrowLocked ? 0.45 : 0.78,
+         width: 44,
+         height: 26,
+         borderRadius: 13,
+         border: "none",
+         padding: 0,
+         cursor: escrowLocked ? "not-allowed" : "pointer",
+         background: includeEscrow ? T.green : T.inputBorder,
+         position: "relative",
+         transition: "background 0.2s",
+         opacity: escrowLocked ? 0.6 : 1,
         }}
        >
-        <span style={{ fontSize: 8.5, fontFamily: MONO, fontWeight: 600, color: T.textTertiary, letterSpacing: "1.2px", textTransform: "uppercase" }}>Escrow</span>
-        <button
-         onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
-         style={{
-          width: 28,
-          height: 16,
-          borderRadius: 9,
-          border: "none",
-          padding: 0,
-          cursor: escrowLocked ? "not-allowed" : "pointer",
-          background: includeEscrow ? T.green : T.inputBorder,
-          position: "relative",
-          transition: "background 0.2s",
-         }}
-        >
-         <div style={{
-          width: 12,
-          height: 12,
-          borderRadius: 6,
-          background: "#fff",
-          position: "absolute",
-          top: 2,
-          left: includeEscrow ? 14 : 2,
-          transition: "left 0.2s",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
-         }} />
-        </button>
-       </div>
-      );
-     })()}
+        <div style={{
+         width: 20,
+         height: 20,
+         borderRadius: 10,
+         background: "#fff",
+         position: "absolute",
+         top: 3,
+         left: includeEscrow ? 21 : 3,
+         transition: "left 0.2s",
+         boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+        }} />
+       </button>
+      </div>
+     );
+    })()}
+    {/* Donut, centered */}
+    <div style={{ display: "flex", justifyContent: "center" }}>
+     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
     </div>
    </div>
 
