@@ -297,31 +297,31 @@ export default function CalculatorContent({
         </div>
         {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
        </>) : (<>
-        {/* Purchase: Down Payment — label + summary on header row, %/$ toggle docked inside the input pill */}
+        {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
         {(() => {
          const downSummary = downMode === "pct" ? fmt(Math.round(salesPrice * downPct / 100)) : `${downPct.toFixed(1)}%`;
-         const pctToggle = (
-          <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
-           <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
-           <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
-          </div>
-         );
          return (
           <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onClick={() => markTouched && markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-           {/* Label row: 'Down *' on left, summary on far right */}
-           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 18, gap: 8 }}>
+           {/* Label row: 'Down *' on left, summary + %/$ toggle on far right */}
+           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
              Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
             </div>
-            <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-             {downSummary}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+             <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
+              <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
+              <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
+             </div>
+             <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>
+              {downSummary}
+             </div>
             </div>
            </div>
-           {/* Input pill with %/$ toggle docked on the right (replaces the suffix) */}
+           {/* Input pill — full width, suffix shows the active unit */}
            {downMode === "pct" ? (
-            <Inp value={downPct} onChange={setDownPct} prefix="" step={0.01} max={100} req rightSlot={pctToggle} />
+            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
            ) : (
-            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req rightSlot={pctToggle} />
+            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
            )}
           </div>
          );
