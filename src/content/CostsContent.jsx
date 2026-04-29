@@ -1,4 +1,5 @@
 import React, { useState, useContext, createContext, useMemo } from "react";
+import Icon from "../Icon";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -12,6 +13,23 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 // including live <input> fields, dropping focus mid-keystroke.
 // ──────────────────────────────────────────────────────────────
 const CostsCtx = createContext(null);
+// Per-section lock context — set by LetterSection, consumed by FeeRow descendants.
+// `unlocked` = section is in edit mode (FeeRow shows inline editor instead of value).
+const LockCtx = createContext({ unlocked: false, letter: null });
+
+// Small uppercase mono badge used to flag rows that are auto-derived (e.g. transfer tax,
+// HOA cert, prepaid interest) so users see they're calculated, not editable.
+function AutoBadge() {
+  const { T } = useContext(CostsCtx);
+  return (
+    <span style={{
+      fontSize: 9, fontWeight: 700, color: T.textTertiary, fontFamily: MONO,
+      letterSpacing: 1, padding: "2px 5px", border: `1px solid ${T.separator}`,
+      borderRadius: 4, marginLeft: 8, lineHeight: 1, whiteSpace: "nowrap",
+      display: "inline-flex", alignItems: "center",
+    }}>AUTO</span>
+  );
+}
 
 // Master collapsible "card" — replaces AriveBox for top-level groups.
 // Header is a button that toggles open/closed. Total stays visible
@@ -85,17 +103,26 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, children
 }
 
 // Lettered subsection inside a CollapsibleBox (A. Origination, B. Cannot Shop, etc.)
-function LetterSection({ letter, title, total, children }) {
-  const { T } = useContext(CostsCtx);
+// `lockable` = whether to show the lock/unlock pill in the header (true for closing-cost subsections).
+// When unlocked, children FeeRows render inline editors instead of read-only values.
+function LetterSection({ letter, title, total, children, lockable = false }) {
+  const { T, ACCENT, sectionLocks, toggleLock } = useContext(CostsCtx);
+  const locked = lockable ? !!sectionLocks[letter] : true;
+  const unlocked = lockable && !locked;
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{
+      marginBottom: 14,
+      // subtle background tint when section is in edit mode
+      ...(unlocked ? { background: `${ACCENT}06`, borderRadius: 10, padding: "4px 10px", border: `1px solid ${ACCENT}22` } : {}),
+    }}>
       <div style={{
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "baseline",
+        alignItems: "center",
         padding: "6px 0",
         borderBottom: `1px solid ${T.separator}`,
         marginBottom: 2,
+        gap: 10,
       }}>
         <div style={{
           fontSize: 11,
@@ -108,13 +135,37 @@ function LetterSection({ letter, title, total, children }) {
           <span style={{ color: T.textTertiary, marginRight: 8 }}>{letter}.</span>
           {title}
         </div>
-        {total !== undefined && (
-          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>
-            {total}
-          </div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {lockable && (
+            <button
+              type="button"
+              onClick={() => toggleLock(letter)}
+              aria-label={unlocked ? "Lock section" : "Unlock section to edit"}
+              style={{
+                fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1,
+                textTransform: "uppercase",
+                color: unlocked ? "#fff" : T.textTertiary,
+                background: unlocked ? ACCENT : "transparent",
+                border: `1px solid ${unlocked ? ACCENT : T.separator}`,
+                borderRadius: 9999, padding: "3px 9px", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 5,
+                transition: "all 0.15s",
+              }}
+            >
+              <Icon name={unlocked ? "unlock" : "lock"} size={11} />
+              {unlocked ? "Done" : "Edit"}
+            </button>
+          )}
+          {total !== undefined && (
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>
+              {total}
+            </div>
+          )}
+        </div>
       </div>
-      {children}
+      <LockCtx.Provider value={{ unlocked, letter }}>
+        {children}
+      </LockCtx.Provider>
     </div>
   );
 }
@@ -149,54 +200,75 @@ function TotalBand({ letter, title, total }) {
   );
 }
 
-function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, prefix = "$", bold = false, color, step = 1, max, isDollar = true, note, readOnly = false, calc, explainer }) {
-  const { T, ACCENT, fmt2, openRow, toggleRow, Inp } = useContext(CostsCtx);
-  const isOpen = editKey && openRow === editKey;
-  const displayVal = isDollar ? (value === 0 ? "$0.00" : fmt2(value)) : value;
-  const hasIndentBtn = editKey && !readOnly;
+// FeeRow — new lock-aware model. NO MORE "+" buttons.
+// - locked (default, from section LockCtx): renders label / value (read-only)
+// - unlocked (section is in edit mode): renders label / inline number input (or `inlineEditor` if provided)
+// - readOnly: always renders as locked, with optional AUTO badge
+// - alwaysEdit: renders inline editor regardless of section lock (for Points, Hazard Insurance)
+// - inlineEditor: custom JSX rendered between label and value when unlocked (for Transfer Tax city dropdown)
+//   Used when the editor isn't a simple number input.
+function FeeRow({
+  label, sub, value, onChange,
+  prefix = "$", suffix = null, step = 1, max,
+  isDollar = true, bold = false, color, note,
+  readOnly = false, autoBadge = false, alwaysEdit = false,
+  inlineEditor = null, alwaysVisibleControl = null,
+  calc, explainer,
+}) {
+  const { T, fmt2, Inp } = useContext(CostsCtx);
+  const { unlocked: sectionUnlocked } = useContext(LockCtx);
+
+  // Determine effective edit mode for this row.
+  // - editable (value): row's main value can be edited via inline number input.
+  // - inlineEditor: separate from readOnly — appears whenever the section is unlocked OR alwaysEdit,
+  //   even on readOnly rows like Transfer Taxes (where the city dropdown drives the calculated value).
+  const editable = !readOnly && (alwaysEdit || sectionUnlocked);
+  const showInlineEditor = (alwaysEdit || sectionUnlocked) && !!inlineEditor;
+  const showInlineNumberInput = editable && !inlineEditor;
+
+  const displayVal = isDollar ? (value === 0 || value === "" || value == null ? "$0.00" : fmt2(value)) : value;
+
   return (
     <div style={{ borderBottom: `1px dashed ${T.separator}`, paddingBottom: 2 }}>
       <div style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "6px 0",
-        minHeight: 28,
+        padding: "8px 0",
+        minHeight: 30,
+        gap: 10,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-          {hasIndentBtn && (
-            <button
-              onClick={() => toggleRow(editKey)}
-              aria-label={`Edit ${label}`}
-              style={{
-                width: 18, height: 18, borderRadius: 4,
-                border: `1px solid ${isOpen ? ACCENT : T.inputBorder}`,
-                background: isOpen ? ACCENT : "transparent",
-                color: isOpen ? "#fff" : T.textSecondary,
-                fontSize: 14, lineHeight: 1, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", padding: 0, flexShrink: 0,
-                transition: "all 0.15s",
-              }}
-            >{isOpen ? "−" : "+"}</button>
-          )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
           <div style={{ fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3 }}>
             <span>{label}</span>
             {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: MONO }}>{sub}</span>}
           </div>
+          {alwaysVisibleControl && (
+            <div style={{ display: "flex", alignItems: "center" }}>{alwaysVisibleControl}</div>
+          )}
+          {showInlineEditor && (
+            <div style={{ display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0 }}>{inlineEditor}</div>
+          )}
         </div>
-        <div style={{
-          fontSize: 13,
-          fontWeight: bold ? 700 : 600,
-          fontFamily: FONT,
-          color: color || T.text,
-          flexShrink: 0,
-          marginLeft: 10,
-        }}>{displayVal}</div>
+        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 6 }}>
+          {showInlineNumberInput ? (
+            <div style={{ width: 130 }}>
+              <Inp value={value} onChange={onChange} prefix={prefix} suffix={suffix} step={step} max={max} sm />
+            </div>
+          ) : (
+            <div style={{
+              fontSize: 13,
+              fontWeight: bold ? 700 : 600,
+              fontFamily: FONT,
+              color: color || T.text,
+              whiteSpace: "nowrap",
+            }}>{displayVal}</div>
+          )}
+          {autoBadge && <AutoBadge />}
+        </div>
       </div>
       {(calc || explainer) && (
         <div style={{
-          paddingLeft: hasIndentBtn ? 26 : 0,
           paddingBottom: 6,
           marginTop: -3,
           fontSize: 11,
@@ -208,13 +280,8 @@ function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, p
           {explainer && <span style={{ fontStyle: "italic" }}>{explainer}</span>}
         </div>
       )}
-      {isOpen && (
-        <div style={{ padding: "4px 0 10px 26px" }}>
-          {editor ? editor : (
-            <Inp label={label} value={value} onChange={onChange} suffix={suffix} prefix={prefix} step={step} max={max} sm />
-          )}
-          {note && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{note}</div>}
-        </div>
+      {note && (editable || readOnly) && (
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{note}</div>
       )}
     </div>
   );
@@ -370,6 +437,7 @@ export default function CostsContent({
   titleSearch, setTitleSearch,
   settlementFee, setSettlementFee,
   transferTaxCity, setTransferTaxCity,
+  transferTaxSplit, setTransferTaxSplit,
   city, propertyState, salesPrice,
   getTTCitiesForState, getTTForCity,
   recordingFee, setRecordingFee,
@@ -389,8 +457,9 @@ export default function CostsContent({
   Hero, Card, Sec, Inp, Sel, Note, MRow,
   GuidedNextButton,
 }) {
-  const [openRow, setOpenRow] = useState(null);
-  const toggleRow = (key) => setOpenRow(openRow === key ? null : key);
+  // Section-level lock state — closing-cost subsections (A, B, C, E, H) start LOCKED for clean read-only view.
+  const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, H: true });
+  const toggleLock = (k) => setSectionLocks(s => ({ ...s, [k]: !s[k] }));
 
   const ACCENT = T.blue;
   const HEAD_BG = `${ACCENT}14`;
@@ -400,8 +469,8 @@ export default function CostsContent({
   // Stable context value — memoized by values that actually change.
   const ctx = useMemo(() => ({
     T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER,
-    fmt2, openRow, toggleRow, Inp,
-  }), [T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER, fmt2, openRow, Inp]);
+    fmt2, Inp, sectionLocks, toggleLock,
+  }), [T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER, fmt2, Inp, sectionLocks]);
 
   // Live-computed buyer commission (defensive — don't trust calc if stale)
   const liveBuyerComm = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
@@ -454,48 +523,67 @@ export default function CostsContent({
       {/* ─── MASTER 1: Closing Costs (default OPEN) ──────────────── */}
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={true}>
 
-        {/* A. Origination Charges */}
-        <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)}>
+        {/* A. Origination Charges — lockable */}
+        <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)} lockable>
+          {/* Points — ALWAYS inline editable. Negative values flip label to "Lender Credit". */}
           <FeeRow
-            label={discountPts > 0 ? `${discountPts}% of Loan Amount (Points)` : "__% of Loan Amount (Points)"}
-            editKey="points"
-            value={calc.pointsCost}
-            calc={discountPts > 0 ? `${discountPts} pts × ${fmt(calc.loan)} = ${fmt2(calc.pointsCost)}` : undefined}
-            explainer={discountPts > 0 ? "1 point = 1% of loan, typically lowers rate ~0.25%" : "Optional — buy down the rate by paying points upfront"}
-            editor={
-              <>
-                <Inp label="Discount Points" value={discountPts} onChange={setDiscountPts} prefix="" suffix="pts" step={0.125} max={10} sm tip="1 point = 1% of loan amount. Typically reduces rate by ~0.25%." />
-                <div style={{ fontSize: 11, color: T.textTertiary }}>{discountPts} pts × {fmt(calc.loan)} = {fmt2(calc.pointsCost)}</div>
-              </>
+            label={discountPts < 0
+              ? `${Math.abs(discountPts)}% Lender Credit`
+              : (discountPts > 0 ? `${discountPts}% of Loan Amount (Points)` : "Discount Points")}
+            value={Math.abs(calc.pointsCost)}
+            color={discountPts < 0 ? T.green : undefined}
+            // Render value as negative when it's a credit
+            isDollar={true}
+            calc={discountPts !== 0
+              ? `${Math.abs(discountPts)}% × ${fmt(calc.loan)} = ${discountPts < 0 ? "−" : ""}${fmt2(Math.abs(calc.pointsCost))}`
+              : undefined}
+            explainer={discountPts < 0
+              ? "Negative — lender credits go to your closing costs (often in exchange for a slightly higher rate)"
+              : (discountPts > 0
+                ? "1 point = 1% of loan, typically lowers rate ~0.25%"
+                : "Buy down the rate by paying points upfront, or go negative for a lender credit")}
+            alwaysEdit
+            inlineEditor={
+              <Inp
+                value={discountPts}
+                onChange={setDiscountPts}
+                prefix=""
+                suffix="%"
+                step={0.125}
+                min={-5}
+                max={10}
+                sm
+                tip="1 point = 1% of loan amount. Negative values become Lender Credits."
+              />
             }
           />
-          <FeeRow label="Originator Compensation" editKey="origComp"     value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
-          <FeeRow label="Underwriting Fee"        editKey="underwriting" value={underwritingFee} onChange={setUnderwritingFee} explainer="Lender's fee for evaluating the loan" />
+          <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
+          <FeeRow label="Underwriting Fee"        value={underwritingFee} onChange={setUnderwritingFee} explainer="Lender's fee for evaluating the loan" />
           {processingFee > 0 && (
-            <FeeRow label="Processing Fee" editKey="processing" value={processingFee} onChange={setProcessingFee} explainer="Lender's fee for processing loan documents" />
+            <FeeRow label="Processing Fee" value={processingFee} onChange={setProcessingFee} explainer="Lender's fee for processing loan documents" />
           )}
         </LetterSection>
 
-        {/* B. Services You Cannot Shop For */}
-        <LetterSection letter="B" title="Services You Cannot Shop For" total={fmt2(calc.cannotShop)}>
-          <FeeRow label="Appraisal Fee"          editKey="appraisal" value={appraisalFee}    onChange={setAppraisalFee}    explainer="Independent appraiser values the property" />
-          <FeeRow label="Credit Report Fee"      editKey="credit"    value={creditReportFee} onChange={setCreditReportFee} explainer="Pull tri-merge credit report" />
-          <FeeRow label="Flood Certificate Fee"  editKey="flood"     value={floodCertFee}    onChange={setFloodCertFee}    explainer="Determines if property is in a flood zone" />
-          <FeeRow label="MERS Registration Fee"  editKey="mers"      value={mersFee}         onChange={setMersFee}         explainer="Mortgage Electronic Registration System" />
-          <FeeRow label="Tax Service Fee"        editKey="taxsvc"    value={taxServiceFee}   onChange={setTaxServiceFee}   explainer="Lender's tax-monitoring service" />
+        {/* B. Services You Cannot Shop For — lockable */}
+        <LetterSection letter="B" title="Services You Cannot Shop For" total={fmt2(calc.cannotShop)} lockable>
+          <FeeRow label="Appraisal Fee"          value={appraisalFee}    onChange={setAppraisalFee}    explainer="Independent appraiser values the property" />
+          <FeeRow label="Credit Report Fee"      value={creditReportFee} onChange={setCreditReportFee} explainer="Pull tri-merge credit report" />
+          <FeeRow label="Flood Certificate Fee"  value={floodCertFee}    onChange={setFloodCertFee}    explainer="Determines if property is in a flood zone" />
+          <FeeRow label="MERS Registration Fee"  value={mersFee}         onChange={setMersFee}         explainer="Mortgage Electronic Registration System" />
+          <FeeRow label="Tax Service Fee"        value={taxServiceFee}   onChange={setTaxServiceFee}   explainer="Lender's tax-monitoring service" />
         </LetterSection>
 
-        {/* C. Services You Can Shop For */}
-        <LetterSection letter="C" title="Services You Can Shop For" total={fmt2(calc.canShop)}>
+        {/* C. Services You Can Shop For — lockable */}
+        <LetterSection letter="C" title="Services You Can Shop For" total={fmt2(calc.canShop)} lockable>
           {isRefi ? (
-            <FeeRow label="Title / Escrow Flat Fee" editKey="escrowRefi" value={escrowFee} onChange={setEscrowFee} explainer="Refinances use a flat title/escrow fee" note="Refinances use a flat title/escrow fee." />
+            <FeeRow label="Title / Escrow Flat Fee" value={escrowFee} onChange={setEscrowFee} explainer="Refinances use a flat title/escrow fee" note="Refinances use a flat title/escrow fee." />
           ) : (
             <>
-              <FeeRow label="Title — Insurance Binder"        editKey="titleIns"    value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
-              <FeeRow label="Title — Settlement Agent Fee"    editKey="settlement"  value={settlementFee}  onChange={setSettlementFee}  explainer="Settlement/closing agent fee" />
-              <FeeRow label="Title — Title Search"            editKey="titleSearch" value={titleSearch}    onChange={setTitleSearch}    explainer="Researches the property's title history" />
-              <FeeRow label="Title — Escrow/Settlement Fee"   editKey="escrow"      value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
-              {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" explainer="Required for condos & townhomes" />}
+              <FeeRow label="Title — Insurance Binder"        value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
+              <FeeRow label="Title — Settlement Agent Fee"    value={settlementFee}  onChange={setSettlementFee}  explainer="Settlement/closing agent fee" />
+              <FeeRow label="Title — Title Search"            value={titleSearch}    onChange={setTitleSearch}    explainer="Researches the property's title history" />
+              <FeeRow label="Title — Escrow/Settlement Fee"   value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
+              {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" readOnly autoBadge explainer="Required for condos & townhomes" />}
             </>
           )}
         </LetterSection>
@@ -503,48 +591,79 @@ export default function CostsContent({
         {/* D. Total Loan Costs (A + B + C) — computed band */}
         <TotalBand letter="D" title="Total Loan Costs (A + B + C)" total={fmt2(totalLoanCosts)} />
 
-        {/* E. Taxes and Other Government Charges */}
-        <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)}>
-          <FeeRow label="Recording Fees" editKey="recording" value={recordingFee} onChange={setRecordingFee} explainer="County fees to record the deed and mortgage" />
-          <FeeRow
-            label="Transfer Taxes"
-            editKey="transferTax"
-            value={calc.buyerCityTT + calc.buyerCountyTT}
-            readOnly
-            sub={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0 ? `$${calc.ttEntry.rate}/$1K` : null}
-            calc={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0
-              ? `$${calc.ttEntry.rate}/$1K × ${fmt(salesPrice)} = ${fmt2(calc.ttEntry.rate * salesPrice / 1000)} → buyer 50% = ${fmt2(calc.buyerCityTT + calc.buyerCountyTT)}`
-              : undefined}
-            explainer={isRefi ? "No transfer tax on refinances in California" : "Government tax when property changes hands; buyer customarily pays 50%"}
-            editor={!isRefi ? (
-              <>
+        {/* E. Taxes and Other Government Charges — lockable */}
+        <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)} lockable>
+          <FeeRow label="Recording Fees" value={recordingFee} onChange={setRecordingFee} explainer="County fees to record the deed and mortgage" />
+          {(() => {
+            // 3-way Buyer / Split / Seller toggle — ALWAYS visible (client-facing decision).
+            const splitOpts = [
+              { v: "seller",  label: "Seller" },
+              { v: "split50", label: "Split 50/50" },
+              { v: "buyer",   label: "Buyer" },
+            ];
+            const buyerSharePct = transferTaxSplit === "buyer" ? 100 : transferTaxSplit === "seller" ? 0 : 50;
+            const transferToggle = !isRefi ? (
+              <div style={{ display: "inline-flex", background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: 2, gap: 0 }}>
+                {splitOpts.map(opt => (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => setTransferTaxSplit(opt.v)}
+                    style={{
+                      fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase",
+                      padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
+                      background: transferTaxSplit === opt.v ? T.blue : "transparent",
+                      color: transferTaxSplit === opt.v ? "#fff" : T.textSecondary,
+                      transition: "all 0.15s",
+                    }}
+                  >{opt.label}</button>
+                ))}
+              </div>
+            ) : null;
+
+            // City dropdown — only when section E is unlocked (and not refi).
+            const cityDropdown = !isRefi ? (
+              <div style={{ minWidth: 200, maxWidth: 280 }}>
                 <Sel
-                  label="City Transfer Tax"
                   value={transferTaxCity}
                   onChange={setTransferTaxCity}
                   options={getTTCitiesForState(propertyState).map(c => ({ value: c, label: c === "Not listed" ? "Not listed" : `${c} ($${getTTForCity(c, salesPrice).rate}/$1K)` }))}
+                  sm
                   tip="Government tax when property changes hands."
                 />
-                <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
-                  Buyer portion (50%): {fmt2(calc.buyerCityTT)}
-                  {transferTaxCity === "San Francisco" && " — SF: Seller customarily pays 100%"}
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: T.blue }}>No transfer tax on refinances in California.</div>
-            )}
-          />
+              </div>
+            ) : null;
+
+            return (
+              <FeeRow
+                label="Transfer Taxes"
+                value={calc.buyerCityTT + calc.buyerCountyTT}
+                readOnly
+                autoBadge
+                sub={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0 ? `$${calc.ttEntry.rate}/$1K` : null}
+                alwaysVisibleControl={transferToggle}
+                inlineEditor={cityDropdown}
+                calc={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0
+                  ? `$${calc.ttEntry.rate}/$1K × ${fmt(salesPrice)} = ${fmt2(calc.ttEntry.rate * salesPrice / 1000)} → buyer ${buyerSharePct}% = ${fmt2(calc.buyerCityTT + calc.buyerCountyTT)}`
+                  : undefined}
+                explainer={isRefi
+                  ? "No transfer tax on refinances in California"
+                  : (transferTaxCity === "San Francisco" && transferTaxSplit !== "seller"
+                      ? "SF: Seller customarily pays 100% — toggle Seller above"
+                      : "Government tax when property changes hands; toggle who pays")}
+              />
+            );
+          })()}
         </LetterSection>
 
-        {/* H. Other (purchase only) */}
+        {/* H. Other (purchase only) — lockable */}
         {!isRefi && (
-          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)}>
-            <FeeRow label="Owner's Title Insurance" editKey="ownersTitle" value={ownersTitleIns} onChange={setOwnersTitleIns} explainer="Optional — protects buyer's ownership rights from title defects" />
-            <FeeRow label="Home Warranty"           editKey="warranty"    value={homeWarranty}   onChange={setHomeWarranty}   explainer="One-year coverage on major home systems" />
+          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
+            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} explainer="Optional — protects buyer's ownership rights from title defects" />
+            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   explainer="One-year coverage on major home systems" />
             {hoa > 0 && (
               <FeeRow
                 label="HOA Transfer Fee"
-                editKey="hoaTransfer"
                 value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
                 onChange={setHoaTransferFee}
                 sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
@@ -561,17 +680,15 @@ export default function CostsContent({
             {buyerPaysComm && (
               <FeeRow
                 label="Buyer Agent Commission"
-                editKey="buyerComm"
                 value={liveBuyerComm}
+                readOnly
+                autoBadge
                 calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
                 explainer="Commission paid to buyer's real estate agent"
-                editor={
-                  <>
-                    <Inp label="Commission Rate" value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
-                    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
-                      {buyerCommPct}% × {fmt(salesPrice)} = <strong>{fmt2(liveBuyerComm)}</strong>
-                    </div>
-                  </>
+                inlineEditor={
+                  <div style={{ width: 110 }}>
+                    <Inp value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
+                  </div>
                 }
               />
             )}
@@ -582,13 +699,25 @@ export default function CostsContent({
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
       <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={true}>
 
-        {/* F. Prepaids */}
+        {/* F. Prepaids — not lockable per spec; Hazard Ins always inline-edit, others auto */}
         <LetterSection letter="F" title="Prepaids">
+          {/* Closing date as its own always-visible row (replaces the old "+" editor on Prepaid Interest) */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 0", borderBottom: `1px dashed ${T.separator}` }}>
+            <div style={{ fontSize: 13, color: T.textSecondary, fontWeight: 500 }}>Closing Date</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ minWidth: 130 }}>
+                <Sel value={closingMonth} onChange={v => setClosingMonth(parseInt(v))} options={monthOptions} sm />
+              </div>
+              <div style={{ minWidth: 70 }}>
+                <Sel value={closingDay} onChange={v => setClosingDay(parseInt(v))} options={dayOptions} sm />
+              </div>
+            </div>
+          </div>
           <FeeRow
             label="Hazard Insurance Premium"
-            editKey="hoi"
             value={annualIns}
             onChange={setAnnualIns}
+            alwaysEdit
             calc={`12 mo × ${fmt2(annualIns / 12)}/mo = ${fmt2(annualIns)}`}
             explainer="First-year homeowner's insurance, paid up front at closing"
           />
@@ -597,33 +726,24 @@ export default function CostsContent({
               label="Mortgage Insurance Premium"
               value={0}
               readOnly
+              autoBadge
               explainer="Upfront MI premium (FHA/USDA only — conv. MI is monthly)"
             />
           )}
           <FeeRow
             label="Prepaid Interest"
             value={calc.prepaidInt}
-            editKey="closeDate"
             readOnly
+            autoBadge
             calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
             explainer="Interest from closing day through end of month"
-            editor={
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Sel label="Closing Month" value={closingMonth} onChange={v => setClosingMonth(parseInt(v))} options={monthOptions} sm />
-                  <Sel label="Closing Day" value={closingDay} onChange={v => setClosingDay(parseInt(v))} options={dayOptions} sm />
-                </div>
-                <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
-                  Daily interest: {fmt2(calc.dailyInt)} × {calc.autoPrepaidDays} days = {fmt2(calc.prepaidInt)}
-                </div>
-              </>
-            }
           />
           {includeEscrow && (
             <FeeRow
               label="Property Taxes"
               value={proposedTax_atClosing}
               readOnly
+              autoBadge
               calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(proposedTax_atClosing)}`}
               explainer="Property taxes collected at closing to fund escrow account"
             />
@@ -648,12 +768,15 @@ export default function CostsContent({
                 label="Aggregate Adjustment"
                 value="—"
                 isDollar={false}
+                readOnly
+                autoBadge
                 explainer="RESPA-required adjustment to prevent over-collection"
               />
               <FeeRow
                 label="Hazard Insurance Reserve"
                 value={escrowHOI_reserve}
                 readOnly
+                autoBadge
                 calc={`${calc.escrowInsMonths} mo × ${fmt2(monthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
                 explainer="Cushion held by lender for upcoming insurance payments"
               />
@@ -662,6 +785,7 @@ export default function CostsContent({
                   label="Mortgage Insurance Reserve"
                   value={escrowMI_reserve}
                   readOnly
+                  autoBadge
                   calc={`2 mo × ${fmt2(monthlyMI)}/mo = ${fmt2(escrowMI_reserve)}`}
                   explainer="Cushion for monthly MI payments"
                 />
@@ -670,6 +794,7 @@ export default function CostsContent({
                   label="Mortgage Insurance Reserve"
                   value="—"
                   isDollar={false}
+                  readOnly
                   explainer="No mortgage insurance required"
                 />
               )}
@@ -677,6 +802,7 @@ export default function CostsContent({
                 label="Property Taxes"
                 value={escrowTax_reserve}
                 readOnly
+                autoBadge
                 calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
                 explainer="Cushion for upcoming property tax bills"
               />
@@ -694,24 +820,24 @@ export default function CostsContent({
       >
         <FeeRow
           label="Earnest Money Deposit (EMD)"
-          editKey="emd"
           value={isRefi ? 0 : emd}
           onChange={setEmd}
           readOnly={isRefi}
+          alwaysEdit={!isRefi}
           calc={!isRefi && salesPrice > 0 && emd > 0 ? `${((emd / salesPrice) * 100).toFixed(2)}% of ${fmt(salesPrice)} sales price` : undefined}
           explainer="Money already paid to seller — reduces cash needed at closing"
         />
         {!isRefi && (
-          <FeeRow label="Seller Credit"   editKey="sellerCredit"  value={sellerCredit}  onChange={setSellerCredit}
+          <FeeRow label="Seller Credit"   value={sellerCredit}  onChange={setSellerCredit}  alwaysEdit
             explainer="Negotiated credit from seller toward buyer's closing costs" />
         )}
         {!isRefi && (
-          <FeeRow label="Realtor Credit"  editKey="realtorCredit" value={realtorCredit} onChange={setRealtorCredit}
+          <FeeRow label="Realtor Credit"  value={realtorCredit} onChange={setRealtorCredit} alwaysEdit
             explainer="Credit from realtor (sometimes a portion of their commission)" />
         )}
-        <FeeRow label="Lender Credits"    editKey="lenderCredit"  value={lenderCredit}  onChange={setLenderCredit}
+        <FeeRow label="Lender Credits"    value={lenderCredit}  onChange={setLenderCredit}  alwaysEdit
           explainer="Credit from lender — often in exchange for a slightly higher rate" />
-        <FeeRow label="Adjustments and Other Credits" value={0} readOnly
+        <FeeRow label="Adjustments and Other Credits" value={0} readOnly autoBadge
           explainer="Other credits or adjustments at closing" />
         <FeeRow label="Subordinate Financing" value={0} readOnly
           explainer="Second mortgages or HELOCs financing part of the purchase" />
