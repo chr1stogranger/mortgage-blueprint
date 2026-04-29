@@ -1,4 +1,5 @@
 import React from "react";
+import Icon from "../Icon";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -24,7 +25,60 @@ export default function QualifyContent({
 }) {
   return (<>
 
- <div style={{ marginTop: 20 }}>
+ {/* Header: Qualification + Full Details link */}
+ <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 12 }}>
+  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>Qualification</h2>
+  <a onClick={(e) => { e.preventDefault(); document.getElementById("qualify-details")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+   style={{ fontSize: 13, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT, textDecoration: "none" }}>Full Details →</a>
+ </div>
+
+ {/* FICO Score — full-width slider on top */}
+ <Card>
+  <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>FICO Score</div>
+  <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+   <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="720"
+    onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
+    onBlur={() => { if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
+    style={{ flex: "0 0 90px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+    <input type="range" min={300} max={850} step={1} value={creditScore || 650}
+     onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+     style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+     <span>300</span>
+     <span>850</span>
+    </div>
+   </div>
+   {creditScore > 0 && (
+    <div style={{ flexShrink: 0, background: creditScore >= calc.ficoMin ? `${T.green}18` : `${T.red}18`, color: creditScore >= calc.ficoMin ? T.green : T.red, borderRadius: 9999, padding: "5px 12px", fontSize: 12, fontWeight: 700, fontFamily: FONT, whiteSpace: "nowrap" }}>
+     {creditScore} / {calc.ficoMin}+ {creditScore >= calc.ficoMin ? "✓" : "✗"}
+    </div>
+   )}
+  </div>
+  {creditScore > 0 && creditScore < calc.ficoMin && <Note color={T.red}>Min score for {loanType}: <strong>{calc.ficoMin}</strong>. Need {calc.ficoMin - creditScore} more points.</Note>}
+  {creditScore >= 740 && <Note color={T.green}>Excellent credit — qualifies for best pricing!</Note>}
+  {creditScore >= calc.ficoMin && creditScore < 740 && <Note color={T.orange}>Meets minimum. 740+ unlocks better pricing tiers.</Note>}
+ </Card>
+
+ {/* PRE-QUALIFIED hero — full width, centered, above pillars */}
+ {allGood && (
+  <Card style={{ marginTop: 16, background: `${T.green}15`, textAlign: "center", padding: "22px 20px" }}>
+   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 4 }}>
+    <Icon name="trophy" size={28} style={{ color: T.green }} />
+    <div style={{ fontSize: 22, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "0.02em" }}>{isRefi ? "REFI QUALIFIED" : "PRE-QUALIFIED"}</div>
+   </div>
+   <div style={{ fontSize: 14, color: T.textSecondary, marginTop: 6 }}>{isRefi ? "All 3 pillars cleared!" : "All 5 pillars cleared!"}</div>
+   <div style={{ fontSize: 12, color: T.textTertiary, fontStyle: "italic", marginTop: 2 }}>Based on the information you provided.</div>
+   <button onClick={() => isRefi ? setTab("refi") : window.open("https://2179191.my1003app.com/952015/register", "_blank")}
+    style={{ marginTop: 16, padding: "12px 28px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT }}>{isRefi ? "View Refi Summary →" : "Get Pre-Approved →"}</div>
+    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>{isRefi ? "See your savings breakdown" : "Complete my application to lock in your approval"}</div>
+   </button>
+  </Card>
+ )}
+
+ {/* 5 Pillars (StopLight) — full width below hero */}
+ <div style={{ marginTop: 16 }}>
   <StopLight onPillarClick={handlePillarClick} checks={isRefi ? [
    { label: "FICO", ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore} / ${calc.ficoMin}+` : "Enter score", icon: "bar-chart", fullLabel: "Credit Score (FICO)", detail: `Min ${calc.ficoMin} for ${loanType}. ${creditScore >= 740 ? "Excellent — best pricing tier." : creditScore >= calc.ficoMin ? `Meets minimum. 740+ unlocks better pricing.` : creditScore > 0 ? `Need ${calc.ficoMin - creditScore} more points.` : "Enter your middle FICO score."}`, action: "Edit credit score" },
    { label: "DTI", ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false, sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "Add income", icon: "scale", fullLabel: "DTI Ratio", detail: calc.qualifyingIncome > 0 ? `Max ${pct(calc.maxDTI, 0)} for ${loanType}. Total payment ${fmt(calc.totalPayment)}/mo ÷ income ${fmt(calc.qualifyingIncome)}/mo = ${pct(calc.yourDTI, 1)}.` : "Add income on the Income tab to calculate DTI.", action: calc.qualifyingIncome > 0 ? "Edit income & debts" : "Go to Income tab" },
@@ -37,29 +91,9 @@ export default function QualifyContent({
    { label: "Reserves", ok: calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false, sub: calc.totalReserves > 0 ? `${fmt(calc.totalReserves)}` : "Add assets", icon: "landmark", fullLabel: "Reserves", detail: `${calc.reserveMonths} months required (${loanType === "Jumbo" ? "Jumbo" : "standard"}) = ${fmt(calc.reservesReq)}. ${calc.totalReserves > 0 ? `Have ${fmt(calc.totalReserves)}. ${calc.totalReserves >= calc.reservesReq ? "Fully funded!" : `Short ${fmt(calc.reservesReq - calc.totalReserves)}.`}` : "Add assets to verify reserves."}`, action: "Edit assets" },
   ]} />
  </div>
- {/* Progress bar - how many pillars cleared */}
- <Card pad={14}>
-  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-   <span style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary }}>Approval Progress</span>
-   <span style={{ fontSize: 12, fontWeight: 700, color: allGood ? T.green : someGood ? T.orange : T.textTertiary, fontFamily: FONT }}>{isRefi ? refiPillarCount : purchPillarCount} / {isRefi ? 3 : 5}</span>
-  </div>
-  <div style={{ height: 12, background: T.ringTrack, borderRadius: 99, overflow: "hidden" }}>
-   <div style={{ height: "100%", width: `${(isRefi ? refiPillarCount / 3 : purchPillarCount / 5) * 100}%`, background: allGood ? T.green : someGood ? T.orange : T.ringTrack, borderRadius: 99, transition: "all 0.6s ease" }} />
-  </div>
- </Card>
- <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
- {/* ── LEFT: StopLight pillars stay above, FICO section ── */}
- <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
- <Sec title="Credit Score">
-  <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
-  <Card>
-   <Inp label="Middle FICO Score" value={creditScore} onChange={setCreditScore} prefix="" suffix="pts" min={300} max={850} step={1} req tip="Your middle credit score from the 3 bureaus (Equifax, Experian, TransUnion). Lenders use the middle score, not the highest or lowest." />
-   {creditScore > 0 && creditScore < calc.ficoMin && <Note color={T.red}>Min score for {loanType}: <strong>{calc.ficoMin}</strong>. Need {calc.ficoMin - creditScore} more points.</Note>}
-   {creditScore >= 740 && <Note color={T.green}>Excellent credit — qualifies for best pricing!</Note>}
-   {creditScore >= calc.ficoMin && creditScore < 740 && <Note color={T.orange}>Meets minimum. 740+ unlocks better pricing tiers.</Note>}
-  </Card>
-  </div>
- </Sec>
+ <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start", marginTop: 16 } : {}}>
+ {/* ── LEFT column: DTI bar + Pre-Qualified vs Pre-Approved education ── */}
+ <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
  {calc.qualifyingIncome > 0 && (
   <Card>
    <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>DTI: {pct(calc.yourDTI, 1)} / {pct(calc.maxDTI, 0)}</div>
@@ -68,38 +102,33 @@ export default function QualifyContent({
    {(calc.reoPositiveIncome > 0 || calc.reoNegativeDebt > 0) && <Note color={T.blue}>REO adjusted: {calc.reoPositiveIncome > 0 ? `+${fmt(calc.reoPositiveIncome)}/mo investment income` : ""}{calc.reoPositiveIncome > 0 && calc.reoNegativeDebt > 0 ? " · " : ""}{calc.reoNegativeDebt > 0 ? `+${fmt(calc.reoNegativeDebt)}/mo debt (${calc.reoPrimaryDebt > 0 ? "PITIA" : ""}${calc.reoPrimaryDebt > 0 && calc.reoInvestmentNet < 0 ? " + " : ""}${calc.reoInvestmentNet < 0 ? "inv. shortfall" : ""})` : ""}</Note>}
   </Card>
  )}
- {allGood && <Card style={{ marginTop: 12, background: `${T.green}15`, textAlign: "center", padding: 20 }}>
-  <div style={{ fontSize: 40, marginBottom: 8 }}></div>
-  <div style={{ fontSize: 20, fontWeight: 800, color: T.green, fontFamily: FONT }}>{isRefi ? "REFI QUALIFIED" : "PRE-QUALIFIED"}</div>
-  <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>{isRefi ? "All 3 pillars cleared — your refi looks good to go." : "All 5 pillars cleared — based on the information you provided."}</div>
-  {isRefi ? (
-   <button onClick={() => setTab("refi")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
-    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>View Refi Summary →</div>
-    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>See your savings breakdown</div>
+ {/* Pre-Qualified vs Pre-Approved education box */}
+ {allGood && !isRefi && (
+  <Card style={{ marginTop: 12, background: `${T.green}15`, padding: 20, textAlign: "center" }}>
+   <div style={{ fontSize: 16, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "0.02em" }}>PRE-QUALIFIED</div>
+   <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>All 5 pillars cleared — based on the information you provided.</div>
+   <div style={{ marginTop: 14, padding: "14px 16px", background: T.card, borderRadius: 12, textAlign: "left" }}>
+    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+     <span style={{ fontSize: 22, flexShrink: 0 }}></span>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 2 }}>Pre-Qualified</div>
+      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>tell</strong> the lender — income, assets, and debts as self-reported. A good starting point, but not verified.</div>
+     </div>
+    </div>
+    <div style={{ display: "flex", gap: 10 }}>
+     <span style={{ fontSize: 22, flexShrink: 0 }}></span>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 2 }}>Pre-Approved</div>
+      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>show</strong> the lender — verified paystubs, bank statements, tax returns, and credit pull. Sellers take this seriously.</div>
+     </div>
+    </div>
+   </div>
+   <button onClick={() => window.open("https://2179191.my1003app.com/952015/register", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
+    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
    </button>
-  ) : (<>
-  <div style={{ marginTop: 16, padding: "14px 16px", background: T.card, borderRadius: 12, textAlign: "left" }}>
-   <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-    <span style={{ fontSize: 22, flexShrink: 0 }}></span>
-    <div>
-     <div style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 2 }}>Pre-Qualified</div>
-     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>tell</strong> the lender — income, assets, and debts as self-reported. A good starting point, but not verified.</div>
-    </div>
-   </div>
-   <div style={{ display: "flex", gap: 10 }}>
-    <span style={{ fontSize: 22, flexShrink: 0 }}></span>
-    <div>
-     <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 2 }}>Pre-Approved</div>
-     <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Based on what you <strong style={{ color: T.text }}>show</strong> the lender — verified paystubs, bank statements, tax returns, and credit pull. Sellers take this seriously.</div>
-    </div>
-   </div>
-  </div>
-  <button onClick={() => window.open("https://2179191.my1003app.com/952015/register", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
-   <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
-   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
-  </button>
-  </>)}
- </Card>}
+  </Card>
+ )}
  {calc.qualifyingIncome <= 0 && (
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
@@ -141,53 +170,6 @@ export default function QualifyContent({
    <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>Income, debts, rate, term & loan type pulled in. You can override any field below.</div>
   </div>
  )}
- <Sec title="Your Financial Picture">
-  <Card>
-   <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Auto-synced from your entries. Tap a row to edit in the source tab.</div>
-   {[
-    { label: "Monthly Gross Income", value: affordIncome, source: "Income", tab: "income", hasData: calc.qualifyingIncome > 0 },
-    { label: "Total Monthly Debts", value: affordDebts, source: "Debts", tab: "debts", hasData: debtFree || (calc.totalMonthlyDebts + calc.reoNegativeDebt) > 0 || debts.length > 0, debtFreeNote: debtFree ? "✓ Debt free" : null },
-    { label: "Cash for Down Payment", value: affordDown, source: "Assets", tab: "assets", hasData: calc.totalForClosing > 0 },
-   ].map((row, i) => {
-    const unlocked = isTabUnlocked(row.tab);
-    return (
-    <div key={i} onClick={() => unlocked && setTab(row.tab)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${T.separator}`, cursor: unlocked ? "pointer" : "default", opacity: unlocked ? 1 : 0.6 }}>
-     <div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{row.label}</div>
-      <div style={{ fontSize: 11, color: row.hasData ? T.green : unlocked ? T.orange : T.textTertiary, fontWeight: 500 }}>
-       {row.hasData ? (row.debtFreeNote || `✓ From ${row.source} tab`) : unlocked ? `⚠ Enter in ${row.source} tab →` : `Unlock ${row.source} tab first`}
-      </div>
-     </div>
-     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <span style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: row.hasData ? T.text : T.textTertiary }}>{row.value > 0 ? fmt(row.value) : row.hasData ? "$0" : "—"}</span>
-      {unlocked && <span style={{ fontSize: 14, color: T.blue }}>›</span>}
-     </div>
-    </div>
-    );
-   })}
-   <div style={{ marginTop: 12 }}>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-     <div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Rate · Term</div>
-      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT }}>{affordRate}% · {affordTerm}yr</div>
-      <div style={{ fontSize: 11, color: T.blue, cursor: "pointer", marginTop: 2 }} onClick={() => setTab("calc")}>From Calculator ›</div>
-     </div>
-     <div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Loan Type</div>
-      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT }}>{affordLoanType}</div>
-      <div style={{ fontSize: 11, color: T.blue, cursor: "pointer", marginTop: 2 }} onClick={() => setTab("setup")}>From Setup ›</div>
-     </div>
-    </div>
-   </div>
-   <div style={{ marginTop: 12 }}>
-    <Inp label="Target DTI" value={affordTargetDTI} onChange={setAffordTargetDTI} prefix="" suffix="%" max={65} req tip="Max debt-to-income ratio for this loan type. This is all monthly debts (including new mortgage) divided by gross monthly income." />
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -6, marginBottom: 4 }}>
-     Max DTI: Conv 50% · FHA 56.99% · VA 60% · Jumbo 43%
-     {(() => { const pgm = affordLoanType === "FHA" ? 56.99 : affordLoanType === "VA" ? 60 : affordLoanType === "Jumbo" ? 43 : 50; return pgm !== affordTargetDTI ? <span onClick={() => setAffordTargetDTI(pgm)} style={{ color: T.blue, cursor: "pointer", fontWeight: 600 }}> · Set to {pgm}%</span> : null; })()}
-    </div>
-   </div>
-  </Card>
- </Sec>
  {(() => {
   const confLimit = getHighBalLimit(propType);
   const maxHousingPayment = affordIncome * (affordTargetDTI / 100) - affordDebts;
@@ -292,6 +274,7 @@ export default function QualifyContent({
      </Card>
     )}
    </Sec>
+   <div id="qualify-details" />
    <Sec title="Estimated Monthly Payment">
     <Card>
      {hitsJumbo && <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 8 }}>Calculated using Jumbo guidelines (auto-switched from {affordLoanType})</div>}
