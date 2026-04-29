@@ -438,6 +438,7 @@ export default function CostsContent({
   settlementFee, setSettlementFee,
   transferTaxCity, setTransferTaxCity,
   transferTaxSplit, setTransferTaxSplit,
+  transferTaxCountySplit, setTransferTaxCountySplit,
   city, propertyState, salesPrice,
   getTTCitiesForState, getTTForCity,
   recordingFee, setRecordingFee,
@@ -595,25 +596,25 @@ export default function CostsContent({
         <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)} lockable>
           <FeeRow label="Recording Fees" value={recordingFee} onChange={setRecordingFee} explainer="County fees to record the deed and mortgage" />
           {(() => {
-            // 3-way Buyer / Split / Seller toggle — ALWAYS visible (client-facing decision).
+            // 3-way Seller / Split / Buyer toggle — ALWAYS visible. Shared by both rows but each
+            // row reads its own split state (independent per Christo's spec).
             const splitOpts = [
               { v: "seller",  label: "Seller" },
               { v: "split50", label: "Split 50/50" },
               { v: "buyer",   label: "Buyer" },
             ];
-            const buyerSharePct = transferTaxSplit === "buyer" ? 100 : transferTaxSplit === "seller" ? 0 : 50;
-            const transferToggle = !isRefi ? (
+            const renderToggle = (current, setter) => !isRefi ? (
               <div style={{ display: "inline-flex", background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 9999, padding: 2, gap: 0 }}>
                 {splitOpts.map(opt => (
                   <button
                     key={opt.v}
                     type="button"
-                    onClick={() => setTransferTaxSplit(opt.v)}
+                    onClick={() => setter(opt.v)}
                     style={{
                       fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase",
                       padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
-                      background: transferTaxSplit === opt.v ? T.blue : "transparent",
-                      color: transferTaxSplit === opt.v ? "#fff" : T.textSecondary,
+                      background: current === opt.v ? T.blue : "transparent",
+                      color: current === opt.v ? "#fff" : T.textSecondary,
                       transition: "all 0.15s",
                     }}
                   >{opt.label}</button>
@@ -621,7 +622,13 @@ export default function CostsContent({
               </div>
             ) : null;
 
-            // City dropdown — only when section E is unlocked (and not refi).
+            const citySharePct = transferTaxSplit === "buyer" ? 100 : transferTaxSplit === "seller" ? 0 : 50;
+            const countySharePct = transferTaxCountySplit === "buyer" ? 100 : transferTaxCountySplit === "seller" ? 0 : 50;
+            const cityRate = calc.ttEntry && calc.ttEntry.rate > 0 ? calc.ttEntry.rate : 0;
+            const countyRate = calc.countyTTRate || 0;
+            const cityFullTax = (salesPrice / 1000) * cityRate;
+            const countyFullTax = (salesPrice / 1000) * countyRate;
+
             const cityDropdown = !isRefi ? (
               <div style={{ minWidth: 200, maxWidth: 280 }}>
                 <Sel
@@ -629,30 +636,48 @@ export default function CostsContent({
                   onChange={setTransferTaxCity}
                   options={getTTCitiesForState(propertyState).map(c => ({ value: c, label: c === "Not listed" ? "Not listed" : `${c} ($${getTTForCity(c, salesPrice).rate}/$1K)` }))}
                   sm
-                  tip="Government tax when property changes hands."
+                  tip="City transfer tax — varies by city."
                 />
               </div>
             ) : null;
 
-            return (
+            return (<>
+              {/* City Transfer Tax — has city dropdown inline when section unlocked */}
               <FeeRow
-                label="Transfer Taxes"
-                value={calc.buyerCityTT + calc.buyerCountyTT}
+                label="Transfer Tax — City (Buyer's Share)"
+                value={calc.buyerCityTT}
                 readOnly
                 autoBadge
-                sub={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0 ? `$${calc.ttEntry.rate}/$1K` : null}
-                alwaysVisibleControl={transferToggle}
+                sub={cityRate > 0 ? `$${cityRate}/$1K` : null}
+                alwaysVisibleControl={renderToggle(transferTaxSplit, setTransferTaxSplit)}
                 inlineEditor={cityDropdown}
-                calc={!isRefi && calc.ttEntry && calc.ttEntry.rate > 0
-                  ? `$${calc.ttEntry.rate}/$1K × ${fmt(salesPrice)} = ${fmt2(calc.ttEntry.rate * salesPrice / 1000)} → buyer ${buyerSharePct}% = ${fmt2(calc.buyerCityTT + calc.buyerCountyTT)}`
+                calc={!isRefi && cityRate > 0
+                  ? `$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt2(cityFullTax)} → buyer ${citySharePct}% = ${fmt2(calc.buyerCityTT)}`
                   : undefined}
                 explainer={isRefi
                   ? "No transfer tax on refinances in California"
                   : (transferTaxCity === "San Francisco" && transferTaxSplit !== "seller"
                       ? "SF: Seller customarily pays 100% — toggle Seller above"
-                      : "Government tax when property changes hands; toggle who pays")}
+                      : "City transfer tax — split varies by city/agreement")}
               />
-            );
+              {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
+              {countyRate > 0 && (
+                <FeeRow
+                  label="Transfer Tax — County (Buyer's Share)"
+                  value={calc.buyerCountyTT}
+                  readOnly
+                  autoBadge
+                  sub={`$${countyRate.toFixed(2)}/$1K`}
+                  alwaysVisibleControl={renderToggle(transferTaxCountySplit, setTransferTaxCountySplit)}
+                  calc={!isRefi
+                    ? `$${countyRate.toFixed(2)}/$1K × ${fmt(salesPrice)} = ${fmt2(countyFullTax)} → buyer ${countySharePct}% = ${fmt2(calc.buyerCountyTT)}`
+                    : undefined}
+                  explainer={isRefi
+                    ? "No county transfer tax on refinances in California"
+                    : "California Documentary Transfer Tax — $1.10/$1K statewide, set by state law"}
+                />
+              )}
+            </>);
           })()}
         </LetterSection>
 
