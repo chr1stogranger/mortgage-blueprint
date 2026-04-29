@@ -172,7 +172,9 @@ export default function QualifyContent({
  )}
  {(() => {
   const confLimit = getHighBalLimit(propType);
-  const maxHousingPayment = affordIncome * (affordTargetDTI / 100) - affordDebts;
+  // Program-default max DTI (Target DTI input was removed — use the loan program's max).
+  const programDTI = affordLoanType === "FHA" ? 56.99 : affordLoanType === "VA" ? 60 : affordLoanType === "Jumbo" ? 43 : 50;
+  const maxHousingPayment = affordIncome * (programDTI / 100) - affordDebts;
   if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
   const r = (affordRate / 100) / 12;
   const n = affordTerm * 12;
@@ -181,9 +183,9 @@ export default function QualifyContent({
    const loan = price - dpAmt;
    const isJumbo = loan > confLimit && affordLoanType !== "Jumbo";
    if (isJumbo || affordLoanType === "Jumbo") return { type: "Jumbo", minDPpct: 20, maxDTI: 43, fhaUp: 0, vaFF: 0, miRate: 0 };
-   if (affordLoanType === "FHA") return { type: "FHA", minDPpct: 3.5, maxDTI: affordTargetDTI, fhaUp: 0.0175, vaFF: 0, miRate: 0.0055 };
-   if (affordLoanType === "VA") return { type: "VA", minDPpct: 0, maxDTI: affordTargetDTI, fhaUp: 0, vaFF: 0.023, miRate: 0 };
-   return { type: "Conventional", minDPpct: 5, maxDTI: affordTargetDTI, fhaUp: 0, vaFF: 0, miRate: 0 };
+   if (affordLoanType === "FHA") return { type: "FHA", minDPpct: 3.5, maxDTI: 56.99, fhaUp: 0.0175, vaFF: 0, miRate: 0.0055 };
+   if (affordLoanType === "VA") return { type: "VA", minDPpct: 0, maxDTI: 60, fhaUp: 0, vaFF: 0.023, miRate: 0 };
+   return { type: "Conventional", minDPpct: 5, maxDTI: 50, fhaUp: 0, vaFF: 0, miRate: 0 };
   };
   const calcPmt = (price) => {
    // First pass: estimate DP with base program
@@ -241,7 +243,7 @@ export default function QualifyContent({
     const loan2 = mid - dp2;
     if (loan2 > confLimit) { cHi = mid; continue; }
     const pmt = calcPmt(mid);
-    if (!pmt || pmt.total > (affordIncome * (affordTargetDTI / 100) - affordDebts)) cHi = mid;
+    if (!pmt || pmt.total > (affordIncome * (programDTI / 100) - affordDebts)) cHi = mid;
     else cLo = mid;
     if (cHi - cLo < 500) break;
    }
