@@ -12,8 +12,8 @@ export default function QualifyContent({
   allGood, someGood, refiPillarCount, purchPillarCount,
   setTab, handlePillarClick,
   isPulse, isTabUnlocked,
-  affordIncome, affordDebts, affordDown,
-  affordTerm, affordRate, affordLoanType,
+  affordIncome: _propAffordIncome, affordDebts: _propAffordDebts, affordDown: _propAffordDown,
+  affordTerm: _propAffordTerm, affordRate: _propAffordRate, affordLoanType: _propAffordLoanType,
   affordTargetDTI, setAffordTargetDTI,
   debts, debtFree,
   salesPrice, setSalesPrice, rate, setRate, term, setTerm,
@@ -23,6 +23,15 @@ export default function QualifyContent({
   StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow,
   GuidedNextButton,
 }) {
+  // Affordability inputs: prefer the synced state (when user lands on Qualify/Overview the parent's
+  // useEffect copies calc.X into these), but fall back to live calc values so the calc never
+  // reports "debts exceed DTI" just because the sync hasn't run yet (data loads async on first render).
+  const affordIncome = _propAffordIncome > 0 ? _propAffordIncome : Math.round(calc.qualifyingIncome || 0);
+  const affordDebts = _propAffordDebts > 0 ? _propAffordDebts : Math.round((calc.totalMonthlyDebts || 0) + (calc.reoNegativeDebt || 0));
+  const affordDown = _propAffordDown > 0 ? _propAffordDown : (calc.totalForClosing || 0);
+  const affordRate = _propAffordRate > 0 ? _propAffordRate : rate;
+  const affordTerm = _propAffordTerm > 0 ? _propAffordTerm : term;
+  const affordLoanType = _propAffordLoanType || loanType;
   return (<>
 
  {/* Header: Qualification + Full Details link */}
