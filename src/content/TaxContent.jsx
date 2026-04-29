@@ -104,226 +104,394 @@ export default function TaxContent({
   </div>
   </div>
  </div>
-) : (
- /* ── PRIMARY RESIDENCE: Schedule A Tax Savings (original) ── */
- <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
- <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
- <div style={isDesktop ? {} : { marginTop: 20 }}>
+) : (() => {
+ /* ── PRIMARY RESIDENCE: rebuilt to mimic Christo's spreadsheet client-walkthrough flow ── */
+ // Helper: tax owed per bracket for a given taxable income
+ const taxByBracket = (taxableIncome, brackets) => {
+  const rows = [];
+  let total = 0;
+  for (const b of (brackets || [])) {
+   const max = (b.max === Infinity || b.max == null) ? Infinity : b.max;
+   const inBracket = Math.max(0, Math.min(Math.max(0, taxableIncome), max) - b.min);
+   const tax = inBracket * b.rate;
+   rows.push({ from: b.min, to: max, rate: b.rate, amount: inBracket, tax });
+   total += tax;
+  }
+  return { rows, total };
+ };
+
+ // Federal Before/After
+ const fedBrackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
+ const fedDeductionAfter = Math.max(calc.fedItemized, calc.fedStdDeduction);
+ const fedTaxableBefore = Math.max(0, calc.yearlyInc - calc.fedStdDeduction);
+ const fedTaxableAfter = Math.max(0, calc.yearlyInc - fedDeductionAfter);
+ const fedBefore = taxByBracket(fedTaxableBefore, fedBrackets);
+ const fedAfter = taxByBracket(fedTaxableAfter, fedBrackets);
+ const fedSav = fedBefore.total - fedAfter.total;
+
+ // State Before/After
+ const stateInfo = STATE_TAX[taxState] || { type: "none" };
+ const stateDeductionAfter = Math.max(calc.stateItemized, calc.stStdDeduction);
+ const stateTaxableBefore = Math.max(0, calc.yearlyInc - calc.stStdDeduction);
+ const stateTaxableAfter = Math.max(0, calc.yearlyInc - stateDeductionAfter);
+ let stateBefore = { rows: [], total: 0 };
+ let stateAfter = { rows: [], total: 0 };
+ if (stateInfo.type === "progressive") {
+  const sb = stateInfo[married === "MFJ" ? "m" : "s"] || [];
+  stateBefore = taxByBracket(stateTaxableBefore, sb);
+  stateAfter = taxByBracket(stateTaxableAfter, sb);
+ } else if (stateInfo.type === "flat") {
+  const r = stateInfo.rate;
+  stateBefore = { rows: [{ from: 0, to: Infinity, rate: r, amount: stateTaxableBefore, tax: stateTaxableBefore * r }], total: stateTaxableBefore * r };
+  stateAfter = { rows: [{ from: 0, to: Infinity, rate: r, amount: stateTaxableAfter, tax: stateTaxableAfter * r }], total: stateTaxableAfter * r };
+ }
+ const stateSav = stateBefore.total - stateAfter.total;
+
+ // Effective rates
+ const fedEffBefore = calc.yearlyInc > 0 ? fedBefore.total / calc.yearlyInc : 0;
+ const fedEffAfter = calc.yearlyInc > 0 ? fedAfter.total / calc.yearlyInc : 0;
+ const stEffBefore = calc.yearlyInc > 0 ? stateBefore.total / calc.yearlyInc : 0;
+ const stEffAfter = calc.yearlyInc > 0 ? stateAfter.total / calc.yearlyInc : 0;
+ const combBefore = fedEffBefore + stEffBefore;
+ const combAfter = fedEffAfter + stEffAfter;
+
+ // Adjusted Housing walkdown
+ const monthlyHousing = calc.housingPayment;
+ const mFedSav = fedSav / 12;
+ const mStateSav = stateSav / 12;
+ const afterTaxCashFlow = monthlyHousing - mFedSav - mStateSav;
+ const adjustedHousing = afterTaxCashFlow - calc.monthlyPrinReduction;
+ const netPostSale = adjustedHousing - calc.monthlyAppreciation;
+
+ const FILING_LABELS = { Single: "Single", MFJ: "Married, Joint", MFS: "Married, Separate", HOH: "Head of Household" };
+
+ return (<div style={{ marginTop: 20 }}>
+
+  {/* 1. Hero — kept */}
   <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.purple} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
- </div>
- <Card pad={14} style={{ marginTop: 16 }}>
-  <div style={{ fontSize: 11, color: T.textTertiary }}>After-Tax Payment</div>
-  <div style={{ fontSize: 24, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em" }}>{fmt(calc.afterTaxPayment)}<span style={{ fontSize: 13, color: T.textTertiary }}>/mo</span></div>
- </Card>
- <Sec title="Your Info">
-  <div data-field="tax-filing" className={isPulse("tax-filing")} onClick={() => markTouched("tax-filing")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
-  <Card>
-   <Sel label="Filing Status" value={married} onChange={setMarried} options={FILING_STATUSES} req tip="Your tax filing status. Affects standard deduction, tax brackets, and SALT cap. Married Filing Jointly gets the largest deductions." />
-   <Sel label="Tax State" value={taxState} onChange={setTaxState} options={STATE_NAMES.map(s => ({value:s,label:s}))} req tip="The state where you file taxes. Affects state income tax calculations and deductions." />
-   <Inp label="Appreciation Rate" value={appreciationRate} onChange={setAppreciationRate} prefix="" suffix="% / yr" step={0.5} max={50} tip="Estimated annual home value increase. National historical average is ~3-4%. Used for wealth-building and equity projections." />
-   {calc.yearlyInc <= 0 && <div data-field="tax-needs-income" className={isPulse("tax-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 12, transition: "all 0.3s", cursor: "pointer" }}><Note color={T.orange}>Tap here to add income on the Income tab to see tax savings.</Note></div>}
-   {STATE_TAX[taxState]?.type === "none" && <Note color={T.blue}>{taxState} has no state income tax.</Note>}
-  </Card>
-  </div>
- </Sec>
- </div>{/* end desktop tax left column */}
- <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
- {calc.yearlyInc > 0 && (<>
-  <Sec title="Write-Offs Due to Homeownership">
+
+  {/* 2. Educational example: how write-offs work (hardcoded teaching numbers) */}
+  <Sec title="Example: How Tax Write-offs Work">
    <Card>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
-     <span>Item</span><span style={{textAlign:"right"}}>Federal</span><span style={{textAlign:"right"}}>{taxState}</span>
-    </div>
-    {[["Property Tax (SALT capped)", fmt(calc.fedPropTax), fmt(calc.yearlyTax)],
-     ["Mortgage Interest (Yr 1)", fmt(calc.fedMortInt), fmt(calc.stateMortInt)],
-    ].map(([l, f, c], i) => (
-     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-      <span style={{ color: T.textSecondary, fontWeight: 400 }}>{l}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{f}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
+    <div style={{ overflowX: "auto" }}>
+     <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", gap: 0, fontSize: 12, minWidth: 620 }}>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Tax Year</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Income</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Write-offs</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxable Inc.</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Eff. Rate</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxes Owed</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Delta</div>
+
+      <div style={{ padding: "10px 6px", color: T.text, fontWeight: 600 }}>Year 1</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$0</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>25%</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$25,000</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 800, color: T.green, gridRow: "span 2", display: "flex", alignItems: "center", justifyContent: "flex-end", fontSize: 14 }}>$7,500</div>
+
+      <div style={{ padding: "10px 6px", color: T.text, fontWeight: 600 }}>Year 2</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$30,000</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$70,000</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>25%</div>
+      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$17,500</div>
      </div>
-    ))}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "10px 0", borderBottom: `2px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.text, fontWeight: 700 }}>Itemized Total</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.fedItemized)}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.stateItemized)}</span>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, borderBottom: `1px solid ${T.separator}`, fontSize: 13, background: `${T.blue}06`, margin: "0 -14px", padding: "8px 14px" }}>
-     <span style={{ color: T.textSecondary }}>Std Deduction</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(calc.fedStdDeduction)}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(calc.stStdDeduction)}</span>
+    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 12, lineHeight: 1.6, fontStyle: "italic" }}>
+     Same income, but Year 2 has $30K in write-offs. That extra deduction lowers taxable income — and saves $7,500 in taxes at the 25% bracket.
     </div>
-    {/* ── THE DELTA ── */}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 13, background: calc.fedItemizes || calc.stateItemizes ? `${T.green}08` : `${T.orange}08`, margin: "0 -14px", padding: "10px 14px", borderRadius: "0 0 12px 12px" }}>
-     <span style={{ color: T.text, fontWeight: 700 }}>Delta (Benefit)</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.fedItemizes ? T.green : T.orange }}>{calc.fedItemizes ? fmt(calc.fedDelta) : "$0"}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: calc.stateItemizes ? T.green : T.orange }}>{calc.stateItemizes ? fmt(calc.stateDelta) : "$0"}</span>
-    </div>
-    {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is deductible federally.</Note>}
-    <Note color={T.blue}>SALT cap: {fmt(calc.saltCap)} (OBBBA 2026){calc.saltCap < (married === "MFS" ? 20200 : 40400) ? ` — phased down from ${married === "MFS" ? "$20,200" : "$40,400"}. For every $10K earned above ${married === "MFS" ? "$252,500" : "$505,000"}, your cap drops $${married === "MFS" ? "1,500" : "3,000"}. Floor: ${married === "MFS" ? "$5,000" : "$10,000"}.` : `. Base cap: ${married === "MFS" ? "$20,200" : "$40,400"} — phases down for income above ${married === "MFS" ? "$252,500" : "$505,000"}.`} Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
    </Card>
   </Sec>
-  {/* ── THE DELTA EXPLANATION ── */}
-  <Sec title="How the Tax Benefit Works">
+
+  {/* 3. Write-Offs Due to Home Ownership */}
+  <Sec title="Write-Offs Due to Home Ownership">
    <Card>
-    {!calc.fedItemizes && !calc.stateItemizes ? (
-     <div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: T.orange, marginBottom: 8 }}>Your itemized deductions don't exceed the standard deduction</div>
-      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
-       Right now, your property tax + mortgage interest ({fmt(calc.fedItemized)}) is less than the standard deduction ({fmt(calc.fedStdDeduction)}). This means there's no additional federal tax benefit from homeownership yet.
-      </div>
-      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginTop: 8 }}>
-       This can change if your income, mortgage amount, or property taxes increase. The standard deduction is the "floor" — you only benefit from the amount ABOVE it.
-      </div>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 4, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+     <span></span>
+     <span style={{ textAlign: "right" }}></span>
+     <span style={{ gridColumn: "3 / 5", textAlign: "center", fontStyle: "italic", color: T.blue }}>2018 Tax Law Caps applied →</span>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+     <span>Item</span>
+     <span style={{ textAlign: "right" }}>Amount</span>
+     <span style={{ textAlign: "right" }}>Federal</span>
+     <span style={{ textAlign: "right" }}>{taxState}</span>
+    </div>
+    {[
+     { label: "Property Taxes Paid (1 year)", amount: calc.yearlyTax, fed: calc.fedPropTax, state: calc.yearlyTax },
+     { label: "Mortgage Interest Paid (1 year)", amount: calc.yearlyMortInt || 0, fed: calc.fedMortInt, state: calc.stateMortInt },
+    ].map((row, i) => (
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+      <span style={{ color: T.textSecondary }}>{row.label}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.amount)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.fed)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.state)}</span>
      </div>
-    ) : (
-     <div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: T.green, marginBottom: 10 }}>Here's the real benefit</div>
-      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.8, marginBottom: 12 }}>
-       Everyone gets a standard deduction ({fmt(calc.fedStdDeduction)} federal). You'd get that whether you own a home or not. The benefit of homeownership is the <strong style={{ color: T.text }}>delta</strong> — the amount your itemized deductions EXCEED the standard deduction.
+    ))}
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 0 4px", fontSize: 14 }}>
+     <span style={{ color: T.text, fontWeight: 700 }}>Total</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.yearlyTax + (calc.yearlyMortInt || 0))}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.fedItemized)}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.stateItemized)}</span>
+    </div>
+    {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is federally deductible.</Note>}
+    <Note color={T.blue}>SALT cap (Federal): {fmt(calc.saltCap)} · Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
+   </Card>
+  </Sec>
+
+  {/* 4. Filing Status pill */}
+  <Sec title="Filing Status">
+   <Card>
+    <div data-field="tax-filing" className={isPulse("tax-filing")} onClick={() => markTouched("tax-filing")} style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+     {["Single", "MFJ", "MFS", "HOH"].map(opt => (
+      <button key={opt} onClick={() => setMarried(opt)}
+       style={{ padding: "10px 18px", borderRadius: 9999, border: married === opt ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, background: married === opt ? `${T.blue}15` : T.inputBg, color: married === opt ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s" }}>
+       {FILING_LABELS[opt] || opt}
+      </button>
+     ))}
+    </div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10 }}>
+     Affects standard deduction, tax brackets, and SALT cap. Married Filing Jointly typically gets the largest deductions.
+    </div>
+   </Card>
+  </Sec>
+
+  {/* 5. Tax Savings — Before vs After (Federal | State side-by-side) */}
+  {calc.yearlyInc > 0 ? (
+   <Sec title="Tax Savings — Before vs After">
+    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } : { display: "flex", flexDirection: "column", gap: 12 }}>
+     {/* Federal card */}
+     <Card>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal Tax Savings — Before & After</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+       <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
+        <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
+        <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
+        <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textSecondary }}>−{fmt(calc.fedStdDeduction)}</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.orange}22` }}>Est. Taxable</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(fedTaxableBefore)}</div>
+       </div>
+       <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.green}22` }}>
+        <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
+        <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>{calc.fedItemizes ? "Itemized Deduction" : "Standard Deduction"}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textSecondary }}>−{fmt(fedDeductionAfter)}</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.green}22` }}>Adj. Taxable</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(fedTaxableAfter)}</div>
+        <div style={{ fontSize: 11, color: T.green, fontWeight: 700, marginTop: 4 }}>Difference: {fmt(fedTaxableBefore - fedTaxableAfter)}</div>
+       </div>
       </div>
-      {calc.fedItemizes && (
-       <div style={{ background: `${T.green}08`, borderRadius: 12, padding: 14, marginBottom: 12, border: `1px solid ${T.green}22` }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 6 }}>Federal Delta: {fmt(calc.fedDelta)}</div>
-        <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
-         Your itemized deductions ({fmt(calc.fedItemized)}) exceed the standard deduction ({fmt(calc.fedStdDeduction)}) by <strong style={{ color: T.green }}>{fmt(calc.fedDelta)}</strong>. This delta comes off your <strong style={{ color: T.text }}>highest tax brackets first</strong>:
+      <div style={{ overflowX: "auto" }}>
+       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase" }}>
+        <span>Bracket</span>
+        <span style={{ textAlign: "right" }}>Rate</span>
+        <span style={{ textAlign: "right" }}>Before</span>
+        <span style={{ textAlign: "right" }}>After</span>
+        <span style={{ textAlign: "right" }}>Savings</span>
+       </div>
+       {fedBefore.rows.map((row, i) => {
+        const after = fedAfter.rows[i] || row;
+        const sav = row.tax - after.tax;
+        return (
+         <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, padding: "5px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 11 }}>
+          <span style={{ color: T.textSecondary, fontFamily: FONT }}>{fmt(row.from)}–{row.to === Infinity ? "∞" : fmt(row.to)}</span>
+          <span style={{ textAlign: "right", color: T.textSecondary, fontFamily: FONT }}>{(row.rate * 100).toFixed(0)}%</span>
+          <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500 }}>{fmt(row.tax)}</span>
+          <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500 }}>{fmt(after.tax)}</span>
+          <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: sav > 0 ? T.green : T.textTertiary }}>{sav > 0 ? fmt(sav) : "—"}</span>
+         </div>
+        );
+       })}
+       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, padding: "8px 0 4px", fontSize: 12, fontWeight: 700 }}>
+        <span style={{ color: T.text }}>Total Taxes</span>
+        <span></span>
+        <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(fedBefore.total)}</span>
+        <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(fedAfter.total)}</span>
+        <span style={{ textAlign: "right", fontFamily: FONT, color: T.green }}>{fmt(fedSav)}</span>
+       </div>
+       <div style={{ marginTop: 8, padding: "10px 12px", background: `${T.green}10`, borderRadius: 10, border: `1px solid ${T.green}22`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+         <div style={{ fontSize: 11, color: T.textSecondary }}>Total Annual Savings</div>
+         <div style={{ fontSize: 18, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(fedSav)}</div>
         </div>
-        {calc.fedWaterfall.length > 0 && (
-         <div style={{ marginTop: 10 }}>
-          {calc.fedWaterfall.map((w, i) => (
-           <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < calc.fedWaterfall.length - 1 ? `1px solid ${T.green}15` : "none" }}>
-            <span style={{ fontSize: 13, color: T.text }}>
-             <strong>{(w.rate * 100).toFixed(0)}%</strong> bracket × {fmt(w.amount)}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(w.savings)}</span>
-           </div>
-          ))}
-          <div style={{ borderTop: `2px solid ${T.green}33`, marginTop: 6, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
-           <span style={{ fontSize: 13, fontWeight: 700 }}>Federal Tax Savings</span>
-           <span style={{ fontSize: 15, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(calc.fedSavings)}</span>
-          </div>
-         </div>
-        )}
+        <div style={{ textAlign: "right" }}>
+         <div style={{ fontSize: 11, color: T.textSecondary }}>Monthly</div>
+         <div style={{ fontSize: 16, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(mFedSav)}/mo</div>
+        </div>
        </div>
-      )}
-      {calc.stateItemizes && STATE_TAX[taxState]?.type !== "none" && (
-       <div style={{ background: `${T.green}08`, borderRadius: 12, padding: 14, marginBottom: 12, border: `1px solid ${T.green}22` }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 6 }}>{taxState} Delta: {fmt(calc.stateDelta)}</div>
-        {calc.stWaterfall.length > 0 ? (
+      </div>
+     </Card>
+
+     {/* State card */}
+     <Card>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState} Tax Savings — Before & After</div>
+      {stateInfo.type === "none" ? (
+       <div style={{ padding: "20px 12px", textAlign: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 4 }}>{taxState} has no state income tax</div>
+        <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>You still get the federal benefit shown on the left.</div>
+       </div>
+      ) : (<>
+       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+        <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
+         <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
+         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
+         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
+         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
+         <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textSecondary }}>−{fmt(calc.stStdDeduction)}</div>
+         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.orange}22` }}>Est. Taxable</div>
+         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(stateTaxableBefore)}</div>
+        </div>
+        <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.green}22` }}>
+         <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
+         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
+         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
+         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>{calc.stateItemizes ? "Itemized Deduction" : "Standard Deduction"}</div>
+         <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textSecondary }}>−{fmt(stateDeductionAfter)}</div>
+         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.green}22` }}>Adj. Taxable</div>
+         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(stateTaxableAfter)}</div>
+         <div style={{ fontSize: 11, color: T.green, fontWeight: 700, marginTop: 4 }}>Difference: {fmt(stateTaxableBefore - stateTaxableAfter)}</div>
+        </div>
+       </div>
+       <div style={{ overflowX: "auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase" }}>
+         <span>Bracket</span>
+         <span style={{ textAlign: "right" }}>Rate</span>
+         <span style={{ textAlign: "right" }}>Before</span>
+         <span style={{ textAlign: "right" }}>After</span>
+         <span style={{ textAlign: "right" }}>Savings</span>
+        </div>
+        {stateBefore.rows.map((row, i) => {
+         const after = stateAfter.rows[i] || row;
+         const sav = row.tax - after.tax;
+         return (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, padding: "5px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 11 }}>
+           <span style={{ color: T.textSecondary, fontFamily: FONT }}>{fmt(row.from)}{row.to === Infinity ? "+" : `–${fmt(row.to)}`}</span>
+           <span style={{ textAlign: "right", color: T.textSecondary, fontFamily: FONT }}>{(row.rate * 100).toFixed(2)}%</span>
+           <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500 }}>{fmt(row.tax)}</span>
+           <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500 }}>{fmt(after.tax)}</span>
+           <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: sav > 0 ? T.green : T.textTertiary }}>{sav > 0 ? fmt(sav) : "—"}</span>
+          </div>
+         );
+        })}
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, padding: "8px 0 4px", fontSize: 12, fontWeight: 700 }}>
+         <span style={{ color: T.text }}>Total Taxes</span>
+         <span></span>
+         <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(stateBefore.total)}</span>
+         <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(stateAfter.total)}</span>
+         <span style={{ textAlign: "right", fontFamily: FONT, color: T.green }}>{fmt(stateSav)}</span>
+        </div>
+        <div style={{ marginTop: 8, padding: "10px 12px", background: `${T.green}10`, borderRadius: 10, border: `1px solid ${T.green}22`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
          <div>
-          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
-           State itemized ({fmt(calc.stateItemized)}) exceeds state standard deduction ({fmt(calc.stStdDeduction)}) by <strong style={{ color: T.green }}>{fmt(calc.stateDelta)}</strong>:
-          </div>
-          <div style={{ marginTop: 10 }}>
-           {calc.stWaterfall.map((w, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < calc.stWaterfall.length - 1 ? `1px solid ${T.green}15` : "none" }}>
-             <span style={{ fontSize: 13, color: T.text }}>
-              <strong>{(w.rate * 100).toFixed(2)}%</strong> bracket × {fmt(w.amount)}
-             </span>
-             <span style={{ fontSize: 13, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(w.savings)}</span>
-            </div>
-           ))}
-           <div style={{ borderTop: `2px solid ${T.green}33`, marginTop: 6, paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{taxState} Tax Savings</span>
-            <span style={{ fontSize: 15, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(calc.stateSavings)}</span>
-           </div>
-          </div>
+          <div style={{ fontSize: 11, color: T.textSecondary }}>Total Annual Savings</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(stateSav)}</div>
          </div>
-        ) : (
-         <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
-          {taxState} flat rate of {(STATE_TAX[taxState]?.rate * 100).toFixed(2)}% × {fmt(calc.stateDelta)} delta = <strong style={{ color: T.green }}>{fmt(calc.stateSavings)}</strong> savings
+         <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: T.textSecondary }}>Monthly</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(mStateSav)}/mo</div>
          </div>
-        )}
+        </div>
        </div>
-      )}
-      {/* Plain English Summary */}
-      <div style={{ background: T.pillBg, borderRadius: 12, padding: 14, marginTop: 4 }}>
-       <div style={{ fontSize: 13, color: T.text, lineHeight: 1.8 }}>
-        <strong>In plain English:</strong> As a renter, you'd take the standard deduction. As a homeowner, you can itemize — and your deductions are <strong style={{ color: T.green }}>{fmt(calc.fedDelta)}</strong> higher on your federal return{calc.stateDelta > 0 ? <> and <strong style={{ color: T.green }}>{fmt(calc.stateDelta)}</strong> higher on your state return</> : null}. That extra deduction lowers your tax bill by <strong style={{ color: T.green }}>{fmt(calc.totalTaxSavings)}/year</strong> ({fmt(calc.monthlyTaxSavings)}/mo).
-       </div>
-       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8, lineHeight: 1.6, borderTop: `1px solid ${T.separator}`, paddingTop: 8 }}>
-        <strong style={{ color: T.textSecondary }}>Important:</strong> This assumes you're currently renting or taking the standard deduction. If you already own a home and your existing deductions exceed the standard deduction, your actual tax benefit from this purchase would be smaller — only the <em>additional</em> mortgage interest and property taxes above what you already deduct.
-       </div>
+      </>)}
+     </Card>
+    </div>
+   </Sec>
+  ) : (
+   <div data-field="tax-needs-income" className={isPulse("tax-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer", marginTop: 16 }}>
+    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
+     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div>
+       <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add income to see tax savings</div>
+       <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Income tab</div>
       </div>
      </div>
-    )}
-    <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is an estimate for illustration purposes only — not tax advice. Tax situations vary based on individual circumstances. Please confirm with your CPA or tax professional before making financial decisions based on these projections.</div>
-    </div>
-   </Card>
-  </Sec>
-  <Sec title="Savings Summary">
-   <Card>
-    {[["Federal Savings", calc.fedSavings], [`${taxState} Savings`, calc.stateSavings], ["Total Annual", calc.totalTaxSavings]].map(([l, sv], i) => (
-     <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: i < 2 ? `1px solid ${T.separator}` : "none" }}>
-      <span style={{ fontSize: 14, color: i === 2 ? T.text : T.textSecondary, fontWeight: i === 2 ? 700 : 400 }}>{l}</span>
-      <span style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.purple }}>{fmt(sv)}</span>
+    </Card>
+   </div>
+  )}
+
+  {/* 6. Effective Tax Rates */}
+  {calc.yearlyInc > 0 && (
+   <Sec title="Effective Tax Rates">
+    <Card>
+     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+      <span></span>
+      <span style={{ textAlign: "right" }}>Federal</span>
+      <span style={{ textAlign: "right" }}>{taxState}</span>
+      <span style={{ textAlign: "right" }}>Combined</span>
      </div>
-    ))}
-   </Card>
-  </Sec>
-  <Sec title="Federal Brackets">
-   <Card>
-    <div onClick={() => setShowFedBrackets(!showFedBrackets)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "2px 0" }}>
-     <span style={{ fontSize: 13, color: T.textSecondary, fontWeight: 600 }}>Federal Tax Brackets ({married === "MFJ" ? "MFJ" : married === "MFS" ? "MFS" : married === "HOH" ? "HOH" : "Single"})</span>
-     <span style={{ fontSize: 12, color: T.textTertiary }}>{showFedBrackets ? "▼" : "▶"}</span>
-    </div>
-    {showFedBrackets && <div style={{ marginTop: 8 }}>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 6, borderBottom: `1px solid ${T.separator}` }}>
-      <span>From</span><span style={{textAlign:"right"}}>To</span><span style={{textAlign:"right"}}>Rate</span>
+     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 14 }}>
+      <span style={{ color: T.text, fontWeight: 600 }}>Before (renting)</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{(fedEffBefore * 100).toFixed(1)}%</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{(stEffBefore * 100).toFixed(2)}%</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{(combBefore * 100).toFixed(1)}%</span>
      </div>
-     {(FED_BRACKETS[married] || FED_BRACKETS.Single).map((b, i) => (
-      <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "6px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12 }}>
-       <span style={{ color: T.textSecondary }}>{fmt(b.min)}</span>
-       <span style={{ textAlign: "right", color: T.textSecondary }}>{b.max === Infinity || b.max === null ? "∞" : fmt(b.max)}</span>
-       <span style={{ textAlign: "right", fontWeight: 600, color: T.text }}>{(b.rate * 100).toFixed(1)}%</span>
-      </div>
-     ))}
-     <div style={{ padding: "8px 0 0", fontSize: 12, color: T.textTertiary }}>Standard Deduction: <strong style={{ color: T.text }}>{fmt(FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single)}</strong> · SALT Cap: <strong style={{ color: T.text }}>{fmt(calc.saltCap)}</strong>{calc.saltCap < (married === "MFS" ? 20200 : 40400) ? <span style={{ color: T.orange }}> (phased down)</span> : ""}</div>
-    </div>}
-   </Card>
-  </Sec>
-  {STATE_TAX[taxState]?.type !== "none" && <Sec title={`${taxState} Brackets`}>
-   <Card>
-    <div onClick={() => setShowStateBrackets(!showStateBrackets)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", padding: "2px 0" }}>
-     <span style={{ fontSize: 13, color: T.textSecondary, fontWeight: 600 }}>{taxState} Tax {STATE_TAX[taxState]?.type === "flat" ? `(Flat ${(STATE_TAX[taxState].rate * 100).toFixed(2)}%)` : "Brackets"}</span>
-     <span style={{ fontSize: 12, color: T.textTertiary }}>{showStateBrackets ? "▼" : "▶"}</span>
-    </div>
-    {showStateBrackets && STATE_TAX[taxState]?.type === "progressive" && <div style={{ marginTop: 8 }}>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 6, borderBottom: `1px solid ${T.separator}` }}>
-      <span>From</span><span style={{textAlign:"right"}}>To</span><span style={{textAlign:"right"}}>Rate</span>
+     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", fontSize: 14 }}>
+      <span style={{ color: T.text, fontWeight: 600 }}>After (owning)</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.green }}>{(fedEffAfter * 100).toFixed(1)}%</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.green }}>{(stEffAfter * 100).toFixed(2)}%</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{(combAfter * 100).toFixed(1)}%</span>
      </div>
-     {(STATE_TAX[taxState][married === "MFJ" ? "m" : "s"] || []).map((b, i) => (
-      <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "6px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12 }}>
-       <span style={{ color: T.textSecondary }}>{fmt(b.min)}</span>
-       <span style={{ textAlign: "right", color: T.textSecondary }}>{b.max === Infinity || b.max === null ? "∞" : fmt(b.max)}</span>
-       <span style={{ textAlign: "right", fontWeight: 600, color: T.text }}>{(b.rate * 100).toFixed(2)}%</span>
-      </div>
-     ))}
-     {STATE_TAX[taxState]?.std && <div style={{ padding: "8px 0 0", fontSize: 12, color: T.textTertiary }}>Std Deduction: <strong style={{ color: T.text }}>{fmt(STATE_TAX[taxState].std[married === "MFJ" ? "m" : "s"] || 0)}</strong></div>}
-    </div>}
-    {showStateBrackets && STATE_TAX[taxState]?.type === "flat" && <div style={{ marginTop: 8, fontSize: 12, color: T.textSecondary }}>
-     Flat rate of <strong style={{ color: T.text }}>{(STATE_TAX[taxState].rate * 100).toFixed(2)}%</strong> on all taxable income.
-     {STATE_TAX[taxState]?.surtax && <span> Plus {(STATE_TAX[taxState].surtax.rate * 100)}% surtax on income over {fmt(STATE_TAX[taxState].surtax.threshold)}.</span>}
-     {STATE_TAX[taxState]?.std && <div style={{ marginTop: 4 }}>Std Deduction: <strong style={{ color: T.text }}>{fmt(STATE_TAX[taxState].std[married === "MFJ" ? "m" : "s"] || 0)}</strong></div>}
-    </div>}
-   </Card>
-  </Sec>}
-  <Sec title="True Cost of Ownership">
+    </Card>
+   </Sec>
+  )}
+
+  {/* 7. Adjusted Housing Expense walkdown */}
+  <Sec title="Adjusted Housing Expense">
    <Card>
-    <MRow label="Housing Payment" value={fmt(calc.housingPayment)} bold />
-    <MRow label="Tax Savings" value={`-${fmt(calc.monthlyTaxSavings)}`} color={T.green} indent />
-    <MRow label="Principal Reduction" value={`-${fmt(calc.monthlyPrinReduction)}`} color={T.green} indent />
-    <MRow label={`Appreciation (${appreciationRate}%)`} value={`-${fmt(calc.monthlyAppreciation)}`} color={T.green} indent />
-    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-     <MRow label="Net Monthly Expense" value={fmt(calc.netPostSaleExpense)} color={calc.netPostSaleExpense < calc.housingPayment ? T.green : T.text} bold />
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 14 }}>
+     <span style={{ color: T.text, fontWeight: 600 }}>Monthly Housing Expense</span>
+     <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(monthlyHousing)}</span>
     </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+     <span style={{ color: T.textSecondary }}>− Additional Federal Tax Savings</span>
+     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(mFedSav)}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+     <span style={{ color: T.textSecondary }}>− Additional State Tax Savings</span>
+     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(mStateSav)}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 12px", borderRadius: 10, marginTop: 4, background: `${T.green}08`, fontSize: 14 }}>
+     <span style={{ color: T.text, fontWeight: 700 }}>After-Tax Monthly Payment (Cash Flow)</span>
+     <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(afterTaxCashFlow)}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13, marginTop: 4 }}>
+     <span style={{ color: T.textSecondary }}>− Monthly Principal Reduction</span>
+     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(calc.monthlyPrinReduction)}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 12px", borderRadius: 10, marginTop: 4, background: `${T.blue}08`, fontSize: 14 }}>
+     <span style={{ color: T.text, fontWeight: 700 }}>Adjusted Housing Expense</span>
+     <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(adjustedHousing)}</span>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "auto 100px auto", alignItems: "center", padding: "10px 0 10px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13, marginTop: 4, gap: 8 }}>
+     <span style={{ color: T.textSecondary }}>Annual Appreciation Factor</span>
+     <input type="text" inputMode="decimal" value={appreciationRate}
+      onChange={e => { const v = parseFloat(e.target.value.replace(/[^0-9.]/g, "")); setAppreciationRate(isNaN(v) ? 0 : Math.min(v, 50)); }}
+      style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8, padding: "6px 10px", color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "right", width: "100%" }} />
+     <span style={{ fontSize: 12, color: T.textTertiary }}>%/yr</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+     <span style={{ color: T.textSecondary }}>− Monthly Appreciation</span>
+     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(calc.monthlyAppreciation)}</span>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 14px", borderRadius: 12, marginTop: 8, background: netPostSale < 0 ? `${T.green}18` : `${T.green}08`, border: netPostSale < 0 ? `2px solid ${T.green}` : `1px solid ${T.green}22`, fontSize: 15 }}>
+     <span style={{ color: T.text, fontWeight: 700 }}>Net Post-Sale Housing Expense</span>
+     <span style={{ fontFamily: FONT, fontWeight: 800, color: netPostSale < 0 ? T.green : T.text, fontSize: 18, letterSpacing: "-0.02em" }}>{fmt(netPostSale)}</span>
+    </div>
+    {netPostSale < 0 && <Note color={T.green}>Negative means appreciation alone exceeds the net cost of housing — your home is generating wealth faster than it costs you.</Note>}
    </Card>
   </Sec>
- </>)}
- </div>
- </div>
-)}
+
+  {/* 8. Disclaimer */}
+  <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
+   <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is an estimate for illustration purposes only — not tax advice. Tax situations vary based on individual circumstances. Please confirm with your CPA or tax professional before making financial decisions based on these projections.</div>
+  </div>
+
+ </div>);
+})()}
  <GuidedNextButton />
 </>);
 }
