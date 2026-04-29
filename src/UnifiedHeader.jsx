@@ -105,7 +105,7 @@ export default function UnifiedHeader({
       }}>{label}</div>
       <div style={{
         fontSize: isDesktop ? 17 : 13, fontWeight: 700,
-        color: color || T.text, fontFamily: MONO,
+        color: color || T.text, fontFamily: FONT,
         letterSpacing: "-0.02em", whiteSpace: "nowrap", textAlign: "center",
       }}>{value}</div>
     </div>

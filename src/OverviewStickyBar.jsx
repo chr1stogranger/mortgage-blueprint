@@ -90,7 +90,7 @@ export default function OverviewStickyBar({
   const Stat = ({ label, value, color }) => (
     <div style={{ textAlign: "center", minWidth: isDesktop ? 80 : 50 }}>
       <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, fontFamily: MONO, textTransform: "uppercase", marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: isDesktop ? 16 : 13, fontWeight: 700, color: color || T.text, fontFamily: MONO, letterSpacing: "-0.02em" }}>{value}</div>
+      <div style={{ fontSize: isDesktop ? 16 : 13, fontWeight: 700, color: color || T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>{value}</div>
     </div>
   );
 

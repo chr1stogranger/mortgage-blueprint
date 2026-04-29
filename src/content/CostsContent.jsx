@@ -71,7 +71,7 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, children
           <div style={{
             fontSize: 14,
             fontWeight: 700,
-            fontFamily: MONO,
+            fontFamily: FONT,
             color: totalColor || ACCENT,
             flexShrink: 0,
           }}>{total}</div>
@@ -109,7 +109,7 @@ function LetterSection({ letter, title, total, children }) {
           {title}
         </div>
         {total !== undefined && (
-          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>
+          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>
             {total}
           </div>
         )}
@@ -144,7 +144,7 @@ function TotalBand({ letter, title, total }) {
         <span style={{ marginRight: 8 }}>{letter}.</span>
         {title}
       </div>
-      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: ACCENT }}>{total}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: ACCENT }}>{total}</div>
     </div>
   );
 }
@@ -188,7 +188,7 @@ function FeeRow({ label, sub, value, editKey, onChange, editor, suffix = null, p
         <div style={{
           fontSize: 13,
           fontWeight: bold ? 700 : 600,
-          fontFamily: MONO,
+          fontFamily: FONT,
           color: color || T.text,
           flexShrink: 0,
           marginLeft: 10,
@@ -302,7 +302,7 @@ function CashToCloseSummary({ T, ACCENT, fmt2, downPayment, closingCosts, prepai
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
               <span style={{
-                fontFamily: MONO,
+                fontFamily: FONT,
                 fontSize: 13,
                 color: r.sign === "−" ? T.green : T.textTertiary,
                 fontWeight: 700,
@@ -310,7 +310,7 @@ function CashToCloseSummary({ T, ACCENT, fmt2, downPayment, closingCosts, prepai
                 textAlign: "center",
               }}>{r.sign}</span>
               <span style={{
-                fontFamily: MONO,
+                fontFamily: FONT,
                 fontSize: 14,
                 fontWeight: 600,
                 color: T.text,
@@ -342,7 +342,7 @@ function CashToCloseSummary({ T, ACCENT, fmt2, downPayment, closingCosts, prepai
           Estimated {isRefi ? "Refi Cost" : "Cash To Close"}
         </div>
         <div style={{
-          fontFamily: MONO,
+          fontFamily: FONT,
           fontSize: 22,
           fontWeight: 800,
           color: ACCENT,

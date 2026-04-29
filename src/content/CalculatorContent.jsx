@@ -50,7 +50,7 @@ function InlineEditValue({ value, onChange, T }) {
           color: T.blue,
           fontSize: 14,
           fontWeight: 600,
-          fontFamily: MONO,
+          fontFamily: FONT,
           textAlign: "right",
           width: 88,
           outline: "none",
@@ -275,7 +275,7 @@ export default function CalculatorContent({
      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
       <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
       <span>{row.label}</span>
-      <span style={{ fontFamily: MONO, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
+      <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
      </div>
     ))}
    </div>
@@ -526,7 +526,7 @@ export default function CalculatorContent({
          ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />
          : (
           <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
-           <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: MONO }}>{fmt(row.value)}</span>
+           <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT }}>{fmt(row.value)}</span>
            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
           </div>
          )
@@ -552,12 +552,12 @@ export default function CalculatorContent({
           ].map(([label, value], k) => (
            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text }}>{value}</span>
            </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Annual Total</span>
-           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
+           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
           </div>
           {calc.effectiveTaxRate > 0 && (
            <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Effective rate: {(calc.effectiveTaxRate * 100).toFixed(3)}%</div>
@@ -635,12 +635,12 @@ export default function CalculatorContent({
           ].map(([label, value], k) => (
            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: MONO, color: T.text }}>{value}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text }}>{value}</span>
            </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
-           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(monthlyMI)}</span>
+           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(monthlyMI)}</span>
           </div>
           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
            PMI required when LTV &gt; 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.
@@ -653,7 +653,7 @@ export default function CalculatorContent({
      })}
      <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
-      <span style={{ fontSize: 18, fontWeight: 800, color: T.blue, fontFamily: MONO, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
+      <span style={{ fontSize: 18, fontWeight: 800, color: T.blue, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
      </div>
      {!includeEscrow && (
       <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>
