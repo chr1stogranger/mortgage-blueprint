@@ -2271,6 +2271,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  React.useEffect(() => { if (isRefi && showProp19) setShowProp19(false); }, [isRefi]);
  React.useEffect(() => {
   // Sync affordability inputs when user lands on Qualify OR Overview (Overview embeds Qualify).
+  // Don't reference `calc.X` in the dep array — `calc` is declared later in this component (TDZ).
   if (tab === "qualify" || tab === "overview") {
    setConfirmAffordApply(false);
    if (calc.qualifyingIncome > 0) setAffordIncome(Math.round(calc.qualifyingIncome));
@@ -2280,7 +2281,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (term > 0) setAffordTerm(term);
    if (loanType) { setAffordLoanType(loanType); setAffordTargetDTI(loanType === "FHA" ? 56.99 : loanType === "VA" ? 60 : loanType === "Jumbo" ? 43 : 50); }
   }
- }, [tab, calc.qualifyingIncome, calc.totalMonthlyDebts, calc.reoNegativeDebt, calc.totalForClosing, rate, term, loanType]);
+ }, [tab]);
  const generateSummaryText = () => {
   const c = calc;
   const lines = [];
