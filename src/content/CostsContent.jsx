@@ -479,7 +479,6 @@ export default function CostsContent({
   // Derived numbers
   const escrowHOI_reserve = includeEscrow ? calc.ins * calc.escrowInsMonths : 0;
   const escrowTax_reserve = includeEscrow ? calc.monthlyTax * calc.escrowTaxMonths : 0;
-  const escrowMI_reserve = includeEscrow && calc.monthlyMI > 0 ? calc.monthlyMI * 2 : 0;
   const proposedTax_atClosing = includeEscrow ? calc.monthlyTax * calc.escrowTaxMonths : 0;
 
   // H. Other (purchase only) — Owner's Title, Warranty, HOA Transfer, Buyer Comm
@@ -790,14 +789,6 @@ export default function CostsContent({
           ) : (
             <>
               <FeeRow
-                label="Aggregate Adjustment"
-                value="—"
-                isDollar={false}
-                readOnly
-                autoBadge
-                explainer="RESPA-required adjustment to prevent over-collection"
-              />
-              <FeeRow
                 label="Hazard Insurance Reserve"
                 value={escrowHOI_reserve}
                 readOnly
@@ -805,24 +796,6 @@ export default function CostsContent({
                 calc={`${calc.escrowInsMonths} mo × ${fmt2(monthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
                 explainer="Cushion held by lender for upcoming insurance payments"
               />
-              {monthlyMI > 0 ? (
-                <FeeRow
-                  label="Mortgage Insurance Reserve"
-                  value={escrowMI_reserve}
-                  readOnly
-                  autoBadge
-                  calc={`2 mo × ${fmt2(monthlyMI)}/mo = ${fmt2(escrowMI_reserve)}`}
-                  explainer="Cushion for monthly MI payments"
-                />
-              ) : (
-                <FeeRow
-                  label="Mortgage Insurance Reserve"
-                  value="—"
-                  isDollar={false}
-                  readOnly
-                  explainer="No mortgage insurance required"
-                />
-              )}
               <FeeRow
                 label="Property Taxes"
                 value={escrowTax_reserve}
