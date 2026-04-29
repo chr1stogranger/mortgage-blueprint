@@ -269,6 +269,18 @@ const PAY_TYPES = ["Salary", "Hourly", "Overtime", "Bonus", "Commission", "Self-
 const VARIABLE_PAY_TYPES = ["Hourly", "Overtime", "Bonus", "Commission", "Self-Employment", "RSU"];
 const ASSET_TYPES = ["Checking", "Saving", "Money Market", "Mutual Fund", "Stocks", "Bonds", "Retirement", "Gift", "Gift of Equity", "Trust", "Bridge Loan", "Other"];
 const RESERVE_FACTORS = { Checking: 1, Saving: 1, "Money Market": 1, "Mutual Fund": 1, Stocks: 0.7, Bonds: 0.7, Retirement: 0.6, Gift: null, "Gift of Equity": null, Trust: 1, "Bridge Loan": 1, Other: 1 };
+// Loan-type-aware reserves factor:
+//   Gift / Gift of Equity → always 0% (per Christo: gifts don't count toward reserves)
+//   Jumbo → liquidity haircuts apply (Stocks 70%, Retirement 60%, etc. per RESERVE_FACTORS)
+//   Conv / FHA / VA → all qualifying assets count at 100%
+const getReserveFactor = (accountType, loanType) => {
+ if (accountType === "Gift" || accountType === "Gift of Equity") return 0;
+ if (loanType === "Jumbo") {
+  const f = RESERVE_FACTORS[accountType];
+  return (f === null || f === undefined) ? 1 : f;
+ }
+ return 1;
+};
 const FILING_STATUSES = [{value:"Single",label:"Single"},{value:"MFJ",label:"Married Filing Jointly"},{value:"MFS",label:"Married Filing Separately"},{value:"HOH",label:"Head of Household"}];
 const FED_BRACKETS = {
  Single: [{min:0,max:12400,rate:0.10},{min:12401,max:50400,rate:0.12},{min:50401,max:105700,rate:0.22},{min:105701,max:201775,rate:0.24},{min:201776,max:256225,rate:0.32},{min:256226,max:640600,rate:0.35},{min:640601,max:Infinity,rate:0.37}],
@@ -3253,9 +3265,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const totalAssetValue = assets.reduce((s, a) => s + (a.value || 0), 0);
   const totalForClosing = assets.reduce((s, a) => s + (a.forClosing || 0), 0);
   const totalReserves = assets.reduce((s, a) => {
-   const rf = RESERVE_FACTORS[a.type];
-   if (rf === null) return s;
-   return s + ((a.value - (a.forClosing || 0)) * rf);
+   const rf = getReserveFactor(a.type, loanType);
+   const remainingValue = Math.max(0, (a.value || 0) - (a.forClosing || 0));
+   return s + (remainingValue * rf);
   }, 0);
   const addDebt = (type) => setDebts(prev => [...prev, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }]);
   const updateDebt = (id, f, v) => setDebts(prev => prev.map(d => d.id === id ? { ...d, [f]: v } : d));
@@ -4678,7 +4690,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, Hero, Card, Sec, TextInp, Inp, Sel, Note, VARIABLE_PAY_TYPES, PAY_TYPES, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}
-{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, guideField, isPulse, GuidedNextButton}} />}
+{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton}} />}
 {/* ═══ DEBTS ═══ */}
 {tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton}} />}
 {/* ═══ REO (Real Estate Owned) ═══ */}
@@ -4908,7 +4920,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    subjectRentalIncome, setSubjectRentalIncome,
    /* Assets */
    assets, addAsset, updateAsset, removeAsset,
-   ASSET_TYPES, RESERVE_FACTORS,
+   ASSET_TYPES, RESERVE_FACTORS, getReserveFactor,
    /* Amortization */
    payExtra, setPayExtra, extraPayment, setExtraPayment,
    amortView, setAmortView,
