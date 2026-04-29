@@ -2270,7 +2270,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Auto-disable Prop 19 tab when switching to refinance (Prop 19 applies to purchases)
  React.useEffect(() => { if (isRefi && showProp19) setShowProp19(false); }, [isRefi]);
  React.useEffect(() => {
-  if (tab === "qualify") {
+  // Sync affordability inputs when user lands on Qualify OR Overview (Overview embeds Qualify).
+  if (tab === "qualify" || tab === "overview") {
    setConfirmAffordApply(false);
    if (calc.qualifyingIncome > 0) setAffordIncome(Math.round(calc.qualifyingIncome));
    if ((calc.totalMonthlyDebts + calc.reoNegativeDebt) > 0) setAffordDebts(Math.round(calc.totalMonthlyDebts + calc.reoNegativeDebt));
@@ -2279,7 +2280,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (term > 0) setAffordTerm(term);
    if (loanType) { setAffordLoanType(loanType); setAffordTargetDTI(loanType === "FHA" ? 56.99 : loanType === "VA" ? 60 : loanType === "Jumbo" ? 43 : 50); }
   }
- }, [tab]);
+ }, [tab, calc.qualifyingIncome, calc.totalMonthlyDebts, calc.reoNegativeDebt, calc.totalForClosing, rate, term, loanType]);
  const generateSummaryText = () => {
   const c = calc;
   const lines = [];
