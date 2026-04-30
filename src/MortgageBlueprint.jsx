@@ -2820,24 +2820,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   );
  };
- // Pillar click navigation
+ // Pillar click navigation — when on Overview, skip the setTab and just scroll-to.
+ // When on a per-tab view, switch tabs first then scroll. Adds a 3s blue glow via .pulse-next.
  const handlePillarClick = (label) => {
+  // Field targets (data-field attributes exist on both per-tab and Overview-embedded views).
   const targetMap = {
    "FICO": { tab: "qualify", field: "fico-input" },
-   "Down": { tab: "calc", field: "down-pct-input" },
+   "Down": { tab: "calc", field: "calc-down" },
    "DTI": { tab: (incomes.length === 0 && debts.length > 0) ? "income" : "debts", field: (incomes.length === 0 && debts.length > 0) ? "income-section" : "debts-section" },
    "Cash": { tab: "assets", field: "assets-section" },
    "Reserves": { tab: "assets", field: "assets-section" },
   };
   const target = targetMap[label];
   if (!target) return;
-  // Don't navigate to locked tabs — this prevents the qualify loop
-  if (!isTabUnlocked(target.tab)) {
+
+  const isOnOverview = tab === "overview";
+  // Per-tab path needs the target tab unlocked. Overview path is always allowed since the section is already on screen.
+  if (!isOnOverview && !isTabUnlocked(target.tab)) {
    Haptics.light();
    return;
   }
-  setTab(target.tab);
+
+  // Only switch tabs when we're NOT already on Overview.
+  if (!isOnOverview) setTab(target.tab);
   setHighlightField(target.field);
+
+  // Wait a tick longer when switching tabs so the per-tab DOM is mounted; on Overview the element already exists.
   setTimeout(() => {
    const el = document.querySelector(`[data-field="${target.field}"]`);
    if (el) {
@@ -2848,7 +2856,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      setHighlightField(null);
     }, 3000);
    }
-  }, 400);
+  }, isOnOverview ? 100 : 400);
  };
  // Determine which tabs are unlocked
  const getUnlockedIndex = () => {
