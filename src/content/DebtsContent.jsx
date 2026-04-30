@@ -190,19 +190,8 @@ export default function DebtsContent({
 
 
   return (<>
-    {/* ─── Hero — full width ─── */}
+    {/* ─── Own Properties toggle — full width, structural (gates REO tab) ─── */}
     <div data-field="debts-section" style={{ marginTop: 20, marginBottom: 16 }}>
-      <Hero
-        value={debtFree ? "$0" : fmt(calc.totalMonthlyDebts)}
-        label="Monthly Debts"
-        color={debtFree ? T.green : T.red}
-        sub={debtFree ? "Debt free!" : `${calc.qualifyingDebts.length} qualifying`}
-      />
-    </div>
-
-    {/* ─── Toggle row: Own Properties + Debt-Free (full width side-by-side) ─── */}
-    <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 } : { display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-      {/* Own Properties */}
       <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
         <Card>
           <div>
@@ -232,29 +221,10 @@ export default function DebtsContent({
           )}
         </Card>
       </div>
-      {/* Debt-free */}
-      <div data-field="debt-free-toggle" className={isPulse("debt-free-toggle")} onClick={() => markTouched("debt-free-toggle")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-        <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Are you debt-free?</span>
-              <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>No credit cards, auto loans, student loans, or installments</div>
-            </div>
-            <div onClick={() => { setDebtFree(!debtFree); markTouched("debt-free-toggle"); }} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-              <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: debtFree ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-            </div>
-          </div>
-          {debtFree && (
-            <div style={{ marginTop: 12, padding: "12px 14px", background: T.successBg, borderRadius: 12, textAlign: "center" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.green }}>No consumer debt — more buying power</div>
-            </div>
-          )}
-        </Card>
-      </div>
     </div>
 
-    {/* ─── MONTHLY DEBTS TABLE ─── */}
-    {!debtFree && <>
+    {/* ─── MONTHLY DEBTS TABLE — always rendered; debt-free pill hides body ─── */}
+    {<>
       {calc.reoNegativeDebt > 0 && (
         <Note color={T.orange}>
           {calc.reoPrimaryDebt > 0 && calc.reoInvestmentNet < 0
@@ -285,16 +255,42 @@ export default function DebtsContent({
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <span>Monthly Debts</span>
-          <button onClick={() => calc.addDebt("Revolving")} style={{
-            padding: "4px 12px", borderRadius: 9999,
-            background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.35)",
-            color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer",
-            fontFamily: FONT, letterSpacing: "0.04em",
-          }}>+ Add Debt</button>
+          {/* Debt-free inline pill — moved here from the standalone toggle card */}
+          <button
+            data-field="debt-free-toggle"
+            className={isPulse("debt-free-toggle")}
+            onClick={() => { setDebtFree(!debtFree); markTouched("debt-free-toggle"); }}
+            aria-pressed={debtFree}
+            title={debtFree ? "Click to edit consumer debts" : "Click if you have no consumer debts"}
+            style={{
+              padding: "4px 12px", borderRadius: 9999,
+              background: debtFree ? "#fff" : "rgba(255,255,255,0.2)",
+              border: `1px solid ${debtFree ? "#fff" : "rgba(255,255,255,0.35)"}`,
+              color: debtFree ? T.green : "#fff",
+              fontSize: 11, fontWeight: 700, cursor: "pointer",
+              fontFamily: MONO, letterSpacing: "0.06em", textTransform: "uppercase",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              transition: "all 0.15s",
+            }}
+          >
+            <span style={{
+              display: "inline-block", width: 10, height: 10, borderRadius: 99,
+              background: debtFree ? T.green : "transparent",
+              border: `1.5px solid ${debtFree ? T.green : "rgba(255,255,255,0.7)"}`,
+            }} />
+            Debt-Free
+          </button>
         </div>
 
-        {/* Desktop table — only on desktop */}
-        {isDesktop && (
+        {/* When debt-free, hide the body and show a clean message */}
+        {debtFree && (
+          <div style={{ padding: "28px 16px", textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.green, marginBottom: 4 }}>No consumer debt — more buying power</div>
+            <div style={{ fontSize: 12, color: T.textSecondary }}>Click the Debt-Free pill above to add debts.</div>
+          </div>
+        )}
+        {/* Desktop table — only on desktop, hidden in debt-free mode */}
+        {!debtFree && isDesktop && (
           <>
             {/* Column headers */}
             <div style={{
@@ -311,7 +307,7 @@ export default function DebtsContent({
               <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>% of Bal</HeaderCell>
               <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Int Rate</HeaderCell>
               <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Interest (yr)</HeaderCell>
-              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}>Payoff?</HeaderCell>
+              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}>Payoff at Closing?</HeaderCell>
               <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Payoff Amt</HeaderCell>
               <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}> </HeaderCell>
             </div>
@@ -477,7 +473,7 @@ export default function DebtsContent({
         )}
 
         {/* Mobile — condensed 5-col + tap row to expand full editor */}
-        {!isDesktop && (
+        {!debtFree && !isDesktop && (
           <>
             <div style={{
               display: "grid",
@@ -489,7 +485,7 @@ export default function DebtsContent({
               <HeaderCell T={T} headBorder={HEAD_BORDER}>Creditor</HeaderCell>
               <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Monthly</HeaderCell>
               <HeaderCell align="right" T={T} headBorder={HEAD_BORDER}>Balance</HeaderCell>
-              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}>Payoff?</HeaderCell>
+              <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}>Payoff at Closing?</HeaderCell>
               <HeaderCell align="center" T={T} headBorder={HEAD_BORDER}> </HeaderCell>
             </div>
 
@@ -577,6 +573,65 @@ export default function DebtsContent({
           </>
         )}
       </div>
+
+      {/* Add Debt button — moved here from the blue banner, matches Assets pattern */}
+      {!debtFree && (
+        <button onClick={() => calc.addDebt("Revolving")} style={{
+          width: "100%", padding: 12, marginBottom: 16,
+          background: `${ACCENT}10`, border: `1px dashed ${ACCENT}44`, borderRadius: 10,
+          color: ACCENT, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT,
+        }}>
+          + Add Debt
+        </button>
+      )}
+
+      {/* Bottom summary card — Total Monthly Debts + back-end DTI progress (mirrors Assets pattern) */}
+      {(() => {
+        const monthlyDebts = debtFree ? 0 : (calc.totalMonthlyDebts || 0);
+        const housing = calc.housingPayment || 0;
+        const income = calc.qualifyingIncome || 0;
+        const dti = income > 0 ? ((housing + monthlyDebts) / income) : null;
+        const maxDti = calc.maxDTI || 0.50;
+        const dtiOk = dti !== null && dti <= maxDti;
+        return (
+          <Card pad={16}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Debts</div>
+                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: debtFree ? T.green : T.text, letterSpacing: "-0.02em", marginTop: 2 }}>
+                  {fmt(monthlyDebts)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
+                </div>
+              </div>
+              {!debtFree && calc.qualifyingDebts && calc.qualifyingDebts.length > 0 && (
+                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+                  {calc.qualifyingDebts.length} qualifying
+                </div>
+              )}
+            </div>
+            {income > 0 && dti !== null ? (<>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", fontSize: 13, borderTop: `1px solid ${T.separator}`, marginTop: 8 }}>
+                <span style={{ color: T.textSecondary, fontWeight: 500 }}>Back-end DTI ({calc.qualifyingIncome > 0 ? `${fmt(calc.qualifyingIncome)}/mo income` : "income"})</span>
+                <span style={{ fontFamily: FONT, fontWeight: 700, color: dtiOk ? T.green : T.red }}>
+                  {(dti * 100).toFixed(1)}% / {(maxDti * 100).toFixed(0)}% max
+                </span>
+              </div>
+              <Progress value={dti} max={maxDti} color={dtiOk ? T.green : T.red} height={10} />
+              <div style={{ fontSize: 11, color: dtiOk ? T.green : T.red, fontWeight: 500, marginTop: 6 }}>
+                {dtiOk ? `✓ Within limits — ${fmt(income * maxDti - housing - monthlyDebts)}/mo headroom` : `Above max — reduce debts or increase income`}
+              </div>
+            </>) : (
+              <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, paddingTop: 6, borderTop: `1px solid ${T.separator}`, marginTop: 8 }}>
+                Add income on the Income tab to see your back-end DTI.
+              </div>
+            )}
+            {calc.reoNegativeDebt > 0 && (
+              <div style={{ marginTop: 10, padding: "8px 12px", background: `${T.orange}10`, borderRadius: 8, fontSize: 11, color: T.orange, lineHeight: 1.5 }}>
+                +{fmt(calc.reoNegativeDebt)}/mo from REO properties already included in DTI calc.
+              </div>
+            )}
+          </Card>
+        );
+      })()}
     </>}
 
     <GuidedNextButton />
