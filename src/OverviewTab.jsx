@@ -139,21 +139,36 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 4: FINANCIAL INFO (Income + Debts + Real Estate Owned + Assets)
+          SECTION 4: INCOME
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Financial Info" T={T} id="overview-financial" heroStyle={true}>
+      <CollapsibleSection title="Income" T={T} id="overview-income" heroStyle={true}>
         <IncomeContent {...props} />
+      </CollapsibleSection>
+
+      {/* ═══════════════════════════════════════
+          SECTION 5: DEBTS
+          ═══════════════════════════════════════ */}
+      <SectionDivider T={T} />
+      <CollapsibleSection title="Debts" T={T} id="overview-debts" heroStyle={true}>
         <DebtsContent {...props} />
-        {ownsProperties && (
-          <div id="overview-reo" style={{ marginTop: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingLeft: 4 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>Real Estate Owned</h3>
-              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>REO</span>
-            </div>
-            <ReoContent {...props} hideHero={true} />
-          </div>
-        )}
+      </CollapsibleSection>
+
+      {/* ═══════════════════════════════════════
+          SECTION 6: REAL ESTATE OWNED (only when ownsProperties is on)
+          ═══════════════════════════════════════ */}
+      {ownsProperties && (<>
+        <SectionDivider T={T} />
+        <CollapsibleSection title="Real Estate Owned" subtitle="REO" T={T} id="overview-reo" heroStyle={true}>
+          <ReoContent {...props} hideHero={true} />
+        </CollapsibleSection>
+      </>)}
+
+      {/* ═══════════════════════════════════════
+          SECTION 7: ASSETS
+          ═══════════════════════════════════════ */}
+      <SectionDivider T={T} />
+      <CollapsibleSection title="Assets" T={T} id="overview-assets" heroStyle={true}>
         <AssetsContent {...props} />
       </CollapsibleSection>
 
