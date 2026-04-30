@@ -4938,6 +4938,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ownsProperties, setOwnsProperties, reos, setReos,
    syncDebtBalance, syncDebtPayment,
    DEBT_TYPES, PAYOFF_OPTIONS,
+   /* REO — addReo/updateReo/removeReo so the embedded REO section in Overview can function */
+   addReo, updateReo, removeReo, syncReoBalance, syncReoPayment,
+   REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES,
+   sellLinkedReoId, setSellLinkedReoId, setSellPrice, setSellMortgagePayoff, setSellPrimaryRes,
    /* Modules */
    showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy,
    showProp19, setShowProp19,
