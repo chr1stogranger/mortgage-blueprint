@@ -269,6 +269,18 @@ const PAY_TYPES = ["Salary", "Hourly", "Overtime", "Bonus", "Commission", "Self-
 const VARIABLE_PAY_TYPES = ["Hourly", "Overtime", "Bonus", "Commission", "Self-Employment", "RSU"];
 const ASSET_TYPES = ["Checking", "Saving", "Money Market", "Mutual Fund", "Stocks", "Bonds", "Retirement", "Gift", "Gift of Equity", "Trust", "Bridge Loan", "Other"];
 const RESERVE_FACTORS = { Checking: 1, Saving: 1, "Money Market": 1, "Mutual Fund": 1, Stocks: 0.7, Bonds: 0.7, Retirement: 0.6, Gift: null, "Gift of Equity": null, Trust: 1, "Bridge Loan": 1, Other: 1 };
+// REO property types (matches Christo's spreadsheet dropdown).
+const REO_PROPERTY_TYPES = ["Single Family", "Duplex", "Triplex", "4-plex", "Condo", "Townhouse", "PUD", "Land", "Commercial"];
+// REO occupancy types (matches the spreadsheet "Occup." dropdown).
+//  "(Subj)" = subject property — the one being purchased/refinanced. Departing = current primary about to leave.
+const REO_OCCUPANCY_TYPES = ["Primary", "Primary (Subj)", "Departing", "Second", "Second (Subj)", "Invest.", "Invest. (Subj)"];
+// Map granular occupancy → propUse (used by the existing DTI calc that applies the 75% investment netting rule).
+const occupancyToPropUse = (occ) => {
+ if (!occ) return "Investment";
+ if (occ.startsWith("Primary") || occ === "Departing") return "Primary";
+ if (occ.startsWith("Second")) return "Second Home";
+ return "Investment";
+};
 // Loan-type-aware reserves factor:
 //   Gift / Gift of Equity → always 0% (per Christo: gifts don't count toward reserves)
 //   Jumbo → liquidity haircuts apply (Stocks 70%, Retirement 60%, etc. per RESERVE_FACTORS)
@@ -1633,8 +1645,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [rbCurrentRent, setRbCurrentRent] = useState(3000);
  const [rbRentGrowth, setRbRentGrowth] = useState(3);
  const [rbInvestReturn, setRbInvestReturn] = useState(7);
- const addReo = () => setReos(prev => [...prev, { id: Date.now(), address: "", value: 0, mortgageBalance: 0, payment: 0, includesTI: true, reoTax: 0, reoIns: 0, reoHoa: 0, rentalIncome: 0, propUse: "Investment", linkedDebtIdx: -1 }]);
- const updateReo = (id, k, v) => setReos(prev => prev.map(r => r.id === id ? { ...r, [k]: v } : r));
+ const addReo = () => setReos(prev => [...prev, { id: Date.now(), address: "", propType: "Single Family", occupancy: "Invest.", value: 0, mortgageBalance: 0, payment: 0, includesTI: true, reoTax: 0, reoIns: 0, reoHoa: 0, rentalIncome: 0, propUse: "Investment", linkedDebtIdx: -1 }]);
+ const updateReo = (id, k, v) => setReos(prev => prev.map(r => {
+  if (r.id !== id) return r;
+  const next = { ...r, [k]: v };
+  // Auto-sync propUse when occupancy changes — keeps the existing 75% investment netting calc working.
+  if (k === "occupancy") next.propUse = occupancyToPropUse(v);
+  return next;
+ }));
  // Sync-aware: update REO payment and push to single linked debt (or pull from debts)
  const syncReoPayment = (reoId, newPayment) => {
   setReos(prev => prev.map(r => r.id === reoId ? { ...r, payment: newPayment } : r));
@@ -4706,7 +4724,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ DEBTS ═══ */}
 {tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton}} />}
 {/* ═══ REO (Real Estate Owned) ═══ */}
-{tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, setSellPrice, setSellMortgagePayoff, setSellPrimaryRes, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, Note, isPulse, markTouched, GuidedNextButton}} />}
+{tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, setSellPrice, setSellMortgagePayoff, setSellPrimaryRes, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit, propType, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
