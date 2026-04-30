@@ -319,12 +319,14 @@ function ToggleRow({ label, hint, on, onChange }) {
 // Sums Down Payment + Closing Costs + Prepaids + Payoffs − Credits.
 function CashToCloseSummary({ T, ACCENT, fmt2, downPayment, closingCosts, prepaids, payoffs, credits, isRefi }) {
   const total = (isRefi ? 0 : downPayment) + closingCosts + prepaids + payoffs - credits;
+  // Payoffs and Credits rows are dynamic — hide when zero per Christo (less noise on simple deals).
+  // Down Payment / Closing Costs / Prepaids stay visible even at $0 since they're load-bearing line items.
   const rows = [
     !isRefi && { label: "Down Payment",         sign: "+", value: downPayment },
     { label: "Closing Costs",         sign: "+", value: closingCosts },
     { label: "Prepaid Expenses",      sign: "+", value: prepaids },
-    { label: "Loans / Debts to Payoff", sign: "+", value: payoffs },
-    { label: "Credits To Buyer",      sign: "−", value: credits },
+    payoffs > 0 && { label: "Loans / Debts to Payoff", sign: "+", value: payoffs },
+    credits > 0 && { label: "Credits To Buyer",      sign: "−", value: credits },
   ].filter(Boolean);
 
   return (
