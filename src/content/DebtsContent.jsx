@@ -158,7 +158,7 @@ export default function DebtsContent({
   reos, setReos,
   syncDebtBalance, syncDebtPayment,
   guideTouched, markTouched, isPulse,
-  Hero, Card, Sec, TextInp, Inp, Sel, Note,
+  Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton,
 }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
