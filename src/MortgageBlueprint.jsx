@@ -2584,7 +2584,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const matched = rateMap[loanType];
   if (matched && !isNaN(matched)) setRate(matched);
  }, [loanType, liveRates, term]);
- const addIncome = (borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", monthlyIncome: 0 }]);
+ const addIncome = (borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]);
  const updateIncome = (id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i));
  const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
  const addAsset = () => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
@@ -3201,25 +3201,37 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const escrowAmount = monthlyTax + ins;
   const housingPayment = pi + monthlyTax + ins + monthlyMI + hoa;
   const displayPayment = includeEscrow ? housingPayment : (pi + monthlyMI + hoa);
+  // Income calc — honors user-picked Selection for variable pay (Bonus/Commission/RSU/etc.)
+  // Selection values: "Amount" (use Amount × Frequency), "YTD" (annualized YTD), "1Y+" (last year),
+  // "2Y+" (avg of last two years). Default for variable is "2Y+", for fixed is "Amount".
+  const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
   const totalIncomeFromEntries = incomes.reduce((s, i) => {
    const isVariable = VARIABLE_PAY_TYPES.includes(i.payType);
+   const ytd = Number(i.ytd) || 0;
+   const yr1 = Number(i.py1) || 0;
+   const yr2 = Number(i.py2) || 0;
+   const fromAmount = toMonthly(Number(i.amount) || 0, i.frequency);
+   const sel = i.selection || (isVariable ? "2Y+" : "Amount");
+
+   if (sel === "Amount") return s + fromAmount;
+   if (sel === "YTD") return s + (ytd > 0 ? (ytd * 12 / monthsElapsed) / 12 : 0);
+   if (sel === "1Y+") return s + (yr1 > 0 ? yr1 / 12 : 0);
+   if (sel === "2Y+") {
+    const months = (yr1 > 0 ? 12 : 0) + (yr2 > 0 ? 12 : 0);
+    if (months === 0) return s;
+    return s + (yr1 + yr2) / months;
+   }
+   // Legacy fallback: conservative auto-pick for variable pay (lower of yr1 vs 2yr-avg)
    if (isVariable) {
-    const ytd = Number(i.ytd) || 0;
-    const yr1 = Number(i.py1) || 0;
-    const yr2 = Number(i.py2) || 0;
     if (yr1 > 0 && yr2 > 0) {
-     if (yr1 < yr2) return s + yr1 / 12;
-     return s + (yr1 + yr2) / 24;
+     const avg2 = (yr1 + yr2) / 2;
+     return s + Math.min(yr1, avg2) / 12;
     }
     if (yr1 > 0) return s + yr1 / 12;
     if (yr2 > 0) return s + yr2 / 12;
     if (ytd > 0) return s + ytd / 12;
-    return s;
    }
-   if (i.selection === "YTD") return s + (i.ytdCalc || 0);
-   if (i.selection === "1Y") return s + (i.oneYCalc || 0);
-   if (i.selection === "2Y") return s + (i.twoYCalc || 0);
-   return s + toMonthly(i.amount, i.frequency);
+   return s + fromAmount;
   }, 0);
   const monthlyIncome = totalIncomeFromEntries + otherIncome + otherIncome2;
   // REO DTI: Investment properties use 75% rental netting; Primary/Second Home full PITIA counted as debt
@@ -4688,7 +4700,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, Hero, Card, Sec, TextInp, Inp, Sel, Note, VARIABLE_PAY_TYPES, PAY_TYPES, isPulse, GuidedNextButton}} />}
+{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton}} />}
 {/* ═══ DEBTS ═══ */}
@@ -5022,7 +5034,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <Suspense fallback={null}>
  <BottomSheet isOpen={sheetContent === "income"} onClose={() => setSheetContent(null)} title="Income" T={T}>
   <IncomeSheet
-   incomes={incomes} addIncome={(borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", monthlyIncome: 0 }])}
+   incomes={incomes} addIncome={(borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }])}
    updateIncome={(id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i))}
    removeIncome={(id) => setIncomes(incomes.filter(i => i.id !== id))}
    otherIncome={otherIncome} setOtherIncome={setOtherIncome}
