@@ -44,10 +44,28 @@ export default function AssetsContent({
       <Hero value={fmt(calc.totalAssetValue)} label="Total Assets" color={T.cyan} />
     </div>
 
-    {/* ─── DESKTOP: tabular ─── */}
+    {/* ─── DESKTOP: tabular with blue banner header (consistent with Debts / Income) ─── */}
     {isDesktop ? (
-      <Sec title="Assets">
-        <Card>
+      <div style={{
+        border: `1px solid ${T.cardBorder}`,
+        borderRadius: 14,
+        overflow: "hidden",
+        background: T.card,
+        marginBottom: 16,
+      }}>
+        {/* Blue banner header */}
+        <div style={{
+          background: T.blue, color: "#fff", padding: "10px 16px",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase", fontFamily: MONO,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span>Assets</span>
+          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: MONO, letterSpacing: 0.5 }}>
+            {assets.length === 0 ? "No accounts" : `${fmt(totalValue)} total`}
+          </span>
+        </div>
+        <div style={{ padding: "12px 16px" }}>
           {/* Header row */}
           <div style={{
             display: "grid",
@@ -139,8 +157,8 @@ export default function AssetsContent({
               </button>
             </div>
           )}
-        </Card>
-      </Sec>
+        </div>
+      </div>
     ) : (
       /* ─── MOBILE: card-per-account (preserve previous responsive UX) ─── */
       <Sec title="Accounts" action="+ Add" onAction={onAdd}>
