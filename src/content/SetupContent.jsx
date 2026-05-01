@@ -152,6 +152,51 @@ export default function SetupContent({
     </div>
     {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
+
+   {/* Property ZIP — single input. City / County / State auto-populate from
+       the existing useEffect in MortgageBlueprint that watches propertyZip and
+       calls lookupZip() to fill the rest. Replaces the 4-pill ZIP/City/County/
+       State row that used to sit at the top of the Calculator. */}
+   <Card style={{ marginTop: 12 }}>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
+     <div style={{ flex: "0 0 140px" }}>
+      <Inp
+       label="Zip Code"
+       value={propertyZip || ""}
+       onChange={v => setPropertyZip(String(v).replace(/[^0-9]/g, "").slice(0, 5))}
+       type="text"
+       placeholder="94501"
+       sm
+       req
+      />
+     </div>
+     {/* Auto-filled summary on the right — read-only chip showing what the ZIP resolved to */}
+     {propertyZip && propertyZip.length === 5 && (city || propertyCounty || propertyState) && (
+      <div style={{
+       flex: 1, display: "flex", alignItems: "center", gap: 6,
+       padding: "10px 12px", marginBottom: 2,
+       background: `${T.green}10`, border: `1px solid ${T.green}30`,
+       borderRadius: 12, fontSize: 12, color: T.text, fontFamily: FONT,
+       minHeight: 38,
+      }}>
+       <span style={{ color: T.green, fontWeight: 700 }}>✓</span>
+       <span>
+        {city ? `${city}, ` : ""}{propertyCounty ? `${propertyCounty} County, ` : ""}{propertyState || "—"}
+       </span>
+      </div>
+     )}
+     {propertyZip && propertyZip.length === 5 && !city && !propertyCounty && (
+      <div style={{
+       flex: 1, padding: "10px 12px", marginBottom: 2,
+       background: `${T.orange}10`, border: `1px solid ${T.orange}30`,
+       borderRadius: 12, fontSize: 12, color: T.orange, fontFamily: FONT,
+      }}>
+       ZIP not in lookup — fill manually below.
+      </div>
+     )}
+    </div>
+   </Card>
   </div>{/* end left column */}
 
   {/* ── RIGHT COLUMN: Modules only — Price/Down Payment/Live Estimate are in Monthly Payment section ── */}

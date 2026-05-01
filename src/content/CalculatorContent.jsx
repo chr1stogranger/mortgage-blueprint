@@ -153,17 +153,12 @@ export default function CalculatorContent({
   return (<>
 
  {/* ─────────────────────────────────────────────────────────────── */}
- {/* ROW 1 — Location (Zip / City / County / State) — auto-fill from ZIP */}
- {/* ROW 2 — Loan details (Occupancy / Prop Type / Loan Type / Term) */}
- {/* Rate pill removed — redundant with the main Rate input above */}
+ {/* ROW 1 — Loan details: Occupancy / Property Type / Loan Type / Term.
+      The Zip/City/County/State row was removed per Christo — those now live in
+      the Setup tab's Quick Start section, with city/county/state auto-filling
+      from the ZIP via the existing useEffect hook in MortgageBlueprint. */}
  {/* ─────────────────────────────────────────────────────────────── */}
- <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginTop: 20, marginBottom: 10 }}>
-  <Inp label="Zip Code" value={propertyZip || ""} onChange={v => setPropertyZip(String(v).replace(/[^0-9]/g, "").slice(0, 5))} type="text" placeholder="94501" sm req />
-  <Inp label="City" value={city || ""} onChange={setCity} type="text" placeholder="Auto from ZIP" sm />
-  <Inp label="County" value={propertyCounty || ""} onChange={setPropertyCounty} type="text" placeholder="Auto from ZIP" sm />
-  <Inp label="State" value={propertyState || ""} onChange={setPropertyState} type="text" placeholder="Auto from ZIP" sm />
- </div>
- <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginBottom: 16 }}>
+ <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginTop: 20, marginBottom: 16 }}>
   <Sel label="Occupancy" value={loanPurpose} onChange={v => {
    // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
    if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -213,202 +208,10 @@ export default function CalculatorContent({
 
   {/* ========== LEFT COLUMN ========== */}
   <div>
-   {/* Rate / APR — slim card. Lives at the TOP of the left column per Christo
-       so the rate input sits directly above the donut it drives. Live-rates UI
-       lives inline as a small pill on the right of the Rate label row;
-       clicking the '✓ Live' pill opens a popup with the 6 rate-type options. */}
-   <Card style={{ marginBottom: 12 }}>
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-     <div style={{ flex: 1 }}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 6, gap: 8 }}>
-       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-        {isRefi ? "New Rate" : "Rate"}<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-        <InfoTip text="Your annual interest rate. Depends on loan type, FICO, down payment %, loan amount, property type, and market conditions." />
-       </div>
-       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        {isRefi && refiCurrentRate > 0 && <span style={{ fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
-        {liveRates ? (
-         <button
-          onClick={() => setRatesPopupOpen(true)}
-          title="View today's rates by loan type"
-          style={{
-           display: "inline-flex", alignItems: "center", gap: 5,
-           background: `${T.green}15`, border: `1px solid ${T.green}40`,
-           borderRadius: 9999, padding: "3px 9px", cursor: "pointer",
-           fontSize: 11, fontWeight: 600, color: T.green, fontFamily: FONT,
-          }}
-         >
-          ✓ Live · {liveRates.date || "Today"}
-         </button>
-        ) : (
-         <button
-          onClick={fetchRates}
-          disabled={ratesLoading}
-          title="Fetch today's rates from FRED / Freddie Mac PMMS"
-          style={{
-           display: "inline-flex", alignItems: "center", gap: 5,
-           background: "transparent", border: `1px solid ${T.blue}40`,
-           borderRadius: 9999, padding: "3px 9px",
-           cursor: ratesLoading ? "wait" : "pointer",
-           fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT,
-          }}
-         >
-          {ratesLoading ? "Fetching..." : "◉ Get Live Rates"}
-         </button>
-        )}
-       </div>
-      </div>
-      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
-     </div>
-     {!isRefi && calc.apr > 0 && calc.apr !== rate && (
-      <div style={{ flex: 1, marginBottom: 2 }}>
-       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
-        <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
-       </div>
-       <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
-      </div>
-     )}
-    </div>
-    {isRefi && refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 6 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
-    )}
-    {isRefi && refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 6 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
-    )}
-    {ratesError && <div style={{ fontSize: 11, color: T.red, marginTop: 10, wordBreak: "break-all", lineHeight: 1.4, padding: 10, background: T.errorBg, borderRadius: 8 }}>{ratesError}</div>}
-   </Card>
+   {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
+       the rate-type tiles are now always visible inside the Rate card on the right. */}
 
-   {/* Live-rates popup modal — opens when user clicks the '✓ Live' pill above. */}
-   {ratesPopupOpen && liveRates && (
-    <div
-     onClick={() => setRatesPopupOpen(false)}
-     style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-      zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20,
-     }}
-    >
-     <div
-      onClick={e => e.stopPropagation()}
-      style={{
-       background: T.card, border: `1px solid ${T.cardBorder}`,
-       borderRadius: 16, padding: 20, maxWidth: 420, width: "100%",
-       boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-      }}
-     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-       <div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Today's Rates</div>
-        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{liveRates.date || "Today"} · click a tile to apply</div>
-       </div>
-       <button
-        onClick={() => setRatesPopupOpen(false)}
-        style={{ background: "transparent", border: "none", fontSize: 18, color: T.textTertiary, cursor: "pointer", padding: 4, lineHeight: 1 }}
-       >×</button>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-       {[["30yr", liveRates["30yr_fixed"]], ["15yr", liveRates["15yr_fixed"]], ["FHA", liveRates["30yr_fha"]],
-        ["VA", liveRates["30yr_va"]], ["Jumbo", liveRates["30yr_jumbo"]], ["5/1 ARM", liveRates["5yr_arm"]]
-       ].filter(([, v]) => v).map(([label, r], i) => {
-        const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
-         (label === "15yr" && loanType === "Conventional" && term === 15) ||
-         (label === "FHA" && loanType === "FHA") ||
-         (label === "VA" && loanType === "VA") ||
-         (label === "Jumbo" && loanType === "Jumbo");
-        return (
-         <div
-          key={i}
-          onClick={() => { setRate(r); setRatesPopupOpen(false); }}
-          style={{
-           background: isActive ? `${T.blue}20` : T.inputBg,
-           border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`,
-           borderRadius: 10, padding: "10px 10px",
-           cursor: "pointer", textAlign: "center", transition: "all 0.2s",
-          }}
-         >
-          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
-         </div>
-        );
-       })}
-      </div>
-      {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>Source: {liveRates.source}</div>}
-      <button
-       onClick={fetchRates}
-       disabled={ratesLoading}
-       style={{
-        marginTop: 12, width: "100%", padding: "10px 14px",
-        background: `${T.blue}10`, border: `1px solid ${T.blue}33`,
-        borderRadius: 10, fontSize: 12, fontWeight: 600, color: T.blue,
-        cursor: ratesLoading ? "wait" : "pointer", fontFamily: FONT,
-       }}
-      >
-       {ratesLoading ? "Refreshing..." : "↻ Refresh Rates"}
-      </button>
-     </div>
-    </div>
-   )}
-
-   {/* Donut block: Escrow toggle row spans the top, donut centered below */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
-    {/* Escrow toggle header row — label upper-left, toggle upper-right */}
-    {(() => {
-     const escrowLocked = loanType === "FHA" || loanType === "VA";
-     return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
-       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
-        Include Escrow (Tax &amp; Ins)
-       </span>
-       <button
-        onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
-        title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
-        style={{
-         width: 44,
-         height: 26,
-         borderRadius: 13,
-         border: "none",
-         padding: 0,
-         cursor: escrowLocked ? "not-allowed" : "pointer",
-         background: includeEscrow ? T.blue : T.inputBorder,
-         position: "relative",
-         transition: "background 0.2s",
-         opacity: escrowLocked ? 0.6 : 1,
-        }}
-       >
-        <div style={{
-         width: 20,
-         height: 20,
-         borderRadius: 10,
-         background: "#fff",
-         position: "absolute",
-         top: 3,
-         left: includeEscrow ? 21 : 3,
-         transition: "left 0.2s",
-         boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-        }} />
-       </button>
-      </div>
-     );
-    })()}
-    {/* Donut, centered */}
-    <div style={{ display: "flex", justifyContent: "center" }}>
-     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
-    </div>
-   </div>
-
-   {/* Legend — small pills under the donut */}
-   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginBottom: 14 }}>
-    {legendRows.map((row, i) => (
-     <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
-      <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
-      <span>{row.label}</span>
-      <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
-     </div>
-    ))}
-   </div>
-
-   {/* Purchase Price / Down Payment card — 2-col even on mobile (explicit ask) */}
+   {/* 1. Purchase Price / Down Payment card — TOP of left column */}
    <div data-field="calc-price" className={isPulse && isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
      <Card>
@@ -478,7 +281,65 @@ export default function CalculatorContent({
     </div>
    </div>
 
-   {/* Escrow toggle moved into the donut's upper-right whitespace (above). Warning notes remain here. */}
+   {/* 2. Donut block: Escrow toggle row spans the top, donut centered below */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: 12 }}>
+    {/* Escrow toggle header row — label upper-left, toggle upper-right */}
+    {(() => {
+     const escrowLocked = loanType === "FHA" || loanType === "VA";
+     return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
+       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
+        Include Escrow (Tax &amp; Ins)
+       </span>
+       <button
+        onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
+        title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
+        style={{
+         width: 44,
+         height: 26,
+         borderRadius: 13,
+         border: "none",
+         padding: 0,
+         cursor: escrowLocked ? "not-allowed" : "pointer",
+         background: includeEscrow ? T.blue : T.inputBorder,
+         position: "relative",
+         transition: "background 0.2s",
+         opacity: escrowLocked ? 0.6 : 1,
+        }}
+       >
+        <div style={{
+         width: 20,
+         height: 20,
+         borderRadius: 10,
+         background: "#fff",
+         position: "absolute",
+         top: 3,
+         left: includeEscrow ? 21 : 3,
+         transition: "left 0.2s",
+         boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+        }} />
+       </button>
+      </div>
+     );
+    })()}
+    {/* Donut, centered */}
+    <div style={{ display: "flex", justifyContent: "center" }}>
+     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
+    </div>
+   </div>
+
+   {/* Legend — small pills under the donut */}
+   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginBottom: 14 }}>
+    {legendRows.map((row, i) => (
+     <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
+      <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
+      <span>{row.label}</span>
+      <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
+     </div>
+    ))}
+   </div>
+
+   {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
    {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note>}
 
@@ -524,78 +385,6 @@ export default function CalculatorContent({
    )}
 
   </div>
-  {/* ========== END LEFT COLUMN ========== */}
-
-  {/* ========== RIGHT COLUMN ========== */}
-  <div>
-   {/* Compact 5-pillar row — same content as the Qualify tab pillars but slim
-       (28px circles, single horizontal strip) so they fit at the top of the
-       Calculator's right column. Click any pillar to jump to the Qualify tab. */}
-   {(() => {
-    const compactChecks = isRefi ? [
-     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
-    ] : [
-     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
-     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
-    ];
-    return (
-     <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12 }}>
-      {compactChecks.map((c, i) => {
-       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
-       const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
-       return (
-        <div
-         key={i}
-         onClick={() => handlePillarClick && handlePillarClick(c.label)}
-         title={`${c.label}: ${c.sub} — click for details`}
-         style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          padding: "10px 4px 8px", background: bg, borderRadius: 12,
-          cursor: "pointer", transition: "all 0.2s",
-         }}
-        >
-         <div style={{
-          width: 28, height: 28, borderRadius: "50%",
-          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
-         }}>
-          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
-         </div>
-         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
-         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
-        </div>
-       );
-      })}
-     </div>
-    );
-   })()}
-
-   {/* Loan Amount / LTV / Cash to Close 3-col — sits between the compact pillars
-       above and the Payment Breakdown below per Christo's spec. */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-    {(isRefi ? [
-     { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
-     { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
-     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
-    ] : [
-     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
-     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
-     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
-    ]).map((m, i) => (
-     <Card key={i} pad={14}>
-      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
-      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
-     </Card>
-    ))}
-   </div>
-
    {/* Payment Breakdown card — banded styling matching CashToCloseSummary:
        light-blue gradient header band on top, light-blue total band on bottom.
        Inner rows live in a padded body section. */}
@@ -829,6 +618,141 @@ export default function CalculatorContent({
      }}>{fmt(calc.displayPayment)}/mo</div>
     </div>
    </div>
+
+  {/* ========== END LEFT COLUMN ========== */}
+
+  {/* ========== RIGHT COLUMN ========== */}
+  <div>
+   {/* Loan Amount / LTV / Cash to Close 3-col — TOP of the right column. */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+    {(isRefi ? [
+     { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
+     { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
+     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
+    ] : [
+     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
+     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
+     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
+    ]).map((m, i) => (
+     <Card key={i} pad={14}>
+      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
+      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
+     </Card>
+    ))}
+   </div>
+
+   {/* Compact 5-pillar row — sits below the 3-stat row. 28px circles. */}
+   {(() => {
+    const compactChecks = isRefi ? [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
+    ] : [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
+     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
+    ];
+    return (
+     <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12 }}>
+      {compactChecks.map((c, i) => {
+       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
+       const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
+       return (
+        <div
+         key={i}
+         onClick={() => handlePillarClick && handlePillarClick(c.label)}
+         title={`${c.label}: ${c.sub} — click for details`}
+         style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "10px 4px 8px", background: bg, borderRadius: 12,
+          cursor: "pointer", transition: "all 0.2s",
+         }}
+        >
+         <div style={{
+          width: 28, height: 28, borderRadius: "50%",
+          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
+         }}>
+          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
+         </div>
+         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
+         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
+        </div>
+       );
+      })}
+     </div>
+    );
+   })()}
+
+   {/* Rate / APR + always-visible Live Rates grid — sits between the compact
+       pillars and the Cash To Close Summary. Tile grid is permanent now (per
+       Christo) so a broker can compare across loan types without opening a
+       popup. Tiles only appear once liveRates have been fetched. */}
+   <Card style={{ marginBottom: 12 }}>
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 10 }}>
+     <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+        {isRefi ? "New Rate" : "Rate"}<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+        <InfoTip text="Your annual interest rate. Depends on loan type, FICO, down payment %, loan amount, property type, and market conditions." />
+       </div>
+       {isRefi && refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
+      </div>
+      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+     </div>
+     {!isRefi && calc.apr > 0 && calc.apr !== rate && (
+      <div style={{ flex: 1, marginBottom: 2 }}>
+       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
+        <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
+       </div>
+       <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
+      </div>
+     )}
+    </div>
+    {isRefi && refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
+     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
+    )}
+    {isRefi && refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
+    )}
+
+    {/* Live Rates fetch button — full-width pill */}
+    <button onClick={fetchRates} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+     <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
+      {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "◉ Get Today's Rates"}
+     </span>
+     {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || "Today"}</span>}
+     {!liveRates && !ratesLoading && fredApiKey && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>FRED</span>}
+    </button>
+    {ratesError && <div style={{ fontSize: 11, color: T.red, marginBottom: 10, wordBreak: "break-all", lineHeight: 1.4, padding: 10, background: T.errorBg, borderRadius: 8 }}>{ratesError}</div>}
+
+    {/* Always-visible 6-tile rate grid (only when liveRates loaded) */}
+    {liveRates && (<>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 4 }}>
+      {[["30yr", liveRates["30yr_fixed"]], ["15yr", liveRates["15yr_fixed"]], ["FHA", liveRates["30yr_fha"]],
+       ["VA", liveRates["30yr_va"]], ["Jumbo", liveRates["30yr_jumbo"]], ["5/1 ARM", liveRates["5yr_arm"]]
+      ].filter(([, v]) => v).map(([label, r], i) => {
+       const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
+        (label === "15yr" && loanType === "Conventional" && term === 15) ||
+        (label === "FHA" && loanType === "FHA") ||
+        (label === "VA" && loanType === "VA") ||
+        (label === "Jumbo" && loanType === "Jumbo");
+       return (
+        <div key={i} onClick={() => setRate(r)} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: "8px 10px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+         <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
+        </div>
+       );
+      })}
+     </div>
+     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}</div>}
+    </>)}
+   </Card>
 
    {/* Cash To Close Summary — shared component (also used on the Costs tab).
        Anchored at the bottom of the right column per Christo's spec. */}
