@@ -31,6 +31,47 @@ function AutoBadge() {
   );
 }
 
+// Small clickable "i" icon — opens a modal popup with the calc breakdown and/or explainer.
+// Mirrors the InfoTip pattern used elsewhere (Setup, Calculator, etc.) so behavior stays consistent.
+function InfoTipBubble({ calc, explainer }) {
+  const { T } = useContext(CostsCtx);
+  const [open, setOpen] = useState(false);
+  if (!calc && !explainer) return null;
+  return (
+    <span style={{ position: "relative", display: "inline-flex", marginLeft: 6, verticalAlign: "middle" }}
+      onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+      <span
+        onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o); }}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 16, height: 16, borderRadius: "50%",
+          background: open ? T.blue : `${T.blue}20`, color: open ? "#fff" : T.blue,
+          fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
+          lineHeight: 1, transition: "all 0.2s", userSelect: "none",
+        }}
+      >i</span>
+      {open && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.35)" }} />
+          <div style={{ position: "relative", zIndex: 1, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14, padding: "18px 20px", width: "min(320px, 85vw)", boxShadow: "0 8px 30px rgba(0,0,0,0.25)" }}>
+            {calc && (
+              <div style={{ fontSize: 12, fontFamily: MONO, color: T.textSecondary, lineHeight: 1.6, marginBottom: explainer ? 10 : 0, paddingBottom: explainer ? 10 : 0, borderBottom: explainer ? `1px solid ${T.separator}` : "none" }}>
+                {calc}
+              </div>
+            )}
+            {explainer && (
+              <div style={{ fontSize: 13, lineHeight: 1.6, color: T.textSecondary }}>
+                {explainer}
+              </div>
+            )}
+            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ marginTop: 12, width: "100%", padding: "10px 0", background: T.blue, border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", fontFamily: FONT }}>Got it</button>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 // Master collapsible "card" — replaces AriveBox for top-level groups.
 // Header is a button that toggles open/closed. Total stays visible
 // in the header even when collapsed (Linear/Vercel pattern).
@@ -229,7 +270,7 @@ function FeeRow({
   const displayVal = isDollar ? (value === 0 || value === "" || value == null ? "$0.00" : fmt2(value)) : value;
 
   return (
-    <div style={{ borderBottom: `1px dashed ${T.separator}`, paddingBottom: 2 }}>
+    <div style={{ borderBottom: `1px dashed ${T.separator}` }}>
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -239,9 +280,10 @@ function FeeRow({
         gap: 10,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3 }}>
             <span>{label}</span>
             {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: MONO }}>{sub}</span>}
+            <InfoTipBubble calc={calc} explainer={explainer} />
           </div>
           {alwaysVisibleControl && (
             <div style={{ display: "flex", alignItems: "center" }}>{alwaysVisibleControl}</div>
@@ -267,21 +309,8 @@ function FeeRow({
           {autoBadge && <AutoBadge />}
         </div>
       </div>
-      {(calc || explainer) && (
-        <div style={{
-          paddingBottom: 6,
-          marginTop: -3,
-          fontSize: 11,
-          color: T.textTertiary,
-          lineHeight: 1.4,
-        }}>
-          {calc && <span style={{ fontFamily: MONO }}>{calc}</span>}
-          {calc && explainer && <span style={{ margin: "0 6px", color: T.separator }}>·</span>}
-          {explainer && <span style={{ fontStyle: "italic" }}>{explainer}</span>}
-        </div>
-      )}
       {note && (editable || readOnly) && (
-        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{note}</div>
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4, paddingBottom: 4 }}>{note}</div>
       )}
     </div>
   );
