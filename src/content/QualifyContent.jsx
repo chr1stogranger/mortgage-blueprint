@@ -1,8 +1,276 @@
 import React from "react";
 import Icon from "../Icon";
+import { getCaAmi } from "../data/caAmi";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
+
+// ─────────────────────────────────────────────────────────────────────────
+// Debt to Income Summary — mirrors Christo's client-walkthrough spreadsheet.
+// 3-column body (Income / Area Median Income / Debts) + Qualifying Ratios footer.
+//
+// MATH:
+//   Income Min  = totalDebts ÷ maxDTI      → minimum monthly income to qualify
+//   Income Δ    = currentIncome − Income Min   (negative = shortfall, red)
+//   Debts Max   = currentIncome × maxDTI    → max debts allowed at current income
+//   Debts Δ     = currentDebts − Debts Max  (positive = overshoot, red)
+//   HTI         = housingPayment ÷ income   (front-end ratio)
+//   DTI         = totalDebts ÷ income       (back-end ratio)
+//
+// HTI Max:  47% for FHA only — other programs (Conv/VA/Jumbo) have no front-end cap.
+// DTI Max:  pulled from calc.maxDTI (program-specific).
+// ─────────────────────────────────────────────────────────────────────────
+function DebtToIncomeSummary({
+  T, fmt, pct,
+  calc, loanType,
+  incomes = [], subjectRentalIncome = 0, otherIncome = 0, otherIncome2 = 0,
+  reos = [], debts = [], debtFree = false,
+  propertyCounty = "", propertyState = "California",
+}) {
+  // ── Income breakdown ──
+  const employmentIncome = (incomes || []).reduce((sum, i) => sum + (Number(i?.monthlyAmount) || 0), 0);
+  // Subject Property Income — rental income from the property being purchased (if 1-4 unit)
+  const subjectPropIncome = Number(subjectRentalIncome) || 0;
+  // Investment Property Income — net positive contributions from rental REOs (from calc)
+  const investmentIncome = Number(calc?.reoPositiveIncome) || 0;
+  // Other Monthly Income — child support, alimony, social security, etc.
+  const otherTotal = (Number(otherIncome) || 0) + (Number(otherIncome2) || 0);
+  const totalMonthlyIncome = employmentIncome + subjectPropIncome + investmentIncome + otherTotal;
+  const totalAnnualIncome = totalMonthlyIncome * 12;
+
+  // ── Debts breakdown ──
+  const newHousingPiti = Number(calc?.totalPayment) || 0;
+  const monthlyLiabilities = debtFree
+    ? 0
+    : (debts || []).reduce((sum, d) => {
+        if (d?.payoffOption === "Pay Off At Closing" || d?.payoffOption === "Omit") return sum;
+        return sum + (Number(d?.payment) || 0);
+      }, 0);
+  // Primary & Secondary Home Expenses — REO PITIA on owner-occupied (non-investment) properties
+  const primarySecondaryHomeExpenses = (reos || []).reduce((sum, r) => {
+    const occ = String(r?.occupancy || "").toLowerCase();
+    const isInvestment = occ.includes("invest") || occ.includes("rental");
+    if (isInvestment) return sum;
+    return sum + ((Number(r?.payment) || 0) + (Number(r?.taxes) || 0) + (Number(r?.insurance) || 0) + (Number(r?.hoa) || 0));
+  }, 0);
+  // Investment RE Net — pulled from calc (already nets rental income against PITIA)
+  const investmentReNet = Number(calc?.reoNegativeDebt) || 0;
+  const totalDebts = newHousingPiti + monthlyLiabilities + primarySecondaryHomeExpenses + investmentReNet;
+  const totalAnnualDebts = totalDebts * 12;
+
+  // ── Qualifying caps & deltas ──
+  const maxDTI = (Number(calc?.maxDTI) || 50) / 100;  // 0–1 fraction
+  const isFHA = loanType === "FHA";
+  const maxHTI = isFHA ? 0.47 : null;                  // FHA front-end cap
+
+  const incomeMin = totalDebts > 0 ? totalDebts / maxDTI : 0;
+  const incomeDelta = totalMonthlyIncome - incomeMin;
+  const debtsMax = totalMonthlyIncome * maxDTI;
+  const debtsDelta = totalDebts - debtsMax;
+
+  // Personal ratios
+  const personalHTI = totalMonthlyIncome > 0 ? newHousingPiti / totalMonthlyIncome : 0;
+  const personalDTI = totalMonthlyIncome > 0 ? totalDebts / totalMonthlyIncome : 0;
+
+  // ── AMI (CA only) ──
+  const isCA = String(propertyState || "").toLowerCase().startsWith("california");
+  const ami = isCA ? getCaAmi(propertyCounty) : null;
+
+  // ─── Render helpers ───
+  const headerStyle = {
+    background: T.blue,
+    color: "#fff",
+    padding: "10px 16px",
+    fontSize: 11,
+    fontWeight: 700,
+    fontFamily: MONO,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    textAlign: "center",
+  };
+  const subHeaderStyle = {
+    background: `${T.blue}12`,
+    padding: "8px 12px",
+    fontSize: 10,
+    fontWeight: 700,
+    fontFamily: MONO,
+    color: T.blue,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    borderBottom: `1px solid ${T.separator}`,
+    textAlign: "center",
+  };
+  const rowStyle = {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "8px 12px", borderBottom: `1px solid ${T.separator}`,
+    fontSize: 12, fontFamily: FONT,
+  };
+  const totalRowStyle = {
+    ...rowStyle,
+    background: `${T.green}15`,
+    fontWeight: 700,
+    color: T.text,
+  };
+  const cellLabel = { color: T.textSecondary };
+  const cellValue = { color: T.text, fontWeight: 600, fontFamily: FONT };
+
+  // Render a single section column (Income or Debts) with title-row + line items + total
+  const Column = ({ title, rows, totalLabel, totalValue, totalAnnual }) => (
+    <div style={{ minWidth: 0 }}>
+      <div style={subHeaderStyle}>{title}</div>
+      {rows.map((r, i) => (
+        <div key={i} style={rowStyle}>
+          <span style={cellLabel}>{r.label}</span>
+          <span style={cellValue}>{fmt(r.value)}</span>
+        </div>
+      ))}
+      <div style={totalRowStyle}>
+        <span>{totalLabel}</span>
+        <span>{fmt(totalValue)}</span>
+      </div>
+      {totalAnnual !== undefined && (
+        <div style={{ ...rowStyle, background: `${T.blue}06`, fontWeight: 600, color: T.textSecondary }}>
+          <span style={{ fontSize: 11 }}>Total Annual</span>
+          <span style={{ fontSize: 11, fontFamily: FONT }}>{fmt(totalAnnual)}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{
+      background: T.card,
+      border: `1px solid ${T.cardBorder}`,
+      borderRadius: 14,
+      overflow: "hidden",
+      marginBottom: 16,
+      boxShadow: `0 0 0 1px ${T.blue}10`,
+    }}>
+      {/* Top header band */}
+      <div style={headerStyle}>Debt to Income Summary</div>
+
+      {/* 3-column body */}
+      <div style={{ display: "grid", gridTemplateColumns: isCA ? "1fr 0.85fr 1.1fr" : "1fr 1.1fr", gap: 0 }}>
+        {/* INCOME column */}
+        <div style={{ borderRight: `1px solid ${T.separator}` }}>
+          <Column
+            title="Income"
+            rows={[
+              { label: "Monthly Employment Income",  value: employmentIncome },
+              { label: "Subject Property Income",    value: subjectPropIncome },
+              { label: "Investment Property Income", value: investmentIncome },
+              { label: "Other Monthly Income",       value: otherTotal },
+            ]}
+            totalLabel="Total Monthly Income"
+            totalValue={totalMonthlyIncome}
+            totalAnnual={totalAnnualIncome}
+          />
+          {/* Income Min/Delta footer */}
+          <div style={{ ...rowStyle, background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }}>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Min</span>
+            <span style={cellValue}>{fmt(incomeMin)}</span>
+          </div>
+          <div style={{
+            ...rowStyle,
+            background: incomeDelta < 0 ? `${T.red}10` : `${T.green}10`,
+            color: incomeDelta < 0 ? T.red : T.green,
+            fontWeight: 700,
+          }}>
+            <span style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
+            <span style={{ fontFamily: FONT, fontWeight: 700 }}>
+              {incomeDelta < 0 ? "−" : ""}{fmt(Math.abs(incomeDelta))}
+            </span>
+          </div>
+        </div>
+
+        {/* AMI column (CA only) */}
+        {isCA && (
+          <div style={{ borderRight: `1px solid ${T.separator}` }}>
+            <div style={subHeaderStyle}>Area Median Income</div>
+            <div style={rowStyle}>
+              <span style={cellLabel}>120% AMI</span>
+              <span style={cellValue}>{ami ? fmt(ami.ami120) : "—"}</span>
+            </div>
+            <div style={rowStyle}>
+              <span style={cellLabel}>100% AMI</span>
+              <span style={cellValue}>{ami ? fmt(ami.ami100) : "—"}</span>
+            </div>
+            <div style={rowStyle}>
+              <span style={cellLabel}>80% AMI</span>
+              <span style={cellValue}>{ami ? fmt(ami.ami80) : "—"}</span>
+            </div>
+            <div style={{ ...rowStyle, fontSize: 10, color: T.textTertiary, padding: "8px 12px" }}>
+              <span style={{ fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>
+                {propertyCounty || "CA"} {ami?.source === "fallback" ? "(state avg)" : ""}
+              </span>
+              <span style={{ fontFamily: MONO, fontSize: 10 }}>HUD '24</span>
+            </div>
+            <div style={{ height: 1, background: T.separator }} />
+          </div>
+        )}
+
+        {/* DEBTS column */}
+        <div>
+          <Column
+            title="Debts"
+            rows={[
+              { label: "New Housing PITI Payment",         value: newHousingPiti },
+              { label: "Monthly Liabilities (Credit)",     value: monthlyLiabilities },
+              { label: "Primary & Secondary Home",         value: primarySecondaryHomeExpenses },
+              { label: "Investment Real Estate Net",       value: investmentReNet },
+            ]}
+            totalLabel="Total Debts"
+            totalValue={totalDebts}
+            totalAnnual={totalAnnualDebts}
+          />
+          {/* Debts Max/Delta footer */}
+          <div style={{ ...rowStyle, background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }}>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Max</span>
+            <span style={cellValue}>{fmt(debtsMax)}</span>
+          </div>
+          <div style={{
+            ...rowStyle,
+            background: debtsDelta > 0 ? `${T.red}10` : `${T.green}10`,
+            color: debtsDelta > 0 ? T.red : T.green,
+            fontWeight: 700,
+          }}>
+            <span style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
+            <span style={{ fontFamily: FONT, fontWeight: 700 }}>
+              {debtsDelta > 0 ? "+" : ""}{fmt(debtsDelta)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Qualifying Ratios footer */}
+      <div style={{
+        background: T.blue,
+        color: "#fff",
+        padding: "8px 16px",
+        fontSize: 11,
+        fontWeight: 700,
+        fontFamily: MONO,
+        letterSpacing: 1.5,
+        textTransform: "uppercase",
+        textAlign: "center",
+      }}>Qualifying Ratios</div>
+      <div style={{ padding: "10px 16px", display: "grid", gridTemplateColumns: "1.4fr 0.8fr 0.8fr", gap: 6 }}>
+        {/* Header row */}
+        <div></div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>Personal</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>Max</div>
+        {/* HTI row */}
+        <div style={{ fontSize: 12, color: T.textSecondary }}>Housing-to-Income (HTI)</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.text, textAlign: "right", fontFamily: FONT }}>{(personalHTI * 100).toFixed(2)}%</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "right", fontFamily: FONT }}>{maxHTI ? `${(maxHTI * 100).toFixed(2)}%` : "—"}</div>
+        {/* DTI row */}
+        <div style={{ fontSize: 12, color: T.textSecondary }}>Total Debt-to-Income (DTI)</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: personalDTI > maxDTI ? T.red : T.text, textAlign: "right", fontFamily: FONT }}>{(personalDTI * 100).toFixed(2)}%</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "right", fontFamily: FONT }}>{(maxDTI * 100).toFixed(2)}%</div>
+      </div>
+    </div>
+  );
+}
 
 export default function QualifyContent({
   T, isDesktop, calc, fmt, pct,
@@ -20,6 +288,9 @@ export default function QualifyContent({
   setLoanType, userLoanTypeRef, setAutoJumboSwitch,
   confirmAffordApply, setConfirmAffordApply,
   getHighBalLimit, propType,
+  // New props for the Debt to Income Summary block (replaces old DTI bar).
+  incomes = [], subjectRentalIncome = 0, otherIncome = 0, otherIncome2 = 0,
+  reos = [], propertyCounty = "", propertyState = "California",
   StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow,
   GuidedNextButton,
 }) {
@@ -103,13 +374,22 @@ export default function QualifyContent({
  <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start", marginTop: 16 } : {}}>
  {/* ── LEFT column: DTI bar + Pre-Qualified vs Pre-Approved education ── */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
+ {/* Debt to Income Summary — full breakdown matching Christo's spreadsheet.
+     Replaces the old compact DTI bar + 'Min income needed' caption. */}
  {calc.qualifyingIncome > 0 && (
-  <Card>
-   <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>DTI: {pct(calc.yourDTI, 1)} / {pct(calc.maxDTI, 0)}</div>
-   <Progress value={calc.yourDTI} max={calc.maxDTI} color={calc.yourDTI <= calc.maxDTI ? T.green : T.red} height={10} />
-   <Note>Min income needed: <strong style={{ color: T.text }}>{fmt(calc.totalPayment / calc.maxDTI)}/mo</strong></Note>
-   {(calc.reoPositiveIncome > 0 || calc.reoNegativeDebt > 0) && <Note color={T.blue}>REO adjusted: {calc.reoPositiveIncome > 0 ? `+${fmt(calc.reoPositiveIncome)}/mo investment income` : ""}{calc.reoPositiveIncome > 0 && calc.reoNegativeDebt > 0 ? " · " : ""}{calc.reoNegativeDebt > 0 ? `+${fmt(calc.reoNegativeDebt)}/mo debt (${calc.reoPrimaryDebt > 0 ? "PITIA" : ""}${calc.reoPrimaryDebt > 0 && calc.reoInvestmentNet < 0 ? " + " : ""}${calc.reoInvestmentNet < 0 ? "inv. shortfall" : ""})` : ""}</Note>}
-  </Card>
+  <DebtToIncomeSummary
+    T={T} fmt={fmt} pct={pct}
+    calc={calc} loanType={loanType}
+    incomes={incomes}
+    subjectRentalIncome={subjectRentalIncome}
+    otherIncome={otherIncome}
+    otherIncome2={otherIncome2}
+    reos={reos}
+    debts={debts}
+    debtFree={debtFree}
+    propertyCounty={propertyCounty}
+    propertyState={propertyState}
+  />
  )}
  {/* Pre-Qualified vs Pre-Approved education box */}
  {allGood && !isRefi && (
@@ -286,23 +566,8 @@ export default function QualifyContent({
     )}
    </Sec>
    <div id="qualify-details" />
-   <Sec title="Estimated Monthly Payment">
-    <Card>
-     {hitsJumbo && <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 8 }}>Calculated using Jumbo guidelines (auto-switched from {affordLoanType})</div>}
-     <MRow label="Principal & Interest" value={fmt(pi)} />
-     <MRow label="Property Tax (est.)" value={fmt(tax)} sub="~1.25% of value" />
-     <MRow label="Insurance (est.)" value={fmt(ins)} sub="~0.35% of value" />
-     {mi > 0 && <MRow label="Mortgage Insurance" value={fmt(mi)} sub={finalProg.type === "FHA" ? "FHA MIP 0.55%" : "PMI ~0.5%"} />}
-     {fhaUp > 0 && <MRow label="FHA UFMIP (financed)" value={fmt(fhaUp)} sub="1.75% of base loan" />}
-     {vaFF > 0 && <MRow label="VA Funding Fee (financed)" value={fmt(vaFF)} sub="2.3% of base loan" />}
-     <MRow label="Total Housing Payment" value={fmt(totalPmt)} bold color={T.blue} />
-     <MRow label="+ Existing Debts" value={fmt(affordDebts)} />
-     <MRow label="Total Monthly Obligations" value={fmt(totalPmt + affordDebts)} bold />
-     <div style={{ height: 1, background: T.separator, margin: "8px 0" }} />
-     <MRow label="Your DTI" value={(actualDTI * 100).toFixed(1) + "%"} bold color={actualDTI <= (finalProg.maxDTI / 100) ? T.green : T.red} />
-     <MRow label="Remaining Budget" value={fmt(Math.max(0, affordIncome - totalPmt - affordDebts))} color={T.green} />
-    </Card>
-   </Sec>
+   {/* "Estimated Monthly Payment" block removed per Christo — the new Debt to Income
+       Summary at the top of Qualify covers the same data with the spreadsheet layout. */}
    <Sec title="Quick Scenarios">
     <Card>
      {[
