@@ -525,7 +525,7 @@ export default function CostsContent({
   GuidedNextButton,
 }) {
   // Section-level lock state — closing-cost subsections (A, B, C, E, H) start LOCKED for clean read-only view.
-  const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, H: true });
+  const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, F: true, H: true });
   const toggleLock = (k) => setSectionLocks(s => ({ ...s, [k]: !s[k] }));
 
   const ACCENT = T.blue;
