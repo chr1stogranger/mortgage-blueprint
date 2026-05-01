@@ -596,10 +596,36 @@ export default function CalculatorContent({
     ))}
    </div>
 
-   {/* Payment Breakdown card */}
-   <Card>
-    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>Payment Breakdown</div>
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+   {/* Payment Breakdown card — banded styling matching CashToCloseSummary:
+       light-blue gradient header band on top, light-blue total band on bottom.
+       Inner rows live in a padded body section. */}
+   <div style={{
+     background: T.card,
+     border: `1px solid ${T.cardBorder}`,
+     borderRadius: 14,
+     overflow: "hidden",
+     marginBottom: 16,
+     boxShadow: `0 0 0 1px ${T.blue}10`,
+   }}>
+    {/* Header band */}
+    <div style={{
+      background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
+      borderBottom: `1px solid ${T.blue}38`,
+      padding: "12px 18px",
+    }}>
+     <div style={{
+       fontSize: 11,
+       fontWeight: 700,
+       color: T.blue,
+       letterSpacing: "0.12em",
+       textTransform: "uppercase",
+       fontFamily: MONO,
+     }}>
+      Payment Breakdown
+     </div>
+    </div>
+    {/* Body */}
+    <div style={{ padding: "12px 18px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
      {[
       { label: "Principal", value: calc.monthlyPrinReduction || 0, color: T.cyan || T.blue },
       { label: "Interest",  value: (calc.pi || 0) - (calc.monthlyPrinReduction || 0), color: T.blue },
@@ -769,17 +795,40 @@ export default function CalculatorContent({
       </React.Fragment>
       );
      })}
-     <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
-      <span style={{ fontSize: 18, fontWeight: 800, color: T.blue, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
-     </div>
      {!includeEscrow && (
       <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>
        Escrow excluded — full PITI would be {fmt(calc.housingPayment)}/mo
       </div>
      )}
     </div>
-   </Card>
+    {/* Total Payment band — mirrors CashToCloseSummary's bottom band */}
+    <div style={{
+      background: `${T.blue}0E`,
+      borderTop: `1.5px solid ${T.blue}40`,
+      padding: "16px 18px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}>
+     <div style={{
+       fontSize: 12,
+       fontWeight: 700,
+       color: T.blue,
+       letterSpacing: "0.08em",
+       textTransform: "uppercase",
+       fontFamily: MONO,
+     }}>
+      Total Payment
+     </div>
+     <div style={{
+       fontFamily: FONT,
+       fontSize: 22,
+       fontWeight: 800,
+       color: T.blue,
+       letterSpacing: "-0.02em",
+     }}>{fmt(calc.displayPayment)}/mo</div>
+    </div>
+   </div>
 
    {/* Cash To Close Summary — shared component (also used on the Costs tab).
        Anchored at the bottom of the right column per Christo's spec. */}
