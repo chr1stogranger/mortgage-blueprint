@@ -885,14 +885,50 @@ export default function CostsContent({
             readOnly
             autoBadge
             prefixEditor={
-              <>
-                <div style={{ width: 72 }}>
-                  <Sel value={closingMonth} onChange={v => setClosingMonth(parseInt(v))} options={shortMonthOptions} sm />
-                </div>
-                <div style={{ width: 56 }}>
-                  <Sel value={closingDay} onChange={v => setClosingDay(parseInt(v))} options={dayOptions} sm />
-                </div>
-              </>
+              // Raw compact <select>s instead of the Sel component — Sel wraps in
+              // a div with marginBottom + thicker padding, which doubled the row
+              // height. These pills are styled tight to match the row's text-only
+              // siblings (Homeowner's Insurance, Property Taxes etc.).
+              (() => {
+                const pillStyle = {
+                  background: T.inputBg,
+                  border: `1px solid ${T.inputBorder}`,
+                  borderRadius: 9999,
+                  padding: "2px 8px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: T.text,
+                  fontFamily: FONT,
+                  height: 22,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  outline: "none",
+                  WebkitAppearance: "none",
+                  appearance: "none",
+                };
+                return (
+                  <>
+                    <select
+                      value={closingMonth}
+                      onChange={e => setClosingMonth(parseInt(e.target.value))}
+                      style={{ ...pillStyle, paddingRight: 8 }}
+                    >
+                      {shortMonthOptions.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={closingDay}
+                      onChange={e => setClosingDay(parseInt(e.target.value))}
+                      style={{ ...pillStyle, paddingRight: 8 }}
+                    >
+                      {dayOptions.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </>
+                );
+              })()
             }
             calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
             explainer="Interest from closing day through end of month — the closing date pills on the left drive this calc"
