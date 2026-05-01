@@ -31,12 +31,14 @@ function AutoBadge() {
   );
 }
 
-// Small clickable "i" icon — opens a modal popup with the calc breakdown and/or explainer.
-// Mirrors the InfoTip pattern used elsewhere (Setup, Calculator, etc.) so behavior stays consistent.
-function InfoTipBubble({ calc, explainer }) {
+// Small clickable "i" icon — opens a modal popup with the explainer text.
+// Calc strings are now rendered inline next to the fee label (see FeeRow), so this
+// bubble only carries the prose explainer. Mirrors the InfoTip pattern used elsewhere
+// (Setup, Calculator, etc.) so behavior stays consistent.
+function InfoTipBubble({ explainer }) {
   const { T } = useContext(CostsCtx);
   const [open, setOpen] = useState(false);
-  if (!calc && !explainer) return null;
+  if (!explainer) return null;
   return (
     <span style={{ position: "relative", display: "inline-flex", marginLeft: 6, verticalAlign: "middle" }}
       onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
@@ -54,16 +56,9 @@ function InfoTipBubble({ calc, explainer }) {
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.35)" }} />
           <div style={{ position: "relative", zIndex: 1, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14, padding: "18px 20px", width: "min(320px, 85vw)", boxShadow: "0 8px 30px rgba(0,0,0,0.25)" }}>
-            {calc && (
-              <div style={{ fontSize: 12, fontFamily: MONO, color: T.textSecondary, lineHeight: 1.6, marginBottom: explainer ? 10 : 0, paddingBottom: explainer ? 10 : 0, borderBottom: explainer ? `1px solid ${T.separator}` : "none" }}>
-                {calc}
-              </div>
-            )}
-            {explainer && (
-              <div style={{ fontSize: 13, lineHeight: 1.6, color: T.textSecondary }}>
-                {explainer}
-              </div>
-            )}
+            <div style={{ fontSize: 13, lineHeight: 1.6, color: T.textSecondary }}>
+              {explainer}
+            </div>
             <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} style={{ marginTop: 12, width: "100%", padding: "10px 0", background: T.blue, border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", fontFamily: FONT }}>Got it</button>
           </div>
         </div>
@@ -280,10 +275,22 @@ function FeeRow({
         gap: 10,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3, flexWrap: "wrap", rowGap: 2 }}>
             <span>{label}</span>
             {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: MONO }}>{sub}</span>}
-            <InfoTipBubble calc={calc} explainer={explainer} />
+            {calc && (
+              <span style={{
+                color: T.textTertiary,
+                fontSize: 11,
+                marginLeft: 8,
+                fontFamily: MONO,
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+              }}>
+                · {calc}
+              </span>
+            )}
+            <InfoTipBubble explainer={explainer} />
           </div>
           {alwaysVisibleControl && (
             <div style={{ display: "flex", alignItems: "center" }}>{alwaysVisibleControl}</div>
