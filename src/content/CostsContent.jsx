@@ -418,12 +418,13 @@ function EscrowCalendar({
   }
 
   // Account-info chips — compact summary, only visible when expanded.
+  // Starting Balance is already shown in its own row at the top of the calendar table,
+  // so we don't repeat it as a chip.
   const chips = [
     { label: "Tax Inst. 1", value: `${fmt2(annualTax / 2)} · Dec 10` },
     { label: "Tax Inst. 2", value: `${fmt2(annualTax / 2)} · Apr 10` },
     { label: "Insurance",   value: `${fmt2(annualIns)} · ${monthNames[insMonthIdx].slice(0, 3)} (annual)` },
     { label: "Monthly",     value: fmt2(monthlyDeposit) },
-    { label: "Starting Bal", value: fmt2(startingBalance) },
   ];
 
   return (
