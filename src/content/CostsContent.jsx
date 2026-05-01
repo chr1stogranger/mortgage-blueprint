@@ -381,6 +381,166 @@ function ToggleRow({ label, hint, on, onChange }) {
   );
 }
 
+// Escrow Calendar — chevron-collapsible 12-month forward projection of the escrow
+// account from closing date. Mirrors the property-tax breakdown chevron pattern used
+// in CalculatorContent (▾ rotates 180° when expanded). Deposits flow in monthly,
+// disbursements go out on:
+//   - Dec (CA Property Tax Installment 1 — half annual tax)
+//   - Apr (CA Property Tax Installment 2 — half annual tax)
+//   - Closing-month anniversary (full annual insurance premium)
+// When expanded, a compact info-chip row sits above the calendar with the key dates
+// + amounts so users get the headline numbers without scanning the whole table.
+function EscrowCalendar({
+  open, onToggle,
+  closingMonth, closingDay,
+  monthlyTax, monthlyIns, annualIns,
+  startingBalance,
+  monthNames, fmt2,
+}) {
+  const { T, ACCENT } = useContext(CostsCtx);
+  const annualTax = monthlyTax * 12;
+  const monthlyDeposit = (annualTax + annualIns) / 12;
+  const insMonthIdx = closingMonth - 1; // 0-based; insurance disburses on closing-month anniversary
+  // Build 13 rows: starting balance + 12 forward months. We start from the month
+  // AFTER the closing month so the first deposit row is one month post-close.
+  const rows = [];
+  let balance = startingBalance;
+  for (let i = 0; i < 13; i++) {
+    const monthIdx = (closingMonth + i) % 12;
+    const monthName = monthNames[monthIdx];
+    const deposit = monthlyDeposit;
+    let disbursement = 0;
+    if (monthIdx === 11) disbursement += annualTax / 2;     // December
+    if (monthIdx === 3)  disbursement += annualTax / 2;     // April
+    if (monthIdx === insMonthIdx) disbursement += annualIns; // closing-month anniversary
+    balance = balance + deposit - disbursement;
+    rows.push({ monthName, deposit, disbursement, balance });
+  }
+
+  // Account-info chips — compact summary, only visible when expanded.
+  const chips = [
+    { label: "Tax Inst. 1", value: `${fmt2(annualTax / 2)} · Dec 10` },
+    { label: "Tax Inst. 2", value: `${fmt2(annualTax / 2)} · Apr 10` },
+    { label: "Insurance",   value: `${fmt2(annualIns)} · ${monthNames[insMonthIdx].slice(0, 3)} (annual)` },
+    { label: "Monthly",     value: fmt2(monthlyDeposit) },
+    { label: "Starting Bal", value: fmt2(startingBalance) },
+  ];
+
+  return (
+    <div>
+      {/* Chevron toggle row — same pattern as the propTax breakdown chevron */}
+      <div
+        onClick={onToggle}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "10px 0", cursor: "pointer", userSelect: "none",
+          borderBottom: `1px dashed ${T.separator}`,
+        }}
+      >
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
+            {open ? "Hide Escrow Calendar" : "Show Escrow Calendar"}
+          </span>
+          <span style={{
+            fontSize: 12, color: T.blue,
+            transform: `translateY(-1px) rotate(${open ? 180 : 0}deg)`,
+            transition: "transform 0.2s", display: "inline-block",
+          }}>▾</span>
+        </div>
+      </div>
+
+      {open && (
+        <div style={{ padding: "12px 0 8px" }}>
+          {/* Compact info chips */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12,
+          }}>
+            {chips.map((c, i) => (
+              <div key={i} style={{
+                display: "inline-flex", alignItems: "baseline", gap: 6,
+                padding: "5px 10px", borderRadius: 9999,
+                background: `${ACCENT}10`, border: `1px solid ${ACCENT}26`,
+              }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, color: T.textTertiary,
+                  fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase",
+                }}>{c.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT }}>
+                  {c.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar table */}
+          <div style={{
+            background: T.bg || `${ACCENT}05`,
+            border: `1px solid ${T.separator}`,
+            borderRadius: 10, overflow: "hidden",
+          }}>
+            {/* Header band */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "1.2fr 1fr 1.1fr 1fr",
+              padding: "8px 12px", background: ACCENT, color: "#fff",
+              fontSize: 10, fontWeight: 700, fontFamily: MONO,
+              letterSpacing: 1, textTransform: "uppercase",
+            }}>
+              <span>Month</span>
+              <span style={{ textAlign: "right" }}>Deposit</span>
+              <span style={{ textAlign: "right" }}>Disbursement</span>
+              <span style={{ textAlign: "right" }}>Balance</span>
+            </div>
+            {/* Starting balance row */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "1.2fr 1fr 1.1fr 1fr",
+              padding: "8px 12px", borderBottom: `1px solid ${T.separator}`,
+              background: `${ACCENT}08`,
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: FONT }}>
+                Starting Balance
+              </span>
+              <span></span>
+              <span style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, textAlign: "right" }}>
+                $0.00
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: FONT, textAlign: "right" }}>
+                {fmt2(startingBalance)}
+              </span>
+            </div>
+            {/* Monthly rows */}
+            {rows.map((r, i) => (
+              <div key={i} style={{
+                display: "grid", gridTemplateColumns: "1.2fr 1fr 1.1fr 1fr",
+                padding: "8px 12px",
+                borderBottom: i < rows.length - 1 ? `1px solid ${T.separator}` : "none",
+                background: r.disbursement > 0 ? `${ACCENT}06` : "transparent",
+              }}>
+                <span style={{ fontSize: 12, color: T.text, fontFamily: FONT }}>
+                  {r.monthName}
+                </span>
+                <span style={{ fontSize: 12, fontFamily: FONT, color: T.textSecondary, textAlign: "right" }}>
+                  {fmt2(r.deposit)}
+                </span>
+                <span style={{
+                  fontSize: 12, fontFamily: FONT,
+                  color: r.disbursement > 0 ? T.red : T.textTertiary,
+                  fontWeight: r.disbursement > 0 ? 600 : 400,
+                  textAlign: "right",
+                }}>
+                  {r.disbursement > 0 ? fmt2(r.disbursement) : "—"}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, textAlign: "right" }}>
+                  {fmt2(r.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Cash-to-Close summary table (top of fees) — brand-kit styled.
 // Sums Down Payment + Closing Costs + Prepaids + Payoffs − Credits.
 function CashToCloseSummary({ T, ACCENT, fmt2, downPayment, closingCosts, prepaids, payoffs, credits, isRefi }) {
@@ -530,6 +690,7 @@ export default function CostsContent({
 }) {
   // Section-level lock state — closing-cost subsections (A, B, C, E, H) start LOCKED for clean read-only view.
   const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, F: true, H: true });
+  const [escrowCalendarOpen, setEscrowCalendarOpen] = useState(false);
   const toggleLock = (k) => setSectionLocks(s => ({ ...s, [k]: !s[k] }));
 
   const ACCENT = T.blue;
@@ -908,6 +1069,20 @@ export default function CostsContent({
                 autoBadge
                 calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
                 explainer="Cushion for upcoming property tax bills"
+              />
+              {/* Escrow Calendar — chevron expander showing 12-month forward projection.
+                  Sits BETWEEN the reserves and the toggle so the toggle stays last. */}
+              <EscrowCalendar
+                open={escrowCalendarOpen}
+                onToggle={() => setEscrowCalendarOpen(o => !o)}
+                closingMonth={closingMonth}
+                closingDay={closingDay}
+                monthlyTax={monthlyTax}
+                monthlyIns={monthlyIns}
+                annualIns={annualIns}
+                startingBalance={escrowHOI_reserve + escrowTax_reserve}
+                monthNames={monthNames}
+                fmt2={fmt2}
               />
             </>
           )}
