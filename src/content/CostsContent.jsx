@@ -685,17 +685,21 @@ export default function CostsContent({
                 : "Buy down the rate by paying points upfront, or go negative for a lender credit")}
             alwaysEdit
             inlineEditor={
-              <Inp
-                value={discountPts}
-                onChange={setDiscountPts}
-                prefix=""
-                suffix="%"
-                step={0.125}
-                min={-5}
-                max={10}
-                sm
-                tip="1 point = 1% of loan amount. Negative values become Lender Credits."
-              />
+              // Compact pill — width 92px keeps the row to a single line on desktop.
+              // Without an explicit width the Inp expands and forces the row to wrap.
+              <div style={{ width: 92 }}>
+                <Inp
+                  value={discountPts}
+                  onChange={setDiscountPts}
+                  prefix=""
+                  suffix="%"
+                  step={0.125}
+                  min={-5}
+                  max={10}
+                  sm
+                  tip="1 point = 1% of loan amount. Negative values become Lender Credits."
+                />
+              </div>
             }
           />
           <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
