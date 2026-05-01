@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "../Icon";
-import { getCaAmi } from "../data/caAmi";
+// AMI lookup retained in src/data/caAmi.js for future re-enabling, but no
+// longer rendered in the Debt to Income Summary card.
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -71,10 +72,6 @@ function DebtToIncomeSummary({
   // Personal ratios
   const personalHTI = totalMonthlyIncome > 0 ? newHousingPiti / totalMonthlyIncome : 0;
   const personalDTI = totalMonthlyIncome > 0 ? totalDebts / totalMonthlyIncome : 0;
-
-  // ── AMI (CA only) ──
-  const isCA = String(propertyState || "").toLowerCase().startsWith("california");
-  const ami = isCA ? getCaAmi(propertyCounty) : null;
 
   // ─── Render helpers ───
   const headerStyle = {
@@ -149,8 +146,8 @@ function DebtToIncomeSummary({
       {/* Top header band */}
       <div style={headerStyle}>Debt to Income Summary</div>
 
-      {/* 3-column body */}
-      <div style={{ display: "grid", gridTemplateColumns: isCA ? "1fr 0.85fr 1.1fr" : "1fr 1.1fr", gap: 0 }}>
+      {/* 2-column body — Income | Debts. AMI removed per Christo. */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         {/* INCOME column */}
         <div style={{ borderRight: `1px solid ${T.separator}` }}>
           <Column
@@ -182,32 +179,6 @@ function DebtToIncomeSummary({
             </span>
           </div>
         </div>
-
-        {/* AMI column (CA only) */}
-        {isCA && (
-          <div style={{ borderRight: `1px solid ${T.separator}` }}>
-            <div style={subHeaderStyle}>Area Median Income</div>
-            <div style={rowStyle}>
-              <span style={cellLabel}>120% AMI</span>
-              <span style={cellValue}>{ami ? fmt(ami.ami120) : "—"}</span>
-            </div>
-            <div style={rowStyle}>
-              <span style={cellLabel}>100% AMI</span>
-              <span style={cellValue}>{ami ? fmt(ami.ami100) : "—"}</span>
-            </div>
-            <div style={rowStyle}>
-              <span style={cellLabel}>80% AMI</span>
-              <span style={cellValue}>{ami ? fmt(ami.ami80) : "—"}</span>
-            </div>
-            <div style={{ ...rowStyle, fontSize: 10, color: T.textTertiary, padding: "8px 12px" }}>
-              <span style={{ fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>
-                {propertyCounty || "CA"} {ami?.source === "fallback" ? "(state avg)" : ""}
-              </span>
-              <span style={{ fontFamily: MONO, fontSize: 10 }}>HUD '24</span>
-            </div>
-            <div style={{ height: 1, background: T.separator }} />
-          </div>
-        )}
 
         {/* DEBTS column */}
         <div>
