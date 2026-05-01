@@ -415,8 +415,13 @@ export default function CalculatorContent({
     </div>
    )}
 
-   {/* Loan Amount / LTV / Cash to Close 3-col */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: isDesktop ? 8 : 16 }}>
+  </div>
+  {/* ========== END LEFT COLUMN ========== */}
+
+  {/* ========== RIGHT COLUMN ========== */}
+  <div>
+   {/* Loan Amount / LTV / Cash to Close 3-col — anchored at the TOP of the right column. */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
@@ -433,11 +438,7 @@ export default function CalculatorContent({
      </Card>
     ))}
    </div>
-  </div>
-  {/* ========== END LEFT COLUMN ========== */}
 
-  {/* ========== RIGHT COLUMN ========== */}
-  <div>
    {/* Rate / APR + Live Rates */}
    <Card style={{ marginBottom: 12 }}>
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 10 }}>
