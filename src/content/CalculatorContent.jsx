@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import CashToCloseSummary from "../components/CashToCloseSummary";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -221,13 +220,66 @@ export default function CalculatorContent({
  {/* ─────────────────────────────────────────────────────────────── */}
  <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start", marginBottom: 16 } : {}}>
 
-  {/* ========== LEFT COLUMN ==========
-       Order per Christo's screenshot:
-         1) Purchase Price / Down Payment card  (top)
-         2) Donut + Escrow toggle + legend       (middle)
-         3) Cash To Close Summary                (bottom)
-       Refi notes stay below all three. */}
+  {/* ========== LEFT COLUMN ========== */}
   <div>
+   {/* Donut block: Escrow toggle row spans the top, donut centered below */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
+    {/* Escrow toggle header row — label upper-left, toggle upper-right */}
+    {(() => {
+     const escrowLocked = loanType === "FHA" || loanType === "VA";
+     return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
+       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
+        Include Escrow (Tax &amp; Ins)
+       </span>
+       <button
+        onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
+        title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
+        style={{
+         width: 44,
+         height: 26,
+         borderRadius: 13,
+         border: "none",
+         padding: 0,
+         cursor: escrowLocked ? "not-allowed" : "pointer",
+         background: includeEscrow ? T.green : T.inputBorder,
+         position: "relative",
+         transition: "background 0.2s",
+         opacity: escrowLocked ? 0.6 : 1,
+        }}
+       >
+        <div style={{
+         width: 20,
+         height: 20,
+         borderRadius: 10,
+         background: "#fff",
+         position: "absolute",
+         top: 3,
+         left: includeEscrow ? 21 : 3,
+         transition: "left 0.2s",
+         boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+        }} />
+       </button>
+      </div>
+     );
+    })()}
+    {/* Donut, centered */}
+    <div style={{ display: "flex", justifyContent: "center" }}>
+     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
+    </div>
+   </div>
+
+   {/* Legend — small pills under the donut */}
+   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginBottom: 14 }}>
+    {legendRows.map((row, i) => (
+     <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
+      <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
+      <span>{row.label}</span>
+      <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
+     </div>
+    ))}
+   </div>
+
    {/* Purchase Price / Down Payment card — 2-col even on mobile (explicit ask) */}
    <div data-field="calc-price" className={isPulse && isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
@@ -298,79 +350,7 @@ export default function CalculatorContent({
     </div>
    </div>
 
-   {/* Donut block: Escrow toggle row spans the top, donut centered below */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginBottom: 12, marginTop: 4 }}>
-    {/* Escrow toggle header row — label upper-left, toggle upper-right */}
-    {(() => {
-     const escrowLocked = loanType === "FHA" || loanType === "VA";
-     return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
-       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
-        Include Escrow (Tax &amp; Ins)
-       </span>
-       <button
-        onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
-        title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
-        style={{
-         width: 44,
-         height: 26,
-         borderRadius: 13,
-         border: "none",
-         padding: 0,
-         cursor: escrowLocked ? "not-allowed" : "pointer",
-         background: includeEscrow ? T.green : T.inputBorder,
-         position: "relative",
-         transition: "background 0.2s",
-         opacity: escrowLocked ? 0.6 : 1,
-        }}
-       >
-        <div style={{
-         width: 20,
-         height: 20,
-         borderRadius: 10,
-         background: "#fff",
-         position: "absolute",
-         top: 3,
-         left: includeEscrow ? 21 : 3,
-         transition: "left 0.2s",
-         boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-        }} />
-       </button>
-      </div>
-     );
-    })()}
-    {/* Donut, centered */}
-    <div style={{ display: "flex", justifyContent: "center" }}>
-     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
-    </div>
-   </div>
-
-   {/* Legend — small pills under the donut */}
-   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginBottom: 14 }}>
-    {legendRows.map((row, i) => (
-     <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
-      <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
-      <span>{row.label}</span>
-      <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
-     </div>
-    ))}
-   </div>
-
-   {/* Cash To Close Summary — same card as the Closing Costs tab. Uses calc fields directly.
-       isRefi flips the header to 'Refi Cost' and hides the Down Payment row. */}
-   <CashToCloseSummary
-    T={T}
-    ACCENT={T.blue}
-    fmt2={fmt2}
-    downPayment={calc.dp || 0}
-    closingCosts={calc.totalClosingCosts || 0}
-    prepaids={calc.totalPrepaidExp || 0}
-    payoffs={0}
-    credits={calc.totalCredits || 0}
-    isRefi={isRefi}
-   />
-
-   {/* Escrow warning notes (live below the cash-to-close card now). */}
+   {/* Escrow toggle moved into the donut's upper-right whitespace (above). Warning notes remain here. */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
    {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note>}
 
@@ -415,13 +395,8 @@ export default function CalculatorContent({
     </div>
    )}
 
-  </div>
-  {/* ========== END LEFT COLUMN ========== */}
-
-  {/* ========== RIGHT COLUMN ========== */}
-  <div>
-   {/* Loan Amount / LTV / Cash to Close 3-col — anchored at the TOP of the right column. */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+   {/* Loan Amount / LTV / Cash to Close 3-col — anchored at the BOTTOM of the left column. */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: isDesktop ? 8 : 16 }}>
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
@@ -438,7 +413,11 @@ export default function CalculatorContent({
      </Card>
     ))}
    </div>
+  </div>
+  {/* ========== END LEFT COLUMN ========== */}
 
+  {/* ========== RIGHT COLUMN ========== */}
+  <div>
    {/* Rate / APR + Live Rates */}
    <Card style={{ marginBottom: 12 }}>
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 10 }}>
