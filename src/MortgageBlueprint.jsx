@@ -1733,6 +1733,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [confirmAffordApply, setConfirmAffordApply] = useState(false);
  const [closingMonth, setClosingMonth] = useState(new Date().getMonth() + 1);
  const [closingDay, setClosingDay] = useState(15);
+ // F. Prepaids — split Property Taxes into Installment + Sellers Prorated Reimbursement
+ // Both default to $0 and stay hidden in the UI until the user unlocks Section F.
+ // sellersProratedTaxCredit is stored as a POSITIVE dollar amount, applied as a negative
+ // credit against the prepaid total at calc time (mirrors the spreadsheet's display).
+ const [propertyTaxesInstallment, setPropertyTaxesInstallment] = useState(0);
+ const [sellersProratedTaxCredit, setSellersProratedTaxCredit] = useState(0);
  // ── Course State ──
  const [courseProgress, setCourseProgress] = useState({});
  const [courseChapter, setCourseChapter] = useState(null);
@@ -1764,7 +1770,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
-  prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
+  prepaidDays, coeDays, closingMonth, closingDay, propertyTaxesInstallment, sellersProratedTaxCredit, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
@@ -1837,6 +1843,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.coeDays !== undefined) setCoeDays(s.coeDays);
   if (s.closingMonth !== undefined) setClosingMonth(s.closingMonth);
   if (s.closingDay !== undefined) setClosingDay(s.closingDay);
+  if (s.propertyTaxesInstallment !== undefined) setPropertyTaxesInstallment(s.propertyTaxesInstallment);
+  if (s.sellersProratedTaxCredit !== undefined) setSellersProratedTaxCredit(s.sellersProratedTaxCredit);
   if (s.debts) setDebts(s.debts);
   if (s.married) setMarried(s.married === "Yes" ? "MFJ" : s.married === "No" ? "Single" : s.married);
   if (s.taxState) setTaxState(s.taxState);
@@ -3350,7 +3358,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const prepaidIns = annualIns;
   const daysToYearEnd = Math.ceil((new Date(closeDate.getFullYear(), 11, 31) - closeDate) / (1000 * 60 * 60 * 24));
   const sellerProration = 0;
-  const totalPrepaids = prepaidInt + prepaidIns;
+  // Section F now includes: prepaid interest + 12mo insurance + property tax installment
+  // − sellers prorated tax credit (stored as positive, applied as negative).
+  // Old single "Property Taxes" row in Section F was display-only (already counted in
+  // initialEscrow / Section G), so removing it doesn't affect totals.
+  const totalPrepaids = prepaidInt + prepaidIns + propertyTaxesInstallment - sellersProratedTaxCredit;
   const closeMonth = closingMonth;
   const escrowTaxMonths = (closeMonth >= 3 && closeMonth <= 9) ? closeMonth : 7;
   const escrowInsMonths = 3;
@@ -4724,7 +4736,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
-{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
+{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}
@@ -4929,6 +4941,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    annualIns, setAnnualIns, hoa, setHoa,
    includeEscrow, setIncludeEscrow,
    closingMonth, setClosingMonth, closingDay, setClosingDay,
+   propertyTaxesInstallment, setPropertyTaxesInstallment,
+   sellersProratedTaxCredit, setSellersProratedTaxCredit,
    closingMonths: [1,2,3,4,5,6,7,8,9,10,11,12],
    isRefi, setIsRefi,
    firstTimeBuyer, setFirstTimeBuyer, creditScore, setCreditScore,

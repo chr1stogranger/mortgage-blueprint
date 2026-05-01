@@ -251,10 +251,19 @@ function FeeRow({
   isDollar = true, bold = false, color, note,
   readOnly = false, autoBadge = false, alwaysEdit = false,
   inlineEditor = null, alwaysVisibleControl = null,
+  prefixEditor = null,           // NEW: always-visible editor rendered BEFORE the label
+  hideWhenLockedAndZero = false, // NEW: row collapses entirely when section is locked AND value is 0
   calc, explainer,
 }) {
   const { T, fmt2, Inp } = useContext(CostsCtx);
   const { unlocked: sectionUnlocked } = useContext(LockCtx);
+
+  // Hide-when-locked-and-zero: lets a section have "advanced" rows that only appear
+  // once the section is unlocked. Used by Property Taxes — Installment / Sellers
+  // Prorated Reimbursement so the default (zeroed) view stays clean.
+  if (hideWhenLockedAndZero && !sectionUnlocked && (value === 0 || value === null || value === undefined || value === "")) {
+    return null;
+  }
 
   // Determine effective edit mode for this row.
   // - editable (value): row's main value can be edited via inline number input.
@@ -277,6 +286,11 @@ function FeeRow({
         gap: 10,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
+          {prefixEditor && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              {prefixEditor}
+            </div>
+          )}
           <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3, flexWrap: "wrap", rowGap: 2 }}>
             <span>{label}</span>
             {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: MONO }}>{sub}</span>}
@@ -499,6 +513,8 @@ export default function CostsContent({
   buyerCommPct, setBuyerCommPct,
   closingMonth, setClosingMonth,
   closingDay, setClosingDay,
+  propertyTaxesInstallment, setPropertyTaxesInstallment,
+  sellersProratedTaxCredit, setSellersProratedTaxCredit,
   annualIns, setAnnualIns,
   includeEscrow, setIncludeEscrow,
   lenderCredit, setLenderCredit,
@@ -550,7 +566,10 @@ export default function CostsContent({
   const monthlyIns = calc.ins || 0;
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const shortMonthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const monthOptions = monthNames.map((m, i) => ({ value: i + 1, label: m }));
+  // Compact options for the inline closing-date pill on the Prepaid Interest row.
+  const shortMonthOptions = shortMonthNames.map((m, i) => ({ value: i + 1, label: m }));
   const dayOptions = Array.from({ length: new Date(new Date().getFullYear(), closingMonth, 0).getDate() }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
 
   return (
@@ -782,28 +801,70 @@ export default function CostsContent({
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
       <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={true}>
 
-        {/* F. Prepaids — not lockable per spec; Hazard Ins always inline-edit, others auto */}
-        <LetterSection letter="F" title="Prepaids">
-          {/* Closing date as its own always-visible row (replaces the old "+" editor on Prepaid Interest) */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 0", borderBottom: `1px dashed ${T.separator}` }}>
-            <div style={{ fontSize: 13, color: T.textSecondary, fontWeight: 500 }}>Closing Date</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ minWidth: 130 }}>
-                <Sel value={closingMonth} onChange={v => setClosingMonth(parseInt(v))} options={monthOptions} sm />
-              </div>
-              <div style={{ minWidth: 70 }}>
-                <Sel value={closingDay} onChange={v => setClosingDay(parseInt(v))} options={dayOptions} sm />
-              </div>
-            </div>
-          </div>
+        {/* F. Prepaids — lockable so the two Property Tax rows can be revealed for editing.
+            Order matches Christo's client-walkthrough spreadsheet:
+              1) Prepaid Interest (with inline closing-date pills before the label)
+              2) Homeowner's Insurance — First Year (read-only, derives from Setup)
+              3) Property Taxes — Installment (hidden until unlocked or non-zero)
+              4) Property Taxes — Sellers Prorated Reimbursement (hidden until unlocked or non-zero)
+              5) Mortgage Insurance Premium (FHA/USDA only)
+              6) Include Escrow Impounds toggle (gates Section G) */}
+        <LetterSection letter="F" title="Prepaids" lockable>
+          {/* 1. Prepaid Interest — closing date pills sit BEFORE the label as a prefixEditor.
+              Pills are tight (width 78 / 56) so the row stays single-line on desktop. */}
           <FeeRow
-            label="Hazard Insurance Premium"
-            value={annualIns}
-            onChange={setAnnualIns}
-            alwaysEdit
-            calc={`12 mo × ${fmt2(annualIns / 12)}/mo = ${fmt2(annualIns)}`}
-            explainer="First-year homeowner's insurance, paid up front at closing"
+            label="Prepaid Interest"
+            value={calc.prepaidInt}
+            readOnly
+            autoBadge
+            prefixEditor={
+              <>
+                <div style={{ width: 72 }}>
+                  <Sel value={closingMonth} onChange={v => setClosingMonth(parseInt(v))} options={shortMonthOptions} sm />
+                </div>
+                <div style={{ width: 56 }}>
+                  <Sel value={closingDay} onChange={v => setClosingDay(parseInt(v))} options={dayOptions} sm />
+                </div>
+              </>
+            }
+            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
+            explainer="Interest from closing day through end of month — the closing date pills on the left drive this calc"
           />
+
+          {/* 2. Homeowner's Insurance — First Year — read-only. Calculates from monthly
+              insurance (annualIns / 12) set in Setup. No inline edit here. */}
+          <FeeRow
+            label="Homeowner's Insurance — First Year"
+            value={annualIns}
+            readOnly
+            autoBadge
+            calc={`12 mo × ${fmt2(annualIns / 12)}/mo = ${fmt2(annualIns)}`}
+            explainer="First-year homeowner's insurance, calculated from monthly insurance × 12. Edit the monthly amount in the Setup tab."
+          />
+
+          {/* 3. Property Taxes — Installment (hidden by default; revealed when section unlocked) */}
+          <FeeRow
+            label="Property Taxes — Installment"
+            value={propertyTaxesInstallment}
+            onChange={setPropertyTaxesInstallment}
+            hideWhenLockedAndZero
+            explainer="Lump-sum property tax installment due to lender at closing. Common when closing falls inside a tax billing period."
+          />
+
+          {/* 4. Property Taxes — Sellers Prorated Reimbursement (hidden by default).
+              Stored as a positive amount; calc subtracts it as a credit. Green text
+              + the word "Reimbursement" makes the credit nature clear without needing
+              a negative-sign workaround in the editor. */}
+          <FeeRow
+            label="Property Taxes — Sellers Prorated Reimbursement"
+            value={sellersProratedTaxCredit}
+            onChange={setSellersProratedTaxCredit}
+            hideWhenLockedAndZero
+            color={T.green}
+            explainer="Credit from seller for property taxes they prepaid covering the buyer's ownership period after closing. Subtracted from total prepaids."
+          />
+
+          {/* 5. Mortgage Insurance Premium — FHA/USDA only, last in section */}
           {monthlyMI > 0 && (
             <FeeRow
               label="Mortgage Insurance Premium"
@@ -813,24 +874,8 @@ export default function CostsContent({
               explainer="Upfront MI premium (FHA/USDA only — conv. MI is monthly)"
             />
           )}
-          <FeeRow
-            label="Prepaid Interest"
-            value={calc.prepaidInt}
-            readOnly
-            autoBadge
-            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
-            explainer="Interest from closing day through end of month"
-          />
-          {includeEscrow && (
-            <FeeRow
-              label="Property Taxes"
-              value={proposedTax_atClosing}
-              readOnly
-              autoBadge
-              calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(proposedTax_atClosing)}`}
-              explainer="Property taxes collected at closing to fund escrow account"
-            />
-          )}
+
+          {/* Escrow toggle — gates whether Section G renders */}
           <ToggleRow
             label="Include Escrow Impounds"
             hint="Toggle OFF to waive escrow — no property tax or insurance reserves collected at closing"
