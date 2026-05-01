@@ -370,7 +370,7 @@ export default function CalculatorContent({
          border: "none",
          padding: 0,
          cursor: escrowLocked ? "not-allowed" : "pointer",
-         background: includeEscrow ? T.green : T.inputBorder,
+         background: includeEscrow ? T.blue : T.inputBorder,
          position: "relative",
          transition: "background 0.2s",
          opacity: escrowLocked ? 0.6 : 1,
