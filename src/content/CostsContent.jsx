@@ -286,14 +286,18 @@ function FeeRow({
         gap: 10,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
-          {prefixEditor && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-              {prefixEditor}
-            </div>
-          )}
           <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3, flexWrap: "wrap", rowGap: 2 }}>
             <span>{label}</span>
             {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: MONO }}>{sub}</span>}
+            {/* prefixEditor name kept for backwards compat, but it now renders AFTER the
+                label and BEFORE the calc string — so the row label stays left-aligned with
+                its siblings (per Christo's spec). Used by the closing-date pills on the
+                Prepaid Interest row. */}
+            {prefixEditor && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+                {prefixEditor}
+              </span>
+            )}
             {calc && (
               <span style={{
                 color: T.textTertiary,
@@ -864,7 +868,9 @@ export default function CostsContent({
             explainer="Credit from seller for property taxes they prepaid covering the buyer's ownership period after closing. Subtracted from total prepaids."
           />
 
-          {/* 5. Mortgage Insurance Premium — FHA/USDA only, last in section */}
+          {/* 5. Mortgage Insurance Premium — FHA/USDA only, last in section.
+              The Include Escrow Impounds toggle moved to the BOTTOM of Section G
+              (mirrors how Buyer Pays Agent Commission lives at the bottom of H). */}
           {monthlyMI > 0 && (
             <FeeRow
               label="Mortgage Insurance Premium"
@@ -874,17 +880,12 @@ export default function CostsContent({
               explainer="Upfront MI premium (FHA/USDA only — conv. MI is monthly)"
             />
           )}
-
-          {/* Escrow toggle — gates whether Section G renders */}
-          <ToggleRow
-            label="Include Escrow Impounds"
-            hint="Toggle OFF to waive escrow — no property tax or insurance reserves collected at closing"
-            on={includeEscrow}
-            onChange={setIncludeEscrow}
-          />
         </LetterSection>
 
-        {/* G. Initial Escrow Payment at Closing */}
+        {/* G. Initial Escrow Payment at Closing.
+            Include Escrow Impounds toggle lives at the bottom of THIS section now
+            (mirrors how Buyer Pays Agent Commission anchors the bottom of Section H).
+            Toggle stays visible whether escrow is on or off so users can flip it back. */}
         <LetterSection letter="G" title="Initial Escrow Payment at Closing">
           {!includeEscrow ? (
             <div style={{ padding: "8px 0", fontSize: 12, color: T.textSecondary }}>
@@ -910,6 +911,13 @@ export default function CostsContent({
               />
             </>
           )}
+          {/* Toggle anchored at the bottom of Section G */}
+          <ToggleRow
+            label="Include Escrow Impounds"
+            hint="Toggle OFF to waive escrow — no property tax or insurance reserves collected at closing"
+            on={includeEscrow}
+            onChange={setIncludeEscrow}
+          />
         </LetterSection>
       </CollapsibleBox>
 
