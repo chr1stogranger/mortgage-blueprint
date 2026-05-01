@@ -146,7 +146,7 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
   const locked = lockable ? !!sectionLocks[letter] : true;
   const unlocked = lockable && !locked;
   return (
-    <div style={{
+    <div className="cost-letter-section" style={{
       marginBottom: 14,
       // subtle background tint when section is in edit mode
       ...(unlocked ? { background: `${ACCENT}06`, borderRadius: 10, padding: "4px 10px", border: `1px solid ${ACCENT}22` } : {}),
@@ -200,7 +200,9 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
         </div>
       </div>
       <LockCtx.Provider value={{ unlocked, letter }}>
-        {children}
+        <div className="cost-letter-section-rows">
+          {children}
+        </div>
       </LockCtx.Provider>
     </div>
   );
@@ -553,6 +555,15 @@ export default function CostsContent({
 
   return (
     <CostsCtx.Provider value={ctx}>
+      {/* Strip the trailing dashed border off the LAST row of every LetterSection
+          so an unmatched border + section bottom-margin doesn't read as an empty row.
+          (Prior visual bug: ToggleRow with no following sibling looked like it had
+          a phantom blank line beneath it in section H.) */}
+      <style>{`
+        .cost-letter-section-rows > *:last-child {
+          border-bottom: none !important;
+        }
+      `}</style>
       {/* Cash To Close Summary — top of fees, brand-kit styled */}
       <div style={{ marginTop: 20 }}>
         <CashToCloseSummary
