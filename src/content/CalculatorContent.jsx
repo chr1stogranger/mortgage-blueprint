@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import CashToCloseSummary from "../components/CashToCloseSummary";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -225,6 +226,143 @@ export default function CalculatorContent({
 
   {/* ========== LEFT COLUMN ========== */}
   <div>
+   {/* Rate / APR — slim card. Lives at the TOP of the left column per Christo
+       so the rate input sits directly above the donut it drives. Live-rates UI
+       lives inline as a small pill on the right of the Rate label row;
+       clicking the '✓ Live' pill opens a popup with the 6 rate-type options. */}
+   <Card style={{ marginBottom: 12 }}>
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+     <div style={{ flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 6, gap: 8 }}>
+       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+        {isRefi ? "New Rate" : "Rate"}<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+        <InfoTip text="Your annual interest rate. Depends on loan type, FICO, down payment %, loan amount, property type, and market conditions." />
+       </div>
+       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+        {isRefi && refiCurrentRate > 0 && <span style={{ fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
+        {liveRates ? (
+         <button
+          onClick={() => setRatesPopupOpen(true)}
+          title="View today's rates by loan type"
+          style={{
+           display: "inline-flex", alignItems: "center", gap: 5,
+           background: `${T.green}15`, border: `1px solid ${T.green}40`,
+           borderRadius: 9999, padding: "3px 9px", cursor: "pointer",
+           fontSize: 11, fontWeight: 600, color: T.green, fontFamily: FONT,
+          }}
+         >
+          ✓ Live · {liveRates.date || "Today"}
+         </button>
+        ) : (
+         <button
+          onClick={fetchRates}
+          disabled={ratesLoading}
+          title="Fetch today's rates from FRED / Freddie Mac PMMS"
+          style={{
+           display: "inline-flex", alignItems: "center", gap: 5,
+           background: "transparent", border: `1px solid ${T.blue}40`,
+           borderRadius: 9999, padding: "3px 9px",
+           cursor: ratesLoading ? "wait" : "pointer",
+           fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT,
+          }}
+         >
+          {ratesLoading ? "Fetching..." : "◉ Get Live Rates"}
+         </button>
+        )}
+       </div>
+      </div>
+      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+     </div>
+     {!isRefi && calc.apr > 0 && calc.apr !== rate && (
+      <div style={{ flex: 1, marginBottom: 2 }}>
+       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
+        <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
+       </div>
+       <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
+      </div>
+     )}
+    </div>
+    {isRefi && refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
+     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 6 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
+    )}
+    {isRefi && refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 6 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
+    )}
+    {ratesError && <div style={{ fontSize: 11, color: T.red, marginTop: 10, wordBreak: "break-all", lineHeight: 1.4, padding: 10, background: T.errorBg, borderRadius: 8 }}>{ratesError}</div>}
+   </Card>
+
+   {/* Live-rates popup modal — opens when user clicks the '✓ Live' pill above. */}
+   {ratesPopupOpen && liveRates && (
+    <div
+     onClick={() => setRatesPopupOpen(false)}
+     style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+      zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 20,
+     }}
+    >
+     <div
+      onClick={e => e.stopPropagation()}
+      style={{
+       background: T.card, border: `1px solid ${T.cardBorder}`,
+       borderRadius: 16, padding: 20, maxWidth: 420, width: "100%",
+       boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+      }}
+     >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+       <div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Today's Rates</div>
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{liveRates.date || "Today"} · click a tile to apply</div>
+       </div>
+       <button
+        onClick={() => setRatesPopupOpen(false)}
+        style={{ background: "transparent", border: "none", fontSize: 18, color: T.textTertiary, cursor: "pointer", padding: 4, lineHeight: 1 }}
+       >×</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+       {[["30yr", liveRates["30yr_fixed"]], ["15yr", liveRates["15yr_fixed"]], ["FHA", liveRates["30yr_fha"]],
+        ["VA", liveRates["30yr_va"]], ["Jumbo", liveRates["30yr_jumbo"]], ["5/1 ARM", liveRates["5yr_arm"]]
+       ].filter(([, v]) => v).map(([label, r], i) => {
+        const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
+         (label === "15yr" && loanType === "Conventional" && term === 15) ||
+         (label === "FHA" && loanType === "FHA") ||
+         (label === "VA" && loanType === "VA") ||
+         (label === "Jumbo" && loanType === "Jumbo");
+        return (
+         <div
+          key={i}
+          onClick={() => { setRate(r); setRatesPopupOpen(false); }}
+          style={{
+           background: isActive ? `${T.blue}20` : T.inputBg,
+           border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`,
+           borderRadius: 10, padding: "10px 10px",
+           cursor: "pointer", textAlign: "center", transition: "all 0.2s",
+          }}
+         >
+          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
+         </div>
+        );
+       })}
+      </div>
+      {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>Source: {liveRates.source}</div>}
+      <button
+       onClick={fetchRates}
+       disabled={ratesLoading}
+       style={{
+        marginTop: 12, width: "100%", padding: "10px 14px",
+        background: `${T.blue}10`, border: `1px solid ${T.blue}33`,
+        borderRadius: 10, fontSize: 12, fontWeight: 600, color: T.blue,
+        cursor: ratesLoading ? "wait" : "pointer", fontFamily: FONT,
+       }}
+      >
+       {ratesLoading ? "Refreshing..." : "↻ Refresh Rates"}
+      </button>
+     </div>
+    </div>
+   )}
+
    {/* Donut block: Escrow toggle row spans the top, donut centered below */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
     {/* Escrow toggle header row — label upper-left, toggle upper-right */}
@@ -421,143 +559,53 @@ export default function CalculatorContent({
 
   {/* ========== RIGHT COLUMN ========== */}
   <div>
-   {/* Rate / APR — slim card. Live-rates UI lives inline as a small pill on the
-       right of the Rate label row; clicking the '✓ Live' pill opens a popup with
-       the 6 rate-type options. The full grid no longer takes permanent space. */}
-   <Card style={{ marginBottom: 12 }}>
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-     <div style={{ flex: 1 }}>
-      <div style={{ display: "flex", alignItems: "center", marginBottom: 6, gap: 8 }}>
-       <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-        {isRefi ? "New Rate" : "Rate"}<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-        <InfoTip text="Your annual interest rate. Depends on loan type, FICO, down payment %, loan amount, property type, and market conditions." />
-       </div>
-       {/* Inline live-rates indicator — replaces the old full-width button */}
-       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        {isRefi && refiCurrentRate > 0 && <span style={{ fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
-        {liveRates ? (
-         <button
-          onClick={() => setRatesPopupOpen(true)}
-          title="View today's rates by loan type"
-          style={{
-           display: "inline-flex", alignItems: "center", gap: 5,
-           background: `${T.green}15`, border: `1px solid ${T.green}40`,
-           borderRadius: 9999, padding: "3px 9px", cursor: "pointer",
-           fontSize: 11, fontWeight: 600, color: T.green, fontFamily: FONT,
-          }}
-         >
-          ✓ Live · {liveRates.date || "Today"}
-         </button>
-        ) : (
-         <button
-          onClick={fetchRates}
-          disabled={ratesLoading}
-          title="Fetch today's rates from FRED / Freddie Mac PMMS"
-          style={{
-           display: "inline-flex", alignItems: "center", gap: 5,
-           background: "transparent", border: `1px solid ${T.blue}40`,
-           borderRadius: 9999, padding: "3px 9px",
-           cursor: ratesLoading ? "wait" : "pointer",
-           fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT,
-          }}
-         >
-          {ratesLoading ? "Fetching..." : "◉ Get Live Rates"}
-         </button>
-        )}
-       </div>
-      </div>
-      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
-     </div>
-     {!isRefi && calc.apr > 0 && calc.apr !== rate && (
-      <div style={{ flex: 1, marginBottom: 2 }}>
-       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
-        <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
-       </div>
-       <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
-      </div>
-     )}
-    </div>
-    {isRefi && refiCurrentRate > 0 && rate > 0 && rate < refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: 6 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
-    )}
-    {isRefi && refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 6 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
-    )}
-    {ratesError && <div style={{ fontSize: 11, color: T.red, marginTop: 10, wordBreak: "break-all", lineHeight: 1.4, padding: 10, background: T.errorBg, borderRadius: 8 }}>{ratesError}</div>}
-   </Card>
-
-   {/* Live-rates popup modal — opens when user clicks the '✓ Live' pill above.
-       Shows the 6 rate-type options as a grid; clicking a pill applies that rate. */}
-   {ratesPopupOpen && liveRates && (
-    <div
-     onClick={() => setRatesPopupOpen(false)}
-     style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-      zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 20,
-     }}
-    >
-     <div
-      onClick={e => e.stopPropagation()}
-      style={{
-       background: T.card, border: `1px solid ${T.cardBorder}`,
-       borderRadius: 16, padding: 20, maxWidth: 420, width: "100%",
-       boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-      }}
-     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-       <div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Today's Rates</div>
-        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{liveRates.date || "Today"} · click a tile to apply</div>
-       </div>
-       <button
-        onClick={() => setRatesPopupOpen(false)}
-        style={{ background: "transparent", border: "none", fontSize: 18, color: T.textTertiary, cursor: "pointer", padding: 4, lineHeight: 1 }}
-       >×</button>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-       {[["30yr", liveRates["30yr_fixed"]], ["15yr", liveRates["15yr_fixed"]], ["FHA", liveRates["30yr_fha"]],
-        ["VA", liveRates["30yr_va"]], ["Jumbo", liveRates["30yr_jumbo"]], ["5/1 ARM", liveRates["5yr_arm"]]
-       ].filter(([, v]) => v).map(([label, r], i) => {
-        const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
-         (label === "15yr" && loanType === "Conventional" && term === 15) ||
-         (label === "FHA" && loanType === "FHA") ||
-         (label === "VA" && loanType === "VA") ||
-         (label === "Jumbo" && loanType === "Jumbo");
-        return (
-         <div
-          key={i}
-          onClick={() => { setRate(r); setRatesPopupOpen(false); }}
-          style={{
-           background: isActive ? `${T.blue}20` : T.inputBg,
-           border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`,
-           borderRadius: 10, padding: "10px 10px",
-           cursor: "pointer", textAlign: "center", transition: "all 0.2s",
-          }}
-         >
-          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
+   {/* Compact 5-pillar row — same content as the Qualify tab pillars but slim
+       (28px circles, single horizontal strip) so they fit at the top of the
+       Calculator's right column. Click any pillar to jump to the Qualify tab. */}
+   {(() => {
+    const compactChecks = isRefi ? [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
+    ] : [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
+     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
+    ];
+    return (
+     <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12 }}>
+      {compactChecks.map((c, i) => {
+       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
+       const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
+       return (
+        <div
+         key={i}
+         onClick={() => handlePillarClick && handlePillarClick(c.label)}
+         title={`${c.label}: ${c.sub} — click for details`}
+         style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "10px 4px 8px", background: bg, borderRadius: 12,
+          cursor: "pointer", transition: "all 0.2s",
+         }}
+        >
+         <div style={{
+          width: 28, height: 28, borderRadius: "50%",
+          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
+         }}>
+          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
          </div>
-        );
-       })}
-      </div>
-      {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>Source: {liveRates.source}</div>}
-      <button
-       onClick={fetchRates}
-       disabled={ratesLoading}
-       style={{
-        marginTop: 12, width: "100%", padding: "10px 14px",
-        background: `${T.blue}10`, border: `1px solid ${T.blue}33`,
-        borderRadius: 10, fontSize: 12, fontWeight: 600, color: T.blue,
-        cursor: ratesLoading ? "wait" : "pointer", fontFamily: FONT,
-       }}
-      >
-       {ratesLoading ? "Refreshing..." : "↻ Refresh Rates"}
-      </button>
+         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
+         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
+        </div>
+       );
+      })}
      </div>
-    </div>
-   )}
+    );
+   })()}
 
    {/* Payment Breakdown card */}
    <Card>
@@ -743,6 +791,20 @@ export default function CalculatorContent({
      )}
     </div>
    </Card>
+
+   {/* Cash To Close Summary — shared component (also used on the Costs tab).
+       Anchored at the bottom of the right column per Christo's spec. */}
+   <CashToCloseSummary
+    T={T}
+    ACCENT={T.blue}
+    fmt2={fmt2}
+    downPayment={calc.dp || 0}
+    closingCosts={calc.totalClosingCosts || 0}
+    prepaids={calc.totalPrepaidExp || 0}
+    payoffs={0}
+    credits={calc.totalCredits || 0}
+    isRefi={isRefi}
+   />
   </div>
   {/* ========== END RIGHT COLUMN ========== */}
 
