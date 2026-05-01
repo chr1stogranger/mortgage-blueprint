@@ -685,20 +685,33 @@ export default function CostsContent({
                 : "Buy down the rate by paying points upfront, or go negative for a lender credit")}
             alwaysEdit
             inlineEditor={
-              // Compact pill — width 92px keeps the row to a single line on desktop.
-              // Without an explicit width the Inp expands and forces the row to wrap.
-              <div style={{ width: 92 }}>
-                <Inp
+              // Tight 22px-height pill so the row matches the height of its sibling
+              // text-only rows. Inp's wrapping marginBottom + padding doubled the row
+              // height, so we use a raw <input> styled compactly here.
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                background: T.inputBg, border: `1px solid ${T.inputBorder}`,
+                borderRadius: 9999, padding: "0 8px", height: 24,
+              }}>
+                <input
+                  type="text"
+                  inputMode="decimal"
                   value={discountPts}
-                  onChange={setDiscountPts}
-                  prefix=""
-                  suffix="%"
+                  onChange={e => {
+                    const raw = e.target.value.replace(/[^\-0-9.]/g, "");
+                    if (raw === "" || raw === "-") { setDiscountPts(0); return; }
+                    const n = parseFloat(raw);
+                    if (!isNaN(n)) setDiscountPts(Math.max(-5, Math.min(10, n)));
+                  }}
                   step={0.125}
-                  min={-5}
-                  max={10}
-                  sm
-                  tip="1 point = 1% of loan amount. Negative values become Lender Credits."
+                  style={{
+                    width: 48, background: "transparent", border: "none", outline: "none",
+                    color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT,
+                    textAlign: "right", padding: 0,
+                  }}
+                  title="1 point = 1% of loan amount. Negative values become Lender Credits."
                 />
+                <span style={{ color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>%</span>
               </div>
             }
           />
