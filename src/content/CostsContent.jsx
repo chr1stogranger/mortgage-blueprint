@@ -239,6 +239,60 @@ function TotalBand({ letter, title, total }) {
   );
 }
 
+// CompactNumPill — tight 20px-tall numeric input pill for use as inlineEditor in FeeRow.
+// Holds a local edit-string so the user can type intermediate states like "-" (before the
+// digit) or "0." (before the decimal) without those being clamped to a number prematurely.
+// Commits the parsed/clamped number on every keystroke once the string parses cleanly,
+// and on blur falls back to clamp(value).
+function CompactNumPill({ value, onChange, suffix = "", min = -Infinity, max = Infinity, width = 48, title }) {
+  const { T } = useContext(CostsCtx);
+  const [editStr, setEditStr] = useState(null);
+  const [focused, setFocused] = useState(false);
+  const display = focused ? (editStr ?? String(value)) : String(value);
+  const clamp = (n) => Math.max(min, Math.min(max, n));
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      background: T.inputBg, border: `1px solid ${T.inputBorder}`,
+      borderRadius: 9999, padding: "0 8px", height: 20,
+    }}>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={display}
+        onFocus={() => { setFocused(true); setEditStr(String(value)); }}
+        onBlur={() => {
+          setFocused(false);
+          if (editStr !== null) {
+            const n = parseFloat(editStr);
+            onChange(isNaN(n) ? 0 : clamp(n));
+            setEditStr(null);
+          }
+        }}
+        onChange={e => {
+          // Allow only digits, minus, dot. Permit intermediate states: "", "-", "1.", "-0."
+          const raw = e.target.value.replace(/[^\-0-9.]/g, "");
+          // Only allow one leading minus and one decimal.
+          const cleaned = raw.replace(/(?!^)-/g, "").replace(/\.(?=.*\.)/g, "");
+          setEditStr(cleaned);
+          // Commit immediately if it parses to a finite number; otherwise leave value
+          // alone so '-' or '' don't reset to 0 mid-typing.
+          if (cleaned === "" || cleaned === "-" || cleaned === "." || cleaned === "-.") return;
+          const n = parseFloat(cleaned);
+          if (!isNaN(n) && isFinite(n)) onChange(clamp(n));
+        }}
+        title={title}
+        style={{
+          width, background: "transparent", border: "none", outline: "none",
+          color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT,
+          textAlign: "right", padding: 0, height: 18, lineHeight: 1,
+        }}
+      />
+      {suffix && <span style={{ color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>{suffix}</span>}
+    </div>
+  );
+}
+
 // FeeRow — new lock-aware model. NO MORE "+" buttons.
 // - locked (default, from section LockCtx): renders label / value (read-only)
 // - unlocked (section is in edit mode): renders label / inline number input (or `inlineEditor` if provided)
@@ -685,34 +739,18 @@ export default function CostsContent({
                 : "Buy down the rate by paying points upfront, or go negative for a lender credit")}
             alwaysEdit
             inlineEditor={
-              // Tight 22px-height pill so the row matches the height of its sibling
-              // text-only rows. Inp's wrapping marginBottom + padding doubled the row
-              // height, so we use a raw <input> styled compactly here.
-              <div style={{
-                display: "inline-flex", alignItems: "center", gap: 4,
-                background: T.inputBg, border: `1px solid ${T.inputBorder}`,
-                borderRadius: 9999, padding: "0 8px", height: 20,
-              }}>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={discountPts}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/[^\-0-9.]/g, "");
-                    if (raw === "" || raw === "-") { setDiscountPts(0); return; }
-                    const n = parseFloat(raw);
-                    if (!isNaN(n)) setDiscountPts(Math.max(-5, Math.min(10, n)));
-                  }}
-                  step={0.125}
-                  style={{
-                    width: 48, background: "transparent", border: "none", outline: "none",
-                    color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT,
-                    textAlign: "right", padding: 0,
-                  }}
-                  title="1 point = 1% of loan amount. Negative values become Lender Credits."
-                />
-                <span style={{ color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>%</span>
-              </div>
+              // Negative values are valid (becomes Lender Credit) — CompactNumPill keeps
+              // a local edit-string so the user can type the leading '-' without it being
+              // immediately clamped to 0 mid-typing.
+              <CompactNumPill
+                value={discountPts}
+                onChange={setDiscountPts}
+                suffix="%"
+                min={-5}
+                max={10}
+                width={48}
+                title="1 point = 1% of loan amount. Negative values become Lender Credits."
+              />
             }
           />
           <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
