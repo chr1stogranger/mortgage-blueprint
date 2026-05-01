@@ -691,7 +691,7 @@ export default function CostsContent({
               <div style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
                 background: T.inputBg, border: `1px solid ${T.inputBorder}`,
-                borderRadius: 9999, padding: "0 8px", height: 24,
+                borderRadius: 9999, padding: "0 8px", height: 20,
               }}>
                 <input
                   type="text"
@@ -907,17 +907,20 @@ export default function CostsContent({
                   background: T.inputBg,
                   border: `1px solid ${T.inputBorder}`,
                   borderRadius: 9999,
-                  padding: "2px 8px",
+                  padding: "0 8px",
                   fontSize: 12,
                   fontWeight: 600,
                   color: T.text,
                   fontFamily: FONT,
-                  height: 22,
+                  height: 20,
                   lineHeight: 1,
                   cursor: "pointer",
                   outline: "none",
                   WebkitAppearance: "none",
                   appearance: "none",
+                  // Native select on macOS Chrome enforces a minimum content height;
+                  // setting boxSizing + lineHeight 1 keeps the visible pill at 20px.
+                  boxSizing: "border-box",
                 };
                 return (
                   <>
