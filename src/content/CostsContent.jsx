@@ -323,14 +323,24 @@ function FeeRow({
   );
 }
 
-// Small inline toggle row — used for escrow on/off and buyer-pays-comm
+// Small inline toggle row — used for escrow on/off and buyer-pays-comm.
+// Hint renders inline next to the label (separated by a middot) so the row stays
+// single-line on desktop, matching the FeeRow inline-calc treatment.
 function ToggleRow({ label, hint, on, onChange }) {
   const { T, ACCENT } = useContext(CostsCtx);
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px dashed ${T.separator}` }}>
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{label}</div>
-        {hint && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>{hint}</div>}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px dashed ${T.separator}`, gap: 10 }}>
+      <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", rowGap: 2, flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{label}</span>
+        {hint && (
+          <span style={{
+            fontSize: 11,
+            color: T.textTertiary,
+            marginLeft: 8,
+            fontWeight: 400,
+            lineHeight: 1.3,
+          }}>· {hint}</span>
+        )}
       </div>
       <button
         onClick={() => onChange(!on)}
