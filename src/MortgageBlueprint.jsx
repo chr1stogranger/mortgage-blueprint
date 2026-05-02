@@ -687,14 +687,32 @@ function SearchSelect({ label, value, onChange, options, tip, req }) {
   </div>)}
  </div>);
 }
-function Hero({ value, label, color, sub, small }) {
- // Full-width indigo banner with white text. The `color` prop is preserved for
- // backwards-compat callers but is now used as the banner background tint
- // override (defaults to T.blue). Section title (value) renders large + white,
- // subtitle (label · sub) renders smaller in white at 80% opacity.
- const bg = color || T.blue;
+function Hero({ value, label, color, sub, small, light }) {
+ // Two render modes:
+ //  - default (light=false): full-width SOLID indigo banner with white text
+ //    used as section-level header (Quick Start, Cash to Close, etc.)
+ //  - light=true: SOFT light-indigo gradient + colored text + 1px border
+ //    used as a sub-section card (Total Interest, etc.) so it sits under
+ //    a darker section banner without competing visually
+ const accent = color || T.blue;
+ if (light) {
+  return (<div style={{
+    background: `linear-gradient(135deg, ${accent}18, ${accent}0c)`,
+    border: `1px solid ${accent}38`,
+    padding: small ? "14px 18px" : "18px 22px",
+    borderRadius: 14,
+    marginBottom: 12,
+  }}>
+   <div style={{ fontSize: small ? 22 : 28, fontWeight: 700, fontFamily: FONT, color: accent, letterSpacing: "-0.02em", lineHeight: 1.15 }}>{value}</div>
+   {(label || sub) && (
+     <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginTop: 4, fontFamily: FONT }}>
+       {label}{sub && <span style={{ color: T.textTertiary }}> · {sub}</span>}
+     </div>
+   )}
+  </div>);
+ }
  return (<div style={{
-   background: bg,
+   background: accent,
    padding: small ? "14px 18px" : "18px 22px",
    borderRadius: 14,
    marginBottom: 12,

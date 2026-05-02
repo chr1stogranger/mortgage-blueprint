@@ -18,7 +18,7 @@ export default function AmortContent({
  {/* ── LEFT: Hero + Summary + Chart (sticky on desktop) ── */}
  <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
-  <Hero value={fmt(calc.totalIntWithExtra)} label="Total Interest" color={T.blue} sub={calc.intSaved > 100 ? `Save ${fmt(calc.intSaved)}` : null} />
+  <Hero value={fmt(calc.totalIntWithExtra)} label="Total Interest" color={T.blue} sub={calc.intSaved > 100 ? `Save ${fmt(calc.intSaved)}` : null} light />
  </div>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: isDesktop ? "0 0 12px" : "16px 0" }}>
   <Card pad={14}>
