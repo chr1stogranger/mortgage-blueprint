@@ -393,7 +393,6 @@ export default function CalculatorContent({
     </div>
    )}
 
-  </div>
    {/* Payment Breakdown card — plain Card with small grey label header per
        Christo's screenshot. Banded blue header/footer styling reverted; only
        Cash To Close Summary uses bands now. marginTop: auto pushes this to
@@ -584,7 +583,7 @@ export default function CalculatorContent({
     </div>
    </Card>
    </div>
-
+  </div>
   {/* ========== END LEFT COLUMN ========== */}
 
   {/* ========== RIGHT COLUMN ========== */}
