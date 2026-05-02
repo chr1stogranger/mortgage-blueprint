@@ -147,7 +147,15 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 4: INCOME
+          SECTION 4: ASSETS
+          ═══════════════════════════════════════ */}
+      <SectionDivider T={T} />
+      <CollapsibleSection title="Assets" T={T} id="overview-assets" heroStyle={true}>
+        <AssetsContent {...props} />
+      </CollapsibleSection>
+
+      {/* ═══════════════════════════════════════
+          SECTION 5: INCOME
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Income" T={T} id="overview-income" heroStyle={true}>
@@ -155,7 +163,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 5: DEBTS
+          SECTION 6: DEBTS
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Debts" T={T} id="overview-debts" heroStyle={true}>
@@ -163,7 +171,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 6: REAL ESTATE OWNED (only when ownsProperties is on)
+          SECTION 7: REAL ESTATE OWNED (only when ownsProperties is on)
           ═══════════════════════════════════════ */}
       {ownsProperties && (<>
         <SectionDivider T={T} />
@@ -173,15 +181,7 @@ export default function OverviewTab(props) {
       </>)}
 
       {/* ═══════════════════════════════════════
-          SECTION 7: ASSETS
-          ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
-      <CollapsibleSection title="Assets" T={T} id="overview-assets" heroStyle={true}>
-        <AssetsContent {...props} />
-      </CollapsibleSection>
-
-      {/* ═══════════════════════════════════════
-          SECTION 5: PRE-QUALIFIED? (Qualification)
+          SECTION 8: PRE-QUALIFIED? (Qualification)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Pre-Qualified?" T={T} id="overview-qualification" heroStyle={true}>
@@ -189,7 +189,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 6: TAX SAVINGS
+          SECTION 9: TAX SAVINGS
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" heroStyle={true}>
@@ -197,7 +197,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 7: EQUITY (Amortization)
+          SECTION 10: EQUITY (Amortization)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Equity" T={T} id="overview-equity" heroStyle={true}>
@@ -205,7 +205,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 8: RENT VS BUY (conditional)
+          SECTION 11: RENT VS BUY (conditional)
           ═══════════════════════════════════════ */}
       {showRentVsBuy && !isRefi && (
         <>
@@ -217,7 +217,7 @@ export default function OverviewTab(props) {
       )}
 
       {/* ═══════════════════════════════════════
-          SECTION 9: INVESTOR (conditional)
+          SECTION 12: INVESTOR (conditional)
           ═══════════════════════════════════════ */}
       {showInvestor && (
         <>
@@ -229,7 +229,7 @@ export default function OverviewTab(props) {
       )}
 
       {/* ═══════════════════════════════════════
-          SECTION 10: SELLER NET (conditional)
+          SECTION 13: SELLER NET (conditional)
           ═══════════════════════════════════════ */}
       {hasSellProperty && sellPrice > 0 && (
         <>
@@ -241,7 +241,7 @@ export default function OverviewTab(props) {
       )}
 
       {/* ═══════════════════════════════════════
-          SECTION 11: PROP 19 TAX XFER (CA only)
+          SECTION 14: PROP 19 TAX XFER (CA only)
           ═══════════════════════════════════════ */}
       {showProp19 && propertyState === "California" && !isRefi && prop19 && (
         <>
