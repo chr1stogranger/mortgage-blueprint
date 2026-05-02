@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import SellContent from "./SellContent";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -34,7 +35,26 @@ export default function ReoContent({
   isPulse, markTouched,
   hideHero = false,
   GuidedNextButton,
+  // SellContent props (forwarded so the Seller Net calculator can render
+  // inline below the "Planning to sell?" card via a chevron — same pattern
+  // as the Property Tax breakdown in Monthly Payment).
+  sellPrice, sellMortgagePayoff,
+  sellCommission, setSellCommission,
+  sellTransferTaxCity, setSellTransferTaxCity,
+  sellEscrow, setSellEscrow,
+  sellTitle, setSellTitle,
+  sellOther, setSellOther,
+  sellSellerCredit, setSellSellerCredit,
+  sellCostBasis, setSellCostBasis,
+  sellImprovements, setSellImprovements,
+  sellYearsOwned, setSellYearsOwned,
+  sellPrimaryRes,
+  married, taxState,
+  TT_CITY_NAMES, getTTForCity, MRow,
 }) {
+  // Default the inline Seller Net to OPEN once the user picks "yes" so they
+  // see the calculator immediately. They can still collapse via the chevron.
+  const [sellExpanded, setSellExpanded] = useState(true);
   const ACCENT = T.blue;
   // Sub-section banners use a soft light-indigo gradient (matches the Payment
   // Breakdown header style) with INDIGO text. Reads as a child of the main
@@ -420,12 +440,30 @@ export default function ReoContent({
       </div>
     )}
 
-    {/* ─── Planning to sell card ─── */}
+    {/* ─── Planning to sell card + inline Seller Net (chevron-expanded) ─── */}
     {setHasSellProperty && (
       <Card>
-        <div style={{ marginBottom: 6 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Planning to sell a property?</span>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Pick which one to unlock the Seller Net calculator</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 12 }}>
+          <div>
+            <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Planning to sell a property?</span>
+            <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Pick which one to unlock the Seller Net calculator</div>
+          </div>
+          {/* Chevron — only visible once the user has said yes. Mirrors the
+              Property Tax breakdown chevron in the Monthly Payment section. */}
+          {hasSellProperty && (
+            <span
+              onClick={() => setSellExpanded(!sellExpanded)}
+              title={sellExpanded ? "Hide Seller Net calculator" : "Show Seller Net calculator"}
+              style={{
+                fontSize: 14, fontWeight: 700, color: T.blue,
+                cursor: "pointer", padding: "2px 8px",
+                lineHeight: 1, userSelect: "none",
+                transform: `rotate(${sellExpanded ? 180 : 0}deg)`,
+                transition: "transform 0.2s",
+                flexShrink: 0,
+              }}
+            >▾</span>
+          )}
         </div>
         <Sel label="" value={hasSellProperty ? (sellLinkedReoId || "__yes__") : ""} onChange={v => {
           if (v === "") {
@@ -434,9 +472,11 @@ export default function ReoContent({
           } else if (v === "__yes__") {
             setHasSellProperty(true);
             setSellLinkedReoId && setSellLinkedReoId("");
+            setSellExpanded(true);
           } else {
             setHasSellProperty(true);
             setSellLinkedReoId && setSellLinkedReoId(v);
+            setSellExpanded(true);
             const reo = reos.find(r => String(r.id) === v);
             if (reo) {
               setSellPrice && setSellPrice(Number(reo.value) || 0);
@@ -462,6 +502,35 @@ export default function ReoContent({
         {hasSellProperty && !sellLinkedReoId && (
           <div style={{ fontSize: 11, color: T.green, marginTop: 4, fontWeight: 500 }}>
             ✓ Seller Net unlocked — manual entry mode
+          </div>
+        )}
+
+        {/* Inline Seller Net calculator — opens when chevron is expanded.
+            isDesktop=false forces the SellContent body to stack vertically
+            (no sticky 50/50 split) so it fits inside the card's column. */}
+        {hasSellProperty && sellExpanded && setSellCommission && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
+            <SellContent
+              T={T} isDesktop={false} calc={calc} fmt={fmt}
+              reos={reos} debts={debts}
+              sellLinkedReoId={sellLinkedReoId} setSellLinkedReoId={setSellLinkedReoId}
+              sellPrice={sellPrice} setSellPrice={setSellPrice}
+              sellMortgagePayoff={sellMortgagePayoff} setSellMortgagePayoff={setSellMortgagePayoff}
+              sellCommission={sellCommission} setSellCommission={setSellCommission}
+              sellTransferTaxCity={sellTransferTaxCity} setSellTransferTaxCity={setSellTransferTaxCity}
+              sellEscrow={sellEscrow} setSellEscrow={setSellEscrow}
+              sellTitle={sellTitle} setSellTitle={setSellTitle}
+              sellOther={sellOther} setSellOther={setSellOther}
+              sellSellerCredit={sellSellerCredit} setSellSellerCredit={setSellSellerCredit}
+              sellCostBasis={sellCostBasis} setSellCostBasis={setSellCostBasis}
+              sellImprovements={sellImprovements} setSellImprovements={setSellImprovements}
+              sellYearsOwned={sellYearsOwned} setSellYearsOwned={setSellYearsOwned}
+              sellPrimaryRes={sellPrimaryRes} setSellPrimaryRes={setSellPrimaryRes}
+              married={married} taxState={taxState}
+              TT_CITY_NAMES={TT_CITY_NAMES} getTTForCity={getTTForCity}
+              Hero={Hero} Card={Card} Sec={Sec} Inp={Inp} Sel={Sel} Note={Note} MRow={MRow}
+              GuidedNextButton={() => null}
+            />
           </div>
         )}
       </Card>
