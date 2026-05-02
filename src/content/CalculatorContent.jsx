@@ -153,32 +153,13 @@ export default function CalculatorContent({
   return (<>
 
  {/* ─────────────────────────────────────────────────────────────── */}
- {/* ROW 1 — Loan details: Occupancy / Property Type / Loan Type / Term.
-      The Zip/City/County/State row was removed per Christo — those now live in
-      the Setup tab's Quick Start section, with city/county/state auto-filling
-      from the ZIP via the existing useEffect hook in MortgageBlueprint. */}
+ {/* The 4-pill top row (Occupancy / Property Type / Loan Type / Term)
+     was relocated INTO the right column as a 2x2 grid below the Rate /
+     Live Rates card per Christo's final layout (2026-05-02). The pills
+     no longer anchor the top of Calculator — Rate/Price/Donut now own
+     the top fold, and loan-structure controls live alongside Rate where
+     a broker tunes the scenario. */}
  {/* ─────────────────────────────────────────────────────────────── */}
- <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr 1fr" : "1fr 1fr", gap: 12, marginTop: 20, marginBottom: 16 }}>
-  <Sel label="Occupancy" value={loanPurpose} onChange={v => {
-   // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
-   if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
-    setRate(prev => Math.round((prev + 1.0) * 1000) / 1000);
-   } else if (v !== "Purchase Investment" && loanPurpose === "Purchase Investment") {
-    setRate(prev => Math.round(Math.max(0, prev - 1.0) * 1000) / 1000);
-   }
-   setLoanPurpose(v);
-  }} options={isRefi
-   ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
-   : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
-  } sm req />
-  <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
-   <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} sm req />
-  </div>
-  <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} sm req />
-  <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
-   <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} sm req />
-  </div>
- </div>
 
  {loanPurpose === "Purchase Investment" && (
   <Note color={T.orange}>Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
@@ -345,6 +326,28 @@ export default function CalculatorContent({
       <span>{row.label}</span>
       <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
      </div>
+    ))}
+   </div>
+
+   {/* Loan Amount / LTV / Cash to Close — 3-stat row, moved to LEFT column
+       under the donut/legend per Christo's final layout (2026-05-02). The
+       three numbers tie directly to the Price/Down inputs above and the
+       Payment Breakdown below — they read as a vertical narrative. */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+    {(isRefi ? [
+     { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
+     { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
+     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
+    ] : [
+     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
+     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
+     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
+    ]).map((m, i) => (
+     <Card key={i} pad={14}>
+      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
+      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
+     </Card>
     ))}
    </div>
 
@@ -635,75 +638,15 @@ export default function CalculatorContent({
 
   {/* ========== RIGHT COLUMN ========== */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
-   {/* Loan Amount / LTV / Cash to Close 3-col — TOP of the right column. */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-    {(isRefi ? [
-     { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
-     { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
-     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
-    ] : [
-     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
-     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
-     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
-    ]).map((m, i) => (
-     <Card key={i} pad={14}>
-      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
-      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
-     </Card>
-    ))}
-   </div>
+   {/* The 3-stat row (Loan Amount / LTV / Cash to Close) was moved to the
+       LEFT column under the donut legend per the 2026-05-02 final layout.
+       The right column now leads with Rate / Live Rates → 4 loan-structure
+       pills (2x2) → 5-pillar qualification → CashToCloseSummary. */}
 
-   {/* Compact 5-pillar row — sits below the 3-stat row. 28px circles. */}
-   {(() => {
-    const compactChecks = isRefi ? [
-     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
-    ] : [
-     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
-     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
-    ];
-    return (
-     <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12 }}>
-      {compactChecks.map((c, i) => {
-       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
-       const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
-       return (
-        <div
-         key={i}
-         onClick={() => handlePillarClick && handlePillarClick(c.label)}
-         title={`${c.label}: ${c.sub} — click for details`}
-         style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          padding: "10px 4px 8px", background: bg, borderRadius: 12,
-          cursor: "pointer", transition: "all 0.2s",
-         }}
-        >
-         <div style={{
-          width: 28, height: 28, borderRadius: "50%",
-          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
-         }}>
-          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
-         </div>
-         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
-         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
-        </div>
-       );
-      })}
-     </div>
-    );
-   })()}
-
-   {/* Rate / APR + always-visible Live Rates grid — sits between the compact
-       pillars and the Cash To Close Summary. Tile grid is permanent now (per
-       Christo) so a broker can compare across loan types without opening a
-       popup. Tiles only appear once liveRates have been fetched. */}
+   {/* Rate / APR + always-visible Live Rates grid — TOP of the right column
+       per the 2026-05-02 final layout. Brokers tune the rate first; the 4
+       loan-structure pills (occupancy/property type/loan type/term) sit
+       directly below so changes flow naturally into the rate context. */}
    <Card style={{ marginBottom: 12 }}>
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 10 }}>
      <div style={{ flex: 1 }}>
@@ -765,6 +708,84 @@ export default function CalculatorContent({
      {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}</div>}
     </>)}
    </Card>
+
+   {/* Loan-structure pills — 2x2 grid of full-label dropdowns:
+        Occupancy   Property Type
+        Loan Type   Term
+       Moved here from the deleted top-of-Calculator row. Sits directly
+       below the Rate / Live Rates card so a broker tuning the scenario
+       can see rate AND structure together. Mobile keeps the 2-col grid
+       (each cell takes a full row when the screen is narrow). */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+    <Sel label="Occupancy" value={loanPurpose} onChange={v => {
+     // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
+     if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
+      setRate(prev => Math.round((prev + 1.0) * 1000) / 1000);
+     } else if (v !== "Purchase Investment" && loanPurpose === "Purchase Investment") {
+      setRate(prev => Math.round(Math.max(0, prev - 1.0) * 1000) / 1000);
+     }
+     setLoanPurpose(v);
+    }} options={isRefi
+     ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
+     : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
+    } req />
+    <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
+     <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req />
+    </div>
+    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} req />
+    <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
+     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req />
+    </div>
+   </div>
+
+   {/* Compact 5-pillar row — sits BELOW the loan-structure pills and ABOVE
+       the Cash to Close Summary. 28px circles, click to jump to the matching
+       Qualify section. Unchanged from prior version; only its position in
+       the right-column flow moved. */}
+   {(() => {
+    const compactChecks = isRefi ? [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
+    ] : [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
+     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
+    ];
+    return (
+     <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12 }}>
+      {compactChecks.map((c, i) => {
+       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
+       const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
+       return (
+        <div
+         key={i}
+         onClick={() => handlePillarClick && handlePillarClick(c.label)}
+         title={`${c.label}: ${c.sub} — click for details`}
+         style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "10px 4px 8px", background: bg, borderRadius: 12,
+          cursor: "pointer", transition: "all 0.2s",
+         }}
+        >
+         <div style={{
+          width: 28, height: 28, borderRadius: "50%",
+          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
+         }}>
+          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
+         </div>
+         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
+         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
+        </div>
+       );
+      })}
+     </div>
+    );
+   })()}
 
    {/* Cash To Close Summary — shared component (also used on the Costs tab).
        marginTop: auto pushes this to the bottom of the RIGHT column so it
