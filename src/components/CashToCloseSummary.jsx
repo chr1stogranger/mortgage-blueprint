@@ -7,9 +7,9 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 // Calculator tab (left column, below the donut). Brand-kit styled.
 //
 // Sums Down Payment + Closing Costs + Prepaids + Payoffs − Credits.
-// Payoffs and Credits rows are dynamic — hide when zero per Christo (less noise
-// on simple deals). Down Payment / Closing Costs / Prepaids stay visible even at
-// $0 since they're load-bearing line items.
+// All five rows are always visible per Christo so the card matches the
+// Payment Breakdown card's row count for equal-height visual balance,
+// even when Payoffs / Credits are $0.
 export default function CashToCloseSummary({
   T, ACCENT, fmt,
   downPayment, closingCosts, prepaids, payoffs = 0, credits = 0,
@@ -17,11 +17,11 @@ export default function CashToCloseSummary({
 }) {
   const total = (isRefi ? 0 : downPayment) + closingCosts + prepaids + payoffs - credits;
   const rows = [
-    !isRefi && { label: "Down Payment",         sign: "+", value: downPayment },
-    { label: "Closing Costs",         sign: "+", value: closingCosts },
-    { label: "Prepaid Expenses",      sign: "+", value: prepaids },
-    payoffs > 0 && { label: "Loans / Debts to Payoff", sign: "+", value: payoffs },
-    credits > 0 && { label: "Credits To Buyer",      sign: "−", value: credits },
+    !isRefi && { label: "Down Payment",                sign: "+", value: downPayment },
+    { label: "Closing Costs",          sign: "+", value: closingCosts },
+    { label: "Prepaid Expenses",       sign: "+", value: prepaids },
+    { label: "Loans / Debts to Payoff", sign: "+", value: payoffs },
+    { label: "Credits To Buyer",        sign: "−", value: credits },
   ].filter(Boolean);
 
   return (
