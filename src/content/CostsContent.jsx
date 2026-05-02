@@ -700,20 +700,10 @@ export default function CostsContent({
           border-bottom: none !important;
         }
       `}</style>
-      {/* Cash To Close Summary — top of fees, brand-kit styled */}
-      <div style={{ marginTop: 20 }}>
-        <CashToCloseSummary
-          T={T}
-          ACCENT={ACCENT}
-          fmt2={fmt2}
-          downPayment={isRefi ? 0 : calc.dp}
-          closingCosts={totalClosingCosts}
-          prepaids={calc.totalPrepaidExp}
-          payoffs={0}
-          credits={calc.totalCredits}
-          isRefi={isRefi}
-        />
-      </div>
+      {/* Cash To Close Summary at the top of Costs was removed per Christo —
+          the Calculator section's CashToCloseSummary at the bottom-right of the
+          Monthly Payment view flows directly into the Closing Costs sections
+          below, so a second copy here is redundant. */}
 
       {/* ─── MASTER 1: Closing Costs (default OPEN) ──────────────── */}
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={true}>
