@@ -798,8 +798,8 @@ function PayRing({ segments, total, size, hideLegend }) {
   <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={sw} />
    {segments.filter(s => s.v > 0).map((s, i) => { const p = total > 0 ? s.v / total : 0; const dash = p * c, gap = c - dash, off = -cum * c + c * 0.25; cum += p; return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={off} style={{ transition: "all 0.6s ease" }} />; })}
-   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="600" fontFamily={MONO} letterSpacing="1.2" textTransform="uppercase">MONTHLY</text>
-   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={MONO} letterSpacing="-0.03em">{fmt(total)}</text>
+   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="600" fontFamily={FONT} letterSpacing="1.2" textTransform="uppercase">MONTHLY</text>
+   <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
   </svg>
   {!hideLegend && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>
    {segments.filter(s => s.v > 0).map((s, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -4304,7 +4304,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          <Icon name="check-circle" size={14} color="#fff" />
         </div>
        </a>
-       <div style={{ fontSize: 9, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>{fmt(calc.housingPayment)}</div>
+       <div style={{ fontSize: 9, fontWeight: 700, color: T.blue, fontFamily: FONT, marginTop: 4 }}>{fmt(calc.housingPayment)}</div>
       </div>
      )}
     </div>
@@ -4397,7 +4397,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       <div style={{ fontSize: 13, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
        Your Blueprint
       </div>
-      <div style={{ fontSize: 10, color: T.textSecondary, fontFamily: "'JetBrains Mono', monospace", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      <div style={{ fontSize: 10, color: T.textSecondary, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
        {borrowerMode.borrower?.name ? `Prepared for ${borrowerMode.borrower.name.split(' ')[0]}` : 'LIVE COLLABORATION'}
       </div>
      </div>

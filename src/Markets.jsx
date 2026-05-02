@@ -1208,7 +1208,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
           {/* Balance */}
           <div style={{ padding: "12px 16px", borderTop: `1px solid ${T.cardBorder}` }}>
             <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>Balance</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${portfolio.balance?.toLocaleString() || '10,000'}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: "'Inter', sans-serif" }}>${portfolio.balance?.toLocaleString() || '10,000'}</div>
           </div>
         </div>
       )}
