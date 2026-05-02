@@ -21,16 +21,21 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle }) {
   const [open, setOpen] = useState(defaultOpen);
   if (heroStyle) {
+    // Full-width indigo banner with white text (matches Hero treatment).
     return (
       <div id={id}>
-        <div onClick={() => setOpen(!open)} style={{ cursor: "pointer", marginTop: 12, marginBottom: open ? 12 : 4, display: "flex", alignItems: "flex-start", gap: 8 }}>
-          <span style={{ fontSize: 18, lineHeight: "1", color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", marginTop: 6, flexShrink: 0 }}>▾</span>
-          <div>
-            <div style={{ fontSize: 34, fontWeight: 700, fontFamily: FONT, color: T.blue, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+        <div onClick={() => setOpen(!open)} style={{
+          cursor: "pointer", marginTop: 16, marginBottom: open ? 12 : 4,
+          background: T.blue, padding: "18px 22px", borderRadius: 14,
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <span style={{ fontSize: 18, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.15 }}>
               {title}
             </div>
             {subtitle && (
-              <div style={{ fontSize: 14, fontWeight: 500, color: T.textTertiary, fontFamily: FONT, marginTop: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, marginTop: 4 }}>
                 {subtitle}
               </div>
             )}
@@ -40,13 +45,16 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
       </div>
     );
   }
+  // Smaller sub-section heading (also blue banner but compact).
   return (
     <div id={id}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28, marginBottom: open ? 12 : 4, paddingLeft: 4 }}>
-        <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <span style={{ fontSize: 14, color: T.textTertiary, transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>▾</span>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>{title}</h2>
-        </div>
+      <div onClick={() => setOpen(!open)} style={{
+        cursor: "pointer", marginTop: 28, marginBottom: open ? 12 : 4,
+        background: T.blue, padding: "12px 16px", borderRadius: 12,
+        display: "flex", alignItems: "center", gap: 10,
+      }}>
+        <span style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)" }}>▾</span>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em" }}>{title}</h2>
       </div>
       {open && children}
     </div>
