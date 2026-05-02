@@ -3,6 +3,37 @@ import React from "react";
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
+/**
+ * YesNoSeg — light-blue segmented Yes/No selector matching the
+ * Quick Start "Experience Level" / "Transaction Type" pills.
+ * value = true | false | null. Both sides use the indigo tint when
+ * selected (NOT green / NOT a toggle slider).
+ */
+function YesNoSeg({ T, value, onYes, onNo }) {
+  const baseBtn = (active) => ({
+    padding: "5px 18px",
+    background: active ? `${T.blue}22` : T.inputBg,
+    border: active ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+    borderRadius: 8,
+    color: active ? T.blue : T.textSecondary,
+    fontWeight: 600,
+    fontSize: 11,
+    cursor: "pointer",
+    fontFamily: FONT,
+    minWidth: 48,
+    transition: "all 0.2s",
+  });
+  return (
+    <div
+      style={{ display: "flex", gap: 4, flexShrink: 0 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button type="button" onClick={onYes} style={baseBtn(value === true)}>Yes</button>
+      <button type="button" onClick={onNo} style={baseBtn(value === false)}>No</button>
+    </div>
+  );
+}
+
 export default function SetupContent({
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, city, setCity,
@@ -214,68 +245,85 @@ export default function SetupContent({
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>First-Time Homebuyer?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{firstTimeBuyer === true ? "FTHB unlocked — 3% down conventional available" : "Unlocks first-time buyer loan programs"}</div>
      </div>
-     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-      <button onClick={() => { setFirstTimeBuyer(true); markTouched("fthb"); }} style={{ padding: "4px 10px", background: firstTimeBuyer === true ? `${T.green}22` : T.inputBg, border: firstTimeBuyer === true ? `2px solid ${T.green}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === true ? T.green : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>Yes</button>
-      <button onClick={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }} style={{ padding: "4px 10px", background: firstTimeBuyer === false ? `${T.blue}22` : T.inputBg, border: firstTimeBuyer === false ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 8, color: firstTimeBuyer === false ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 11, cursor: "pointer", fontFamily: FONT }}>No</button>
-     </div>
+     <YesNoSeg
+      T={T}
+      value={firstTimeBuyer}
+      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); }}
+      onNo={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }}
+     />
     </div>
     )}
     {/* Own Properties */}
-    <div onClick={() => { setOwnsProperties(!ownsProperties); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Own Properties?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show REO (Real Estate Owned) tab</div>
      </div>
-     <div style={{ width: 38, height: 20, borderRadius: 99, background: ownsProperties ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: ownsProperties ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-     </div>
+     <YesNoSeg
+      T={T}
+      value={ownsProperties}
+      onYes={() => { setOwnsProperties(true); markTouched("modules"); }}
+      onNo={() => { setOwnsProperties(false); markTouched("modules"); }}
+     />
     </div>
     {/* Selling a Property */}
     {!isRefi && (
-    <div onClick={() => { setHasSellProperty(!hasSellProperty); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Selling a Property?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Seller Net Sheet tab</div>
      </div>
-     <div style={{ width: 38, height: 20, borderRadius: 99, background: hasSellProperty ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: hasSellProperty ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-     </div>
+     <YesNoSeg
+      T={T}
+      value={hasSellProperty}
+      onYes={() => { setHasSellProperty(true); markTouched("modules"); }}
+      onNo={() => { setHasSellProperty(false); markTouched("modules"); }}
+     />
     </div>
     )}
     {/* Investment Analysis */}
     {!isRefi && (
-    <div onClick={() => { setShowInvestor(!showInvestor); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Investor tab with ROI metrics</div>
      </div>
-     <div style={{ width: 38, height: 20, borderRadius: 99, background: showInvestor ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showInvestor ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-     </div>
+     <YesNoSeg
+      T={T}
+      value={showInvestor}
+      onYes={() => { setShowInvestor(true); markTouched("modules"); }}
+      onNo={() => { setShowInvestor(false); markTouched("modules"); }}
+     />
     </div>
     )}
     {/* Buy vs Rent — NEW MODULE */}
     {!isRefi && (
-    <div onClick={() => { setShowRentVsBuy(!showRentVsBuy); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Buy vs Rent?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Rent vs Buy wealth comparison tab</div>
      </div>
-     <div style={{ width: 38, height: 20, borderRadius: 99, background: showRentVsBuy ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showRentVsBuy ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-     </div>
+     <YesNoSeg
+      T={T}
+      value={showRentVsBuy}
+      onYes={() => { setShowRentVsBuy(true); markTouched("modules"); }}
+      onNo={() => { setShowRentVsBuy(false); markTouched("modules"); }}
+     />
     </div>
     )}
     {/* California Prop 19 Transfer — CA purchases only */}
     {propertyState === "California" && !isRefi && (
-    <div onClick={() => { setShowProp19(!showProp19); markTouched("modules"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, cursor: "pointer", transition: "background 0.2s" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>California Prop 19?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Transfer your property tax base (55+, disabled, or disaster)</div>
      </div>
-     <div style={{ width: 38, height: 20, borderRadius: 99, background: showProp19 ? T.green : T.ringTrack, flexShrink: 0, position: "relative", transition: "background 0.3s", cursor: "pointer" }}>
-      <div style={{ width: 16, height: 16, borderRadius: 99, background: "#fff", position: "absolute", top: 2, left: showProp19 ? 20 : 2, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-     </div>
+     <YesNoSeg
+      T={T}
+      value={showProp19}
+      onYes={() => { setShowProp19(true); markTouched("modules"); }}
+      onNo={() => { setShowProp19(false); markTouched("modules"); }}
+     />
     </div>
     )}
    </div>

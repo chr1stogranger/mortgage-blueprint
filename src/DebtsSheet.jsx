@@ -41,18 +41,19 @@ export default function DebtsSheet({
           <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Current home, investment properties, second homes</div>
         </div>
+        {/* Light-blue segmented Yes/No — matches Quick Start selector. */}
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <button onClick={() => setOwnsProperties(true)} style={{
-            flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.3s", fontFamily: FONT,
-            background: ownsProperties === true ? T.green : "transparent",
-            color: ownsProperties === true ? "#fff" : T.textSecondary,
-            border: `2px solid ${ownsProperties === true ? T.green : T.separator}`,
+            flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", fontFamily: FONT,
+            background: ownsProperties === true ? `${T.blue}22` : T.inputBg,
+            color: ownsProperties === true ? T.blue : T.textSecondary,
+            border: `2px solid ${ownsProperties === true ? T.blue : T.separator}`,
           }}>Yes</button>
           <button onClick={() => setOwnsProperties(false)} style={{
-            flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.3s", fontFamily: FONT,
-            background: ownsProperties === false ? T.pillBg : "transparent",
-            color: ownsProperties === false ? T.text : T.textSecondary,
-            border: `2px solid ${ownsProperties === false ? T.textTertiary : T.separator}`,
+            flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", fontFamily: FONT,
+            background: ownsProperties === false ? `${T.blue}22` : T.inputBg,
+            color: ownsProperties === false ? T.blue : T.textSecondary,
+            border: `2px solid ${ownsProperties === false ? T.blue : T.separator}`,
           }}>No</button>
         </div>
         {ownsProperties && (
