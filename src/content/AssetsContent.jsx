@@ -53,9 +53,10 @@ export default function AssetsContent({
         background: T.card,
         marginBottom: 16,
       }}>
-        {/* Blue banner header */}
+        {/* Blue banner header — lighter sub-banner shade (Tailwind blue-400)
+            so it reads as a child of the main 'Assets' bright-indigo banner above. */}
         <div style={{
-          background: T.blue, color: "#fff", padding: "10px 16px",
+          background: "#60A5FA", color: "#fff", padding: "10px 16px",
           fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
           textTransform: "uppercase", fontFamily: FONT,
           display: "flex", alignItems: "center", justifyContent: "space-between",
