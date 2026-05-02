@@ -52,18 +52,19 @@ export default function CashToCloseSummary({
       </div>
 
       {/* Rows */}
-      <div style={{ padding: "4px 18px 0" }}>
+      {/* Body — styled to match Payment Breakdown rows (no dividers, same
+          label color/weight, gap between rows instead of borders). */}
+      <div style={{ padding: "12px 18px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
         {rows.map((r) => (
           <div key={r.label} style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "11px 0",
-            borderBottom: `1px solid ${T.separator}`,
+            minHeight: 28,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: T.text, fontFamily: FONT }}>
+            <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>
               {r.label}
-            </div>
+            </span>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
               <span style={{
                 fontFamily: FONT,
@@ -78,7 +79,6 @@ export default function CashToCloseSummary({
                 fontSize: 14,
                 fontWeight: 600,
                 color: T.text,
-                minWidth: 110,
                 textAlign: "right",
               }}>{fmt(r.value)}</span>
             </div>
