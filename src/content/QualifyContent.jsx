@@ -74,9 +74,13 @@ function DebtToIncomeSummary({
   const personalDTI = totalMonthlyIncome > 0 ? totalDebts / totalMonthlyIncome : 0;
 
   // ─── Render helpers ───
+  // Headers (Debt to Income Summary / Qualifying Ratios) use the same soft
+  // light-indigo tint + indigo text treatment as the Payment Breakdown header
+  // in CalculatorContent so all sub-section banners read consistently.
   const headerStyle = {
-    background: T.blue,
-    color: "#fff",
+    background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
+    color: T.blue,
+    borderBottom: `1px solid ${T.blue}38`,
     padding: "10px 16px",
     fontSize: 11,
     fontWeight: 700,
@@ -213,10 +217,11 @@ function DebtToIncomeSummary({
         </div>
       </div>
 
-      {/* Qualifying Ratios footer */}
+      {/* Qualifying Ratios footer — same soft tint as the top header */}
       <div style={{
-        background: T.blue,
-        color: "#fff",
+        background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
+        color: T.blue,
+        borderTop: `1px solid ${T.blue}38`,
         padding: "8px 16px",
         fontSize: 11,
         fontWeight: 700,
