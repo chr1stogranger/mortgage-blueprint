@@ -247,21 +247,22 @@ export default function CalculatorContent({
          const downSummary = downMode === "pct"
           ? fmtCompactUSD(salesPrice * downPct / 100)
           : fmtCompactPct(downPct);
+         // Subtitle below input shows the inverse of the active mode:
+         //   pct mode → "$300,000 down"
+         //   $   mode → "20% down"
+         const downSubtitle = downMode === "pct"
+          ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
+          : `${fmtCompactPct(downPct)} down`;
          return (
           <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onClick={() => markTouched && markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-           {/* Label row: 'Down *' on left, summary + %/$ toggle on far right */}
+           {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
              Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-             <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>
-              {downSummary}
-             </div>
-             <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
-              <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
-              <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
-             </div>
+            <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
             </div>
            </div>
            {/* Input pill — full width, suffix shows the active unit */}
@@ -270,6 +271,10 @@ export default function CalculatorContent({
            ) : (
             <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
            )}
+           {/* Subtitle: shows the inverse format directly under the input */}
+           <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
+            {downSubtitle}
+           </div>
           </div>
          );
         })()}
@@ -385,36 +390,12 @@ export default function CalculatorContent({
    )}
 
   </div>
-   {/* Payment Breakdown card — banded styling matching CashToCloseSummary:
-       light-blue gradient header band on top, light-blue total band on bottom.
-       Inner rows live in a padded body section. */}
-   <div style={{
-     background: T.card,
-     border: `1px solid ${T.cardBorder}`,
-     borderRadius: 14,
-     overflow: "hidden",
-     marginBottom: 16,
-     boxShadow: `0 0 0 1px ${T.blue}10`,
-   }}>
-    {/* Header band */}
-    <div style={{
-      background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
-      borderBottom: `1px solid ${T.blue}38`,
-      padding: "12px 18px",
-    }}>
-     <div style={{
-       fontSize: 11,
-       fontWeight: 700,
-       color: T.blue,
-       letterSpacing: "0.12em",
-       textTransform: "uppercase",
-       fontFamily: MONO,
-     }}>
-      Payment Breakdown
-     </div>
-    </div>
-    {/* Body */}
-    <div style={{ padding: "12px 18px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+   {/* Payment Breakdown card — plain Card with small grey label header per
+       Christo's screenshot. Banded blue header/footer styling reverted; only
+       Cash To Close Summary uses bands now. */}
+   <Card>
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>Payment Breakdown</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
      {[
       { label: "Principal", value: calc.monthlyPrinReduction || 0, color: T.cyan || T.blue },
       { label: "Interest",  value: (calc.pi || 0) - (calc.monthlyPrinReduction || 0), color: T.blue },
@@ -584,40 +565,17 @@ export default function CalculatorContent({
       </React.Fragment>
       );
      })}
+     <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total Payment</span>
+      <span style={{ fontSize: 18, fontWeight: 800, color: T.blue, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.displayPayment)}/mo</span>
+     </div>
      {!includeEscrow && (
       <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>
        Escrow excluded — full PITI would be {fmt(calc.housingPayment)}/mo
       </div>
      )}
     </div>
-    {/* Total Payment band — mirrors CashToCloseSummary's bottom band */}
-    <div style={{
-      background: `${T.blue}0E`,
-      borderTop: `1.5px solid ${T.blue}40`,
-      padding: "16px 18px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}>
-     <div style={{
-       fontSize: 12,
-       fontWeight: 700,
-       color: T.blue,
-       letterSpacing: "0.08em",
-       textTransform: "uppercase",
-       fontFamily: MONO,
-     }}>
-      Total Payment
-     </div>
-     <div style={{
-       fontFamily: FONT,
-       fontSize: 22,
-       fontWeight: 800,
-       color: T.blue,
-       letterSpacing: "-0.02em",
-     }}>{fmt(calc.displayPayment)}/mo</div>
-    </div>
-   </div>
+   </Card>
 
   {/* ========== END LEFT COLUMN ========== */}
 
