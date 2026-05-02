@@ -45,7 +45,7 @@ export default function CashToCloseSummary({
           color: ACCENT,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>
           Cash To Close Summary
         </div>
@@ -101,7 +101,7 @@ export default function CashToCloseSummary({
           color: ACCENT,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>
           Estimated {isRefi ? "Refi Cost" : "Cash To Close"}
         </div>

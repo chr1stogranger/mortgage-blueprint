@@ -419,7 +419,7 @@ export default function CalculatorContent({
        color: T.blue,
        letterSpacing: "0.12em",
        textTransform: "uppercase",
-       fontFamily: MONO,
+       fontFamily: FONT,
      }}>
       Payment Breakdown
      </div>
@@ -616,7 +616,7 @@ export default function CalculatorContent({
        color: T.blue,
        letterSpacing: "0.08em",
        textTransform: "uppercase",
-       fontFamily: MONO,
+       fontFamily: FONT,
      }}>
       Total Payment
      </div>
