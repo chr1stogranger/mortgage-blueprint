@@ -16,7 +16,7 @@ export default function RentVsBuyContent({
  {/* LEFT: Hero + Summary (sticky) */}
  <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
-  <Hero value={rbCalc.breakEvenYear ? `Year ${rbCalc.breakEvenYear}` : "—"} label="Break-even Point" color={T.blue} sub="When buying beats renting" />
+  <Hero value={rbCalc.breakEvenYear ? `Year ${rbCalc.breakEvenYear}` : "—"} label="Break-even Point" color={T.green} sub="When buying beats renting" />
  </div>
  <Sec title="Your Renting Costs">
   <Card>

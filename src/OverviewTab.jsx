@@ -142,7 +142,7 @@ export default function OverviewTab(props) {
           SECTION 3: CASH TO CLOSE (Costs)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Cash to Close"} T={T} id="overview-costs" heroStyle={true}>
+      <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Costs"} T={T} id="overview-costs" heroStyle={true}>
         <CostsContent {...props} />
       </CollapsibleSection>
 
