@@ -66,9 +66,9 @@ function BorrowerSection({
   monthsElapsed, fmt,
 }) {
   const ACCENT = T.blue;
-  // Sub-section banner uses a LIGHTER indigo (brand kit's Indigo Light #818CF8)
-  // so it reads as a child of the main 'Income' bright-blue banner above.
-  const SUB_ACCENT = "#818CF8";
+  // Sub-section banner uses a lighter SKY BLUE (no purple tint) so it reads
+  // as a child of the main 'Income' indigo banner above. Tailwind blue-400.
+  const SUB_ACCENT = "#60A5FA";
   const HEAD_BG = `${ACCENT}14`;
   const HEAD_BORDER = `${ACCENT}38`;
   const myIncomes = incomes.filter(i => i.borrower === borrowerNum);
