@@ -688,9 +688,25 @@ function SearchSelect({ label, value, onChange, options, tip, req }) {
  </div>);
 }
 function Hero({ value, label, color, sub, small }) {
- return (<div style={{ marginBottom: 4 }}>
-  <div style={{ fontSize: small ? 28 : 34, fontWeight: 700, fontFamily: FONT, color: color || T.text, letterSpacing: "-0.03em", lineHeight: 1.1 }}>{value}</div>
-  <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{label}{sub && <span style={{ color: T.textTertiary }}> · {sub}</span>}</div>
+ // Full-width indigo banner with white text. The `color` prop is preserved for
+ // backwards-compat callers but is now used as the banner background tint
+ // override (defaults to T.blue). Section title (value) renders large + white,
+ // subtitle (label · sub) renders smaller in white at 80% opacity.
+ const bg = color || T.blue;
+ return (<div style={{
+   background: bg,
+   padding: small ? "14px 18px" : "18px 22px",
+   borderRadius: 14,
+   marginBottom: 12,
+   marginLeft: -2,
+   marginRight: -2,
+ }}>
+  <div style={{ fontSize: small ? 22 : 28, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{value}</div>
+  {(label || sub) && (
+    <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", marginTop: 4, fontFamily: FONT }}>
+      {label}{sub && <span style={{ color: "rgba(255,255,255,0.65)" }}> · {sub}</span>}
+    </div>
+  )}
  </div>);
 }
 function Card({ children, style: s, onClick, pad }) {
