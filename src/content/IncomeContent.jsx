@@ -66,9 +66,10 @@ function BorrowerSection({
   monthsElapsed, fmt,
 }) {
   const ACCENT = T.blue;
-  // Sub-section banner uses a lighter SKY BLUE (no purple tint) so it reads
-  // as a child of the main 'Income' indigo banner above. Tailwind blue-400.
-  const SUB_ACCENT = "#60A5FA";
+  // Sub-section banner mirrors the Payment Breakdown header: a soft light-indigo
+  // gradient background with INDIGO text (not white). Reads as a child of the
+  // main 'Income' bright-indigo banner above without competing visually.
+  const SUB_BG = `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`;
   const HEAD_BG = `${ACCENT}14`;
   const HEAD_BORDER = `${ACCENT}38`;
   const myIncomes = incomes.filter(i => i.borrower === borrowerNum);
@@ -86,9 +87,11 @@ function BorrowerSection({
       background: T.card,
       marginBottom: 16,
     }}>
-      {/* Banner header — lighter indigo so it reads as a sub-section under the main Income banner */}
+      {/* Banner header — soft tint matching Payment Breakdown style. */}
       <div style={{
-        background: SUB_ACCENT, color: "#fff", padding: "10px 16px",
+        background: SUB_BG, color: ACCENT,
+        borderBottom: `1px solid ${ACCENT}38`,
+        padding: "10px 16px",
         fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
         textTransform: "uppercase", fontFamily: FONT,
         display: "flex", alignItems: "center", justifyContent: "space-between",

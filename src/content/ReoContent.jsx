@@ -36,9 +36,10 @@ export default function ReoContent({
   GuidedNextButton,
 }) {
   const ACCENT = T.blue;
-  // Sub-section banners use a lighter sky blue (Tailwind blue-400) so they
-  // read as children of the main 'Real Estate Owned' bright-indigo banner above.
-  const SUB_ACCENT = "#60A5FA";
+  // Sub-section banners use a soft light-indigo gradient (matches the Payment
+  // Breakdown header style) with INDIGO text. Reads as a child of the main
+  // 'Real Estate Owned' bright-indigo banner above without competing.
+  const SUB_BG = `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`;
   const HEAD_BG = `${ACCENT}14`;
   const HEAD_BORDER = `${ACCENT}38`;
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -95,7 +96,9 @@ export default function ReoContent({
       <div style={{ marginTop: 20 }}>
         <div style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden", background: T.card }}>
           <div style={{
-            background: SUB_ACCENT, color: "#fff", padding: "10px 16px",
+            background: SUB_BG, color: ACCENT,
+            borderBottom: `1px solid ${ACCENT}38`,
+            padding: "10px 16px",
             fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
             textTransform: "uppercase", fontFamily: FONT,
           }}>Real Estate Owned — Income Analysis</div>
@@ -124,9 +127,11 @@ export default function ReoContent({
         border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden",
         background: T.card, marginTop: 20, marginBottom: 16,
       }}>
-        {/* Blue banner — lighter sub-banner shade per Christo */}
+        {/* Blue banner — soft tint matching Payment Breakdown header style */}
         <div style={{
-          background: SUB_ACCENT, color: "#fff", padding: "10px 16px",
+          background: SUB_BG, color: ACCENT,
+          borderBottom: `1px solid ${ACCENT}38`,
+          padding: "10px 16px",
           fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
           textTransform: "uppercase", fontFamily: FONT,
           display: "flex", alignItems: "center", justifyContent: "space-between",
