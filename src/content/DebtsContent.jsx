@@ -242,10 +242,11 @@ export default function DebtsContent({
         background: T.card,
         marginBottom: 16,
       }}>
-        {/* Banner header — "MONTHLY DEBTS" */}
+        {/* Banner header — "MONTHLY DEBTS" — soft tint matching all other sub-banners */}
         <div style={{
-          background: ACCENT,
-          color: "#fff",
+          background: `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`,
+          color: ACCENT,
+          borderBottom: `1px solid ${ACCENT}38`,
           padding: "10px 16px",
           fontSize: 12, fontWeight: 700,
           letterSpacing: "0.08em",
