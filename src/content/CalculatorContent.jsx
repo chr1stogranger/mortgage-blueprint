@@ -204,10 +204,14 @@ export default function CalculatorContent({
  {/* ─────────────────────────────────────────────────────────────── */}
  {/* ROW 3 — 2-col: rate + donut + price inputs LEFT | compact pillars + payment breakdown + cash-to-close RIGHT */}
  {/* ─────────────────────────────────────────────────────────────── */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start", marginBottom: 16 } : {}}>
+ {/* alignItems: stretch so both columns expand to the same height; each column
+     is itself a flex column with the LAST card (Payment Breakdown on left,
+     CashToCloseSummary on right) pushed to the bottom via marginTop: auto so
+     their bottom edges align horizontally per Christo's spec. */}
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "stretch", marginBottom: 16 } : {}}>
 
   {/* ========== LEFT COLUMN ========== */}
-  <div>
+  <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
    {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
@@ -392,7 +396,10 @@ export default function CalculatorContent({
   </div>
    {/* Payment Breakdown card — plain Card with small grey label header per
        Christo's screenshot. Banded blue header/footer styling reverted; only
-       Cash To Close Summary uses bands now. */}
+       Cash To Close Summary uses bands now. marginTop: auto pushes this to
+       the bottom of the LEFT column so it bottom-aligns with the
+       CashToCloseSummary in the RIGHT column. */}
+   <div style={isDesktop ? { marginTop: "auto" } : {}}>
    <Card>
     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>Payment Breakdown</div>
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -576,11 +583,12 @@ export default function CalculatorContent({
      )}
     </div>
    </Card>
+   </div>
 
   {/* ========== END LEFT COLUMN ========== */}
 
   {/* ========== RIGHT COLUMN ========== */}
-  <div>
+  <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
    {/* Loan Amount / LTV / Cash to Close 3-col — TOP of the right column. */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
     {(isRefi ? [
@@ -713,18 +721,23 @@ export default function CalculatorContent({
    </Card>
 
    {/* Cash To Close Summary — shared component (also used on the Costs tab).
-       Anchored at the bottom of the right column per Christo's spec. */}
-   <CashToCloseSummary
-    T={T}
-    ACCENT={T.blue}
-    fmt2={fmt2}
-    downPayment={calc.dp || 0}
-    closingCosts={calc.totalClosingCosts || 0}
-    prepaids={calc.totalPrepaidExp || 0}
-    payoffs={0}
-    credits={calc.totalCredits || 0}
-    isRefi={isRefi}
-   />
+       marginTop: auto pushes this to the bottom of the RIGHT column so it
+       bottom-aligns with the Payment Breakdown card in the LEFT column.
+       This is the LAST card in the Monthly Payment section — flows into
+       Closing Costs below. */}
+   <div style={isDesktop ? { marginTop: "auto" } : {}}>
+    <CashToCloseSummary
+     T={T}
+     ACCENT={T.blue}
+     fmt2={fmt2}
+     downPayment={calc.dp || 0}
+     closingCosts={calc.totalClosingCosts || 0}
+     prepaids={calc.totalPrepaidExp || 0}
+     payoffs={0}
+     credits={calc.totalCredits || 0}
+     isRefi={isRefi}
+    />
+   </div>
   </div>
   {/* ========== END RIGHT COLUMN ========== */}
 
