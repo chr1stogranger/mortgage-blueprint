@@ -312,43 +312,36 @@ export default function CalculatorContent({
       </div>
      );
     })()}
-    {/* Donut, centered */}
-    <div style={{ display: "flex", justifyContent: "center" }}>
-     <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
-    </div>
-   </div>
-
-   {/* Legend — small pills under the donut */}
-   <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, marginBottom: 14 }}>
-    {legendRows.map((row, i) => (
-     <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
-      <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
-      <span>{row.label}</span>
-      <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
+    {/* Body: legend bottom-left + donut centered in the remaining space.
+        Per Christo's screenshot — legend stacks vertically (one row per
+        component) and sits in the lower-left corner of the donut card.
+        The donut centers itself in the area to the right of the legend.
+        On mobile we collapse to: donut centered, legend below (centered). */}
+    <div style={isDesktop
+     ? { display: "flex", alignItems: "stretch", gap: 8, marginTop: 4 }
+     : { display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 4 }
+    }>
+     {/* Legend — vertical stack, bottom-aligned (desktop) / centered (mobile) */}
+     <div style={isDesktop
+      ? { flex: "0 0 auto", display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 6, paddingBottom: 8 }
+      : { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, order: 2 }
+     }>
+      {legendRows.map((row, i) => (
+       <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
+        <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
+        <span>{row.label}</span>
+        <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{fmt(row.value)}</span>
+       </div>
+      ))}
      </div>
-    ))}
-   </div>
-
-   {/* Loan Amount / LTV / Cash to Close — 3-stat row, moved to LEFT column
-       under the donut/legend per Christo's final layout (2026-05-02). The
-       three numbers tie directly to the Price/Down inputs above and the
-       Payment Breakdown below — they read as a vertical narrative. */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-    {(isRefi ? [
-     { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
-     { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
-     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
-    ] : [
-     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
-     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
-     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
-    ]).map((m, i) => (
-     <Card key={i} pad={14}>
-      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
-      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
-     </Card>
-    ))}
+     {/* Donut — centered in the remaining horizontal space */}
+     <div style={isDesktop
+      ? { flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }
+      : { display: "flex", justifyContent: "center", order: 1 }
+     }>
+      <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
+     </div>
+    </div>
    </div>
 
    {/* Escrow warning notes (live below the donut). */}
@@ -396,12 +389,35 @@ export default function CalculatorContent({
     </div>
    )}
 
+   {/* Bottom block — 3-stat row + Payment Breakdown stacked together with
+       marginTop:auto so they bottom-align with the matching block in the
+       RIGHT column (4-pill grid + 5-pillar + Cash-to-Close Summary). The
+       3-stat row sits directly above Payment Breakdown so its baseline
+       lines up with the 5-pillar row in the RIGHT column. */}
+   <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
+   {/* Loan Amount / LTV / Cash to Close — 3-stat row (was previously rendered
+       higher up; relocated here so its Y position aligns with the 5-pillar
+       row in the RIGHT column per Christo's 2026-05-02 layout note). */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+    {(isRefi ? [
+     { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
+     { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
+     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
+    ] : [
+     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
+     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
+     { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
+    ]).map((m, i) => (
+     <Card key={i} pad={14}>
+      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
+      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
+     </Card>
+    ))}
+   </div>
    {/* Payment Breakdown — banded header/footer matching CashToCloseSummary so
        the two cards read as a matched pair (per Christo). Body keeps the
-       larger Inter font weights for the row values (no styling change inside).
-       marginTop: auto bottom-aligns this with CashToCloseSummary in the right
-       column. */}
-   <div style={isDesktop ? { marginTop: "auto" } : {}}>
+       larger Inter font weights for the row values. */}
    <div style={{
      background: T.card,
      border: `1px solid ${T.cardBorder}`,
@@ -709,13 +725,14 @@ export default function CalculatorContent({
     </>)}
    </Card>
 
-   {/* Loan-structure pills — 2x2 grid of full-label dropdowns:
-        Occupancy   Property Type
-        Loan Type   Term
-       Moved here from the deleted top-of-Calculator row. Sits directly
-       below the Rate / Live Rates card so a broker tuning the scenario
-       can see rate AND structure together. Mobile keeps the 2-col grid
-       (each cell takes a full row when the screen is narrow). */}
+   {/* Bottom block — 4-pill 2x2 grid + 5-pillar row + Cash-to-Close Summary
+       stacked together with marginTop:auto so the whole group sticks to the
+       bottom of the RIGHT column. Whitespace fills the gap between the Rate
+       card and the 4-pill grid. The 5-pillar row aligns with the 3-stat row
+       in the LEFT column (both sit directly above their respective bottom
+       summary cards: Payment Breakdown on the left, CTC on the right). */}
+   <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
+   {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term */}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
@@ -787,24 +804,22 @@ export default function CalculatorContent({
     );
    })()}
 
-   {/* Cash To Close Summary — shared component (also used on the Costs tab).
-       marginTop: auto pushes this to the bottom of the RIGHT column so it
-       bottom-aligns with the Payment Breakdown card in the LEFT column.
-       This is the LAST card in the Monthly Payment section — flows into
-       Closing Costs below. */}
-   <div style={isDesktop ? { marginTop: "auto" } : {}}>
-    <CashToCloseSummary
-     T={T}
-     ACCENT={T.blue}
-     fmt={fmt}
-     downPayment={calc.dp || 0}
-     closingCosts={calc.totalClosingCosts || 0}
-     prepaids={calc.totalPrepaidExp || 0}
-     payoffs={0}
-     credits={calc.totalCredits || 0}
-     isRefi={isRefi}
-    />
+   {/* Cash To Close Summary — shared component, last card in the right
+       bottom block. The whole bottom block (4-pill grid + 5-pillar row +
+       this CTC) carries marginTop:auto on its wrapper above. */}
+   <CashToCloseSummary
+    T={T}
+    ACCENT={T.blue}
+    fmt={fmt}
+    downPayment={calc.dp || 0}
+    closingCosts={calc.totalClosingCosts || 0}
+    prepaids={calc.totalPrepaidExp || 0}
+    payoffs={0}
+    credits={calc.totalCredits || 0}
+    isRefi={isRefi}
+   />
    </div>
+   {/* ========== END right-column bottom block (4-pill + 5-pillar + CTC) ========== */}
   </div>
   {/* ========== END RIGHT COLUMN ========== */}
 
