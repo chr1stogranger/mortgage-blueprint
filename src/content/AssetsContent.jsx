@@ -40,9 +40,7 @@ export default function AssetsContent({
   };
 
   return (<>
-    <div data-field="assets-section" style={{ marginTop: 20, marginBottom: 12 }}>
-      <Hero value={fmt(calc.totalAssetValue)} label="Total Assets" color={T.cyan} />
-    </div>
+    <div data-field="assets-section" style={{ marginTop: 20 }} />
 
     {/* ─── DESKTOP: tabular with blue banner header (consistent with Debts / Income) ─── */}
     {isDesktop ? (
@@ -207,9 +205,19 @@ export default function AssetsContent({
       </Sec>
     )}
 
-    {/* ─── BOTTOM SUMMARY: Cash to Close + Reserves progress ─── */}
+    {/* ─── BOTTOM SUMMARY: Total Assets hero + Cash to Close + Reserves progress ─── */}
     {assets.length > 0 && (
       <div style={{ marginTop: 20 }}>
+        {/* Total Assets — amber summary number, matches Income / Debts / REO pattern */}
+        <Card pad={16}>
+          <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Assets</div>
+          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
+            {fmt(calc.totalAssetValue)}
+          </div>
+          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
+            {assets.length} {assets.length === 1 ? "account" : "accounts"} verified
+          </div>
+        </Card>
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
           {/* Cash to Close */}
           <Card pad={16}>

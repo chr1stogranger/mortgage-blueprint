@@ -472,7 +472,8 @@ export default function ReoContent({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
         <div>
           <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>REO DTI Impact</div>
-          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: totals.dtiImpact >= 0 ? T.green : T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
+          {/* Amber total — uniform with Income / Assets / Debts summary heroes for scroll-and-scan consistency (sign keeps "+" prefix to indicate net positive). */}
+          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
             {totals.dtiImpact >= 0 ? "+" : ""}{fmt(totals.dtiImpact)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
           </div>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>

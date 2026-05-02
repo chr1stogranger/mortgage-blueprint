@@ -600,7 +600,8 @@ export default function DebtsContent({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
               <div>
                 <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Debts</div>
-                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: debtFree ? T.green : T.text, letterSpacing: "-0.02em", marginTop: 2 }}>
+                {/* Amber total — uniform with Income / Assets / REO summary heroes (debt-free still flips to green as the celebratory exception). */}
+                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: debtFree ? T.green : T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
                   {fmt(monthlyDebts)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
                 </div>
               </div>
