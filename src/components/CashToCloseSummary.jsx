@@ -11,7 +11,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 // on simple deals). Down Payment / Closing Costs / Prepaids stay visible even at
 // $0 since they're load-bearing line items.
 export default function CashToCloseSummary({
-  T, ACCENT, fmt2,
+  T, ACCENT, fmt,
   downPayment, closingCosts, prepaids, payoffs = 0, credits = 0,
   isRefi = false,
 }) {
@@ -80,7 +80,7 @@ export default function CashToCloseSummary({
                 color: T.text,
                 minWidth: 110,
                 textAlign: "right",
-              }}>{fmt2(r.value)}</span>
+              }}>{fmt(r.value)}</span>
             </div>
           </div>
         ))}
@@ -111,7 +111,7 @@ export default function CashToCloseSummary({
           fontWeight: 800,
           color: ACCENT,
           letterSpacing: "-0.02em",
-        }}>{fmt2(total)}</div>
+        }}>{fmt(total)}</div>
       </div>
     </div>
   );

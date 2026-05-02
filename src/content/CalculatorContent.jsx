@@ -775,7 +775,7 @@ export default function CalculatorContent({
     <CashToCloseSummary
      T={T}
      ACCENT={T.blue}
-     fmt2={fmt2}
+     fmt={fmt}
      downPayment={calc.dp || 0}
      closingCosts={calc.totalClosingCosts || 0}
      prepaids={calc.totalPrepaidExp || 0}
