@@ -66,6 +66,9 @@ function BorrowerSection({
   monthsElapsed, fmt,
 }) {
   const ACCENT = T.blue;
+  // Sub-section banner uses a LIGHTER indigo (brand kit's Indigo Light #818CF8)
+  // so it reads as a child of the main 'Income' bright-blue banner above.
+  const SUB_ACCENT = "#818CF8";
   const HEAD_BG = `${ACCENT}14`;
   const HEAD_BORDER = `${ACCENT}38`;
   const myIncomes = incomes.filter(i => i.borrower === borrowerNum);
@@ -83,9 +86,9 @@ function BorrowerSection({
       background: T.card,
       marginBottom: 16,
     }}>
-      {/* Banner header */}
+      {/* Banner header — lighter indigo so it reads as a sub-section under the main Income banner */}
       <div style={{
-        background: ACCENT, color: "#fff", padding: "10px 16px",
+        background: SUB_ACCENT, color: "#fff", padding: "10px 16px",
         fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
         textTransform: "uppercase", fontFamily: FONT,
         display: "flex", alignItems: "center", justifyContent: "space-between",
