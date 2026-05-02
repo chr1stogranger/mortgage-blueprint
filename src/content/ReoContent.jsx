@@ -6,7 +6,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 function AutoBadge({ T }) {
   return (
     <span style={{
-      fontSize: 9, fontWeight: 700, color: T.textTertiary, fontFamily: MONO,
+      fontSize: 9, fontWeight: 700, color: T.textTertiary, fontFamily: FONT,
       letterSpacing: 1, padding: "2px 5px", border: `1px solid ${T.separator}`,
       borderRadius: 4, marginLeft: 6, lineHeight: 1, whiteSpace: "nowrap",
       display: "inline-flex", alignItems: "center",
@@ -94,7 +94,7 @@ export default function ReoContent({
           <div style={{
             background: ACCENT, color: "#fff", padding: "10px 16px",
             fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-            textTransform: "uppercase", fontFamily: MONO,
+            textTransform: "uppercase", fontFamily: FONT,
           }}>Real Estate Owned — Income Analysis</div>
           <div style={{ padding: "28px 16px", textAlign: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 4 }}>No properties added yet</div>
@@ -125,11 +125,11 @@ export default function ReoContent({
         <div style={{
           background: ACCENT, color: "#fff", padding: "10px 16px",
           fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", fontFamily: MONO,
+          textTransform: "uppercase", fontFamily: FONT,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <span>Real Estate Owned — Income Analysis</span>
-          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: MONO, letterSpacing: 0.5 }}>
+          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
             {fmt(totals.value)} total value
           </span>
         </div>
@@ -139,7 +139,7 @@ export default function ReoContent({
           display: "grid", gridTemplateColumns: COLS, gap: 0,
           background: HEAD_BG, borderBottom: `1px solid ${HEAD_BORDER}`,
           padding: "8px 12px",
-          fontSize: 10, fontFamily: MONO, fontWeight: 700, letterSpacing: 1,
+          fontSize: 10, fontFamily: FONT, fontWeight: 700, letterSpacing: 1,
           textTransform: "uppercase", color: T.textTertiary,
         }}>
           <span>Address</span>
@@ -202,7 +202,7 @@ export default function ReoContent({
                     )}
                     <span title="Payment includes Tax / Ins / HOA — click to split"
                       onClick={() => updateReo(r.id, "includesTI", false)}
-                      style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: MONO, letterSpacing: 0.5, padding: "2px 6px", border: `1px solid ${T.green}55`, borderRadius: 4, textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer" }}>PITIA</span>
+                      style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: FONT, letterSpacing: 0.5, padding: "2px 6px", border: `1px solid ${T.green}55`, borderRadius: 4, textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer" }}>PITIA</span>
                   </div>
                 ) : (
                   <>
@@ -254,7 +254,7 @@ export default function ReoContent({
                 <div style={{ padding: "14px 20px", background: `${ACCENT}06`, borderBottom: `1px solid ${T.separator}` }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
                         Linked Debts ({c.linked.length})
                       </div>
                       {c.linked.length === 0 && (
@@ -292,7 +292,7 @@ export default function ReoContent({
                       })()}
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
                         DTI &amp; Equity
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
@@ -336,7 +336,7 @@ export default function ReoContent({
           padding: "10px 12px", background: T.inputBg,
           borderTop: `1px solid ${HEAD_BORDER}`,
           alignItems: "center",
-          fontSize: 12, fontWeight: 700, fontFamily: MONO, letterSpacing: 0.5,
+          fontSize: 12, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5,
           textTransform: "uppercase", color: T.text,
         }}>
           <span style={{ gridColumn: "1 / 4" }}>Total Rental Income / Loss</span>
@@ -365,7 +365,7 @@ export default function ReoContent({
           const c = computeRow(r);
           return (
             <div key={r.id} style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, marginBottom: 12, overflow: "hidden", background: T.card }}>
-              <div style={{ background: ACCENT, color: "#fff", padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO, display: "flex", justifyContent: "space-between" }}>
+              <div style={{ background: ACCENT, color: "#fff", padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT, display: "flex", justifyContent: "space-between" }}>
                 <span>{r.address || `Property ${i + 1}`}</span>
                 <button onClick={() => removeReo(r.id)} style={{ background: "none", border: "none", color: "#fff", fontSize: 13, cursor: "pointer", opacity: 0.85 }}>Remove</button>
               </div>
@@ -463,7 +463,7 @@ export default function ReoContent({
     <Card pad={16}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
         <div>
-          <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>REO DTI Impact</div>
+          <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>REO DTI Impact</div>
           <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: totals.dtiImpact >= 0 ? T.green : T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
             {totals.dtiImpact >= 0 ? "+" : ""}{fmt(totals.dtiImpact)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
           </div>
@@ -474,19 +474,19 @@ export default function ReoContent({
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, paddingTop: 12, borderTop: `1px solid ${T.separator}`, marginTop: 8 }}>
         <div>
-          <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Value</div>
+          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Value</div>
           <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2 }}>{fmt(totals.value)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Liens</div>
+          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Liens</div>
           <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2, color: T.red }}>{fmt(totals.liens)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Equity</div>
+          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Equity</div>
           <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2, color: T.green }}>{fmt(totals.value - totals.liens)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Net Cash Flow</div>
+          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Net Cash Flow</div>
           <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2, color: totals.net >= 0 ? T.green : T.red }}>{fmt(totals.net)}/mo</div>
         </div>
       </div>

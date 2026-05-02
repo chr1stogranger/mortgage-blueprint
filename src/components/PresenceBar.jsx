@@ -70,7 +70,7 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
           color: '#A1A1A1',
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>LIVE</span>
       </div>
 
@@ -160,7 +160,7 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
                   <div style={{
                     fontSize: 10,
                     color: color,
-                    fontFamily: MONO,
+                    fontFamily: FONT,
                     marginTop: 2,
                   }}>
                     {user.user_type === 'lo' ? 'Loan Officer' : 'Borrower'}

@@ -134,7 +134,7 @@ export default function SetupContent({
        <input type="range" min={300} max={850} step={5} value={creditScore || 650}
         onChange={e => setCreditScore(parseInt(e.target.value, 10))}
         style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
-       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
         <span>300</span>
         <span>580</span>
         <span>670</span>
@@ -158,7 +158,7 @@ export default function SetupContent({
        calls lookupZip() to fill the rest. Replaces the 4-pill ZIP/City/County/
        State row that used to sit at the top of the Calculator. */}
    <Card style={{ marginTop: 12 }}>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
     <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
      <div style={{ flex: "0 0 140px" }}>
       <Inp

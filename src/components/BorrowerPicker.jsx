@@ -312,7 +312,7 @@ export default function BorrowerPicker({
                 <div style={{ fontSize: 12, fontWeight: 600, color: text, fontFamily: FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {pendingBorrower?.name || 'Client'}
                 </div>
-                <div style={{ fontSize: 9, color: textTer, fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <div style={{ fontSize: 9, color: textTer, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   SELECT BLUEPRINT
                 </div>
               </div>
@@ -369,7 +369,7 @@ export default function BorrowerPicker({
                 padding: '6px 12px',
                 fontSize: 10, fontWeight: 600,
                 color: textTer, textTransform: 'uppercase',
-                letterSpacing: '0.06em', fontFamily: MONO,
+                letterSpacing: '0.06em', fontFamily: FONT,
                 borderBottom: `1px solid ${border}`,
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
@@ -426,7 +426,7 @@ export default function BorrowerPicker({
                             fontSize: 9, fontWeight: 600,
                             color: statusColor, background: `${statusColor}12`,
                             padding: '1px 5px', borderRadius: 4,
-                            fontFamily: MONO, textTransform: 'uppercase',
+                            fontFamily: FONT, textTransform: 'uppercase',
                             letterSpacing: '0.04em', flexShrink: 0,
                           }}>
                             {statusLabel}
@@ -494,7 +494,7 @@ export default function BorrowerPicker({
                 padding: '6px 12px',
                 fontSize: 10, fontWeight: 600,
                 color: textTer, textTransform: 'uppercase',
-                letterSpacing: '0.06em', fontFamily: MONO,
+                letterSpacing: '0.06em', fontFamily: FONT,
                 borderBottom: `1px solid ${border}`,
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
@@ -537,7 +537,7 @@ export default function BorrowerPicker({
                             fontSize: 9, fontWeight: 600,
                             color: textTer, background: 'rgba(255,255,255,0.04)',
                             padding: '1px 5px', borderRadius: 4,
-                            fontFamily: MONO, textTransform: 'uppercase',
+                            fontFamily: FONT, textTransform: 'uppercase',
                           }}>
                             {type}
                           </span>
@@ -546,7 +546,7 @@ export default function BorrowerPicker({
                               fontSize: 9, fontWeight: 600,
                               color: accent, background: `${accent}12`,
                               padding: '1px 5px', borderRadius: 4,
-                              fontFamily: MONO,
+                              fontFamily: FONT,
                             }}>
                               BORROWER
                             </span>
@@ -554,7 +554,7 @@ export default function BorrowerPicker({
                         </div>
                         {/* Quick metrics */}
                         {(cs.loanAmount || cs.rate || cs.monthlyPI) && (
-                          <div style={{ display: 'flex', gap: 12, marginLeft: 22, fontSize: 11, fontFamily: MONO }}>
+                          <div style={{ display: 'flex', gap: 12, marginLeft: 22, fontSize: 11, fontFamily: FONT }}>
                             {cs.loanAmount > 0 && <span style={{ color: textSec }}>{fmt(cs.loanAmount)}</span>}
                             {cs.rate > 0 && <span style={{ color: textSec }}>{Number(cs.rate).toFixed(3)}%</span>}
                             {cs.monthlyPI > 0 && <span style={{ color: accent, fontWeight: 600 }}>{fmt(cs.monthlyPI)}/mo</span>}

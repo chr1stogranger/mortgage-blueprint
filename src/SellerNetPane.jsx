@@ -66,7 +66,7 @@ function PaneRow({ label, value, sub, color, bold }) {
     <span style={{ fontSize: bold ? 13 : 12, fontWeight: bold ? 600 : 400, color: bold ? T.text : T.textSecondary, fontFamily: FONT }}>
       {label}{sub && <span style={{ color: T.textTertiary, fontSize: 10, marginLeft: 4 }}>{sub}</span>}
     </span>
-    <span style={{ fontSize: bold ? 15 : 13, fontWeight: 600, fontFamily: MONO, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
+    <span style={{ fontSize: bold ? 15 : 13, fontWeight: 600, fontFamily: FONT, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
   </div>);
 }
 
@@ -183,8 +183,8 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
           { label: "Comm", value: fmt(calc.commAmt), color: T.text },
         ].map((m, i) => (
           <div key={i} style={{ textAlign: "center", padding: "6px 4px", background: T.pillBg, borderRadius: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
-            <div style={{ fontSize: 8, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
+            <div style={{ fontSize: 8, color: T.textTertiary, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -222,7 +222,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
 
       {/* Capital Gains — inline, always visible, compact */}
       <PaneCard style={{ padding: 10 }}>
-        <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
           Capital Gains Estimate
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>

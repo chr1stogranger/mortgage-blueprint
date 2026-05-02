@@ -86,7 +86,7 @@ export default function LockControls({
           color: '#A1A1A1',
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>
           {userType === 'lo' ? 'DOCUMENT VERIFICATION' : 'VERIFIED SECTIONS'}
         </div>
@@ -194,7 +194,7 @@ export default function LockControls({
                   background: 'rgba(16, 185, 129, 0.1)',
                   padding: '4px 8px',
                   borderRadius: 4,
-                  fontFamily: MONO,
+                  fontFamily: FONT,
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
                 }}>

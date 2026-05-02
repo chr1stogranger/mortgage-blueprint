@@ -102,8 +102,8 @@ export default function RefiComparePane({ T }) {
           ...(isCashOut ? [{ label: "Cash Out", value: fmt(cashOutAmount), color: T.blue }] : []),
         ].map((m, i) => (
           <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.pillBg, borderRadius: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
-            <div style={{ fontSize: 8, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
+            <div style={{ fontSize: 8, color: T.textTertiary, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -119,9 +119,9 @@ export default function RefiComparePane({ T }) {
           padding: "8px 12px", borderBottom: `1px solid ${T.separator}`,
           background: T.bg2,
         }}>
-          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px" }}>Metric</span>
-          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.red, textTransform: "uppercase", letterSpacing: "1px", textAlign: "center" }}>Current</span>
-          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", textAlign: "center" }}>Proposed</span>
+          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px" }}>Metric</span>
+          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.red, textTransform: "uppercase", letterSpacing: "1px", textAlign: "center" }}>Current</span>
+          <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.green, textTransform: "uppercase", letterSpacing: "1px", textAlign: "center" }}>Proposed</span>
         </div>
 
         {[
@@ -143,8 +143,8 @@ export default function RefiComparePane({ T }) {
             borderTop: i > 0 ? `1px solid ${T.separator}` : "none",
           }}>
             <span style={{ fontSize: 12, color: T.textSecondary, fontWeight: 500 }}>{row.label}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.text, textAlign: "center" }}>{row.current}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: row.better ? T.green : T.text, textAlign: "center" }}>{row.proposed}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: T.text, textAlign: "center" }}>{row.current}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: row.better ? T.green : T.text, textAlign: "center" }}>{row.proposed}</span>
           </div>
         ))}
       </div>
@@ -155,21 +155,21 @@ export default function RefiComparePane({ T }) {
           background: T.card, borderRadius: 12, padding: 14,
           boxShadow: T.cardShadow, marginBottom: 12,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
             Breakeven Analysis
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>Est. Refi Closing Costs</span>
-            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(refiCosts)}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(refiCosts)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>Monthly Savings</span>
-            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.green }}>{fmt(monthlySavings)}/mo</span>
+            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.green }}>{fmt(monthlySavings)}/mo</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Breakeven</span>
             <span style={{
-              fontSize: 15, fontWeight: 800, fontFamily: MONO,
+              fontSize: 15, fontWeight: 800, fontFamily: FONT,
               color: breakEvenMonths <= 24 ? T.green : breakEvenMonths <= 48 ? T.orange : T.red,
             }}>
               {breakEvenMonths} months
@@ -195,20 +195,20 @@ export default function RefiComparePane({ T }) {
           background: T.card, borderRadius: 12, padding: 14,
           boxShadow: T.cardShadow, marginBottom: 12,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 8 }}>
             Cash-Out Summary
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>Current Balance</span>
-            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(currentLoan)}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(currentLoan)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>New Loan Amount</span>
-            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.text }}>{fmt(proposedLoan)}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(proposedLoan)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Cash to You</span>
-            <span style={{ fontSize: 16, fontWeight: 800, fontFamily: MONO, color: T.blue }}>{fmt(cashOutAmount)}</span>
+            <span style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.blue }}>{fmt(cashOutAmount)}</span>
           </div>
           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4, lineHeight: 1.4 }}>
             Cash-out is limited to 80% LTV on conventional. The cash can be used for debt payoff, home improvements, investments, or reserves.

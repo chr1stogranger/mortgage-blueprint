@@ -80,7 +80,7 @@ function DebtToIncomeSummary({
     padding: "10px 16px",
     fontSize: 11,
     fontWeight: 700,
-    fontFamily: MONO,
+    fontFamily: FONT,
     letterSpacing: 1.5,
     textTransform: "uppercase",
     textAlign: "center",
@@ -90,7 +90,7 @@ function DebtToIncomeSummary({
     padding: "8px 12px",
     fontSize: 10,
     fontWeight: 700,
-    fontFamily: MONO,
+    fontFamily: FONT,
     color: T.blue,
     letterSpacing: 1.2,
     textTransform: "uppercase",
@@ -164,7 +164,7 @@ function DebtToIncomeSummary({
           />
           {/* Income Min/Delta footer */}
           <div style={{ ...rowStyle, background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }}>
-            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Min</span>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Min</span>
             <span style={cellValue}>{fmt(incomeMin)}</span>
           </div>
           <div style={{
@@ -173,7 +173,7 @@ function DebtToIncomeSummary({
             color: incomeDelta < 0 ? T.red : T.green,
             fontWeight: 700,
           }}>
-            <span style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
+            <span style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
             <span style={{ fontFamily: FONT, fontWeight: 700 }}>
               {incomeDelta < 0 ? "−" : ""}{fmt(Math.abs(incomeDelta))}
             </span>
@@ -196,7 +196,7 @@ function DebtToIncomeSummary({
           />
           {/* Debts Max/Delta footer */}
           <div style={{ ...rowStyle, background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }}>
-            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Max</span>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Max</span>
             <span style={cellValue}>{fmt(debtsMax)}</span>
           </div>
           <div style={{
@@ -205,7 +205,7 @@ function DebtToIncomeSummary({
             color: debtsDelta > 0 ? T.red : T.green,
             fontWeight: 700,
           }}>
-            <span style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
+            <span style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
             <span style={{ fontFamily: FONT, fontWeight: 700 }}>
               {debtsDelta > 0 ? "+" : ""}{fmt(debtsDelta)}
             </span>
@@ -220,7 +220,7 @@ function DebtToIncomeSummary({
         padding: "8px 16px",
         fontSize: 11,
         fontWeight: 700,
-        fontFamily: MONO,
+        fontFamily: FONT,
         letterSpacing: 1.5,
         textTransform: "uppercase",
         textAlign: "center",
@@ -228,8 +228,8 @@ function DebtToIncomeSummary({
       <div style={{ padding: "10px 16px", display: "grid", gridTemplateColumns: "1.4fr 0.8fr 0.8fr", gap: 6 }}>
         {/* Header row */}
         <div></div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>Personal</div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>Max</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>Personal</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", textAlign: "right" }}>Max</div>
         {/* HTI row */}
         <div style={{ fontSize: 12, color: T.textSecondary }}>Housing-to-Income (HTI)</div>
         <div style={{ fontSize: 12, fontWeight: 600, color: T.text, textAlign: "right", fontFamily: FONT }}>{(personalHTI * 100).toFixed(2)}%</div>
@@ -302,7 +302,7 @@ export default function QualifyContent({
  {/* FICO Score — slider + numeric input. Moved BELOW pillars per Christo's spec. */}
  <div style={{ marginTop: 16 }}>
   <Card>
-   <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>FICO Score</div>
+   <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>FICO Score</div>
    <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ display: "flex", alignItems: "center", gap: 14 }}>
     <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="720"
      onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
@@ -312,7 +312,7 @@ export default function QualifyContent({
      <input type="range" min={300} max={850} step={1} value={creditScore || 650}
       onChange={e => setCreditScore(parseInt(e.target.value, 10))}
       style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
-     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
       <span>300</span>
       <span>850</span>
      </div>

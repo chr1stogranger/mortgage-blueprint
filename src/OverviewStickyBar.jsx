@@ -89,7 +89,7 @@ export default function OverviewStickyBar({
   // ── Stat cell component ──
   const Stat = ({ label, value, color }) => (
     <div style={{ textAlign: "center", minWidth: isDesktop ? 80 : 50 }}>
-      <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, fontFamily: MONO, textTransform: "uppercase", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 9, color: T.textTertiary, fontWeight: 600, letterSpacing: 1, fontFamily: FONT, textTransform: "uppercase", marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: isDesktop ? 16 : 13, fontWeight: 700, color: color || T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>{value}</div>
     </div>
   );
@@ -161,7 +161,7 @@ export default function OverviewStickyBar({
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 3 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: p.color }} />
               {isDesktop && (
-                <span style={{ fontSize: 9, fontWeight: 600, color: p.color, fontFamily: MONO, letterSpacing: 0.3, opacity: 0.85 }}>{p.label}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: p.color, fontFamily: FONT, letterSpacing: 0.3, opacity: 0.85 }}>{p.label}</span>
               )}
             </div>
           ))}

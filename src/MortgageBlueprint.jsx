@@ -805,7 +805,7 @@ function PayRing({ segments, total, size, hideLegend }) {
    {segments.filter(s => s.v > 0).map((s, i) => (<div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
     <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.c }} />
     <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{s.l}</span>
-    <span style={{ fontSize: 12, color: T.text, fontFamily: MONO, fontWeight: 600 }}>{fmt(s.v)}</span>
+    <span style={{ fontSize: 12, color: T.text, fontFamily: FONT, fontWeight: 600 }}>{fmt(s.v)}</span>
     {s.tip && <InfoTip text={s.tip} />}
    </div>))}
   </div>}
@@ -2821,7 +2821,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </svg>
     </button>
     {!isFinale && (
-     <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: "0.03em" }}>
+     <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: "0.03em" }}>
       NEXT: {nextTabName.toUpperCase()}
      </div>
     )}
@@ -4633,7 +4633,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
       }}>
         <div style={{
-          fontFamily: MONO,
+          fontFamily: FONT,
           fontSize: '0.6rem',
           fontWeight: 600,
           textTransform: 'uppercase',
@@ -4879,7 +4879,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <div style={{ marginTop: 16 }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
     <div style={{ width: 4, height: 16, borderRadius: 2, background: 'linear-gradient(135deg, #6366F1, #3B82F6)' }} />
-    <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: MONO }}>COLLABORATION</span>
+    <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: FONT }}>COLLABORATION</span>
    </div>
    <LockControls
     scenarioId={activeScenarioId}

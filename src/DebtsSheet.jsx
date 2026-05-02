@@ -29,7 +29,7 @@ export default function DebtsSheet({
     <div>
       {/* Hero summary */}
       <div style={{ textAlign: "center", marginBottom: 20, padding: "16px 0 20px", borderBottom: `1px solid ${T.separator}` }}>
-        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: MONO, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>Monthly Debts</div>
+        <div style={{ fontSize: 11, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 2, marginBottom: 4 }}>Monthly Debts</div>
         <div style={{ fontSize: 32, fontWeight: 800, fontFamily: FONT, color: debtFree ? T.green : T.red, letterSpacing: "-0.03em" }}>{debtFree ? "$0" : fmt(calc.totalMonthlyDebts)}</div>
         {debtFree && <div style={{ fontSize: 13, color: T.green, fontWeight: 600 }}>Debt free!</div>}
       </div>

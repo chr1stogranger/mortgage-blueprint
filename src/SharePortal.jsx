@@ -56,7 +56,7 @@ function LoadingSpinner() {
         <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1 }}>
           <span style={{ color: T.text }}>Real</span><span style={{ color: T.accent }}>Stack</span>
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "2px", marginTop: 6, fontFamily: MONO }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "2px", marginTop: 6, fontFamily: FONT }}>
           BLUEPRINT
         </div>
         <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 16, animation: "fade-pulse 1.5s ease-in-out infinite" }}>
@@ -123,7 +123,7 @@ function ScenarioCard({ scenario, isSelected, onSelect }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em" }}>{name}</div>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 3, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 3, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.06em" }}>
             {type}
             {byBorrower && <span style={{ color: T.accent, marginLeft: 8 }}>YOUR ADJUSTMENT</span>}
           </div>
@@ -152,8 +152,8 @@ function ScenarioCard({ scenario, isSelected, onSelect }) {
           { label: "LTV", value: fmtPct(cs.ltv) },
         ].map(m => (
           <div key={m.label} style={{ padding: "6px 0" }}>
-            <div style={{ fontSize: 9, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3, fontFamily: MONO }}>{m.label}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: m.highlight ? T.accent : T.text, fontFamily: MONO }}>{m.value}</div>
+            <div style={{ fontSize: 9, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3, fontFamily: FONT }}>{m.label}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: m.highlight ? T.accent : T.text, fontFamily: FONT }}>{m.value}</div>
           </div>
         ))}
       </div>
@@ -161,9 +161,9 @@ function ScenarioCard({ scenario, isSelected, onSelect }) {
       {/* Tags */}
       {(cs.loanType || cs.term || cs.creditScore) && (
         <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
-          {cs.loanType && <span style={{ fontSize: 10, fontWeight: 600, color: T.accentLight, background: `${T.accent}12`, padding: "3px 8px", borderRadius: 6, fontFamily: MONO }}>{cs.loanType}</span>}
-          {cs.term && <span style={{ fontSize: 10, fontWeight: 600, color: T.textSecondary, background: "rgba(255,255,255,0.04)", padding: "3px 8px", borderRadius: 6, fontFamily: MONO }}>{cs.term}yr</span>}
-          {cs.creditScore > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: T.green, background: "rgba(16,185,129,0.1)", padding: "3px 8px", borderRadius: 6, fontFamily: MONO }}>FICO {cs.creditScore}</span>}
+          {cs.loanType && <span style={{ fontSize: 10, fontWeight: 600, color: T.accentLight, background: `${T.accent}12`, padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>{cs.loanType}</span>}
+          {cs.term && <span style={{ fontSize: 10, fontWeight: 600, color: T.textSecondary, background: "rgba(255,255,255,0.04)", padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>{cs.term}yr</span>}
+          {cs.creditScore > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: T.green, background: "rgba(16,185,129,0.1)", padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>FICO {cs.creditScore}</span>}
         </div>
       )}
     </div>
@@ -231,13 +231,13 @@ function ScenarioDetail({ scenario, accessLevel, shareToken, onScenarioCreated }
               width: 130, fontSize: 16, fontWeight: 700, color: T.text,
               background: T.inputBg, border: `1px solid ${T.accent}40`,
               borderRadius: 10, padding: "8px 12px", textAlign: "right",
-              fontFamily: MONO, outline: "none",
+              fontFamily: FONT, outline: "none",
             }}
           />
           {suffix && <span style={{ color: T.textTertiary, fontSize: 13 }}>{suffix}</span>}
         </div>
       ) : (
-        <span style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: MONO }}>
+        <span style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>
           {prefix}{adjValues[key] ? Number(adjValues[key]).toLocaleString() : "\u2014"}{suffix}
         </span>
       )}
@@ -247,7 +247,7 @@ function ScenarioDetail({ scenario, accessLevel, shareToken, onScenarioCreated }
   return (
     <div style={{ background: T.surface, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 24, marginTop: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: MONO }}>SCENARIO DETAILS</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT }}>SCENARIO DETAILS</div>
         {accessLevel === "can_adjust" && !adjusting && (
           <button onClick={() => setAdjusting(true)} style={{
             padding: "7px 14px", background: `${T.accent}12`, border: `1px solid ${T.accent}30`,
@@ -265,7 +265,7 @@ function ScenarioDetail({ scenario, accessLevel, shareToken, onScenarioCreated }
 
       {/* Summary */}
       <div style={{ marginTop: 18, padding: 16, background: `${T.accent}06`, borderRadius: 12, border: `1px solid ${T.accent}10` }}>
-        <div style={{ fontSize: 9, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10, fontFamily: MONO, fontWeight: 700 }}>ESTIMATED SUMMARY</div>
+        <div style={{ fontSize: 9, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10, fontFamily: FONT, fontWeight: 700 }}>ESTIMATED SUMMARY</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {[
             { label: "Loan Amount", value: fmt((Number(adjValues.salesPrice) || 0) - (Number(adjValues.downPayment) || 0)) },
@@ -274,8 +274,8 @@ function ScenarioDetail({ scenario, accessLevel, shareToken, onScenarioCreated }
             { label: "Loan Type", value: cs.loanType || "\u2014" },
           ].map(m => (
             <div key={m.label}>
-              <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.06em" }}>{m.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: MONO, marginTop: 2 }}>{m.value}</div>
+              <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.06em" }}>{m.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text, fontFamily: FONT, marginTop: 2 }}>{m.value}</div>
             </div>
           ))}
         </div>
@@ -368,12 +368,12 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
               <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.1 }}>
                 <span style={{ color: T.text }}>Real</span><span style={{ color: T.accent }}>Stack</span>
               </div>
-              <div style={{ fontSize: 9, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1.5px", fontFamily: MONO }}>BLUEPRINT</div>
+              <div style={{ fontSize: 9, fontWeight: 600, color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1.5px", fontFamily: FONT }}>BLUEPRINT</div>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: FONT }}>{borrower?.name || "Your Blueprint"}</div>
-            <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {accessLevel === "view_only" ? "VIEW ONLY" : accessLevel === "can_adjust" ? "CAN ADJUST" : "FULL ACCESS"}
             </div>
           </div>
@@ -394,7 +394,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         }} />
 
         <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: T.accent, textTransform: "uppercase", letterSpacing: "2px", fontFamily: MONO, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: T.accent, textTransform: "uppercase", letterSpacing: "2px", fontFamily: FONT, marginBottom: 12 }}>
             YOUR MORTGAGE BLUEPRINT
           </div>
           <h1 style={{
@@ -429,7 +429,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
         <div style={{
           fontSize: 10, fontWeight: 600, color: T.textTertiary,
           textTransform: "uppercase", letterSpacing: "0.1em",
-          marginBottom: 14, fontFamily: MONO,
+          marginBottom: 14, fontFamily: FONT,
         }}>
           {scenarios.length} SCENARIO{scenarios.length !== 1 ? "S" : ""}
         </div>
@@ -524,7 +524,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
           <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.04em" }}>
             <span style={{ color: T.textTertiary }}>Real</span><span style={{ color: T.accent }}>Stack</span>
           </div>
-          <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: MONO, letterSpacing: "0.04em" }}>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, letterSpacing: "0.04em" }}>
             MORTGAGE TECHNOLOGY PLATFORM
           </div>
         </div>

@@ -57,11 +57,11 @@ export default function AssetsContent({
         <div style={{
           background: T.blue, color: "#fff", padding: "10px 16px",
           fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", fontFamily: MONO,
+          textTransform: "uppercase", fontFamily: FONT,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <span>Assets</span>
-          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: MONO, letterSpacing: 0.5 }}>
+          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
             {assets.length === 0 ? "No accounts" : `${fmt(totalValue)} total`}
           </span>
         </div>
@@ -73,7 +73,7 @@ export default function AssetsContent({
             gap: 8,
             paddingBottom: 8,
             borderBottom: `1px solid ${T.separator}`,
-            fontSize: 10, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase",
+            fontSize: 10, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase",
             color: T.textTertiary, fontWeight: 700,
           }}>
             <span>Bank Name</span>
@@ -210,7 +210,7 @@ export default function AssetsContent({
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
           {/* Cash to Close */}
           <Card pad={16}>
-            <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, marginBottom: 8 }}>Cash to Close</div>
+            <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, marginBottom: 8 }}>Cash to Close</div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
               <span style={{ color: T.textSecondary }}>Total Allocated</span>
               <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalForClosing)}</span>
@@ -233,7 +233,7 @@ export default function AssetsContent({
 
           {/* Reserves */}
           <Card pad={16}>
-            <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, marginBottom: 8 }}>Reserves</div>
+            <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, marginBottom: 8 }}>Reserves</div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
               <span style={{ color: T.textSecondary }}>Total Eligible</span>
               <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalReserves)}</span>

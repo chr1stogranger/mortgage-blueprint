@@ -53,14 +53,14 @@ export default function DebtFreeSplash({ T, linkedValues }) {
         borderRadius: 16, padding: "20px 24px", marginBottom: 20,
       }}>
         <div style={{
-          fontSize: 11, fontWeight: 600, fontFamily: MONO,
+          fontSize: 11, fontWeight: 600, fontFamily: FONT,
           textTransform: "uppercase", letterSpacing: "2px",
           color: T.green, marginBottom: 8,
         }}>
           Surplus After Payoff
         </div>
         <div style={{
-          fontSize: 32, fontWeight: 800, fontFamily: MONO,
+          fontSize: 32, fontWeight: 800, fontFamily: FONT,
           color: T.green, letterSpacing: "-0.03em",
         }}>
           {fmt(surplus)}
@@ -75,7 +75,7 @@ export default function DebtFreeSplash({ T, linkedValues }) {
       }}>
         <div style={{
           padding: "10px 14px", borderBottom: `1px solid ${T.separator}`,
-          fontSize: 11, fontWeight: 600, fontFamily: MONO,
+          fontSize: 11, fontWeight: 600, fontFamily: FONT,
           textTransform: "uppercase", letterSpacing: "1.5px",
           color: T.textTertiary,
         }}>
@@ -91,7 +91,7 @@ export default function DebtFreeSplash({ T, linkedValues }) {
             padding: "10px 14px", borderTop: i > 0 ? `1px solid ${T.separator}` : "none",
           }}>
             <span style={{ fontSize: 13, color: T.textSecondary }}>{row.label}</span>
-            <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: row.color }}>
+            <span style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: row.color }}>
               {row.value}
             </span>
           </div>
@@ -103,7 +103,7 @@ export default function DebtFreeSplash({ T, linkedValues }) {
           background: T.successBg,
         }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Remaining Funds</span>
-          <span style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.green }}>
+          <span style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.green }}>
             {fmt(surplus)}
           </span>
         </div>
@@ -117,7 +117,7 @@ export default function DebtFreeSplash({ T, linkedValues }) {
           boxShadow: T.cardShadow,
         }}>
           <div style={{
-            fontSize: 11, fontWeight: 600, fontFamily: MONO,
+            fontSize: 11, fontWeight: 600, fontFamily: FONT,
             textTransform: "uppercase", letterSpacing: "1.5px",
             color: T.textTertiary, marginBottom: 12,
           }}>

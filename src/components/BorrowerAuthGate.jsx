@@ -303,7 +303,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           </div>
           <div style={{
             fontSize: 11, fontWeight: 600, color: T.textTertiary,
-            textTransform: 'uppercase', letterSpacing: '2px', marginTop: 8, fontFamily: MONO,
+            textTransform: 'uppercase', letterSpacing: '2px', marginTop: 8, fontFamily: FONT,
           }}>
             BLUEPRINT
           </div>
@@ -345,7 +345,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           <div style={{ fontSize: 15, color: T.textSecondary, lineHeight: 1.6, marginBottom: 6 }}>
             We sent a sign-in link to
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: T.accent, fontFamily: MONO, marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.accent, fontFamily: FONT, marginBottom: 20 }}>
             {email}
           </div>
           <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.6 }}>
@@ -465,7 +465,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           </div>
           <div style={{
             fontSize: 10, fontWeight: 600, color: T.textTertiary,
-            textTransform: 'uppercase', letterSpacing: '2px', marginTop: 6, fontFamily: MONO,
+            textTransform: 'uppercase', letterSpacing: '2px', marginTop: 6, fontFamily: FONT,
           }}>
             BLUEPRINT
           </div>
@@ -517,7 +517,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
               margin: '20px 0', color: T.textTertiary, fontSize: 12,
             }}>
               <div style={{ flex: 1, height: 1, background: T.separator }} />
-              <span style={{ fontFamily: MONO, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>or</span>
+              <span style={{ fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>or</span>
               <div style={{ flex: 1, height: 1, background: T.separator }} />
             </div>
           )}
@@ -591,7 +591,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         {/* Security note */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          marginTop: 20, color: T.textTertiary, fontSize: 11, fontFamily: MONO,
+          marginTop: 20, color: T.textTertiary, fontSize: 11, fontFamily: FONT,
         }}>
           <ShieldIcon />
           <span>Your financial data is encrypted and secure</span>
@@ -600,7 +600,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         {/* Footer brand */}
         <div style={{
           textAlign: 'center', marginTop: 28,
-          fontSize: 10, color: T.textTertiary, fontFamily: MONO,
+          fontSize: 10, color: T.textTertiary, fontFamily: FONT,
           textTransform: 'uppercase', letterSpacing: '1.5px',
         }}>
           MORTGAGE TECHNOLOGY PLATFORM

@@ -56,12 +56,12 @@ export default function Prop19Content({
      <Inp label="Sale price" value={prop19OldSalePrice} onChange={setProp19OldSalePrice} tip="What the outgoing home sold for (or will sell for)." />
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
       <div>
-       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4, fontFamily: MONO, textTransform: "uppercase", letterSpacing: 1 }}>SALE DATE</div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4, fontFamily: FONT, textTransform: "uppercase", letterSpacing: 1 }}>SALE DATE</div>
        <input type="date" value={prop19SaleDate} onChange={e => setProp19SaleDate(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontFamily: FONT, fontSize: 14 }} />
       </div>
       <div>
-       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4, fontFamily: MONO, textTransform: "uppercase", letterSpacing: 1 }}>PURCHASE DATE</div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4, fontFamily: FONT, textTransform: "uppercase", letterSpacing: 1 }}>PURCHASE DATE</div>
        <input type="date" value={prop19PurchaseDate} onChange={e => setProp19PurchaseDate(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontFamily: FONT, fontSize: 14 }} />
       </div>
@@ -76,7 +76,7 @@ export default function Prop19Content({
      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
       {[0,1,2,3].map(n => (
        <button key={n} onClick={() => setProp19TransfersUsed(n)} style={{
-        padding: "10px 8px", borderRadius: 10, fontSize: 14, fontWeight: 700, fontFamily: MONO, cursor: "pointer",
+        padding: "10px 8px", borderRadius: 10, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
         background: prop19TransfersUsed === n ? T.blue : "transparent",
         color: prop19TransfersUsed === n ? "#fff" : T.text,
         border: `1px solid ${prop19TransfersUsed === n ? T.blue : T.separator}`,
@@ -127,7 +127,7 @@ export default function Prop19Content({
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
       {[["Monthly", fmt(prop19.monthlySavings)],["Annual", fmt(prop19.annualSavings)],["10-year", fmt(prop19.tenYearSavings)],["30-year", fmt(prop19.thirtyYearSavings)]].map(([lbl, val], i) => (
        <div key={i} style={{ background: T.pillBg, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: prop19.annualSavings > 0 ? T.green : T.textSecondary, fontFamily: MONO }}>{val}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: prop19.annualSavings > 0 ? T.green : T.textSecondary, fontFamily: FONT }}>{val}</div>
         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{lbl}</div>
        </div>
       ))}

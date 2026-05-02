@@ -175,13 +175,13 @@ export default function TaxContent({
    <Card>
     <div style={{ overflowX: "auto" }}>
      <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", gap: 0, fontSize: 12, minWidth: 620 }}>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Tax Year</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Income</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Write-offs</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxable Inc.</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Eff. Rate</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxes Owed</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Delta</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Tax Year</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Income</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Write-offs</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxable Inc.</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Eff. Rate</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxes Owed</div>
+      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Delta</div>
 
       <div style={{ padding: "10px 6px", color: T.text, fontWeight: 600 }}>Year 1</div>
       <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
@@ -208,12 +208,12 @@ export default function TaxContent({
   {/* 3. Write-Offs Due to Home Ownership */}
   <Sec title="Write-Offs Due to Home Ownership">
    <Card>
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 4, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 4, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
      <span></span>
      <span style={{ textAlign: "right" }}></span>
      <span style={{ gridColumn: "3 / 5", textAlign: "center", fontStyle: "italic", color: T.blue }}>2018 Tax Law Caps applied →</span>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
      <span>Item</span>
      <span style={{ textAlign: "right" }}>Amount</span>
      <span style={{ textAlign: "right" }}>Federal</span>
@@ -264,10 +264,10 @@ export default function TaxContent({
     <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } : { display: "flex", flexDirection: "column", gap: 12 }}>
      {/* Federal card */}
      <Card>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal Tax Savings — Before & After</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal Tax Savings — Before & After</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
        <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
-        <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
+        <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
@@ -276,7 +276,7 @@ export default function TaxContent({
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(fedTaxableBefore)}</div>
        </div>
        <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.green}22` }}>
-        <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
+        <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>{calc.fedItemizes ? "Itemized Deduction" : "Standard Deduction"}</div>
@@ -287,7 +287,7 @@ export default function TaxContent({
        </div>
       </div>
       <div style={{ overflowX: "auto" }}>
-       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase" }}>
+       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase" }}>
         <span>Bracket</span>
         <span style={{ textAlign: "right" }}>Rate</span>
         <span style={{ textAlign: "right" }}>Before</span>
@@ -329,7 +329,7 @@ export default function TaxContent({
 
      {/* State card */}
      <Card>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState} Tax Savings — Before & After</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState} Tax Savings — Before & After</div>
       {stateInfo.type === "none" ? (
        <div style={{ padding: "20px 12px", textAlign: "center" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 4 }}>{taxState} has no state income tax</div>
@@ -338,7 +338,7 @@ export default function TaxContent({
       ) : (<>
        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
         <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
-         <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
+         <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
          <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
          <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
@@ -347,7 +347,7 @@ export default function TaxContent({
          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(stateTaxableBefore)}</div>
         </div>
         <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.green}22` }}>
-         <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
+         <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
          <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
          <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>{calc.stateItemizes ? "Itemized Deduction" : "Standard Deduction"}</div>
@@ -358,7 +358,7 @@ export default function TaxContent({
         </div>
        </div>
        <div style={{ overflowX: "auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase" }}>
          <span>Bracket</span>
          <span style={{ textAlign: "right" }}>Rate</span>
          <span style={{ textAlign: "right" }}>Before</span>
@@ -417,7 +417,7 @@ export default function TaxContent({
   {calc.yearlyInc > 0 && (
    <Sec title="Effective Tax Rates">
     <Card>
-     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
       <span></span>
       <span style={{ textAlign: "right" }}>Federal</span>
       <span style={{ textAlign: "right" }}>{taxState}</span>

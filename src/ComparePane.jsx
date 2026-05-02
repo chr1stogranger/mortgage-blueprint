@@ -116,7 +116,7 @@ export default function ComparePane({ T }) {
       {/* Header */}
       <div style={{ padding: "0 4px", marginBottom: 20 }}>
         <div style={{
-          fontSize: 10, fontWeight: 600, fontFamily: MONO,
+          fontSize: 10, fontWeight: 600, fontFamily: FONT,
           textTransform: "uppercase", letterSpacing: "2px",
           color: T.accent, marginBottom: 6,
         }}>
@@ -155,7 +155,7 @@ export default function ComparePane({ T }) {
           <div style={{ fontSize: 12, fontWeight: 600, color: T.green, marginBottom: 4 }}>
             {left.displayPayment <= center.displayPayment ? "Scenario A" : "Scenario B"} saves
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: MONO, color: T.green, letterSpacing: "-0.03em" }}>
+          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.green, letterSpacing: "-0.03em" }}>
             {fmt(Math.abs(left.displayPayment - center.displayPayment))}/mo
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function ComparePane({ T }) {
       {metrics.map((section) => (
         <div key={section.section} style={{ marginBottom: 16 }}>
           <div style={{
-            fontSize: 11, fontWeight: 600, fontFamily: MONO,
+            fontSize: 11, fontWeight: 600, fontFamily: FONT,
             textTransform: "uppercase", letterSpacing: "1.5px",
             color: T.textTertiary, padding: "8px 4px 4px",
           }}>
@@ -190,14 +190,14 @@ export default function ComparePane({ T }) {
                     {row.label}
                   </div>
                   <div style={{
-                    fontSize: 13, fontWeight: 600, fontFamily: MONO,
+                    fontSize: 13, fontWeight: 600, fontFamily: FONT,
                     color: hasBoth && betterIsA && row.lowerBetter !== undefined ? T.green : T.text,
                     textAlign: "center",
                   }}>
                     {formatVal(row.a, row.format)}
                   </div>
                   <div style={{
-                    fontSize: 13, fontWeight: 600, fontFamily: MONO,
+                    fontSize: 13, fontWeight: 600, fontFamily: FONT,
                     color: hasBoth && !betterIsA && row.lowerBetter !== undefined ? T.green : T.text,
                     textAlign: "center",
                   }}>

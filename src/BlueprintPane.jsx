@@ -125,7 +125,7 @@ function PaneRow({ label, value, sub, color, bold }) {
     <span style={{ fontSize: bold ? 13 : 12, fontWeight: bold ? 600 : 400, color: bold ? T.text : T.textSecondary, fontFamily: FONT }}>
       {label}{sub && <span style={{ color: T.textTertiary, fontSize: 10, marginLeft: 4 }}>{sub}</span>}
     </span>
-    <span style={{ fontSize: bold ? 15 : 13, fontWeight: 600, fontFamily: MONO, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
+    <span style={{ fontSize: bold ? 15 : 13, fontWeight: 600, fontFamily: FONT, color: color || T.text, letterSpacing: "-0.02em" }}>{value}</span>
   </div>);
 }
 
@@ -411,8 +411,8 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
           { label: "Rate", value: rate + "%", color: T.blue },
         ].map((m, i) => (
           <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.pillBg, borderRadius: 10 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
-            <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: m.color, letterSpacing: "-0.02em" }}>{m.value}</div>
+            <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1px" }}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -441,24 +441,24 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
               background: `${T.green}08`, border: `1px solid ${T.green}20`,
               borderRadius: 10, padding: "10px 12px", marginBottom: 10,
             }}>
-              <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.green, marginBottom: 6 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.green, marginBottom: 6 }}>
                 Refi Paydown from Sale Proceeds
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                 <span style={{ fontSize: 12, color: T.textSecondary }}>Original Loan</span>
-                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.text }}>{fmt(calc.loan)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(calc.loan)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                 <span style={{ fontSize: 12, color: T.textSecondary }}>Proceeds Applied</span>
-                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: MONO, color: T.green }}>-{fmt(calc.proceedsApplied)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.green }}>-{fmt(calc.proceedsApplied)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
                 <span style={{ fontSize: 12, color: T.textSecondary }}>Refi Closing Costs</span>
-                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: MONO, color: T.orange }}>+{fmt(4500)}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.orange }}>+{fmt(4500)}</span>
               </div>
               <div style={{ borderTop: `2px solid ${T.green}30`, marginTop: 4, paddingTop: 6, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>New Loan</span>
-                <span style={{ fontSize: 16, fontWeight: 800, fontFamily: MONO, color: T.green }}>{fmt(calc.adjustedLoan)}</span>
+                <span style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.green }}>{fmt(calc.adjustedLoan)}</span>
               </div>
               {salesPrice > 0 && (
                 <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4, textAlign: "right" }}>
@@ -495,7 +495,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       {activeSection === "results" && (<>
         {/* Monthly Payment Breakdown */}
         <PaneCard>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Monthly Payment</div>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Monthly Payment</div>
           <PaneRow label="P&I" value={fmt(calc.pi)} />
           <PaneRow label="Property Tax" value={fmt(calc.monthlyTax)} sub={`${fmt(calc.yearlyTax)}/yr`} />
           <PaneRow label="Insurance" value={fmt(calc.ins)} sub={`${fmt(annualIns)}/yr`} />
@@ -508,7 +508,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         {/* Refi After Proceeds — shown after Monthly Payment in Breakdown */}
         {isRefiMode && calc.proceedsApplied > 0 && (
           <PaneCard style={{ background: T.successBg, border: `1px solid ${T.successBorder}` }}>
-            <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.green, textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
               Refi After Proceeds
             </div>
             <PaneRow label="Original Loan" value={fmt(calc.loan)} />
@@ -525,7 +525,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         {/* Cash to Close Waterfall — hide for refi with proceeds (not relevant) */}
         {!(isRefiMode && calc.proceedsApplied > 0) && (
         <PaneCard>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Cash to Close</div>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Cash to Close</div>
           <PaneRow label="Purchase Price" value={fmt(salesPrice)} bold />
           <PaneRow label="Loan Amount" value={`-${fmt(calc.loan)}`} color={T.blue} />
           <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
@@ -541,7 +541,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         {/* Loan Details — hide for refi with proceeds (info is in the top card) */}
         {!(isRefiMode && calc.proceedsApplied > 0) && (
         <PaneCard>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Loan Details</div>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Loan Details</div>
           <PaneRow label="LTV" value={pct(calc.ltv, 1)} color={calc.ltv > 0.80 ? T.orange : T.green} />
           <PaneRow label="Loan Category" value={calc.loanCategory} />
           {calc.qualifyingIncome > 0 && <PaneRow label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI > 0.50 ? T.red : calc.yourDTI > 0.43 ? T.orange : T.green} bold />}
@@ -554,13 +554,13 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
       {/* ── COSTS SECTION (detailed closing cost breakdown) ── */}
       {activeSection === "costs" && (
         <PaneCard>
-          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Closing Cost Detail</div>
+          <div style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Closing Cost Detail</div>
           <PaneRow label="Origination & Lender" value={fmt(calc.origCharges)} />
           <PaneRow label="Title & Escrow" value={fmt(calc.titleEscrow)} />
           <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 4, paddingTop: 4 }}>
             <PaneRow label="Total Closing Costs" value={fmt(calc.totalClosingCosts)} bold />
           </div>
-          <div style={{ marginTop: 8, fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Prepaids & Escrow</div>
+          <div style={{ marginTop: 8, fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: T.textTertiary, marginBottom: 6 }}>Prepaids & Escrow</div>
           <PaneRow label="Prepaid Interest" value={fmt(calc.prepaidInt)} sub="~15 days" />
           <PaneRow label="Prepaid Insurance" value={fmt(calc.prepaidIns)} sub="12 months" />
           <PaneRow label="Initial Escrow" value={fmt(calc.initialEscrow)} sub="tax + ins ~3 mo" />
@@ -586,7 +586,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
         return (
       <div style={{ textAlign: "center", marginTop: 8 }}>
         <span style={{
-          fontSize: 10, fontWeight: 600, fontFamily: MONO,
+          fontSize: 10, fontWeight: 600, fontFamily: FONT,
           textTransform: "uppercase", letterSpacing: "1px",
           padding: "3px 10px", borderRadius: 9999,
           background: badgeCategory === "Conforming" ? `${T.green}12` : badgeCategory === "FHA" ? `${T.blue}12` : `${T.orange}12`,

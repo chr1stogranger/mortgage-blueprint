@@ -116,7 +116,7 @@ export default function VersionTimeline({
           color: '#A1A1A1',
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>VERSION HISTORY</div>
 
         <div style={{ display: 'flex', gap: 6 }}>
@@ -202,7 +202,7 @@ export default function VersionTimeline({
           <div style={{
             fontSize: 10, color: '#666666', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '0.06em',
-            marginBottom: 6, fontFamily: MONO,
+            marginBottom: 6, fontFamily: FONT,
           }}>{date}</div>
 
           {changes.map((change, i) => {
@@ -258,7 +258,7 @@ export default function VersionTimeline({
                       )}
                     </div>
                     <span style={{
-                      fontSize: 10, color: '#666666', fontFamily: MONO,
+                      fontSize: 10, color: '#666666', fontFamily: FONT,
                       flexShrink: 0, marginLeft: 8,
                     }}>
                       {timeAgo(change.created_at)}
@@ -280,11 +280,11 @@ export default function VersionTimeline({
                           <span style={{ color: '#666666', minWidth: 80, fontFamily: FONT }}>
                             {FIELD_LABELS[field] || field}
                           </span>
-                          <span style={{ color: '#EF4444', fontFamily: MONO, textDecoration: 'line-through', opacity: 0.6 }}>
+                          <span style={{ color: '#EF4444', fontFamily: FONT, textDecoration: 'line-through', opacity: 0.6 }}>
                             {formatValue(diff.old)}
                           </span>
                           <span style={{ color: '#666666' }}>&#8594;</span>
-                          <span style={{ color: '#10B981', fontFamily: MONO, fontWeight: 600 }}>
+                          <span style={{ color: '#10B981', fontFamily: FONT, fontWeight: 600 }}>
                             {formatValue(diff.new)}
                           </span>
                         </div>

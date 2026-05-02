@@ -54,7 +54,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
 
   const pillStyle = (active) => ({
     padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
-    fontSize: 11, fontWeight: 600, fontFamily: MONO,
+    fontSize: 11, fontWeight: 600, fontFamily: FONT,
     background: active ? `${T.accent}20` : T.inputBg,
     color: active ? T.accent : T.textTertiary,
     transition: "all 0.15s",
@@ -62,7 +62,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
   const inputStyle = {
     background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8,
     padding: "4px 8px", width: 110, color: T.text, fontSize: 12,
-    fontWeight: 600, fontFamily: MONO, outline: "none",
+    fontWeight: 600, fontFamily: FONT, outline: "none",
   };
 
   const dismissGlow = () => { if (glowing) setGlowing(false); };
@@ -89,28 +89,28 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
         </div>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "1.5px", color: glowing ? T.blue : T.textTertiary }}>
+        <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, textTransform: "uppercase", letterSpacing: "1.5px", color: glowing ? T.blue : T.textTertiary }}>
           Proceeds
         </span>
-        <span style={{ fontSize: 12, fontWeight: 700, fontFamily: MONO, color: T.green }}>{fmtBar(netProceeds)}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmtBar(netProceeds)}</span>
         <span style={{ fontSize: 11, color: T.textTertiary }}>net</span>
         {isSB && closingCosts > 0 && (<>
           <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
-          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.red }}>{fmtBar(closingCosts)}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: T.red }}>{fmtBar(closingCosts)}</span>
           <span style={{ fontSize: 11, color: T.textTertiary }}>closing</span>
         </>)}
         {mode === "add-extra" && localExtra > 0 && (<>
           <span style={{ fontSize: 11, color: T.textTertiary }}>+</span>
-          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.blue }}>{fmtBar(localExtra)}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: T.blue }}>{fmtBar(localExtra)}</span>
           <span style={{ fontSize: 11, color: T.textTertiary }}>extra</span>
         </>)}
         {mode === "hold-back" && localHoldback > 0 && (<>
           <span style={{ fontSize: 11, color: T.textTertiary }}>-</span>
-          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: MONO, color: T.orange }}>{fmtBar(localHoldback)}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: T.orange }}>{fmtBar(localHoldback)}</span>
           <span style={{ fontSize: 11, color: T.textTertiary }}>holdback</span>
         </>)}
         <span style={{ fontSize: 11, color: T.textTertiary }}>=</span>
-        <span style={{ fontSize: 13, fontWeight: 800, fontFamily: MONO, color: T.green }}>{fmtBar(finalDown)}</span>
+        <span style={{ fontSize: 13, fontWeight: 800, fontFamily: FONT, color: T.green }}>{fmtBar(finalDown)}</span>
         <span style={{ fontSize: 11, color: T.textTertiary }}>{resultLabel}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -152,7 +152,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
           display: "flex", alignItems: "center", gap: 6,
         }}>
           <span style={{ fontSize: 11, color: T.green, fontWeight: 500 }}>{isBSR ? "Refi Paydown:" : "Down Payment:"}</span>
-          <span style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: T.green, letterSpacing: "-0.02em" }}>
+          <span style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: T.green, letterSpacing: "-0.02em" }}>
             {fmtBar(finalDown)}
           </span>
         </div>
@@ -365,7 +365,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
             <Icon name="chevron-left" size={16} />
           </button>
           <span style={{
-            fontSize: 11, fontWeight: 600, fontFamily: MONO,
+            fontSize: 11, fontWeight: 600, fontFamily: FONT,
             textTransform: "uppercase", letterSpacing: "2px", color: T.textTertiary,
           }}>
             Workspace
@@ -384,7 +384,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
             background: liveRates ? `${T.green}12` : `${T.blue}12`,
             border: `1px solid ${liveRates ? `${T.green}30` : `${T.blue}30`}`,
             borderRadius: 9999, padding: "4px 12px", cursor: ratesLoading ? "wait" : "pointer",
-            fontSize: 11, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: MONO,
+            fontSize: 11, fontWeight: 600, color: liveRates ? T.green : T.blue, fontFamily: FONT,
             display: "flex", alignItems: "center", gap: 5, opacity: ratesLoading ? 0.6 : 1,
           }}>
             <Icon name={liveRates ? "check" : "zap"} size={12} />
@@ -446,7 +446,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
                     style={{
                       background: T.inputBg, border: `1px solid ${T.inputBorder}`,
                       borderRadius: 8, padding: "3px 8px", color: T.textSecondary,
-                      fontSize: 10, fontWeight: 600, fontFamily: MONO,
+                      fontSize: 10, fontWeight: 600, fontFamily: FONT,
                       cursor: "pointer", outline: "none", maxWidth: 140,
                       WebkitAppearance: "none",
                     }}
@@ -459,7 +459,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
                 )}
                 {!(pane.type === "blueprint" || pane.type === "blueprint-purchase" || pane.type === "blueprint-refi") && (
                   <span style={{
-                    fontSize: 10, fontWeight: 500, fontFamily: MONO,
+                    fontSize: 10, fontWeight: 500, fontFamily: FONT,
                     color: T.textTertiary, textTransform: "uppercase", letterSpacing: "1px",
                   }}>
                     {pane.type.replace("blueprint-", "").replace("-", " ")}

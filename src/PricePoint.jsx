@@ -1794,13 +1794,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ── Memoized sub-components — stable references prevent input focus loss ──
   const OverlineLabel = useMemo(() =>
     function OverlineLabel({ children }) {
-      return <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>{children}</div>;
+      return <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 4 }}>{children}</div>;
     }, [T.textTertiary]
   );
 
   const StatPill = useMemo(() =>
     function StatPill({ value, label, color }) {
-      return <div style={{ fontFamily: MONO, fontSize: 12, fontWeight: 600, color: color || T.accent, background: `${color || T.accent}18`, padding: "4px 10px", borderRadius: 8, border: `1px solid ${color || T.accent}30` }}>
+      return <div style={{ fontFamily: FONT, fontSize: 12, fontWeight: 600, color: color || T.accent, background: `${color || T.accent}18`, padding: "4px 10px", borderRadius: 8, border: `1px solid ${color || T.accent}30` }}>
         {value}{label ? ` ${label}` : ""}
       </div>;
     }, [T.accent]
@@ -1856,7 +1856,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         {/* Map slide "Location" label — top left on map, replaces badges */}
         {isMapSlide ? (
           <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
-            <div style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>
+            <div style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
               <Icon name="map-pin" size={12} /> LOCATION
             </div>
           </div>
@@ -1864,16 +1864,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           /* Top badges — photos only */
           <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
             {badge && (
-              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
+              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
             )}
             {showExtras && pType && (
-              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
+              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
             )}
           </div>
         )}
         {/* Photo count pill — top right. Shows "1/3" for photos, "MAP" on map slide */}
         {count > 1 && (
-          <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: MONO }}>
+          <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
             {isMapSlide ? (<span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon name="map-pin" size={10} /> MAP</span>) : `${idx + 1} / ${photoCount}`}
           </div>
         )}
@@ -1930,15 +1930,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
           <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
             {badge && (
-              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
+              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
             )}
             {showType && pType && (
-              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
+              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
             )}
           </div>
           {/* Loading photos indicator */}
           {isLoadingDetails && (
-            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: MONO, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
+            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
           )}
           {/* Neighborhood badge — pinned bottom-left of photo for quick scanning */}
           {resolveNeighborhood(listing) !== "Unknown Area" && (
@@ -1969,7 +1969,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 )}
               </div>
               {desc.length > 120 && (
-                <button onClick={() => setMlsExpanded(!mlsExpanded)} style={{ background: "none", border: "none", color: accent, fontSize: 11, fontWeight: 600, fontFamily: MONO, letterSpacing: 1, cursor: "pointer", padding: "6px 0 0", textTransform: "uppercase" }}>{mlsExpanded ? "Show less" : "Read more"}</button>
+                <button onClick={() => setMlsExpanded(!mlsExpanded)} style={{ background: "none", border: "none", color: accent, fontSize: 11, fontWeight: 600, fontFamily: FONT, letterSpacing: 1, cursor: "pointer", padding: "6px 0 0", textTransform: "uppercase" }}>{mlsExpanded ? "Show less" : "Read more"}</button>
               )}
             </div>
           )}
@@ -1977,8 +1977,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", gap: 6, margin: "14px 0", flexWrap: "wrap" }}>
             {[[listing.beds, "Beds"], [listing.baths, "Baths"], [(listing.sqft || 0).toLocaleString(), "SqFt"], [yearBuilt, "Built"]].map(([v, l], i) => (
               <div key={i} style={{ background: T.inputBg, borderRadius: 10, padding: "8px 14px", textAlign: "center", flex: 1, minWidth: 60, border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: MONO }}>{v}</div>
-                <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase" }}>{l}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{v}</div>
+                <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{l}</div>
               </div>
             ))}
           </div>
@@ -1986,12 +1986,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ background: T.inputBg, borderRadius: 12, padding: "14px 18px", border: `1px solid ${T.cardBorder}`, marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <OverlineLabel>LIST PRICE</OverlineLabel>
-              <div style={{ fontSize: 26, fontWeight: 800, color: T.text, fontFamily: MONO, marginTop: 2 }}>{fmt(listing.listPrice)}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 2 }}>{fmt(listing.listPrice)}</div>
             </div>
             {listing.daysOnMarket && (
               <div style={{ textAlign: "right" }}>
                 <OverlineLabel>DAYS ON MKT</OverlineLabel>
-                <div style={{ fontSize: 22, fontWeight: 700, color: T.textSecondary, fontFamily: MONO, marginTop: 2 }}>{listing.daysOnMarket}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{listing.daysOnMarket}</div>
               </div>
             )}
           </div>
@@ -2008,7 +2008,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 6, fontFamily: FONT }}>{labelOverrides?.guessLabel || "What do you think it sold for?"}</div>
           <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
             style={{ position: "relative", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 20px", cursor: "text", textAlign: "center", marginBottom: 4, transition: "border-color 0.2s" }}>
-            <div style={{ fontSize: guess ? 28 : 18, fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: MONO, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s" }}>
+            <div style={{ fontSize: guess ? 28 : 18, fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: FONT, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s" }}>
               {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : "Tap to enter price"}
             </div>
             <input id={`pp-guess-${badge || "d"}`} value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} inputMode="numeric" autoComplete="off"
@@ -2016,7 +2016,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               onFocus={e => e.target.parentElement.style.borderColor = accent} onBlur={e => e.target.parentElement.style.borderColor = T.cardBorder} />
           </div>
           {/* Live feedback — always render to keep DOM stable */}
-          <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 6, fontFamily: MONO, minHeight: 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
+          <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 6, fontFamily: FONT, minHeight: 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
             const v = parseInt(guess);
             if (!v || !listing.listPrice) return "\u00A0";
             const d = ((v - listing.listPrice) / listing.listPrice * 100).toFixed(1);
@@ -2037,7 +2037,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: 420, width: "100%", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <OverlineLabel>SOLD FOR</OverlineLabel>
-          <div style={{ fontSize: 42, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: MONO, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
+          <div style={{ fontSize: 42, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: FONT, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
         </div>
         {(!showPhases || revealPhase >= 1) && (
           <div style={{ animation: "ppSlideUp 0.4s ease" }}>
@@ -2045,38 +2045,38 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {comparison && (
               <div style={{ background: comparison.iWon ? `${T.green}12` : `${T.orange}12`, border: `1px solid ${comparison.iWon ? `${T.green}30` : `${T.orange}30`}`, borderRadius: 14, padding: "16px", marginBottom: 16, animation: "ppScaleIn 0.4s ease" }}>
                 <div style={{ textAlign: "center", marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 2, color: comparison.iWon ? T.green : T.orange, fontWeight: 700, textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 2, color: comparison.iWon ? T.green : T.orange, fontWeight: 700, textTransform: "uppercase" }}>
                     {comparison.myAccuracy === comparison.challengerAccuracy ? "IT'S A TIE" : comparison.iWon ? "YOU WIN" : "THEY GOT YOU"}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
                   <div style={{ flex: 1, textAlign: "center", padding: "10px 0", borderRadius: 10, background: `rgba(255,255,255,0.04)` }}>
-                    <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOU</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, marginTop: 4, color: comparison.iWon ? T.green : T.textSecondary }}>{comparison.myAccuracy.toFixed(1)}%</div>
-                    <div style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary, marginTop: 2 }}>{fmt(result.guess)}</div>
+                    <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOU</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, marginTop: 4, color: comparison.iWon ? T.green : T.textSecondary }}>{comparison.myAccuracy.toFixed(1)}%</div>
+                    <div style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary, marginTop: 2 }}>{fmt(result.guess)}</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", fontSize: 14, fontWeight: 600, color: T.textTertiary, fontFamily: MONO }}>vs</div>
+                  <div style={{ display: "flex", alignItems: "center", fontSize: 14, fontWeight: 600, color: T.textTertiary, fontFamily: FONT }}>vs</div>
                   <div style={{ flex: 1, textAlign: "center", padding: "10px 0", borderRadius: 10, background: `rgba(255,255,255,0.04)` }}>
-                    <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>THEM</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, marginTop: 4, color: !comparison.iWon ? T.green : T.textSecondary }}>{comparison.challengerAccuracy.toFixed(1)}%</div>
-                    <div style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary, marginTop: 2 }}>{fmt(comparison.challengerGuess)}</div>
+                    <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>THEM</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, marginTop: 4, color: !comparison.iWon ? T.green : T.textSecondary }}>{comparison.challengerAccuracy.toFixed(1)}%</div>
+                    <div style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary, marginTop: 2 }}>{fmt(comparison.challengerGuess)}</div>
                   </div>
                 </div>
               </div>
             )}
             <div style={{ display: "flex", gap: 12, marginBottom: 20, background: T.inputBg, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}` }}>
               <div style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOUR GUESS</div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: MONO, color: T.text, marginTop: 4 }}>{fmt(result.guess)}</div>
+                <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOUR GUESS</div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 4 }}>{fmt(result.guess)}</div>
               </div>
               <div style={{ width: 1, background: T.cardBorder }} />
               <div style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>ACCURACY</div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: MONO, marginTop: 4, color }}>{(100 - result.pctOff).toFixed(1)}%</div>
+                <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>ACCURACY</div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, marginTop: 4, color }}>{(100 - result.pctOff).toFixed(1)}%</div>
               </div>
             </div>
             <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ display: "inline-block", padding: "4px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 700, fontFamily: MONO, letterSpacing: 2, color, background: `${color}18`, border: `1px solid ${color}30`, marginBottom: 10 }}>{result.feedback.label}</div>
+              <div style={{ display: "inline-block", padding: "4px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 700, fontFamily: FONT, letterSpacing: 2, color, background: `${color}18`, border: `1px solid ${color}30`, marginBottom: 10 }}>{result.feedback.label}</div>
               <div style={{ fontSize: 15, fontWeight: 500, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>{result.feedbackMessage}</div>
             </div>
             {result.insight && (
@@ -2085,7 +2085,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             )}
             <div style={{ textAlign: "center", marginBottom: 20, padding: "10px 0", borderTop: `1px solid ${T.cardBorder}`, borderBottom: `1px solid ${T.cardBorder}` }}>
-              <div style={{ fontSize: 10, fontFamily: MONO, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase", marginBottom: 4 }}>ADDRESS</div>
+              <div style={{ fontSize: 10, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase", marginBottom: 4 }}>ADDRESS</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
               <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{result.neighborhood} · {result.city}, {result.state}</div>
             </div>
@@ -2230,7 +2230,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 }} />
               </div>
               <div style={{
-                textAlign: "center", fontSize: 10, fontFamily: MONO, color: "rgba(255,255,255,0.5)",
+                textAlign: "center", fontSize: 10, fontFamily: FONT, color: "rgba(255,255,255,0.5)",
                 marginTop: 6, letterSpacing: 2, textTransform: "uppercase",
               }}>MAX</div>
             </div>
@@ -2255,7 +2255,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {/* LEVEL UP text */}
               <div style={{
                 fontSize: 11, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase",
-                fontFamily: MONO, marginBottom: 8,
+                fontFamily: FONT, marginBottom: 8,
                 background: "linear-gradient(90deg, #A5B4FC, #6366F1, #3B82F6, #06B6D4, #A5B4FC)",
                 backgroundSize: "200% auto",
                 WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
@@ -2263,7 +2263,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               }}>LEVEL UP</div>
 
               {/* Level number + name */}
-              <div style={{ fontSize: 48, fontWeight: 900, color: "#fff", fontFamily: MONO, letterSpacing: "-0.03em", lineHeight: 1 }}>
+              <div style={{ fontSize: 48, fontWeight: 900, color: "#fff", fontFamily: FONT, letterSpacing: "-0.03em", lineHeight: 1 }}>
                 {levelUpData.newLevel.level}
               </div>
               <div style={{
@@ -2285,7 +2285,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 borderRadius: 14, padding: "12px 24px", border: "1px solid rgba(255,255,255,0.12)",
                 textAlign: "center",
               }}>
-                <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 4 }}>ACHIEVEMENT</div>
+                <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 2, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 4 }}>ACHIEVEMENT</div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
                   {levelUpData.newLevel.level >= 10 ? "Market Expert Status" :
                    levelUpData.newLevel.level >= 7 ? "Sharpening Your Edge" :
@@ -2301,7 +2301,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               position: "relative", zIndex: 2, marginTop: 16,
               animation: "lvlUnlockSlide 0.6s ease forwards",
               animationDelay: "2.2s", opacity: 0,
-              fontSize: 12, fontFamily: MONO, color: "rgba(255,255,255,0.4)", letterSpacing: 1,
+              fontSize: 12, fontFamily: FONT, color: "rgba(255,255,255,0.4)", letterSpacing: 1,
             }}>
               {levelUpData.xp} XP EARNED
             </div>
@@ -2331,24 +2331,24 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               }}>
                 <Icon name={currentLevel.icon} size={28} style={{ color: "#fff" }} />
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>LEVEL UP</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: T.text, fontFamily: MONO }}>Level {currentLevel.level}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 4 }}>LEVEL UP</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: T.text, fontFamily: FONT }}>Level {currentLevel.level}</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{currentLevel.name}</div>
             </div>
 
             {/* Stats row */}
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               <div style={{ flex: 1, background: T.inputBg, borderRadius: 12, padding: "10px 12px", textAlign: "center", border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.text }}>{allResults.length}</div>
-                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>GUESSES</div>
+                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.text }}>{allResults.length}</div>
+                <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>GUESSES</div>
               </div>
               <div style={{ flex: 1, background: T.inputBg, borderRadius: 12, padding: "10px 12px", textAlign: "center", border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.text }}>{xp}</div>
-                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>TOTAL XP</div>
+                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.text }}>{xp}</div>
+                <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>TOTAL XP</div>
               </div>
               <div style={{ flex: 1, background: T.inputBg, borderRadius: 12, padding: "10px 12px", textAlign: "center", border: `1px solid ${T.cardBorder}` }}>
-                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: T.accent }}>{allResults.length > 0 ? (100 - (allResults.reduce((s, r) => s + (r.pctOff || 0), 0) / allResults.length)).toFixed(1) : "—"}%</div>
-                <div style={{ fontSize: 9, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>ACCURACY</div>
+                <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.accent }}>{allResults.length > 0 ? (100 - (allResults.reduce((s, r) => s + (r.pctOff || 0), 0) / allResults.length)).toFixed(1) : "—"}%</div>
+                <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 2 }}>ACCURACY</div>
               </div>
             </div>
 
@@ -2396,7 +2396,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%",
               transition: "width 0.5s ease" }} />
           </div>
-          <span style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary, whiteSpace: "nowrap" }}>{xp}{nextLevel ? `/${nextLevel.req}` : ""} XP</span>
+          <span style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary, whiteSpace: "nowrap" }}>{xp}{nextLevel ? `/${nextLevel.req}` : ""} XP</span>
         </div>
       )}
 
@@ -2404,7 +2404,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {view === "onboarding" && (
         <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "100vh", animation: "ppFadeIn 0.5s ease" }}>
           <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 16 }}>PRICEPOINT</div>
+            <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 16 }}>PRICEPOINT</div>
             <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-0.04em", margin: "0 0 16px", color: T.text, fontFamily: FONT }}>How well do you<br />know your market?</h1>
             <p style={{ fontSize: 15, lineHeight: 1.6, color: T.textSecondary, margin: 0, fontFamily: FONT }}>One home. One guess. Every day.<br />Pick your city to start playing.</p>
           </div>
@@ -2426,7 +2426,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <Icon name={m.icon} size={20} />
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{m.name}</div>
-                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, marginTop: 4, letterSpacing: 1 }}>
+                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, letterSpacing: 1 }}>
                   {m.neighborhoods.length - 1} NEIGHBORHOODS
                 </div>
               </button>
@@ -2444,7 +2444,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 16px 100px", animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
               <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2480,8 +2480,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{dailyResult.beds}BR/{dailyResult.baths}BA · {(dailyResult.sqft || 0).toLocaleString()}sf</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: MONO, color: fbColor(dailyResult.feedback) }}>{(100 - dailyResult.pctOff).toFixed(1)}%</div>
-                  <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, letterSpacing: 1, color: fbColor(dailyResult.feedback) }}>{dailyResult.feedback.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: fbColor(dailyResult.feedback) }}>{(100 - dailyResult.pctOff).toFixed(1)}%</div>
+                  <div style={{ fontSize: 10, fontFamily: FONT, fontWeight: 600, letterSpacing: 1, color: fbColor(dailyResult.feedback) }}>{dailyResult.feedback.label}</div>
                 </div>
               </div>
               <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
@@ -2492,7 +2492,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           )}
 
           <div style={{ background: `linear-gradient(135deg, ${T.cyan}12, ${T.accent}12)`, border: `1px solid ${T.cyan}30`, borderRadius: 16, padding: "28px 20px", textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan, marginBottom: 10 }}>KEEP GOING?</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan, marginBottom: 10 }}>KEEP GOING?</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.text, fontFamily: FONT, lineHeight: 1.3, marginBottom: 6 }}>Your instincts are warmed up</div>
             <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 20 }}>Jump into Free Play for unlimited rounds.<br />Same market, no spoilers for future dailies.</div>
             <PillButton onClick={() => setView("fpPicker")} tealAccent>Start Free Play</PillButton>
@@ -2500,7 +2500,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
           <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px", textAlign: "center", marginBottom: 16 }}>
             <OverlineLabel>NEXT DAILY IN</OverlineLabel>
-            <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.text, letterSpacing: "-0.02em", marginTop: 4 }}>{countdown}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em", marginTop: 4 }}>{countdown}</div>
             <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, fontFamily: FONT }}>Come back tomorrow to keep your streak</div>
           </div>
 
@@ -2520,7 +2520,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>YOUR STATS</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>YOUR STATS</div>
               <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
             {displayName ? (
@@ -2554,7 +2554,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{
                   position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
                   borderRadius: 8, background: T.red || "#EF4444", color: "#fff",
-                  fontSize: 9, fontWeight: 800, fontFamily: MONO,
+                  fontSize: 9, fontWeight: 800, fontFamily: FONT,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   padding: "0 4px", border: `2px solid ${T.card}`,
                 }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
@@ -2582,18 +2582,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <>
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
                 <OverlineLabel>YOUR STREAK</OverlineLabel>
-                <div style={{ fontSize: 56, fontWeight: 900, fontFamily: MONO, color: T.accent, marginTop: 8, textAlign: "center", marginBottom: 6 }}>{streak}</div>
+                <div style={{ fontSize: 56, fontWeight: 900, fontFamily: FONT, color: T.accent, marginTop: 8, textAlign: "center", marginBottom: 6 }}>{streak}</div>
                 <div style={{ fontSize: 14, color: T.textSecondary, textAlign: "center", fontFamily: FONT }}>consecutive days</div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.text }}>{allResults.filter(r => r.isDaily).length}</div>
-                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Dailies Played</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text }}>{allResults.filter(r => r.isDaily).length}</div>
+                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Dailies Played</div>
                 </div>
                 <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.green }}>{avgAccuracy != null ? (100 - avgAccuracy).toFixed(1) : "—"}%</div>
-                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.green }}>{avgAccuracy != null ? (100 - avgAccuracy).toFixed(1) : "—"}%</div>
+                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
                 </div>
               </div>
 
@@ -2614,8 +2614,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     return (
                       <div key={idx}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: MONO, textTransform: "uppercase" }}>{band.label}</div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary, fontFamily: MONO }}>{count}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, textTransform: "uppercase" }}>{band.label}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary, fontFamily: FONT }}>{count}</div>
                         </div>
                         <div style={{ height: 8, background: T.inputBg, borderRadius: 4, overflow: "hidden" }}>
                           <div style={{ height: "100%", background: band.color, width: `${Math.max(pct, 3)}%`, transition: "width 0.3s ease", borderRadius: 4 }} />
@@ -2632,7 +2632,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={14} /></span> Lv.{currentLevel.level} — {currentLevel.name}
                   </span>
-                  <span style={{ fontSize: 11, fontFamily: MONO, color: T.textTertiary }}>{xp} XP{nextLevel ? ` / ${nextLevel.req}` : ""}</span>
+                  <span style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary }}>{xp} XP{nextLevel ? ` / ${nextLevel.req}` : ""}</span>
                 </div>
                 <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #6366F1, #3B82F6)", width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%", transition: "width 0.5s ease" }} />
@@ -2642,7 +2642,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {/* Next Daily Countdown */}
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px", textAlign: "center", marginBottom: 16 }}>
                 <OverlineLabel>NEXT DAILY IN</OverlineLabel>
-                <div style={{ fontSize: 32, fontWeight: 800, fontFamily: MONO, color: T.text, letterSpacing: "-0.02em", marginTop: 4 }}>{countdown}</div>
+                <div style={{ fontSize: 32, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em", marginTop: 4 }}>{countdown}</div>
               </div>
             </>
           )}
@@ -2652,17 +2652,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.cyan }}>{allResults.filter(r => !r.isDaily).length}</div>
-                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Free Play Rounds</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.cyan }}>{allResults.filter(r => !r.isDaily).length}</div>
+                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Free Play Rounds</div>
                 </div>
                 <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.cyan }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.cyan }}>
                     {(() => {
                       const fpResults = allResults.filter(r => !r.isDaily && r.revealed && r.soldPrice);
                       return fpResults.length > 0 ? (100 - fpResults.reduce((sum, r) => sum + Math.abs((r.guess - r.soldPrice) / r.soldPrice) * 100, 0) / fpResults.length).toFixed(1) : "—";
                     })()}%
                   </div>
-                  <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
+                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
                 </div>
               </div>
 
@@ -2675,12 +2675,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     <OverlineLabel>BEST GUESS</OverlineLabel>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
                       <div>
-                        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.green }}>{(100 - best.pctOff).toFixed(1)}%</div>
-                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Accuracy</div>
+                        <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.green }}>{(100 - best.pctOff).toFixed(1)}%</div>
+                        <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Accuracy</div>
                       </div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT }}>{best.propertyType ? propTypeShort(best.propertyType) : "—"}</div>
-                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Type</div>
+                        <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Type</div>
                       </div>
                     </div>
                   </div>
@@ -2701,8 +2701,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         return (
                           <div key={idx}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: MONO }}>{type}</div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: T.cyan, fontFamily: MONO }}>{accuracy.toFixed(1)}%</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT }}>{type}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: T.cyan, fontFamily: FONT }}>{accuracy.toFixed(1)}%</div>
                             </div>
                             <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
                               <div style={{ height: "100%", background: T.cyan, width: `${Math.max(accuracy, 3)}%`, transition: "width 0.3s ease", borderRadius: 3 }} />
@@ -2733,14 +2733,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
-                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.red }}>{livePreds.length}</div>
-                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Predictions</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.red }}>{livePreds.length}</div>
+                        <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Predictions</div>
                       </div>
                       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
-                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: MONO, color: T.red }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.red }}>
                           {avgVsList != null ? `${avgVsList > 0 ? "+" : ""}${avgVsList.toFixed(1)}%` : "—"}
                         </div>
-                        <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg vs List</div>
+                        <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg vs List</div>
                       </div>
                     </div>
 
@@ -2749,12 +2749,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                       <OverlineLabel>PREDICTION STATUS</OverlineLabel>
                       <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
                         <div style={{ flex: 1, background: `${T.orange}12`, borderRadius: 12, padding: "14px 12px", textAlign: "center", border: `1px solid ${T.orange}20` }}>
-                          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.orange }}>{pendingCount}</div>
-                          <div style={{ fontSize: 10, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Pending</div>
+                          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.orange }}>{pendingCount}</div>
+                          <div style={{ fontSize: 10, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Pending</div>
                         </div>
                         <div style={{ flex: 1, background: `${T.green}12`, borderRadius: 12, padding: "14px 12px", textAlign: "center", border: `1px solid ${T.green}20` }}>
-                          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.green }}>{resolvedCount}</div>
-                          <div style={{ fontSize: 10, fontFamily: MONO, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Resolved</div>
+                          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.green }}>{resolvedCount}</div>
+                          <div style={{ fontSize: 10, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Resolved</div>
                         </div>
                       </div>
                     </div>
@@ -2771,13 +2771,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                                 <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                   {resolveNeighborhood(pred)}
                                 </div>
-                                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>
+                                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>
                                   {pred.beds}BR/{pred.baths}BA · {(pred.sqft || 0).toLocaleString()}sf
                                 </div>
                               </div>
                               <div style={{ textAlign: "right" }}>
-                                <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: T.text }}>{fmt(pred.guess)}</div>
-                                <div style={{ fontSize: 10, fontFamily: MONO, fontWeight: 600, color: pred.resolved ? T.green : T.orange }}>
+                                <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(pred.guess)}</div>
+                                <div style={{ fontSize: 10, fontFamily: FONT, fontWeight: 600, color: pred.resolved ? T.green : T.orange }}>
                                   {pred.resolved ? "RESOLVED" : "PENDING"}
                                 </div>
                               </div>
@@ -2800,7 +2800,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                               return (
                                 <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
                                   <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>{hood}</div>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: T.red, fontFamily: MONO }}>{count} pred{count !== 1 ? "s" : ""}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: T.red, fontFamily: FONT }}>{count} pred{count !== 1 ? "s" : ""}</div>
                                 </div>
                               );
                             })}
@@ -2830,7 +2830,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 16px 100px", animation: "ppSlideUp 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red }}>LIVE</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red }}>LIVE</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
                 <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
@@ -2853,7 +2853,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{
                     position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
                     borderRadius: 8, background: T.red || "#EF4444", color: "#fff",
-                    fontSize: 9, fontWeight: 800, fontFamily: MONO,
+                    fontSize: 9, fontWeight: 800, fontFamily: FONT,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     padding: "0 4px", border: `2px solid ${T.card}`,
                   }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
@@ -2869,24 +2869,24 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
               <img src={livePrediction.photo} alt="" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
               <div style={{ padding: "20px" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 8 }}>PREDICTION LOCKED</div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 8 }}>PREDICTION LOCKED</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: T.text, fontFamily: FONT, marginBottom: 12 }}>
                   {livePrediction.beds}BR / {livePrediction.baths}BA · {(livePrediction.sqft || 0).toLocaleString()} sf
                 </div>
                 <div style={{ background: T.inputBg, padding: "12px 14px", borderRadius: 12, marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>Your Prediction</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: MONO, color: T.text }}>{fmt(livePrediction.guess)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 4 }}>Your Prediction</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(livePrediction.guess)}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>vs List</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: MONO, color: livePrediction.vsListPct >= 0 ? T.orange : T.green, marginTop: 2 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary }}>vs List</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: livePrediction.vsListPct >= 0 ? T.orange : T.green, marginTop: 2 }}>
                       {livePrediction.vsListPct ? (livePrediction.vsListPct >= 0 ? "+" : "") + livePrediction.vsListPct.toFixed(1) + "%" : "—"}
                     </div>
                   </div>
                   <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Status</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, fontFamily: MONO, color: livePrediction.status === "pending" ? T.orange : T.green, marginTop: 2 }}>{(livePrediction.status || "active").toUpperCase()}</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary }}>Status</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: livePrediction.status === "pending" ? T.orange : T.green, marginTop: 2 }}>{(livePrediction.status || "active").toUpperCase()}</div>
                   </div>
                 </div>
                 <div style={{ padding: "12px", background: `${T.accent}12`, borderRadius: 10, marginBottom: 12, borderLeft: `3px solid ${T.accent}` }}>
@@ -2939,7 +2939,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </button>
           </div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.red, marginBottom: 2 }}>LIVE PREDICTIONS</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red, marginBottom: 2 }}>LIVE PREDICTIONS</div>
             <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Predict sale prices on active listings</div>
           </div>
@@ -2977,7 +2977,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 16px 100px", animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.purple || "#8B5CF6" }}>CHALLENGE</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8B5CF6" }}>CHALLENGE</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
                 {challengeData.locationLabel || `${challengeData.listing.city}, ${challengeData.listing.state}`}
                 {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : ' · Free Play'}
@@ -2986,7 +2986,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           <div style={{ background: `linear-gradient(135deg, ${accent}12, ${T.purple || "#8B5CF6"}12)`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
-              Someone scored <span style={{ color: accent, fontFamily: MONO, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
+              Someone scored <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
             </div>
             <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
           </div>
@@ -3022,7 +3022,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </button>
           </div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan, marginBottom: 2 }}>FREE PLAY</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan, marginBottom: 2 }}>FREE PLAY</div>
             <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Select where you want to guess property prices</div>
           </div>
@@ -3061,7 +3061,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 16px 100px", animation: "ppSlideUp 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.cyan }}>FREE PLAY</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan }}>FREE PLAY</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
                 <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
@@ -3135,7 +3135,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.3s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>LEADERBOARD</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>LEADERBOARD</div>
               <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
           </div>
@@ -3167,7 +3167,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               { id: "alltime", label: "All Time" },
             ].map(tab => (
               <button key={tab.id} onClick={() => setLeaderboardTab(tab.id)} style={{
-                flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: MONO,
+                flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, fontFamily: FONT,
                 border: `1px solid ${leaderboardTab === tab.id ? T.accent + "40" : T.cardBorder}`,
                 background: leaderboardTab === tab.id ? `${T.accent}12` : "transparent",
                 color: leaderboardTab === tab.id ? T.accent : T.textTertiary,
@@ -3241,7 +3241,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <>
                 {sorted.map((entry, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${modeColor}12` : T.card, border: `1px solid ${entry.isYou ? `${modeColor}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: MONO,
+                    <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: FONT,
                       background: i === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : i === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : i === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
                       color: i < 3 ? "#fff" : T.textSecondary }}>{i + 1}</div>
                     <div style={{ flex: 1 }}>
@@ -3249,8 +3249,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                       {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: MONO, color: entry.isYou ? modeColor : T.green }}>{entry.accuracy}%</div>
-                      <div style={{ fontSize: 10, fontFamily: MONO, color: T.textTertiary }}>{entry.count} {modeLabel}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: entry.isYou ? modeColor : T.green }}>{entry.accuracy}%</div>
+                      <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary }}>{entry.count} {modeLabel}</div>
                     </div>
                   </div>
                 ))}
@@ -3290,7 +3290,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   color: active ? T.accent : T.textTertiary, transition: "color 0.2s",
                 }}>
                   <Icon name={tab.icon} size={20} />
-                  <span style={{ fontSize: 10, fontWeight: 600, fontFamily: MONO, letterSpacing: 0.5 }}>{tab.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, letterSpacing: 0.5 }}>{tab.label}</span>
                   {active && <div style={{ width: 4, height: 4, borderRadius: 2, background: T.accent, marginTop: 1 }} />}
                 </button>
               );
@@ -3337,7 +3337,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               onFocus={e => e.target.style.borderColor = T.accent}
               onBlur={e => e.target.style.borderColor = T.cardBorder}
             />
-            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 6 }}>
               {nicknameInput.length}/20
             </div>
             <button
@@ -3384,7 +3384,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px", flexShrink: 0 }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexShrink: 0 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>NOTIFICATIONS</div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>NOTIFICATIONS</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {unreadCount > 0 && (
@@ -3395,7 +3395,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   }} style={{
                     fontSize: 11, fontWeight: 600, color: T.accent, background: `${T.accent}12`,
                     border: `1px solid ${T.accent}30`, borderRadius: 8, padding: "4px 10px",
-                    cursor: "pointer", fontFamily: MONO,
+                    cursor: "pointer", fontFamily: FONT,
                   }}>Mark all read</button>
                 )}
                 <button onClick={async () => {
@@ -3406,7 +3406,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 }} style={{
                   fontSize: 11, fontWeight: 600, color: T.textSecondary, background: T.inputBg,
                   border: `1px solid ${T.cardBorder}`, borderRadius: 8, padding: "4px 10px",
-                  cursor: "pointer", fontFamily: MONO,
+                  cursor: "pointer", fontFamily: FONT,
                 }}>
                   <Icon name="settings" size={12} />
                 </button>
@@ -3439,7 +3439,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, marginBottom: 4 }}>{n.title}</div>
                         <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5 }}>{n.body}</div>
-                        <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: MONO, marginTop: 6, letterSpacing: 1 }}>
+                        <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 6, letterSpacing: 1 }}>
                           {new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </div>
                       </div>
@@ -3467,13 +3467,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             background: T.card, borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 380,
             border: `1px solid ${T.cardBorder}`, animation: "ppScaleIn 0.3s ease",
           }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>NOTIFICATION SETTINGS</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 4 }}>NOTIFICATION SETTINGS</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>How do you want to be notified?</div>
 
             {/* Toggle: In-App (always on) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>In-App Alerts</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: T.green || "#10B981", fontFamily: MONO }}>ALWAYS ON</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.green || "#10B981", fontFamily: FONT }}>ALWAYS ON</div>
             </div>
 
             {/* Toggle: Email */}
@@ -3564,7 +3564,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 500, color: T.textTertiary, fontFamily: FONT }}>Push Notifications</div>
-                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, marginTop: 2 }}>Coming with the app</div>
+                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>Coming with the app</div>
               </div>
               <div style={{
                 width: 44, height: 24, borderRadius: 12, background: T.inputBg, opacity: 0.5,
@@ -3595,7 +3595,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             animation: "ppSlideUp 0.3s ease",
           }}>
             <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px", flexShrink: 0 }} />
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4, flexShrink: 0 }}>SWITCH MARKET</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 4, flexShrink: 0 }}>SWITCH MARKET</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20, flexShrink: 0 }}>Choose your city</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", WebkitOverflowScrolling: "touch", flex: 1, minHeight: 0, paddingBottom: 8 }}>
               {LAUNCH_MARKETS.map(m => {
@@ -3620,10 +3620,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 15, fontWeight: 600, color: isActive ? T.text : T.textSecondary, fontFamily: FONT }}>{m.name}</div>
-                      <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1, marginTop: 1 }}>{m.neighborhoods.length - 1} neighborhoods</div>
+                      <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, marginTop: 1 }}>{m.neighborhoods.length - 1} neighborhoods</div>
                     </div>
                     {isActive && (
-                      <div style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, color: T.accent, background: `${T.accent}18`, padding: "3px 8px", borderRadius: 6, letterSpacing: 1 }}>ACTIVE</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, fontFamily: FONT, color: T.accent, background: `${T.accent}18`, padding: "3px 8px", borderRadius: 6, letterSpacing: 1 }}>ACTIVE</div>
                     )}
                   </button>
                 );
@@ -3646,7 +3646,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             width: "100%", maxHeight: "70vh", overflowY: "auto", border: `1px solid ${T.cardBorder}`,
           }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
-              fontFamily: MONO, color: T.accent, marginBottom: 4 }}>LEVEL ROADMAP</div>
+              fontFamily: FONT, color: T.accent, marginBottom: 4 }}>LEVEL ROADMAP</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>
               Your Journey
             </div>
@@ -3673,10 +3673,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     <div style={{ fontSize: 14, fontWeight: 600, color: unlocked ? T.text : T.textTertiary, fontFamily: FONT }}>
                       Lv.{lvl.level} — {lvl.name}
                     </div>
-                    <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO }}>{lvl.req} XP required</div>
+                    <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{lvl.req} XP required</div>
                   </div>
                   {isCurrent && (
-                    <div style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, color: T.accent,
+                    <div style={{ fontSize: 10, fontWeight: 700, fontFamily: FONT, color: T.accent,
                       background: `${T.accent}18`, padding: "3px 8px", borderRadius: 6, letterSpacing: 1 }}>YOU</div>
                   )}
                   {unlocked && !isCurrent && (

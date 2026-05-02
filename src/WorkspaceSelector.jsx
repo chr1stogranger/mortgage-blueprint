@@ -80,7 +80,7 @@ export default function WorkspaceSelector({ T, isDesktop }) {
             background: `${p.color}12`, borderRight: i < panes.length - 1 ? `1px solid ${T.separator}` : "none",
           }}>
             <span style={{
-              fontSize: 9, fontWeight: 700, fontFamily: MONO,
+              fontSize: 9, fontWeight: 700, fontFamily: FONT,
               color: p.color, textTransform: "uppercase", letterSpacing: "0.5px",
             }}>
               {p.label}
@@ -99,7 +99,7 @@ export default function WorkspaceSelector({ T, isDesktop }) {
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{
-          fontSize: 10, fontWeight: 600, fontFamily: MONO,
+          fontSize: 10, fontWeight: 600, fontFamily: FONT,
           textTransform: "uppercase", letterSpacing: "2px",
           color: T.accent, marginBottom: 8,
         }}>
@@ -122,7 +122,7 @@ export default function WorkspaceSelector({ T, isDesktop }) {
       {Object.entries(groups).map(([groupName, modes]) => (
         <div key={groupName} style={{ marginBottom: 28 }}>
           <div style={{
-            fontSize: 11, fontWeight: 600, fontFamily: MONO,
+            fontSize: 11, fontWeight: 600, fontFamily: FONT,
             textTransform: "uppercase", letterSpacing: "2px",
             color: T.textTertiary, marginBottom: 12, paddingLeft: 2,
           }}>

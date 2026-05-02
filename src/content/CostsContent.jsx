@@ -24,7 +24,7 @@ function AutoBadge() {
   const { T } = useContext(CostsCtx);
   return (
     <span style={{
-      fontSize: 9, fontWeight: 700, color: T.textTertiary, fontFamily: MONO,
+      fontSize: 9, fontWeight: 700, color: T.textTertiary, fontFamily: FONT,
       letterSpacing: 1, padding: "2px 5px", border: `1px solid ${T.separator}`,
       borderRadius: 4, marginLeft: 8, lineHeight: 1, whiteSpace: "nowrap",
       display: "inline-flex", alignItems: "center",
@@ -119,7 +119,7 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, children
             color: T.text,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            fontFamily: MONO,
+            fontFamily: FONT,
           }}>{title}</span>
         </div>
         {total !== undefined && (
@@ -167,7 +167,7 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
           color: T.text,
           letterSpacing: "0.06em",
           textTransform: "uppercase",
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>
           <span style={{ color: T.textTertiary, marginRight: 8 }}>{letter}.</span>
           {title}
@@ -179,7 +179,7 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
               onClick={() => toggleLock(letter)}
               aria-label={unlocked ? "Lock section" : "Unlock section to edit"}
               style={{
-                fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1,
+                fontSize: 10, fontWeight: 700, fontFamily: FONT, letterSpacing: 1,
                 textTransform: "uppercase",
                 color: unlocked ? "#fff" : T.textTertiary,
                 background: unlocked ? ACCENT : "transparent",
@@ -229,7 +229,7 @@ function TotalBand({ letter, title, total }) {
         color: ACCENT,
         letterSpacing: "0.06em",
         textTransform: "uppercase",
-        fontFamily: MONO,
+        fontFamily: FONT,
       }}>
         <span style={{ marginRight: 8 }}>{letter}.</span>
         {title}
@@ -343,7 +343,7 @@ function FeeRow({
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
           <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3, flexWrap: "wrap", rowGap: 2 }}>
             <span>{label}</span>
-            {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: MONO }}>{sub}</span>}
+            {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: FONT }}>{sub}</span>}
             {/* prefixEditor name kept for backwards compat, but it now renders AFTER the
                 label and BEFORE the calc string — so the row label stays left-aligned with
                 its siblings (per Christo's spec). Used by the closing-date pills on the
@@ -358,7 +358,7 @@ function FeeRow({
                 color: T.textTertiary,
                 fontSize: 11,
                 marginLeft: 8,
-                fontFamily: MONO,
+                fontFamily: FONT,
                 fontWeight: 500,
                 whiteSpace: "nowrap",
               }}>
@@ -519,7 +519,7 @@ function EscrowCalendar({
               }}>
                 <span style={{
                   fontSize: 9, fontWeight: 700, color: T.textTertiary,
-                  fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase",
+                  fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase",
                 }}>{c.label}</span>
                 <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT }}>
                   {c.value}
@@ -538,7 +538,7 @@ function EscrowCalendar({
             <div style={{
               display: "grid", gridTemplateColumns: "1.2fr 1fr 1.1fr 1fr",
               padding: "8px 12px", background: ACCENT, color: "#fff",
-              fontSize: 10, fontWeight: 700, fontFamily: MONO,
+              fontSize: 10, fontWeight: 700, fontFamily: FONT,
               letterSpacing: 1, textTransform: "uppercase",
             }}>
               <span>Month</span>
@@ -796,7 +796,7 @@ export default function CostsContent({
                     type="button"
                     onClick={() => setter(opt.v)}
                     style={{
-                      fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase",
+                      fontSize: 10, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase",
                       padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
                       background: current === opt.v ? T.blue : "transparent",
                       color: current === opt.v ? "#fff" : T.textSecondary,

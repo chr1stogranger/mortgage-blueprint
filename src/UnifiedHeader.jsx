@@ -100,7 +100,7 @@ export default function UnifiedHeader({
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1 }}>
       <div style={{
         fontSize: isDesktop ? 10 : 9, color: T.textTertiary, fontWeight: 600,
-        letterSpacing: 1.2, fontFamily: MONO, textTransform: "uppercase",
+        letterSpacing: 1.2, fontFamily: FONT, textTransform: "uppercase",
         marginBottom: isDesktop ? 3 : 2, whiteSpace: "nowrap", textAlign: "center",
       }}>{label}</div>
       <div style={{
@@ -156,7 +156,7 @@ export default function UnifiedHeader({
                 padding: '3px 8px',
                 borderRadius: 9999,
                 fontSize: 9,
-                fontFamily: MONO,
+                fontFamily: FONT,
                 fontWeight: 600,
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
@@ -231,7 +231,7 @@ export default function UnifiedHeader({
                 {isDesktop && (
                   <span style={{
                     fontSize: 8, fontWeight: 600, color: p.color,
-                    fontFamily: MONO, letterSpacing: 0.3, opacity: 0.85,
+                    fontFamily: FONT, letterSpacing: 0.3, opacity: 0.85,
                   }}>{p.label}</span>
                 )}
               </div>

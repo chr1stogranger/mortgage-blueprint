@@ -84,7 +84,7 @@ export default function OverviewTab(props) {
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {(city || propertyZip) && (
-            <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: MONO, letterSpacing: "0.01em" }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, letterSpacing: "0.01em" }}>
               {city}{city && propertyState ? ", " : ""}{propertyState ? (propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
             </span>
           )}

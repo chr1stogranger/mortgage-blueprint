@@ -30,7 +30,7 @@ function NumCell({ value, onChange, prefix = "$", suffix, T, align = "right", pl
       borderRadius: 6, padding: "4px 6px",
       transition: "border 0.15s", width: "100%", boxSizing: "border-box",
     }}>
-      {prefix && <span style={{ color: T.textTertiary, fontSize: 11, marginRight: 2, fontFamily: MONO }}>{prefix}</span>}
+      {prefix && <span style={{ color: T.textTertiary, fontSize: 11, marginRight: 2, fontFamily: FONT }}>{prefix}</span>}
       <input
         type="text" inputMode="decimal" readOnly={readOnly}
         value={display}
@@ -58,11 +58,11 @@ function NumCell({ value, onChange, prefix = "$", suffix, T, align = "right", pl
         placeholder={placeholder || ""}
         style={{
           background: "transparent", border: "none", outline: "none",
-          color: T.text, fontSize: 12, fontWeight: 600, fontFamily: MONO,
+          color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT,
           textAlign: align, width: "100%", minWidth: 0, padding: 0,
         }}
       />
-      {suffix && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 2, fontFamily: MONO }}>{suffix}</span>}
+      {suffix && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 2, fontFamily: FONT }}>{suffix}</span>}
     </div>
   );
 }
@@ -118,7 +118,7 @@ function HeaderCell({ children, align = "left", headBorder, T }) {
       fontSize: 10.5, fontWeight: 700,
       color: T.text, letterSpacing: "0.04em",
       textTransform: "uppercase",
-      fontFamily: MONO,
+      fontFamily: FONT,
       textAlign: align, whiteSpace: "nowrap",
       borderRight: `1px solid ${headBorder}`,
     }}>{children}</div>
@@ -144,7 +144,7 @@ function TotalCell({ children, align = "right", T }) {
       padding: "10px 8px",
       display: "flex", alignItems: "center",
       justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start",
-      fontSize: 12, fontWeight: 700, fontFamily: MONO,
+      fontSize: 12, fontWeight: 700, fontFamily: FONT,
       color: T.text,
       borderRight: `1px solid ${T.separator}`,
     }}>{children}</div>
@@ -250,7 +250,7 @@ export default function DebtsContent({
           fontSize: 12, fontWeight: 700,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          fontFamily: MONO,
+          fontFamily: FONT,
           textAlign: "center",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
@@ -268,7 +268,7 @@ export default function DebtsContent({
               border: `1px solid ${debtFree ? "#fff" : "rgba(255,255,255,0.35)"}`,
               color: debtFree ? T.green : "#fff",
               fontSize: 11, fontWeight: 700, cursor: "pointer",
-              fontFamily: MONO, letterSpacing: "0.06em", textTransform: "uppercase",
+              fontFamily: FONT, letterSpacing: "0.06em", textTransform: "uppercase",
               display: "inline-flex", alignItems: "center", gap: 6,
               transition: "all 0.15s",
             }}
@@ -343,13 +343,13 @@ export default function DebtsContent({
                     <DataCell align="right" T={T}><NumCell value={d.monthly} onChange={v => (d.linkedReoId && needsLinkUI) ? syncDebtPayment(d.id, v) : calc.updateDebt(d.id, "monthly", v)} T={T} /></DataCell>
                     <DataCell align="right" T={T}><NumCell value={d.balance} onChange={v => (d.linkedReoId && needsLinkUI) ? syncDebtBalance(d.id, v) : calc.updateDebt(d.id, "balance", v)} T={T} /></DataCell>
                     <DataCell align="right" T={T}>
-                      <span style={{ fontSize: 12, fontFamily: MONO, color: T.textSecondary, fontWeight: 600 }}>
+                      <span style={{ fontSize: 12, fontFamily: FONT, color: T.textSecondary, fontWeight: 600 }}>
                         {bal > 0 ? `${pctOfBal.toFixed(1)}%` : "—"}
                       </span>
                     </DataCell>
                     <DataCell align="right" T={T}><NumCell value={d.rate} onChange={v => calc.updateDebt(d.id, "rate", v)} prefix="" suffix="%" T={T} /></DataCell>
                     <DataCell align="right" T={T}>
-                      <span style={{ fontSize: 12, fontFamily: MONO, color: T.textSecondary, fontWeight: 600 }}>
+                      <span style={{ fontSize: 12, fontFamily: FONT, color: T.textSecondary, fontWeight: 600 }}>
                         {interestYr > 0 ? fmt(interestYr) : "$0"}
                       </span>
                     </DataCell>
@@ -358,7 +358,7 @@ export default function DebtsContent({
                       {willPayoff ? (
                         <NumCell value={d.payoffAmount || 0} onChange={v => calc.updateDebt(d.id, "payoffAmount", v)} placeholder={String(bal)} T={T} />
                       ) : (
-                        <span style={{ fontSize: 12, fontFamily: MONO, color: T.textTertiary }}>—</span>
+                        <span style={{ fontSize: 12, fontFamily: FONT, color: T.textTertiary }}>—</span>
                       )}
                     </DataCell>
                     <DataCell align="center" pad="6px 4px" T={T}>
@@ -597,13 +597,13 @@ export default function DebtsContent({
           <Card pad={16}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
               <div>
-                <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Debts</div>
+                <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Debts</div>
                 <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: debtFree ? T.green : T.text, letterSpacing: "-0.02em", marginTop: 2 }}>
                   {fmt(monthlyDebts)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
                 </div>
               </div>
               {!debtFree && calc.qualifyingDebts && calc.qualifyingDebts.length > 0 && (
-                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: MONO, letterSpacing: 0.5 }}>
+                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
                   {calc.qualifyingDebts.length} qualifying
                 </div>
               )}

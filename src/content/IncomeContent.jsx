@@ -87,11 +87,11 @@ function BorrowerSection({
       <div style={{
         background: ACCENT, color: "#fff", padding: "10px 16px",
         fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-        textTransform: "uppercase", fontFamily: MONO,
+        textTransform: "uppercase", fontFamily: FONT,
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <span>{borrowerLabel}</span>
-        <span style={{ fontSize: 11, opacity: 0.85, fontFamily: MONO, letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
           {myIncomes.length === 0 ? "No employment income" : `${fmt(totalMo)}/mo`}
         </span>
       </div>
@@ -106,7 +106,7 @@ function BorrowerSection({
             background: HEAD_BG,
             borderBottom: `1px solid ${HEAD_BORDER}`,
             padding: "8px 12px",
-            fontSize: 10, fontFamily: MONO, fontWeight: 700, letterSpacing: 1,
+            fontSize: 10, fontFamily: FONT, fontWeight: 700, letterSpacing: 1,
             textTransform: "uppercase", color: T.textTertiary,
           }}>
             <span>Source</span>
@@ -156,16 +156,16 @@ function BorrowerSection({
                 <Sel value={inc.frequency} onChange={v => updateIncome(inc.id, "frequency", v)} options={FREQ_OPTIONS} sm />
                 {isVar
                   ? <Inp value={inc.ytd} onChange={v => updateIncome(inc.id, "ytd", v)} sm />
-                  : <span style={{ textAlign: "right", color: T.textTertiary, fontSize: 12, fontFamily: MONO }}>—</span>}
+                  : <span style={{ textAlign: "right", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>—</span>}
                 {isVar
                   ? <Inp value={inc.py1} onChange={v => updateIncome(inc.id, "py1", v)} sm />
-                  : <span style={{ textAlign: "right", color: T.textTertiary, fontSize: 12, fontFamily: MONO }}>—</span>}
+                  : <span style={{ textAlign: "right", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>—</span>}
                 {isVar
                   ? <Inp value={inc.py2} onChange={v => updateIncome(inc.id, "py2", v)} sm />
-                  : <span style={{ textAlign: "right", color: T.textTertiary, fontSize: 12, fontFamily: MONO }}>—</span>}
+                  : <span style={{ textAlign: "right", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>—</span>}
                 {isVar
                   ? <Sel value={inc.selection || "2Y+"} onChange={v => updateIncome(inc.id, "selection", v)} options={SELECTION_OPTIONS} sm />
-                  : <span style={{ color: T.textTertiary, fontSize: 12, fontFamily: MONO }}>Amount</span>}
+                  : <span style={{ color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Amount</span>}
                 <Sel value={inc.verifiedBy || ""} onChange={v => updateIncome(inc.id, "verifiedBy", v)} options={VERIFIED_BY_OPTIONS} sm />
                 <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: mo > 0 ? T.green : T.text }}>
                   {fmt(mo)}
@@ -188,7 +188,7 @@ function BorrowerSection({
               background: T.inputBg,
               borderTop: `1px solid ${HEAD_BORDER}`,
               alignItems: "center",
-              fontSize: 12, fontWeight: 700, fontFamily: MONO, letterSpacing: 0.5,
+              fontSize: 12, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5,
               textTransform: "uppercase", color: T.text,
             }}>
               <span style={{ gridColumn: "1 / 12" }}>Total Income</span>
@@ -313,16 +313,16 @@ export default function IncomeContent({
     <Card pad={16}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 12, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 11, fontFamily: MONO, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Income</div>
+          <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Income</div>
           <div style={{ fontSize: 24, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em", marginTop: 2 }}>
             {fmt(monthlyIncome)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
           </div>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, fontFamily: MONO, letterSpacing: 0.3 }}>
+          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, fontFamily: FONT, letterSpacing: 0.3 }}>
             {fmt(monthlyIncome * 12)}/yr
           </div>
         </div>
         {isFHA && (
-          <div style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}33`, borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, color: T.orange, fontFamily: MONO, letterSpacing: 0.5, textTransform: "uppercase" }}>
+          <div style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}33`, borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, color: T.orange, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase" }}>
             FHA caps: front 47% / back 56.99%
           </div>
         )}

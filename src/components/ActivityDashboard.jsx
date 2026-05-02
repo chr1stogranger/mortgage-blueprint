@@ -106,7 +106,7 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
         <div style={{
           fontSize: 11, fontWeight: 600, color: '#A1A1A1',
           textTransform: 'uppercase', letterSpacing: '0.08em',
-          fontFamily: MONO,
+          fontFamily: FONT,
         }}>BORROWER ACTIVITY</div>
 
         <button
@@ -180,14 +180,14 @@ function ActivityCard({ digest, compact }) {
         <div style={{ textAlign: 'right' }}>
           <div style={{
             fontSize: 18, fontWeight: 700,
-            color: intensityColor, fontFamily: MONO,
+            color: intensityColor, fontFamily: FONT,
           }}>
             {digest.total_edits}
           </div>
           <div style={{
             fontSize: 9, color: '#666666',
             textTransform: 'uppercase',
-            fontFamily: MONO,
+            fontFamily: FONT,
           }}>edits</div>
         </div>
       </div>
@@ -223,11 +223,11 @@ function ActivityCard({ digest, compact }) {
               <div style={{
                 fontSize: 10, color: '#666666',
                 textTransform: 'uppercase', marginBottom: 4,
-                fontFamily: MONO,
+                fontFamily: FONT,
               }}>PRICE RANGE EXPLORED</div>
               <div style={{
                 fontSize: 14, fontWeight: 600,
-                color: '#EDEDED', fontFamily: MONO,
+                color: '#EDEDED', fontFamily: FONT,
               }}>
                 {fmt(digest.price_range_explored.min)} — {fmt(digest.price_range_explored.max)}
               </div>
@@ -240,11 +240,11 @@ function ActivityCard({ digest, compact }) {
               <div style={{
                 fontSize: 10, color: '#666666',
                 textTransform: 'uppercase', marginBottom: 4,
-                fontFamily: MONO,
+                fontFamily: FONT,
               }}>DOWN PAYMENT RANGE</div>
               <div style={{
                 fontSize: 14, fontWeight: 600,
-                color: '#EDEDED', fontFamily: MONO,
+                color: '#EDEDED', fontFamily: FONT,
               }}>
                 {fmt(digest.down_payment_range.min)} — {fmt(digest.down_payment_range.max)}
               </div>
@@ -257,7 +257,7 @@ function ActivityCard({ digest, compact }) {
               <div style={{
                 fontSize: 10, color: '#666666',
                 textTransform: 'uppercase', marginBottom: 4,
-                fontFamily: MONO,
+                fontFamily: FONT,
               }}>FIELDS CHANGED</div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {digest.fields_changed.map(f => (
@@ -284,7 +284,7 @@ function ActivityCard({ digest, compact }) {
             <div style={{
               fontSize: 10, color: '#6366F1',
               fontWeight: 600, textTransform: 'uppercase',
-              marginBottom: 4, fontFamily: MONO,
+              marginBottom: 4, fontFamily: FONT,
             }}>AGENT TIP</div>
             <div style={{
               fontSize: 12, color: '#A1A1A1',
@@ -305,7 +305,7 @@ function Stat({ label, value }) {
       <div style={{
         fontSize: 9, color: '#666666',
         textTransform: 'uppercase',
-        fontFamily: MONO,
+        fontFamily: FONT,
       }}>{label}</div>
       <div style={{
         fontSize: 12, fontWeight: 600,
