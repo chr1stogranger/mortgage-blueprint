@@ -44,6 +44,8 @@ export default function UnifiedHeader({
   appMode, setAppMode,
   /* Mobile drawer — opens the RealStack shell sidebar on mobile */
   onOpenMobileMenu,
+  /* Active tab — used for breadcrumb after the wordmark */
+  tab, tabLabel,
   /* Mobile tab bar */
   mobileTabBar,
 }) {
@@ -164,16 +166,31 @@ export default function UnifiedHeader({
               </svg>
             </button>
           )}
-          {/* Blueprint wordmark — single source of brand identity in the header.
-              The GUIDED/STANDARD pill that used to live here was removed
-              (2026-05-03) per Christo — Quick Start already controls the
-              skillLevel toggle, and the pill was duplicating that one tap
-              away while eating sticky-header space. */}
+          {/* Blueprint wordmark + tab breadcrumb. When the user is on the
+              Overview tab the wordmark stands alone. On any other tab a
+              subtle separator and the tab label appear after it
+              ('Blueprint · Costs'), so the user always knows where they
+              are even with the horizontal tab strip removed. */}
           <span style={{
             fontSize: isDesktop ? 16 : 14, fontWeight: 800,
             letterSpacing: "-0.03em", color: T.text,
             whiteSpace: "nowrap",
           }}>Blueprint</span>
+          {tab && tab !== "overview" && tabLabel && (
+            <>
+              <span style={{
+                fontSize: isDesktop ? 14 : 12, color: T.textTertiary,
+                fontWeight: 500, marginLeft: 2, marginRight: 2,
+                userSelect: "none",
+              }}>·</span>
+              <span style={{
+                fontSize: isDesktop ? 14 : 12, fontWeight: 600,
+                color: T.textSecondary, fontFamily: FONT,
+                whiteSpace: "nowrap", letterSpacing: "-0.01em",
+                minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+              }}>{tabLabel}</span>
+            </>
+          )}
           {/* Sync indicators — hidden on mobile to avoid visual overlap with centered badge */}
           {isDesktop && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>

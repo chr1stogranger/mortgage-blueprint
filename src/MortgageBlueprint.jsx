@@ -4400,6 +4400,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
     appMode={appMode} setAppMode={setAppMode}
     onOpenMobileMenu={() => setMobileMenuOpen(true)}
+    tab={tab}
+    tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
     borrowerList={borrowerList} activeBorrower={activeBorrower}
