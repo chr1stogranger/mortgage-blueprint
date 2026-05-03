@@ -176,7 +176,7 @@ export default function OverviewTab(props) {
           ═══════════════════════════════════════ */}
       {ownsProperties && (<>
         <SectionDivider T={T} />
-        <CollapsibleSection title="Real Estate Owned" subtitle="REO" T={T} id="overview-reo" heroStyle={true}>
+        <CollapsibleSection title="Real Estate Owned (REO)" T={T} id="overview-reo" heroStyle={true}>
           <ReoContent {...props} hideHero={true} />
         </CollapsibleSection>
       </>)}
