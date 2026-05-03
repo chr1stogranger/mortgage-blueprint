@@ -711,17 +711,19 @@ function Hero({ value, label, color, sub, small, light }) {
    )}
   </div>);
  }
+ // Slim banner profile per Christo (2026-05-02) — shorter padding + smaller
+ // title so section banners don't dominate the vertical scroll.
  return (<div style={{
    background: accent,
-   padding: small ? "14px 18px" : "18px 22px",
-   borderRadius: 14,
-   marginBottom: 12,
+   padding: small ? "8px 16px" : "10px 18px",
+   borderRadius: 12,
+   marginBottom: 10,
    marginLeft: -2,
    marginRight: -2,
  }}>
-  <div style={{ fontSize: small ? 22 : 28, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.15 }}>{value}</div>
+  <div style={{ fontSize: small ? 16 : 20, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{value}</div>
   {(label || sub) && (
-    <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", marginTop: 4, fontFamily: FONT }}>
+    <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", marginTop: 2, fontFamily: FONT }}>
       {label}{sub && <span style={{ color: "rgba(255,255,255,0.65)" }}> · {sub}</span>}
     </div>
   )}

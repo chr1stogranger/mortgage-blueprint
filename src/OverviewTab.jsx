@@ -21,21 +21,23 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle }) {
   const [open, setOpen] = useState(defaultOpen);
   if (heroStyle) {
-    // Full-width indigo banner with white text (matches Hero treatment).
+    // Full-width indigo banner with white text. Slim profile per Christo
+    // (2026-05-02) — shorter padding + smaller title so the banners stop
+    // dominating the vertical scroll on the Overview tab.
     return (
       <div id={id}>
         <div onClick={() => setOpen(!open)} style={{
-          cursor: "pointer", marginTop: 16, marginBottom: open ? 12 : 4,
-          background: T.blue, padding: "18px 22px", borderRadius: 14,
-          display: "flex", alignItems: "center", gap: 12,
+          cursor: "pointer", marginTop: 12, marginBottom: open ? 10 : 4,
+          background: T.blue, padding: "10px 18px", borderRadius: 12,
+          display: "flex", alignItems: "center", gap: 10,
         }}>
-          <span style={{ fontSize: 18, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
+          <span style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
               {title}
             </div>
             {subtitle && (
-              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, marginTop: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, marginTop: 2 }}>
                 {subtitle}
               </div>
             )}
