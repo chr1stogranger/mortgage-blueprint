@@ -261,7 +261,7 @@ export default function UnifiedHeader({
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <button
             onClick={cycleTheme}
-            title={themeMode === 'auto' ? 'Auto theme' : themeMode === 'light' ? 'Light mode' : 'Dark mode'}
+            title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{
               background: T.pillBg,
               border: `1px solid ${T.separator}`,
@@ -269,10 +269,10 @@ export default function UnifiedHeader({
               fontSize: 13, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               transition: "all 0.2s", flexShrink: 0,
-              color: themeMode === 'dark' ? T.blue : themeMode === 'light' ? T.orange : T.text,
+              color: themeMode === 'dark' ? T.blue : T.orange,
             }}
           >
-            {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
+            {themeMode === 'dark' ? '☽' : '○'}
           </button>
         </div>
       </div>

@@ -1423,24 +1423,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   window.addEventListener('resize', handleResize);
   return () => window.removeEventListener('resize', handleResize);
  }, []);
- // ── Auto Theme (light by day, dark by night, with manual override) ──
+ // ── Theme: light or dark only. The 'auto' (time-of-day) mode was
+ //    removed (2026-05-03) per Christo — confused users and pretty much
+ //    nobody used it. Any legacy 'auto' value falls back to 'light'.
  const [themeMode, setThemeMode] = useState(() => {
   try { const p = new URLSearchParams(window.location.search); const t = p.get('theme'); if (t === 'dark' || t === 'light') return t; } catch {}
-  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved) return saved; } catch {}
-  return 'auto';
+  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark' || saved === 'light') return saved; } catch {}
+  return 'light';
  });
- const getAutoTheme = () => { const h = new Date().getHours(); return (h >= 7 && h < 19) ? false : true; };
  const [darkMode, setDarkMode] = useState(() => {
-  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark') return true; if (saved === 'light') return false; } catch {}
-  return getAutoTheme();
+  try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark') return true; } catch {}
+  return false;
  });
  useEffect(() => {
-  if (themeMode === 'auto') { setDarkMode(getAutoTheme()); const iv = setInterval(() => setDarkMode(getAutoTheme()), 60000); return () => clearInterval(iv); }
-  else if (themeMode === 'dark') setDarkMode(true);
-  else setDarkMode(false);
+  setDarkMode(themeMode === 'dark');
  }, [themeMode]);
  const cycleTheme = () => {
-  const next = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  const next = themeMode === 'dark' ? 'light' : 'dark';
   setThemeMode(next);
   try { localStorage.setItem('bp_theme_mode', next); } catch {}
  };
@@ -6300,10 +6299,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
     <div>
      <div style={{ fontSize: 15, fontWeight: 600 }}>Theme</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>{themeMode === 'auto' ? 'Auto — light by day, dark by night' : themeMode === 'light' ? 'Always light' : 'Always dark'}</div>
+     <div style={{ fontSize: 13, color: T.textTertiary }}>{themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</div>
     </div>
     <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 10, padding: 3 }}>
-     {[['auto','◐'],['light','○'],['dark','☽']].map(([k,e]) => (
+     {[['light','○'],['dark','☽']].map(([k,e]) => (
       <button key={k} onClick={() => { setThemeMode(k); try { localStorage.setItem('bp_theme_mode', k); } catch {} Haptics.light(); }} style={{ padding: "5px 10px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: themeMode === k ? 700 : 500, background: themeMode === k ? T.tabActiveBg : "transparent", color: themeMode === k ? T.text : T.textTertiary, cursor: "pointer" }}>{e}</button>
      ))}
     </div>
