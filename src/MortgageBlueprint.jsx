@@ -4187,8 +4187,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        the backdrop closes it. */}
    {!isBorrower && !isDesktop && mobileMenuOpen && (
     <div onClick={() => setMobileMenuOpen(false)} style={{
-     position: "fixed", inset: 0, zIndex: 95,
-     background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
+     position: "fixed", inset: 0, zIndex: 999,
+     background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
      transition: "opacity 0.25s ease",
     }} />
    )}
@@ -4202,7 +4202,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      boxShadow: !isDesktop ? "0 0 32px rgba(0,0,0,0.35)" : "none",
      display: "flex", flexDirection: "column",
      transition: "width 0.2s, min-width 0.2s, transform 0.25s ease",
-     overflow: "hidden", zIndex: 100, flexShrink: 0,
+     overflow: "hidden", zIndex: !isDesktop ? 1000 : 60, flexShrink: 0,
+     paddingTop: !isDesktop ? "max(0px, env(safe-area-inset-top))" : 0,
     }}>
      {/* Mobile-only close button — top-right corner of the drawer */}
      {!isDesktop && (
