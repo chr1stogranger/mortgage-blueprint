@@ -139,7 +139,7 @@ export default function UnifiedHeader({
         padding: isDesktop ? "0 32px" : "0 14px",
         paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
         gap: isDesktop ? 16 : 8,
-        minHeight: isDesktop ? 44 : 40,
+        minHeight: isDesktop ? 44 : 48,
         position: "relative",
       }}>
         {/* Left: Hamburger (mobile) + Logo + Sync */}
