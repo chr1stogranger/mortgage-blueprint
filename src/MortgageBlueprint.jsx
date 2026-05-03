@@ -4437,11 +4437,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       } catch (err) { alert('Failed to create client: ' + err.message); }
      },
     }}
-    mobileTabBar={!isDesktop && skillLevel !== "guided" ? (
-     <div ref={tabBarRef} style={{ display: "flex", gap: 4, padding: "6px 20px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollBehavior: "smooth", msOverflowStyle: "none", scrollbarWidth: "none" }}>
-      {TABS.map(([k, l]) => <div key={k} style={{ position: "relative" }}><Tab tabId={k} label={l} active={tab === k} locked={!isTabUnlocked(k)} completed={!!completedTabs[k]} onClick={() => { if (isTabUnlocked(k)) { setTab(k); Haptics.light(); } }} /><TabProgressUnderline tabId={k} /></div>)}
-     </div>
-    ) : null}
+    mobileTabBar={null /* horizontal scroll tab strip removed (2026-05-03)
+      — all tabs now live in the RealStack shell drawer (hamburger top-left).
+      Saved ~50px of sticky fold and removed nav-redundancy with the drawer. */}
    />
   )}
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
