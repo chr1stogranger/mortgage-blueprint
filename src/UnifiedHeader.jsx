@@ -173,9 +173,13 @@ export default function UnifiedHeader({
             BADGE only — clean, declarative, borrower-friendly. When any
             pillar is failing or incomplete, show the 5 PILLAR DOTS only —
             the non-green dot becomes the alert and the broker can tap it
-            to jump straight to the failing pillar. Never both at once. */}
+            to jump straight to the failing pillar. Never both at once.
+
+            paddingTop on mobile honors the iOS safe-area-inset so the
+            badge isn't hidden behind the status bar / Dynamic Island. */}
         <div style={{
           position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+          paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: isDesktop ? 10 : 6, pointerEvents: "none",
         }}>
