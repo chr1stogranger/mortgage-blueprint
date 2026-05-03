@@ -42,6 +42,8 @@ export default function UnifiedHeader({
   skillLevel, onToggleSkillLevel,
   /* App mode — shown as pill toggle on mobile (desktop uses sidebar) */
   appMode, setAppMode,
+  /* Mobile drawer — opens the RealStack shell sidebar on mobile */
+  onOpenMobileMenu,
   /* Mobile tab bar */
   mobileTabBar,
 }) {
@@ -138,8 +140,30 @@ export default function UnifiedHeader({
         minHeight: isDesktop ? 44 : 40,
         position: "relative",
       }}>
-        {/* Left: Logo + Skill Badge + Sync */}
+        {/* Left: Hamburger (mobile) + Logo + Sync */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
+          {/* Mobile hamburger — opens the RealStack shell drawer with
+              product switcher (Blueprint / PricePoint / Markets), tab nav,
+              scenarios, and settings. Desktop uses the persistent sidebar
+              instead so we don't render the hamburger there. */}
+          {!isDesktop && onOpenMobileMenu && (
+            <button
+              onClick={onOpenMobileMenu}
+              title="Open menu"
+              style={{
+                background: "transparent", border: "none",
+                width: 28, height: 28, padding: 0, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: T.text, flexShrink: 0,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+          )}
           {/* Blueprint wordmark — single source of brand identity in the header.
               The GUIDED/STANDARD pill that used to live here was removed
               (2026-05-03) per Christo — Quick Start already controls the
@@ -229,7 +253,11 @@ export default function UnifiedHeader({
         {/* Divider before controls */}
         <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
 
-        {/* Controls: Dark/Light + Privacy */}
+        {/* Controls: Dark/Light only. The privacy/eye button was removed
+            (2026-05-03) — Christo confirmed nobody uses it, and the
+            extra button was eating header space. State stays in
+            MortgageBlueprint in case we re-surface it via a settings
+            menu later. */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <button
             onClick={cycleTheme}
@@ -245,22 +273,6 @@ export default function UnifiedHeader({
             }}
           >
             {themeMode === 'auto' ? '◐' : themeMode === 'light' ? '○' : '☽'}
-          </button>
-
-          <button
-            onClick={() => setPrivacyMode(!privacyMode)}
-            title={privacyMode ? "Show values" : "Hide values"}
-            style={{
-              background: privacyMode ? `${T.blue}20` : T.pillBg,
-              border: `1px solid ${T.separator}`,
-              borderRadius: 8, width: 28, height: 28,
-              fontSize: 13, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.2s", flexShrink: 0,
-              color: T.textSecondary,
-            }}
-          >
-            {privacyMode ? "⊘" : <Icon name="eye" size={13} />}
           </button>
         </div>
       </div>

@@ -1447,6 +1447,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  T = darkMode ? DARK : LIGHT; // DARK/LIGHT are constant objects — reference is stable per mode
  // ── Desktop sidebar collapsed state ──
  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+ // Mobile RealStack shell drawer — slides in from the left on mobile when
+ // the hamburger button in UnifiedHeader is tapped. Replaces the killed
+ // Blueprint|PricePoint segmented pill row (2026-05-03).
+ const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
  // ── iOS Safe Area: ensure viewport-fit=cover ──
  useEffect(() => {
   const meta = document.querySelector('meta[name="viewport"]');
@@ -4175,16 +4179,47 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     .bp-main-content::-webkit-scrollbar { width: 6px; }
     .bp-main-content::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 3px; }
    `}</style>
-   {/* ═══ DESKTOP SIDEBAR (hidden in borrower mode) ═══ */}
-   {isDesktop && !isBorrower && (
+   {/* ═══ SIDEBAR — desktop persistent OR mobile slide-in drawer ═══
+       On desktop the sidebar is always visible (collapsed or expanded).
+       On mobile (2026-05-03) it doubles as the RealStack shell drawer:
+       the hamburger button in UnifiedHeader sets mobileMenuOpen=true,
+       this sidebar slides in from the left, and tapping a product or
+       the backdrop closes it. */}
+   {!isBorrower && !isDesktop && mobileMenuOpen && (
+    <div onClick={() => setMobileMenuOpen(false)} style={{
+     position: "fixed", inset: 0, zIndex: 95,
+     background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
+     transition: "opacity 0.25s ease",
+    }} />
+   )}
+   {!isBorrower && (isDesktop || mobileMenuOpen) && (
     <div className="bp-sidebar" style={{
-     width: sidebarCollapsed ? 56 : 180, minWidth: sidebarCollapsed ? 56 : 180, height: "100vh", position: "fixed", top: 0, left: 0,
-     background: darkMode ? "#0d0d0f" : "#FAFAFA", borderRight: `1px solid ${T.separator}`,
-     display: "flex", flexDirection: "column", transition: "width 0.2s, min-width 0.2s", overflow: "hidden", zIndex: 60, flexShrink: 0
+     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 180),
+     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 180),
+     height: "100vh", position: "fixed", top: 0, left: 0,
+     background: darkMode ? "#0d0d0f" : "#FAFAFA",
+     borderRight: `1px solid ${T.separator}`,
+     boxShadow: !isDesktop ? "0 0 32px rgba(0,0,0,0.35)" : "none",
+     display: "flex", flexDirection: "column",
+     transition: "width 0.2s, min-width 0.2s, transform 0.25s ease",
+     overflow: "hidden", zIndex: 100, flexShrink: 0,
     }}>
+     {/* Mobile-only close button — top-right corner of the drawer */}
+     {!isDesktop && (
+      <button onClick={() => setMobileMenuOpen(false)}
+       style={{
+        position: "absolute", top: 12, right: 12, zIndex: 1,
+        background: "transparent", border: "none", cursor: "pointer",
+        width: 32, height: 32, padding: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: T.textSecondary, borderRadius: 8,
+       }}>
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+     )}
      {/* Sidebar Header — Logo + Mode Toggle (matches PricePoint/Markets pattern) */}
-     <div style={{ padding: sidebarCollapsed ? "12px 8px 14px" : "12px 16px 14px", borderBottom: `1px solid ${T.separator}` }}>
-      {!sidebarCollapsed && <>
+     <div style={{ padding: (sidebarCollapsed && isDesktop) ? "12px 8px 14px" : "12px 16px 14px", borderBottom: `1px solid ${T.separator}` }}>
+      {(!sidebarCollapsed || !isDesktop) && <>
        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
          <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
@@ -4221,7 +4256,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          const isSplit = splitMode && k === splitApp;
          return (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
-           <button onClick={() => { if (splitMode && k !== appMode && k !== splitApp) { setSplitApp(k); } else { closeSplit(); setAppMode(k); } }} style={{
+           <button onClick={() => { if (splitMode && k !== appMode && k !== splitApp) { setSplitApp(k); } else { closeSplit(); setAppMode(k); } if (!isDesktop) setMobileMenuOpen(false); }} style={{
             display: "flex", alignItems: "center", gap: 8, flex: 1, padding: "7px 10px", borderRadius: 8,
             border: "none", fontSize: 12, fontWeight: isActive || isSplit ? 700 : 500, fontFamily: FONT,
             background: isActive ? `${T.blue}15` : isSplit ? `${T.blue}08` : "transparent",
@@ -4255,7 +4290,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         })}
        </div>
       </>}
-      {sidebarCollapsed && (
+      {(sidebarCollapsed && isDesktop) && (
        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden"}}>
          <defs><linearGradient id="bp-bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
@@ -4283,7 +4318,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        const active = tab === k;
        const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        return (
-        <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; } }}
+        <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; if (!isDesktop) setMobileMenuOpen(false); } }}
          style={{
           padding: sidebarCollapsed ? "8px 0" : "7px 12px", cursor: locked ? "not-allowed" : "pointer",
           display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
@@ -4291,18 +4326,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
          }}>
          <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
-         {!sidebarCollapsed && (
+         {(!sidebarCollapsed || !isDesktop) && (
           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
          )}
-         {!sidebarCollapsed && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+         {(!sidebarCollapsed || !isDesktop) && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
         </div>
        );
       })}
       {/* PricePoint nav (when PP is primary) */}
-      {appMode === "pricepoint" && !sidebarCollapsed && [["daily","target","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
+      {appMode === "pricepoint" && (!sidebarCollapsed || !isDesktop) && [["daily","target","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
        const active = ppCurrentTab === k;
        return (
-        <div key={k} className="bp-sidebar-item" onClick={() => triggerPPTab(k)} style={{
+        <div key={k} className="bp-sidebar-item" onClick={() => { triggerPPTab(k); if (!isDesktop) setMobileMenuOpen(false); }} style={{
          padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
          background: active ? `${T.blue}15` : "transparent",
          borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
@@ -4314,7 +4349,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        );
       })}
       {/* Markets nav (when Markets is primary) */}
-      {appMode === "markets" && !sidebarCollapsed && [["live","trending-up","Live Markets"],["practice","target","Practice"],["portfolio","banknote","Portfolio"]].map(([k,ico,l]) => (
+      {appMode === "markets" && (!sidebarCollapsed || !isDesktop) && [["live","trending-up","Live Markets"],["practice","target","Practice"],["portfolio","banknote","Portfolio"]].map(([k,ico,l]) => (
        <div key={k} className="bp-sidebar-item" style={{
         padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
         background: "transparent",
@@ -4323,7 +4358,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       ))}
      </div>
      {/* Sidebar Footer */}
-     {appMode === "blueprint" && !sidebarCollapsed && (
+     {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
        <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 2px 10px ${T.green}30` }}>
@@ -4332,7 +4367,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        </a>
       </div>
      )}
-     {sidebarCollapsed && appMode === "blueprint" && (
+     {sidebarCollapsed && isDesktop && appMode === "blueprint" && (
       <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
        <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", cursor: "pointer", padding: "4px 0" }}>
@@ -4364,6 +4399,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     skillLevel={skillLevel}
     onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
     appMode={appMode} setAppMode={setAppMode}
+    onOpenMobileMenu={() => setMobileMenuOpen(true)}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
     borrowerList={borrowerList} activeBorrower={activeBorrower}
