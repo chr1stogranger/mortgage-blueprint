@@ -4634,11 +4634,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        the drawer. Desktop continues to use the sidebar switcher. */}
    {!isDesktop && appMode !== "blueprint" && (
     <div style={{
-      position: "sticky", top: "env(safe-area-inset-top, 0px)",
+      position: "sticky", top: 0,
       zIndex: 60, background: T.headerBg,
       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
       borderBottom: `1px solid ${T.separator}`,
-      paddingTop: "env(safe-area-inset-top, 0px)",
+      paddingTop: "max(0px, env(safe-area-inset-top))",
     }}>
      <div style={{
        display: "flex", alignItems: "center", gap: 8,
