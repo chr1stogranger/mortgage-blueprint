@@ -123,7 +123,6 @@ export default function OverviewTab(props) {
           ═══════════════════════════════════════ */}
       <CollapsibleSection
         title="Quick Start"
-        subtitle={`Loan Setup${props.scenarioName ? ` · ${props.scenarioName}` : ""}`}
         T={T}
         id="overview-setup"
         defaultOpen={true}
