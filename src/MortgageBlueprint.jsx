@@ -4626,12 +4626,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    </div>
   </div>}
-   {/* App Mode Toggle for NON-Blueprint modes on mobile.
-       In Blueprint mode this pill lives inside UnifiedHeader (so it shares
-       the fixed stacking context). When UnifiedHeader doesn't render
-       (PricePoint / Markets), we still need a persistent way to switch
-       back — this standalone pill handles that case. Desktop uses the
-       sidebar switcher regardless. */}
+   {/* PricePoint / Markets header for mobile — mirrors Blueprint's
+       UnifiedHeader pattern (2026-05-03): hamburger button on the left
+       opens the RealStack shell drawer, wordmark in the same bold font
+       as "Blueprint". The Blueprint|PricePoint segmented pill that used
+       to live here was removed because cross-product nav now lives in
+       the drawer. Desktop continues to use the sidebar switcher. */}
    {!isDesktop && appMode !== "blueprint" && (
     <div style={{
       position: "sticky", top: "env(safe-area-inset-top, 0px)",
@@ -4640,18 +4640,33 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       borderBottom: `1px solid ${T.separator}`,
       paddingTop: "env(safe-area-inset-top, 0px)",
     }}>
-     <div style={{ display: "flex", justifyContent: "center", padding: "6px 20px" }}>
-      <div style={{ display: "flex", background: T.pillBg, borderRadius: 12, padding: 2, border: `1px solid ${T.cardBorder || T.separator}`, gap: 2 }}>
-       {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
-        <button key={k} onClick={() => setAppMode(k)} style={{
-         padding: "5px 14px", borderRadius: 10, border: "none", fontSize: 11, fontWeight: 700,
-         fontFamily: FONT, cursor: "pointer", transition: "all 0.25s",
-         background: appMode === k ? (k === "blueprint" ? T.blue : "#38bd7e") : "transparent",
-         color: appMode === k ? "#fff" : T.textTertiary,
-         boxShadow: appMode === k ? (k === "blueprint" ? `0 2px 10px ${T.blue}40` : "0 2px 10px rgba(56,189,126,0.3)") : "none",
-        }}>{l}</button>
-       ))}
-      </div>
+     <div style={{
+       display: "flex", alignItems: "center", gap: 8,
+       padding: "0 14px", minHeight: 40,
+     }}>
+      {/* Hamburger — opens the RealStack shell drawer */}
+      <button
+       onClick={() => setMobileMenuOpen(true)}
+       title="Open menu"
+       style={{
+        background: "transparent", border: "none",
+        width: 28, height: 28, padding: 0, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: T.text, flexShrink: 0,
+       }}
+      >
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+       </svg>
+      </button>
+      {/* Wordmark — same bold style as the Blueprint wordmark */}
+      <span style={{
+       fontSize: 14, fontWeight: 800,
+       letterSpacing: "-0.03em", color: T.text,
+       whiteSpace: "nowrap",
+      }}>{appMode === "pricepoint" ? "PricePoint" : appMode === "markets" ? "Markets" : ""}</span>
      </div>
     </div>
    )}
