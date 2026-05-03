@@ -140,40 +140,16 @@ export default function UnifiedHeader({
       }}>
         {/* Left: Logo + Skill Badge + Sync */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
-          {/* Blueprint wordmark */}
+          {/* Blueprint wordmark — single source of brand identity in the header.
+              The GUIDED/STANDARD pill that used to live here was removed
+              (2026-05-03) per Christo — Quick Start already controls the
+              skillLevel toggle, and the pill was duplicating that one tap
+              away while eating sticky-header space. */}
           <span style={{
             fontSize: isDesktop ? 16 : 14, fontWeight: 800,
             letterSpacing: "-0.03em", color: T.text,
             whiteSpace: "nowrap",
           }}>Blueprint</span>
-
-          {/* Experience badge — tap to toggle between Guided ↔ Standard */}
-          {skillLevel && (
-            <div
-              onClick={onToggleSkillLevel}
-              title={skillLevel === 'guided' || skillLevel === 'beginner' ? 'Switch to Standard mode' : 'Switch to Guided mode'}
-              style={{
-                padding: '3px 8px',
-                borderRadius: 9999,
-                fontSize: 9,
-                fontFamily: FONT,
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                background: T.blue + '15',
-                color: T.blue,
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                transition: 'all 0.2s',
-              }}
-            >
-              {skillLevel === 'guided' || skillLevel === 'beginner' ? 'GUIDED' : 'STANDARD'}
-              <span style={{ fontSize: 8, opacity: 0.6 }}>⇄</span>
-            </div>
-          )}
           {/* Sync indicators — hidden on mobile to avoid visual overlap with centered badge */}
           {isDesktop && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -192,51 +168,58 @@ export default function UnifiedHeader({
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Absolutely centered Qualification badge + Pillar dots (both mobile & desktop) */}
+        {/* Absolutely centered Qualification status. Per Christo's 2026-05-03
+            rule: when ALL pillars pass (allGood), show the "Pre-Qualified"
+            BADGE only — clean, declarative, borrower-friendly. When any
+            pillar is failing or incomplete, show the 5 PILLAR DOTS only —
+            the non-green dot becomes the alert and the broker can tap it
+            to jump straight to the failing pillar. Never both at once. */}
         <div style={{
           position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: isDesktop ? 10 : 6, pointerEvents: "none",
         }}>
-          <div
-            onClick={() => setTab("qualify")}
-            style={{
-              display: "flex", alignItems: "center", gap: 5,
-              background: `${badgeColor}18`,
-              borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 8px",
-              cursor: "pointer", transition: "all 0.2s",
-              pointerEvents: "auto",
-            }}
-          >
-            {allGood
-              ? <Icon name="check" size={isDesktop ? 14 : 12} style={{ color: T.green, flexShrink: 0 }} />
-              : <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor }} />
-            }
-            <span style={{
-              fontSize: isDesktop ? 11 : 9, fontWeight: 700,
-              color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
-            }}>{badgeLabel}</span>
-          </div>
-          <div
-            onClick={() => setTab("qualify")}
-            style={{ display: "flex", alignItems: "center", gap: isDesktop ? 6 : 3, cursor: "pointer", pointerEvents: "auto" }}
-          >
-            {pillars.map((p, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <div style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: p.color, transition: "all 0.3s",
-                  boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : "none",
-                }} />
-                {isDesktop && (
-                  <span style={{
-                    fontSize: 8, fontWeight: 600, color: p.color,
-                    fontFamily: FONT, letterSpacing: 0.3, opacity: 0.85,
-                  }}>{p.label}</span>
-                )}
-              </div>
-            ))}
-          </div>
+          {allGood ? (
+            // ── ALL GREEN → show the Pre-Qualified badge only ──
+            <div
+              onClick={() => setTab("qualify")}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: `${badgeColor}18`,
+                borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 8px",
+                cursor: "pointer", transition: "all 0.2s",
+                pointerEvents: "auto",
+              }}
+            >
+              <Icon name="check" size={isDesktop ? 14 : 12} style={{ color: T.green, flexShrink: 0 }} />
+              <span style={{
+                fontSize: isDesktop ? 11 : 9, fontWeight: 700,
+                color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
+              }}>{badgeLabel}</span>
+            </div>
+          ) : (
+            // ── Anything red or gray → show the 5 dots only ──
+            <div
+              onClick={() => setTab("qualify")}
+              style={{ display: "flex", alignItems: "center", gap: isDesktop ? 6 : 4, cursor: "pointer", pointerEvents: "auto" }}
+            >
+              {pillars.map((p, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <div style={{
+                    width: isDesktop ? 8 : 7, height: isDesktop ? 8 : 7, borderRadius: "50%",
+                    background: p.color, transition: "all 0.3s",
+                    boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : p.color === T.red ? `0 0 4px ${T.red}50` : "none",
+                  }} />
+                  {isDesktop && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 600, color: p.color,
+                      fontFamily: FONT, letterSpacing: 0.3, opacity: 0.9,
+                    }}>{p.label}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Divider before controls */}
@@ -362,37 +345,11 @@ export default function UnifiedHeader({
         </div>
       )}
 
-      {/* ── Mobile-only App Mode toggle (Blueprint ↔ PricePoint) ──
-          Markets intentionally hidden on mobile. Desktop uses sidebar switcher. */}
-      {!isDesktop && setAppMode && (
-        <div style={{
-          display: "flex", justifyContent: "center",
-          padding: "4px 14px 6px",
-          borderTop: `1px solid ${T.separator}`,
-        }}>
-          <div style={{
-            display: "flex", background: T.pillBg, borderRadius: 12,
-            padding: 2, border: `1px solid ${T.cardBorder || T.separator}`, gap: 2,
-          }}>
-            {[["blueprint","Blueprint"],["pricepoint","PricePoint"]].map(([k,l]) => (
-              <button key={k} onClick={() => setAppMode(k)} style={{
-                padding: "5px 14px", borderRadius: 10, border: "none",
-                fontSize: 11, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-                transition: "all 0.25s",
-                background: appMode === k
-                  ? (k === "blueprint" ? T.blue : "#38bd7e")
-                  : "transparent",
-                color: appMode === k ? "#fff" : T.textTertiary,
-                boxShadow: appMode === k
-                  ? (k === "blueprint"
-                      ? `0 2px 10px ${T.blue}40`
-                      : "0 2px 10px rgba(56,189,126,0.3)")
-                  : "none",
-              }}>{l}</button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* The mobile-only Blueprint↔PricePoint segmented toggle pill row was
+          removed (2026-05-03) per Christo. Cross-product navigation is a
+          platform-level concern and belongs at the RealStack shell layer
+          (or the desktop sidebar switcher), not in Blueprint's sticky
+          header. Desktop product switching still works via the sidebar. */}
 
       {/* ── Mobile tab bar ── */}
       {mobileTabBar}
