@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -486,6 +486,18 @@ function EmployerGroup({
   updateIncome, addIncome, removeIncome,
   monthsElapsed, T, fmt, ACCENT,
 }) {
+  // Local edit state for the source field. Committing on every keystroke
+  // would re-key the group (because grouping is by source), destroy the
+  // input, and lose focus — so the user could only type one character
+  // at a time. Buffer locally; commit on blur or Enter.
+  const [draftSource, setDraftSource] = useState(source || "");
+  useEffect(() => { setDraftSource(source || ""); }, [source]);
+  const commitSource = () => {
+    if (draftSource !== (source || "")) {
+      components.forEach(c => updateIncome(c.id, "source", draftSource));
+    }
+  };
+
   const totalMo = components.reduce(
     (s, c) => s + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed),
     0,
@@ -519,13 +531,11 @@ function EmployerGroup({
         <div style={{ minWidth: 0 }}>
           <input
             type="text"
-            value={source || ""}
+            value={draftSource}
             placeholder="Employer name"
-            onChange={(e) => {
-              const v = e.target.value;
-              // Rename ALL components in this group to the new source name.
-              components.forEach(c => updateIncome(c.id, "source", v));
-            }}
+            onChange={(e) => setDraftSource(e.target.value)}
+            onBlur={commitSource}
+            onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
             onClick={(e) => e.stopPropagation()}
             style={{
               fontSize: 14, fontWeight: 500, color: T.text,
