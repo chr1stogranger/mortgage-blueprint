@@ -274,18 +274,21 @@ function ComponentRow({
 
   return (
     <div style={{
-      background: T.card, borderRadius: 8, marginBottom: 4,
-      border: isVar ? `1px solid ${T.orange}30` : `0.5px solid ${T.separator}`,
+      background: T.card, borderRadius: 8, marginBottom: 6,
+      border: isVar ? `1px solid ${T.orange}40` : `0.5px solid ${T.separator}`,
     }}>
-      {/* Top row — component summary + 2nd chevron when variable. */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "14px 1.2fr 130px 110px 30px",
-        gap: 8, alignItems: "center", padding: "8px 10px",
-      }}>
-        <div style={{ width: 6, height: 6, borderRadius: 3, background: dotColor, marginLeft: 4 }} />
+      {/* Top row — component summary. Click chevron (or whole row on variable) to toggle averaging. */}
+      <div
+        onClick={isVar ? (e) => { e.stopPropagation(); onToggleExpand(); } : undefined}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "14px 1.2fr 110px 110px 28px",
+          gap: 8, alignItems: "center", padding: "10px 12px",
+          cursor: isVar ? "pointer" : "default",
+        }}>
+        <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, fontFamily: FONT }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>
             {meta.label}
             {meta.jargon && (
               <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, marginLeft: 5 }}>({meta.jargon})</span>
@@ -294,40 +297,46 @@ function ComponentRow({
           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>{subline}</div>
         </div>
         <div>
-          {/* Verified-by chip. Shows green when set, neutral otherwise. */}
+          {/* Verified-by chip. Always present, color-coded by state. */}
           {inc.verifiedBy ? (
             <span style={{
               background: `${T.green}18`, color: T.green,
-              fontSize: 9, fontWeight: 600,
-              padding: "2px 7px", borderRadius: 6,
+              fontSize: 10, fontWeight: 600,
+              padding: "3px 8px", borderRadius: 6,
               border: `0.5px solid ${T.green}40`,
               fontFamily: FONT, letterSpacing: 0.2,
             }}>{inc.verifiedBy} ✓</span>
           ) : (
             <span style={{
-              fontSize: 9, color: T.textTertiary,
+              background: `${T.orange}12`, color: T.orange,
+              fontSize: 10, fontWeight: 600,
+              padding: "3px 8px", borderRadius: 6,
+              border: `0.5px dashed ${T.orange}55`,
               fontFamily: FONT, letterSpacing: 0.2,
             }}>not verified</span>
           )}
         </div>
         <div style={{ textAlign: "right" }}>
-          <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 13, color: T.text }}>
+          <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
             {fmt(mo)}
           </span>
           <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
         </div>
         {isVar ? (
-          <span
+          <button
             onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-            title={isExpanded ? "Hide averaging detail" : "Edit averaging history & method"}
+            title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
             style={{
-              color: T.orange, fontSize: 11, fontWeight: 700,
+              background: `${T.orange}18`, border: `1px solid ${T.orange}55`,
+              color: T.orange, fontSize: 12, fontWeight: 700,
               cursor: "pointer", textAlign: "center", userSelect: "none",
+              width: 24, height: 24, borderRadius: 6, padding: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
               transform: `rotate(${isExpanded ? 180 : 0}deg)`,
               transition: "transform 0.2s",
-            }}>▾</span>
+            }}>▾</button>
         ) : (
-          <span style={{ color: T.textTertiary, fontSize: 11 }}>·</span>
+          <span style={{ color: T.textTertiary, fontSize: 11 }}></span>
         )}
       </div>
 
@@ -452,13 +461,23 @@ function ComponentRow({
             </select>
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => removeIncome(inc.id)} aria-label="Remove component"
+            <button onClick={() => removeIncome(inc.id)} aria-label="Remove this component"
+              title="Remove this component"
               style={{
                 background: "transparent", border: `0.5px solid ${T.separator}`,
-                color: T.textTertiary, cursor: "pointer",
+                color: T.red, cursor: "pointer",
                 padding: "4px 8px", borderRadius: 5,
-                fontSize: 10, fontFamily: FONT,
-              }}>Remove</button>
+                fontSize: 11, fontFamily: FONT, fontWeight: 500,
+                display: "inline-flex", alignItems: "center", gap: 4,
+              }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              Remove
+            </button>
           </div>
         </div>
       )}
@@ -529,20 +548,32 @@ function EmployerGroup({
           transform: `rotate(${isExpanded ? 0 : -90}deg)`,
         }}>▾</div>
         <div style={{ minWidth: 0 }}>
-          <input
-            type="text"
-            value={draftSource}
-            placeholder="Employer name"
-            onChange={(e) => setDraftSource(e.target.value)}
-            onBlur={commitSource}
-            onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              fontSize: 14, fontWeight: 500, color: T.text,
-              fontFamily: FONT, border: "none", outline: "none",
-              background: "transparent", width: "100%", padding: 0,
-            }}
-          />
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            border: `1px dashed ${draftSource ? "transparent" : ACCENT + "55"}`,
+            borderRadius: 6, padding: "2px 6px",
+            background: draftSource ? "transparent" : `${ACCENT}06`,
+            transition: "all 0.15s",
+          }}>
+            <input
+              type="text"
+              value={draftSource}
+              placeholder="Click to name this employer"
+              onChange={(e) => setDraftSource(e.target.value)}
+              onBlur={commitSource}
+              onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                fontSize: 15, fontWeight: 600, color: T.text,
+                fontFamily: FONT, border: "none", outline: "none",
+                background: "transparent", flex: 1, padding: 0,
+                letterSpacing: "-0.01em",
+              }}
+            />
+            {!draftSource && (
+              <span style={{ color: ACCENT, fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✎</span>
+            )}
+          </div>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>{subtitle}</div>
         </div>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -620,8 +651,32 @@ export default function IncomeContent({
 
   // Expand state — keyed by `borrowerNum::source` for employer rows
   // and by income id for component-level (variable averaging) rows.
+  // Variable components default to EXPANDED so the averaging panel is
+  // immediately visible — a salary row only needs the basics, but every
+  // variable-pay row has math the broker needs to see/configure.
   const [expandedEmployers, setExpandedEmployers] = useState({});
-  const [expandedComponents, setExpandedComponents] = useState({});
+  const [expandedComponents, setExpandedComponents] = useState(() => {
+    const initial = {};
+    incomes.forEach(i => {
+      if (payTypeLabel(i.payType).variable) initial[i.id] = true;
+    });
+    return initial;
+  });
+  // Auto-expand newly-added variable components and components whose pay
+  // type was just changed to a variable type.
+  useEffect(() => {
+    setExpandedComponents(prev => {
+      const next = { ...prev };
+      let changed = false;
+      incomes.forEach(i => {
+        if (payTypeLabel(i.payType).variable && next[i.id] == null) {
+          next[i.id] = true;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [incomes]);
 
   // Group all incomes by (borrower, source). Each group becomes one
   // employer row with chevron-expand to its components.
