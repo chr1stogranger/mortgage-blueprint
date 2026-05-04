@@ -2649,7 +2649,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const matched = rateMap[loanType];
   if (matched && !isNaN(matched)) setRate(matched);
  }, [loanType, liveRates, term]);
- const addIncome = (borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]);
+ // addIncome accepts an optional `source` so the "+ Add component"
+ // button inside an employer group can pre-fill the employer name. New
+ // entries default to Salary / "Amount"; the user types the actual
+ // component (Bonus, RSU, etc.) inside the expanded employer.
+ const addIncome = (borrower, source = "") => setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]);
  const updateIncome = (id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i));
  const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
  const addAsset = () => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
@@ -3275,8 +3279,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const housingPayment = pi + monthlyTax + ins + monthlyMI + hoa;
   const displayPayment = includeEscrow ? housingPayment : (pi + monthlyMI + hoa);
   // Income calc — honors user-picked Selection for variable pay (Bonus/Commission/RSU/etc.)
-  // Selection values: "Amount" (use Amount × Frequency), "YTD" (annualized YTD), "1Y+" (last year),
-  // "2Y+" (avg of last two years). Default for variable is "2Y+", for fixed is "Amount".
+  // Selection values:
+  //   "Amount"  — Amount × Frequency (fixed pay; salary)
+  //   "YTD"     — legacy annualized-YTD only (kept for back-compat with
+  //               older scenarios; not exposed in the new UI)
+  //   "1Y+"    — 1-year average (last full year only)
+  //   "2Y+"    — 2-year average ((py1 + py2) / 2)
+  //   "1Y_YTD" — 1-year + YTD annualized blend ((py1 + ytdAnn) / 2)
+  //   "2Y_YTD" — 2-year + YTD annualized blend ((py1+py2+ytdAnn) / 3)
+  //   default for variable is "2Y+", for fixed is "Amount".
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
   const totalIncomeFromEntries = incomes.reduce((s, i) => {
    const isVariable = VARIABLE_PAY_TYPES.includes(i.payType);
@@ -3285,6 +3296,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const yr2 = Number(i.py2) || 0;
    const fromAmount = toMonthly(Number(i.amount) || 0, i.frequency);
    const sel = i.selection || (isVariable ? "2Y+" : "Amount");
+   const ytdAnn = ytd > 0 ? (ytd * 12) / monthsElapsed : 0;
 
    if (sel === "Amount") return s + fromAmount;
    if (sel === "YTD") return s + (ytd > 0 ? (ytd * 12 / monthsElapsed) / 12 : 0);
@@ -3293,6 +3305,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     const months = (yr1 > 0 ? 12 : 0) + (yr2 > 0 ? 12 : 0);
     if (months === 0) return s;
     return s + (yr1 + yr2) / months;
+   }
+   if (sel === "1Y_YTD") {
+    // Average of last full year + annualized YTD, then /12 for monthly.
+    return s + ((yr1 + ytdAnn) / 2) / 12;
+   }
+   if (sel === "2Y_YTD") {
+    return s + ((yr1 + yr2 + ytdAnn) / 3) / 12;
    }
    // Legacy fallback: conservative auto-pick for variable pay (lower of yr1 vs 2yr-avg)
    if (isVariable) {
@@ -5169,7 +5188,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <Suspense fallback={null}>
  <BottomSheet isOpen={sheetContent === "income"} onClose={() => setSheetContent(null)} title="Income" T={T}>
   <IncomeSheet
-   incomes={incomes} addIncome={(borrower) => setIncomes([...incomes, { id: Date.now(), borrower, source: "", start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }])}
+   incomes={incomes} addIncome={(borrower, source = "") => setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }])}
    updateIncome={(id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i))}
    removeIncome={(id) => setIncomes(incomes.filter(i => i.id !== id))}
    otherIncome={otherIncome} setOtherIncome={setOtherIncome}
