@@ -35,17 +35,82 @@ const SELECTION_METHODS = [
 // matches what the broker (and a borrower watching the screen) reads.
 function payTypeLabel(payType) {
   const map = {
-    "Salary":     { label: "Base Salary",      jargon: null,  variable: false },
-    "Hourly":     { label: "Hourly wage",      jargon: null,  variable: false },
-    "Bonus":      { label: "Bonus",            jargon: null,  variable: true  },
-    "Commission": { label: "Commission",       jargon: null,  variable: true  },
-    "Overtime":   { label: "Overtime",         jargon: null,  variable: true  },
-    "RSU":        { label: "Stock vesting",    jargon: "RSU", variable: true  },
-    "Tips":       { label: "Tips",             jargon: null,  variable: true  },
-    "Self-Emp":   { label: "Self-employment",  jargon: null,  variable: true  },
-    "Other":      { label: "Other earned",     jargon: null,  variable: true  },
+    // ── Wage / W-2 income ────────────────────────────────────────
+    "Salary":     { label: "Base Salary",       jargon: null,    variable: false },
+    "Hourly":     { label: "Hourly wage",       jargon: null,    variable: false },
+    "Overtime":   { label: "Overtime",          jargon: "OT",    variable: true  },
+    "Bonus":      { label: "Bonus",             jargon: null,    variable: true  },
+    "Commission": { label: "Commission",        jargon: null,    variable: true  },
+    "RSU":        { label: "Stock vesting",     jargon: "RSU",   variable: true  },
+    "Tips":       { label: "Tips",              jargon: null,    variable: true  },
+    // ── Self-employment ─────────────────────────────────────────
+    // All averaged over 2 years per Fannie/Freddie underwriting.
+    "Sch-C":      { label: "Self-employment",   jargon: "Sch C", variable: true  },
+    "1120-S":     { label: "S-Corp income",     jargon: "1120-S", variable: true },
+    "1065":       { label: "Partnership",       jargon: "1065",  variable: true  },
+    "Self-Emp":   { label: "Self-employment",   jargon: null,    variable: true  },
+    // ── Fixed / award income (current amount, not averaged) ─────
+    "Pension":      { label: "Pension",           jargon: null, variable: false },
+    "SSI":          { label: "Social Security",   jargon: "SSI", variable: false },
+    "Retirement":   { label: "Retirement income", jargon: null, variable: false },
+    "Trust":        { label: "Trust income",      jargon: null, variable: false },
+    "Child-Support":{ label: "Child support",     jargon: null, variable: false },
+    "VA":           { label: "VA benefits",       jargon: null, variable: false },
+    "Disability":   { label: "Disability",        jargon: null, variable: false },
+    "Housing":      { label: "Housing allowance", jargon: null, variable: false },
+    // ── Catch-all ───────────────────────────────────────────────
+    "Other":      { label: "Other income",      jargon: null,    variable: true  },
   };
   return map[payType] || { label: payType, jargon: null, variable: false };
+}
+
+// Pay-type dropdown options grouped to match Christo's reference
+// spreadsheet. Order matters: most-common first within each group.
+const PAY_TYPE_OPTIONS = [
+  { group: "Wage / W-2", items: [
+    { value: "Salary",       label: "Salary" },
+    { value: "Hourly",       label: "Hourly" },
+    { value: "Overtime",     label: "Overtime (OT)" },
+    { value: "Bonus",        label: "Bonus" },
+    { value: "Commission",   label: "Commission" },
+    { value: "RSU",          label: "Stock (RSU)" },
+    { value: "Tips",         label: "Tips" },
+  ]},
+  { group: "Self-employment", items: [
+    { value: "Sch-C",        label: "Schedule C" },
+    { value: "1120-S",       label: "S-Corp (1120-S)" },
+    { value: "1065",         label: "Partnership (1065)" },
+  ]},
+  { group: "Fixed / award income", items: [
+    { value: "Pension",        label: "Pension" },
+    { value: "SSI",            label: "Social Security" },
+    { value: "Retirement",     label: "Retirement" },
+    { value: "Trust",          label: "Trust" },
+    { value: "Child-Support",  label: "Child support" },
+    { value: "VA",             label: "VA benefits" },
+    { value: "Disability",     label: "Disability" },
+    { value: "Housing",        label: "Housing allowance" },
+  ]},
+  { group: "Other", items: [
+    { value: "Other",        label: "Other" },
+  ]},
+];
+
+// Render <optgroup>s so the long pay-type list stays scannable in the
+// inline select dropdown. Used in both variable and non-variable
+// component-row headers.
+function PayTypeOptions() {
+  return (
+    <>
+      {PAY_TYPE_OPTIONS.map(g => (
+        <optgroup key={g.group} label={g.group}>
+          {g.items.map(item => (
+            <option key={item.value} value={item.value}>{item.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
 }
 
 // Frequency → monthly conversion (parity with parent toMonthly).
@@ -415,15 +480,7 @@ function ComponentRow({
               background: T.inputBg, color: T.text, fontFamily: FONT,
               height: 24,
             }}>
-            <option value="Salary">Salary</option>
-            <option value="Hourly">Hourly</option>
-            <option value="Bonus">Bonus</option>
-            <option value="Commission">Commission</option>
-            <option value="Overtime">Overtime</option>
-            <option value="RSU">Stock (RSU)</option>
-            <option value="Tips">Tips</option>
-            <option value="Self-Emp">Self-emp</option>
-            <option value="Other">Other</option>
+            <PayTypeOptions />
           </select>
           <select
             value={inc.verifiedBy || ""}
@@ -476,15 +533,7 @@ function ComponentRow({
               background: T.inputBg, color: T.text, fontFamily: FONT,
               height: 24,
             }}>
-            <option value="Salary">Salary</option>
-            <option value="Hourly">Hourly</option>
-            <option value="Bonus">Bonus</option>
-            <option value="Commission">Commission</option>
-            <option value="Overtime">Overtime</option>
-            <option value="RSU">Stock (RSU)</option>
-            <option value="Tips">Tips</option>
-            <option value="Self-Emp">Self-emp</option>
-            <option value="Other">Other</option>
+            <PayTypeOptions />
           </select>
           {/* Amount with $ prefix INSIDE the input */}
           <div style={{ position: "relative" }}>
@@ -742,6 +791,9 @@ export default function IncomeContent({
   T, isDesktop, calc, fmt,
   incomes, addIncome, updateIncome, removeIncome,
   otherIncome, setOtherIncome, otherIncome2, setOtherIncome2,
+  numBorrowers = 2, setNumBorrowers,
+  borrowerNames = {}, setBorrowerNames,
+  otherIncomeByBorrower = {}, setOtherIncomeByBorrower,
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   VARIABLE_PAY_TYPES, PAY_TYPES, loanType,
   isPulse, GuidedNextButton,
@@ -839,103 +891,205 @@ export default function IncomeContent({
     s + g.components.reduce((cs, c) => cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed), 0)
   , 0);
 
+  // Build the borrower roster: 1..numBorrowers.
+  const borrowerList = [];
+  for (let n = 1; n <= numBorrowers; n++) borrowerList.push(n);
+
+  // Per-borrower "Other Monthly Income" — back-compat with the legacy
+  // single-borrower otherIncome / otherIncome2 state. For BOR ≥ 3 we
+  // use the new otherIncomeByBorrower map.
+  const getOther = (n) => {
+    if (n === 1) return otherIncome || 0;
+    if (n === 2) return otherIncome2 || 0;
+    return otherIncomeByBorrower[n] || 0;
+  };
+  const setOther = (n, v) => {
+    if (n === 1) setOtherIncome(v);
+    else if (n === 2) setOtherIncome2(v);
+    else if (setOtherIncomeByBorrower) setOtherIncomeByBorrower(prev => ({ ...prev, [n]: v }));
+  };
+
+  const setBorrowerName = (n, name) => {
+    if (setBorrowerNames) setBorrowerNames(prev => ({ ...prev, [n]: name }));
+  };
+
+  // Distinct color accent per borrower so multi-borrower scrolling is
+  // scannable. BOR 1 indigo, BOR 2 cyan, BOR 3+ purple/teal/coral.
+  const borrowerAccent = (n) => {
+    const accents = [ACCENT, T.cyan, T.purple || T.blue, T.green, T.orange];
+    return accents[(n - 1) % accents.length] || ACCENT;
+  };
+
   return (<>
     <div style={{ marginTop: 20 }}>
-      <div style={{
-        border: `1px solid ${T.cardBorder}`, borderRadius: 14,
-        overflow: "hidden", background: T.card, marginBottom: 16,
-      }}>
-        {/* Banner header — soft tint matching Payment Breakdown style. */}
-        <div style={{
-          background: SUB_BG, color: ACCENT,
-          borderBottom: `1px solid ${ACCENT}38`,
-          padding: "10px 16px",
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", fontFamily: FONT,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <span>Employment Income</span>
-          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
-            {fmt(totalEmploymentMo)}/mo
-          </span>
-        </div>
-
-        {/* Empty state */}
-        {employerGroups.length === 0 && (
-          <div style={{ padding: "28px 16px", textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, fontFamily: FONT }}>
-              No employment income yet.
-            </div>
-            <button onClick={() => addIncome(1, "")} style={{
-              padding: "10px 20px", borderRadius: 9999,
-              background: "transparent", border: `1.5px solid ${ACCENT}`,
-              color: ACCENT, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
-            }}>+ Add first employer</button>
-          </div>
-        )}
-
-        {/* Employer groups */}
-        {employerGroups.map(g => (
-          <EmployerGroup
-            key={g.key}
-            source={g.source}
-            components={g.components}
-            borrowerNum={g.borrowerNum}
-            isExpanded={!!expandedEmployers[g.key]}
-            onToggleExpand={() => toggleEmployer(g.key)}
-            componentExpandState={expandedComponents}
-            toggleComponentExpand={toggleComponent}
-            updateIncome={updateIncome}
-            addIncome={addIncome}
-            removeIncome={removeIncome}
-            monthsElapsed={monthsElapsed}
-            T={T} fmt={fmt} ACCENT={ACCENT}
-          />
-        ))}
-
-        {/* Add-employer row — BOR1 + BOR2 quick adds */}
-        {employerGroups.length > 0 && (
-          <div style={{
-            background: `${ACCENT}06`, padding: "10px 14px",
-            borderTop: `1px solid ${ACCENT}22`,
-            display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8,
+      {borrowerList.map((n) => {
+        const groups = employerGroups.filter(g => g.borrowerNum === n);
+        const subtotalMo = groups.reduce((s, g) =>
+          s + g.components.reduce((cs, c) => cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed), 0)
+        , 0);
+        const otherMo = getOther(n);
+        const totalForBorrower = subtotalMo + otherMo;
+        const accent = borrowerAccent(n);
+        const subBg = `linear-gradient(135deg, ${accent}18, ${accent}0c)`;
+        const isLast = n === numBorrowers;
+        const canRemove = numBorrowers > 1;
+        return (
+          <div key={n} style={{
+            border: `1px solid ${T.cardBorder}`, borderRadius: 14,
+            overflow: "hidden", background: T.card, marginBottom: 16,
           }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => addIncome(1, "")} style={{
-                padding: "6px 12px", fontSize: 12, fontWeight: 500,
-                color: ACCENT, background: "transparent",
-                border: `1px dashed ${ACCENT}44`, borderRadius: 6,
-                cursor: "pointer", fontFamily: FONT,
-              }}>+ Add employer · BOR 1</button>
-              <button onClick={() => addIncome(2, "")} style={{
-                padding: "6px 12px", fontSize: 12, fontWeight: 500,
-                color: T.cyan, background: "transparent",
-                border: `1px dashed ${T.cyan}44`, borderRadius: 6,
-                cursor: "pointer", fontFamily: FONT,
-              }}>+ Add employer · BOR 2</button>
+            {/* Per-borrower banner header. Banner shows the BOR pill,
+                the editable name input ("John Doe" pattern from the
+                spreadsheet), and the borrower's qualifying subtotal. */}
+            <div style={{
+              background: subBg, color: accent,
+              borderBottom: `1px solid ${accent}38`,
+              padding: "10px 16px",
+              fontFamily: FONT,
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+                  textTransform: "uppercase", padding: "3px 8px",
+                  borderRadius: 6, background: `${accent}22`, color: accent,
+                  border: `0.5px solid ${accent}55`, whiteSpace: "nowrap",
+                }}>BOR {n}</span>
+                <input
+                  type="text"
+                  value={borrowerNames[n] || ""}
+                  placeholder={`Borrower ${n} name (optional)`}
+                  onChange={(e) => setBorrowerName(n, e.target.value)}
+                  style={{
+                    flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600,
+                    color: accent, background: "transparent",
+                    border: "none", outline: "none", padding: 0,
+                    fontFamily: FONT, letterSpacing: "-0.01em",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5 }}>
+                  {fmt(totalForBorrower)}/mo
+                </span>
+                {canRemove && setNumBorrowers && (
+                  <button
+                    onClick={() => {
+                      // Only allow removing the last borrower in the list,
+                      // and only if they have no incomes (avoid orphaning data).
+                      if (n !== numBorrowers) return;
+                      const hasIncomes = incomes.some(i => i.borrower === n);
+                      if (hasIncomes) {
+                        if (!window.confirm(`Borrower ${n} has employer entries — remove anyway? Their incomes will be deleted.`)) return;
+                      }
+                      setNumBorrowers(numBorrowers - 1);
+                    }}
+                    title={n === numBorrowers ? `Remove Borrower ${n}` : "Only the last borrower can be removed"}
+                    disabled={n !== numBorrowers}
+                    style={{
+                      background: "transparent", border: `0.5px solid ${accent}55`,
+                      color: accent, cursor: n === numBorrowers ? "pointer" : "not-allowed",
+                      width: 22, height: 22, borderRadius: 5, padding: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      opacity: n === numBorrowers ? 1 : 0.3,
+                    }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 10, color: T.textTertiary, letterSpacing: 0.4, fontWeight: 600, fontFamily: FONT }}>QUALIFYING TOTAL</span>
-              <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: ACCENT }}>{fmt(totalEmploymentMo)}/mo</span>
+
+            {/* Empty state per borrower */}
+            {groups.length === 0 && (
+              <div style={{ padding: "20px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10, fontFamily: FONT }}>
+                  No employment income for this borrower yet.
+                </div>
+                <button onClick={() => addIncome(n, "")} style={{
+                  padding: "7px 16px", borderRadius: 9999,
+                  background: "transparent", border: `1px solid ${accent}`,
+                  color: accent, fontSize: 12, fontWeight: 500,
+                  cursor: "pointer", fontFamily: FONT,
+                }}>+ Add first employer</button>
+              </div>
+            )}
+
+            {/* Employer groups for this borrower */}
+            {groups.map(g => (
+              <EmployerGroup
+                key={g.key}
+                source={g.source}
+                components={g.components}
+                borrowerNum={g.borrowerNum}
+                isExpanded={!!expandedEmployers[g.key]}
+                onToggleExpand={() => toggleEmployer(g.key)}
+                componentExpandState={expandedComponents}
+                toggleComponentExpand={toggleComponent}
+                updateIncome={updateIncome}
+                addIncome={addIncome}
+                removeIncome={removeIncome}
+                monthsElapsed={monthsElapsed}
+                T={T} fmt={fmt} ACCENT={accent}
+              />
+            ))}
+
+            {/* Add-employer + Other-income footer for this borrower */}
+            {groups.length > 0 && (
+              <div style={{
+                background: `${accent}06`, padding: "10px 14px",
+                borderTop: `1px solid ${accent}22`,
+                display: "flex", justifyContent: "flex-start",
+              }}>
+                <button onClick={() => addIncome(n, "")} style={{
+                  padding: "6px 12px", fontSize: 12, fontWeight: 500,
+                  color: accent, background: "transparent",
+                  border: `1px dashed ${accent}44`, borderRadius: 6,
+                  cursor: "pointer", fontFamily: FONT,
+                }}>+ Add employer</button>
+              </div>
+            )}
+
+            {/* Other Monthly Income inline under each borrower's card */}
+            <div style={{
+              padding: "10px 14px 12px",
+              borderTop: `0.5px solid ${T.separator}`,
+              display: "grid", gridTemplateColumns: isDesktop ? "1fr 200px" : "1fr",
+              gap: 10, alignItems: "center",
+            }}>
+              <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.3 }}>
+                Other Monthly Income
+                <span style={{ marginLeft: 6, fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>
+                  (alimony, SSI, pension, disability, child support…)
+                </span>
+              </div>
+              <Inp
+                value={getOther(n)}
+                onChange={(v) => setOther(n, v)}
+              />
             </div>
           </div>
-        )}
-      </div>
+        );
+      })}
 
-      {/* Other income — non-employment recurring streams */}
-      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 10, marginBottom: 16 }}>
-        <Inp
-          label="Other Monthly Income — BOR 1"
-          value={otherIncome}
-          onChange={setOtherIncome}
-          tip="Recurring income outside employment: alimony, Social Security, pension, disability, child support."
-        />
-        <Inp
-          label="Other Monthly Income — BOR 2"
-          value={otherIncome2}
-          onChange={setOtherIncome2}
-          tip="Recurring income outside employment for BOR 2."
-        />
+      {/* Add Borrower button + total */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: 16, padding: "0 4px", flexWrap: "wrap", gap: 8,
+      }}>
+        {setNumBorrowers && numBorrowers < 4 ? (
+          <button onClick={() => setNumBorrowers(numBorrowers + 1)} style={{
+            padding: "8px 16px", fontSize: 12, fontWeight: 500,
+            color: ACCENT, background: "transparent",
+            border: `1px dashed ${ACCENT}66`, borderRadius: 9999,
+            cursor: "pointer", fontFamily: FONT,
+          }}>+ Add Borrower</button>
+        ) : <span />}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontSize: 10, color: T.textTertiary, letterSpacing: 0.4, fontWeight: 600, fontFamily: FONT }}>QUALIFYING TOTAL</span>
+          <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: ACCENT }}>{fmt(totalEmploymentMo)}/mo</span>
+        </div>
       </div>
     </div>
 

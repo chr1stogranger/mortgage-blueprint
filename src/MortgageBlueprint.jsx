@@ -1633,6 +1633,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [incomes, setIncomes] = useState([]);
  const [otherIncome, setOtherIncome] = useState(0);
  const [otherIncome2, setOtherIncome2] = useState(0);
+ // Borrower roster — supports 1..N borrowers per loan (joint apps with
+ // 3+ borrowers exist for guarantor scenarios). numBorrowers controls
+ // how many borrower cards render in IncomeContent / Debts / etc.
+ // borrowerNames maps borrower-number → display name shown on the card
+ // header. Default 2 (the most common case: primary + co-borrower).
+ const [numBorrowers, setNumBorrowers] = useState(2);
+ const [borrowerNames, setBorrowerNames] = useState({});
+ // Other Monthly Income per borrower beyond #2 (kept as a map so
+ // 3rd / 4th borrower additions don't require new top-level state).
+ const [otherIncomeByBorrower, setOtherIncomeByBorrower] = useState({});
  const [assets, setAssets] = useState([]);
  const [creditScore, setCreditScore] = useState(0);
  const [pmiRateLocked, setPmiRateLocked] = useState(true);
@@ -4849,7 +4859,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
+{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton}} />}
 {/* ═══ DEBTS ═══ */}
