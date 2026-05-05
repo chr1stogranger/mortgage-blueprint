@@ -37,7 +37,7 @@ function payTypeLabel(payType) {
   const map = {
     "Salary":     { label: "Base Salary",      jargon: null,  variable: false },
     "Hourly":     { label: "Hourly wage",      jargon: null,  variable: false },
-    "Bonus":      { label: "Annual Bonus",     jargon: null,  variable: true  },
+    "Bonus":      { label: "Bonus",            jargon: null,  variable: true  },
     "Commission": { label: "Commission",       jargon: null,  variable: true  },
     "Overtime":   { label: "Overtime",         jargon: null,  variable: true  },
     "RSU":        { label: "Stock vesting",    jargon: "RSU", variable: true  },
@@ -306,14 +306,32 @@ function ComponentRow({
             saves ~36px per row with no loss of editing surface. */}
       {isVar ? (
         // ─── Variable header ───────────────────────────────────
+        // Christo (2026-05-05 r4): chevron moved from the far-right
+        // to immediately left of the label so it visually anchors
+        // the expand/collapse to the row's identity instead of
+        // floating at the end.
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "14px minmax(120px, 1fr) 100px 110px 90px 26px",
+            gridTemplateColumns: "14px 22px minmax(110px, 1fr) 100px 110px 90px",
             gap: 8, alignItems: "center", padding: "7px 10px",
           }}>
           <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+            title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
+            style={{
+              background: `${T.orange}18`, border: `1px solid ${T.orange}55`,
+              color: T.orange, fontSize: 12, fontWeight: 700,
+              cursor: "pointer", textAlign: "center", userSelect: "none",
+              width: 22, height: 22, borderRadius: 5, padding: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transform: `rotate(${isExpanded ? 180 : 0}deg)`,
+              transition: "transform 0.2s",
+            }}>▾</button>
+          <div
+            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+            style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0, cursor: "pointer" }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap" }}>
               {meta.label}
             </span>
@@ -368,18 +386,6 @@ function ComponentRow({
             </span>
             <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-            title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
-            style={{
-              background: `${T.orange}18`, border: `1px solid ${T.orange}55`,
-              color: T.orange, fontSize: 12, fontWeight: 700,
-              cursor: "pointer", textAlign: "center", userSelect: "none",
-              width: 22, height: 22, borderRadius: 5, padding: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transform: `rotate(${isExpanded ? 180 : 0}deg)`,
-              transition: "transform 0.2s",
-            }}>▾</button>
         </div>
       ) : (
         // ─── Non-variable single-line header ──────────────────
