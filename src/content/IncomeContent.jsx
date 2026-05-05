@@ -439,7 +439,7 @@ function ComponentRow({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "14px 22px minmax(110px, 1fr) 100px 110px 90px",
+            gridTemplateColumns: "14px 28px minmax(110px, 1fr) 100px 110px 90px",
             gap: 8, alignItems: "center", padding: "7px 10px",
           }}>
           <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
@@ -448,9 +448,9 @@ function ComponentRow({
             title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
             style={{
               background: `${T.orange}18`, border: `1px solid ${T.orange}55`,
-              color: T.orange, fontSize: 12, fontWeight: 700,
+              color: T.orange, fontSize: 16, fontWeight: 700,
               cursor: "pointer", textAlign: "center", userSelect: "none",
-              width: 22, height: 22, borderRadius: 5, padding: 0,
+              width: 28, height: 28, borderRadius: 6, padding: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
               transform: `rotate(${isExpanded ? 180 : 0}deg)`,
               transition: "transform 0.2s",
@@ -709,14 +709,21 @@ function EmployerGroup({
       <div onClick={onToggleExpand}
         style={{
           display: "grid",
-          gridTemplateColumns: "24px 1fr 110px 120px 18px",
+          gridTemplateColumns: "32px 1fr 110px 120px 18px",
           gap: 8, alignItems: "center", padding: "12px 14px",
           cursor: "pointer",
           borderBottom: `1px solid ${T.separator}`,
         }}>
+        {/* Chevron bumped from 12px text to a 28px filled tile so it's
+            tappable and visible at a glance. Christo (2026-05-05): the
+            previous size was hard to see. */}
         <div style={{
-          color: isExpanded ? ACCENT : T.textTertiary, fontSize: 12,
-          fontWeight: isExpanded ? 700 : 400, transition: "transform 0.2s",
+          width: 28, height: 28, borderRadius: 6,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: isExpanded ? `${ACCENT}18` : `${ACCENT}08`,
+          border: `0.5px solid ${ACCENT}33`,
+          color: ACCENT, fontSize: 16, fontWeight: 700,
+          transition: "transform 0.2s",
           transform: `rotate(${isExpanded ? 0 : -90}deg)`,
         }}>▾</div>
         <div style={{ minWidth: 0 }}>
