@@ -117,6 +117,20 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
     background: T.inputBg, color: T.text, outline: "none",
     boxSizing: "border-box",
   };
+  // Label style for the 3 history-input cells. Reserves 2 lines of
+  // height (~26px) so single-line labels (2025, 2024) hold the same
+  // vertical space as the YTD label which always wraps to "{year}
+  // YTD" + "(thru {month})". Without this the YTD input pill sits
+  // ~13px below its siblings on mobile.
+  const cellLabelStyle = {
+    fontSize: 10,
+    color: T.textTertiary,
+    marginBottom: 3,
+    letterSpacing: 0.4,
+    fontFamily: FONT,
+    minHeight: 26,
+    lineHeight: 1.2,
+  };
 
   return (
     <div style={{
@@ -128,11 +142,24 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
         textTransform: "uppercase", fontWeight: 700, marginBottom: 6,
       }}>Bonus / variable history &amp; averaging</div>
 
-      {/* 3 history inputs — auto-labeled by year. */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
+      {/* 3 history inputs — auto-labeled by year.
+          Christo (2026-05-05): on mobile, "{year} YTD (thru {month})"
+          wraps to 2 lines while "{year-1}" / "{year-2}" stay on one
+          line, which pushed the YTD pill below the others. Fix:
+          - "(thru {month})" is forced onto its own line via a block
+            child, so the YTD label is reliably 2 lines on every width.
+          - All three labels reserve a 2-line minHeight (cellLabelStyle)
+            so the label rows are equal height.
+          - The grid is `alignItems: "end"` as a belt-and-suspenders
+            measure: even if a label still wraps unexpectedly the
+            input pills stay anchored to the bottom row. */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8, alignItems: "end" }}>
         <div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 3, letterSpacing: 0.4, fontFamily: FONT }}>
-            {currentYear} YTD <span style={{ color: T.textTertiary, fontSize: 9 }}>(thru {monthLabel})</span>
+          <div style={cellLabelStyle}>
+            {currentYear} YTD
+            <div style={{ color: T.textTertiary, fontSize: 9, fontWeight: 400, letterSpacing: 0.3 }}>
+              (thru {monthLabel})
+            </div>
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
@@ -149,7 +176,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 3, letterSpacing: 0.4, fontFamily: FONT }}>{currentYear - 1}</div>
+          <div style={cellLabelStyle}>{currentYear - 1}</div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
             <input
@@ -165,7 +192,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 3, letterSpacing: 0.4, fontFamily: FONT }}>{currentYear - 2}</div>
+          <div style={cellLabelStyle}>{currentYear - 2}</div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
             <input
