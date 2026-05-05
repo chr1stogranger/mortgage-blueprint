@@ -202,7 +202,19 @@ export default function CalculatorContent({
      <Card>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
        <div>
-        <Inp label={isRefi ? "Home Value" : "Purchase Price"} value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" />
+        {/* Custom label row mirrors the Down field's label row exactly
+            (height: 22, label on left) so the two input fields below
+            sit on the same baseline. Fixes the visual offset Christo
+            flagged on mobile (2026-05-04). */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
+         <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+          {isRefi ? "Home Value" : "Purchase Price"}
+          <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+         </div>
+        </div>
+        <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
+        {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */}
+        <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
        </div>
        {isRefi ? (<>
         {/* Refi: Equity & Balance */}
