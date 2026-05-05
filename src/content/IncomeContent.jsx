@@ -683,11 +683,16 @@ function EmployerGroup({
 
   return (
     <div style={{ background: isExpanded ? `${ACCENT}06` : T.card }}>
-      {/* Top employer row — click to expand. */}
+      {/* Top employer row — click to expand. The middle BOR pill +
+          component-count pill have been removed (2026-05-05): they
+          duplicated information already shown in the borrower-card
+          banner above (BOR 1 pill) and the subtitle line below the
+          employer name (already says "N components"). Grid collapses
+          from 5 columns to 4. */}
       <div onClick={onToggleExpand}
         style={{
           display: "grid",
-          gridTemplateColumns: "24px 1.4fr 1fr 120px 18px",
+          gridTemplateColumns: "24px 1fr 120px 18px",
           gap: 8, alignItems: "center", padding: "12px 14px",
           cursor: "pointer",
           borderBottom: `1px solid ${T.separator}`,
@@ -725,22 +730,6 @@ function EmployerGroup({
             )}
           </div>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>{subtitle}</div>
-        </div>
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          <span style={{
-            background: borBg, color: borColor,
-            fontSize: 9, fontWeight: 500,
-            padding: "2px 7px", borderRadius: 6,
-            border: `0.5px solid ${borColor}38`,
-            fontFamily: FONT, letterSpacing: 0.3,
-          }}>BOR {borrowerNum}</span>
-          <span style={{
-            background: T.card, color: T.textTertiary,
-            fontSize: 9, fontWeight: 500,
-            padding: "2px 7px", borderRadius: 6,
-            border: `0.5px solid ${T.separator}`,
-            fontFamily: FONT, letterSpacing: 0.3,
-          }}>{components.length} component{components.length === 1 ? "" : "s"}</span>
         </div>
         <div style={{ textAlign: "right" }}>
           <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: T.text }}>
