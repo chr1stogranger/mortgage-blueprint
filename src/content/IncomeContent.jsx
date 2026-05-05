@@ -672,6 +672,24 @@ function EmployerGroup({
     0,
   );
 
+  // Current vs. Previous employer status — derived from whether ANY
+  // component in the group has an `end` date set. Toggling is a
+  // group-level action: setting "Previous" stamps today's date on
+  // every component's `end`; clearing it back to "Current" wipes
+  // them all. For mortgage qualification the distinction matters —
+  // current employers anchor the YTD slot; previous employers
+  // contribute history without YTD annualization.
+  const isPrevious = components.some(c => c.end && c.end !== "");
+  const togglePrevEmployer = () => {
+    if (isPrevious) {
+      components.forEach(c => updateIncome(c.id, "end", ""));
+    } else {
+      const today = new Date().toISOString().slice(0, 10);
+      components.forEach(c => updateIncome(c.id, "end", today));
+    }
+  };
+  const endDate = components.find(c => c.end)?.end || "";
+
   // Common employer subtitle: pull a representative job title or fallback.
   // For now we don't store a title separately, so use the source field with
   // the start date if available.
@@ -683,16 +701,15 @@ function EmployerGroup({
 
   return (
     <div style={{ background: isExpanded ? `${ACCENT}06` : T.card }}>
-      {/* Top employer row — click to expand. The middle BOR pill +
-          component-count pill have been removed (2026-05-05): they
-          duplicated information already shown in the borrower-card
-          banner above (BOR 1 pill) and the subtitle line below the
-          employer name (already says "N components"). Grid collapses
-          from 5 columns to 4. */}
+      {/* Top employer row — click to expand. Grid: chevron, name +
+          subtitle (flex), Current/Previous status pill, $/mo, spacer.
+          The status pill is the only addition since the redundancy
+          cleanup; it's information-bearing (current vs. prior job
+          changes how the income is treated for qualification). */}
       <div onClick={onToggleExpand}
         style={{
           display: "grid",
-          gridTemplateColumns: "24px 1fr 120px 18px",
+          gridTemplateColumns: "24px 1fr 110px 120px 18px",
           gap: 8, alignItems: "center", padding: "12px 14px",
           cursor: "pointer",
           borderBottom: `1px solid ${T.separator}`,
@@ -729,8 +746,31 @@ function EmployerGroup({
               <span style={{ color: ACCENT, fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✎</span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>{subtitle}</div>
+          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>
+            {subtitle}
+            {isPrevious && endDate && (
+              <span style={{ marginLeft: 6, color: T.textTertiary }}>· ended {endDate}</span>
+            )}
+          </div>
         </div>
+        {/* Current / Previous toggle pill. Click stops propagation so
+            the row's chevron-expand doesn't fire. */}
+        <button
+          onClick={(e) => { e.stopPropagation(); togglePrevEmployer(); }}
+          title={isPrevious ? "Mark this as your current employer" : "Mark this as a previous employer"}
+          style={{
+            background: isPrevious ? `${T.textTertiary}14` : `${T.green}12`,
+            color: isPrevious ? T.textSecondary : T.green,
+            border: isPrevious
+              ? `0.5px solid ${T.separator}`
+              : `0.5px solid ${T.green}55`,
+            fontSize: 10, fontWeight: 600, fontFamily: FONT,
+            padding: "4px 10px", borderRadius: 9999,
+            cursor: "pointer", letterSpacing: 0.3,
+            textAlign: "center", whiteSpace: "nowrap",
+          }}>
+          {isPrevious ? "Previous" : "Current ✓"}
+        </button>
         <div style={{ textAlign: "right" }}>
           <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: T.text }}>
             {fmt(totalMo)}
