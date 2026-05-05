@@ -258,18 +258,8 @@ function ComponentRow({
   const sel = inc.selection || (isVar ? "2Y+" : "Amount");
   const methodLabel = (SELECTION_METHODS.find(m => m.value === sel) || {}).label;
 
-  // Plain-English secondary line per component:
-  //   Salary: "Current rate · counts in full"
-  //   Variable: "Variable · using <method>"
-  let subline;
-  if (!isVar) {
-    subline = "Current rate · counts in full";
-  } else if (methodLabel) {
-    subline = `Variable · using ${methodLabel}`;
-  } else {
-    subline = "Variable pay";
-  }
-
+  // Subline removed (2026-05-05) — was redundant with the inline
+  // averaging-method chip and the pay-type dropdown right below.
   const dotColor = isVar ? T.orange : ACCENT;
 
   return (
@@ -283,18 +273,27 @@ function ComponentRow({
         style={{
           display: "grid",
           gridTemplateColumns: "14px 1.2fr 110px 110px 28px",
-          gap: 8, alignItems: "center", padding: "10px 12px",
+          gap: 8, alignItems: "center", padding: "8px 12px",
           cursor: isVar ? "pointer" : "default",
         }}>
         <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>
+        {/* Compact inline label. Christo (2026-05-05): the previous
+            two-line stacked label ("Base Salary" big + "Current rate ·
+            counts in full" subline) was redundant with the pay-type
+            dropdown right below it and ate ~24px per row. Single line
+            now, smaller font, jargon parenthetical inline. */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap" }}>
             {meta.label}
-            {meta.jargon && (
-              <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, marginLeft: 5 }}>({meta.jargon})</span>
-            )}
-          </div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>{subline}</div>
+          </span>
+          {meta.jargon && (
+            <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, fontFamily: FONT }}>({meta.jargon})</span>
+          )}
+          {isVar && methodLabel && (
+            <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              · {methodLabel}
+            </span>
+          )}
         </div>
         <div>
           {/* Verified-by chip. Always present, color-coded by state. */}
