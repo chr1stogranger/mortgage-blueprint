@@ -168,7 +168,7 @@ export default function TaxContent({
  return (<div style={{ marginTop: 20 }}>
 
   {/* 1. Hero — kept */}
-  <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.purple} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
+  <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.green} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
 
   {/* 2. Educational example: how write-offs work (hardcoded teaching numbers) */}
   <Sec title="Example: How Tax Write-offs Work">
