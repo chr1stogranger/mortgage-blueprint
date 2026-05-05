@@ -2653,7 +2653,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // button inside an employer group can pre-fill the employer name. New
  // entries default to Salary / "Amount"; the user types the actual
  // component (Bonus, RSU, etc.) inside the expanded employer.
- const addIncome = (borrower, source = "") => setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]);
+ // py1Year / py2Year default to last 2 calendar years. Broker can
+ // override per-row in the variable averaging panel to skip a
+ // distorted year or pick a different historical window.
+ const addIncome = (borrower, source = "") => { const cy = new Date().getFullYear(); return setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, py1Year: cy - 1, py2Year: cy - 2, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]); };
  const updateIncome = (id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i));
  const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
  const addAsset = () => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
@@ -5188,7 +5191,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <Suspense fallback={null}>
  <BottomSheet isOpen={sheetContent === "income"} onClose={() => setSheetContent(null)} title="Income" T={T}>
   <IncomeSheet
-   incomes={incomes} addIncome={(borrower, source = "") => setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }])}
+   incomes={incomes} addIncome={(borrower, source = "") => { const cy = new Date().getFullYear(); return setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, py1Year: cy - 1, py2Year: cy - 2, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]); }}
    updateIncome={(id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i))}
    removeIncome={(id) => setIncomes(incomes.filter(i => i.id !== id))}
    otherIncome={otherIncome} setOtherIncome={setOtherIncome}

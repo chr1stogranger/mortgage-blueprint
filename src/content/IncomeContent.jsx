@@ -110,6 +110,20 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
   const annual = methods[sel] || 0;
   const monthly = annual / 12;
 
+  // Year selectors — broker can override py1Year / py2Year to skip a
+  // distorted year or pick a different historical window. Default to
+  // currentYear - 1 / currentYear - 2. Build option lists that exclude
+  // the year picked in the OTHER slot so the broker can't double-count.
+  const py1Year = inc.py1Year || (currentYear - 1);
+  const py2Year = inc.py2Year || (currentYear - 2);
+  const yearChoices = (excludeYear) => {
+    const out = [];
+    for (let y = currentYear - 1; y >= currentYear - 6; y--) {
+      out.push(y);
+    }
+    return out.filter(y => y !== excludeYear);
+  };
+
   const inputStyle = {
     width: "100%", padding: "8px 8px 8px 22px",
     fontFamily: FONT, fontSize: 13, fontWeight: 500,
@@ -176,7 +190,22 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
         </div>
         <div>
-          <div style={cellLabelStyle}>{currentYear - 1}</div>
+          {/* Year selector — broker picks which calendar year py1
+              represents. Default currentYear - 1. Excludes whatever
+              year is in py2Year so we can't double-count. */}
+          <div style={cellLabelStyle}>
+            <select
+              value={py1Year}
+              onChange={(e) => updateIncome(inc.id, "py1Year", parseInt(e.target.value, 10))}
+              style={{
+                fontSize: 10, color: T.textTertiary, fontFamily: FONT,
+                background: "transparent", border: "none", padding: 0,
+                letterSpacing: 0.4, cursor: "pointer", fontWeight: 500,
+                outline: "none",
+              }}>
+              {yearChoices(py2Year).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
             <input
@@ -192,7 +221,19 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
         </div>
         <div>
-          <div style={cellLabelStyle}>{currentYear - 2}</div>
+          <div style={cellLabelStyle}>
+            <select
+              value={py2Year}
+              onChange={(e) => updateIncome(inc.id, "py2Year", parseInt(e.target.value, 10))}
+              style={{
+                fontSize: 10, color: T.textTertiary, fontFamily: FONT,
+                background: "transparent", border: "none", padding: 0,
+                letterSpacing: 0.4, cursor: "pointer", fontWeight: 500,
+                outline: "none",
+              }}>
+              {yearChoices(py1Year).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
             <input
@@ -285,6 +326,26 @@ function ComponentRow({
   const sel = inc.selection || (isVar ? "2Y+" : "Amount");
   const methodLabel = (SELECTION_METHODS.find(m => m.value === sel) || {}).label;
 
+  // Year-span suffix for the method chip — e.g. "· '24–'25" for a
+  // 2-yr avg over 2024–2025. Helps the broker confirm at a glance
+  // which calendar years are in the qualifying calc without
+  // expanding the panel. Audit-trail visibility per the LLM Council.
+  const cy = new Date().getFullYear();
+  const py1Y = inc.py1Year || (cy - 1);
+  const py2Y = inc.py2Year || (cy - 2);
+  const yy = (y) => String(y).slice(-2);
+  let yearSpan = "";
+  if (isVar && (sel === "1Y+")) yearSpan = ` · '${yy(py1Y)}`;
+  else if (isVar && (sel === "2Y+")) {
+    const lo = Math.min(py1Y, py2Y), hi = Math.max(py1Y, py2Y);
+    yearSpan = ` · '${yy(lo)}–'${yy(hi)}`;
+  }
+  else if (isVar && (sel === "1Y_YTD")) yearSpan = ` · '${yy(py1Y)} + YTD`;
+  else if (isVar && (sel === "2Y_YTD")) {
+    const lo = Math.min(py1Y, py2Y), hi = Math.max(py1Y, py2Y);
+    yearSpan = ` · '${yy(lo)}–'${yy(hi)} + YTD`;
+  }
+
   // Subline removed (2026-05-05) — was redundant with the inline
   // averaging-method chip and the pay-type dropdown right below.
   const dotColor = isVar ? T.orange : ACCENT;
@@ -340,7 +401,7 @@ function ComponentRow({
             )}
             {methodLabel && (
               <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                · {methodLabel}
+                · {methodLabel}{yearSpan}
               </span>
             )}
           </div>
