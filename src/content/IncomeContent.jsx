@@ -121,15 +121,15 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
   return (
     <div style={{
       background: `${T.orange}08`, borderTop: `1px solid ${T.orange}30`,
-      padding: 12, borderRadius: "0 0 8px 8px",
+      padding: "8px 10px 10px", borderRadius: "0 0 8px 8px",
     }}>
       <div style={{
         fontSize: 9, color: T.orange, letterSpacing: "0.08em",
-        textTransform: "uppercase", fontWeight: 700, marginBottom: 8,
+        textTransform: "uppercase", fontWeight: 700, marginBottom: 6,
       }}>Bonus / variable history &amp; averaging</div>
 
       {/* 3 history inputs — auto-labeled by year. */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
         <div>
           <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 3, letterSpacing: 0.4, fontFamily: FONT }}>
             {currentYear} YTD <span style={{ color: T.textTertiary, fontSize: 9 }}>(thru {monthLabel})</span>
@@ -184,13 +184,13 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
 
       {/* Method selector. Each option label includes the resulting $/yr so
           the broker can decide before changing the selection. */}
-      <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 10, alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 8, alignItems: "center", marginBottom: 6 }}>
         <div style={{ fontSize: 11, color: T.textSecondary, fontWeight: 500, fontFamily: FONT }}>Averaging method</div>
         <select
           value={sel}
           onChange={(e) => updateIncome(inc.id, "selection", e.target.value)}
           style={{
-            padding: "7px 10px", fontSize: 12, fontWeight: 500,
+            padding: "5px 10px", fontSize: 12, fontWeight: 500,
             border: `1px solid ${ACCENT}44`, borderRadius: 6,
             background: `${ACCENT}08`, color: ACCENT, cursor: "pointer", fontFamily: FONT,
           }}
@@ -206,7 +206,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
       {/* 4-tile preview — all 4 methods side-by-side, active highlighted. */}
       <div style={{
         display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6,
-        padding: 8, background: T.card, borderRadius: 6,
+        padding: "5px 6px", background: T.card, borderRadius: 6,
         border: `0.5px solid ${T.separator}`,
       }}>
         {SELECTION_METHODS.map(m => {
@@ -236,7 +236,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
 
       {/* Result summary banner. */}
       <div style={{
-        marginTop: 8, padding: "6px 10px",
+        marginTop: 6, padding: "5px 10px",
         background: `${ACCENT}12`, borderRadius: 6,
         fontSize: 10, color: ACCENT, lineHeight: 1.4, fontFamily: FONT,
       }}>
@@ -267,21 +267,20 @@ function ComponentRow({
       background: T.card, borderRadius: 8, marginBottom: 6,
       border: isVar ? `1px solid ${T.orange}40` : `0.5px solid ${T.separator}`,
     }}>
-      {/* Top row — component summary. Click chevron (or whole row on variable) to toggle averaging. */}
+      {/* Top row — component summary with INLINE editable Pay type +
+          Verified by. Christo (2026-05-05 r2): the previous bottom-row
+          for variable rows duplicated info already shown in the header
+          (a "Bonus" pill plus a "Paystub ✓" chip). Inlining the
+          editable selects in their place removes the entire bottom
+          row and saves ~36px per variable component. */}
       <div
-        onClick={isVar ? (e) => { e.stopPropagation(); onToggleExpand(); } : undefined}
         style={{
           display: "grid",
-          gridTemplateColumns: "14px 1.2fr 110px 110px 28px",
-          gap: 8, alignItems: "center", padding: "8px 12px",
-          cursor: isVar ? "pointer" : "default",
+          gridTemplateColumns: "14px minmax(120px, 1fr) 100px 110px 90px 26px",
+          gap: 8, alignItems: "center", padding: "7px 10px",
         }}>
         <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
-        {/* Compact inline label. Christo (2026-05-05): the previous
-            two-line stacked label ("Base Salary" big + "Current rate ·
-            counts in full" subline) was redundant with the pay-type
-            dropdown right below it and ate ~24px per row. Single line
-            now, smaller font, jargon parenthetical inline. */}
+        {/* Compact label cell. */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap" }}>
             {meta.label}
@@ -295,26 +294,45 @@ function ComponentRow({
             </span>
           )}
         </div>
-        <div>
-          {/* Verified-by chip. Always present, color-coded by state. */}
-          {inc.verifiedBy ? (
-            <span style={{
-              background: `${T.green}18`, color: T.green,
-              fontSize: 10, fontWeight: 600,
-              padding: "3px 8px", borderRadius: 6,
-              border: `0.5px solid ${T.green}40`,
-              fontFamily: FONT, letterSpacing: 0.2,
-            }}>{inc.verifiedBy} ✓</span>
-          ) : (
-            <span style={{
-              background: `${T.orange}12`, color: T.orange,
-              fontSize: 10, fontWeight: 600,
-              padding: "3px 8px", borderRadius: 6,
-              border: `0.5px dashed ${T.orange}55`,
-              fontFamily: FONT, letterSpacing: 0.2,
-            }}>not verified</span>
-          )}
-        </div>
+        {/* Pay type — inline editable. */}
+        <select
+          value={inc.payType}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
+          style={{
+            width: "100%", padding: "3px 6px", fontSize: 11,
+            border: `0.5px solid ${T.separator}`, borderRadius: 5,
+            background: T.inputBg, color: T.text, fontFamily: FONT,
+            height: 24,
+          }}>
+          <option value="Salary">Salary</option>
+          <option value="Hourly">Hourly</option>
+          <option value="Bonus">Bonus</option>
+          <option value="Commission">Commission</option>
+          <option value="Overtime">Overtime</option>
+          <option value="RSU">Stock (RSU)</option>
+          <option value="Tips">Tips</option>
+          <option value="Self-Emp">Self-emp</option>
+          <option value="Other">Other</option>
+        </select>
+        {/* Verified by — inline editable. Bordered green when set,
+            dashed amber when not, mirroring the previous chip. */}
+        <select
+          value={inc.verifiedBy || ""}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
+          style={{
+            width: "100%", padding: "3px 6px", fontSize: 11,
+            borderRadius: 5, height: 24, fontFamily: FONT,
+            color: inc.verifiedBy ? T.green : T.orange,
+            fontWeight: 600,
+            background: inc.verifiedBy ? `${T.green}10` : `${T.orange}08`,
+            border: inc.verifiedBy
+              ? `0.5px solid ${T.green}55`
+              : `0.5px dashed ${T.orange}66`,
+          }}>
+          {VERIFIED_BY_OPTIONS.map(v => <option key={v.value} value={v.value} style={{ color: T.text, background: T.inputBg }}>{v.label || "not verified"}</option>)}
+        </select>
         <div style={{ textAlign: "right" }}>
           <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
             {fmt(mo)}
@@ -329,7 +347,7 @@ function ComponentRow({
               background: `${T.orange}18`, border: `1px solid ${T.orange}55`,
               color: T.orange, fontSize: 12, fontWeight: 700,
               cursor: "pointer", textAlign: "center", userSelect: "none",
-              width: 24, height: 24, borderRadius: 6, padding: 0,
+              width: 22, height: 22, borderRadius: 5, padding: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
               transform: `rotate(${isExpanded ? 180 : 0}deg)`,
               transition: "transform 0.2s",
@@ -348,34 +366,17 @@ function ComponentRow({
         />
       )}
 
-      {/* Inline edit fields (always visible for the simple, non-variable case). */}
+      {/* Bottom edit row — non-variable rows still need Amount + Frequency
+          inputs (variable rows compute these from the averaging panel,
+          so they have no bottom row at all). Pay type + Verified by
+          are now in the header for both. */}
       {!isVar && (
         <div style={{
-          padding: "0 10px 8px",
+          padding: "0 10px 7px",
           display: "grid",
-          gridTemplateColumns: "1fr 90px 110px 90px",
-          gap: 6, alignItems: "center",
+          gridTemplateColumns: "1fr 110px 90px",
+          gap: 6, alignItems: "end",
         }}>
-          <div>
-            <div style={{ fontSize: 9, color: T.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>Pay type</div>
-            <select value={inc.payType}
-              onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
-              style={{
-                width: "100%", padding: "5px 7px", fontSize: 11,
-                border: `0.5px solid ${T.separator}`, borderRadius: 5,
-                background: T.inputBg, color: T.text, fontFamily: FONT,
-              }}>
-              <option value="Salary">Salary</option>
-              <option value="Hourly">Hourly</option>
-              <option value="Bonus">Bonus</option>
-              <option value="Commission">Commission</option>
-              <option value="Overtime">Overtime</option>
-              <option value="RSU">Stock (RSU)</option>
-              <option value="Tips">Tips</option>
-              <option value="Self-Emp">Self-emp</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
           <div>
             <div style={{ fontSize: 9, color: T.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>Amount</div>
             <input type="text" inputMode="decimal"
@@ -403,62 +404,6 @@ function ComponentRow({
               {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
           </div>
-          <div>
-            <div style={{ fontSize: 9, color: T.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>Verified</div>
-            <select value={inc.verifiedBy || ""}
-              onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
-              style={{
-                width: "100%", padding: "5px 7px", fontSize: 11,
-                border: `0.5px solid ${T.separator}`, borderRadius: 5,
-                background: T.inputBg, color: T.text, fontFamily: FONT,
-              }}>
-              {VERIFIED_BY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-            </select>
-          </div>
-        </div>
-      )}
-
-      {/* Variable-pay edit row — pay type / verified by. The amount/freq
-          are computed by the averaging panel above. */}
-      {isVar && (
-        <div style={{
-          padding: "0 10px 8px",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 90px",
-          gap: 6, alignItems: "center",
-        }}>
-          <div>
-            <div style={{ fontSize: 9, color: T.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>Pay type</div>
-            <select value={inc.payType}
-              onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
-              style={{
-                width: "100%", padding: "5px 7px", fontSize: 11,
-                border: `0.5px solid ${T.separator}`, borderRadius: 5,
-                background: T.inputBg, color: T.text, fontFamily: FONT,
-              }}>
-              <option value="Salary">Salary</option>
-              <option value="Hourly">Hourly</option>
-              <option value="Bonus">Bonus</option>
-              <option value="Commission">Commission</option>
-              <option value="Overtime">Overtime</option>
-              <option value="RSU">Stock (RSU)</option>
-              <option value="Tips">Tips</option>
-              <option value="Self-Emp">Self-emp</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div>
-            <div style={{ fontSize: 9, color: T.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>Verified by</div>
-            <select value={inc.verifiedBy || ""}
-              onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
-              style={{
-                width: "100%", padding: "5px 7px", fontSize: 11,
-                border: `0.5px solid ${T.separator}`, borderRadius: 5,
-                background: T.inputBg, color: T.text, fontFamily: FONT,
-              }}>
-              {VERIFIED_BY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-            </select>
-          </div>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button onClick={() => removeIncome(inc.id)} aria-label="Remove this component"
               title="Remove this component"
@@ -481,16 +426,28 @@ function ComponentRow({
         </div>
       )}
 
-      {/* Remove button for non-variable rows */}
-      {!isVar && (
-        <div style={{ padding: "0 10px 8px", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={() => removeIncome(inc.id)} aria-label="Remove component"
+      {/* Variable rows: Remove only, slim bar. Pay type / Verified by
+          live in the header now; Amount / Frequency live in the
+          averaging panel. */}
+      {isVar && (
+        <div style={{ padding: "0 10px 6px", display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={() => removeIncome(inc.id)} aria-label="Remove this component"
+            title="Remove this component"
             style={{
               background: "transparent", border: `0.5px solid ${T.separator}`,
-              color: T.textTertiary, cursor: "pointer",
-              padding: "4px 8px", borderRadius: 5,
-              fontSize: 10, fontFamily: FONT,
-            }}>Remove</button>
+              color: T.red, cursor: "pointer",
+              padding: "3px 8px", borderRadius: 5,
+              fontSize: 10, fontFamily: FONT, fontWeight: 500,
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+            Remove
+          </button>
         </div>
       )}
     </div>
