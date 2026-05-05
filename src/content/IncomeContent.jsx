@@ -787,14 +787,11 @@ function EmployerGroup({
         <div></div>
       </div>
 
-      {/* Component list (expanded state). */}
+      {/* Component list (expanded state). The "Components" label was
+          dropped (2026-05-05) — it ate ~22px of whitespace without
+          adding information; the component rows are visually obvious. */}
       {isExpanded && (
-        <div style={{ padding: "8px 14px 14px", background: `${ACCENT}06` }}>
-          <div style={{
-            fontSize: 9, color: T.textTertiary, letterSpacing: 0.4,
-            textTransform: "uppercase", fontWeight: 700, padding: "4px 0 6px", fontFamily: FONT,
-          }}>Components</div>
-
+        <div style={{ padding: "8px 14px 12px", background: `${ACCENT}06` }}>
           {components.map(c => (
             <ComponentRow
               key={c.id}
