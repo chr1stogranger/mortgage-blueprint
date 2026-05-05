@@ -636,6 +636,14 @@ export default function IncomeContent({
 
   // Group all incomes by (borrower, source). Each group becomes one
   // employer row with chevron-expand to its components.
+  //
+  // Order: insertion order within each borrower bucket. Christo
+  // (2026-05-05): "if you're adding an employer it should be below
+  // the previous employer, so the most recent employer is on top."
+  // The current/most-recent job is entered first; subsequent +Add
+  // clicks add older employers (or new blanks), which should appear
+  // BELOW the existing ones. Alphabetical sort would float a freshly
+  // added empty source ("" < "Apple") to the top — wrong.
   const employerGroups = useMemo(() => {
     const groups = [];
     const seen = new Map(); // key: `${borrower}::${source}` → group index
@@ -651,11 +659,11 @@ export default function IncomeContent({
       }
       groups[idx].components.push(inc);
     });
-    // Sort: BOR1 first, then BOR2; within borrower, source name asc.
-    groups.sort((a, b) => {
-      if (a.borrowerNum !== b.borrowerNum) return a.borrowerNum - b.borrowerNum;
-      return (a.source || "").localeCompare(b.source || "");
-    });
+    // Stable sort: BOR 1 groups first (in insertion order), then
+    // BOR 2 groups (in insertion order). JS Array#sort is stable
+    // (V8/SpiderMonkey both since ES2019), so equal-borrower groups
+    // keep the order in which they first appeared in `incomes`.
+    groups.sort((a, b) => a.borrowerNum - b.borrowerNum);
     return groups;
   }, [incomes]);
 
