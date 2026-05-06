@@ -416,139 +416,96 @@ function ComponentRow({
   // averaging-method chip and the pay-type dropdown right below.
   const dotColor = isVar ? T.orange : ACCENT;
 
+  // V2 redesign (2026-05-05) — Assets-style tabular pill row.
+  // Uniform 8-column grid for both variable and non-variable rows so
+  // they align in a clean ledger-style table inside the expanded
+  // employer card.
+  // Columns: chevron · pay type · years · amount · freq · verified · $/mo · remove
+  const pillSelect = (extra = {}) => ({
+    width: "100%", padding: "6px 10px", fontSize: 12,
+    border: "none", borderRadius: 8, height: 30,
+    background: `${T.textTertiary}10`, color: T.text,
+    fontFamily: FONT, cursor: "pointer", outline: "none",
+    ...extra,
+  });
+  const pillInputWrap = {
+    background: `${T.textTertiary}10`, borderRadius: 8,
+    height: 30, padding: "0 10px",
+    display: "flex", alignItems: "center", gap: 4,
+  };
+  const verifiedPillStyle = {
+    width: "100%", padding: "6px 10px", fontSize: 11, height: 30,
+    borderRadius: 9999, fontFamily: FONT, fontWeight: 500,
+    cursor: "pointer", outline: "none",
+    color: inc.verifiedBy ? T.green : T.orange,
+    background: inc.verifiedBy ? `${T.green}10` : `${T.orange}06`,
+    border: inc.verifiedBy
+      ? `0.5px solid ${T.green}55`
+      : `0.5px dashed ${T.orange}50`,
+  };
+
   return (
-    <div style={{
-      background: T.card,
-      // No vertical gap between components within the same employer
-      // — Christo: gaps belong between EMPLOYERS, not income types
-      // (2026-05-05). Components stack flush; first/last get rounded
-      // corners so the group reads as one bounded card.
-      borderRadius: isFirst && isLast ? 8 : isFirst ? "8px 8px 0 0" : isLast ? "0 0 8px 8px" : 0,
-      border: isVar ? `1px solid ${T.orange}40` : `0.5px solid ${T.separator}`,
-      // Avoid stacked-border doubling between adjacent rows.
-      borderTop: !isFirst ? "none" : (isVar ? `1px solid ${T.orange}40` : `0.5px solid ${T.separator}`),
-    }}>
-      {/* Header row. Two layouts:
-          - VARIABLE rows (Bonus, Commission, RSU, etc.): 6-column
-            header showing label + pay type + verified by + $/mo
-            + chevron. Amount/frequency live in the averaging panel.
-          - NON-VARIABLE rows (Base Salary, Hourly, etc.): single-
-            line 8-column header that ALSO inlines Amount +
-            Frequency + a trash icon. Christo (2026-05-05 r3): for
-            base income there's no averaging panel, so collapsing
-            the bottom Amount/Frequency/Remove row into the header
-            saves ~36px per row with no loss of editing surface. */}
-      {isVar ? (
-        // ─── Variable header ───────────────────────────────────
-        // Christo (2026-05-05 r4): chevron moved from the far-right
-        // to immediately left of the label so it visually anchors
-        // the expand/collapse to the row's identity instead of
-        // floating at the end.
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "14px 28px minmax(110px, 1fr) 100px 110px 90px",
-            gap: 8, alignItems: "center", padding: "7px 10px",
-          }}>
-          <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
+    <div>
+      {/* Tabular row — flat, no surrounding card border. Top divider
+          on every row except the first within the expanded employer. */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "24px 100px 100px minmax(110px, 1fr) 80px 110px 95px 22px",
+          gap: 8, alignItems: "center", padding: "6px 14px",
+          borderTop: isFirst ? "none" : `0.5px solid ${T.separator}`,
+          background: isVar && isExpanded ? `${T.orange}06` : "transparent",
+        }}>
+        {/* Chevron — variable rows only. Subtle: 22×22 tile with very
+            light orange tint, 11px glyph. Salary/Hourly leave this
+            column blank (per Christo's preference for v2). */}
+        {isVar ? (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
             title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
             style={{
-              background: `${T.orange}18`, border: `1px solid ${T.orange}55`,
-              color: T.orange, fontSize: 16, fontWeight: 700,
-              cursor: "pointer", textAlign: "center", userSelect: "none",
-              width: 28, height: 28, borderRadius: 6, padding: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transform: `rotate(${isExpanded ? 180 : 0}deg)`,
+              width: 22, height: 22, borderRadius: 6, padding: 0,
+              background: `${T.orange}10`,
+              border: `0.5px solid ${T.orange}33`,
+              color: T.orange, fontSize: 11, fontWeight: 700,
+              cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              transform: `rotate(${isExpanded ? 0 : -90}deg)`,
               transition: "transform 0.2s",
             }}>▾</button>
-          <div
-            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-            style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0, cursor: "pointer" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap" }}>
-              {meta.label}
-            </span>
-            {meta.jargon && (
-              <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, fontFamily: FONT }}>({meta.jargon})</span>
-            )}
-            {methodLabel && (
-              <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                · {methodLabel}{yearSpan}
-              </span>
-            )}
-          </div>
-          <select
-            value={inc.payType}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
-            style={{
-              width: "100%", padding: "3px 6px", fontSize: 11,
-              border: `0.5px solid ${T.separator}`, borderRadius: 5,
-              background: T.inputBg, color: T.text, fontFamily: FONT,
-              height: 24,
-            }}>
-            <PayTypeOptions />
-          </select>
-          <select
-            value={inc.verifiedBy || ""}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
-            style={{
-              width: "100%", padding: "3px 6px", fontSize: 11,
-              borderRadius: 5, height: 24, fontFamily: FONT,
-              color: inc.verifiedBy ? T.green : T.orange,
-              fontWeight: 600,
-              background: inc.verifiedBy ? `${T.green}10` : `${T.orange}08`,
-              border: inc.verifiedBy
-                ? `0.5px solid ${T.green}55`
-                : `0.5px dashed ${T.orange}66`,
-            }}>
-            {VERIFIED_BY_OPTIONS.map(v => <option key={v.value} value={v.value} style={{ color: T.text, background: T.inputBg }}>{v.label || "not verified"}</option>)}
-          </select>
-          <div style={{ textAlign: "right" }}>
-            <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
-              {fmt(mo)}
-            </span>
-            <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
-          </div>
-        </div>
-      ) : (
-        // ─── Non-variable single-line header ──────────────────
-        // dot | label | pay type | $amount | freq | verified | $/mo | trash
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "14px minmax(90px, 1fr) 90px 130px 80px 100px 90px 24px",
-            gap: 6, alignItems: "center", padding: "8px 10px",
-          }}>
-          <div style={{ width: 8, height: 8, borderRadius: 4, background: dotColor, marginLeft: 4 }} />
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {meta.label}
-            </span>
-            {meta.jargon && (
-              <span style={{ color: T.textTertiary, fontSize: 10, fontWeight: 400, fontFamily: FONT }}>({meta.jargon})</span>
-            )}
-          </div>
-          {/* Pay type */}
-          <select
-            value={inc.payType}
-            onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
-            style={{
-              width: "100%", padding: "3px 6px", fontSize: 11,
-              border: `0.5px solid ${T.separator}`, borderRadius: 5,
-              background: T.inputBg, color: T.text, fontFamily: FONT,
-              height: 24,
-            }}>
-            <PayTypeOptions />
-          </select>
-          {/* Amount with $ prefix INSIDE the input */}
-          <div style={{ position: "relative" }}>
-            <span style={{
-              position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)",
-              color: T.textTertiary, fontSize: 11, fontFamily: FONT, pointerEvents: "none",
-            }}>$</span>
+        ) : <div />}
+
+        {/* Pay type — pill select */}
+        <select
+          value={inc.payType}
+          onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
+          style={pillSelect()}>
+          <PayTypeOptions />
+        </select>
+
+        {/* Years — variable rows show the active method + year span as
+            a compact amber chip; non-variable shows an em-dash. */}
+        {isVar ? (
+          <span style={{
+            fontSize: 11, color: T.orange, fontFamily: FONT, fontWeight: 500,
+            padding: "5px 10px", background: `${T.orange}08`,
+            border: `0.5px solid ${T.orange}33`, borderRadius: 9999,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            textAlign: "center",
+          }}>{methodLabel}{yearSpan.replace(" · ", " · ").trim() || ""}</span>
+        ) : (
+          <span style={{ color: T.textTertiary, fontSize: 12, padding: "0 6px" }}>—</span>
+        )}
+
+        {/* Amount — non-variable uses an editable pill; variable shows
+            "computed" italic since amount comes from the averaging panel. */}
+        {isVar ? (
+          <span style={{ color: T.textTertiary, fontSize: 11, fontStyle: "italic", padding: "0 6px" }}>
+            computed
+          </span>
+        ) : (
+          <div style={pillInputWrap}>
+            <span style={{ color: T.textTertiary, fontSize: 12 }}>$</span>
             <input type="text" inputMode="decimal"
               value={inc.amount === 0 || inc.amount == null ? "" : Number(inc.amount).toLocaleString()}
               onChange={(e) => {
@@ -557,100 +514,62 @@ function ComponentRow({
               }}
               placeholder="0"
               style={{
-                width: "100%", padding: "3px 6px 3px 18px", fontSize: 11,
-                border: `0.5px solid ${T.separator}`, borderRadius: 5,
-                background: T.inputBg, color: T.text, fontFamily: FONT,
-                boxSizing: "border-box", height: 24,
+                background: "transparent", border: "none", outline: "none",
+                flex: 1, fontSize: 12, color: T.text, fontFamily: FONT,
+                minWidth: 0, padding: 0,
               }} />
           </div>
-          {/* Frequency */}
+        )}
+
+        {/* Frequency — non-variable only. Variable shows an em-dash. */}
+        {isVar ? (
+          <span style={{ color: T.textTertiary, fontSize: 12, padding: "0 6px" }}>—</span>
+        ) : (
           <select value={inc.frequency || "Annual"}
             onChange={(e) => updateIncome(inc.id, "frequency", e.target.value)}
-            style={{
-              width: "100%", padding: "3px 6px", fontSize: 11,
-              border: `0.5px solid ${T.separator}`, borderRadius: 5,
-              background: T.inputBg, color: T.text, fontFamily: FONT,
-              height: 24,
-            }}>
+            style={pillSelect()}>
             {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
-          {/* Verified by */}
-          <select
-            value={inc.verifiedBy || ""}
-            onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
-            style={{
-              width: "100%", padding: "3px 6px", fontSize: 11,
-              borderRadius: 5, height: 24, fontFamily: FONT,
-              color: inc.verifiedBy ? T.green : T.orange,
-              fontWeight: 600,
-              background: inc.verifiedBy ? `${T.green}10` : `${T.orange}08`,
-              border: inc.verifiedBy
-                ? `0.5px solid ${T.green}55`
-                : `0.5px dashed ${T.orange}66`,
-            }}>
-            {VERIFIED_BY_OPTIONS.map(v => <option key={v.value} value={v.value} style={{ color: T.text, background: T.inputBg }}>{v.label || "not verified"}</option>)}
-          </select>
-          <div style={{ textAlign: "right" }}>
-            <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
-              {fmt(mo)}
-            </span>
-            <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
-          </div>
-          {/* Trash icon-only Remove */}
-          <button onClick={() => removeIncome(inc.id)}
-            aria-label="Remove this component"
-            title="Remove this component"
-            style={{
-              background: "transparent", border: `0.5px solid ${T.separator}`,
-              color: T.red, cursor: "pointer",
-              width: 22, height: 22, borderRadius: 5, padding: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <line x1="10" y1="11" x2="10" y2="17" />
-              <line x1="14" y1="11" x2="14" y2="17" />
-            </svg>
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Inline averaging panel for variable pay. */}
+        {/* Verified — pill chip select */}
+        <select
+          value={inc.verifiedBy || ""}
+          onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
+          style={verifiedPillStyle}>
+          {VERIFIED_BY_OPTIONS.map(v =>
+            <option key={v.value} value={v.value} style={{ color: T.text, background: T.inputBg }}>{v.label || "not verified"}</option>
+          )}
+        </select>
+
+        {/* Mo. income */}
+        <div style={{ textAlign: "right" }}>
+          <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
+            {fmt(mo)}
+          </span>
+          <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+        </div>
+
+        {/* Remove — bare × glyph, matches Assets row pattern. */}
+        <button onClick={() => removeIncome(inc.id)}
+          aria-label="Remove this component"
+          title="Remove this component"
+          style={{
+            background: "transparent", border: "none",
+            color: T.textTertiary, cursor: "pointer",
+            fontSize: 16, padding: 0, lineHeight: 1,
+            width: 22, height: 22,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>×</button>
+      </div>
+
+      {/* Inline averaging panel for variable pay (under the row). */}
       {isVar && isExpanded && (
         <VariableCalcPanel
           inc={inc} updateIncome={updateIncome}
           monthsElapsed={monthsElapsed}
           T={T} fmt={fmt} ACCENT={ACCENT}
         />
-      )}
-
-      {/* Non-variable rows have no bottom row — Amount / Frequency /
-          Remove are all inline in the single-line header above. */}
-
-      {/* Variable rows: Remove only, slim bar. Pay type / Verified by
-          live in the header; Amount / Frequency live in the
-          averaging panel above. */}
-      {isVar && (
-        <div style={{ padding: "0 10px 6px", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={() => removeIncome(inc.id)} aria-label="Remove this component"
-            title="Remove this component"
-            style={{
-              background: "transparent", border: `0.5px solid ${T.separator}`,
-              color: T.red, cursor: "pointer",
-              padding: "3px 8px", borderRadius: 5,
-              fontSize: 10, fontFamily: FONT, fontWeight: 500,
-              display: "inline-flex", alignItems: "center", gap: 4,
-            }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <line x1="10" y1="11" x2="10" y2="17" />
-              <line x1="14" y1="11" x2="14" y2="17" />
-            </svg>
-            Remove
-          </button>
-        </div>
       )}
     </div>
   );
@@ -795,11 +714,32 @@ function EmployerGroup({
         <div></div>
       </div>
 
-      {/* Component list (expanded state). The "Components" label was
-          dropped (2026-05-05) — it ate ~22px of whitespace without
-          adding information; the component rows are visually obvious. */}
+      {/* Expanded employer — Assets-style tabular layout. Column
+          header row prints once, components map into flat rows of
+          pill-style controls. */}
       {isExpanded && (
-        <div style={{ padding: "8px 14px 12px", background: `${ACCENT}06` }}>
+        <div>
+          {/* Column headers — same 8-col grid as ComponentRow rows */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "24px 100px 100px minmax(110px, 1fr) 80px 110px 95px 22px",
+            gap: 8, padding: "6px 14px",
+            fontSize: 9, color: T.textTertiary,
+            fontWeight: 600, letterSpacing: 0.6,
+            textTransform: "uppercase", fontFamily: FONT,
+            borderBottom: `0.5px solid ${T.separator}`,
+            background: `${ACCENT}04`,
+          }}>
+            <div></div>
+            <div>Pay type</div>
+            <div>Years</div>
+            <div>Amount</div>
+            <div>Freq</div>
+            <div>Verified</div>
+            <div style={{ textAlign: "right" }}>Mo. income</div>
+            <div></div>
+          </div>
+
           {components.map((c, idx) => (
             <ComponentRow
               key={c.id}
@@ -815,20 +755,35 @@ function EmployerGroup({
             />
           ))}
 
-          {/* + Add Income Type — full-width light-blue dashed bar
-              matching the '+ Add Debt' / '+ Add Property' pattern
-              from DebtsContent / ReoContent. */}
-          <button
-            onClick={() => addIncome(borrowerNum, source)}
-            style={{
-              marginTop: 8, padding: "10px 12px",
-              width: "100%",
-              fontSize: 13, fontWeight: 500, color: ACCENT,
-              background: `${ACCENT}0c`,
-              border: `1px dashed ${ACCENT}55`,
-              borderRadius: 8, cursor: "pointer", fontFamily: FONT,
-              textAlign: "center",
-            }}>+ Add Income Type</button>
+          {/* + Add Income Type — full-width light-blue dashed bar */}
+          <div style={{ padding: "10px 14px 4px" }}>
+            <button
+              onClick={() => addIncome(borrowerNum, source)}
+              style={{
+                padding: "9px 12px", width: "100%",
+                fontSize: 12, fontWeight: 500, color: ACCENT,
+                background: `${ACCENT}0c`,
+                border: `1px dashed ${ACCENT}55`,
+                borderRadius: 8, cursor: "pointer", fontFamily: FONT,
+                textAlign: "center",
+              }}>+ Add Income Type</button>
+          </div>
+
+          {/* Per-employer subtotal row, matching the "Total Funds"
+              row in the Assets section. */}
+          <div style={{
+            padding: "8px 14px",
+            borderTop: `0.5px solid ${T.separator}`,
+            background: `${T.textTertiary}06`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontSize: 11, fontFamily: FONT,
+          }}>
+            <span style={{ color: T.textTertiary }}>{source || "Employer"} subtotal</span>
+            <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>
+              {fmt(totalMo)}
+              <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 10, marginLeft: 2 }}>/mo</span>
+            </span>
+          </div>
         </div>
       )}
     </div>
