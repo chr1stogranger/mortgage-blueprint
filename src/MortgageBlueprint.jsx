@@ -2674,25 +2674,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
  // Delete borrower N — drops their incomes and compacts everyone above
  // them down by one. Christo (2026-05-05): "we should be able to delete
- // borrower #2 too." This works for any borrower number, not just the
- // last. Names + Other Monthly Income for shifted borrowers move with
- // them so the broker doesn't lose annotation context.
+ // borrower #2 too." Works for any borrower, not just the last.
+ // Uses functional state setters so multiple setStates in the same
+ // event handler can't strand a stale closure.
  const removeBorrower = (n) => {
-  const drop = (i) => i.borrower === n;
   const shift = (b) => (b > n ? b - 1 : b);
-  setIncomes(incomes.filter(i => !drop(i)).map(i => ({ ...i, borrower: shift(i.borrower) })));
+  setIncomes(prev => prev.filter(i => i.borrower !== n).map(i => ({ ...i, borrower: shift(i.borrower) })));
   setBorrowerNames(prev => {
    const next = {};
    Object.keys(prev).forEach(k => {
     const num = Number(k);
-    if (num === n) return;             // dropped
+    if (num === n) return;
     next[shift(num)] = prev[k];
    });
    return next;
   });
-  // Compact otherIncomeByBorrower (BOR 3+).
-  // Also handle the legacy otherIncome / otherIncome2 fields when
-  // BOR 1 or BOR 2 is removed.
   setOtherIncomeByBorrower(prev => {
    const next = {};
    Object.keys(prev).forEach(k => {
@@ -2702,15 +2698,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    });
    return next;
   });
+  // Promote shifted other-income up. Read the legacy values from
+  // closure (one-shot at click time — they're fine) but feed them
+  // through functional setters.
   if (n === 1) {
-   // BOR 1 deleted — promote BOR 2's other-income to BOR 1.
-   setOtherIncome(otherIncome2 || 0);
-   setOtherIncome2(otherIncomeByBorrower[3] || 0);
+   const promote2to1 = otherIncome2 || 0;
+   const promote3to2 = otherIncomeByBorrower[3] || 0;
+   setOtherIncome(() => promote2to1);
+   setOtherIncome2(() => promote3to2);
   } else if (n === 2) {
-   // BOR 2 deleted — promote BOR 3's other-income (if any) to BOR 2.
-   setOtherIncome2(otherIncomeByBorrower[3] || 0);
+   const promote3to2 = otherIncomeByBorrower[3] || 0;
+   setOtherIncome2(() => promote3to2);
   }
-  setNumBorrowers(Math.max(1, numBorrowers - 1));
+  setNumBorrowers(prev => Math.max(1, prev - 1));
  };
  const addAsset = () => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
  const updateAsset = (id, f, v) => setAssets(assets.map(a => a.id === id ? { ...a, [f]: v } : a));
