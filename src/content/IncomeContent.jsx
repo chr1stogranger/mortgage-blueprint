@@ -1088,26 +1088,30 @@ export default function IncomeContent({
                 </span>
                 {canRemove && (
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const hasIncomes = incomes.some(i => i.borrower === n);
                       if (hasIncomes) {
-                        if (!window.confirm(`Borrower ${n} has employer entries — remove anyway? Their incomes will be deleted and any borrowers below them will shift up.`)) return;
+                        if (!window.confirm(`Remove Borrower ${n}? Their employer entries will be deleted and any borrowers below them will shift up.`)) return;
                       }
-                      // Use removeBorrower for proper index compaction
-                      // when available; fall back to legacy decrement
-                      // for older callsites.
                       if (removeBorrower) removeBorrower(n);
                       else if (setNumBorrowers) setNumBorrowers(numBorrowers - 1);
                     }}
                     title={`Remove Borrower ${n}`}
+                    aria-label={`Remove Borrower ${n}`}
                     style={{
-                      background: "transparent", border: `0.5px solid ${accent}55`,
-                      color: accent, cursor: "pointer",
-                      width: 22, height: 22, borderRadius: 5, padding: 0,
+                      background: `${T.red}10`, border: `0.5px solid ${T.red}55`,
+                      color: T.red, cursor: "pointer",
+                      width: 28, height: 28, borderRadius: 6, padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
+                      fontFamily: FONT,
                     }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12" />
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                     </svg>
                   </button>
                 )}
