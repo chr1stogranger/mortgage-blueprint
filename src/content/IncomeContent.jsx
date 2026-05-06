@@ -916,28 +916,48 @@ export default function IncomeContent({
   const SUB_BG = `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`;
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
 
-  // Expand state — keyed by `borrowerNum::source` for employer rows
-  // and by income id for component-level (variable averaging) rows.
-  // Variable components default to EXPANDED so the averaging panel is
-  // immediately visible — a salary row only needs the basics, but every
-  // variable-pay row has math the broker needs to see/configure.
-  const [expandedEmployers, setExpandedEmployers] = useState({});
-  const [expandedComponents, setExpandedComponents] = useState(() => {
+  // Expand state. Christo (2026-05-06): default rules —
+  //   * CURRENT employers (no end date on any component) default to
+  //     EXPANDED so the table of components is immediately visible.
+  //   * PREVIOUS employers default to COLLAPSED.
+  //   * Variable COMPONENTS default to COLLAPSED (the broker can
+  //     open them when needed). Was auto-expanded; that flooded the
+  //     screen with averaging panels the broker doesn't always need.
+  // Keys: employers by `${borrower}::${source}`, components by inc.id.
+  const [expandedEmployers, setExpandedEmployers] = useState(() => {
     const initial = {};
+    // Group keys we've already decided about
+    const seen = new Set();
+    // Build a map of (borrower, source) → "is any component previous?"
+    const isPreviousMap = {};
     incomes.forEach(i => {
-      if (payTypeLabel(i.payType).variable) initial[i.id] = true;
+      const key = `${i.borrower || 1}::${i.source || ""}`;
+      if (i.end && i.end !== "") isPreviousMap[key] = true;
+      else if (isPreviousMap[key] == null) isPreviousMap[key] = false;
+    });
+    Object.keys(isPreviousMap).forEach(key => {
+      if (!isPreviousMap[key]) initial[key] = true; // current → expand
     });
     return initial;
   });
-  // Auto-expand newly-added variable components and components whose pay
-  // type was just changed to a variable type.
+  const [expandedComponents, setExpandedComponents] = useState({});
+
+  // Keep current employers expanded as new ones are added/edited so a
+  // freshly-toggled-back-to-current employer auto-opens its table.
   useEffect(() => {
-    setExpandedComponents(prev => {
+    setExpandedEmployers(prev => {
       const next = { ...prev };
       let changed = false;
+      const seen = {};
       incomes.forEach(i => {
-        if (payTypeLabel(i.payType).variable && next[i.id] == null) {
-          next[i.id] = true;
+        const key = `${i.borrower || 1}::${i.source || ""}`;
+        if (i.end && i.end !== "") seen[key] = "previous";
+        else if (seen[key] == null) seen[key] = "current";
+      });
+      Object.keys(seen).forEach(key => {
+        // Only touch keys we haven't seen yet — preserve user toggles.
+        if (next[key] == null && seen[key] === "current") {
+          next[key] = true;
           changed = true;
         }
       });
