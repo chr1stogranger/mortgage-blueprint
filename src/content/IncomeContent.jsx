@@ -384,6 +384,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
 function ComponentRow({
   inc, isExpanded, onToggleExpand, updateIncome, removeIncome,
   monthsElapsed, T, fmt, ACCENT,
+  isFirst = true, isLast = true,
 }) {
   const meta = payTypeLabel(inc.payType);
   const isVar = meta.variable;
@@ -417,8 +418,15 @@ function ComponentRow({
 
   return (
     <div style={{
-      background: T.card, borderRadius: 8, marginBottom: 6,
+      background: T.card,
+      // No vertical gap between components within the same employer
+      // — Christo: gaps belong between EMPLOYERS, not income types
+      // (2026-05-05). Components stack flush; first/last get rounded
+      // corners so the group reads as one bounded card.
+      borderRadius: isFirst && isLast ? 8 : isFirst ? "8px 8px 0 0" : isLast ? "0 0 8px 8px" : 0,
       border: isVar ? `1px solid ${T.orange}40` : `0.5px solid ${T.separator}`,
+      // Avoid stacked-border doubling between adjacent rows.
+      borderTop: !isFirst ? "none" : (isVar ? `1px solid ${T.orange}40` : `0.5px solid ${T.separator}`),
     }}>
       {/* Header row. Two layouts:
           - VARIABLE rows (Bonus, Commission, RSU, etc.): 6-column
@@ -792,7 +800,7 @@ function EmployerGroup({
           adding information; the component rows are visually obvious. */}
       {isExpanded && (
         <div style={{ padding: "8px 14px 12px", background: `${ACCENT}06` }}>
-          {components.map(c => (
+          {components.map((c, idx) => (
             <ComponentRow
               key={c.id}
               inc={c}
@@ -802,17 +810,25 @@ function EmployerGroup({
               removeIncome={removeIncome}
               monthsElapsed={monthsElapsed}
               T={T} fmt={fmt} ACCENT={ACCENT}
+              isFirst={idx === 0}
+              isLast={idx === components.length - 1}
             />
           ))}
 
+          {/* + Add Income Type — full-width light-blue dashed bar
+              matching the '+ Add Debt' / '+ Add Property' pattern
+              from DebtsContent / ReoContent. */}
           <button
             onClick={() => addIncome(borrowerNum, source)}
             style={{
-              marginTop: 6, padding: "6px 10px",
-              fontSize: 11, fontWeight: 500, color: ACCENT,
-              background: "transparent", border: `1px dashed ${ACCENT}44`,
-              borderRadius: 6, cursor: "pointer", fontFamily: FONT,
-            }}>+ Add component (commission, overtime, ESPP…)</button>
+              marginTop: 8, padding: "10px 12px",
+              width: "100%",
+              fontSize: 13, fontWeight: 500, color: ACCENT,
+              background: `${ACCENT}0c`,
+              border: `1px dashed ${ACCENT}55`,
+              borderRadius: 8, cursor: "pointer", fontFamily: FONT,
+              textAlign: "center",
+            }}>+ Add Income Type</button>
         </div>
       )}
     </div>
@@ -1034,19 +1050,20 @@ export default function IncomeContent({
               </div>
             </div>
 
-            {/* Empty state per borrower */}
+            {/* Empty state per borrower — full-width dashed bar
+                matching the '+ Add Debt' / '+ Add Property' pattern. */}
             {groups.length === 0 && (
-              <div style={{ padding: "20px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10, fontFamily: FONT }}>
-                  No employment income for this borrower yet.
-                </div>
-                <button onClick={() => addIncome(n, "")} style={{
-                  padding: "7px 16px", borderRadius: 9999,
-                  background: "transparent", border: `1px solid ${accent}`,
-                  color: accent, fontSize: 12, fontWeight: 500,
-                  cursor: "pointer", fontFamily: FONT,
-                }}>+ Add first employer</button>
-              </div>
+              <button onClick={() => addIncome(n, "")} style={{
+                display: "block", width: "calc(100% - 24px)",
+                margin: "12px 12px 14px",
+                padding: "10px 12px",
+                borderRadius: 8,
+                background: `${accent}0c`,
+                border: `1px dashed ${accent}55`,
+                color: accent, fontSize: 13, fontWeight: 500,
+                cursor: "pointer", fontFamily: FONT,
+                textAlign: "center",
+              }}>+ Add Employer</button>
             )}
 
             {/* Employer groups for this borrower */}
@@ -1068,19 +1085,21 @@ export default function IncomeContent({
               />
             ))}
 
-            {/* Add-employer + Other-income footer for this borrower */}
+            {/* + Add Employer — full-width light-blue dashed bar
+                consistent with '+ Add Debt' / '+ Add Property' in
+                Debts / REO. */}
             {groups.length > 0 && (
-              <div style={{
-                background: `${accent}06`, padding: "10px 14px",
-                borderTop: `1px solid ${accent}22`,
-                display: "flex", justifyContent: "flex-start",
-              }}>
+              <div style={{ padding: "12px 12px 0" }}>
                 <button onClick={() => addIncome(n, "")} style={{
-                  padding: "6px 12px", fontSize: 12, fontWeight: 500,
-                  color: accent, background: "transparent",
-                  border: `1px dashed ${accent}44`, borderRadius: 6,
+                  display: "block", width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  background: `${accent}0c`,
+                  border: `1px dashed ${accent}55`,
+                  color: accent, fontSize: 13, fontWeight: 500,
                   cursor: "pointer", fontFamily: FONT,
-                }}>+ Add employer</button>
+                  textAlign: "center",
+                }}>+ Add Employer</button>
               </div>
             )}
 
@@ -1106,19 +1125,25 @@ export default function IncomeContent({
         );
       })}
 
-      {/* Add Borrower button + total */}
+      {/* + Add Borrower — full-width light-blue dashed bar matching
+          the rest of the Add buttons. Total moves below it. */}
+      {setNumBorrowers && numBorrowers < 4 && (
+        <button onClick={() => setNumBorrowers(numBorrowers + 1)} style={{
+          display: "block", width: "100%",
+          padding: "10px 12px",
+          marginBottom: 10,
+          borderRadius: 8,
+          background: `${ACCENT}0c`,
+          border: `1px dashed ${ACCENT}55`,
+          color: ACCENT, fontSize: 13, fontWeight: 500,
+          cursor: "pointer", fontFamily: FONT,
+          textAlign: "center",
+        }}>+ Add Borrower</button>
+      )}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
+        display: "flex", justifyContent: "flex-end", alignItems: "center",
         marginBottom: 16, padding: "0 4px", flexWrap: "wrap", gap: 8,
       }}>
-        {setNumBorrowers && numBorrowers < 4 ? (
-          <button onClick={() => setNumBorrowers(numBorrowers + 1)} style={{
-            padding: "8px 16px", fontSize: 12, fontWeight: 500,
-            color: ACCENT, background: "transparent",
-            border: `1px dashed ${ACCENT}66`, borderRadius: 9999,
-            cursor: "pointer", fontFamily: FONT,
-          }}>+ Add Borrower</button>
-        ) : <span />}
         <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
           <span style={{ fontSize: 10, color: T.textTertiary, letterSpacing: 0.4, fontWeight: 600, fontFamily: FONT }}>QUALIFYING TOTAL</span>
           <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: ACCENT }}>{fmt(totalEmploymentMo)}/mo</span>
