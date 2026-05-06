@@ -426,7 +426,10 @@ function pct(v, d = 1) { if (PRIVACY) return "••.•%"; return ((v || 0) * 1
 function toMonthly(amount, frequency) {
  const a = Number(amount) || 0;
  if (frequency === "Annual") return a / 12;
- if (frequency === "Bi-Weekly") return a * 26 / 12;
+ if (frequency === "Bi-Annual") return (a * 2) / 12;          // 2 payments/yr
+ if (frequency === "Quarterly") return (a * 4) / 12;          // 4 payments/yr
+ if (frequency === "Semi-Monthly") return a * 2;              // 2 payments/mo (24/yr)
+ if (frequency === "Bi-Weekly") return a * 26 / 12;           // 26 payments/yr
  if (frequency === "Weekly") return a * 52 / 12;
  if (frequency === "Hourly") return a * 2080 / 12;
  return a; // Monthly or unrecognized

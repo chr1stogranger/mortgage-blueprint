@@ -4,11 +4,14 @@ const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const FREQ_OPTIONS = [
-  { value: "Annual", label: "Annual" },
-  { value: "Monthly", label: "Monthly" },
-  { value: "Bi-Weekly", label: "Bi-Weekly" },
-  { value: "Weekly", label: "Weekly" },
-  { value: "Hourly", label: "Hourly" },
+  { value: "Annual",       label: "Annual" },
+  { value: "Bi-Annual",    label: "Bi-Annual" },
+  { value: "Quarterly",    label: "Quarterly" },
+  { value: "Monthly",      label: "Monthly" },
+  { value: "Semi-Monthly", label: "Semi-Monthly" },
+  { value: "Bi-Weekly",    label: "Bi-Weekly" },
+  { value: "Weekly",       label: "Weekly" },
+  { value: "Hourly",       label: "Hourly" },
 ];
 
 const VERIFIED_BY_OPTIONS = [
@@ -117,11 +120,14 @@ function PayTypeOptions() {
 function toMonthly(amount, frequency) {
   const a = Number(amount) || 0;
   switch (frequency) {
-    case "Annual":   return a / 12;
-    case "Monthly":  return a;
-    case "Bi-Weekly": return (a * 26) / 12;
-    case "Weekly":   return (a * 52) / 12;
-    case "Hourly":   return (a * 40 * 52) / 12;
+    case "Annual":       return a / 12;
+    case "Bi-Annual":    return (a * 2) / 12;          // 2 payments per year
+    case "Quarterly":    return (a * 4) / 12;          // 4 payments per year
+    case "Monthly":      return a;
+    case "Semi-Monthly": return a * 2;                 // twice per month (24/yr)
+    case "Bi-Weekly":    return (a * 26) / 12;         // 26 payments per year
+    case "Weekly":       return (a * 52) / 12;
+    case "Hourly":       return (a * 40 * 52) / 12;    // 40hr/wk default
     default: return a / 12;
   }
 }
@@ -433,15 +439,24 @@ function ComponentRow({
     height: 30, padding: "0 10px",
     display: "flex", alignItems: "center", gap: 4,
   };
+  // Verified pill color logic (2026-05-05):
+  // - Documentary verification (Paystub, W-2, Tax Return, Award Letter,
+  //   Bank Statement, Grant doc, etc.) → green = solid documentation.
+  // - "Verbal" → amber = lender accepts but warrants caution.
+  // - "" (not set) → amber dashed = not verified yet.
+  const isVerbal = inc.verifiedBy === "Verbal";
+  const isDocVerified = !!inc.verifiedBy && !isVerbal;
   const verifiedPillStyle = {
     width: "100%", padding: "6px 10px", fontSize: 11, height: 30,
     borderRadius: 9999, fontFamily: FONT, fontWeight: 500,
     cursor: "pointer", outline: "none",
-    color: inc.verifiedBy ? T.green : T.orange,
-    background: inc.verifiedBy ? `${T.green}10` : `${T.orange}06`,
-    border: inc.verifiedBy
+    color: isDocVerified ? T.green : T.orange,
+    background: isDocVerified ? `${T.green}10` : `${T.orange}08`,
+    border: isDocVerified
       ? `0.5px solid ${T.green}55`
-      : `0.5px dashed ${T.orange}50`,
+      : (isVerbal
+          ? `0.5px solid ${T.orange}55`
+          : `0.5px dashed ${T.orange}50`),
   };
 
   return (
@@ -451,7 +466,7 @@ function ComponentRow({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "24px 100px 100px minmax(110px, 1fr) 80px 110px 95px 22px",
+          gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
           gap: 8, alignItems: "center", padding: "6px 14px",
           borderTop: isFirst ? "none" : `0.5px solid ${T.separator}`,
           background: isVar && isExpanded ? `${T.orange}06` : "transparent",
@@ -636,7 +651,7 @@ function EmployerGroup({
       <div onClick={onToggleExpand}
         style={{
           display: "grid",
-          gridTemplateColumns: "32px 1fr 110px 120px 18px",
+          gridTemplateColumns: "32px 1fr 120px 18px",
           gap: 8, alignItems: "center", padding: "12px 14px",
           cursor: "pointer",
           borderBottom: `1px solid ${T.separator}`,
@@ -655,56 +670,64 @@ function EmployerGroup({
         }}>▾</div>
         <div style={{ minWidth: 0 }}>
           <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            border: `1px dashed ${draftSource ? "transparent" : ACCENT + "55"}`,
-            borderRadius: 6, padding: "2px 6px",
-            background: draftSource ? "transparent" : `${ACCENT}06`,
-            transition: "all 0.15s",
+            display: "flex", alignItems: "center", gap: 8,
           }}>
-            <input
-              type="text"
-              value={draftSource}
-              placeholder="Click to name this employer"
-              onChange={(e) => setDraftSource(e.target.value)}
-              onBlur={commitSource}
-              onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
-              onClick={(e) => e.stopPropagation()}
+            {/* Editable employer name */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              border: `1px dashed ${draftSource ? "transparent" : ACCENT + "55"}`,
+              borderRadius: 6, padding: "2px 6px",
+              background: draftSource ? "transparent" : `${ACCENT}06`,
+              transition: "all 0.15s",
+              minWidth: 0, flex: "0 1 auto",
+            }}>
+              <input
+                type="text"
+                value={draftSource}
+                placeholder="Click to name this employer"
+                onChange={(e) => setDraftSource(e.target.value)}
+                onBlur={commitSource}
+                onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  fontSize: 15, fontWeight: 600, color: T.text,
+                  fontFamily: FONT, border: "none", outline: "none",
+                  background: "transparent", flex: 1, padding: 0,
+                  letterSpacing: "-0.01em", minWidth: 0,
+                }}
+              />
+              {!draftSource && (
+                <span style={{ color: ACCENT, fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✎</span>
+              )}
+            </div>
+            {/* Current / Previous toggle pill — relocated from the right
+                side of the row to sit immediately right of the employer
+                name (Christo, 2026-05-05). */}
+            <button
+              onClick={(e) => { e.stopPropagation(); togglePrevEmployer(); }}
+              title={isPrevious ? "Mark this as your current employer" : "Mark this as a previous employer"}
               style={{
-                fontSize: 15, fontWeight: 600, color: T.text,
-                fontFamily: FONT, border: "none", outline: "none",
-                background: "transparent", flex: 1, padding: 0,
-                letterSpacing: "-0.01em",
-              }}
-            />
-            {!draftSource && (
-              <span style={{ color: ACCENT, fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✎</span>
-            )}
+                background: isPrevious ? `${T.textTertiary}14` : `${T.green}12`,
+                color: isPrevious ? T.textSecondary : T.green,
+                border: isPrevious
+                  ? `0.5px solid ${T.separator}`
+                  : `0.5px solid ${T.green}55`,
+                fontSize: 10, fontWeight: 600, fontFamily: FONT,
+                padding: "4px 10px", borderRadius: 9999,
+                cursor: "pointer", letterSpacing: 0.3,
+                textAlign: "center", whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}>
+              {isPrevious ? "Previous" : "Current ✓"}
+            </button>
           </div>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1, fontFamily: FONT }}>
+          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, fontFamily: FONT }}>
             {subtitle}
             {isPrevious && endDate && (
               <span style={{ marginLeft: 6, color: T.textTertiary }}>· ended {endDate}</span>
             )}
           </div>
         </div>
-        {/* Current / Previous toggle pill. Click stops propagation so
-            the row's chevron-expand doesn't fire. */}
-        <button
-          onClick={(e) => { e.stopPropagation(); togglePrevEmployer(); }}
-          title={isPrevious ? "Mark this as your current employer" : "Mark this as a previous employer"}
-          style={{
-            background: isPrevious ? `${T.textTertiary}14` : `${T.green}12`,
-            color: isPrevious ? T.textSecondary : T.green,
-            border: isPrevious
-              ? `0.5px solid ${T.separator}`
-              : `0.5px solid ${T.green}55`,
-            fontSize: 10, fontWeight: 600, fontFamily: FONT,
-            padding: "4px 10px", borderRadius: 9999,
-            cursor: "pointer", letterSpacing: 0.3,
-            textAlign: "center", whiteSpace: "nowrap",
-          }}>
-          {isPrevious ? "Previous" : "Current ✓"}
-        </button>
         <div style={{ textAlign: "right" }}>
           <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: T.text }}>
             {fmt(totalMo)}
@@ -722,7 +745,7 @@ function EmployerGroup({
           {/* Column headers — same 8-col grid as ComponentRow rows */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: "24px 100px 100px minmax(110px, 1fr) 80px 110px 95px 22px",
+            gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
             gap: 8, padding: "6px 14px",
             fontSize: 9, color: T.textTertiary,
             fontWeight: 600, letterSpacing: 0.6,
