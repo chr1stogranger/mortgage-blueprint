@@ -2672,6 +2672,46 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const addIncome = (borrower, source = "") => { const cy = new Date().getFullYear(); return setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, py1Year: cy - 1, py2Year: cy - 2, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]); };
  const updateIncome = (id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i));
  const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
+ // Delete borrower N — drops their incomes and compacts everyone above
+ // them down by one. Christo (2026-05-05): "we should be able to delete
+ // borrower #2 too." This works for any borrower number, not just the
+ // last. Names + Other Monthly Income for shifted borrowers move with
+ // them so the broker doesn't lose annotation context.
+ const removeBorrower = (n) => {
+  const drop = (i) => i.borrower === n;
+  const shift = (b) => (b > n ? b - 1 : b);
+  setIncomes(incomes.filter(i => !drop(i)).map(i => ({ ...i, borrower: shift(i.borrower) })));
+  setBorrowerNames(prev => {
+   const next = {};
+   Object.keys(prev).forEach(k => {
+    const num = Number(k);
+    if (num === n) return;             // dropped
+    next[shift(num)] = prev[k];
+   });
+   return next;
+  });
+  // Compact otherIncomeByBorrower (BOR 3+).
+  // Also handle the legacy otherIncome / otherIncome2 fields when
+  // BOR 1 or BOR 2 is removed.
+  setOtherIncomeByBorrower(prev => {
+   const next = {};
+   Object.keys(prev).forEach(k => {
+    const num = Number(k);
+    if (num === n) return;
+    next[shift(num)] = prev[k];
+   });
+   return next;
+  });
+  if (n === 1) {
+   // BOR 1 deleted — promote BOR 2's other-income to BOR 1.
+   setOtherIncome(otherIncome2 || 0);
+   setOtherIncome2(otherIncomeByBorrower[3] || 0);
+  } else if (n === 2) {
+   // BOR 2 deleted — promote BOR 3's other-income (if any) to BOR 2.
+   setOtherIncome2(otherIncomeByBorrower[3] || 0);
+  }
+  setNumBorrowers(Math.max(1, numBorrowers - 1));
+ };
  const addAsset = () => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
  const updateAsset = (id, f, v) => setAssets(assets.map(a => a.id === id ? { ...a, [f]: v } : a));
  const removeAsset = (id) => setAssets(assets.filter(a => a.id !== id));
@@ -4862,7 +4902,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
+{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton}} />}
 {/* ═══ DEBTS ═══ */}

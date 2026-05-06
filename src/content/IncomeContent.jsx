@@ -132,21 +132,65 @@ function toMonthly(amount, frequency) {
   }
 }
 
+// Pay types that follow the self-employment rules: tax-return-only
+// (no YTD eligible) and 2-year average is the standard.
+const SELF_EMP_TYPES = new Set(["Sch-C", "1120-S", "1065", "Self-Emp"]);
+
+// Returns the subset of SELECTION_METHODS valid for the given pay
+// type + frequency combination. Christo (2026-05-05):
+//   - Self-employment (Sch C / 1120-S / 1065) goes off tax returns
+//     only — no YTD options. Use 1-yr or 2-yr average.
+//   - Bonus is rule-by-frequency:
+//       * Annual bonus → no YTD (you already get the full year on
+//         the W-2). Use 1-yr or 2-yr average.
+//       * Quarterly / Monthly / Semi-monthly bonus → YTD + most
+//         recent year is the standard.
+//   - Hourly / Commission / RSU / Tips / OT / Other → all 4 methods.
+function availableMethodsFor(payType, frequency) {
+  if (SELF_EMP_TYPES.has(payType)) return ["1Y+", "2Y+"];
+  if (payType === "Bonus" && frequency === "Annual") return ["1Y+", "2Y+"];
+  return ["1Y+", "2Y+", "1Y_YTD", "2Y_YTD"];
+}
+
+// Default selection on creation / pay-type change. Picks the
+// most-common qualifying method for that combination.
+function defaultMethodFor(payType, frequency) {
+  if (SELF_EMP_TYPES.has(payType)) return "2Y+";
+  if (payType === "Bonus") return frequency === "Annual" ? "2Y+" : "1Y_YTD";
+  // Hourly variable / Commission / RSU / Tips / OT / Other
+  return "1Y_YTD";
+}
+
+// Declining income detection. Christo (2026-05-05): when income
+// drops from year-2 to year-1, Fannie/Freddie says you must use
+// only the most recent year's amount — averaging would inflate
+// the qualifying figure on a borrower whose income is shrinking.
+function isDeclining(py1, py2) {
+  const p1 = Number(py1) || 0;
+  const p2 = Number(py2) || 0;
+  return p1 > 0 && p2 > 0 && p2 > p1;
+}
+
 // Compute all 4 averaging methods at once so the UI can preview them
 // side-by-side. ytd / py1 / py2 are annual amounts; monthsElapsed is the
 // number of months represented by the YTD figure (defaults to current
 // month). Returns annual qualifying $/yr per method.
+//
+// Declining-income protection: when py2 > py1 the 2-year methods
+// collapse to the corresponding 1-year method (most recent year only)
+// per Fannie/Freddie underwriting. The 1-year methods are unaffected.
 function computeMethods({ ytd, py1, py2, monthsElapsed }) {
   const y  = Number(ytd) || 0;
   const p1 = Number(py1) || 0;
   const p2 = Number(py2) || 0;
   const m  = Math.max(1, Number(monthsElapsed) || 1);
   const ytdAnn = y > 0 ? (y * 12) / m : 0;
+  const declining = isDeclining(p1, p2);
   return {
     "1Y+":    p1,
-    "2Y+":    (p1 + p2) / 2,
+    "2Y+":    declining ? p1 : (p1 + p2) / 2,
     "1Y_YTD": (p1 + ytdAnn) / 2,
-    "2Y_YTD": (p1 + p2 + ytdAnn) / 3,
+    "2Y_YTD": declining ? (p1 + ytdAnn) / 2 : (p1 + p2 + ytdAnn) / 3,
   };
 }
 
@@ -321,8 +365,10 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
         </div>
       </div>
 
-      {/* Method selector. Each option label includes the resulting $/yr so
-          the broker can decide before changing the selection. */}
+      {/* Method selector — filtered by pay type + frequency.
+          Self-employment + Annual Bonus get only 1Y/2Y options.
+          Other variable types get all 4. */}
+      {(() => { return null; })()}
       <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 8, alignItems: "center", marginBottom: 6 }}>
         <div style={{ fontSize: 11, color: T.textSecondary, fontWeight: 500, fontFamily: FONT }}>Averaging method</div>
         <select
@@ -334,7 +380,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
             background: `${ACCENT}08`, color: ACCENT, cursor: "pointer", fontFamily: FONT,
           }}
         >
-          {SELECTION_METHODS.map(m => (
+          {SELECTION_METHODS.filter(m => availableMethodsFor(inc.payType, inc.frequency).includes(m.value)).map(m => (
             <option key={m.value} value={m.value}>
               {m.label} ({fmt(methods[m.value] || 0)}/yr)
             </option>
@@ -342,13 +388,30 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
         </select>
       </div>
 
-      {/* 4-tile preview — all 4 methods side-by-side, active highlighted. */}
+      {/* Declining-income banner — surfaces the protection rule when
+          py2 > py1. Without this banner the broker might not realize
+          the 2-yr method silently collapsed to 1-yr. */}
+      {isDeclining(inc.py1, inc.py2) && (
+        <div style={{
+          marginBottom: 6, padding: "6px 10px",
+          background: `${T.red}10`, color: T.red,
+          border: `0.5px solid ${T.red}40`,
+          borderRadius: 6, fontSize: 10, lineHeight: 1.4,
+          fontFamily: FONT,
+        }}>
+          <strong>Declining income</strong> · {py2Year} ({fmt(inc.py2)}) → {py1Year} ({fmt(inc.py1)}). Per Fannie/Freddie, qualifying income falls back to the most recent year only — 2-yr methods collapse to 1-yr.
+        </div>
+      )}
+
+      {/* 4-tile preview — filtered to available methods only. */}
       <div style={{
-        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6,
+        display: "grid",
+        gridTemplateColumns: `repeat(${availableMethodsFor(inc.payType, inc.frequency).length}, 1fr)`,
+        gap: 6,
         padding: "5px 6px", background: T.card, borderRadius: 6,
         border: `0.5px solid ${T.separator}`,
       }}>
-        {SELECTION_METHODS.map(m => {
+        {SELECTION_METHODS.filter(m => availableMethodsFor(inc.payType, inc.frequency).includes(m.value)).map(m => {
           const isActive = sel === m.value;
           return (
             <div key={m.value} onClick={() => updateIncome(inc.id, "selection", m.value)}
@@ -397,6 +460,20 @@ function ComponentRow({
   const mo = computeMoIncome(inc, isVar, monthsElapsed);
   const sel = inc.selection || (isVar ? "2Y+" : "Amount");
   const methodLabel = (SELECTION_METHODS.find(m => m.value === sel) || {}).label;
+  const declining = isVar && isDeclining(inc.py1, inc.py2);
+
+  // Auto-correct the averaging selection when pay type or frequency
+  // changes invalidate the current pick. Self-employment never has
+  // YTD options; annual Bonus never has YTD options; etc. If the
+  // current `inc.selection` is no longer in the available set, swap
+  // it for the default for that combination.
+  useEffect(() => {
+    if (!isVar) return;
+    const available = availableMethodsFor(inc.payType, inc.frequency);
+    if (!available.includes(sel)) {
+      updateIncome(inc.id, "selection", defaultMethodFor(inc.payType, inc.frequency));
+    }
+  }, [inc.payType, inc.frequency]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Year-span suffix for the method chip — e.g. "· '24–'25" for a
   // 2-yr avg over 2024–2025. Helps the broker confirm at a glance
@@ -407,15 +484,26 @@ function ComponentRow({
   const py2Y = inc.py2Year || (cy - 2);
   const yy = (y) => String(y).slice(-2);
   let yearSpan = "";
+  // When declining, the 2-year methods compute as 1-year only.
+  // Reflect that in the year-span chip so the broker doesn't think
+  // they're getting a 2-year average when the math protects against it.
   if (isVar && (sel === "1Y+")) yearSpan = ` · '${yy(py1Y)}`;
   else if (isVar && (sel === "2Y+")) {
-    const lo = Math.min(py1Y, py2Y), hi = Math.max(py1Y, py2Y);
-    yearSpan = ` · '${yy(lo)}–'${yy(hi)}`;
+    if (declining) {
+      yearSpan = ` · '${yy(py1Y)} (declining)`;
+    } else {
+      const lo = Math.min(py1Y, py2Y), hi = Math.max(py1Y, py2Y);
+      yearSpan = ` · '${yy(lo)}–'${yy(hi)}`;
+    }
   }
   else if (isVar && (sel === "1Y_YTD")) yearSpan = ` · '${yy(py1Y)} + YTD`;
   else if (isVar && (sel === "2Y_YTD")) {
-    const lo = Math.min(py1Y, py2Y), hi = Math.max(py1Y, py2Y);
-    yearSpan = ` · '${yy(lo)}–'${yy(hi)} + YTD`;
+    if (declining) {
+      yearSpan = ` · '${yy(py1Y)} + YTD (declining)`;
+    } else {
+      const lo = Math.min(py1Y, py2Y), hi = Math.max(py1Y, py2Y);
+      yearSpan = ` · '${yy(lo)}–'${yy(hi)} + YTD`;
+    }
   }
 
   // Subline removed (2026-05-05) — was redundant with the inline
@@ -536,16 +624,15 @@ function ComponentRow({
           </div>
         )}
 
-        {/* Frequency — non-variable only. Variable shows an em-dash. */}
-        {isVar ? (
-          <span style={{ color: T.textTertiary, fontSize: 12, padding: "0 6px" }}>—</span>
-        ) : (
-          <select value={inc.frequency || "Annual"}
-            onChange={(e) => updateIncome(inc.id, "frequency", e.target.value)}
-            style={pillSelect()}>
-            {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-          </select>
-        )}
+        {/* Frequency — important for both variable and non-variable.
+            For variable rows it's metadata (annual bonus vs. quarterly
+            bonus changes the YTD eligibility per Fannie/Freddie). For
+            non-variable rows it drives the toMonthly() conversion. */}
+        <select value={inc.frequency || "Annual"}
+          onChange={(e) => updateIncome(inc.id, "frequency", e.target.value)}
+          style={pillSelect()}>
+          {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+        </select>
 
         {/* Verified — pill chip select */}
         <select
@@ -816,7 +903,7 @@ function EmployerGroup({
 // ─── Main component ─────────────────────────────────────────────────
 export default function IncomeContent({
   T, isDesktop, calc, fmt,
-  incomes, addIncome, updateIncome, removeIncome,
+  incomes, addIncome, updateIncome, removeIncome, removeBorrower,
   otherIncome, setOtherIncome, otherIncome2, setOtherIncome2,
   numBorrowers = 2, setNumBorrowers,
   borrowerNames = {}, setBorrowerNames,
@@ -999,26 +1086,25 @@ export default function IncomeContent({
                 <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5 }}>
                   {fmt(totalForBorrower)}/mo
                 </span>
-                {canRemove && setNumBorrowers && (
+                {canRemove && (
                   <button
                     onClick={() => {
-                      // Only allow removing the last borrower in the list,
-                      // and only if they have no incomes (avoid orphaning data).
-                      if (n !== numBorrowers) return;
                       const hasIncomes = incomes.some(i => i.borrower === n);
                       if (hasIncomes) {
-                        if (!window.confirm(`Borrower ${n} has employer entries — remove anyway? Their incomes will be deleted.`)) return;
+                        if (!window.confirm(`Borrower ${n} has employer entries — remove anyway? Their incomes will be deleted and any borrowers below them will shift up.`)) return;
                       }
-                      setNumBorrowers(numBorrowers - 1);
+                      // Use removeBorrower for proper index compaction
+                      // when available; fall back to legacy decrement
+                      // for older callsites.
+                      if (removeBorrower) removeBorrower(n);
+                      else if (setNumBorrowers) setNumBorrowers(numBorrowers - 1);
                     }}
-                    title={n === numBorrowers ? `Remove Borrower ${n}` : "Only the last borrower can be removed"}
-                    disabled={n !== numBorrowers}
+                    title={`Remove Borrower ${n}`}
                     style={{
                       background: "transparent", border: `0.5px solid ${accent}55`,
-                      color: accent, cursor: n === numBorrowers ? "pointer" : "not-allowed",
+                      color: accent, cursor: "pointer",
                       width: 22, height: 22, borderRadius: 5, padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      opacity: n === numBorrowers ? 1 : 0.3,
                     }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="5" y1="12" x2="19" y2="12" />
