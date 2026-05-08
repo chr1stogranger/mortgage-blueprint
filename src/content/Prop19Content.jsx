@@ -14,6 +14,7 @@ export default function Prop19Content({
   prop19TransfersUsed, setProp19TransfersUsed,
   city, propertyCounty,
   prop19RateOverride, setProp19RateOverride,
+  fixedAssessments, setFixedAssessments,
   Hero, Card, Sec, Inp, Note, MRow,
 }) {
   return (<>
@@ -93,6 +94,11 @@ export default function Prop19Content({
      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>
       County rate comes from the zip you entered in Setup. Leave override at 0 to use it automatically.
      </div>
+     <div style={{ height: 1, background: T.separator, margin: "12px 0" }} />
+     <Inp label="Fixed assessments (annual)" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} tip="Mello-Roos, bonds, parcel taxes, special districts. Check your county tax bill — these are flat dollar amounts that don't vary with property value." />
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>
+      Added to both With and Without Prop 19 totals (the assessments follow the new home, not the transfer).
+     </div>
     </Card>
    </Sec>
   </div>
@@ -111,14 +117,18 @@ export default function Prop19Content({
     <Card>
      <MRow label="New taxable value" value={fmt(prop19.newTaxableValue)} sub={prop19.sameOrLower ? "Replacement ≤ original sale — full base transferred" : "Replacement > original sale — base + excess"} />
      <MRow label="Effective rate" value={`${(prop19.countyRate * 100).toFixed(3)}%`} />
-     <MRow label="Annual property tax" value={fmt(prop19.prop19Annual)} bold />
+     <MRow label="Annual property tax" value={fmt(prop19.prop19BaseTax)} />
+     <MRow label="Fixed assessments" value={fmt(prop19.fixedAssessments)} indent sub="Mello-Roos / bonds / special" />
+     <MRow label="Total annual property tax" value={fmt(prop19.prop19Annual)} bold />
      <MRow label="Monthly" value={fmt(prop19.prop19Monthly)} color={T.green} />
     </Card>
    </Sec>
    <Sec title="Without Prop 19 (full reassessment)">
     <Card>
      <MRow label="Taxable value" value={fmt(prop19.replacementPrice)} />
-     <MRow label="Annual property tax" value={fmt(prop19.fullReassessAnnual)} bold />
+     <MRow label="Annual property tax" value={fmt(prop19.fullReassessBaseTax)} />
+     <MRow label="Fixed assessments" value={fmt(prop19.fixedAssessments)} indent sub="Mello-Roos / bonds / special" />
+     <MRow label="Total annual property tax" value={fmt(prop19.fullReassessAnnual)} bold />
      <MRow label="Monthly" value={fmt(prop19.fullReassessMonthly)} color={T.red} />
     </Card>
    </Sec>

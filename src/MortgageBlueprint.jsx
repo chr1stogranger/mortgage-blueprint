@@ -3970,11 +3970,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const isPrimary = loanPurpose === "Purchase Primary";
   const exemption = isPrimary ? 7000 : 0;
   const netTaxable = Math.max(0, newTaxableValue - exemption);
-  const prop19Annual = netTaxable * countyRate;
+  const fixedAssess = fixedAssessments || 0;
+  const prop19BaseTax = netTaxable * countyRate;
+  const prop19Annual = prop19BaseTax + fixedAssess;
   const prop19Monthly = prop19Annual / 12;
   // Compare vs. full reassessment (what they'd pay without Prop 19)
   const fullReassessNet = Math.max(0, replacementPrice - exemption);
-  const fullReassessAnnual = fullReassessNet * countyRate;
+  const fullReassessBaseTax = fullReassessNet * countyRate;
+  const fullReassessAnnual = fullReassessBaseTax + fixedAssess;
   const fullReassessMonthly = fullReassessAnnual / 12;
   const annualSavings = fullReassessAnnual - prop19Annual;
   const monthlySavings = annualSavings / 12;
@@ -3996,8 +3999,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return {
    replacementPrice, oldTV, oldSP, sameOrLower,
    newTaxableValue, netTaxable, countyRate, exemption,
-   prop19Annual, prop19Monthly,
-   fullReassessAnnual, fullReassessMonthly,
+   prop19BaseTax, prop19Annual, prop19Monthly,
+   fullReassessBaseTax, fullReassessAnnual, fullReassessMonthly,
+   fixedAssessments: fixedAssess,
    annualSavings, monthlySavings, tenYearSavings, thirtyYearSavings,
    warnings,
   };
@@ -4005,6 +4009,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   salesPrice, city, propertyState, loanPurpose,
   prop19OldTaxableValue, prop19OldSalePrice, prop19RateOverride,
   prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate,
+  fixedAssessments,
  ]);
  // === RENT VS BUY CALCULATIONS ===
  const rbCalc = useMemo(() => {
@@ -4914,7 +4919,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
 {tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
-{tab === "prop19" && <Prop19Content {...{T, isDesktop, fmt, prop19, prop19Eligibility, setProp19Eligibility, prop19OldTaxableValue, setProp19OldTaxableValue, prop19OldSalePrice, setProp19OldSalePrice, prop19SaleDate, setProp19SaleDate, prop19PurchaseDate, setProp19PurchaseDate, prop19TransfersUsed, setProp19TransfersUsed, city, propertyCounty, prop19RateOverride, setProp19RateOverride, Hero, Card, Sec, Inp, Note, MRow}} />}
+{tab === "prop19" && <Prop19Content {...{T, isDesktop, fmt, prop19, prop19Eligibility, setProp19Eligibility, prop19OldTaxableValue, setProp19OldTaxableValue, prop19OldSalePrice, setProp19OldSalePrice, prop19SaleDate, setProp19SaleDate, prop19PurchaseDate, setProp19PurchaseDate, prop19TransfersUsed, setProp19TransfersUsed, city, propertyCounty, prop19RateOverride, setProp19RateOverride, fixedAssessments, setFixedAssessments, Hero, Card, Sec, Inp, Note, MRow}} />}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && <SellContent {...{T, isDesktop, calc, fmt, reos, debts, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ SUMMARY ═══ */}
