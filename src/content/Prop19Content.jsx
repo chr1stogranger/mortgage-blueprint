@@ -20,7 +20,7 @@ export default function Prop19Content({
 
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
   {/* LEFT: Hero + Inputs */}
-  <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
+  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
    <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
     <Hero
      value={fmt(prop19.monthlySavings)}
@@ -50,6 +50,23 @@ export default function Prop19Content({
      </div>
     </Card>
    </Sec>
+   <Sec title="Transfer History">
+    <Card>
+     <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 8 }}>
+      How many Prop 19 base-value transfers have you already used? (Lifetime cap is 3.)
+     </div>
+     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+      {[0,1,2,3].map(n => (
+       <button key={n} onClick={() => setProp19TransfersUsed(n)} style={{
+        padding: "10px 8px", borderRadius: 10, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+        background: prop19TransfersUsed === n ? T.blue : "transparent",
+        color: prop19TransfersUsed === n ? "#fff" : T.text,
+        border: `1px solid ${prop19TransfersUsed === n ? T.blue : T.separator}`,
+       }}>{n}</button>
+      ))}
+     </div>
+    </Card>
+   </Sec>
    <Sec title="Your Original Home">
     <Card>
      <Inp label="Current taxable value (from tax bill)" value={prop19OldTaxableValue} onChange={setProp19OldTaxableValue} tip="Your Prop 13 assessed value — check your most recent property-tax bill." />
@@ -65,23 +82,6 @@ export default function Prop19Content({
        <input type="date" value={prop19PurchaseDate} onChange={e => setProp19PurchaseDate(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.separator}`, background: T.card, color: T.text, fontFamily: FONT, fontSize: 14 }} />
       </div>
-     </div>
-    </Card>
-   </Sec>
-   <Sec title="Transfer History">
-    <Card>
-     <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 8 }}>
-      How many Prop 19 base-value transfers have you already used? (Lifetime cap is 3.)
-     </div>
-     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-      {[0,1,2,3].map(n => (
-       <button key={n} onClick={() => setProp19TransfersUsed(n)} style={{
-        padding: "10px 8px", borderRadius: 10, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-        background: prop19TransfersUsed === n ? T.blue : "transparent",
-        color: prop19TransfersUsed === n ? "#fff" : T.text,
-        border: `1px solid ${prop19TransfersUsed === n ? T.blue : T.separator}`,
-       }}>{n}</button>
-      ))}
      </div>
     </Card>
    </Sec>
