@@ -30,7 +30,7 @@ import Prop19Content from "./content/Prop19Content";
 import UnifiedHeader from "./UnifiedHeader";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
-  fetchBorrowers, createBorrower, updateBorrower,
+  fetchBorrowers, fetchBorrowerById, createBorrower, updateBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
@@ -1672,6 +1672,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [fredApiKey, setFredApiKey] = useState("");
  const [borrowerEmail, setBorrowerEmail] = useState("");
  const [showEmailModal, setShowEmailModal] = useState(false);
+ // ── Share modal: live-link send state (ephemeral, modal-local) ──
+ // liveLinkSending disables both new buttons during the create-borrower →
+ // save-scenario chain (~500ms–1.5s). liveLinkError surfaces server / cloud
+ // failures inline. liveLinkToast shows a transient success banner. None of
+ // these are persisted via getState/loadState — they're modal-local only.
+ const [liveLinkSending, setLiveLinkSending] = useState(false);
+ const [liveLinkError, setLiveLinkError] = useState(null);
+ const [liveLinkToast, setLiveLinkToast] = useState(null);
+ // Reset the live-link banners whenever the share modal closes, so the next
+ // open is a clean slate (don't surface a stale "Link copied" or stale error).
+ useEffect(() => {
+  if (!showEmailModal) {
+   setLiveLinkError(null);
+   setLiveLinkToast(null);
+  }
+ }, [showEmailModal]);
  const [realtorName, setRealtorName] = useState("");
  const [reos, setReos] = useState([]);
  const [showInvestor, setShowInvestor] = useState(false);
@@ -2616,6 +2632,144 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    w.document.write(html);
    w.document.close();
    setTimeout(() => w.print(), 500);
+  }
+ };
+ // ── Live-link mailto builder ──
+ // Short body — this is a link email, not a summary. The borrower clicks the
+ // URL, gets a magic-link sign-in, then lands inside Blueprint with every
+ // input already filled in. Subject mirrors the existing handleEmailSummary
+ // shape so brokers' inboxes thread cleanly.
+ const buildLiveLinkMailto = ({ to, name, url, lo, isRefiFlag, scenario }) => {
+  const subject = encodeURIComponent(`Your ${isRefiFlag ? "Refinance" : "Purchase"} Blueprint — ${scenario}`);
+  const greeting = name ? `Hi ${name},` : "Hi there,";
+  const signerLine = `— ${loanOfficer || "Your loan officer"}${companyName ? ` · ${companyName}` : ""}`;
+  const nmlsLine = companyNmls ? `NMLS #${companyNmls}` : "";
+  const phoneLine = loPhone || "";
+  const emailLine = lo || "";
+  const body = encodeURIComponent(
+   [
+    greeting,
+    "",
+    "I built out a live mortgage scenario for you. Click the link below to view it — you'll get a quick sign-in code by email, then everything will be pre-filled and ready to explore. You can adjust numbers and I'll see your changes on my end.",
+    "",
+    url,
+    "",
+    "If anything looks off, reply to this email and we'll dig in together.",
+    "",
+    signerLine,
+    nmlsLine,
+    emailLine,
+    phoneLine,
+   ].filter(Boolean).join("\n")
+  );
+  const toParam = encodeURIComponent(to || "");
+  const bccParam = lo ? `&bcc=${encodeURIComponent(lo)}` : "";
+  return `mailto:${toParam}?subject=${subject}&body=${body}${bccParam}`;
+ };
+ // ── Send Live Link handler ──
+ // Single async chain that resolves a borrower row, saves the current
+ // calculator state as a scenario tied to that borrower, then either copies
+ // the share URL or opens a pre-filled mailto. The borrower's `share_token`
+ // is server-minted (DB default) — we never compose tokens client-side.
+ // Action: 'copy' | 'email'.
+ const handleSendLiveLink = async (action) => {
+  setLiveLinkError(null);
+  setLiveLinkToast(null);
+  // Local-mode bail (Christo: disable + inline error rather than hide).
+  if (!isCloud) {
+   setLiveLinkError("Sign in to send a live link. The Email Summary, Save PDF, and Copy to Clipboard options below still work.");
+   return;
+  }
+  if (!borrowerEmail || !borrowerEmail.trim()) {
+   setLiveLinkError("Add a borrower email before sending a live link.");
+   return;
+  }
+  setLiveLinkSending(true);
+  try {
+   // ── Step 1: Resolve borrower row ──────────────────────────────────────
+   // (a) reuse activeBorrower iff the modal email matches it (case-insensitive)
+   // (b) otherwise create — the Ops endpoint dedupes on email server-side
+   //     and returns the existing row with `_deduplicated: true`
+   let borrower = null;
+   const modalEmail = borrowerEmail.trim().toLowerCase();
+   if (activeBorrower?.email && activeBorrower.email.trim().toLowerCase() === modalEmail) {
+    borrower = activeBorrower;
+   } else {
+    const result = await createBorrower({
+     name: borrowerName?.trim() || borrowerEmail.split("@")[0],
+     email: borrowerEmail.trim(),
+     status: "active",
+    });
+    borrower = result?.[0] || result;
+   }
+   if (!borrower?.id) {
+    throw new Error("Couldn't resolve a borrower row");
+   }
+   // ── Step 2: Defensive re-fetch to guarantee share_token visibility ─────
+   // The dedup endpoint spreads `existing[0]` so it should already include
+   // share_token, but a legacy row predating the token rollout could come
+   // back null. A 50ms re-read sidesteps that whole class of bugs.
+   if (!borrower.share_token) {
+    const fresh = await fetchBorrowerById(borrower.id);
+    if (fresh) borrower = fresh;
+   }
+   if (!borrower.share_token) {
+    setLiveLinkError("Couldn't generate a share link — contact support so we can backfill this borrower's token.");
+    setLiveLinkSending(false);
+    return;
+   }
+   // ── Step 3: Save the current calculator state as a scenario row ────────
+   const summary = buildCalcSummary();
+   const stateData = getState();
+   const scResult = await apiCreateScenario({
+    borrower_id: borrower.id,
+    name: scenarioName || (isRefi ? "Refi Estimate" : "Purchase Estimate"),
+    type: isRefi ? "refi" : "purchase",
+    status: "draft",
+    created_by: "lo",
+    state_data: stateData,
+    calc_summary: summary,
+   });
+   const newScenarioId = Array.isArray(scResult) ? scResult[0]?.id : scResult?.id;
+   // ── Step 4: Build URL and dispatch action ──────────────────────────────
+   const shareUrl = `${window.location.origin}?share=${borrower.share_token}`;
+   if (action === "copy") {
+    try {
+     await navigator.clipboard.writeText(shareUrl);
+     setLiveLinkToast("Link copied");
+    } catch {
+     // Safari / sandboxed webview fallback — same shape as the existing
+     // Copy Link button in the summary tab (see line ~4940).
+     prompt("Copy this share link:", shareUrl);
+     setLiveLinkToast("Link ready (copied via prompt)");
+    }
+   } else if (action === "email") {
+    const mailto = buildLiveLinkMailto({
+     to: borrowerEmail.trim(),
+     name: borrowerName?.trim() || "",
+     url: shareUrl,
+     lo: loEmail,
+     isRefiFlag: isRefi,
+     scenario: scenarioName || (isRefi ? "Refi Estimate" : "Purchase Estimate"),
+    });
+    window.open(mailto, "_self");
+    setLiveLinkToast("Email opened in your mail app");
+   }
+   // ── Step 5: Lift the resolved borrower into session state so the rest
+   // of the UI (BorrowerPicker, in-pane Copy Link button) reflects it ─────
+   setActiveBorrower(borrower);
+   setBorrowerList(prev => prev.some(b => b.id === borrower.id)
+    ? prev.map(b => b.id === borrower.id ? borrower : b)
+    : [...prev, borrower]);
+   if (newScenarioId) setActiveScenarioId(newScenarioId);
+   // Auto-clear the toast and close the modal on success.
+   setTimeout(() => setLiveLinkToast(null), 2500);
+   setShowEmailModal(false);
+  } catch (err) {
+   console.warn("[Blueprint] handleSendLiveLink failed:", err);
+   setLiveLinkError(err?.message || "Couldn't generate a share link — please check your connection and try again.");
+  } finally {
+   setLiveLinkSending(false);
   }
  };
  const [liveRates, setLiveRates] = useState(null);
@@ -4689,14 +4843,89 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      BCC: {loEmail} <span style={{ fontSize: 11 }}>(you\'ll get a copy)</span>
     </div>}
     {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself.</Note>}
+    {/* ── Static summary row: Email Summary + Save PDF ── */}
     <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
      <button onClick={() => { handleEmailSummary(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      Email
+      Email Summary
      </button>
      <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       Save PDF
      </button>
     </div>
+    {/* ── Divider: "OR SEND A LIVE LINK" ── */}
+    <div style={{
+     display: "flex", alignItems: "center", gap: 10, margin: "14px 0 12px",
+     fontSize: 11, fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace",
+     letterSpacing: 2, textTransform: "uppercase",
+     color: T.textTertiary, fontWeight: 600,
+    }}>
+     <div style={{ flex: 1, height: 1, background: T.separator }} />
+     Or send a live link
+     <div style={{ flex: 1, height: 1, background: T.separator }} />
+    </div>
+    {/* ── Live-link row: Email Live Link + Copy Live Link ── */}
+    {/* Live link saves the current scenario to a borrower row and ships the
+        share URL by email or clipboard. The borrower clicks the link, signs
+        in via magic-link, and lands inside Blueprint pre-filled — every
+        change they make round-trips back to Ops where the LO can see it. */}
+    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+     <button
+      disabled={liveLinkSending || !borrowerEmail || !isCloud}
+      onClick={() => handleSendLiveLink('email')}
+      style={{
+       flex: 1, padding: 16,
+       background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+       border: 'none', borderRadius: 14, color: '#fff',
+       fontWeight: 700, fontSize: 15,
+       cursor: (liveLinkSending || !borrowerEmail || !isCloud) ? 'not-allowed' : 'pointer',
+       fontFamily: FONT,
+       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+       opacity: (liveLinkSending || !borrowerEmail || !isCloud) ? 0.5 : 1,
+       boxShadow: (liveLinkSending || !borrowerEmail || !isCloud) ? 'none' : '0 4px 14px rgba(99,102,241,0.3)',
+      }}
+     >
+      <Icon name="mail" size={14} />
+      {liveLinkSending ? 'Sending…' : 'Email Live Link'}
+     </button>
+     <button
+      disabled={liveLinkSending || !isCloud}
+      onClick={() => handleSendLiveLink('copy')}
+      style={{
+       flex: 1, padding: 16,
+       background: `${T.blue}12`, border: `1px solid ${T.blue}30`,
+       borderRadius: 14, color: T.blue,
+       fontWeight: 700, fontSize: 15,
+       cursor: (liveLinkSending || !isCloud) ? 'not-allowed' : 'pointer',
+       fontFamily: FONT,
+       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+       opacity: (liveLinkSending || !isCloud) ? 0.5 : 1,
+      }}
+     >
+      <Icon name="link" size={14} />
+      Copy Live Link
+     </button>
+    </div>
+    {liveLinkError && (
+     <div style={{
+      fontSize: 12, color: T.red, lineHeight: 1.4,
+      padding: '8px 12px', marginBottom: 8,
+      background: `${T.red}10`, borderRadius: 8,
+      fontFamily: FONT,
+     }}>
+      {liveLinkError}
+     </div>
+    )}
+    {liveLinkToast && (
+     <div style={{
+      fontSize: 12, color: T.green, fontWeight: 600,
+      padding: '8px 12px', marginBottom: 8,
+      background: `${T.green}12`, borderRadius: 8,
+      fontFamily: FONT,
+      display: 'flex', alignItems: 'center', gap: 6,
+     }}>
+      <Icon name="check" size={12} /> {liveLinkToast}
+     </div>
+    )}
     <button onClick={() => { navigator.clipboard.writeText(generateSummaryText()); setShowEmailModal(false); }} style={{ width: "100%", padding: 12, background: "transparent", border: "none", color: T.textTertiary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
      Copy to Clipboard
     </button>

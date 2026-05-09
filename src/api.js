@@ -55,6 +55,17 @@ export async function createBorrower(data) {
   return authFetch('/api/borrowers', { method: 'POST', body: data });
 }
 
+// Fetch a single borrower by id. The Ops endpoint always returns an array
+// (`borrowers?id=eq.<uuid>` upstream); this helper unwraps to a single row
+// or null if not found. Used by the live-link send flow to re-fetch a row
+// right after create/dedup so we're guaranteed to see `share_token`.
+export async function fetchBorrowerById(id) {
+  if (!id) return null;
+  const data = await fetchBorrowers({ id });
+  if (Array.isArray(data)) return data[0] || null;
+  return data || null;
+}
+
 export async function updateBorrower(data) {
   return authFetch('/api/borrowers', { method: 'PATCH', body: data });
 }
