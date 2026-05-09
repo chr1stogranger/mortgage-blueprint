@@ -4905,6 +4905,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       Copy Live Link
      </button>
     </div>
+    {/* ── Passive disabled-state hint ──
+        When the user can't actually click the live-link buttons (not signed
+        in, or modal email blank), tell them WHY before they wonder. We hide
+        this once an error or toast banner takes over so we never stack two
+        explanatory rows on top of each other. */}
+    {!liveLinkError && !liveLinkToast && (!isCloud || !borrowerEmail) && (
+     <div style={{
+      fontSize: 12, color: T.textTertiary, lineHeight: 1.4,
+      padding: '8px 12px', marginBottom: 8,
+      background: T.pillBg, borderRadius: 8,
+      fontFamily: FONT,
+     }}>
+      {!isCloud
+       ? "Sign in to send a live link. The Email Summary, Save PDF, and Copy to Clipboard options below still work."
+       : "Add a borrower email above to enable live-link send."}
+     </div>
+    )}
     {liveLinkError && (
      <div style={{
       fontSize: 12, color: T.red, lineHeight: 1.4,
