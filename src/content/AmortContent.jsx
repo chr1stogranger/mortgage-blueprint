@@ -1,7 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
+
+// How many monthly rows to show by default before the user expands.
+// First 30 months covers the first ~2.5 years — enough to see the early
+// amortization curve, after which the marginal change row-to-row gets small.
+const MONTHLY_COLLAPSED_ROWS = 30;
 
 export default function AmortContent({
   T, isDesktop, calc, fmt,
@@ -13,6 +18,12 @@ export default function AmortContent({
   Hero, Card, Inp, Tab, MRow, AmortChart,
   GuidedNextButton,
 }) {
+  // Local collapse state for the Monthly schedule. We default to collapsed
+  // every time the component mounts — long tables are intimidating and the
+  // user can opt in to the full list with one tap. State resets on
+  // unmount/remount which matches the rest of the calc UI (no persistence
+  // through getState/loadState).
+  const [showAllMonthly, setShowAllMonthly] = useState(false);
   return (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* ── LEFT: Hero + Summary + Chart (sticky on desktop) ── */}
@@ -77,23 +88,56 @@ export default function AmortContent({
    ))}
   </Card>
  )}
- {amortView === "monthly" && (
-  <Card pad={12}>
-   <div style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
-    <span>#</span><span style={{textAlign:"right"}}>P&I</span><span style={{textAlign:"right"}}>Interest</span><span style={{textAlign:"right"}}>Principal</span><span style={{textAlign:"right"}}>Extra</span><span style={{textAlign:"right"}}>Balance</span>
-   </div>
-   {calc.amortSchedule.slice(0, 120).map((d, i) => (
-    <div key={i} style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, padding: "6px 0", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT }}>
-     <span style={{ color: T.textTertiary }}>{d.m}</span>
-     <span style={{ textAlign: "right", color: T.text, fontWeight: 600 }}>{fmt(d.int + d.prin)}</span>
-     <span style={{ textAlign: "right", color: T.blue }}>{fmt(d.int)}</span>
-     <span style={{ textAlign: "right", color: T.green }}>{fmt(d.prin)}</span>
-     <span style={{ textAlign: "right", color: T.orange }}>{d.extra > 0 ? fmt(d.extra) : "—"}</span>
-     <span style={{ textAlign: "right", color: T.textSecondary }}>{fmt(d.bal)}</span>
+ {amortView === "monthly" && (() => {
+  // Compute the visible slice and the hidden remainder. We previously
+  // rendered up to 120 rows unconditionally — long, intimidating, slow on
+  // older phones. Now the table defaults to MONTHLY_COLLAPSED_ROWS and the
+  // user expands when they actually want the rest. When expanded we render
+  // the full schedule (no 120-cap), so a 360-month loan really does show
+  // 360 rows.
+  const totalMonths = calc.amortSchedule.length;
+  const limit = showAllMonthly ? totalMonths : Math.min(MONTHLY_COLLAPSED_ROWS, totalMonths);
+  const visible = calc.amortSchedule.slice(0, limit);
+  const hiddenCount = totalMonths - limit;
+  return (
+   <Card pad={12}>
+    <div style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
+     <span>#</span><span style={{textAlign:"right"}}>P&I</span><span style={{textAlign:"right"}}>Interest</span><span style={{textAlign:"right"}}>Principal</span><span style={{textAlign:"right"}}>Extra</span><span style={{textAlign:"right"}}>Balance</span>
     </div>
-   ))}
-  </Card>
- )}
+    {visible.map((d, i) => (
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "0.5fr 1fr 1fr 1fr 0.8fr 1.2fr", gap: 0, fontSize: 11, padding: "6px 0", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT }}>
+      <span style={{ color: T.textTertiary }}>{d.m}</span>
+      <span style={{ textAlign: "right", color: T.text, fontWeight: 600 }}>{fmt(d.int + d.prin)}</span>
+      <span style={{ textAlign: "right", color: T.blue }}>{fmt(d.int)}</span>
+      <span style={{ textAlign: "right", color: T.green }}>{fmt(d.prin)}</span>
+      <span style={{ textAlign: "right", color: T.orange }}>{d.extra > 0 ? fmt(d.extra) : "—"}</span>
+      <span style={{ textAlign: "right", color: T.textSecondary }}>{fmt(d.bal)}</span>
+     </div>
+    ))}
+    {/* Expand / collapse toggle. Hidden when the schedule is already short
+        enough that everything fits within the collapsed limit. */}
+    {totalMonths > MONTHLY_COLLAPSED_ROWS && (
+     <button
+      onClick={() => setShowAllMonthly(v => !v)}
+      style={{
+       width: "100%", marginTop: 12, padding: "10px 12px",
+       background: `${T.blue}10`,
+       border: `1px solid ${T.blue}30`,
+       borderRadius: 10, color: T.blue,
+       fontFamily: FONT, fontWeight: 600, fontSize: 12,
+       cursor: "pointer",
+       display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+      }}
+     >
+      {showAllMonthly
+       ? `Collapse — show first ${MONTHLY_COLLAPSED_ROWS} months`
+       : `Show all ${totalMonths} months · ${hiddenCount} more`}
+      <span style={{ fontSize: 14, lineHeight: 1 }}>{showAllMonthly ? "▴" : "▾"}</span>
+     </button>
+    )}
+   </Card>
+  );
+ })()}
  {amortView === "equity" && (() => {
   const appRate = (appreciationRate || 3) / 100;
   const data = calc.yearlyData.map((d, i) => {
