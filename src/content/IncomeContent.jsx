@@ -1018,11 +1018,16 @@ export default function IncomeContent({
   const backOk = backDTI !== null && backDTI <= backMax;
   const frontOk = frontDTI !== null && frontDTI <= frontMax;
 
-  // Total qualifying $/mo across all groups (just sums the component
-  // monthly income; matches the parent calc layer which aggregates
-  // the same way).
+  // Total qualifying $/mo across all groups. Mirrors the parent calc layer
+  // (MortgageBlueprint.jsx → totalIncomeFromEntries) which now excludes
+  // components from "Previous" employers — i.e. rows where `end` is set.
+  // Mortgage-qualification convention: previous-employer income is history
+  // for averaging context, not qualifying income.
   const totalEmploymentMo = employerGroups.reduce((s, g) =>
-    s + g.components.reduce((cs, c) => cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed), 0)
+    s + g.components.reduce((cs, c) => {
+      if (c.end && c.end !== "") return cs; // Previous employer — skip.
+      return cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed);
+    }, 0)
   , 0);
 
   // Build the borrower roster: 1..numBorrowers.
@@ -1058,8 +1063,15 @@ export default function IncomeContent({
     <div style={{ marginTop: 20 }}>
       {borrowerList.map((n) => {
         const groups = employerGroups.filter(g => g.borrowerNum === n);
+        // Per-borrower qualifying $/mo — excludes Previous employers (components
+        // with an `end` date), same as totalEmploymentMo above and the parent
+        // calc.employmentMonthlyIncome. Previous-employer income is for history /
+        // averaging context, not qualifying income.
         const subtotalMo = groups.reduce((s, g) =>
-          s + g.components.reduce((cs, c) => cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed), 0)
+          s + g.components.reduce((cs, c) => {
+            if (c.end && c.end !== "") return cs; // Previous employer — skip.
+            return cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed);
+          }, 0)
         , 0);
         const otherMo = getOther(n);
         const totalForBorrower = subtotalMo + otherMo;

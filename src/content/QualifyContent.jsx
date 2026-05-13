@@ -22,14 +22,19 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 // DTI Max:  pulled from calc.maxDTI (program-specific).
 // ─────────────────────────────────────────────────────────────────────────
 function DebtToIncomeSummary({
-  T, fmt, pct,
+  T, fmt, pct, isDesktop = true,
   calc, loanType,
   incomes = [], subjectRentalIncome = 0, otherIncome = 0, otherIncome2 = 0,
   reos = [], debts = [], debtFree = false,
   propertyCounty = "", propertyState = "California",
 }) {
   // ── Income breakdown ──
-  const employmentIncome = (incomes || []).reduce((sum, i) => sum + (Number(i?.monthlyAmount) || 0), 0);
+  // Read from calc.employmentMonthlyIncome — the parent layer aggregates
+  // every income row through the variable-pay averaging logic and excludes
+  // Previous employers. Reading the stale `monthlyAmount` field (legacy,
+  // never populated in the current data model) would always return $0.
+  // Christo (2026-05-12): DTI Summary was showing $0 income.
+  const employmentIncome = Number(calc?.employmentMonthlyIncome) || 0;
   // Subject Property Income — rental income from the property being purchased (if 1-4 unit)
   const subjectPropIncome = Number(subjectRentalIncome) || 0;
   // Investment Property Income — net positive contributions from rental REOs (from calc)
@@ -192,7 +197,9 @@ function DebtToIncomeSummary({
               { label: "New Housing PITI Payment",         value: newHousingPiti },
               { label: "Monthly Liabilities (Credit)",     value: monthlyLiabilities },
               { label: "Primary & Secondary Home",         value: primarySecondaryHomeExpenses },
-              { label: "Investment Real Estate Net",       value: investmentReNet },
+              // On mobile, abbreviate "Investment" → "Invest." so the row fits
+              // on one line and lines up cleanly with the others. (Christo 2026-05-12.)
+              { label: isDesktop ? "Investment Real Estate Net" : "Invest. Real Estate Net", value: investmentReNet },
             ]}
             totalLabel="Total Debts"
             totalValue={totalDebts}
@@ -359,7 +366,7 @@ export default function QualifyContent({
      Replaces the old compact DTI bar + 'Min income needed' caption. */}
  {calc.qualifyingIncome > 0 && (
   <DebtToIncomeSummary
-    T={T} fmt={fmt} pct={pct}
+    T={T} fmt={fmt} pct={pct} isDesktop={isDesktop}
     calc={calc} loanType={loanType}
     incomes={incomes}
     subjectRentalIncome={subjectRentalIncome}

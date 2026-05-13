@@ -3499,7 +3499,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //   "2Y_YTD" — 2-year + YTD annualized blend ((py1+py2+ytdAnn) / 3)
   //   default for variable is "2Y+", for fixed is "Amount".
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
+  // Previous employers (rows with an `end` date stamped) do NOT count toward
+  // qualifying income — that's mortgage-broker convention. The Income tab
+  // still shows the historical $/mo next to the employer card for context,
+  // but the aggregation that feeds DTI, qualifyingIncome, and the BOR-total
+  // pill excludes them. (Christo 2026-05-12.)
   const totalIncomeFromEntries = incomes.reduce((s, i) => {
+   if (i.end && i.end !== "") return s; // Previous employer — skip.
    const isVariable = VARIABLE_PAY_TYPES.includes(i.payType);
    const ytd = Number(i.ytd) || 0;
    const yr1 = Number(i.py1) || 0;
@@ -3932,7 +3938,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return {
    dp, baseLoan, loan, fhaUp, vaFundingFee, autoVAFF, vaFFRate, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, autoPmiRate, monthlyPMI, monthlyMIP, usdaMI, monthlyMI,
    taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
-   housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
+   housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
