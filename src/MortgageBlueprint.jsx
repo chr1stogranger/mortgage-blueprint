@@ -4289,7 +4289,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ...(showProp19 ? [["prop19","Prop 19"]] : []),
   ] : []),
   ["summary","Share"],
-  ...(isBorrower ? [] : [["settings","Settings"]])];
+  // Settings is now visible to borrowers too (2026-05-12, per Christo: "i want
+  // them all to have the same view"). Multi-client BorrowerPicker remains
+  // broker-only via the gate inside UnifiedHeader.jsx line 337.
+  ["settings","Settings"]];
  // Swipe navigation between tabs
  const visibleTabs = TABS.map(([k]) => k).filter(k => isTabUnlocked(k));
  const handleTouchStart = (e) => {
@@ -4418,14 +4421,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        the hamburger button in UnifiedHeader sets mobileMenuOpen=true,
        this sidebar slides in from the left, and tapping a product or
        the backdrop closes it. */}
-   {!isBorrower && !isDesktop && mobileMenuOpen && (
+   {/* Borrowers now see the same sidebar nav as the LO (2026-05-12). The
+       only LO-only piece inside the sidebar is the multi-client BorrowerPicker,
+       which is rendered by UnifiedHeader and stays gated there. */}
+   {!isDesktop && mobileMenuOpen && (
     <div onClick={() => setMobileMenuOpen(false)} style={{
      position: "fixed", inset: 0, zIndex: 999,
      background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
      transition: "opacity 0.25s ease",
     }} />
    )}
-   {!isBorrower && (isDesktop || mobileMenuOpen) && (
+   {(isDesktop || mobileMenuOpen) && (
     <div className="bp-sidebar" style={{
      width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 180),
      minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 180),
@@ -4615,9 +4621,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? (isBorrower ? "100%" : `calc(100% - ${sidebarCollapsed ? 56 : 180}px)`) : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop && !isBorrower ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: isDesktop && !isBorrower ? `calc(100% - ${sidebarCollapsed ? 56 : 180}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
-  {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══ */}
-  {appMode === "blueprint" && !isBorrower && (
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 180}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 180}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+  {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
+       Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
+       own internal isBorrower gate that hides the multi-client picker row
+       while keeping the brand + scenario name + qualification chips visible. */}
+  {appMode === "blueprint" && (
    <UnifiedHeader
     salesPrice={salesPrice} calc={calc} creditScore={creditScore}
     downPct={downPct} loanType={loanType} isRefi={isRefi}
@@ -4679,47 +4688,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    />
   )}
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
-  {/* ── Borrower mode header bar ── */}
-  {isBorrower && (
-   <div style={{
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 16px', margin: '8px 16px 0',
-    background: `linear-gradient(135deg, rgba(99,102,241,0.08), rgba(59,130,246,0.06))`,
-    border: `1px solid rgba(99,102,241,0.15)`,
-    borderRadius: 12, fontFamily: FONT,
-   }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-     <div style={{
-      width: 28, height: 28, borderRadius: 8,
-      background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      boxShadow: '0 0 12px rgba(99,102,241,0.2)',
-     }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-     </div>
-     <div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: T.text, letterSpacing: '-0.02em' }}>
-       Your Blueprint
-      </div>
-      <div style={{ fontSize: 10, color: T.textSecondary, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-       {borrowerMode.borrower?.name ? `Prepared for ${borrowerMode.borrower.name.split(' ')[0]}` : 'LIVE COLLABORATION'}
-      </div>
-     </div>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-     {sync.status === 'saving' && <span style={{ fontSize: 10, color: '#6366F1', fontStyle: 'italic' }}>syncing...</span>}
-     {sync.status === 'saved' && <span style={{ fontSize: 10, color: '#10B981' }}>saved</span>}
-     {sync.onlineUsers.length > 0 && <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length + 1} online</span>}
-     <div style={{
-      width: 8, height: 8, borderRadius: '50%',
-      background: sync.status === 'error' ? '#EF4444' : '#10B981',
-      boxShadow: `0 0 6px ${sync.status === 'error' ? 'rgba(239,68,68,0.5)' : 'rgba(16,185,129,0.5)'}`,
-     }} />
-    </div>
-   </div>
-  )}
+  {/* ── Borrower mode header bar (removed 2026-05-12) ──
+      Was a gradient pill reading "Your Blueprint · PREPARED FOR <name>"
+      shown when isBorrower. UnifiedHeader now renders for borrowers too
+      (scenario name + qualification chips + sync status), so this
+      duplicate header is gone. PresenceBar below still surfaces who's on
+      the page in real time. */}
   {/* Real-time presence bar — shows who else is viewing this blueprint */}
   {sync.onlineUsers.length > 0 && (
    <div style={{ padding: '8px 16px 0' }}>
