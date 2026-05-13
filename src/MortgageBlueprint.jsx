@@ -3499,13 +3499,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //   "2Y_YTD" — 2-year + YTD annualized blend ((py1+py2+ytdAnn) / 3)
   //   default for variable is "2Y+", for fixed is "Amount".
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
-  // Previous employers (rows with an `end` date stamped) do NOT count toward
-  // qualifying income — that's mortgage-broker convention. The Income tab
-  // still shows the historical $/mo next to the employer card for context,
-  // but the aggregation that feeds DTI, qualifyingIncome, and the BOR-total
-  // pill excludes them. (Christo 2026-05-12.)
+  // Previous employers do NOT count toward qualifying income — that's
+  // mortgage-broker convention. The Income tab still shows historical $/mo
+  // next to the employer card for context, but the aggregation excludes them.
+  // Christo (2026-05-12).
+  //
+  // Detection has to be at the EMPLOYER level, not the component level: a
+  // group is "Previous" when ANY of its components has an `end` date stamped
+  // (same rule the UI uses, IncomeContent.jsx line 711). Per-component
+  // filtering would leak previous-employer salary when only one component
+  // (e.g. an RSU vest schedule) had the end date.
+  const previousEmployerKeys = new Set();
+  incomes.forEach(i => {
+   if (i.end && i.end !== "") previousEmployerKeys.add(`${i.borrower}::${i.source || ""}`);
+  });
   const totalIncomeFromEntries = incomes.reduce((s, i) => {
-   if (i.end && i.end !== "") return s; // Previous employer — skip.
+   if (previousEmployerKeys.has(`${i.borrower}::${i.source || ""}`)) return s;
    const isVariable = VARIABLE_PAY_TYPES.includes(i.payType);
    const ytd = Number(i.ytd) || 0;
    const yr1 = Number(i.py1) || 0;

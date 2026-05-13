@@ -1019,16 +1019,19 @@ export default function IncomeContent({
   const frontOk = frontDTI !== null && frontDTI <= frontMax;
 
   // Total qualifying $/mo across all groups. Mirrors the parent calc layer
-  // (MortgageBlueprint.jsx → totalIncomeFromEntries) which now excludes
-  // components from "Previous" employers — i.e. rows where `end` is set.
-  // Mortgage-qualification convention: previous-employer income is history
-  // for averaging context, not qualifying income.
-  const totalEmploymentMo = employerGroups.reduce((s, g) =>
-    s + g.components.reduce((cs, c) => {
-      if (c.end && c.end !== "") return cs; // Previous employer — skip.
-      return cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed);
-    }, 0)
-  , 0);
+  // (MortgageBlueprint.jsx → totalIncomeFromEntries) which excludes every
+  // component of an EMPLOYER GROUP if any one of that group's components
+  // has an `end` date stamped (i.e. the employer is marked Previous).
+  // Per-component filtering wouldn't catch the case where the Current ↔
+  // Previous toggle left only one component end-dated.
+  const totalEmploymentMo = employerGroups.reduce((s, g) => {
+    const groupIsPrevious = g.components.some(c => c.end && c.end !== "");
+    if (groupIsPrevious) return s; // Previous employer — skip entire group.
+    return s + g.components.reduce(
+      (cs, c) => cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed),
+      0,
+    );
+  }, 0);
 
   // Build the borrower roster: 1..numBorrowers.
   const borrowerList = [];
@@ -1063,16 +1066,19 @@ export default function IncomeContent({
     <div style={{ marginTop: 20 }}>
       {borrowerList.map((n) => {
         const groups = employerGroups.filter(g => g.borrowerNum === n);
-        // Per-borrower qualifying $/mo — excludes Previous employers (components
-        // with an `end` date), same as totalEmploymentMo above and the parent
-        // calc.employmentMonthlyIncome. Previous-employer income is for history /
-        // averaging context, not qualifying income.
-        const subtotalMo = groups.reduce((s, g) =>
-          s + g.components.reduce((cs, c) => {
-            if (c.end && c.end !== "") return cs; // Previous employer — skip.
-            return cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed);
-          }, 0)
-        , 0);
+        // Per-borrower qualifying $/mo — excludes entire Previous employer
+        // groups (any group whose components have an `end` date set). Matches
+        // totalEmploymentMo above and the parent calc.employmentMonthlyIncome.
+        // Previous-employer income is for history / averaging context, not
+        // qualifying income.
+        const subtotalMo = groups.reduce((s, g) => {
+          const groupIsPrevious = g.components.some(c => c.end && c.end !== "");
+          if (groupIsPrevious) return s; // Previous employer — skip entire group.
+          return s + g.components.reduce(
+            (cs, c) => cs + computeMoIncome(c, payTypeLabel(c.payType).variable, monthsElapsed),
+            0,
+          );
+        }, 0);
         const otherMo = getOther(n);
         const totalForBorrower = subtotalMo + otherMo;
         const accent = borrowerAccent(n);
