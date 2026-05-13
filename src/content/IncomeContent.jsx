@@ -1062,9 +1062,40 @@ export default function IncomeContent({
     return accents[(n - 1) % accents.length] || ACCENT;
   };
 
+  // Auto-hide empty trailing borrower cards (Christo 2026-05-12). If BOR N
+  // (where N > 1) has no employer groups, no name set, and no Other Monthly
+  // Income, don't render its card — the "+ Add Borrower" button below covers
+  // that affordance. This also bypasses a click-not-firing edge case on the
+  // trash button by removing the case where someone needs to delete an empty
+  // BOR card at all: it never appears in the first place. BOR 1 always
+  // renders (the calculator needs at least one borrower).
+  const isBorrowerEmpty = (n) => {
+    if (n === 1) return false;
+    const hasGroups = employerGroups.some(g => g.borrowerNum === n);
+    const hasName = (borrowerNames[n] || "").trim().length > 0;
+    const hasOther = (getOther(n) || 0) > 0;
+    return !hasGroups && !hasName && !hasOther;
+  };
+
+  // Compaction: if the trailing borrower (numBorrowers) is empty, drop
+  // numBorrowers by one so state agrees with what's rendered. This handles
+  // the case where a saved scenario has stale numBorrowers=2 with an empty
+  // BOR 2 — we want state to read 1 so the next "+ Add Borrower" click
+  // labels the new card "BOR 2" instead of "BOR 3". Runs whenever the
+  // signals for emptiness change. No-op when not over-counted.
+  useEffect(() => {
+    if (!setNumBorrowers) return;
+    if (numBorrowers <= 1) return;
+    if (isBorrowerEmpty(numBorrowers)) {
+      setNumBorrowers(prev => Math.max(1, prev - 1));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numBorrowers, incomes, borrowerNames, otherIncomeByBorrower, otherIncome2]);
+
   return (<>
     <div style={{ marginTop: 20 }}>
       {borrowerList.map((n) => {
+        if (isBorrowerEmpty(n)) return null;
         const groups = employerGroups.filter(g => g.borrowerNum === n);
         // Per-borrower qualifying $/mo — excludes entire Previous employer
         // groups (any group whose components have an `end` date set). Matches
@@ -1126,7 +1157,10 @@ export default function IncomeContent({
                 </span>
                 {canRemove && (
                   <button
+                    type="button"
+                    onPointerDown={(e) => { e.stopPropagation(); }}
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       const hasIncomes = incomes.some(i => i.borrower === n);
                       if (hasIncomes) {
@@ -1138,13 +1172,17 @@ export default function IncomeContent({
                     title={`Remove Borrower ${n}`}
                     aria-label={`Remove Borrower ${n}`}
                     style={{
+                      // Larger 36×36 click target — was 28×28 which was easy
+                      // to miss on touch / dense banner layout (Christo report
+                      // 2026-05-12). type=button + preventDefault + stopProp
+                      // belt-and-suspenders the event from being swallowed.
                       background: `${T.red}10`, border: `0.5px solid ${T.red}55`,
                       color: T.red, cursor: "pointer",
-                      width: 28, height: 28, borderRadius: 6, padding: 0,
+                      width: 36, height: 36, borderRadius: 8, padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontFamily: FONT,
+                      fontFamily: FONT, flexShrink: 0,
                     }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: "none" }}>
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                       <path d="M10 11v6" />

@@ -1641,7 +1641,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // how many borrower cards render in IncomeContent / Debts / etc.
  // borrowerNames maps borrower-number → display name shown on the card
  // header. Default 2 (the most common case: primary + co-borrower).
- const [numBorrowers, setNumBorrowers] = useState(2);
+ const [numBorrowers, setNumBorrowers] = useState(1); // Default to 1; "+ Add Borrower" bumps as needed. Empty trailing borrowers auto-compact in IncomeContent. (Christo 2026-05-12.)
  const [borrowerNames, setBorrowerNames] = useState({});
  // Other Monthly Income per borrower beyond #2 (kept as a map so
  // 3rd / 4th borrower additions don't require new top-level state).
