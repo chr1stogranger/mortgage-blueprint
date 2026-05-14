@@ -3190,42 +3190,56 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const guideField = (() => {
   // Only show guide highlights for "guided" tier
   if (skillLevel !== "guided") return null;
-  // Only highlight on the Setup tab
-  if (tab !== "setup") return null;
+  // Highlights run on the Setup tab AND the Overview tab — guided users
+  // live on Overview, where every section is embedded on one scrolling page.
+  if (tab !== "setup" && tab !== "overview") return null;
 
-  // GUIDED SEQUENCE — highlights one field at a time in this exact order:
-  // 1) Transaction type (Purchase/Refi)
-  // 2) ZIP code
-  // 3) FICO score
-  // 4) Filing status
-  // 5) Sales price (purchase only)
-  // 6) Down payment % (purchase only)
-  // 7) First-time homebuyer (purchase only)
-  // 8) Modules
+  // GUIDED SEQUENCE — highlights one field at a time, in the order a
+  // first-time buyer meets them scrolling down the Overview tab. Each
+  // returned string MUST match a data-field attribute that actually
+  // exists in the rendered DOM.
+  //  1) Transaction type (Purchase/Refi)   — SetupContent
+  //  2) FICO score                         — SetupContent
+  //  3) Purchase price (purchase only)     — CalculatorContent
+  //  4) Down payment (purchase only)       — CalculatorContent
+  //  5) Loan term                          — CalculatorContent
+  //  6) Modules                            — SetupContent
+  //  7) First-time homebuyer (purchase)    — SetupContent
+  //  8) Assets (add one, fill value+cash)  — AssetsContent
+  //  9) Income                             — IncomeContent
+  // 10) Debts (own other property?)        — DebtsContent
 
   // 1. Transaction type — Purchase or Refinance
   if (isRefi === null) return "transaction-type";
 
-  // 2. ZIP code
-  if (!propertyZip || propertyZip.length < 5) return "zip-code";
-
-  // 3. FICO score
+  // 2. FICO score
   if (creditScore === 0) return "fico-input";
 
-  // 4. Filing status — has a default ("Single"), so pulse until explicitly touched
-  if (!guideTouched.has("filing-status")) return "filing-status";
+  // 3. Purchase price (purchase only)
+  if (!isRefi && salesPrice === 0) return "calc-price";
 
-  // 5. Sales price (purchase only)
-  if (!isRefi && salesPrice === 0) return "price-input";
+  // 4. Down payment (purchase only) — pulse until a value is entered or touched
+  if (!isRefi && downPct === 0 && !guideTouched.has("calc-down")) return "calc-down";
 
-  // 6. Down payment % (purchase only) — starts at 0, pulse until user enters a value
-  if (!isRefi && downPct === 0 && !guideTouched.has("down-payment")) return "down-payment";
+  // 5. Loan term — has a default, so pulse until explicitly touched
+  if (!guideTouched.has("calc-term")) return "calc-term";
+
+  // 6. Modules — pulse until user has interacted with at least one toggle
+  if (!guideTouched.has("modules")) return "modules";
 
   // 7. First-time homebuyer (purchase only)
   if (!isRefi && !guideTouched.has("fthb")) return "fthb";
 
-  // 8. Modules — pulse until user has interacted with at least one toggle
-  if (!guideTouched.has("modules")) return "modules";
+  // 8. Assets — add an account, then fill its value and cash-for-closing
+  if (!assets || assets.length === 0) return "add-asset";
+  if (!(assets[0].value > 0)) return "asset-value";
+  if (!(assets[0].forClosing > 0)) return "asset-closing";
+
+  // 9. Income — at least one borrower needs income entered
+  if (!incomes.some(i => i.amount > 0 || i.py1 > 0)) return "income-section";
+
+  // 10. Debts — answer the "do you own other property?" question
+  if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
 
   // All guided fields complete — no more highlights
   return null;

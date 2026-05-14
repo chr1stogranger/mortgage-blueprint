@@ -1093,7 +1093,7 @@ export default function IncomeContent({
   }, [numBorrowers, incomes, borrowerNames, otherIncomeByBorrower, otherIncome2]);
 
   return (<>
-    <div style={{ marginTop: 20 }}>
+    <div data-field="income-section" className={isPulse && isPulse("income-section")} style={{ marginTop: 20, borderRadius: 14, transition: "all 0.3s" }}>
       {borrowerList.map((n) => {
         if (isBorrowerEmpty(n)) return null;
         const groups = employerGroups.filter(g => g.borrowerNum === n);
