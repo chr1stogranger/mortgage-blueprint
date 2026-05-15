@@ -49,8 +49,12 @@ function DebtToIncomeSummary({
   const monthlyLiabilities = debtFree
     ? 0
     : (debts || []).reduce((sum, d) => {
-        if (d?.payoffOption === "Pay Off At Closing" || d?.payoffOption === "Omit") return sum;
-        return sum + (Number(d?.payment) || 0);
+        // Debts paid off (at or before closing) or omitted don't count
+        // toward post-closing DTI. NOTE: the monthly payment field on a
+        // debt is `monthly` (set in DebtsContent), not `payment` — reading
+        // the wrong key was zeroing out Monthly Liabilities entirely.
+        if (d?.payoff === "Yes - at Escrow" || d?.payoff === "Yes - POC" || d?.payoff === "Omit") return sum;
+        return sum + (Number(d?.monthly) || 0);
       }, 0);
   // Primary & Secondary Home Expenses — REO PITIA on owner-occupied (non-investment) properties
   const primarySecondaryHomeExpenses = (reos || []).reduce((sum, r) => {
@@ -65,7 +69,10 @@ function DebtToIncomeSummary({
   const totalAnnualDebts = totalDebts * 12;
 
   // ── Qualifying caps & deltas ──
-  const maxDTI = (Number(calc?.maxDTI) || 50) / 100;  // 0–1 fraction
+  // calc.maxDTI is ALREADY a 0–1 fraction (e.g. 0.50 for Conventional) —
+  // don't divide by 100 again. The old `/ 100` turned 0.50 into 0.005,
+  // which displayed as "0.50%" and blew up Income Min (debts ÷ 0.005).
+  const maxDTI = Number(calc?.maxDTI) || 0.5;
   const isFHA = loanType === "FHA";
   const maxHTI = isFHA ? 0.47 : null;                  // FHA front-end cap
 
