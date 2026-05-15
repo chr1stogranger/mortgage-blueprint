@@ -3263,11 +3263,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!guideTouched.has("calc-pills")) return "calc-pills";
 
   // 9. Assets — add an account, then fill its value and cash-for-closing.
-  //    Value/closing advance on blur (markTouched), not per-keystroke —
-  //    asset amounts have no predictable digit count to threshold on.
+  //    Current Value advances on blur (markTouched) — it has no predictable
+  //    digit count. Funds-for-Closing advances once a 4-digit amount
+  //    ($1,000+) is entered, which then moves the pulse to the Debts section.
   if (!assets || assets.length === 0) return "add-asset";
   if (!guideTouched.has("asset-value")) return "asset-value";
-  if (!guideTouched.has("asset-closing")) return "asset-closing";
+  if (!(assets[0].forClosing >= 1000)) return "asset-closing";
 
   // 10. Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
