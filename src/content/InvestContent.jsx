@@ -50,6 +50,16 @@ export default function InvestContent({
    </div>
   </Card>
  </Sec>
+ {/* Exit Strategy — moved here from the right column so it sits roughly
+     in line with the N-Year Projection and balances the two columns. */}
+ <Sec title="Exit Strategy">
+  <Card>
+   <Inp label="Hold Period" value={invHoldYears} onChange={setInvHoldYears} prefix="" suffix="years" max={50} />
+   <Inp label="Seller Commission" value={invSellerComm} onChange={setInvSellerComm} prefix="" suffix="%" max={20} />
+   <Inp label="Selling Costs" value={invSellClosing} onChange={setInvSellClosing} prefix="" suffix="% of sale" />
+   <Inp label="Appreciation" value={appreciationRate} onChange={setAppreciationRate} prefix="" suffix="%/yr" />
+  </Card>
+ </Sec>
  </div>{/* end invest left column */}
  {/* RIGHT: Analysis (scrollable) */}
  <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
@@ -116,14 +126,6 @@ export default function InvestContent({
     <MRow label="Annual Cash Flow" value={fmt(invCalc.annualCashFlow)} bold />
     <MRow label="Monthly Cash Flow" value={fmt(invCalc.monthlyCashFlow)} />
    </div>
-  </Card>
- </Sec>
- <Sec title="Exit Strategy">
-  <Card>
-   <Inp label="Hold Period" value={invHoldYears} onChange={setInvHoldYears} prefix="" suffix="years" max={50} />
-   <Inp label="Seller Commission" value={invSellerComm} onChange={setInvSellerComm} prefix="" suffix="%" max={20} />
-   <Inp label="Selling Costs" value={invSellClosing} onChange={setInvSellClosing} prefix="" suffix="% of sale" />
-   <Inp label="Appreciation" value={appreciationRate} onChange={setAppreciationRate} prefix="" suffix="%/yr" />
   </Card>
  </Sec>
  {invCalc.projections.length > 1 && (
