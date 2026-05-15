@@ -67,21 +67,9 @@ export default function SetupContent({
   </div>
  )}
 
- {/* Build Mode progress (Construction House) — shown when gameMode is on */}
- {gameMode && (
-  <Card style={{ padding: 0, overflow: "hidden", marginBottom: 6 }}>
-   <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
-   <div style={{ padding: "6px 12px 8px" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
-      <div style={{ fontSize: 10, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
-     </div>
-     <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
-    </div>
-   </div>
-  </Card>
- )}
+ {/* Build Mode progress house removed here — the page-level Construction
+    House at the top of the tab (MortgageBlueprint.jsx) is the single
+    source of truth. This embedded copy double-rendered on Overview. */}
 
  {/* Compare Hint */}
  {showCompareHint && scenarioList.length > 1 && (
