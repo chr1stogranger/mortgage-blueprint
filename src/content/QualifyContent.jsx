@@ -262,7 +262,7 @@ export default function QualifyContent({
   refiPurpose, refiLtvCheck,
   allGood, someGood, refiPillarCount, purchPillarCount,
   setTab, handlePillarClick,
-  isPulse, isTabUnlocked,
+  isPulse, isTabUnlocked, markTouched,
   affordIncome: _propAffordIncome, affordDebts: _propAffordDebts, affordDown: _propAffordDown,
   affordTerm: _propAffordTerm, affordRate: _propAffordRate, affordLoanType: _propAffordLoanType,
   affordTargetDTI, setAffordTargetDTI,
@@ -289,7 +289,7 @@ export default function QualifyContent({
   return (<>
 
  {/* Header: Qualification + Full Details link */}
- <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 12 }}>
+ <div data-field="qualify-section" className={isPulse && isPulse("qualify-section")} onClick={() => markTouched && markTouched("qualify-section")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, marginBottom: 12 }}>
   <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>Qualification</h2>
   <a onClick={(e) => { e.preventDefault(); document.getElementById("qualify-details")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
    style={{ fontSize: 13, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT, textDecoration: "none" }}>Full Details →</a>

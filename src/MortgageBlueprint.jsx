@@ -3194,54 +3194,78 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // live on Overview, where every section is embedded on one scrolling page.
   if (tab !== "setup" && tab !== "overview") return null;
 
-  // GUIDED SEQUENCE — highlights one field at a time, in the order a
-  // first-time buyer meets them scrolling down the Overview tab. Each
-  // returned string MUST match a data-field attribute that actually
-  // exists in the rendered DOM.
-  //  1) Transaction type (Purchase/Refi)   — SetupContent
-  //  2) FICO score                         — SetupContent
-  //  3) Purchase price (purchase only)     — CalculatorContent
-  //  4) Down payment (purchase only)       — CalculatorContent
-  //  5) Loan term                          — CalculatorContent
-  //  6) Modules                            — SetupContent
-  //  7) First-time homebuyer (purchase)    — SetupContent
-  //  8) Assets (add one, fill value+cash)  — AssetsContent
-  //  9) Income                             — IncomeContent
-  // 10) Debts (own other property?)        — DebtsContent
+  // GUIDED SEQUENCE — highlights one field at a time, in the order Christo
+  // wants a first-time buyer walked through the Overview tab. Each returned
+  // string MUST match a data-field attribute that exists in the rendered DOM.
+  // Text-input steps advance on a "looks complete" signal (valid FICO range,
+  // full ZIP length, debounced price/down value) so the pulse doesn't jump
+  // away mid-keystroke. Toggle/select/button steps advance on guideTouched.
+  //  1) Transaction type     — SetupContent
+  //  2) FICO score           — SetupContent
+  //  3) ZIP code             — SetupContent
+  //  4) Modules              — SetupContent
+  //  5) Purchase price       — CalculatorContent (purchase only)
+  //  6) Down payment         — CalculatorContent (purchase only)
+  //  7) Get Today's Rates    — CalculatorContent
+  //  8) Loan-structure pills — CalculatorContent (occupancy/type/loan/term)
+  //  9) Assets               — AssetsContent
+  // 10) Debts                — DebtsContent
+  // 11) REO                  — ReoContent (only if they own other property)
+  // 12) Income               — IncomeContent
+  // 13) Pre-Qualified        — QualifyContent
+  // 14) Tax Savings          — TaxContent
+  // 15) Equity               — AmortContent
 
   // 1. Transaction type — Purchase or Refinance
   if (isRefi === null) return "transaction-type";
 
-  // 2. FICO score
-  if (creditScore === 0) return "fico-input";
+  // 2. FICO score — wait for a full, valid score (300+, the real FICO floor)
+  //    before advancing, so typing the first digit doesn't yank the cursor.
+  if (creditScore < 300) return "fico-input";
 
-  // 3. Purchase price (purchase only)
-  if (!isRefi && salesPrice === 0) return "calc-price";
+  // 3. ZIP code — advances once all 5 digits are in
+  if (!propertyZip || propertyZip.length < 5) return "zip-code";
 
-  // 4. Down payment (purchase only) — pulse until a value is entered or touched
-  if (!isRefi && downPct === 0 && !guideTouched.has("calc-down")) return "calc-down";
-
-  // 5. Loan term — has a default, so pulse until explicitly touched
-  if (!guideTouched.has("calc-term")) return "calc-term";
-
-  // 6. Modules — pulse until user has interacted with at least one toggle
+  // 4. Modules — pulse until user has interacted with at least one toggle
   if (!guideTouched.has("modules")) return "modules";
 
-  // 7. First-time homebuyer (purchase only)
-  if (!isRefi && !guideTouched.has("fthb")) return "fthb";
+  // 5. Purchase price (purchase only) — price input is debounced, so the
+  //    value only lands once typing settles
+  if (!isRefi && salesPrice === 0) return "calc-price";
 
-  // 8. Assets — add an account, then fill its value and cash-for-closing
+  // 6. Down payment (purchase only) — also a debounced input
+  if (!isRefi && downPct === 0) return "calc-down";
+
+  // 7. Get Today's Rates — pulse the live-rates button until it's clicked
+  if (!guideTouched.has("get-rates")) return "get-rates";
+
+  // 8. Loan-structure pills — Occupancy / Property Type / Loan Type / Term
+  if (!guideTouched.has("calc-pills")) return "calc-pills";
+
+  // 9. Assets — add an account, then fill its value and cash-for-closing
   if (!assets || assets.length === 0) return "add-asset";
   if (!(assets[0].value > 0)) return "asset-value";
   if (!(assets[0].forClosing > 0)) return "asset-closing";
 
-  // 9. Income — at least one borrower needs income entered
-  if (!incomes.some(i => i.amount > 0 || i.py1 > 0)) return "income-section";
-
   // 10. Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
 
-  // All guided fields complete — no more highlights
+  // 11. REO — only when the borrower owns other property
+  if (ownsProperties && !guideTouched.has("reo-section")) return "reo-section";
+
+  // 12. Income — at least one borrower needs income entered
+  if (!incomes.some(i => i.amount > 0 || i.py1 > 0)) return "income-section";
+
+  // 13. Pre-Qualified — review the qualification result
+  if (!guideTouched.has("qualify-section")) return "qualify-section";
+
+  // 14. Tax Savings
+  if (!guideTouched.has("tax-filing")) return "tax-filing";
+
+  // 15. Equity (amortization)
+  if (!guideTouched.has("amort-section")) return "amort-section";
+
+  // All guided steps complete — no more highlights
   return null;
  })();
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
@@ -3269,7 +3293,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   prevGuideRef.current = guideField;
   // Only auto-advance if the previous field was on the same tab (user just completed something)
   if (!prev) return;
-  const inputFields = ["zip-code","fico-input","price-input","calc-price","calc-rate","income-amount","asset-value","asset-closing","refi-current-rate","refi-current-balance","qualify-fico","amort-extra"];
+  // Steps whose anchor contains a text input the user should be dropped into.
+  // Non-input steps (modules, get-rates, calc-pills, section banners) just
+  // scroll into view — no focus steal.
+  const inputFields = ["fico-input","zip-code","calc-price","calc-down","asset-value","asset-closing","refi-current-rate","refi-current-balance","qualify-fico"];
   const timer = setTimeout(() => {
    const el = document.querySelector(`[data-field="${guideField}"]`);
    if (el) {

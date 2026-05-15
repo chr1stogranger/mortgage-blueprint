@@ -705,13 +705,15 @@ export default function CalculatorContent({
     )}
 
     {/* Live Rates fetch button — full-width pill */}
-    <button onClick={fetchRates} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+    <div data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+    <button onClick={() => { markTouched && markTouched("get-rates"); fetchRates(); }} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
      <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
       {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "◉ Get Today's Rates"}
      </span>
      {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || "Today"}</span>}
      {!liveRates && !ratesLoading && fredApiKey && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>FRED</span>}
     </button>
+    </div>{/* end get-rates anchor */}
     {ratesError && <div style={{ fontSize: 11, color: T.red, marginBottom: 10, wordBreak: "break-all", lineHeight: 1.4, padding: 10, background: T.errorBg, borderRadius: 8 }}>{ratesError}</div>}
 
     {/* Always-visible 6-tile rate grid (only when liveRates loaded) */}
@@ -745,7 +747,7 @@ export default function CalculatorContent({
        summary cards: Payment Breakdown on the left, CTC on the right). */}
    <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
    {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} onClick={() => markTouched && markTouched("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s" }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {

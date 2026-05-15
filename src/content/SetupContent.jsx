@@ -176,6 +176,7 @@ export default function SetupContent({
        the existing useEffect in MortgageBlueprint that watches propertyZip and
        calls lookupZip() to fill the rest. Replaces the 4-pill ZIP/City/County/
        State row that used to sit at the top of the Calculator. */}
+   <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
    <Card style={{ marginTop: 12 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
     <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
@@ -216,6 +217,7 @@ export default function SetupContent({
      )}
     </div>
    </Card>
+   </div>{/* end zip-code anchor */}
   </div>{/* end left column */}
 
   {/* ── RIGHT COLUMN: Modules only — Price/Down Payment/Live Estimate are in Monthly Payment section ── */}

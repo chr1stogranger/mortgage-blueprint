@@ -67,37 +67,6 @@ function SectionDivider({ T }) {
   return <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}30, transparent)`, margin: "28px 0 8px" }} />;
 }
 
-/* ─── Guided "Next section" button ───────────────────────────────
-   Renders at the bottom of each Overview section for guided users.
-   Smooth-scrolls down the single page to the next section anchor
-   instead of switching tabs (guided users live on Overview). */
-function OverviewNextButton({ T, targetId, label }) {
-  return (
-    <div style={{ marginTop: 24, marginBottom: 4, padding: "0 4px", animation: "fadeSlideUp 0.4s ease both" }}>
-      <button
-        onClick={() => {
-          const el = document.getElementById(targetId);
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
-        style={{
-          width: "100%", padding: "14px 24px",
-          background: "linear-gradient(135deg, #6366F1, #3B82F6)",
-          border: "none", borderRadius: 9999, color: "#fff",
-          fontSize: 15, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-          boxShadow: "0 0 20px rgba(99,102,241,0.3)",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          letterSpacing: "-0.01em",
-        }}
-      >
-        <span>Next: {label}</span>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════
    OVERVIEW TAB — Full-page single-scroll view with every tab embedded
    Each section renders the full content component from src/content/
@@ -116,38 +85,6 @@ export default function OverviewTab(props) {
   } = props;
 
   const isGuided = skillLevel === "guided";
-
-  // Ordered list of section anchors actually rendered on this page.
-  // Conditional sections are included only when their flag is on, so the
-  // guided "Next" chain always points at a section that exists.
-  const sectionFlow = [
-    ["overview-setup", "Quick Start"],
-    ["overview-payment", "Monthly Payment"],
-    ["overview-costs", isRefi ? "Estimated Refi Costs" : "Costs"],
-    ["overview-assets", "Assets"],
-    ["overview-income", "Income"],
-    ["overview-debts", "Debts"],
-    ...(ownsProperties ? [["overview-reo", "Real Estate Owned"]] : []),
-    ["overview-qualification", "Pre-Qualified?"],
-    ["overview-tax", "Tax Savings"],
-    ["overview-equity", "Equity"],
-    ...(showRentVsBuy && !isRefi ? [["overview-rentvbuy", "Rent vs Buy"]] : []),
-    ...(showInvestor ? [["overview-investor", "Investor"]] : []),
-    ...(hasSellProperty && sellPrice > 0 ? [["overview-seller", "Seller Net"]] : []),
-    ...(showProp19 && propertyState === "California" && !isRefi && prop19 ? [["overview-prop19", "Prop 19 Tax Xfer"]] : []),
-  ];
-  const nextOf = (id) => {
-    const i = sectionFlow.findIndex(([sid]) => sid === id);
-    return i >= 0 && i < sectionFlow.length - 1 ? sectionFlow[i + 1] : null;
-  };
-  // In-component wrapper: only renders for guided users, and only when
-  // there's a next section to point at.
-  const NextBtn = ({ fromId }) => {
-    if (!isGuided) return null;
-    const n = nextOf(fromId);
-    if (!n) return null;
-    return <OverviewNextButton T={T} targetId={n[0]} label={n[1]} />;
-  };
 
   return (
     <div style={{ marginTop: 0, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: 80 }}>
@@ -192,7 +129,6 @@ export default function OverviewTab(props) {
         heroStyle={true}
       >
         <SetupContent {...props} hideHero={true} />
-        <NextBtn fromId="overview-setup" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -201,7 +137,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Monthly Payment" T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} />
-        <NextBtn fromId="overview-payment" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -210,7 +145,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Costs"} T={T} id="overview-costs" heroStyle={true}>
         <CostsContent {...props} />
-        <NextBtn fromId="overview-costs" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -219,7 +153,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Assets" T={T} id="overview-assets" heroStyle={true}>
         <AssetsContent {...props} />
-        <NextBtn fromId="overview-assets" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -228,7 +161,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Income" T={T} id="overview-income" heroStyle={true}>
         <IncomeContent {...props} />
-        <NextBtn fromId="overview-income" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -237,7 +169,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Debts" T={T} id="overview-debts" heroStyle={true}>
         <DebtsContent {...props} />
-        <NextBtn fromId="overview-debts" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -247,7 +178,6 @@ export default function OverviewTab(props) {
         <SectionDivider T={T} />
         <CollapsibleSection title="Real Estate Owned (REO)" T={T} id="overview-reo" heroStyle={true}>
           <ReoContent {...props} hideHero={true} />
-          <NextBtn fromId="overview-reo" />
         </CollapsibleSection>
       </>)}
 
@@ -257,7 +187,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Pre-Qualified?" T={T} id="overview-qualification" heroStyle={true}>
         <QualifyContent {...props} />
-        <NextBtn fromId="overview-qualification" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -266,7 +195,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" heroStyle={true}>
         <TaxContent {...props} />
-        <NextBtn fromId="overview-tax" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -275,7 +203,6 @@ export default function OverviewTab(props) {
       <SectionDivider T={T} />
       <CollapsibleSection title="Equity" T={T} id="overview-equity" heroStyle={true}>
         <AmortContent {...props} />
-        <NextBtn fromId="overview-equity" />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════

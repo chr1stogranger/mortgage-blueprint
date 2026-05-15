@@ -140,7 +140,7 @@ export default function ReoContent({
     </>);
   }
 
-  return (<>
+  return (<div data-field="reo-section" className={isPulse && isPulse("reo-section")} onClick={() => markTouched && markTouched("reo-section")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
     {/* ─── DESKTOP: tabular Income Analysis ─── */}
     {isDesktop ? (
       <div style={{
@@ -574,5 +574,5 @@ export default function ReoContent({
     </Card>
 
     {GuidedNextButton && <GuidedNextButton />}
-  </>);
+  </div>);
 }
