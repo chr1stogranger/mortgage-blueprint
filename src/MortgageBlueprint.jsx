@@ -489,6 +489,22 @@ function getPMIRate(ltv, fico) {
  const ficoBucket = score >= 760 ? 760 : score >= 740 ? 740 : score >= 720 ? 720 : score >= 700 ? 700 : score >= 680 ? 680 : score >= 660 ? 660 : score >= 640 ? 640 : 620;
  return rates[ficoBucket] || rates[700];
 }
+/** FHA annual MIP rate lookup — FHA has its own schedule, NOT the Radian
+ *  PMI matrix. Source: Christo's FHA Mortgage Insurance table (eff. 3/1/2023).
+ *  Keyed off the BASE loan amount ($726,200 is the FHA base loan limit) and
+ *  the LTV bucket. Returns the annual rate as a fraction (0.0075 = 0.75%).
+ *
+ *    Base loan > $726,200:   LTV > 95% → 0.75% ; LTV ≤ 95% → 0.70%
+ *    Base loan ≤ $726,200:   LTV > 95% → 0.55% ; LTV ≤ 95% → 0.50%
+ *
+ *  Duration (life-of-loan vs 11-year for LTV ≤ 90%) affects payoff
+ *  projections, not the monthly rate, so it isn't encoded here. */
+function getFHAMipRate(baseLoan, ltv) {
+ const ltvPct = ltv * 100;
+ const overLimit = baseLoan > 726200;
+ if (overLimit) return ltvPct > 95 ? 0.0075 : 0.0070;
+ return ltvPct > 95 ? 0.0055 : 0.0050;
+}
 let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 const DARK = {
@@ -3529,7 +3545,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const autoPmiRate = ltv > 0.80 ? getPMIRate(ltv, creditScore) : 0;
   const pmiRate = (!pmiRateLocked && pmiRateOverride > 0) ? pmiRateOverride / 100 : autoPmiRate;
   const monthlyPMI = loanType === "Conventional" ? (baseLoan * pmiRate) / 12 : 0;
-  const monthlyMIP = loanType === "FHA" ? (loan * 0.0055) / 12 : 0;
+  // FHA MIP: own HUD schedule (not the Radian PMI matrix). Rate by base
+  // loan amount + LTV; charged on the base loan amount (consistent with
+  // how conventional PMI and USDA MI are computed just above/below).
+  const fhaMipRate = loanType === "FHA" ? getFHAMipRate(baseLoan, ltv) : 0;
+  const monthlyMIP = loanType === "FHA" ? (baseLoan * fhaMipRate) / 12 : 0;
   const usdaMI = loanType === "USDA" ? (baseLoan * 0.0035) / 12 : 0;
   const monthlyMI = monthlyPMI + monthlyMIP + usdaMI;
   const escrowAmount = monthlyTax + ins;
@@ -3992,7 +4012,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ? (includeEscrow ? (refiNewPi + refiNewMonthlyTax + refiNewMonthlyIns + refiNewMI + hoa) : (refiNewPi + refiNewMI + hoa))
    : displayPayment;
   return {
-   dp, baseLoan, loan, fhaUp, vaFundingFee, autoVAFF, vaFFRate, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, autoPmiRate, monthlyPMI, monthlyMIP, usdaMI, monthlyMI,
+   dp, baseLoan, loan, fhaUp, vaFundingFee, autoVAFF, vaFFRate, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, autoPmiRate, monthlyPMI, monthlyMIP, fhaMipRate, usdaMI, monthlyMI,
    taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
    housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
@@ -4293,7 +4313,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal", tip: "The portion of your payment that reduces your loan balance. This is equity you're building — like a forced savings account." },
   { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest", tip: "The cost of borrowing money — this is the lender's profit. Early in the loan, most of your payment goes here. As you pay down the balance, this shrinks." },
   ...(includeEscrow ? [{ v: calc.monthlyTax, c: T.orange, l: "Tax", tip: "Your annual property tax divided by 12 and collected monthly by your lender. In California, property tax is typically 1.1–1.25% of your home's assessed value." }, { v: calc.ins, c: T.green, l: "Insurance", tip: "Homeowner's insurance protects your home against fire, theft, and natural disasters. Lenders require it. Typical cost: $1,200–$3,000/year depending on location and coverage." }] : []),
-  { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. FHA MIP lasts the life of the loan — you'd need to refinance to remove it. Rate: 0.55% of loan amount annually." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
+  { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. The annual rate runs 0.50%–0.75% of the base loan amount depending on loan size and LTV (HUD schedule). FHA MIP lasts the life of the loan unless LTV is 90% or below at origination — you'd otherwise need to refinance to remove it." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
   { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues — a monthly fee for shared amenities and maintenance in condos, townhomes, and planned communities. Covers things like landscaping, pool, gym, exterior maintenance, and building insurance." },
  ];
  const TAB_DESC = {

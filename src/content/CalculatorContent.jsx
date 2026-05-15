@@ -600,14 +600,20 @@ export default function CalculatorContent({
             {miZeroReason}
            </div>
           )}
-          {[
+          {(loanType === "FHA" ? [
+           ["Home Value",       fmt(salesPrice)],
+           ["Base Loan Amount", fmt(calc.baseLoan)],
+           ["LTV",              pct(calc.ltv, 1)],
+           ["FHA MIP Rate",     `${((calc.fhaMipRate || 0) * 100).toFixed(3)}%`],
+           ["Annual MIP",       fmt(monthlyMI * 12)],
+          ] : [
            ["Home Value",    fmt(salesPrice)],
            ["Loan Amount",   fmt(calc.baseLoan || calc.loan)],
            ["LTV",           pct(calc.ltv, 1)],
            ["Credit Score",  creditScore > 0 ? String(creditScore) : "—"],
            ["PMI Rate (Radian matrix)", `${((calc.pmiRate || 0) * 100).toFixed(3)}%`],
            ["Annual Premium", fmt(monthlyMI * 12)],
-          ].map(([label, value], k) => (
+          ]).map(([label, value], k) => (
            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
             <span style={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text }}>{value}</span>
@@ -618,7 +624,9 @@ export default function CalculatorContent({
            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(monthlyMI)}</span>
           </div>
           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
-           PMI required when LTV &gt; 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score.
+           {loanType === "FHA"
+            ? "FHA charges MIP on every loan regardless of down payment. The annual rate is set by base loan amount and LTV (HUD schedule, eff. 3/1/2023): base loan over $726,200 → 0.70–0.75%, at or below → 0.50–0.55%. MIP runs the life of the loan unless LTV is 90% or below at origination (then 11 years). A 1.75% upfront MIP also applies, financed into the loan."
+            : "PMI required when LTV > 80%. Auto-cancels at 78% LTV (lender-initiated) or request removal at 80%. Rate from Radian matrix by LTV bucket and FICO score."}
           </div>
          </div>
         </div>
