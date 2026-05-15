@@ -223,9 +223,8 @@ export default function SetupContent({
   {/* ── RIGHT COLUMN: Modules only — Price/Down Payment/Live Estimate are in Monthly Payment section ── */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
 
-   {/* ── Modules — full-width toggles with descriptions ── */}
-   {/* In guided mode, skip modules when FTHB = No (available in Settings) */}
-   {!(skillLevel === "guided" && firstTimeBuyer === false) && (
+   {/* ── Modules — full-width toggles with descriptions. Always visible:
+       guided users keep the modules card even when FTHB = No. ── */}
    <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
     <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
     {/* First-Time Homebuyer — Yes/No (purchase only) */}
@@ -238,7 +237,7 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={firstTimeBuyer}
-      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); }}
+      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); markTouched("modules"); }}
       onNo={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }}
      />
     </div>
@@ -317,7 +316,6 @@ export default function SetupContent({
     </div>
     )}
    </div>
-   )}
   </div>{/* end right column */}
 
  </div>{/* end 2-column grid */}

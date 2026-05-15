@@ -156,15 +156,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 5: INCOME
-          ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
-      <CollapsibleSection title="Income" T={T} id="overview-income" heroStyle={true}>
-        <IncomeContent {...props} />
-      </CollapsibleSection>
-
-      {/* ═══════════════════════════════════════
-          SECTION 6: DEBTS
+          SECTION 5: DEBTS
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
       <CollapsibleSection title="Debts" T={T} id="overview-debts" heroStyle={true}>
@@ -172,7 +164,7 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 7: REAL ESTATE OWNED (only when ownsProperties is on)
+          SECTION 6: REAL ESTATE OWNED (only when ownsProperties is on)
           ═══════════════════════════════════════ */}
       {ownsProperties && (<>
         <SectionDivider T={T} />
@@ -180,6 +172,15 @@ export default function OverviewTab(props) {
           <ReoContent {...props} hideHero={true} />
         </CollapsibleSection>
       </>)}
+
+      {/* ═══════════════════════════════════════
+          SECTION 7: INCOME — sits after Debts/REO so the guided pulse
+          flows straight down (assets → debts → REO → income)
+          ═══════════════════════════════════════ */}
+      <SectionDivider T={T} />
+      <CollapsibleSection title="Income" T={T} id="overview-income" heroStyle={true}>
+        <IncomeContent {...props} />
+      </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
           SECTION 8: PRE-QUALIFIED? (Qualification)
