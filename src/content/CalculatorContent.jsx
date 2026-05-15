@@ -251,7 +251,7 @@ export default function CalculatorContent({
           ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
           : `${fmtCompactPct(downPct)} down`;
          return (
-          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onClick={() => markTouched && markTouched("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { if (downPct > 0) markTouched && markTouched("calc-down"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>

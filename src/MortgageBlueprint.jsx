@@ -3229,12 +3229,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 4. Modules — pulse until user has interacted with at least one toggle
   if (!guideTouched.has("modules")) return "modules";
 
-  // 5. Purchase price (purchase only) — price input is debounced, so the
-  //    value only lands once typing settles
-  if (!isRefi && salesPrice === 0) return "calc-price";
+  // 5. Purchase price (purchase only) — hold the pulse until a full
+  //    6-digit price ($100k+) is entered. The input is debounced, but a
+  //    short value (2-3 digits) would still advance prematurely, yanking
+  //    the cursor to Down. Real homes here are 6+ digits.
+  if (!isRefi && salesPrice < 100000) return "calc-price";
 
-  // 6. Down payment (purchase only) — also a debounced input
-  if (!isRefi && downPct === 0) return "calc-down";
+  // 6. Down payment (purchase only) — a down-payment % has no predictable
+  //    digit count, so advance on blur (markTouched fires when the user
+  //    clicks/tabs away) rather than per-keystroke.
+  if (!isRefi && !guideTouched.has("calc-down")) return "calc-down";
 
   // 7. Get Today's Rates — pulse the live-rates button until it's clicked
   if (!guideTouched.has("get-rates")) return "get-rates";
