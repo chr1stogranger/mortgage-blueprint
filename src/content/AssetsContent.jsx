@@ -13,7 +13,7 @@ export default function AssetsContent({
   T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset,
   Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note,
   RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType,
-  guideField, isPulse, GuidedNextButton,
+  guideField, isPulse, markTouched, GuidedNextButton,
 }) {
   // Defensive default — if AssetsContent renders before getReserveFactor wires through,
   // fall back to the static factors so the math still works.
@@ -115,8 +115,12 @@ export default function AssetsContent({
                   <TextInp value={a.bank} onChange={v => updateAsset(a.id, "bank", v)} sm placeholder="e.g. Chase" />
                   <Sel value={a.owner || ""} onChange={v => updateAsset(a.id, "owner", v)} options={[{ value: "", label: "—" }, ...OWNER_OPTIONS]} sm />
                   <Sel value={a.type} onChange={v => updateAsset(a.id, "type", v)} options={ASSET_TYPES.map(t => ({ value: t, label: t }))} sm />
-                  <Inp value={a.value} onChange={v => updateAsset(a.id, "value", v)} sm />
-                  <Inp value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm />
+                  <div onBlur={() => { if (aIdx === 0 && a.value > 0) markTouched && markTouched("asset-value"); }}>
+                    <Inp value={a.value} onChange={v => updateAsset(a.id, "value", v)} sm />
+                  </div>
+                  <div onBlur={() => { if (aIdx === 0 && a.forClosing > 0) markTouched && markTouched("asset-closing"); }}>
+                    <Inp value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm />
+                  </div>
                   <div style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: isGift ? T.orange : T.text }}>
                     {factorPct}
                   </div>
@@ -178,8 +182,12 @@ export default function AssetsContent({
                 <TextInp label="Bank / Institution" value={a.bank} onChange={v => updateAsset(a.id, "bank", v)} sm />
                 <Sel label="Owner" value={a.owner || ""} onChange={v => updateAsset(a.id, "owner", v)} options={[{ value: "", label: "—" }, ...OWNER_OPTIONS]} sm tip="Whose name the account is in. Joint = both borrowers." />
                 <Sel label="Account Type" value={a.type} onChange={v => updateAsset(a.id, "type", v)} options={ASSET_TYPES.map(t => ({ value: t, label: t }))} sm req tip="Where the funds are held. Different account types have different liquidity factors for reserve calculations on Jumbo loans." />
-                <Inp label="Current Value" value={a.value} onChange={v => updateAsset(a.id, "value", v)} sm req />
-                <Inp label="Funds Used for Closing" value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm tip="How much from this account you'll use for down payment and closing costs. Must be sourced and seasoned (in the account for 2+ months)." />
+                <div onBlur={() => { if (aIdx === 0 && a.value > 0) markTouched && markTouched("asset-value"); }}>
+                  <Inp label="Current Value" value={a.value} onChange={v => updateAsset(a.id, "value", v)} sm req />
+                </div>
+                <div onBlur={() => { if (aIdx === 0 && a.forClosing > 0) markTouched && markTouched("asset-closing"); }}>
+                  <Inp label="Funds Used for Closing" value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm tip="How much from this account you'll use for down payment and closing costs. Must be sourced and seasoned (in the account for 2+ months)." />
+                </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontSize: 13 }}>
                   <span style={{ color: T.textSecondary }}>Reserves Factor</span>
                   <span style={{ fontWeight: 600 }}>{factorPct}</span>

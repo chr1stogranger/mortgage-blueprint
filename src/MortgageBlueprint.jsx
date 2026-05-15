@@ -3246,10 +3246,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 8. Loan-structure pills — Occupancy / Property Type / Loan Type / Term
   if (!guideTouched.has("calc-pills")) return "calc-pills";
 
-  // 9. Assets — add an account, then fill its value and cash-for-closing
+  // 9. Assets — add an account, then fill its value and cash-for-closing.
+  //    Value/closing advance on blur (markTouched), not per-keystroke —
+  //    asset amounts have no predictable digit count to threshold on.
   if (!assets || assets.length === 0) return "add-asset";
-  if (!(assets[0].value > 0)) return "asset-value";
-  if (!(assets[0].forClosing > 0)) return "asset-closing";
+  if (!guideTouched.has("asset-value")) return "asset-value";
+  if (!guideTouched.has("asset-closing")) return "asset-closing";
 
   // 10. Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
@@ -3300,7 +3302,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Steps whose anchor contains a text input the user should be dropped into.
   // Non-input steps (modules, get-rates, calc-pills, section banners) just
   // scroll into view — no focus steal.
-  const inputFields = ["fico-input","zip-code","calc-price","calc-down","asset-value","asset-closing","refi-current-rate","refi-current-balance","qualify-fico"];
+  const inputFields = ["fico-input","zip-code","calc-price","calc-down","refi-current-rate","refi-current-balance","qualify-fico"];
   const timer = setTimeout(() => {
    const el = document.querySelector(`[data-field="${guideField}"]`);
    if (el) {
