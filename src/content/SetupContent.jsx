@@ -42,7 +42,7 @@ export default function SetupContent({
     currentLoanBalance, setCurrentLoanBalance, currentRate, setCurrentRate, yearsOwnedHome, setYearsOwnedHome,
     refiPurpose, setRefiPurpose, propertyHomeValue, setPropertyHomeValue, taxState, scenarioName,
     ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor,
-    showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, Inp, Sel, SearchSelect, Note,
+    showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel, Inp, Sel, SearchSelect, Note,
     Hero, Card, InfoTip, gameMode, houseStagesComplete, TAB_PROGRESSION, ConstructionHouse, completedTabs,
     isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES,
     SKILL_PRESETS, FILING_STATUSES, HOUSE_STAGES, showCompareHint, setShowCompareHint, setTab,
@@ -104,7 +104,7 @@ export default function SetupContent({
      </div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
-       <button key={key} onClick={() => {/* saveSkillLevel(key) */}}
+       <button key={key} onClick={() => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(); }}
         style={{ padding: "8px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
         <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>
         <div style={{ fontSize: 11, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 2 }}>{preset.label}</div>
