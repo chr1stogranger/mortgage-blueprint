@@ -2945,28 +2945,40 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const saveSkillLevel = (level) => {
   setSkillLevel(level);
   try { LS.set("app:skillLevel", level); } catch(e) {}
-  // Auto-toggle property flags based on tier
   if (level === "guided") {
+   // Restart the guided flow at step 1 (Transaction Type). Wipe the
+   // transaction-type toggle and the pulse-touched set so the pulse walks
+   // the sequence from the top — but keep the user's real data (FICO,
+   // ZIP, price, down, assets, income) intact; they probably don't want
+   // to re-enter all of that just to flip into guided mode.
+   setIsRefi(null);
    setFirstTimeBuyer(null);
    setOwnsProperties(false);
    setHasSellProperty(false);
    setShowInvestor(false);
    setShowProp19(false);
-   // Guided users start in Setup
-   setTab("setup");
+   setGuideTouched(new Set());
+   setTab("overview");
    setGameMode(true);
+   // Re-lock progression in case unlockAll was true from a prior
+   // standard-mode session.
+   setUnlockAll(false);
    try { LS.set("app:gameMode", "true"); } catch(e) {}
+   try { LS.set("app:unlockAll", "false"); } catch(e) {}
+   // Scroll to the top so the first step (Transaction Type in the Quick
+   // Start banner) is visible.
+   setTimeout(() => { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch(e) {} }, 100);
   } else if (level === "standard") {
+   // Standard mode: unlock every tab and drop the guided pulse machinery.
    setFirstTimeBuyer(false);
    setOwnsProperties(false);
    setHasSellProperty(false);
    setShowInvestor(false);
    setShowProp19(false);
-   // Standard users start in Overview
    setTab("overview");
    setGameMode(false);
-   try { LS.set("app:gameMode", "false"); } catch(e) {}
    setUnlockAll(true);
+   try { LS.set("app:gameMode", "false"); } catch(e) {}
    try { LS.set("app:unlockAll", "true"); } catch(e) {}
   }
  };
