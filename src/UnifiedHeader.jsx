@@ -346,6 +346,7 @@ export default function UnifiedHeader({
             loading={borrowerLoading}
             scenarios={borrowerScenarios}
             scenariosLoading={borrowerScenariosLoading}
+            isDesktop={isDesktop}
             T={T}
             onSelect={borrowerPickerCallbacks?.onSelect}
             onSelectScenario={borrowerPickerCallbacks?.onSelectScenario}
