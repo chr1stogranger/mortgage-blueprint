@@ -4453,19 +4453,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // ═══════════════════════════════════════════
  // (all PricePoint logic moved to PricePoint.jsx)
  const TABS = [["overview","Overview"],
-  ...(skillLevel !== "guided" ? [["setup","Setup"]] : []),
-  // calc and costs tabs permanently folded into Overview
+  // setup, income, debts, assets, qualify, tax, amort folded into Overview and
+  // hidden from the sidebar (2026-05-21, per Christo). calc + costs were folded
+  // earlier. All of these remain routable tabs — Overview's jump links (setTab)
+  // and deep links still resolve; they're just removed from the nav rail.
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
   ...(skillLevel !== "guided" ? [
-   ["income","Income"],["debts","Debts"],
    ...(ownsProperties ? [["reo","REO"]] : []),
-   ["assets","Assets"],
-   ["qualify","Qualify"],
   ] : []),
   ...(skillLevel !== "guided" ? [
    ...(isDesktop ? [["workspace","Workspace"]] : []),
-   ["tax","Tax Savings"],
-   ["amort","Amortization"],
    ...(hasSellProperty ? [["sell","Seller Net"]] : []),
    ...(showInvestor ? [["invest","Investor"]] : []),
    ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
