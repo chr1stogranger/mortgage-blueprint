@@ -1401,6 +1401,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   recordRecent: recordRecentBlueprint,
   togglePin: toggleBlueprintPin,
  } = useBlueprintShelf();
+ // Format a client's name as "Last, First" for the switcher rows.
+ const formatLastFirst = (borrower) => {
+  if (!borrower) return 'Client';
+  const last = borrower.last_name || borrower.lastName;
+  const first = borrower.first_name || borrower.firstName;
+  if (last || first) return [last, first].filter(Boolean).join(', ');
+  const name = (borrower.name || '').trim();
+  if (!name) return 'Client';
+  const parts = name.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}`;
+ };
+ const makeClientEntry = (borrower) => ({
+  borrowerId: borrower?.id,
+  borrowerName: formatLastFirst(borrower),
+  status: borrower?.status || 'active',
+  ts: Date.now(),
+ });
 
  // ── Real-Time Sync (Phase 1-6) ──
  // getState/loadState are defined below — sync hook uses refs so this is safe
@@ -2215,13 +2233,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
      supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
     }
-    // ── Track this blueprint as recently edited (left-panel switcher) ──
-    if (isCloud && activeBorrower && activeScenarioId) {
-     recordRecentBlueprint({
-      scenarioId: activeScenarioId, borrowerId: activeBorrower.id,
-      borrowerName: activeBorrower.name, scenarioName,
-      type: isRefi ? 'refi' : 'purchase', status: activeBorrower.status, ts: Date.now(),
-     });
+    // ── Track this client as recently edited (left-panel switcher) ──
+    if (isCloud && activeBorrower) {
+     recordRecentBlueprint(makeClientEntry(activeBorrower));
     }
    }
    // ── Real-time sync (pushes changes to other connected users) ──
@@ -2243,38 +2257,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
   darkMode, loaded, scenarioName]);
- // ── Blueprint switcher (left panel): build entry, open a blueprint, client callbacks ──
- const makeBlueprintEntry = (borrower, scenario) => ({
-  scenarioId: scenario.id,
-  borrowerId: borrower?.id,
-  borrowerName: borrower?.name || 'Client',
-  scenarioName: scenario.name || 'Scenario 1',
-  type: scenario.type === 'refi' ? 'refi' : 'purchase',
-  status: borrower?.status || scenario.status || 'active',
-  ts: Date.now(),
- });
-
- const openBlueprint = async (entry) => {
-  if (!entry || entry.borrowerId == null) return;
-  const b = borrowerList.find(x => x.id === entry.borrowerId) || { id: entry.borrowerId, name: entry.borrowerName, status: entry.status };
-  setActiveBorrower(b);
-  setActiveScenarioId(null);
-  setBorrowerScenariosLoading(true);
-  try {
-   const scens = await apiFetchScenarios(entry.borrowerId);
-   setBorrowerScenarios(scens || []);
-   const s = (scens || []).find(x => x.id === entry.scenarioId);
-   if (s) {
-    if (s.state_data) loadState(s.state_data);
-    setActiveScenarioId(s.id);
-    setScenarioName(s.name || 'Scenario 1');
-    sync.initSync(s.state_data, s.locked_fields);
-    recordRecentBlueprint(makeBlueprintEntry(b, s));
-   }
-  } catch (err) { console.warn('[Blueprint] openBlueprint failed:', err.message); }
-  setBorrowerScenariosLoading(false);
- };
-
+ // ── Blueprint switcher (left panel): client callbacks + open helper ──
  const borrowerPickerCallbacks = {
   onSelect: async (b) => {
    if (!b) { setActiveBorrower(null); setActiveScenarioId(null); setBorrowerScenarios([]); return; }
@@ -2288,7 +2271,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setActiveScenarioId(scenario.id);
    setScenarioName(scenario.name || 'Scenario 1');
    sync.initSync(scenario.state_data, scenario.locked_fields);
-   if (activeBorrower) recordRecentBlueprint(makeBlueprintEntry(activeBorrower, scenario));
+   if (activeBorrower) recordRecentBlueprint(makeClientEntry(activeBorrower));
   },
   onAutoCreateScenario: async (borrower) => {
    try {
@@ -2296,7 +2279,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     try { const r = await fetchBorrowerPrefill(borrower.id); if (r?.prefill) prefillState = r.prefill; } catch {}
     const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: prefillState, calc_summary: {} });
     const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
-    if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeBlueprintEntry(borrower, s)); }
+    if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeClientEntry(borrower)); }
    } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
   },
   onCreateNew: async (prefillName) => {
@@ -2305,6 +2288,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (newB?.id) { setBorrowerList(prev => [...prev, newB]); setActiveBorrower(newB); setActiveScenarioId(null); setBorrowerScenarios([]); }
    } catch (err) { alert('Failed to create client: ' + err.message); }
   },
+ };
+
+ // Open a client from the sidebar switcher → load their FIRST blueprint (auto-create if none).
+ const openClient = async (entry) => {
+  if (!entry || entry.borrowerId == null) return;
+  const b = borrowerList.find(x => x.id === entry.borrowerId) || { id: entry.borrowerId, name: entry.borrowerName, status: entry.status };
+  setActiveBorrower(b);
+  setActiveScenarioId(null);
+  setBorrowerScenariosLoading(true);
+  try {
+   const scens = await apiFetchScenarios(entry.borrowerId);
+   setBorrowerScenarios(scens || []);
+   if (scens && scens.length > 0) {
+    const s = scens[0];
+    if (s.state_data) loadState(s.state_data);
+    setActiveScenarioId(s.id);
+    setScenarioName(s.name || 'Scenario 1');
+    sync.initSync(s.state_data, s.locked_fields);
+    recordRecentBlueprint(makeClientEntry(b));
+   } else {
+    await borrowerPickerCallbacks.onAutoCreateScenario(b);
+   }
+  } catch (err) { console.warn('[Blueprint] openClient failed:', err.message); }
+  setBorrowerScenariosLoading(false);
  };
 
  const switchScenario = async (name) => {
@@ -4755,8 +4762,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <SidebarSwitcher
         pinned={pinnedBlueprints}
         recents={recentBlueprints}
-        activeScenarioId={activeScenarioId}
-        onOpen={openBlueprint}
+        activeBorrowerId={activeBorrower?.id}
+        onOpen={openClient}
         onTogglePin={toggleBlueprintPin}
         isPinned={isBlueprintPinned}
         T={T}

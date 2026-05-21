@@ -1,30 +1,30 @@
 /**
- * useBlueprintShelf — the broker's fast-switch shelf, at the BLUEPRINT level.
+ * useBlueprintShelf — the broker's fast-switch shelf, at the CLIENT level.
  *
  * Two lists of lightweight snapshot entries, persisted in localStorage:
- *   - pinned  : blueprints the broker starred (manual order, newest pin first)
- *   - recents : the last 15 blueprints opened or edited (newest first, auto-tracked)
+ *   - pinned  : clients the broker starred (manual order, newest pin first)
+ *   - recents : the last 15 clients opened or edited (newest first, auto-tracked)
  *
- * Each entry is a self-contained snapshot so the left panel can render without
- * loading every borrower's scenarios:
- *   { scenarioId, borrowerId, borrowerName, scenarioName, type, status, ts }
+ * One row per client (deduped by borrowerId). Clicking a row opens that client's
+ * first blueprint. Each entry is a self-contained snapshot:
+ *   { borrowerId, borrowerName, status, ts }
+ * where borrowerName is already formatted "Last, First" for display.
  *
- * Entries are keyed by scenarioId. Snapshots refresh every time a blueprint is
- * opened or saved, so names/status stay current. localStorage is per-device —
- * a future version can sync these off the logged-in broker.
+ * Snapshots refresh every time a client's blueprint is opened or saved, so the
+ * name/status stay current. localStorage is per-device.
  */
 
 import { useState, useCallback, useEffect } from 'react';
 
-const PINNED_KEY = 'bp_pinned_blueprints';
-const RECENTS_KEY = 'bp_recent_blueprints';
+const PINNED_KEY = 'bp_pinned_clients';
+const RECENTS_KEY = 'bp_recent_clients';
 const MAX_RECENTS = 15;
 
 function readList(key) {
   try {
     const raw = localStorage.getItem(key);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.filter((e) => e && e.scenarioId != null) : [];
+    return Array.isArray(arr) ? arr.filter((e) => e && e.borrowerId != null) : [];
   } catch {
     return [];
   }
@@ -46,58 +46,54 @@ export default function useBlueprintShelf() {
   useEffect(() => { writeList(RECENTS_KEY, recents); }, [recents]);
 
   const isPinned = useCallback(
-    (scenarioId) => pinned.some((e) => e.scenarioId === scenarioId),
+    (borrowerId) => pinned.some((e) => e.borrowerId === borrowerId),
     [pinned]
   );
 
-  // Record (or refresh) a blueprint as most-recently-touched.
-  // If it's pinned, just refresh the pinned snapshot; otherwise move it to the
-  // front of recents, dedupe, and cap the list.
+  // Record (or refresh) a client as most-recently-touched. If pinned, just
+  // refresh the pinned snapshot; otherwise move it to the front of recents.
   const recordRecent = useCallback((entry) => {
-    if (!entry || entry.scenarioId == null) return;
+    if (!entry || entry.borrowerId == null) return;
     const next = { ...entry, ts: entry.ts || Date.now() };
     setPinned((prev) =>
-      prev.some((e) => e.scenarioId === next.scenarioId)
-        ? prev.map((e) => (e.scenarioId === next.scenarioId ? { ...e, ...next } : e))
+      prev.some((e) => e.borrowerId === next.borrowerId)
+        ? prev.map((e) => (e.borrowerId === next.borrowerId ? { ...e, ...next } : e))
         : prev
     );
     setRecents((prev) => {
       const isCurrentlyPinned = JSON.parse(localStorage.getItem(PINNED_KEY) || '[]')
-        .some((e) => e && e.scenarioId === next.scenarioId);
-      if (isCurrentlyPinned) return prev.filter((e) => e.scenarioId !== next.scenarioId);
-      const without = prev.filter((e) => e.scenarioId !== next.scenarioId);
+        .some((e) => e && e.borrowerId === next.borrowerId);
+      if (isCurrentlyPinned) return prev.filter((e) => e.borrowerId !== next.borrowerId);
+      const without = prev.filter((e) => e.borrowerId !== next.borrowerId);
       return [next, ...without].slice(0, MAX_RECENTS);
     });
   }, []);
 
-  // Star / unstar a blueprint. Pinning removes it from recents; unpinning
-  // drops it back into recents at the front.
+  // Star / unstar a client. Pinning removes it from recents; unpinning drops it
+  // back into recents at the front.
   const togglePin = useCallback((entry) => {
-    if (!entry || entry.scenarioId == null) return;
+    if (!entry || entry.borrowerId == null) return;
     const snap = { ...entry, ts: entry.ts || Date.now() };
-    setPinned((prev) => {
-      if (prev.some((e) => e.scenarioId === snap.scenarioId)) {
-        return prev.filter((e) => e.scenarioId !== snap.scenarioId);
-      }
-      return [snap, ...prev];
-    });
+    const wasPinned = pinned.some((e) => e.borrowerId === snap.borrowerId);
+    setPinned((prev) =>
+      wasPinned
+        ? prev.filter((e) => e.borrowerId !== snap.borrowerId)
+        : [snap, ...prev]
+    );
     setRecents((prev) => {
-      const wasPinned = pinned.some((e) => e.scenarioId === snap.scenarioId);
       if (wasPinned) {
-        // just unpinned → put back into recents at the front
-        const without = prev.filter((e) => e.scenarioId !== snap.scenarioId);
+        const without = prev.filter((e) => e.borrowerId !== snap.borrowerId);
         return [snap, ...without].slice(0, MAX_RECENTS);
       }
-      // just pinned → remove from recents
-      return prev.filter((e) => e.scenarioId !== snap.scenarioId);
+      return prev.filter((e) => e.borrowerId !== snap.borrowerId);
     });
   }, [pinned]);
 
-  // Drop an entry entirely (e.g. blueprint deleted).
-  const removeEntry = useCallback((scenarioId) => {
-    if (scenarioId == null) return;
-    setPinned((prev) => prev.filter((e) => e.scenarioId !== scenarioId));
-    setRecents((prev) => prev.filter((e) => e.scenarioId !== scenarioId));
+  // Drop a client entirely.
+  const removeEntry = useCallback((borrowerId) => {
+    if (borrowerId == null) return;
+    setPinned((prev) => prev.filter((e) => e.borrowerId !== borrowerId));
+    setRecents((prev) => prev.filter((e) => e.borrowerId !== borrowerId));
   }, []);
 
   return { pinned, recents, isPinned, recordRecent, togglePin, removeEntry };

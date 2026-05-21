@@ -26,10 +26,19 @@ const STATUS_COLORS = {
   dead: '#666666',
 };
 
+const STATUS_LABELS = {
+  lead: 'Lead',
+  active: 'Active',
+  pre_approved: 'Pre-Approved',
+  in_escrow: 'In Escrow',
+  closed: 'Closed',
+  dead: 'Dead',
+};
+
 export default function SidebarSwitcher({
   pinned = [],
   recents = [],
-  activeScenarioId = null,
+  activeBorrowerId = null,
   onOpen,
   onTogglePin,
   isPinned,
@@ -55,13 +64,13 @@ export default function SidebarSwitcher({
   );
 
   const row = (entry) => {
-    const active = entry.scenarioId === activeScenarioId;
+    const active = entry.borrowerId === activeBorrowerId;
     const statusColor = STATUS_COLORS[entry.status] || textTer;
-    const pinnedNow = isPinned ? isPinned(entry.scenarioId) : false;
-    const typeLabel = entry.type === 'refi' ? 'Refi' : 'Purchase';
+    const statusLabel = STATUS_LABELS[entry.status] || '';
+    const pinnedNow = isPinned ? isPinned(entry.borrowerId) : false;
     return (
       <div
-        key={entry.scenarioId}
+        key={entry.borrowerId}
         onClick={() => onOpen && onOpen(entry)}
         className="bp-sidebar-item"
         style={{
@@ -79,12 +88,14 @@ export default function SidebarSwitcher({
           }}>
             {entry.borrowerName || 'Client'}
           </div>
-          <div style={{
-            fontSize: 10, color: textTer, fontFamily: FONT,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {(entry.scenarioName || 'Scenario')}{' · '}{typeLabel}
-          </div>
+          {statusLabel && (
+            <div style={{
+              fontSize: 10, color: textTer, fontFamily: FONT,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {statusLabel}
+            </div>
+          )}
         </div>
         <div
           onClick={(e) => { e.stopPropagation(); onTogglePin && onTogglePin(entry); }}
