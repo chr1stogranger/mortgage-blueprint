@@ -334,25 +334,13 @@ export default function UnifiedHeader({
       )}
 
       {/* ── LO mode row: Borrower picker + Share link ── */}
-      {isCloud && !isBorrower && BorrowerPicker && (
+      {isCloud && !isBorrower && (
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: isDesktop ? "0 32px 6px" : "0 14px 6px", flexWrap: "wrap",
         }}>
           {auth?.userPill}
-          <BorrowerPicker
-            borrowers={borrowerList}
-            activeBorrower={activeBorrower}
-            loading={borrowerLoading}
-            scenarios={borrowerScenarios}
-            scenariosLoading={borrowerScenariosLoading}
-            isDesktop={isDesktop}
-            T={T}
-            onSelect={borrowerPickerCallbacks?.onSelect}
-            onSelectScenario={borrowerPickerCallbacks?.onSelectScenario}
-            onAutoCreateScenario={borrowerPickerCallbacks?.onAutoCreateScenario}
-            onCreateNew={borrowerPickerCallbacks?.onCreateNew}
-          />
+          {/* Borrower/blueprint switcher moved to the left sidebar (SidebarSwitcher). */}
           {activeBorrower?.share_token && (
             <button
               onClick={() => {

@@ -41,6 +41,8 @@ import LockControls from "./components/LockControls";
 import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
+import SidebarSwitcher from "./components/SidebarSwitcher";
+import useBlueprintShelf from "./hooks/useBlueprintShelf";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -1391,6 +1393,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [borrowerScenarios, setBorrowerScenarios] = useState([]); // Scenarios for selected borrower (step 2)
  const [borrowerScenariosLoading, setBorrowerScenariosLoading] = useState(false);
  const supabaseSaveTimer = useRef(null);
+ // ── Blueprint switcher shelf (left panel): pinned + recent blueprints ──
+ const {
+  pinned: pinnedBlueprints,
+  recents: recentBlueprints,
+  isPinned: isBlueprintPinned,
+  recordRecent: recordRecentBlueprint,
+  togglePin: toggleBlueprintPin,
+ } = useBlueprintShelf();
 
  // ── Real-Time Sync (Phase 1-6) ──
  // getState/loadState are defined below — sync hook uses refs so this is safe
@@ -2205,6 +2215,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
      supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
     }
+    // ── Track this blueprint as recently edited (left-panel switcher) ──
+    if (isCloud && activeBorrower && activeScenarioId) {
+     recordRecentBlueprint({
+      scenarioId: activeScenarioId, borrowerId: activeBorrower.id,
+      borrowerName: activeBorrower.name, scenarioName,
+      type: isRefi ? 'refi' : 'purchase', status: activeBorrower.status, ts: Date.now(),
+     });
+    }
    }
    // ── Real-time sync (pushes changes to other connected users) ──
    sync.scheduleSync();
@@ -2225,6 +2243,70 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
   darkMode, loaded, scenarioName]);
+ // ── Blueprint switcher (left panel): build entry, open a blueprint, client callbacks ──
+ const makeBlueprintEntry = (borrower, scenario) => ({
+  scenarioId: scenario.id,
+  borrowerId: borrower?.id,
+  borrowerName: borrower?.name || 'Client',
+  scenarioName: scenario.name || 'Scenario 1',
+  type: scenario.type === 'refi' ? 'refi' : 'purchase',
+  status: borrower?.status || scenario.status || 'active',
+  ts: Date.now(),
+ });
+
+ const openBlueprint = async (entry) => {
+  if (!entry || entry.borrowerId == null) return;
+  const b = borrowerList.find(x => x.id === entry.borrowerId) || { id: entry.borrowerId, name: entry.borrowerName, status: entry.status };
+  setActiveBorrower(b);
+  setActiveScenarioId(null);
+  setBorrowerScenariosLoading(true);
+  try {
+   const scens = await apiFetchScenarios(entry.borrowerId);
+   setBorrowerScenarios(scens || []);
+   const s = (scens || []).find(x => x.id === entry.scenarioId);
+   if (s) {
+    if (s.state_data) loadState(s.state_data);
+    setActiveScenarioId(s.id);
+    setScenarioName(s.name || 'Scenario 1');
+    sync.initSync(s.state_data, s.locked_fields);
+    recordRecentBlueprint(makeBlueprintEntry(b, s));
+   }
+  } catch (err) { console.warn('[Blueprint] openBlueprint failed:', err.message); }
+  setBorrowerScenariosLoading(false);
+ };
+
+ const borrowerPickerCallbacks = {
+  onSelect: async (b) => {
+   if (!b) { setActiveBorrower(null); setActiveScenarioId(null); setBorrowerScenarios([]); return; }
+   setActiveBorrower(b); setActiveScenarioId(null); setBorrowerScenariosLoading(true);
+   try { const scens = await apiFetchScenarios(b.id); setBorrowerScenarios(scens || []); }
+   catch (err) { console.warn('[Blueprint] Failed to load scenarios:', err.message); setBorrowerScenarios([]); }
+   setBorrowerScenariosLoading(false);
+  },
+  onSelectScenario: (scenario) => {
+   if (scenario.state_data) loadState(scenario.state_data);
+   setActiveScenarioId(scenario.id);
+   setScenarioName(scenario.name || 'Scenario 1');
+   sync.initSync(scenario.state_data, scenario.locked_fields);
+   if (activeBorrower) recordRecentBlueprint(makeBlueprintEntry(activeBorrower, scenario));
+  },
+  onAutoCreateScenario: async (borrower) => {
+   try {
+    let prefillState = {};
+    try { const r = await fetchBorrowerPrefill(borrower.id); if (r?.prefill) prefillState = r.prefill; } catch {}
+    const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: prefillState, calc_summary: {} });
+    const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
+    if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeBlueprintEntry(borrower, s)); }
+   } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
+  },
+  onCreateNew: async (prefillName) => {
+   const name = prefillName || prompt("New client name:"); if (!name) return;
+   try { const result = await createBorrower({ name, status: 'active' }); const newB = result?.[0] || result;
+    if (newB?.id) { setBorrowerList(prev => [...prev, newB]); setActiveBorrower(newB); setActiveScenarioId(null); setBorrowerScenarios([]); }
+   } catch (err) { alert('Failed to create client: ' + err.message); }
+  },
+ };
+
  const switchScenario = async (name) => {
   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
   setScenarioName(name);
@@ -4668,6 +4750,29 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         </div>
        );
       })}
+      {/* Blueprint switcher — pinned + recent blueprints (LO view only) */}
+      {appMode === "blueprint" && isCloud && !isBorrower && (!sidebarCollapsed || !isDesktop) && (
+       <SidebarSwitcher
+        pinned={pinnedBlueprints}
+        recents={recentBlueprints}
+        activeScenarioId={activeScenarioId}
+        onOpen={openBlueprint}
+        onTogglePin={toggleBlueprintPin}
+        isPinned={isBlueprintPinned}
+        T={T}
+        borrowerProps={{
+         borrowers: borrowerList,
+         activeBorrower,
+         loading: borrowerLoading,
+         scenarios: borrowerScenarios,
+         scenariosLoading: borrowerScenariosLoading,
+         onSelect: borrowerPickerCallbacks.onSelect,
+         onSelectScenario: borrowerPickerCallbacks.onSelectScenario,
+         onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
+         onCreateNew: borrowerPickerCallbacks.onCreateNew,
+        }}
+       />
+      )}
       {/* PricePoint nav (when PP is primary) */}
       {appMode === "pricepoint" && (!sidebarCollapsed || !isDesktop) && [["daily","target","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
        const active = ppCurrentTab === k;

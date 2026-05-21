@@ -1,30 +1,20 @@
 /**
- * BorrowerPicker — Fast switcher for borrowers + their blueprints.
+ * BorrowerPicker — Two-step search to find/add a client and open a blueprint.
  *
- * Default (empty search) view shows two stacked sections:
- *   ★ Pinned   — borrowers the broker starred, in a stable order
- *   ◷ Recents  — last 15 borrowers opened, newest first (auto-tracked)
- * Type to fall back to a full type-ahead search across every client.
+ * Step 1: type-ahead search across all clients (or "+ New Client").
+ * Step 2: pick one of that client's blueprints (or auto-create / "New Blueprint").
  *
- * Picking a client loads their blueprints (scenarios). If they have exactly one,
- * it opens straight away (no extra tap); if none, one is auto-created; if several,
- * you choose. Each row has a star to pin/unpin.
- *
- * Docking: a dropdown panel under the header chip on desktop; a full-height
- * slide-in drawer over a dimmed backdrop on mobile (isDesktop === false).
- *
- * Recents/pinned persistence lives in useBlueprintShelf (localStorage, per-device).
+ * Pinned + recent blueprints now live in the left-panel SidebarSwitcher, so this
+ * component is purely the "find or add" entry. It renders as a dropdown under its
+ * trigger on desktop, and as a full-height slide-in drawer on mobile (isDesktop=false).
+ * Embedded in the sidebar, it's run in drawer mode so search has room regardless of
+ * the narrow rail width.
  */
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Icon from '../Icon';
-import useBlueprintShelf from '../hooks/useBlueprintShelf';
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
-
-// When a selected client has exactly one blueprint, open it immediately.
-const AUTO_OPEN_SINGLE = true;
 
 const STATUS_COLORS = {
   lead: '#F59E0B',
@@ -62,8 +52,6 @@ export default function BorrowerPicker({
   isDesktop = true,
   T = {},
 }) {
-  const { recentIds, pinnedIds, recordRecent, togglePin, isPinned } = useBlueprintShelf();
-
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1); // 1 = pick client, 2 = pick scenario
   const [search, setSearch] = useState('');
@@ -72,7 +60,6 @@ export default function BorrowerPicker({
   const containerRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
-  const rowRefs = useRef([]);
 
   // ── Theme tokens ──
   const bg = T.inputBg || '#1A1A1A';
@@ -83,23 +70,6 @@ export default function BorrowerPicker({
   const card = T.card || '#0F0F0F';
   const accent = '#6366F1';
   const hoverBg = T.tabActiveBg || 'rgba(255,255,255,0.04)';
-
-  // ── Resolve shelf ids → live borrower objects ──
-  const byId = useMemo(() => {
-    const m = {};
-    borrowers.forEach((b) => { if (b && b.id != null) m[b.id] = b; });
-    return m;
-  }, [borrowers]);
-
-  const pinnedBorrowers = useMemo(
-    () => pinnedIds.map((id) => byId[id]).filter(Boolean),
-    [pinnedIds, byId]
-  );
-  const recentBorrowers = useMemo(
-    () => recentIds.map((id) => byId[id]).filter(Boolean).filter((b) => !pinnedIds.includes(b.id)),
-    [recentIds, byId, pinnedIds]
-  );
-  const hasShelf = pinnedBorrowers.length + recentBorrowers.length > 0;
 
   const searching = !!search.trim();
   const filtered = searching
@@ -113,11 +83,6 @@ export default function BorrowerPicker({
       })
     : borrowers;
 
-  // The flat, ordered list of selectable client rows for step 1 (drives keyboard nav).
-  const step1List = searching ? filtered : (hasShelf ? [...pinnedBorrowers, ...recentBorrowers] : borrowers);
-  const showSections = !searching && hasShelf;
-  const pinnedCount = pinnedBorrowers.length;
-
   const closePicker = useCallback(() => {
     setIsOpen(false);
     setStep(1);
@@ -126,44 +91,35 @@ export default function BorrowerPicker({
     setHighlightIdx(0);
   }, []);
 
-  // Reset highlight when the visible set changes
   useEffect(() => { setHighlightIdx(0); }, [search, step]);
 
-  // Close on outside click (desktop dropdown). Backdrop handles the mobile drawer.
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        closePicker();
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target)) closePicker();
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen, closePicker]);
 
-  // Focus search input when opened on step 1
   useEffect(() => {
     if (isOpen && step === 1 && inputRef.current) inputRef.current.focus();
   }, [isOpen, step]);
 
-  // Scroll highlighted row into view
   useEffect(() => {
-    const el = rowRefs.current[highlightIdx];
-    if (el) el.scrollIntoView({ block: 'nearest' });
+    if (!listRef.current) return;
+    const items = listRef.current.children;
+    if (items[highlightIdx]) items[highlightIdx].scrollIntoView({ block: 'nearest' });
   }, [highlightIdx]);
 
-  // When a client's scenarios finish loading: auto-create if none, auto-open if one.
+  // Auto-create when a client has no blueprints yet.
   useEffect(() => {
-    if (step !== 2 || !pendingBorrower || scenariosLoading) return;
-    const bid = pendingBorrower.id;
-    if (scenarios.length === 0 && onAutoCreateScenario) {
-      onAutoCreateScenario(pendingBorrower);
-      if (bid != null) recordRecent(bid);
-      closePicker();
-    } else if (AUTO_OPEN_SINGLE && scenarios.length === 1 && onSelectScenario) {
-      onSelectScenario(scenarios[0]);
-      if (bid != null) recordRecent(bid);
-      closePicker();
+    if (step === 2 && pendingBorrower && !scenariosLoading) {
+      if (scenarios.length === 0 && onAutoCreateScenario) {
+        onAutoCreateScenario(pendingBorrower);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        closePicker();
+      }
     }
   }, [step, pendingBorrower, scenarios, scenariosLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -176,16 +132,13 @@ export default function BorrowerPicker({
   };
 
   const handleSelectScenario = (scenario) => {
-    const bid = pendingBorrower?.id ?? activeBorrower?.id;
     if (onSelectScenario) onSelectScenario(scenario);
-    if (bid != null) recordRecent(bid);
     closePicker();
   };
 
   const handleNewBlueprint = () => {
     const target = pendingBorrower;
     if (onAutoCreateScenario && target) onAutoCreateScenario(target);
-    if (target?.id != null) recordRecent(target.id);
     closePicker();
   };
 
@@ -209,15 +162,10 @@ export default function BorrowerPicker({
     if (onSelect) onSelect(null);
   };
 
-  const handleTogglePin = (e, id) => {
-    e.stopPropagation();
-    togglePin(id);
-  };
-
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = (e) => {
     if (step === 2) {
       if (e.key === 'Escape') { setStep(1); setPendingBorrower(null); setHighlightIdx(0); if (onSelect) onSelect(null); return; }
-      const total = scenarios.length + 1; // +1 for "New Blueprint"
+      const total = scenarios.length + 1;
       if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx((p) => (p + 1) % total); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx((p) => (p - 1 + total) % total); }
       else if (e.key === 'Enter') {
@@ -227,160 +175,104 @@ export default function BorrowerPicker({
       }
       return;
     }
-
-    const total = step1List.length + 1; // +1 for "New Client"
+    const total = filtered.length + 1;
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx((p) => (p + 1) % total); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx((p) => (p - 1 + total) % total); }
     else if (e.key === 'Enter') {
       e.preventDefault();
-      if (highlightIdx === step1List.length) handleCreateNew();
-      else if (step1List[highlightIdx]) handleSelectBorrower(step1List[highlightIdx]);
+      if (highlightIdx === filtered.length) handleCreateNew();
+      else if (filtered[highlightIdx]) handleSelectBorrower(filtered[highlightIdx]);
     } else if (e.key === 'Escape') {
       closePicker();
     }
-  }, [step1List, highlightIdx, step, scenarios]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Row renderer (shared by shelf, search, and full-list) ──
-  const renderBorrowerRow = (b, i) => {
-    const isHighlighted = i === highlightIdx;
-    const isActive = activeBorrower?.id === b.id;
-    const statusColor = STATUS_COLORS[b.status] || textTer;
-    const statusLabel = STATUS_LABELS[b.status] || b.status || '';
-    const pinned = isPinned(b.id);
-
-    return (
-      <div
-        key={`row-${b.id}`}
-        ref={(el) => { rowRefs.current[i] = el; }}
-        onClick={() => handleSelectBorrower(b)}
-        onMouseEnter={() => setHighlightIdx(i)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 12px',
-          background: isHighlighted ? hoverBg : isActive ? `${accent}08` : 'transparent',
-          cursor: 'pointer',
-          borderBottom: `1px solid ${border}`,
-          borderLeft: isActive ? `3px solid ${accent}` : '3px solid transparent',
-          transition: 'background 0.1s',
-        }}
-      >
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: `${statusColor}15`,
-          border: `2px solid ${statusColor}40`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: statusColor }}>
-            {(b.name || '?')[0].toUpperCase()}
-          </span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {b.name || 'Unnamed'}
-            </span>
-            {statusLabel && (
-              <span style={{
-                fontSize: 9, fontWeight: 600, color: statusColor, background: `${statusColor}12`,
-                padding: '1px 5px', borderRadius: 4, fontFamily: FONT,
-                textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0,
-              }}>
-                {statusLabel}
-              </span>
-            )}
-          </div>
-          <div style={{
-            fontSize: 11, color: textTer, fontFamily: FONT, marginTop: 1,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {b.email || b.phone || 'No contact info'}
-          </div>
-        </div>
-        {/* Pin toggle */}
-        <div
-          onClick={(e) => handleTogglePin(e, b.id)}
-          title={pinned ? 'Unpin' : 'Pin to top'}
-          style={{
-            width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: pinned ? `${accent}14` : 'transparent',
-            cursor: 'pointer', opacity: pinned ? 1 : 0.45,
-            transition: 'all 0.12s',
-          }}
-        >
-          <Icon name="star" size={14} color={pinned ? accent : textTer} />
-        </div>
-        <Icon name="chevron-right" size={14} color={textTer} />
-      </div>
-    );
   };
 
-  const renderSectionLabel = (icon, label, count) => (
-    <div style={{
-      padding: '7px 12px',
-      fontSize: 10, fontWeight: 600, color: textTer,
-      textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT,
-      borderBottom: `1px solid ${border}`, background: 'rgba(255,255,255,0.015)',
-      display: 'flex', alignItems: 'center', gap: 6,
-    }}>
-      <Icon name={icon} size={11} color={accent} />
-      {label}
-      {count != null && <span style={{ marginLeft: 'auto', fontWeight: 400 }}>{count}</span>}
-    </div>
-  );
-
-  // ── Body (step 1 list / step 2 scenarios) ──
+  // ── Body (client list / scenario list) ──
   const renderBody = () => (
     <>
       {step === 1 && (
         <>
-          {!showSections && (
-            <div style={{
-              padding: '6px 12px', fontSize: 10, fontWeight: 600, color: textTer,
-              textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT,
-              borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: accent, display: 'inline-block' }} />
-              {searching ? 'SEARCH RESULTS' : 'SELECT CLIENT'}
-              <span style={{ marginLeft: 'auto', fontWeight: 400 }}>
-                {step1List.length} result{step1List.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-          )}
+          <div style={{
+            padding: '6px 12px', fontSize: 10, fontWeight: 600, color: textTer,
+            textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT,
+            borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: accent, display: 'inline-block' }} />
+            {searching ? 'SEARCH RESULTS' : 'SELECT CLIENT'}
+            <span style={{ marginLeft: 'auto', fontWeight: 400 }}>
+              {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+            </span>
+          </div>
 
-          {step1List.map((b, i) => (
-            <React.Fragment key={`grp-${b.id}`}>
-              {showSections && i === 0 && pinnedCount > 0 && renderSectionLabel('star', 'Pinned', pinnedCount)}
-              {showSections && i === pinnedCount && recentBorrowers.length > 0 && renderSectionLabel('clock', 'Recents', recentBorrowers.length)}
-              {renderBorrowerRow(b, i)}
-            </React.Fragment>
-          ))}
+          {filtered.map((b, i) => {
+            const isHighlighted = i === highlightIdx;
+            const isActive = activeBorrower?.id === b.id;
+            const statusColor = STATUS_COLORS[b.status] || textTer;
+            const statusLabel = STATUS_LABELS[b.status] || b.status || '';
+            return (
+              <div
+                key={b.id}
+                onClick={() => handleSelectBorrower(b)}
+                onMouseEnter={() => setHighlightIdx(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                  background: isHighlighted ? hoverBg : isActive ? `${accent}08` : 'transparent',
+                  cursor: 'pointer', borderBottom: `1px solid ${border}`,
+                  borderLeft: isActive ? `3px solid ${accent}` : '3px solid transparent',
+                  transition: 'background 0.1s',
+                }}
+              >
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%', background: `${statusColor}15`,
+                  border: `2px solid ${statusColor}40`, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: statusColor }}>
+                    {(b.name || '?')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{b.name || 'Unnamed'}</span>
+                    {statusLabel && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 600, color: statusColor, background: `${statusColor}12`,
+                        padding: '1px 5px', borderRadius: 4, fontFamily: FONT,
+                        textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0,
+                      }}>{statusLabel}</span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: 11, color: textTer, fontFamily: FONT, marginTop: 1,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{b.email || b.phone || 'No contact info'}</div>
+                </div>
+                <Icon name="chevron-right" size={14} color={textTer} />
+              </div>
+            );
+          })}
 
-          {searching && step1List.length === 0 && (
+          {searching && filtered.length === 0 && (
             <div style={{ padding: '16px 12px', textAlign: 'center', fontSize: 12, color: textTer, fontFamily: FONT }}>
               No clients matching "{search}"
             </div>
           )}
 
-          {/* New Client */}
           <div
-            ref={(el) => { rowRefs.current[step1List.length] = el; }}
             onClick={handleCreateNew}
-            onMouseEnter={() => setHighlightIdx(step1List.length)}
+            onMouseEnter={() => setHighlightIdx(filtered.length)}
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '12px',
-              background: highlightIdx === step1List.length ? hoverBg : 'transparent',
+              background: highlightIdx === filtered.length ? hoverBg : 'transparent',
               cursor: 'pointer', borderTop: `1px solid ${border}`, transition: 'background 0.1s',
             }}
           >
             <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: `${accent}10`, border: `2px dashed ${accent}30`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: '50%', background: `${accent}10`,
+              border: `2px dashed ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <Icon name="plus" size={14} color={accent} />
             </div>
@@ -420,12 +312,10 @@ export default function BorrowerPicker({
                 return (
                   <div
                     key={s.id}
-                    ref={(el) => { rowRefs.current[i] = el; }}
                     onClick={() => handleSelectScenario(s)}
                     onMouseEnter={() => setHighlightIdx(i)}
                     style={{
-                      padding: '10px 12px',
-                      background: isHighlighted ? hoverBg : 'transparent',
+                      padding: '10px 12px', background: isHighlighted ? hoverBg : 'transparent',
                       cursor: 'pointer', borderBottom: `1px solid ${border}`, transition: 'background 0.1s',
                     }}
                   >
@@ -461,7 +351,6 @@ export default function BorrowerPicker({
               )}
 
               <div
-                ref={(el) => { rowRefs.current[scenarios.length] = el; }}
                 onClick={handleNewBlueprint}
                 onMouseEnter={() => setHighlightIdx(scenarios.length)}
                 style={{
@@ -471,9 +360,8 @@ export default function BorrowerPicker({
                 }}
               >
                 <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: `${accent}10`, border: `1px dashed ${accent}30`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 8, background: `${accent}10`,
+                  border: `1px dashed ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <Icon name="plus" size={13} color={accent} />
                 </div>
@@ -493,11 +381,9 @@ export default function BorrowerPicker({
     </>
   );
 
-  // ── Open header (search input / step-2 back bar). Shared by desktop + mobile. ──
   const renderOpenHeader = (roundedTop) => (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px',
-      background: bg,
+      display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', background: bg,
       border: `1px solid ${accent}`,
       borderBottom: roundedTop ? `1px solid ${accent}` : `1px solid ${border}`,
       borderRadius: roundedTop ? '10px 10px 0 0' : '0',
@@ -545,13 +431,11 @@ export default function BorrowerPicker({
     </div>
   );
 
-  // ── Closed-state trigger chip (active borrower or search prompt) ──
   const renderTrigger = () => (
     <div
       onClick={() => setIsOpen(true)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-        background: bg,
+        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: bg,
         border: `1px solid ${activeBorrower ? accent + '40' : border}`,
         borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', minHeight: 34,
       }}
@@ -590,7 +474,7 @@ export default function BorrowerPicker({
         <>
           <Icon name="search" size={14} color={textTer} />
           <span style={{ flex: 1, fontSize: 12, color: textTer, fontFamily: FONT }}>
-            {loading ? 'Loading...' : 'Switch client...'}
+            {loading ? 'Loading...' : 'Find or add client...'}
           </span>
           <Icon name="chevron-down" size={14} color={textTer} />
         </>
@@ -599,10 +483,9 @@ export default function BorrowerPicker({
   );
 
   const desktopDropdownStyle = {
-    position: 'absolute', top: '100%', left: 0, right: 0,
-    background: card, border: `1px solid ${accent}40`, borderTop: 'none',
-    borderRadius: '0 0 10px 10px', maxHeight: 420, overflowY: 'auto',
-    zIndex: 200, boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+    position: 'absolute', top: '100%', left: 0, right: 0, background: card,
+    border: `1px solid ${accent}40`, borderTop: 'none', borderRadius: '0 0 10px 10px',
+    maxHeight: 420, overflowY: 'auto', zIndex: 200, boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
   };
 
   return (
@@ -610,15 +493,12 @@ export default function BorrowerPicker({
       ref={containerRef}
       style={{
         position: 'relative', flex: 1,
-        maxWidth: isDesktop ? 340 : 'none',
-        minWidth: 180,
+        maxWidth: isDesktop ? 340 : 'none', minWidth: 0,
         width: isDesktop ? undefined : '100%',
       }}
     >
-      {/* Trigger: always visible on mobile (drawer overlays it); hidden on desktop while open */}
       {(!isOpen || !isDesktop) && renderTrigger()}
 
-      {/* Desktop: inline search header + absolute dropdown */}
       {isOpen && isDesktop && (
         <>
           {renderOpenHeader(true)}
@@ -628,23 +508,14 @@ export default function BorrowerPicker({
         </>
       )}
 
-      {/* Mobile: dimmed backdrop + full-height slide-in drawer */}
       {isOpen && !isDesktop && (
         <>
-          <div
-            onClick={closePicker}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000 }}
-          />
+          <div onClick={closePicker} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000 }} />
           <div
             style={{
-              position: 'fixed', top: 0, bottom: 0, left: 0,
-              width: 'min(86%, 360px)',
-              background: card,
-              borderRight: `1px solid ${accent}40`,
-              borderRadius: '0 16px 16px 0',
-              zIndex: 1001,
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '8px 0 40px rgba(0,0,0,0.55)',
+              position: 'fixed', top: 0, bottom: 0, left: 0, width: 'min(86%, 360px)',
+              background: card, borderRight: `1px solid ${accent}40`, borderRadius: '0 16px 16px 0',
+              zIndex: 1001, display: 'flex', flexDirection: 'column', boxShadow: '8px 0 40px rgba(0,0,0,0.55)',
             }}
           >
             {renderOpenHeader(false)}
