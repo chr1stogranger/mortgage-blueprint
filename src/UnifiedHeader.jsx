@@ -97,7 +97,7 @@ export default function UnifiedHeader({
   ];
   const pillars = isRefi ? refiPillars : purchasePillars;
 
-  const sidebarW = isDesktop ? (sidebarCollapsed ? 56 : 180) : 0;
+  const sidebarW = isDesktop ? (sidebarCollapsed ? 56 : 270) : 0;
 
   // ── Stat cell (responsive sizing) ──
   const Stat = ({ label, value, color }) => (

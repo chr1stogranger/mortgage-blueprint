@@ -4614,8 +4614,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    )}
    {(isDesktop || mobileMenuOpen) && (
     <div className="bp-sidebar" style={{
-     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 180),
-     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 180),
+     width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 270),
+     minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 270),
      height: "100vh", position: "fixed", top: 0, left: 0,
      background: darkMode ? "#0d0d0f" : "#FAFAFA",
      borderRight: `1px solid ${T.separator}`,
@@ -4825,7 +4825,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 180}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 180}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 180) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 180}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -5508,7 +5508,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 </>)}
 {/* ═══ WORKSPACE (Multi-pane calculator) ═══ */}
 {tab === "workspace" && isDesktop && (
- <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 180} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
+ <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 270} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
 )}
 {/* ═══ OVERVIEW ═══ */}
 {tab === "overview" && (
@@ -7039,7 +7039,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ═══════════════════════════════════════════ */}
    {/* ═══ SPLIT-SCREEN: Right-side panel (desktop only) ═══ */}
    {splitMode && isDesktop && splitApp && (() => {
-    const sidebarW = appMode === "blueprint" ? (sidebarCollapsed ? 56 : 180) : 180;
+    const sidebarW = appMode === "blueprint" ? (sidebarCollapsed ? 56 : 270) : 180;
     const splitW = `${100 - splitRatio}vw`;
     const splitLeft = `${splitRatio}vw`;
 
