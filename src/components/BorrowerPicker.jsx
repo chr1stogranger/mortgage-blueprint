@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../Icon';
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -508,7 +509,12 @@ export default function BorrowerPicker({
         </>
       )}
 
-      {isOpen && !isDesktop && (
+      {/* Drawer is portaled to document.body so it escapes the left sidebar's
+          stacking context (.bp-sidebar is position:fixed zIndex:60, which would
+          otherwise trap this drawer below the UnifiedHeader at zIndex 900 and
+          let the header paint over the drawer's top-right). At the body level
+          its zIndex 1000/1001 applies globally and it covers everything. */}
+      {isOpen && !isDesktop && typeof document !== 'undefined' && createPortal(
         <>
           <div onClick={closePicker} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000 }} />
           <div
@@ -523,7 +529,8 @@ export default function BorrowerPicker({
               {renderBody()}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
