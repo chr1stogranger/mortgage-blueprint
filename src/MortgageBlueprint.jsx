@@ -2035,8 +2035,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiEscrowBalance !== undefined) setRefiEscrowBalance(s.refiEscrowBalance);
   if (s.refiSkipMonths !== undefined) setRefiSkipMonths(s.refiSkipMonths);
   if (s.refiNewLoanAmtOverride !== undefined) setRefiNewLoanAmtOverride(s.refiNewLoanAmtOverride);
-  if (s.themeMode) { setThemeMode(s.themeMode); try { localStorage.setItem('bp_theme_mode', s.themeMode); } catch {} }
-  else if (s.darkMode !== undefined) { setThemeMode(s.darkMode ? 'dark' : 'light'); try { localStorage.setItem('bp_theme_mode', s.darkMode ? 'dark' : 'light'); } catch {} }
+  // Theme (dark/light) is a device-level preference, NOT per-scenario. Do not apply
+  // a saved scenario's theme on load — that would flip the UI when switching clients.
+  // Theme persists via localStorage 'bp_theme_mode' and the ?theme= URL param instead.
   if (s.showInvestor !== undefined) setShowInvestor(s.showInvestor);
   if (s.showRentVsBuy !== undefined) setShowRentVsBuy(s.showRentVsBuy);
   if (s.invMonthlyRent !== undefined) setInvMonthlyRent(s.invMonthlyRent);
