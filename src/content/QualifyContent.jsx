@@ -132,7 +132,12 @@ function DebtToIncomeSummary({
     <div style={{ minWidth: 0 }}>
       <div style={subHeaderStyle}>{title}</div>
       {rows.map((r, i) => (
-        <div key={i} style={rowStyle}>
+        // minHeight keeps every line-item row a uniform height so the two
+        // columns stay aligned even when one side's label wraps to two lines
+        // (e.g. "Other Monthly Income") and the other doesn't ("Invest. Real
+        // Estate Net"). Without this, Total Debts floats above Total Monthly
+        // Income and the rest of the rows drift out of sync. (Christo 2026-05-27.)
+        <div key={i} style={{ ...rowStyle, minHeight: 52, boxSizing: "border-box" }}>
           <span style={cellLabel}>{r.label}</span>
           <span style={cellValue}>{fmt(r.value)}</span>
         </div>
@@ -322,11 +327,11 @@ export default function QualifyContent({
  <div style={{ marginTop: 16 }}>
   <Card>
    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>FICO Score</div>
-   <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+   <div data-field="qualify-fico" className={isPulse("qualify-fico")} style={{ display: "flex", alignItems: "center", gap: isDesktop ? 14 : 8 }}>
     <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="720"
      onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
      onBlur={() => { if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
-     style={{ flex: "0 0 90px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+     style={{ flex: isDesktop ? "0 0 90px" : "0 0 62px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: isDesktop ? "10px 14px" : "10px 6px", color: T.text, fontSize: isDesktop ? 17 : 16, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
      <input type="range" min={300} max={850} step={1} value={creditScore || 650}
       onChange={e => setCreditScore(parseInt(e.target.value, 10))}
@@ -337,7 +342,7 @@ export default function QualifyContent({
      </div>
     </div>
     {creditScore > 0 && (
-     <div style={{ flexShrink: 0, background: creditScore >= calc.ficoMin ? `${T.green}18` : `${T.red}18`, color: creditScore >= calc.ficoMin ? T.green : T.red, borderRadius: 9999, padding: "5px 12px", fontSize: 12, fontWeight: 700, fontFamily: FONT, whiteSpace: "nowrap" }}>
+     <div style={{ flexShrink: 0, background: creditScore >= calc.ficoMin ? `${T.green}18` : `${T.red}18`, color: creditScore >= calc.ficoMin ? T.green : T.red, borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 9px", fontSize: isDesktop ? 12 : 11, fontWeight: 700, fontFamily: FONT, whiteSpace: "nowrap" }}>
       {creditScore} / {calc.ficoMin}+ {creditScore >= calc.ficoMin ? "✓" : "✗"}
      </div>
     )}
