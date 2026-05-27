@@ -86,8 +86,13 @@ export default function OverviewTab(props) {
 
   const isGuided = skillLevel === "guided";
 
+  // No paddingTop on the root below: the parent content spacer in
+  // MortgageBlueprint.jsx already reserves 98px + env(safe-area-inset-top) to
+  // clear the fixed UnifiedHeader. Re-applying the safe-area inset here
+  // double-counted it and left a large white gap at the top of the Overview.
+  // (Christo 2026-05-27.)
   return (
-    <div style={{ marginTop: 0, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: 80 }}>
+    <div style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
       {/* ═══════════════════════════════════════
           HEADER: scenario pills + sign-in (title removed — sticky bar provides context)
           ═══════════════════════════════════════ */}
