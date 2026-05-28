@@ -306,8 +306,24 @@ export default async function handler(req, res) {
             .single();
           daily = existing;
         } else {
-          console.error('[pp-daily] Insert error:', insertErr.message);
-          return res.status(500).json({ error: 'Failed to seed daily challenge' });
+          // Surface the full Supabase error so we can diagnose schema/RLS issues from the response.
+          // None of these fields are sensitive (no PII, no secrets), just Postgres error metadata.
+          console.error('[pp-daily] Insert error:', JSON.stringify({
+            code: insertErr.code,
+            message: insertErr.message,
+            details: insertErr.details,
+            hint: insertErr.hint,
+          }));
+          return res.status(500).json({
+            error: 'Failed to seed daily challenge',
+            supabase: {
+              code: insertErr.code,
+              message: insertErr.message,
+              details: insertErr.details,
+              hint: insertErr.hint,
+            },
+            attemptedRowKeys: Object.keys(row),
+          });
         }
       } else {
         daily = inserted;

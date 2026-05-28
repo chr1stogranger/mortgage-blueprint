@@ -1524,7 +1524,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     let trueSold = soldListings.filter(isTrueSold);
 
     // Step 2: Exclude daily spoilers AND previously guessed properties
-    const excludedIndices = getDailyIndices(trueSold, market?.label || "", 30);
+    // Cap the daily-exclusion window so it can't swallow the whole pool. With a small
+    // sold-comp pool (e.g. ~10), a 30-day exclusion hashes into every index and zeros
+    // the pool — leave at least ~3 indices unexcluded so something can be played.
+    const exclusionDays = Math.min(30, Math.max(0, trueSold.length - 3));
+    const excludedIndices = getDailyIndices(trueSold, market?.label || "", exclusionDays);
     const guessedZpids = fpGuessedZpidsRef.current;
     let pool = trueSold.filter((l, i) => !excludedIndices.has(i) && (!l.zpid || !guessedZpids.has(l.zpid)));
 
@@ -1541,9 +1545,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = pool.filter(l => zipGroup.has(l.zip));
     }
 
-    // Step 4: If zip filter left too few, relax daily exclusion but keep zip group + guessed dedup
-    if (zip && pool.length < 3) {
-      pool = trueSold.filter(l => zipGroup.has(l.zip) && (!l.zpid || !guessedZpids.has(l.zpid)));
+    // Step 4: If pool is too small after the daily-spoiler cull, relax the daily exclusion.
+    // Runs for both the zip-filtered case AND the no-zip "All of <city>" case — without
+    // this, "All of SF" (zip=null) gets stuck at 0 available whenever the daily-exclusion
+    // happens to cover every property in a small sold-comp pool.
+    if (pool.length < 3) {
+      pool = trueSold.filter(l => {
+        if (zipGroup && !zipGroup.has(l.zip)) return false;
+        if (l.zpid && guessedZpids.has(l.zpid)) return false;
+        return true;
+      });
     }
 
     // Step 5: (removed — zip group already covers neighboring zips)
