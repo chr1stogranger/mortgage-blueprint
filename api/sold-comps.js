@@ -248,6 +248,22 @@ export default async function handler(req, res) {
     const candidateZpids = [...new Set([...curatedZpids, ...discovered])]
       .filter(z => !excludeSet.has(z) && !poolZpidSet.has(String(z)));
 
+    console.error(`[SoldComps] ${marketId} candidates: curated=${curatedZpids.length}, discovered=${discovered.length}, postFilter=${candidateZpids.length}`);
+
+    // Debug mode: short-circuit and report discovery internals.
+    if (req.query.debug === '1') {
+      return res.status(200).json({
+        debug: true,
+        marketId,
+        curatedCount: curatedZpids.length,
+        discoveredCount: discovered.length,
+        candidateCount: candidateZpids.length,
+        poolSize: pool.length,
+        firstDiscovered: discovered.slice(0, 10),
+        firstCandidates: candidateZpids.slice(0, 10),
+      });
+    }
+
     if (candidateZpids.length === 0) {
       const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
       return res.status(200).json({
@@ -291,9 +307,13 @@ export default async function handler(req, res) {
       const d = r.value;
       const zpid = String(zpidsToFetch[i]);
 
+      // Try priceHistory first; fall back to root-level lastSoldPrice/Date
+      // (RapidAPI often sets these even when priceHistory is missing the
+      // "Sold" event). Without the fallback, many genuine recent sales
+      // were getting rejected at ingest.
       const soldEvent = extractSoldEvent(d.priceHistory || []);
-      const soldPrice = soldEvent?.price || d.lastSoldPrice || null;
-      const soldDate = soldEvent?.date || null;
+      const soldPrice = soldEvent?.price || d.lastSoldPrice || d.lastSale?.price || null;
+      const soldDate = soldEvent?.date || d.lastSoldDate || d.lastSale?.date || null;
       if (!soldPrice || !soldDate) continue;
 
       // STRICT 6-month sold-date filter. Anything older is discarded at ingest
@@ -429,7 +449,7 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
     const params = new URLSearchParams({ location: `${city}, CA`, status: "forSale" });
     const url = `https://${apiHost}/search?${params}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
+    const timer = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch(url, {
         method: "GET",
