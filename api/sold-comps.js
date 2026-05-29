@@ -211,7 +211,10 @@ export default async function handler(req, res) {
     // Verified zpids are confirmed working, so always include them.
     // City-wide: up to 8 total (all 18 verified if available, then extras)
     // Zip-specific: up to 6 total
-    const MAX_FETCH = zip ? 6 : 8;
+    // City-wide bumped 8 → 16 so RapidAPI's ~37% per-zpid success rate yields a
+    // playable pool (~6 sold instead of ~3). Zip-scoped stays at 6 because the
+    // candidate set there is already narrow.
+    const MAX_FETCH = zip ? 6 : 16;
     const dayHash = new Date().getDate();
     // Shuffle extras deterministically for variety
     const shuffledExtras = [...extraZpids].sort((a, b) => ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997));
@@ -229,7 +232,11 @@ export default async function handler(req, res) {
     console.error(`[SoldComps] Batch: ${rotatedVerified.length} verified + ${shuffledExtras.length} extras → fetching ${zpidsToFetch.length}`);
 
     // Fetch property details in parallel — single batch, all at once
-    const TIMEOUT_MS = 3500; // 3.5s per-request timeout (was 6s — fast-fail on slow zpids)
+    // 5s per-request timeout. Was 3.5s which was cutting off too many slow
+    // RapidAPI responses (success rate ~37%). All requests run in parallel via
+    // Promise.allSettled so total endpoint latency is bounded by the slowest
+    // single response, not the sum.
+    const TIMEOUT_MS = 5000;
     const allResults = [];
     const discoveredFromNearby = new Set();
 
