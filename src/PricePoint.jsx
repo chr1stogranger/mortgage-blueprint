@@ -204,7 +204,11 @@ const isRecentSale = (l) => {
   if (!l.soldDate) return true; // no date = assume recent
   const saleDate = new Date(l.soldDate);
   const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - 6); // 6-month window — matches server pool filter
+  // 12-month window. The server runs a tiered pool: 0-6mo entries are
+  // preferred, 6-12mo entries fill in when the fresh bucket is thin. Keeping
+  // the client window at 6mo would reject the older-tier fallback entries
+  // and re-empty the pool. Server is the source of truth on freshness.
+  cutoff.setMonth(cutoff.getMonth() - 12);
   return saleDate >= cutoff;
 };
 

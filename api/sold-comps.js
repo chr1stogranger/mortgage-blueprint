@@ -31,7 +31,12 @@ function getSupabaseAdmin() {
 const POOL_THRESHOLD = 5;                  // below this, run discovery to grow
 const POOL_QUERY_LIMIT = 1000;             // pull up to N pool rows on read
 const RESPONSE_SHUFFLE_CAP = 50;           // shuffled slice size returned to client
-const SOLD_DATE_MONTHS = 6;                // sold-comps must be from last 6 months
+// TIERED sold-date window:
+//   - ingest accepts anything within the last 12 months (broader pool capture)
+//   - on read, 0-6mo entries are PREFERRED; 6-12mo entries only fill in when
+//     the 0-6mo bucket is below POOL_THRESHOLD
+const SOLD_DATE_MONTHS_INGEST = 12;
+const SOLD_DATE_MONTHS_PREFERRED = 6;
 
 // ─── Map city name → market_id used as pool key ───
 function cityToMarketId(city) {
@@ -45,14 +50,14 @@ function cityToMarketId(city) {
   return map[key] || key;
 }
 
-// ─── 6-month cutoff helper ───
-function sixMonthsAgoDate() {
+// ─── Cutoff helpers ───
+function monthsAgoDate(months) {
   const d = new Date();
-  d.setMonth(d.getMonth() - SOLD_DATE_MONTHS);
+  d.setMonth(d.getMonth() - months);
   return d;
 }
-function sixMonthsAgoDateStr() {
-  return sixMonthsAgoDate().toISOString().split('T')[0];
+function monthsAgoDateStr(months) {
+  return monthsAgoDate(months).toISOString().split('T')[0];
 }
 
 // ─── Zip-to-neighborhood mapping for curated zpids ───
@@ -171,8 +176,9 @@ export default async function handler(req, res) {
 
     const marketId = cityToMarketId(city);
     const forceDiscover = fresh === "1";
-    const cutoff = sixMonthsAgoDate();
-    const cutoffStr = sixMonthsAgoDateStr();
+    const ingestCutoff = monthsAgoDate(SOLD_DATE_MONTHS_INGEST);
+    const ingestCutoffStr = monthsAgoDateStr(SOLD_DATE_MONTHS_INGEST);
+    const preferredCutoff = monthsAgoDate(SOLD_DATE_MONTHS_PREFERRED);
 
     const excludeSet = new Set();
     if (exclude) exclude.split(",").forEach(z => excludeSet.add(z.trim()));
@@ -182,37 +188,64 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Supabase not configured" });
     }
 
-    // ─── 1. Read pool ───
+    // ─── 1. Read pool (12-month ingest window, then partition) ───
+    // selectFromPool returns an object split into 'fresh' (within 6 months) and
+    // 'older' (6-12 months). Callers prefer fresh; older is fallback only.
     async function readPool() {
       let q = supabase
         .from('pp_property_pool')
         .select('*')
         .eq('market_id', marketId)
-        .gte('sold_date', cutoffStr)
+        .gte('sold_date', ingestCutoffStr)
         .limit(POOL_QUERY_LIMIT);
       if (zip) q = q.eq('zip', zip);
       const { data, error } = await q;
       if (error) {
         console.error('[SoldComps] Pool read error:', error.message);
-        return [];
+        return { fresh: [], older: [], all: [] };
       }
-      return (data || []).filter(r => !excludeSet.has(String(r.zpid)));
+      const rows = (data || []).filter(r => !excludeSet.has(String(r.zpid)));
+      const fresh = rows.filter(r => new Date(r.sold_date) >= preferredCutoff);
+      const older = rows.filter(r => new Date(r.sold_date) < preferredCutoff);
+      return { fresh, older, all: rows };
+    }
+
+    // Pick the best shuffled slice given a {fresh, older} pool.
+    // Returns 'fresh-only' when fresh >= POOL_THRESHOLD, else fills with older.
+    function pickShuffledSlice(p) {
+      if (p.fresh.length >= POOL_THRESHOLD) {
+        return {
+          rows: [...p.fresh].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP),
+          tier: 'fresh',
+        };
+      }
+      // Mix: all fresh first, then fill with shuffled older
+      const combined = [...p.fresh, ...[...p.older].sort(() => Math.random() - 0.5)];
+      return {
+        rows: combined.slice(0, RESPONSE_SHUFFLE_CAP),
+        tier: p.fresh.length === 0 ? 'older-only' : 'mixed',
+      };
     }
 
     let pool = await readPool();
+    // 'Healthy' = enough across the whole 12-month window to skip another
+    // discovery pass. The slice still prefers fresh.
+    const totalSize = pool.all.length;
 
-    // Healthy pool + not asked to refresh → serve immediately.
-    if (!forceDiscover && pool.length >= POOL_THRESHOLD) {
-      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
+    if (!forceDiscover && totalSize >= POOL_THRESHOLD) {
+      const { rows: shuffled, tier } = pickShuffledSlice(pool);
       res.setHeader("Cache-Control", "no-store");
       return res.status(200).json({
         soldListings: shuffled.map(poolRowToListing),
         count: shuffled.length,
         city,
         zip: zip || null,
-        poolSize: pool.length,
+        poolSize: totalSize,
+        poolFreshSize: pool.fresh.length,
+        poolOlderSize: pool.older.length,
+        servedTier: tier,
         source: 'pool',
-        hasMore: pool.length > shuffled.length,
+        hasMore: totalSize > shuffled.length,
         timestamp: new Date().toISOString(),
       });
     }
@@ -222,19 +255,22 @@ export default async function handler(req, res) {
     const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
     if (!apiKey) {
       // No discovery possible — return whatever the pool has, even if thin.
-      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
+      const { rows: shuffled, tier } = pickShuffledSlice(pool);
       return res.status(200).json({
         soldListings: shuffled.map(poolRowToListing),
         count: shuffled.length,
         city,
         zip: zip || null,
-        poolSize: pool.length,
+        poolSize: pool.all.length,
+        poolFreshSize: pool.fresh.length,
+        poolOlderSize: pool.older.length,
+        servedTier: tier,
         source: 'pool-only-no-apikey',
         hasMore: false,
       });
     }
 
-    console.error(`[SoldComps] Pool thin for ${marketId} (${pool.length}). Discovering...`);
+    console.error(`[SoldComps] Pool thin for ${marketId} (fresh=${pool.fresh.length}, all=${pool.all.length}). Discovering...`);
 
     // Collect candidate zpids from every source available:
     //   a. Curated VERIFIED + EXTRA (SF has ~68; others empty).
@@ -243,7 +279,7 @@ export default async function handler(req, res) {
     const zpidData = zip ? getZpidsForZip(city, zip) : getZpidsForCity(city);
     const curatedZpids = [...zpidData.verified, ...zpidData.extras];
     const discovered = await discoverSoldZpidsForCity(city, apiKey, apiHost);
-    const poolZpidSet = new Set(pool.map(r => String(r.zpid)));
+    const poolZpidSet = new Set(pool.all.map(r => String(r.zpid)));
 
     const candidateZpids = [...new Set([...curatedZpids, ...discovered])]
       .filter(z => !excludeSet.has(z) && !poolZpidSet.has(String(z)));
@@ -251,13 +287,16 @@ export default async function handler(req, res) {
     console.error(`[SoldComps] ${marketId} candidates: curated=${curatedZpids.length}, discovered=${discovered.length}, postFilter=${candidateZpids.length}`);
 
     if (candidateZpids.length === 0) {
-      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
+      const { rows: shuffled, tier } = pickShuffledSlice(pool);
       return res.status(200).json({
         soldListings: shuffled.map(poolRowToListing),
         count: shuffled.length,
         city,
         zip: zip || null,
-        poolSize: pool.length,
+        poolSize: pool.all.length,
+        poolFreshSize: pool.fresh.length,
+        poolOlderSize: pool.older.length,
+        servedTier: tier,
         source: 'pool-no-new-candidates',
         hasMore: false,
       });
@@ -307,10 +346,10 @@ export default async function handler(req, res) {
       if (!soldPrice || !soldDate) { rejNoSoldData++; continue; }
       if (sampleSoldDates.length < 8) sampleSoldDates.push(soldDate);
 
-      // STRICT 6-month sold-date filter. Anything older is discarded at ingest
-      // so it never makes it into the pool.
+      // Ingest accepts up to 12 months — the 6-month preference is applied at
+      // read time so the pool grows wider than the preferred-serve window.
       const saleDate = new Date(soldDate);
-      if (saleDate < cutoff) { rejTooOld++; continue; }
+      if (saleDate < ingestCutoff) { rejTooOld++; continue; }
 
       soldCount++;
       const photos = extractPhotos(d);
@@ -358,9 +397,9 @@ export default async function handler(req, res) {
 
     // ─── 4. Re-read pool and return ───
     pool = await readPool();
-    const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
+    const { rows: shuffled, tier } = pickShuffledSlice(pool);
 
-    console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: discovered ${candidateZpids.length} candidates, fetched ${fetchedCount}, ${soldCount} valid sold, pool now ${pool.length}`);
+    console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: discovered ${candidateZpids.length} candidates, fetched ${fetchedCount}, ${soldCount} valid sold, pool now fresh=${pool.fresh.length} older=${pool.older.length}`);
 
     res.setHeader("Cache-Control", "no-store");
     const responseBody = {
@@ -368,10 +407,13 @@ export default async function handler(req, res) {
       count: shuffled.length,
       city,
       zip: zip || null,
-      poolSize: pool.length,
+      poolSize: pool.all.length,
+      poolFreshSize: pool.fresh.length,
+      poolOlderSize: pool.older.length,
+      servedTier: tier,
       newlyAdded: newRows.length,
       source: 'pool+discovery',
-      hasMore: pool.length > shuffled.length,
+      hasMore: pool.all.length > shuffled.length,
       timestamp: new Date().toISOString(),
     };
     if (req.query.debug === '1') {
@@ -384,7 +426,7 @@ export default async function handler(req, res) {
         rejNoSoldData,
         rejTooOld,
         addedAfterFilter: newRows.length,
-        cutoffStr,
+        ingestCutoffStr,
         sampleSoldDates,
       };
     }
@@ -538,23 +580,23 @@ async function fetchPropertyDetails(zpid, apiKey, apiHost, timeoutMs = 6000) {
   }
 }
 
-// ─── Extract the most recent "Sold" event from priceHistory ───
+// ─── Extract the MOST RECENT "Sold" event from priceHistory ───
+// Previously returned the first match in iteration order, which is wrong for
+// homes with multiple sales in history (flips, etc.) when priceHistory isn't
+// guaranteed reverse-chronological. Now collects all Sold-like events with a
+// date, sorts by date DESC, returns the freshest.
 function extractSoldEvent(history) {
   if (!Array.isArray(history)) return null;
-  for (const evt of history) {
-    if (evt.event && (
+  const candidates = history
+    .filter(evt => evt && evt.date && evt.event && (
       evt.event === "Sold" ||
-      evt.event.toLowerCase().includes("sold") ||
+      String(evt.event).toLowerCase().includes("sold") ||
       evt.event === "Closed"
-    )) {
-      return {
-        price: evt.price || null,
-        date: evt.date || null,
-        event: evt.event,
-      };
-    }
-  }
-  return null;
+    ));
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const best = candidates[0];
+  return { price: best.price || null, date: best.date, event: best.event };
 }
 
 // ─── Extract original list price from priceHistory ───

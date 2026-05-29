@@ -80,12 +80,17 @@ async function fetchPropertyDirect(zpid, apiKey, apiHost, timeoutMs = 6000) {
 // ââ Extract sold event from priceHistory ââ
 function extractSoldEvent(history) {
   if (!Array.isArray(history)) return null;
-  for (const evt of history) {
-    if (evt.event && (evt.event === 'Sold' || evt.event.toLowerCase().includes('sold') || evt.event === 'Closed')) {
-      return { price: evt.price || null, date: evt.date || null };
-    }
-  }
-  return null;
+  const candidates = history.filter(evt => evt && evt.date && evt.event && (
+    evt.event === 'Sold' ||
+    String(evt.event).toLowerCase().includes('sold') ||
+    evt.event === 'Closed'
+  ));
+  if (candidates.length === 0) return null;
+  // Most recent sold event (sort by date DESC). priceHistory ordering isn't
+  // guaranteed; iteration-first picked the OLDEST in some cases.
+  candidates.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const best = candidates[0];
+  return { price: best.price || null, date: best.date };
 }
 
 // ââ Extract list price from priceHistory ââ
@@ -218,7 +223,7 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
 
   const listings = [];
   const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - 6); // 6-month window — matches pool
+  cutoff.setMonth(cutoff.getMonth() - 12); // 12-month ingest window (matches sold-comps tiered pool)
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
@@ -344,17 +349,23 @@ export default async function handler(req, res) {
     if (!daily) {
       console.error(`[pp-daily] Seeding daily for ${marketId} on ${today} (#${dailyNumber})`);
 
-      // Read pool for the market within the last 6 months.
+      // Read pool for the market: prefer 0-6mo (fresh), fall back to 6-12mo.
+      const twelveMonthsAgo = new Date();
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      const twelveMonthsAgoStr = twelveMonthsAgo.toISOString().split('T')[0];
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
 
-      const { data: poolRows } = await supabase
+      const { data: allRows } = await supabase
         .from('pp_property_pool')
         .select('*')
         .eq('market_id', marketId)
-        .gte('sold_date', sixMonthsAgoStr)
+        .gte('sold_date', twelveMonthsAgoStr)
         .limit(500);
+
+      // Daily prefers fresh (0-6mo). If no fresh entries, fall back to older.
+      const fresh = (allRows || []).filter(r => new Date(r.sold_date) >= sixMonthsAgo);
+      const poolRows = fresh.length > 0 ? fresh : (allRows || []);
 
       let property = null;
       if (poolRows && poolRows.length > 0) {
