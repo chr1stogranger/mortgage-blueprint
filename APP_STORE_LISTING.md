@@ -104,7 +104,7 @@ https://blueprint.realstack.app/privacy.html
 
 **Notes for Reviewer** (paste verbatim)
 ```
-Mortgage Blueprint is a standalone mortgage calculator for homebuyers and real estate agents. No login or account is required — the app opens directly into the calculator. To test: enter a purchase price (e.g. $750,000), a down payment (e.g. 20%), and an interest rate (e.g. 6.5%) to see a full monthly payment breakdown (principal, interest, taxes, insurance, MI, HOA), side-by-side loan comparisons, a tax-savings estimate, and a complete amortization schedule. All calculations run on-device. This is an educational planning tool and does not collect user data or make loan offers.
+Mortgage Blueprint is a standalone mortgage calculator for homebuyers and real estate agents. No login or account is required — the app opens directly into the calculator. To test: enter a purchase price (e.g. $750,000), a down payment (e.g. 20%), and an interest rate (e.g. 6.5%) to see a full monthly payment breakdown (principal, interest, taxes, insurance, MI, HOA), side-by-side loan comparisons, a tax-savings estimate, and a complete amortization schedule. The app also displays current mortgage rate data and includes PricePoint, an optional real-estate price-guessing feature for fun (no prizes, no wagering). The "Markets" tab is a preview of an upcoming feature and is non-functional in this version: it offers no real-money trading, wagering, payouts, or in-app purchases. All calculations run on-device. This is an educational planning tool and does not collect user data or make loan offers.
 ```
 
 ---
