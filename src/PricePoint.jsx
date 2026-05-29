@@ -1235,6 +1235,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setMarket(mkt);
     setLocationLabel(mkt.label);
     setShowMarketSwitcher(false);
+    // Clear stale listings from the previous market BEFORE fetching the new
+    // ones. fetchListings only calls setSoldListings/setActiveListings when the
+    // new response is non-empty, so without this clear, switching SF → Alameda
+    // while Alameda returns 0 leaves SF properties leaking into Alameda's view
+    // (the "All of [City]" path doesn't have a zip filter to exclude them).
+    // Also persist the cleared state to localStorage so a page reload doesn't
+    // rehydrate the previous market's stale data.
+    setSoldListings([]);
+    setActiveListings([]);
+    try {
+      localStorage.removeItem("pp-sold-listings");
+      localStorage.removeItem("pp-active-listings");
+    } catch {}
     try { localStorage.setItem("pp-market", JSON.stringify(mkt)); localStorage.setItem("pp-location-label", mkt.label); } catch {}
     await fetchListings(launchMarket.name);
     if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
@@ -1520,8 +1533,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   if (typeof fpGuessedZpidsRef.current === "function") fpGuessedZpidsRef.current = fpGuessedZpidsRef.current();
 
   const enterFreePlay = (zip, hoodName) => {
-    // Step 1: Filter to trusted sold listings only
-    let trueSold = soldListings.filter(isTrueSold);
+    // Step 1: Filter to trusted sold listings only, AND only listings whose
+    // city matches the current market. The city guard is a defensive belt-and-
+    // suspenders against any code path (cache hydration, race condition, stale
+    // localStorage) that could leave a previous market's listings in state.
+    // Without it, "All of Alameda" would show SF properties if soldListings
+    // wasn't cleared during the market switch.
+    const marketCityLc = (market?.city || "").toLowerCase().trim();
+    let trueSold = soldListings.filter(l => {
+      if (!isTrueSold(l)) return false;
+      if (marketCityLc && l.city && l.city.toLowerCase().trim() !== marketCityLc) return false;
+      return true;
+    });
 
     // Step 2: Exclude daily spoilers AND previously guessed properties
     // Cap the daily-exclusion window so it can't swallow the whole pool. With a small
