@@ -163,6 +163,39 @@ export default async function handler(req, res) {
       }
     }
 
+    const apiKey = process.env.RAPIDAPI_KEY;
+    const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
+    if (!apiKey) {
+      return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
+    }
+
+    // ─── DYNAMIC FALLBACK ───
+    // City has no curated zpids (e.g., Alameda, Oakland, Berkeley). Don't return
+    // empty — discover sold zpids dynamically by:
+    //   1. searching for active listings in the city (search?status=forSale works
+    //      reliably; the city's "recentlySold" search returns garbage, see below);
+    //   2. fetching property-details for a few active seeds;
+    //   3. harvesting RECENTLY_SOLD entries from each seed's nearbyHomes array.
+    // The harvested zpids feed the existing fetch+validate pipeline below, so the
+    // quality bar (priceHistory, 5y window, photos) is identical to curated data.
+    //
+    // Why not just trust /search?status=recentlySold for the city? Because that
+    // endpoint returns active listings relabeled as sold — proven empirically:
+    // for Alameda it returned 41 "sold" items and dedup removed all 41.
+    if (verifiedZpids.length === 0 && extraZpids.length === 0 && !zip) {
+      console.error(`[SoldComps] No curated zpids for "${city}" — running dynamic discovery`);
+      const discovered = await discoverSoldZpidsForCity(city, apiKey, apiHost);
+      const fresh = discovered.filter(z => !excludeSet.has(z));
+      if (fresh.length > 0) {
+        // Treat all discovered zpids as "extras" so the existing batch builder
+        // and MAX_FETCH cap apply the same way they do for curated cities.
+        extraZpids = fresh;
+        console.error(`[SoldComps] Dynamic discovery for "${city}": ${discovered.length} found, ${fresh.length} usable`);
+      } else {
+        console.error(`[SoldComps] Dynamic discovery for "${city}" yielded 0 zpids`);
+      }
+    }
+
     if (verifiedZpids.length === 0 && extraZpids.length === 0) {
       return res.status(200).json({
         soldListings: [],
@@ -170,14 +203,8 @@ export default async function handler(req, res) {
         city,
         zip: zip || null,
         hasMore: false,
-        message: zip ? `No more sold data for zip ${zip}` : `No curated sold data for "${city}" yet`,
+        message: zip ? `No more sold data for zip ${zip}` : `No sold data discovered for "${city}"`,
       });
-    }
-
-    const apiKey = process.env.RAPIDAPI_KEY;
-    const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
-    if (!apiKey) {
-      return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
     // ── Build fetch batch: ALL verified zpids first, then fill with extras ──
@@ -388,6 +415,67 @@ export default async function handler(req, res) {
     console.error("[SoldComps] Error:", err);
     return res.status(500).json({ error: err.message });
   }
+}
+
+// ─── Dynamic discovery for cities without curated zpids ───
+// Returns up to ~20 candidate sold zpids harvested from nearby-homes of a few
+// active listings in the target city. Designed to be safe to call even if any
+// RapidAPI sub-request fails: empty array means "discovery couldn't seed pool",
+// not "request errored".
+async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
+  // Step 1: get active-listing zpids in this city via search?status=forSale
+  let activeZpids = [];
+  try {
+    const params = new URLSearchParams({ location: `${city}, CA`, status: "forSale" });
+    const url = `https://${apiHost}/search?${params}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": apiHost },
+        signal: controller.signal,
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      // Same shape-tolerant extraction pricepoint.js uses
+      const list = Array.isArray(data?.data) ? data.data
+        : Array.isArray(data?.results) ? data.results
+        : Array.isArray(data?.props) ? data.props
+        : Array.isArray(data?.searchResults) ? data.searchResults
+        : Array.isArray(data?.data?.results) ? data.data.results
+        : Array.isArray(data) ? data
+        : [];
+      activeZpids = list.map(r => r?.zpid).filter(Boolean).map(String);
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return [];
+  }
+  if (activeZpids.length === 0) return [];
+
+  // Step 2: take a small set of seeds (4) and pull property-details in parallel.
+  // 4 is enough — each property's nearbyHomes typically yields 5–10 RECENTLY_SOLD
+  // candidates, so 4 seeds × ~7 sold ≈ 25–30 raw zpids before dedup.
+  const seeds = activeZpids.slice(0, 4);
+  const seedResults = await Promise.allSettled(
+    seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 5000))
+  );
+
+  // Step 3: collect RECENTLY_SOLD zpids from each seed's nearbyHomes.
+  const collected = new Set();
+  for (const r of seedResults) {
+    if (r.status !== "fulfilled" || !r.value) continue;
+    const nearby = r.value.nearbyHomes;
+    if (!Array.isArray(nearby)) continue;
+    for (const nh of nearby) {
+      if (nh?.zpid && nh.homeStatus === "RECENTLY_SOLD") {
+        collected.add(String(nh.zpid));
+      }
+    }
+  }
+  return [...collected];
 }
 
 // ─── Fetch property details from RapidAPI with timeout ───

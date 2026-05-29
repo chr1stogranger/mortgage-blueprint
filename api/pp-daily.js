@@ -119,6 +119,59 @@ function normalizeHomeType(type) {
 }
 
 // ââ Fetch sold listings directly from RapidAPI (no sold-comps middleman) ââ
+// Dynamic discovery for markets without a curated seed list — searches active
+// listings, picks a few seeds, harvests RECENTLY_SOLD nearbyHomes. Same approach
+// sold-comps.js uses. Returns [] on any failure so the caller still falls
+// through to a clean 503 instead of crashing.
+async function discoverSoldZpidsForCity(cityName, apiKey, apiHost) {
+  let activeZpids = [];
+  try {
+    const params = new URLSearchParams({ location: `${cityName}, CA`, status: 'forSale' });
+    const url = `https://${apiHost}/search?${params}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost },
+        signal: controller.signal,
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const list = Array.isArray(data?.data) ? data.data
+        : Array.isArray(data?.results) ? data.results
+        : Array.isArray(data?.props) ? data.props
+        : Array.isArray(data?.searchResults) ? data.searchResults
+        : Array.isArray(data?.data?.results) ? data.data.results
+        : Array.isArray(data) ? data
+        : [];
+      activeZpids = list.map(r => r?.zpid).filter(Boolean).map(String);
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return [];
+  }
+  if (activeZpids.length === 0) return [];
+
+  const seeds = activeZpids.slice(0, 4);
+  const seedResults = await Promise.allSettled(
+    seeds.map(z => fetchPropertyDirect(z, apiKey, apiHost, 5000))
+  );
+  const collected = new Set();
+  for (const r of seedResults) {
+    if (r.status !== 'fulfilled' || !r.value) continue;
+    const nearby = r.value.nearbyHomes;
+    if (!Array.isArray(nearby)) continue;
+    for (const nh of nearby) {
+      if (nh?.zpid && nh.homeStatus === 'RECENTLY_SOLD') {
+        collected.add(String(nh.zpid));
+      }
+    }
+  }
+  return [...collected];
+}
+
 async function fetchSoldListingsDirect(marketId, dailyNumber) {
   const apiKey = process.env.RAPIDAPI_KEY;
   const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
@@ -127,7 +180,19 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
     return [];
   }
 
-  const seedZpids = DAILY_SEED_ZPIDS[marketId] || [];
+  let seedZpids = DAILY_SEED_ZPIDS[marketId] || [];
+
+  // Dynamic fallback when the market has no curated seed list (alameda,
+  // oakland, berkeley). Without this, Daily 503s for every non-SF market.
+  if (seedZpids.length === 0) {
+    const cityName = MARKETS[marketId]?.name;
+    if (cityName) {
+      console.error(`[pp-daily] No curated seed zpids for "${marketId}" — discovering via ${cityName}`);
+      seedZpids = await discoverSoldZpidsForCity(cityName, apiKey, apiHost);
+      console.error(`[pp-daily] Discovery for ${cityName}: ${seedZpids.length} zpids`);
+    }
+  }
+
   if (seedZpids.length === 0) return [];
 
   // Pick 3 zpids to try (rotated by daily number for variety)
