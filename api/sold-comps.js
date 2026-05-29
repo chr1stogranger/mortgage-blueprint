@@ -455,12 +455,10 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
   }
   if (activeZpids.length === 0) return [];
 
-  // Step 2: pull property-details for 6 seeds. Each seed's nearbyHomes lists
-  // 5-10 RECENTLY_SOLD entries, so 6 seeds yield ~30-60 unique nearby zpids.
-  // Plenty to keep the pool growing per request without exploding latency
-  // (each seed adds to the parallel batch — rate-limit risk grows quickly
-  // past ~6).
-  const seeds = activeZpids.slice(0, 6);
+  // Step 2: pull property-details for 8 seeds. Each seed's nearbyHomes lists
+  // ~5-10 RECENTLY_SOLD entries, so 8 seeds yield ~40-80 unique nearby zpids
+  // (the high-pass-rate candidates for our 6-month sold-date filter).
+  const seeds = activeZpids.slice(0, 8);
   const seedResults = await Promise.allSettled(
     seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 5000))
   );
@@ -478,10 +476,15 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
     }
   }
 
-  // Combine: active pool first (large, reliable), then any nearby RECENTLY_SOLD
-  // that weren't already in the active list. Deduped via Set.
-  const combined = new Set(activeZpids);
-  for (const z of nearby) combined.add(z);
+  // CRITICAL ORDER: nearbyHomes-RECENTLY_SOLD first, then active-listing zpids
+  // as low-priority fallback. Nearby entries are Zillow's signal the home sold
+  // in the last ~6 months — they consistently pass our 6-month sold-date
+  // filter at ingest. Active homes' priceHistory typically points to a
+  // years-old prior sale and fails the filter. Putting nearby first means the
+  // batch cap (DISCOVERY_BATCH_CAP=20) fills with high-pass-rate candidates
+  // instead of getting wasted on active listings.
+  const combined = new Set(nearby);
+  for (const z of activeZpids) combined.add(z);
   return [...combined];
 }
 

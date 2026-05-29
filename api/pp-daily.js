@@ -157,7 +157,7 @@ async function discoverSoldZpidsForCity(cityName, apiKey, apiHost) {
   }
   if (activeZpids.length === 0) return [];
 
-  const seeds = activeZpids.slice(0, 4);
+  const seeds = activeZpids.slice(0, 6);
   const seedResults = await Promise.allSettled(
     seeds.map(z => fetchPropertyDirect(z, apiKey, apiHost, 5000))
   );
@@ -173,10 +173,10 @@ async function discoverSoldZpidsForCity(cityName, apiKey, apiHost) {
     }
   }
 
-  // Combine: active zpids (large reliable pool) first, then any nearby
-  // RECENTLY_SOLD that weren't already in the active list.
-  const combined = new Set(activeZpids);
-  for (const z of nearby) combined.add(z);
+  // Nearby RECENTLY_SOLD first (passes our 6-month filter reliably), then
+  // active-listing zpids as fallback. Matches sold-comps.js ordering.
+  const combined = new Set(nearby);
+  for (const z of activeZpids) combined.add(z);
   return [...combined];
 }
 
