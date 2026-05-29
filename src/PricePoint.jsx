@@ -1151,12 +1151,30 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // Check if data is stale (older than 6 hours)
     const lastFetch = parseInt(localStorage.getItem("pp-last-fetch") || "0", 10);
     const isStale = Date.now() - lastFetch > 6 * 60 * 60 * 1000;
-    const needsData = isSampleData || activeListings.length === 0 || needsFreshFetch || isStale;
+    // Check if cached listings belong to a different market than currently selected
+    // (e.g. user switched SF → Alameda before today's clear-on-switch fix landed,
+    // so localStorage still holds SF properties under the Alameda market). Without
+    // this self-heal, those users see the wrong city's data forever until they
+    // manually reselect the market from the picker.
+    const marketCityLc = (market.city || "").toLowerCase().trim();
+    const cityMismatch = marketCityLc && soldListings.length > 0 &&
+      soldListings.some(l => l.city && l.city.toLowerCase().trim() !== marketCityLc);
+    const needsData = isSampleData || activeListings.length === 0 || needsFreshFetch || isStale || cityMismatch;
     if (needsData && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
+      if (cityMismatch) {
+        // Stale-from-other-market state — wipe before fetching so we don't render
+        // the wrong city's properties for a frame.
+        setSoldListings([]);
+        setActiveListings([]);
+        try {
+          localStorage.removeItem("pp-sold-listings");
+          localStorage.removeItem("pp-active-listings");
+        } catch {}
+      }
       // ALWAYS fetch by city name — zip-level queries only return listings for that
       // one zip, not the whole market. City-wide gives us all neighborhoods.
-      fetchListings(market.city || market.label, needsFreshFetch || isStale);
+      fetchListings(market.city || market.label, needsFreshFetch || isStale || cityMismatch);
     }
   }, [market]);
 
