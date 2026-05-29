@@ -418,10 +418,24 @@ export default async function handler(req, res) {
 }
 
 // ─── Dynamic discovery for cities without curated zpids ───
-// Returns up to ~20 candidate sold zpids harvested from nearby-homes of a few
-// active listings in the target city. Designed to be safe to call even if any
-// RapidAPI sub-request fails: empty array means "discovery couldn't seed pool",
-// not "request errored".
+// Returns a generous pool of candidate zpids whose property-details responses
+// usually contain a usable Sold event in priceHistory. Strategy:
+//
+//   1. Search active listings in the city (search?status=forSale — works reliably
+//      for any market; the same call returns 41 results even for Alameda).
+//   2. Return the ACTIVE listing zpids themselves as the primary pool. Every
+//      actively-listed home was previously sold — its property-details
+//      priceHistory carries that sold event, which the existing pipeline
+//      (extractSoldEvent → 5y window → soldPrice required) already validates
+//      and converts into a valid sold comp.
+//   3. Also harvest RECENTLY_SOLD entries from a few seeds' nearbyHomes as a
+//      bonus — those are even fresher sales. They're appended after the active
+//      pool so they get a shot if the active fetches succeed first.
+//
+// Returning ~40 candidates instead of ~3 means even at RapidAPI's ~40% per-zpid
+// success rate we have ~16 expected hits, well above the MAX_FETCH cap.
+//
+// Safe to call: empty array means "discovery couldn't seed pool", not "errored".
 async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
   // Step 1: get active-listing zpids in this city via search?status=forSale
   let activeZpids = [];
@@ -455,27 +469,32 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
   }
   if (activeZpids.length === 0) return [];
 
-  // Step 2: take a small set of seeds (4) and pull property-details in parallel.
-  // 4 is enough — each property's nearbyHomes typically yields 5–10 RECENTLY_SOLD
-  // candidates, so 4 seeds × ~7 sold ≈ 25–30 raw zpids before dedup.
+  // Step 2: pull property-details for a few seeds (best-effort, used only for
+  // nearby-homes bonus harvest — failure here doesn't break discovery because
+  // the active-zpid pool stands on its own).
   const seeds = activeZpids.slice(0, 4);
   const seedResults = await Promise.allSettled(
     seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 5000))
   );
 
-  // Step 3: collect RECENTLY_SOLD zpids from each seed's nearbyHomes.
-  const collected = new Set();
+  // Step 3: collect RECENTLY_SOLD zpids from each successful seed's nearbyHomes.
+  const nearby = new Set();
   for (const r of seedResults) {
     if (r.status !== "fulfilled" || !r.value) continue;
-    const nearby = r.value.nearbyHomes;
-    if (!Array.isArray(nearby)) continue;
-    for (const nh of nearby) {
-      if (nh?.zpid && nh.homeStatus === "RECENTLY_SOLD") {
-        collected.add(String(nh.zpid));
+    const nh = r.value.nearbyHomes;
+    if (!Array.isArray(nh)) continue;
+    for (const n of nh) {
+      if (n?.zpid && n.homeStatus === "RECENTLY_SOLD") {
+        nearby.add(String(n.zpid));
       }
     }
   }
-  return [...collected];
+
+  // Combine: active pool first (large, reliable), then any nearby RECENTLY_SOLD
+  // that weren't already in the active list. Deduped via Set.
+  const combined = new Set(activeZpids);
+  for (const z of nearby) combined.add(z);
+  return [...combined];
 }
 
 // ─── Fetch property details from RapidAPI with timeout ───

@@ -119,10 +119,13 @@ function normalizeHomeType(type) {
 }
 
 // ââ Fetch sold listings directly from RapidAPI (no sold-comps middleman) ââ
-// Dynamic discovery for markets without a curated seed list — searches active
-// listings, picks a few seeds, harvests RECENTLY_SOLD nearbyHomes. Same approach
-// sold-comps.js uses. Returns [] on any failure so the caller still falls
-// through to a clean 503 instead of crashing.
+// Dynamic discovery for markets without a curated seed list.
+// Same approach as sold-comps.js: search active listings for the city, return
+// the active zpids themselves as the primary candidate pool (every active home
+// has a prior Sold event in its priceHistory the downstream pipeline will pick
+// up). Bonus: harvest RECENTLY_SOLD entries from a few seeds' nearbyHomes for
+// even fresher comps. Returns [] only if the search itself can't find any
+// active listings; caller treats that as "no suitable listings" and 503s.
 async function discoverSoldZpidsForCity(cityName, apiKey, apiHost) {
   let activeZpids = [];
   try {
@@ -158,18 +161,23 @@ async function discoverSoldZpidsForCity(cityName, apiKey, apiHost) {
   const seedResults = await Promise.allSettled(
     seeds.map(z => fetchPropertyDirect(z, apiKey, apiHost, 5000))
   );
-  const collected = new Set();
+  const nearby = new Set();
   for (const r of seedResults) {
     if (r.status !== 'fulfilled' || !r.value) continue;
-    const nearby = r.value.nearbyHomes;
-    if (!Array.isArray(nearby)) continue;
-    for (const nh of nearby) {
-      if (nh?.zpid && nh.homeStatus === 'RECENTLY_SOLD') {
-        collected.add(String(nh.zpid));
+    const nh = r.value.nearbyHomes;
+    if (!Array.isArray(nh)) continue;
+    for (const n of nh) {
+      if (n?.zpid && n.homeStatus === 'RECENTLY_SOLD') {
+        nearby.add(String(n.zpid));
       }
     }
   }
-  return [...collected];
+
+  // Combine: active zpids (large reliable pool) first, then any nearby
+  // RECENTLY_SOLD that weren't already in the active list.
+  const combined = new Set(activeZpids);
+  for (const z of nearby) combined.add(z);
+  return [...combined];
 }
 
 async function fetchSoldListingsDirect(marketId, dailyNumber) {
