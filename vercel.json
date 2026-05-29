@@ -52,10 +52,6 @@
     {
       "path": "/api/cron-deliver",
       "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron-pool-seed",
-      "schedule": "*/15 * * * *"
     }
   ]
 }
