@@ -250,20 +250,6 @@ export default async function handler(req, res) {
 
     console.error(`[SoldComps] ${marketId} candidates: curated=${curatedZpids.length}, discovered=${discovered.length}, postFilter=${candidateZpids.length}`);
 
-    // Debug mode: short-circuit and report discovery internals.
-    if (req.query.debug === '1') {
-      return res.status(200).json({
-        debug: true,
-        marketId,
-        curatedCount: curatedZpids.length,
-        discoveredCount: discovered.length,
-        candidateCount: candidateZpids.length,
-        poolSize: pool.length,
-        firstDiscovered: discovered.slice(0, 10),
-        firstCandidates: candidateZpids.slice(0, 10),
-      });
-    }
-
     if (candidateZpids.length === 0) {
       const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
       return res.status(200).json({
@@ -299,6 +285,10 @@ export default async function handler(req, res) {
     const newRows = [];
     let fetchedCount = 0;
     let soldCount = 0;
+    // Diagnostic counters surfaced via &debug=1 to pinpoint where the funnel drops
+    let rejNoSoldData = 0;
+    let rejTooOld = 0;
+    const sampleSoldDates = [];
 
     for (let i = 0; i < results.length; i++) {
       const r = results[i];
@@ -314,12 +304,13 @@ export default async function handler(req, res) {
       const soldEvent = extractSoldEvent(d.priceHistory || []);
       const soldPrice = soldEvent?.price || d.lastSoldPrice || d.lastSale?.price || null;
       const soldDate = soldEvent?.date || d.lastSoldDate || d.lastSale?.date || null;
-      if (!soldPrice || !soldDate) continue;
+      if (!soldPrice || !soldDate) { rejNoSoldData++; continue; }
+      if (sampleSoldDates.length < 8) sampleSoldDates.push(soldDate);
 
       // STRICT 6-month sold-date filter. Anything older is discarded at ingest
       // so it never makes it into the pool.
       const saleDate = new Date(soldDate);
-      if (saleDate < cutoff) continue;
+      if (saleDate < cutoff) { rejTooOld++; continue; }
 
       soldCount++;
       const photos = extractPhotos(d);
@@ -372,7 +363,7 @@ export default async function handler(req, res) {
     console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: discovered ${candidateZpids.length} candidates, fetched ${fetchedCount}, ${soldCount} valid sold, pool now ${pool.length}`);
 
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json({
+    const responseBody = {
       soldListings: shuffled.map(poolRowToListing),
       count: shuffled.length,
       city,
@@ -382,7 +373,22 @@ export default async function handler(req, res) {
       source: 'pool+discovery',
       hasMore: pool.length > shuffled.length,
       timestamp: new Date().toISOString(),
-    });
+    };
+    if (req.query.debug === '1') {
+      responseBody.funnel = {
+        curated: curatedZpids.length,
+        discovered: discovered.length,
+        candidate: candidateZpids.length,
+        attempted: zpidsToFetch.length,
+        fetched: fetchedCount,
+        rejNoSoldData,
+        rejTooOld,
+        addedAfterFilter: newRows.length,
+        cutoffStr,
+        sampleSoldDates,
+      };
+    }
+    return res.status(200).json(responseBody);
   } catch (err) {
     console.error("[SoldComps] Error:", err);
     return res.status(500).json({ error: err.message });
