@@ -218,7 +218,7 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
 
   const listings = [];
   const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 5);
+  cutoff.setMonth(cutoff.getMonth() - 6); // 6-month window — matches pool
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
@@ -339,19 +339,62 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2. If no daily exists, seed one directly from RapidAPI
+    // 2. If no daily exists, pick one from pp_property_pool (preferred) or
+    //    fall back to direct discovery if the pool is empty for this market.
     if (!daily) {
       console.error(`[pp-daily] Seeding daily for ${marketId} on ${today} (#${dailyNumber})`);
 
-      const listings = await fetchSoldListingsDirect(marketId, dailyNumber);
-      const property = pickDailyProperty(listings, dailyNumber);
+      // Read pool for the market within the last 6 months.
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
+
+      const { data: poolRows } = await supabase
+        .from('pp_property_pool')
+        .select('*')
+        .eq('market_id', marketId)
+        .gte('sold_date', sixMonthsAgoStr)
+        .limit(500);
+
+      let property = null;
+      if (poolRows && poolRows.length > 0) {
+        // Pick deterministically based on daily number so the same daily shows
+        // for everyone in the market. Mod into pool length.
+        const idx = (dailyNumber * 7 + 3) % poolRows.length;
+        const r = poolRows[idx];
+        property = {
+          zpid: String(r.zpid),
+          address: r.address,
+          city: r.city,
+          state: r.state || 'CA',
+          zip: r.zip,
+          neighborhood: r.neighborhood,
+          photo: r.photo,
+          beds: r.beds,
+          baths: r.baths,
+          sqft: r.sqft,
+          year_built: r.year_built,
+          property_type: r.property_type,
+          list_price: r.list_price,
+          days_on_market: 0,
+          sold_price: r.sold_price,
+        };
+        console.error(`[pp-daily] Picked from pool (${poolRows.length} entries) → ${r.address}`);
+      } else {
+        // Pool is empty for this market — fall back to direct discovery so the
+        // first request after deploy can still serve a Daily. Subsequent
+        // requests will hit the pool because /api/sold-comps populates it.
+        console.error(`[pp-daily] Pool empty for ${marketId} — falling back to direct discovery`);
+        const listings = await fetchSoldListingsDirect(marketId, dailyNumber);
+        property = pickDailyProperty(listings, dailyNumber);
+      }
 
       if (!property) {
         return res.status(503).json({
           error: 'No suitable listings found to seed daily challenge',
           market: marketId,
           date: today,
-          debug: { listingsFound: listings.length },
+          debug: { source: poolRows && poolRows.length > 0 ? 'pool' : 'discovery' },
         });
       }
 

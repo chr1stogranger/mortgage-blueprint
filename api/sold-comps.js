@@ -1,15 +1,59 @@
 // /api/sold-comps.js — Vercel Serverless Function
-// Fetches REAL recently sold properties by calling property-details for known sold zpids.
-// Supports zip-based filtering and auto-discovery via nearbyHomes.
+//
+// POOL-FIRST architecture (introduced 2026-05-28):
+// 1. Read pp_property_pool from Supabase, filtered to the city and to
+//    sold_date >= NOW() - 6 months.
+// 2. If the pool has >= POOL_THRESHOLD entries, return a shuffled slice
+//    immediately. No RapidAPI calls. Instant response.
+// 3. If the pool is thin, run aggressive discovery (curated zpids + active
+//    listing seeds + nearbyHomes harvest), validate with the 6-month cutoff,
+//    upsert into the pool, re-read, and return.
+//
+// The pool grows monotonically with traffic. Once warm, each city serves
+// large variety with no RapidAPI burn.
 //
 // Usage:
-//   /api/sold-comps?city=San Francisco                — all curated zpids (initial load)
-//   /api/sold-comps?city=San Francisco&zip=94112      — only zpids for that zip (fast)
-//   /api/sold-comps?city=San Francisco&zip=94112&more=1 — discover MORE via nearbyHomes
+//   /api/sold-comps?city=San Francisco                — read pool / grow it
+//   /api/sold-comps?city=San Francisco&zip=94112      — pool filtered by zip
+//   /api/sold-comps?city=San Francisco&fresh=1        — force discovery pass
 
-// ─── In-memory cache ───
-const cache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+import { createClient } from '@supabase/supabase-js';
+
+// ─── Supabase admin client (server-side, bypasses RLS) ───
+function getSupabaseAdmin() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+// ─── Pool config ───
+const POOL_THRESHOLD = 10;                // below this, run discovery to grow
+const POOL_QUERY_LIMIT = 1000;             // pull up to N pool rows on read
+const RESPONSE_SHUFFLE_CAP = 50;           // shuffled slice size returned to client
+const SOLD_DATE_MONTHS = 6;                // sold-comps must be from last 6 months
+
+// ─── Map city name → market_id used as pool key ───
+function cityToMarketId(city) {
+  const key = String(city || '').toLowerCase().trim();
+  const map = {
+    'san francisco': 'sf',
+    'alameda': 'alameda',
+    'oakland': 'oakland',
+    'berkeley': 'berkeley',
+  };
+  return map[key] || key;
+}
+
+// ─── 6-month cutoff helper ───
+function sixMonthsAgoDate() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - SOLD_DATE_MONTHS);
+  return d;
+}
+function sixMonthsAgoDateStr() {
+  return sixMonthsAgoDate().toISOString().split('T')[0];
+}
 
 // ─── Zip-to-neighborhood mapping for curated zpids ───
 const ZIP_NEIGHBORHOODS = {
@@ -120,308 +164,242 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { city, zip, fresh, more, exclude } = req.query;
+    const { city, zip, fresh, exclude } = req.query;
     if (!city) {
       return res.status(400).json({ error: "Missing ?city=San Francisco" });
     }
 
-    // Build cache key based on params
-    const cacheKey = zip
-      ? `sold-${city.toLowerCase().trim()}-${zip}${more === "1" ? "-more" : ""}`
-      : `sold-${city.toLowerCase().trim()}`;
-    const skipCache = fresh === "1";
+    const marketId = cityToMarketId(city);
+    const forceDiscover = fresh === "1";
+    const cutoff = sixMonthsAgoDate();
+    const cutoffStr = sixMonthsAgoDateStr();
 
-    if (!skipCache) {
-      const cached = cache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        return res.status(200).json({ ...cached.data, cached: true });
-      }
-    } else {
-      cache.delete(cacheKey);
-    }
-
-    // Determine which zpids to fetch (verified first, then extras)
-    const zpidData = zip ? getZpidsForZip(city, zip) : getZpidsForCity(city);
-
-    // For "more" mode, we'll discover new zpids from nearbyHomes
-    const isMoreMode = more === "1" && zip;
-
-    // Exclude already-seen zpids (client sends these)
     const excludeSet = new Set();
-    if (exclude) {
-      exclude.split(",").forEach(z => excludeSet.add(z.trim()));
+    if (exclude) exclude.split(",").forEach(z => excludeSet.add(z.trim()));
+
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase not configured" });
     }
 
-    let verifiedZpids = zpidData.verified.filter(z => !excludeSet.has(z));
-    let extraZpids = zpidData.extras.filter(z => !excludeSet.has(z));
-
-    if (isMoreMode) {
-      // In "more" mode, use previously discovered zpids for this zip
-      const discovered = discoveredZpids.get(zip);
-      if (discovered && discovered.size > 0) {
-        extraZpids = [...discovered].filter(z => !excludeSet.has(z));
+    // ─── 1. Read pool ───
+    async function readPool() {
+      let q = supabase
+        .from('pp_property_pool')
+        .select('*')
+        .eq('market_id', marketId)
+        .gte('sold_date', cutoffStr)
+        .limit(POOL_QUERY_LIMIT);
+      if (zip) q = q.eq('zip', zip);
+      const { data, error } = await q;
+      if (error) {
+        console.error('[SoldComps] Pool read error:', error.message);
+        return [];
       }
+      return (data || []).filter(r => !excludeSet.has(String(r.zpid)));
     }
 
+    let pool = await readPool();
+
+    // Healthy pool + not asked to refresh → serve immediately.
+    if (!forceDiscover && pool.length >= POOL_THRESHOLD) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({
+        soldListings: shuffled.map(poolRowToListing),
+        count: shuffled.length,
+        city,
+        zip: zip || null,
+        poolSize: pool.length,
+        source: 'pool',
+        hasMore: pool.length > shuffled.length,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // ─── 2. Pool is thin (or fresh=1) — run discovery to grow it ───
     const apiKey = process.env.RAPIDAPI_KEY;
     const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
     if (!apiKey) {
-      return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
-    }
-
-    // ─── DYNAMIC FALLBACK ───
-    // City has no curated zpids (e.g., Alameda, Oakland, Berkeley). Don't return
-    // empty — discover sold zpids dynamically by:
-    //   1. searching for active listings in the city (search?status=forSale works
-    //      reliably; the city's "recentlySold" search returns garbage, see below);
-    //   2. fetching property-details for a few active seeds;
-    //   3. harvesting RECENTLY_SOLD entries from each seed's nearbyHomes array.
-    // The harvested zpids feed the existing fetch+validate pipeline below, so the
-    // quality bar (priceHistory, 5y window, photos) is identical to curated data.
-    //
-    // Why not just trust /search?status=recentlySold for the city? Because that
-    // endpoint returns active listings relabeled as sold — proven empirically:
-    // for Alameda it returned 41 "sold" items and dedup removed all 41.
-    if (verifiedZpids.length === 0 && extraZpids.length === 0 && !zip) {
-      console.error(`[SoldComps] No curated zpids for "${city}" — running dynamic discovery`);
-      const discovered = await discoverSoldZpidsForCity(city, apiKey, apiHost);
-      const fresh = discovered.filter(z => !excludeSet.has(z));
-      if (fresh.length > 0) {
-        // Treat all discovered zpids as "extras" so the existing batch builder
-        // and MAX_FETCH cap apply the same way they do for curated cities.
-        extraZpids = fresh;
-        console.error(`[SoldComps] Dynamic discovery for "${city}": ${discovered.length} found, ${fresh.length} usable`);
-      } else {
-        console.error(`[SoldComps] Dynamic discovery for "${city}" yielded 0 zpids`);
-      }
-    }
-
-    if (verifiedZpids.length === 0 && extraZpids.length === 0) {
+      // No discovery possible — return whatever the pool has, even if thin.
+      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
       return res.status(200).json({
-        soldListings: [],
-        count: 0,
+        soldListings: shuffled.map(poolRowToListing),
+        count: shuffled.length,
         city,
         zip: zip || null,
+        poolSize: pool.length,
+        source: 'pool-only-no-apikey',
         hasMore: false,
-        message: zip ? `No more sold data for zip ${zip}` : `No sold data discovered for "${city}"`,
       });
     }
 
-    // ── Build fetch batch: ALL verified zpids first, then fill with extras ──
-    // Verified zpids are confirmed working, so always include them.
-    // City-wide: up to 8 total (all 18 verified if available, then extras)
-    // Zip-specific: up to 6 total
-    // City-wide bumped 8 → 16 so RapidAPI's ~37% per-zpid success rate yields a
-    // playable pool (~6 sold instead of ~3). Zip-scoped stays at 6 because the
-    // candidate set there is already narrow.
-    const MAX_FETCH = zip ? 6 : 16;
+    console.error(`[SoldComps] Pool thin for ${marketId} (${pool.length}). Discovering...`);
+
+    // Collect candidate zpids from every source available:
+    //   a. Curated VERIFIED + EXTRA (SF has ~68; others empty).
+    //   b. Active-listing search + 10-seed nearbyHomes harvest (works for any city).
+    //   c. Existing pool zpids excluded so we don't refetch ones we already have.
+    const zpidData = zip ? getZpidsForZip(city, zip) : getZpidsForCity(city);
+    const curatedZpids = [...zpidData.verified, ...zpidData.extras];
+    const discovered = await discoverSoldZpidsForCity(city, apiKey, apiHost);
+    const poolZpidSet = new Set(pool.map(r => String(r.zpid)));
+
+    const candidateZpids = [...new Set([...curatedZpids, ...discovered])]
+      .filter(z => !excludeSet.has(z) && !poolZpidSet.has(String(z)));
+
+    if (candidateZpids.length === 0) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
+      return res.status(200).json({
+        soldListings: shuffled.map(poolRowToListing),
+        count: shuffled.length,
+        city,
+        zip: zip || null,
+        poolSize: pool.length,
+        source: 'pool-no-new-candidates',
+        hasMore: false,
+      });
+    }
+
+    // Cap the per-request discovery batch so a single user doesn't burn the
+    // whole RapidAPI quota. The pool accumulates across requests, so even if
+    // one request only adds ~25, ten requests add ~250 → the pool catches up
+    // quickly under normal traffic.
+    const DISCOVERY_BATCH_CAP = 60;
     const dayHash = new Date().getDate();
-    // Shuffle extras deterministically for variety
-    const shuffledExtras = [...extraZpids].sort((a, b) => ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997));
-    // Rotate verified zpids too for daily variety
-    const rotatedVerified = [...verifiedZpids];
-    const rotateBy = dayHash % Math.max(rotatedVerified.length, 1);
-    for (let i = 0; i < rotateBy; i++) rotatedVerified.push(rotatedVerified.shift());
+    const shuffledCandidates = [...candidateZpids].sort((a, b) =>
+      ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997)
+    );
+    const zpidsToFetch = shuffledCandidates.slice(0, DISCOVERY_BATCH_CAP);
 
-    // Verified first, then fill remaining slots with extras
-    const zpidsToFetch = [
-      ...rotatedVerified.slice(0, MAX_FETCH),
-      ...shuffledExtras.slice(0, Math.max(0, MAX_FETCH - rotatedVerified.length)),
-    ].slice(0, MAX_FETCH);
+    console.error(`[SoldComps] Discovery batch for ${marketId}: ${zpidsToFetch.length} of ${candidateZpids.length} candidates`);
 
-    console.error(`[SoldComps] Batch: ${rotatedVerified.length} verified + ${shuffledExtras.length} extras → fetching ${zpidsToFetch.length}`);
-
-    // Fetch property details in parallel — single batch, all at once
-    // 5s per-request timeout. Was 3.5s which was cutting off too many slow
-    // RapidAPI responses (success rate ~37%). All requests run in parallel via
-    // Promise.allSettled so total endpoint latency is bounded by the slowest
-    // single response, not the sum.
     const TIMEOUT_MS = 5000;
-    const allResults = [];
-    const discoveredFromNearby = new Set();
-
     const results = await Promise.allSettled(
       zpidsToFetch.map(zpid => fetchPropertyDetails(zpid, apiKey, apiHost, TIMEOUT_MS))
     );
-    allResults.push(...results);
 
-    // Process results into sold listings
-    const soldListings = [];
+    const newRows = [];
     let fetchedCount = 0;
     let soldCount = 0;
 
-    allResults.forEach((result, idx) => {
-      if (result.status !== "fulfilled" || !result.value) return;
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status !== 'fulfilled' || !r.value) continue;
       fetchedCount++;
+      const d = r.value;
+      const zpid = String(zpidsToFetch[i]);
 
-      const d = result.value;
-      const zpid = zpidsToFetch[idx];
-
-      // ── Auto-discover nearby sold homes ──
-      if (d.nearbyHomes && Array.isArray(d.nearbyHomes)) {
-        for (const nh of d.nearbyHomes) {
-          if (nh.zpid && nh.homeStatus === "RECENTLY_SOLD" && !excludeSet.has(String(nh.zpid))) {
-            discoveredFromNearby.add(String(nh.zpid));
-          }
-        }
-      }
-
-      // Extract sold info from priceHistory
       const soldEvent = extractSoldEvent(d.priceHistory || []);
       const soldPrice = soldEvent?.price || d.lastSoldPrice || null;
       const soldDate = soldEvent?.date || null;
+      if (!soldPrice || !soldDate) continue;
 
-      if (!soldPrice) return;
-
-      // Filter out ancient sales (older than 5 years)
-      if (soldDate) {
-        const saleDate = new Date(soldDate);
-        const cutoff = new Date();
-        cutoff.setFullYear(cutoff.getFullYear() - 5);
-        if (saleDate < cutoff) return;
-      }
+      // STRICT 6-month sold-date filter. Anything older is discarded at ingest
+      // so it never makes it into the pool.
+      const saleDate = new Date(soldDate);
+      if (saleDate < cutoff) continue;
 
       soldCount++;
-
       const photos = extractPhotos(d);
       const mainPhoto = photos[0] || d.imgSrc || d.hiResImageLink || null;
 
-      soldListings.push({
-        id: `sc${soldListings.length + 1}`,
-        zpid: String(zpid),
-        address: d.streetAddress || d.address?.streetAddress || "Unknown",
-        city: d.city || d.address?.city || "San Francisco",
-        state: d.state || d.address?.state || "CA",
-        zip: d.zipcode || d.address?.zipcode || "",
-        beds: d.bedrooms || 0,
-        baths: d.bathrooms || 0,
-        sqft: d.livingArea || d.livingAreaValue || 0,
-        lotSqft: d.lotAreaValue ? (d.lotAreaUnits === "acres" ? Math.round(d.lotAreaValue * 43560) : Math.round(d.lotAreaValue)) : 0,
-        yearBuilt: d.yearBuilt || null,
-        propertyType: normalizeHomeType(d.homeType),
-        listPrice: extractListPrice(d.priceHistory || []) || soldPrice,
-        zestimate: d.zestimate || null,
-        soldPrice,
-        soldDate,
-        daysOnMarket: d.daysOnZillow || 0,
-        status: "sold",
+      newRows.push({
+        market_id: marketId,
+        zpid,
+        address: d.streetAddress || d.address?.streetAddress || null,
+        city: d.city || d.address?.city || null,
+        state: d.state || d.address?.state || 'CA',
+        zip: d.zipcode || d.address?.zipcode || null,
+        neighborhood: d.neighborhoodRegion?.name || null,
+        beds: d.bedrooms || null,
+        baths: d.bathrooms || null,
+        sqft: d.livingArea || d.livingAreaValue || null,
+        lot_sqft: d.lotAreaValue
+          ? (d.lotAreaUnits === 'acres' ? Math.round(d.lotAreaValue * 43560) : Math.round(d.lotAreaValue))
+          : null,
+        year_built: d.yearBuilt || null,
+        property_type: normalizeHomeType(d.homeType),
+        list_price: extractListPrice(d.priceHistory || []) || soldPrice,
+        sold_price: soldPrice,
+        sold_date: soldDate,
         photo: mainPhoto,
         photos: photos.slice(0, 6),
-        neighborhood: d.neighborhoodRegion?.name || "",
-        pricePerSqft: (d.livingArea && soldPrice) ? Math.round(soldPrice / d.livingArea) : 0,
+        description: d.description || null,
         latitude: d.latitude || null,
         longitude: d.longitude || null,
-        description: d.description || "",
-        detailUrl: d.hdpUrl ? `https://www.zillow.com${d.hdpUrl}` : null,
-        _source: "sold_comps",
-      });
-    });
-
-    // ── Self-healing: if 0 sold from curated zpids, immediately fetch discovered nearby ──
-    if (soldListings.length === 0 && discoveredFromNearby.size > 0) {
-      const discoveryZpids = [...discoveredFromNearby].slice(0, 4); // max 4 more
-      console.error(`[SoldComps] 0 sold from curated — fetching ${discoveryZpids.length} discovered nearby zpids`);
-      const discoveryResults = await Promise.allSettled(
-        discoveryZpids.map(z => fetchPropertyDetails(z, apiKey, apiHost, TIMEOUT_MS))
-      );
-      discoveryResults.forEach((result, idx) => {
-        if (result.status !== "fulfilled" || !result.value) return;
-        fetchedCount++;
-        const d = result.value;
-        const zpid = discoveryZpids[idx];
-
-        const soldEvent = extractSoldEvent(d.priceHistory || []);
-        const soldPrice = soldEvent?.price || d.lastSoldPrice || null;
-        const soldDate = soldEvent?.date || null;
-        if (!soldPrice) return;
-
-        // 5-year filter
-        if (soldDate) {
-          const saleDate = new Date(soldDate);
-          const cutoff = new Date();
-          cutoff.setFullYear(cutoff.getFullYear() - 5);
-          if (saleDate < cutoff) return;
-        }
-
-        soldCount++;
-        const photos = extractPhotos(d);
-        const mainPhoto = photos[0] || d.imgSrc || d.hiResImageLink || null;
-
-        soldListings.push({
-          id: `sc${soldListings.length + 1}`,
-          zpid: String(zpid),
-          address: d.streetAddress || d.address?.streetAddress || "Unknown",
-          city: d.city || d.address?.city || "San Francisco",
-          state: d.state || d.address?.state || "CA",
-          zip: d.zipcode || d.address?.zipcode || "",
-          beds: d.bedrooms || 0,
-          baths: d.bathrooms || 0,
-          sqft: d.livingArea || d.livingAreaValue || 0,
-          lotSqft: d.lotAreaValue ? (d.lotAreaUnits === "acres" ? Math.round(d.lotAreaValue * 43560) : Math.round(d.lotAreaValue)) : 0,
-          yearBuilt: d.yearBuilt || null,
-          propertyType: normalizeHomeType(d.homeType),
-          listPrice: extractListPrice(d.priceHistory || []) || soldPrice,
-          zestimate: d.zestimate || null,
-          soldPrice,
-          soldDate,
-          daysOnMarket: d.daysOnZillow || 0,
-          status: "sold",
-          photo: mainPhoto,
-          photos: photos.slice(0, 6),
-          neighborhood: d.neighborhoodRegion?.name || "",
-          pricePerSqft: (d.livingArea && soldPrice) ? Math.round(soldPrice / d.livingArea) : 0,
-          latitude: d.latitude || null,
-          longitude: d.longitude || null,
-          description: d.description || "",
-          detailUrl: d.hdpUrl ? `https://www.zillow.com${d.hdpUrl}` : null,
-          _source: "sold_comps",
-        });
+        detail_url: d.hdpUrl ? `https://www.zillow.com${d.hdpUrl}` : null,
       });
     }
 
-    // Store discovered zpids for "Load More" requests
-    if (zip && discoveredFromNearby.size > 0) {
-      const existing = discoveredZpids.get(zip) || new Set();
-      const curatedSet = new Set(zpidsToFetch.map(String));
-      for (const z of discoveredFromNearby) {
-        if (!curatedSet.has(z)) existing.add(z);
+    // ─── 3. Upsert into pool (dedup by market_id + zpid) ───
+    if (newRows.length > 0) {
+      const { error: upsertErr } = await supabase
+        .from('pp_property_pool')
+        .upsert(newRows, { onConflict: 'market_id,zpid', ignoreDuplicates: true });
+      if (upsertErr) {
+        console.error('[SoldComps] Pool upsert error:', upsertErr.message);
+      } else {
+        console.error(`[SoldComps] Inserted ${newRows.length} new rows into pool for ${marketId}`);
       }
-      discoveredZpids.set(zip, existing);
     }
 
-    const totalAvailable = verifiedZpids.length + extraZpids.length;
-    const hasMore = (totalAvailable > MAX_FETCH) || discoveredFromNearby.size > 0;
+    // ─── 4. Re-read pool and return ───
+    pool = await readPool();
+    const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, RESPONSE_SHUFFLE_CAP);
 
-    console.error(`[SoldComps] ${city}${zip ? ` zip=${zip}` : ""}${isMoreMode ? " MORE" : ""}: ${zpidsToFetch.length}+${discoveredFromNearby.size > 0 && soldListings.length > 0 ? 'discovery' : '0'} zpids, ${fetchedCount} fetched, ${soldCount} sold, ${soldListings.length} returned`);
+    console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: discovered ${candidateZpids.length} candidates, fetched ${fetchedCount}, ${soldCount} valid sold, pool now ${pool.length}`);
 
-    const result = {
-      soldListings,
-      count: soldListings.length,
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({
+      soldListings: shuffled.map(poolRowToListing),
+      count: shuffled.length,
       city,
       zip: zip || null,
-      hasMore,
-      discoveredCount: discoveredFromNearby.size,
-      zpidsQueried: zpidsToFetch.length,
-      fetchedCount,
+      poolSize: pool.length,
+      newlyAdded: newRows.length,
+      source: 'pool+discovery',
+      hasMore: pool.length > shuffled.length,
       timestamp: new Date().toISOString(),
-      cached: false,
-    };
-
-    if (soldListings.length > 0) {
-      cache.set(cacheKey, { data: result, timestamp: Date.now() });
-    }
-
-    if (skipCache) {
-      res.setHeader("Cache-Control", "no-store");
-    } else {
-      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
-    }
-
-    return res.status(200).json(result);
+    });
   } catch (err) {
     console.error("[SoldComps] Error:", err);
     return res.status(500).json({ error: err.message });
   }
+}
+
+// ─── Convert a pp_property_pool row into the listing shape the client expects ───
+// Mirrors the inline object the pre-pool code used to build per fetch result.
+function poolRowToListing(r) {
+  return {
+    id: `sc${r.id || r.zpid}`,
+    zpid: String(r.zpid),
+    address: r.address || 'Unknown',
+    city: r.city || '',
+    state: r.state || 'CA',
+    zip: r.zip || '',
+    beds: r.beds || 0,
+    baths: r.baths || 0,
+    sqft: r.sqft || 0,
+    lotSqft: r.lot_sqft || 0,
+    yearBuilt: r.year_built || null,
+    propertyType: r.property_type || 'Single Family',
+    listPrice: r.list_price || r.sold_price,
+    zestimate: null,
+    soldPrice: r.sold_price,
+    soldDate: r.sold_date,
+    daysOnMarket: 0,
+    status: 'sold',
+    photo: r.photo || null,
+    photos: Array.isArray(r.photos) ? r.photos.slice(0, 6) : [],
+    neighborhood: r.neighborhood || '',
+    pricePerSqft: (r.sqft && r.sold_price) ? Math.round(r.sold_price / r.sqft) : 0,
+    latitude: r.latitude || null,
+    longitude: r.longitude || null,
+    description: r.description || '',
+    detailUrl: r.detail_url || null,
+    _source: 'sold_comps',
+  };
 }
 
 // ─── Dynamic discovery for cities without curated zpids ───
@@ -476,10 +454,12 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
   }
   if (activeZpids.length === 0) return [];
 
-  // Step 2: pull property-details for a few seeds (best-effort, used only for
-  // nearby-homes bonus harvest — failure here doesn't break discovery because
-  // the active-zpid pool stands on its own).
-  const seeds = activeZpids.slice(0, 4);
+  // Step 2: pull property-details for a generous number of seeds — each seed's
+  // nearbyHomes typically lists 5-10 RECENTLY_SOLD entries, so 10 seeds yield
+  // ~50-100 unique nearby zpids. Plenty to keep the pool growing per request.
+  // Higher than 10 starts to brush against RapidAPI rate-limit risk; 10 is the
+  // sweet spot empirically.
+  const seeds = activeZpids.slice(0, 10);
   const seedResults = await Promise.allSettled(
     seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 5000))
   );

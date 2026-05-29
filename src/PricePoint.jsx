@@ -204,7 +204,7 @@ const isRecentSale = (l) => {
   if (!l.soldDate) return true; // no date = assume recent
   const saleDate = new Date(l.soldDate);
   const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 5); // 5-year window
+  cutoff.setMonth(cutoff.getMonth() - 6); // 6-month window — matches server pool filter
   return saleDate >= cutoff;
 };
 
