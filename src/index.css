@@ -26,6 +26,13 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #050505;
+}
+
+/* Prevent white overscroll flash on iOS PWA */
+html {
+  background-color: #050505;
+  overscroll-behavior-y: none;
 }
 
 #root {
@@ -86,6 +93,9 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #171717;
+    background-color: #FAFAFA;
+  }
+  html, body {
     background-color: #FAFAFA;
   }
   a:hover {

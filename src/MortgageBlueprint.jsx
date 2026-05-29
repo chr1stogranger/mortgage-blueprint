@@ -5295,12 +5295,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ──
-       Mobile header is now Row 1 (48) + stats (~46) = ~94px, plus the
-       iOS safe-area-inset-top (~62pt on iPhone with Dynamic Island).
-       Cloud mode adds the LO/borrower-picker row (+24). Desktop uses
-       the sidebar, so its fixed header is Row 1 (44) + stats (48) +
-       border = 96, no safe-area needed. */}
-   <div style={{ paddingTop: isDesktop ? 96 : `calc(${isCloud && !isBorrower ? 122 : 98}px + env(safe-area-inset-top, 0px))` }} />
+       Mobile header: Row 1 (48) + stats (~46) = 94px + safe-area.
+       Cloud mode adds the LO picker row (+24) = 118px + safe-area.
+       Desktop: Row 1 (44) + stats (48) + border = 96, no safe-area. */}
+   <div style={{ paddingTop: isDesktop ? 96 : `calc(${isCloud && !isBorrower ? 116 : 92}px + env(safe-area-inset-top, 0px))` }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ── Build Mode House (Top of Tab) ── */}
