@@ -28,7 +28,7 @@ function getSupabaseAdmin() {
 }
 
 // ─── Pool config ───
-const POOL_THRESHOLD = 10;                // below this, run discovery to grow
+const POOL_THRESHOLD = 5;                  // below this, run discovery to grow
 const POOL_QUERY_LIMIT = 1000;             // pull up to N pool rows on read
 const RESPONSE_SHUFFLE_CAP = 50;           // shuffled slice size returned to client
 const SOLD_DATE_MONTHS = 6;                // sold-comps must be from last 6 months
@@ -262,10 +262,11 @@ export default async function handler(req, res) {
     }
 
     // Cap the per-request discovery batch so a single user doesn't burn the
-    // whole RapidAPI quota. The pool accumulates across requests, so even if
-    // one request only adds ~25, ten requests add ~250 → the pool catches up
-    // quickly under normal traffic.
-    const DISCOVERY_BATCH_CAP = 60;
+    // whole RapidAPI quota AND so we stay well inside Vercel's serverless
+    // timeout. The pool accumulates across requests, so even if one request
+    // only adds ~15, five requests add ~75 — the pool catches up quickly
+    // under normal traffic without any single request being slow.
+    const DISCOVERY_BATCH_CAP = 20;
     const dayHash = new Date().getDate();
     const shuffledCandidates = [...candidateZpids].sort((a, b) =>
       ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997)
@@ -454,12 +455,12 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
   }
   if (activeZpids.length === 0) return [];
 
-  // Step 2: pull property-details for a generous number of seeds — each seed's
-  // nearbyHomes typically lists 5-10 RECENTLY_SOLD entries, so 10 seeds yield
-  // ~50-100 unique nearby zpids. Plenty to keep the pool growing per request.
-  // Higher than 10 starts to brush against RapidAPI rate-limit risk; 10 is the
-  // sweet spot empirically.
-  const seeds = activeZpids.slice(0, 10);
+  // Step 2: pull property-details for 6 seeds. Each seed's nearbyHomes lists
+  // 5-10 RECENTLY_SOLD entries, so 6 seeds yield ~30-60 unique nearby zpids.
+  // Plenty to keep the pool growing per request without exploding latency
+  // (each seed adds to the parallel batch — rate-limit risk grows quickly
+  // past ~6).
+  const seeds = activeZpids.slice(0, 6);
   const seedResults = await Promise.allSettled(
     seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 5000))
   );
