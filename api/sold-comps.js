@@ -308,10 +308,13 @@ export default async function handler(req, res) {
     // only adds ~15, five requests add ~75 — the pool catches up quickly
     // under normal traffic without any single request being slow.
     const DISCOVERY_BATCH_CAP = 20;
-    const dayHash = new Date().getDate();
-    const shuffledCandidates = [...candidateZpids].sort((a, b) =>
-      ((parseInt(a) * 31 + dayHash) % 997) - ((parseInt(b) * 31 + dayHash) % 997)
-    );
+    // RANDOM shuffle (not deterministic). Earlier code shuffled by day-of-
+    // month which meant every request on the same day attempted the SAME
+    // top 20 candidates — so failing zpids got re-fetched indefinitely
+    // and the pool plateaued. Random shuffle gives each request a different
+    // slice of the candidate set; over many requests every candidate gets
+    // attempted at least once.
+    const shuffledCandidates = [...candidateZpids].sort(() => Math.random() - 0.5);
     const zpidsToFetch = shuffledCandidates.slice(0, DISCOVERY_BATCH_CAP);
 
     console.error(`[SoldComps] Discovery batch for ${marketId}: ${zpidsToFetch.length} of ${candidateZpids.length} candidates`);
