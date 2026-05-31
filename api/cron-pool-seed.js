@@ -11,7 +11,16 @@
 // via the Authorization header). Reject other callers so nobody can DOS the
 // RapidAPI quota by hammering this endpoint.
 
-const MARKETS_TO_SEED = ['San Francisco', 'Alameda', 'Oakland', 'Berkeley'];
+// CA-only for now: sold-comps discovery builds the search location as
+// `${city}, CA`. Non-CA markets (Seattle/Miami/NYC/Chicago) need `state`
+// plumbed through /api/sold-comps before they can be seeded — see follow-up.
+const MARKETS_TO_SEED = [
+  'San Francisco', 'Alameda', 'Oakland', 'Berkeley',
+  'Los Angeles', 'San Diego',
+];
+
+// Allow longer execution — each market pages the search endpoint.
+export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   // Vercel cron sends Authorization: Bearer <CRON_SECRET>

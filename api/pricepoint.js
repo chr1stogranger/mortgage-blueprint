@@ -132,7 +132,7 @@ function normalizeSoldDate(raw) {
 }
 
 // ─── Fetch from RapidAPI ───
-async function fetchListings(location, homeStatus, apiKey, apiHost) {
+async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
   // The RapidAPI "Real-Time Real-Estate Data" endpoint uses "status" not "home_status"
   // for the search endpoint. It also supports "forSale", "recentlySold" style values.
   // We'll try the documented parameter names.
@@ -148,6 +148,9 @@ async function fetchListings(location, homeStatus, apiKey, apiHost) {
   } else {
     params.set("status", homeStatus);
   }
+  // Pagination: the search endpoint returns ~40 results per page. Requesting
+  // successive pages is how we collect the full city inventory.
+  if (page > 1) params.set("page", String(page));
 
   const url = `https://${apiHost}/search?${params}`;
   console.error(`[PricePoint] Fetching: ${url.replace(apiKey, "***")}`);
@@ -188,12 +191,63 @@ async function fetchListings(location, homeStatus, apiKey, apiHost) {
   return data;
 }
 
+// ─── Pagination config ───
+const PAGE_SIZE_HINT = 40;        // RapidAPI search returns ~40 results per page
+const MAX_ACTIVE_PAGES = 10;      // up to ~400 active listings → Live = full inventory
+const MAX_SOLD_PAGES = 6;         // up to ~240 sold (fallback; sold-comps is primary)
+
+// Extract the listings array from a search response (handles every shape variant)
+function extractListings(response) {
+  if (!response) return [];
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.results)) return response.results;
+  if (Array.isArray(response.props)) return response.props;
+  if (Array.isArray(response.searchResults)) return response.searchResults;
+  if (Array.isArray(response)) return response;
+  // Some endpoints nest under data.results
+  if (response.data && Array.isArray(response.data.results)) return response.data.results;
+  return [];
+}
+
+// Fetch successive pages until the API runs out or we hit maxPages. De-dupes by
+// zpid across pages and stops early when a page adds nothing new — a guard
+// against an endpoint that ignores &page and keeps returning the first page.
+async function fetchAllPages(location, homeStatus, apiKey, apiHost, maxPages) {
+  const all = [];
+  const seen = new Set();
+  for (let page = 1; page <= maxPages; page++) {
+    let data;
+    try {
+      data = await fetchListings(location, homeStatus, apiKey, apiHost, page);
+    } catch (err) {
+      if (page === 1) throw err;   // first-page failure is a real error
+      break;                       // a later page failing: keep what we have
+    }
+    const items = extractListings(data);
+    if (items.length === 0) break;
+    let added = 0;
+    for (const it of items) {
+      const z = String(it?.zpid || "");
+      if (z && seen.has(z)) continue;
+      if (z) seen.add(z);
+      all.push(it);
+      added++;
+    }
+    if (added === 0) break;                       // nothing new — exhausted/looping
+    if (items.length < PAGE_SIZE_HINT / 2) break; // partial page → likely the last
+  }
+  return all;
+}
+
 // ─── CORS ───
 const ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",
   "https://mortgage-blueprint.vercel.app",
   "http://localhost:5173",
 ];
+
+// Allow longer execution so multi-page fetches finish inside the timeout.
+export const config = { maxDuration: 60 };
 
 // ─── Main handler ───
 export default async function handler(req, res) {
@@ -247,35 +301,21 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
     }
 
-    // Fetch active and sold in parallel (pending comes within forSale results)
+    // Fetch ALL pages of active and sold in parallel (pending comes within
+    // forSale). Pagination is what lets Live mode show the full city inventory
+    // instead of just the first ~40 results a single search call returns.
     const [activeData, soldData] = await Promise.allSettled([
-      fetchListings(location, "FOR_SALE", apiKey, apiHost),
-      fetchListings(location, "RECENTLY_SOLD", apiKey, apiHost),
+      fetchAllPages(location, "FOR_SALE", apiKey, apiHost, MAX_ACTIVE_PAGES),
+      fetchAllPages(location, "RECENTLY_SOLD", apiKey, apiHost, MAX_SOLD_PAGES),
     ]);
 
-    // Helper: extract listings array from response (handles multiple shapes)
-    function extractListings(response) {
-      if (!response) return [];
-      if (Array.isArray(response.data)) return response.data;
-      if (Array.isArray(response.results)) return response.results;
-      if (Array.isArray(response.props)) return response.props;
-      if (Array.isArray(response.searchResults)) return response.searchResults;
-      if (Array.isArray(response)) return response;
-      // Some endpoints nest under data.results
-      if (response.data && Array.isArray(response.data.results)) return response.data.results;
-      return [];
-    }
-
-    // Parse active listings
+    // Parse active listings (fetchAllPages returns a flat, de-duped array)
     let active = [];
     if (activeData.status === "fulfilled") {
-      const results = extractListings(activeData.value);
-      console.error(`[PricePoint] Active raw count: ${results.length}, with zpid+price: ${results.filter(r => r.zpid && r.price).length}`);
-
-      // All active/pending from forSale results (no cap — Markets + PricePoint get full dataset)
-      active = results
+      active = activeData.value
         .filter(r => r.zpid && r.price)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
+      console.error(`[PricePoint] Active across pages: ${activeData.value.length} raw, ${active.length} usable`);
     } else {
       console.error(`[PricePoint] Active failed: ${activeData.reason?.message}`);
     }
@@ -283,12 +323,10 @@ export default async function handler(req, res) {
     // Parse sold listings
     let sold = [];
     if (soldData.status === "fulfilled") {
-      const results = extractListings(soldData.value);
-      console.error(`[PricePoint] Sold raw count: ${results.length}, with zpid+price: ${results.filter(r => r.zpid && r.price).length}`);
-
-      sold = results
+      sold = soldData.value
         .filter(r => r.zpid && r.price)
         .map((r, i) => normalizeProperty(r, i, "pps", true));
+      console.error(`[PricePoint] Sold across pages: ${soldData.value.length} raw, ${sold.length} usable`);
     } else {
       console.error(`[PricePoint] Sold failed: ${soldData.reason?.message}`);
     }
@@ -326,12 +364,10 @@ export default async function handler(req, res) {
     if (debug === "1") {
       result._debug = {
         activeStatus: activeData.status,
-        activeTopKeys: activeData.status === "fulfilled" ? Object.keys(activeData.value || {}) : null,
-        activeRawCount: activeData.status === "fulfilled" ? extractListings(activeData.value).length : 0,
+        activeRawCount: activeData.status === "fulfilled" ? activeData.value.length : 0,
         activeError: activeData.status === "rejected" ? activeData.reason?.message : null,
         soldStatus: soldData.status,
-        soldTopKeys: soldData.status === "fulfilled" ? Object.keys(soldData.value || {}) : null,
-        soldRawCount: soldData.status === "fulfilled" ? extractListings(soldData.value).length : 0,
+        soldRawCount: soldData.status === "fulfilled" ? soldData.value.length : 0,
         soldError: soldData.status === "rejected" ? soldData.reason?.message : null,
         soldBeforeDedup,
         dedupRemoved,
