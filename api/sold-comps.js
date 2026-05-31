@@ -196,6 +196,37 @@ export default async function handler(req, res) {
     // clamped to [10, 500]. Lets the client ask for more or fewer via ?limit=N.
     const responseCap = Math.min(500, Math.max(10, parseInt(req.query.limit, 10) || RESPONSE_SHUFFLE_CAP));
 
+    // ─── TEMP DIAGNOSTIC: &inspect=1 ───
+    // Dumps raw nearbyHomes RECENTLY_SOLD entries from a few active seeds so we
+    // can see whether they carry a usable sold price + date. If they do, we can
+    // ingest them directly (free, high-yield) instead of re-fetching per zpid.
+    // REMOVE after the data-shape question is answered.
+    if (req.query.inspect === '1') {
+      const apiKey = process.env.RAPIDAPI_KEY;
+      const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
+      if (!apiKey) return res.status(500).json({ error: 'RAPIDAPI_KEY not configured' });
+      const active = await searchPages(`${city}, CA`, 'forSale', apiKey, apiHost, 1);
+      const seeds = active.slice(0, 3).map(r => String(r?.zpid)).filter(Boolean);
+      const details = await Promise.allSettled(seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 8000)));
+      const report = [];
+      for (const r of details) {
+        if (r.status !== 'fulfilled' || !r.value) { report.push({ ok: false }); continue; }
+        const d = r.value;
+        const nh = Array.isArray(d.nearbyHomes) ? d.nearbyHomes : [];
+        const sold = nh.filter(n => n?.homeStatus === 'RECENTLY_SOLD');
+        report.push({
+          zpid: d.zpid,
+          nearbyHomesLen: nh.length,
+          recentlySoldInNearby: sold.length,
+          sampleKeys: sold[0] ? Object.keys(sold[0]) : null,
+          sampleEntries: sold.slice(0, 2),
+          ownPriceHistorySold: extractSoldEvent(d.priceHistory || []),
+        });
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ city, seeds, report });
+    }
+
     const supabase = getSupabaseAdmin();
     if (!supabase) {
       return res.status(500).json({ error: "Supabase not configured" });
