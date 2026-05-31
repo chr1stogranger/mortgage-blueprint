@@ -206,6 +206,7 @@ export default async function handler(req, res) {
       const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
       if (!apiKey) return res.status(500).json({ error: 'RAPIDAPI_KEY not configured' });
       const active = await searchPages(`${city}, CA`, 'forSale', apiKey, apiHost, 1);
+      const activeZpids = new Set(active.map(r => String(r?.zpid)).filter(Boolean));
       const seeds = active.slice(0, 3).map(r => String(r?.zpid)).filter(Boolean);
       const details = await Promise.allSettled(seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 8000)));
       const report = [];
@@ -223,8 +224,26 @@ export default async function handler(req, res) {
           ownPriceHistorySold: extractSoldEvent(d.priceHistory || []),
         });
       }
+      // Raw recentlySold-search inspection: do the items carry real sold fields,
+      // or are they just active listings relabeled (zpid overlaps forSale)?
+      const soldRaw = await searchPages(`${city}, CA`, 'recentlySold', apiKey, apiHost, 1);
+      const overlap = soldRaw.filter(s => activeZpids.has(String(s?.zpid))).length;
+      const soldSamples = soldRaw.slice(0, 4).map(s => ({
+        zpid: String(s?.zpid),
+        inActiveList: activeZpids.has(String(s?.zpid)),
+        homeStatus: s?.homeStatus,
+        price: s?.price,
+        dateSold: s?.dateSold,
+        lastSoldPrice: s?.lastSoldPrice,
+        lastSoldDate: s?.lastSoldDate,
+        listPrice: s?.listPrice,
+        allKeys: s ? Object.keys(s) : null,
+      }));
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ city, seeds, report });
+      return res.status(200).json({
+        city, seeds, report,
+        recentlySold: { total: soldRaw.length, overlapWithActive: overlap, samples: soldSamples },
+      });
     }
 
     const supabase = getSupabaseAdmin();
