@@ -3017,6 +3017,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   cursor: "pointer", transition: "all 0.2s",
                   display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
                   minHeight: 56,
+                  // "All of <city>" (zip === null) spans the full width across both columns.
+                  gridColumn: hood.zip === null ? "1 / -1" : "auto",
                 }}
                 onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.red; }}
                 onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}
@@ -3099,8 +3101,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
                   cursor: "pointer", transition: "all 0.2s",
                   display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
+                  // Uniform height for every card (no aspectRatio — that made the
+                  // short-named cards square/tall and dragged their grid row-mates up).
                   minHeight: 56,
-                  aspectRatio: hood.name.length > 12 ? "auto" : "1"
+                  // "All of <city>" (zip === null) spans the full width across both columns.
+                  gridColumn: hood.zip === null ? "1 / -1" : "auto",
                 }}
                 onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.accent; }}
                 onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}
