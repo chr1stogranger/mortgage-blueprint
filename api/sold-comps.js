@@ -196,54 +196,46 @@ export default async function handler(req, res) {
     // clamped to [10, 500]. Lets the client ask for more or fewer via ?limit=N.
     const responseCap = Math.min(500, Math.max(10, parseInt(req.query.limit, 10) || RESPONSE_SHUFFLE_CAP));
 
-    // ─── TEMP DIAGNOSTIC: &inspect=1 ───
-    // Dumps raw nearbyHomes RECENTLY_SOLD entries from a few active seeds so we
-    // can see whether they carry a usable sold price + date. If they do, we can
-    // ingest them directly (free, high-yield) instead of re-fetching per zpid.
-    // REMOVE after the data-shape question is answered.
-    if (req.query.inspect === '1') {
+    // ─── TEMP PROBE: &probe=1 ───
+    // Calls the new us-real-estate sold endpoints directly and dumps the raw
+    // response shape so we can map fields correctly. Bypasses the flaky RapidAPI
+    // playground. REMOVE once the mapper is finalized.
+    if (req.query.probe === '1') {
       const apiKey = process.env.RAPIDAPI_KEY;
-      const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
+      const soldHost = process.env.RAPIDAPI_SOLD_HOST || 'us-real-estate.p.rapidapi.com';
       if (!apiKey) return res.status(500).json({ error: 'RAPIDAPI_KEY not configured' });
-      const active = await searchPages(`${city}, CA`, 'forSale', apiKey, apiHost, 1);
-      const activeZpids = new Set(active.map(r => String(r?.zpid)).filter(Boolean));
-      const seeds = active.slice(0, 3).map(r => String(r?.zpid)).filter(Boolean);
-      const details = await Promise.allSettled(seeds.map(z => fetchPropertyDetails(z, apiKey, apiHost, 8000)));
-      const report = [];
-      for (const r of details) {
-        if (r.status !== 'fulfilled' || !r.value) { report.push({ ok: false }); continue; }
-        const d = r.value;
-        const nh = Array.isArray(d.nearbyHomes) ? d.nearbyHomes : [];
-        const sold = nh.filter(n => n?.homeStatus === 'RECENTLY_SOLD');
-        report.push({
-          zpid: d.zpid,
-          nearbyHomesLen: nh.length,
-          recentlySoldInNearby: sold.length,
-          sampleKeys: sold[0] ? Object.keys(sold[0]) : null,
-          sampleEntries: sold.slice(0, 2),
-          ownPriceHistorySold: extractSoldEvent(d.priceHistory || []),
-        });
-      }
-      // Raw recentlySold-search inspection: do the items carry real sold fields,
-      // or are they just active listings relabeled (zpid overlaps forSale)?
-      const soldRaw = await searchPages(`${city}, CA`, 'recentlySold', apiKey, apiHost, 1);
-      const overlap = soldRaw.filter(s => activeZpids.has(String(s?.zpid))).length;
-      const soldSamples = soldRaw.slice(0, 4).map(s => ({
-        zpid: String(s?.zpid),
-        inActiveList: activeZpids.has(String(s?.zpid)),
-        homeStatus: s?.homeStatus,
-        price: s?.price,
-        dateSold: s?.dateSold,
-        lastSoldPrice: s?.lastSoldPrice,
-        lastSoldDate: s?.lastSoldDate,
-        listPrice: s?.listPrice,
-        allKeys: s ? Object.keys(s) : null,
-      }));
+      const hit = async (path) => {
+        const url = `https://${soldHost}${path}`;
+        const t0 = Date.now();
+        try {
+          const r = await fetch(url, { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': soldHost } });
+          const text = await r.text();
+          let json = null; try { json = JSON.parse(text); } catch {}
+          // Find the array of properties wherever it lives
+          const findArr = (o) => {
+            if (Array.isArray(o)) return o;
+            if (o && typeof o === 'object') {
+              for (const k of ['data', 'results', 'props', 'home_search', 'properties', 'listings']) {
+                if (Array.isArray(o[k])) return o[k];
+                if (o[k] && Array.isArray(o[k].results)) return o[k].results;
+              }
+            }
+            return null;
+          };
+          const arr = json ? findArr(json) : null;
+          return {
+            path, httpStatus: r.status, latencyMs: Date.now() - t0,
+            topLevelKeys: json && typeof json === 'object' ? Object.keys(json).slice(0, 20) : null,
+            arrayLen: Array.isArray(arr) ? arr.length : null,
+            firstItemKeys: arr && arr[0] ? Object.keys(arr[0]) : null,
+            firstItem: arr && arr[0] ? arr[0] : (json ? JSON.stringify(json).slice(0, 600) : text.slice(0, 600)),
+          };
+        } catch (e) { return { path, error: e.message }; }
+      };
+      const zipRes = await hit(`/v2/sold-homes-by-zipcode?zipcode=${encodeURIComponent(zip || '94703')}&sort=sold_date&offset=0`);
+      const cityRes = await hit(`/sold-homes?city=${encodeURIComponent(city)}&state_code=CA&sort=sold_date&offset=0&limit=50`);
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({
-        city, seeds, report,
-        recentlySold: { total: soldRaw.length, overlapWithActive: overlap, samples: soldSamples },
-      });
+      return res.status(200).json({ soldHost, zipEndpoint: zipRes, cityEndpoint: cityRes });
     }
 
     const supabase = getSupabaseAdmin();
