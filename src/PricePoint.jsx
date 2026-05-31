@@ -1568,11 +1568,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       return true;
     });
 
-    // Step 2: Exclude daily spoilers AND previously guessed properties
-    // Cap the daily-exclusion window so it can't swallow the whole pool. With a small
-    // sold-comp pool (e.g. ~10), a 30-day exclusion hashes into every index and zeros
-    // the pool — leave at least ~3 indices unexcluded so something can be played.
-    const exclusionDays = Math.min(30, Math.max(0, trueSold.length - 3));
+    // Step 2: Exclude daily spoilers AND previously guessed properties.
+    // Scale the exclusion window with pool size so we always keep ~80% of the
+    // pool playable. With 31 entries: excludes ~6 → pool = 25 playable. With
+    // 100 entries: excludes ~20 → pool = 80 playable. With 200+: hits the
+    // 30-day cap → pool = 170+ playable.
+    //
+    // The previous formula (len - 3) was designed for tiny pools where any
+    // exclusion zeroed it out — that's solved at the server now. The new
+    // bottleneck was the opposite: aggressive exclusion shrinking a 31-pool
+    // down to 6. Proportional scaling fixes both extremes.
+    const exclusionDays = Math.min(30, Math.max(0, Math.floor(trueSold.length / 5)));
     const excludedIndices = getDailyIndices(trueSold, market?.label || "", exclusionDays);
     const guessedZpids = fpGuessedZpidsRef.current;
     let pool = trueSold.filter((l, i) => !excludedIndices.has(i) && (!l.zpid || !guessedZpids.has(l.zpid)));
