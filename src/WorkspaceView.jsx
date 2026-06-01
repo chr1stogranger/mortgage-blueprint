@@ -12,6 +12,7 @@ import ComparePane from "./ComparePane";
 import RefiComparePane from "./RefiComparePane";
 import DebtFreeSplash from "./DebtFreeSplash";
 import Icon from "./Icon";
+import { apiUrl } from "./apiBase";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -205,7 +206,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
     setRatesLoading(true);
     setRatesError(null);
     try {
-      const res = await fetch("/api/rates");
+      const res = await fetch(apiUrl("/api/rates"));
       if (res.ok) {
         const data = await res.json();
         if (data["30yr_fixed"] > 2 && data["30yr_fixed"] < 15) {

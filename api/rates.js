@@ -1,4 +1,14 @@
 export default async function handler(req, res) {
+  // Allow the native (Capacitor) app, served from https://localhost, to read
+  // this response cross-origin. Without these headers the iOS/Android WebView
+  // blocks the fetch and rates never load in the App Store build.
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   const apiKey = process.env.VITE_FRED_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "FRED API key not configured" });

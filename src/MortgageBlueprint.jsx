@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspens
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
+import { apiUrl } from "./apiBase";
 // Lazy load heavy components for faster initial page load
 const PricePoint = lazy(() => import("./PricePoint"));
 const Markets = lazy(() => import("./Markets"));
@@ -2894,7 +2895,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   };
   // Attempt 1: Vercel serverless proxy (avoids CORS)
   try {
-   const res = await fetch("/api/rates");
+   const res = await fetch(apiUrl("/api/rates"));
    if (res.ok) {
     const data = await res.json();
     if (data["30yr_fixed"] > 2 && data["30yr_fixed"] < 15) {
