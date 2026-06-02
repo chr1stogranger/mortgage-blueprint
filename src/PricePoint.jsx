@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
+import { apiUrl, API_BASE } from './apiBase';
 import {
   getOrCreatePlayer, getDeviceId,
   submitGuess, submitPrediction, syncPlayerXP,
@@ -54,7 +55,9 @@ const decodeChallenge = (token) => {
 };
 
 const buildChallengeUrl = (token) => {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://blueprint.realstack.app';
+  // In the native app window.location.origin is https://localhost, which would
+  // produce an unopenable share link — fall back to the production origin there.
+  const origin = API_BASE || (typeof window !== 'undefined' ? window.location.origin : 'https://blueprint.realstack.app');
   return `${origin}/api/challenge?c=${token}`;
 };
 
@@ -841,7 +844,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     fetchingRef.current[zpid] = true;
     setDetailsLoading(zpid);
     try {
-      const res = await fetch(`/api/propertydetails?zpid=${zpid}`);
+      const res = await fetch(apiUrl(`/api/propertydetails?zpid=${zpid}`));
       if (res.ok) {
         const data = await res.json();
         // Only cache results that have actual content (photos or description)
@@ -868,7 +871,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // Collect all zpids we already have
       const existingZpids = fpListings.map(l => l.zpid).filter(Boolean);
       const excludeParam = existingZpids.length > 0 ? `&exclude=${existingZpids.join(",")}` : "";
-      const url = `/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}&more=1${excludeParam}`;
+      const url = apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}&more=1${excludeParam}`);
       console.log(`[PricePoint] Load More: fetching ${url}`);
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`API returned ${resp.status}`);
@@ -1195,9 +1198,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // Fetch active/sold search AND real sold comps in parallel
       const cityName = isZip ? null : searchValue.trim();
       const [ppResp, compsResp] = await Promise.allSettled([
-        fetch(`/api/pricepoint?${params}`).then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch(apiUrl(`/api/pricepoint?${params}`)).then(r => r.ok ? r.json() : Promise.reject(r.status)),
         cityName ? Promise.race([
-          fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`)).then(r => r.ok ? r.json() : null).catch(() => null),
           new Promise(resolve => setTimeout(() => resolve(null), 5000)), // 5s timeout (was 8s)
         ]) : Promise.resolve(null),
       ]);
@@ -1636,7 +1639,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const cityName = market?.city || market?.label?.split(",")[0] || "San Francisco";
       const existingZpids = pool.map(l => l.zpid).filter(Boolean);
       const excludeParam = existingZpids.length > 0 ? `&exclude=${existingZpids.join(",")}` : "";
-      fetch(`/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}${excludeParam}`)
+      fetch(apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}${excludeParam}`))
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data?.soldListings?.length > 0) {
@@ -1670,7 +1673,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       console.log("[PricePoint] No active listings in state — re-fetching for Live mode...");
       setLoading(true);
       try {
-        const resp = await fetch(`/api/pricepoint?city=${encodeURIComponent(market.city || market.label)}&state=CA`);
+        const resp = await fetch(apiUrl(`/api/pricepoint?city=${encodeURIComponent(market.city || market.label)}&state=CA`));
         if (resp.ok) {
           const data = await resp.json();
           if (data?.activeListings?.length > 0) {

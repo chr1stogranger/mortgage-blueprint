@@ -15,6 +15,7 @@
  */
 
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
+import { apiUrl } from '../apiBase';
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -223,7 +224,7 @@ export const fetchLiveMarkets = createAsyncThunk(
       else params.set('zip', '94122'); // default: Sunset District, SF
       if (state) params.set('state', state || 'CA');
 
-      const response = await fetch(`/api/pricepoint?${params.toString()}`);
+      const response = await fetch(apiUrl(`/api/pricepoint?${params.toString()}`));
       if (!response.ok) {
         throw new Error(`MLS API error: ${response.status}`);
       }
@@ -296,7 +297,7 @@ export const fetchPracticeComps = createAsyncThunk(
       if (filters.city) params.set('city', filters.city);
       params.set('state', filters.state || 'CA');
 
-      const response = await fetch(`/api/pricepoint?${params.toString()}`);
+      const response = await fetch(apiUrl(`/api/pricepoint?${params.toString()}`));
       if (!response.ok) throw new Error(`MLS API error: ${response.status}`);
 
       const data = await response.json();
@@ -563,7 +564,7 @@ export const checkMarketUpdates = createAsyncThunk(
         // Check MLS API for status changes
         // In production, this would be a batch API call
         const params = new URLSearchParams({ zip: market.zip });
-        const response = await fetch(`/api/pricepoint?${params.toString()}`);
+        const response = await fetch(apiUrl(`/api/pricepoint?${params.toString()}`));
         if (!response.ok) continue;
 
         const data = await response.json();

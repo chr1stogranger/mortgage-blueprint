@@ -10,6 +10,7 @@
  */
 
 import { getSupabaseClient } from './supabaseClient';
+import { apiUrl } from '../apiBase';
 
 // ── Device ID (anonymous fingerprint) ──────────────────────────────────
 
@@ -86,7 +87,7 @@ export async function getPlayer(playerId) {
  */
 export async function fetchDaily(marketId) {
   try {
-    const res = await fetch(`/api/pp-daily?market=${marketId}`);
+    const res = await fetch(apiUrl(`/api/pp-daily?market=${marketId}`));
     if (!res.ok) {
       console.error('[PricePointDB] fetchDaily HTTP error:', res.status);
       return null;
@@ -379,7 +380,7 @@ export async function getPlayerPredictions(playerId, resolved = false) {
 export async function fetchNotifications(playerId, all = false) {
   if (!playerId) return { notifications: [], unreadCount: 0 };
   try {
-    const url = `/api/notifications?playerId=${playerId}${all ? '&all=1' : ''}`;
+    const url = apiUrl(`/api/notifications?playerId=${playerId}${all ? '&all=1' : ''}`);
     const res = await fetch(url);
     if (!res.ok) return { notifications: [], unreadCount: 0 };
     return await res.json();
@@ -401,7 +402,7 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
     } else {
       body.markAllRead = true;
     }
-    const res = await fetch('/api/notifications', {
+    const res = await fetch(apiUrl('/api/notifications'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -419,7 +420,7 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
 export async function registerDeviceToken(playerId, token, platform) {
   if (!playerId || !token) return false;
   try {
-    const res = await fetch('/api/notifications?action=register', {
+    const res = await fetch(apiUrl('/api/notifications?action=register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, token, platform }),
@@ -437,7 +438,7 @@ export async function registerDeviceToken(playerId, token, platform) {
 export async function unregisterDeviceToken(playerId, token) {
   if (!playerId || !token) return false;
   try {
-    const res = await fetch('/api/notifications', {
+    const res = await fetch(apiUrl('/api/notifications'), {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, token }),
@@ -455,7 +456,7 @@ export async function unregisterDeviceToken(playerId, token) {
 export async function getNotificationPreferences(playerId) {
   if (!playerId) return null;
   try {
-    const res = await fetch(`/api/notifications?action=preferences&playerId=${playerId}`);
+    const res = await fetch(apiUrl(`/api/notifications?action=preferences&playerId=${playerId}`));
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -470,7 +471,7 @@ export async function getNotificationPreferences(playerId) {
 export async function updateNotificationPreferences(playerId, prefs) {
   if (!playerId) return null;
   try {
-    const res = await fetch('/api/notifications', {
+    const res = await fetch(apiUrl('/api/notifications'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerId, ...prefs }),
