@@ -5433,7 +5433,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    /* Shared UI components */
    PayRing, StopLight, AmortChart, Progress, Hero, Card, Sec, MRow,
    Inp, Sel, TextInp, Note, SearchSelect, InfoTip, Icon, Tab, FieldLabel,
-   GuidedNextButton,
+   GuidedNextButton, ClusterContinue,
   }} />
  </Suspense>
 )}
