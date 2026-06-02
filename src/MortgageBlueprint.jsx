@@ -1053,18 +1053,6 @@ const Haptics = {
 
 // ── Tab Progression System ──
 const TAB_PROGRESSION = ["overview","setup","income","debts","assets","qualify","tax","amort","learn","compare","summary"];
-const HOUSE_STAGES = [
- { tab: "setup", part: "Empty Lot", desc: "Your journey starts here" },
- { tab: "income", part: "Foundation", desc: "Concrete slab poured" },
- { tab: "debts", part: "Wall Framing", desc: "Studs going up" },
- { tab: "assets", part: "Roof Trusses", desc: "Trusses set in place" },
- { tab: "qualify", part: "Exterior Walls", desc: "Sheathing applied" },
- { tab: "tax", part: "Windows & Doors", desc: "Let there be light" },
- { tab: "amort", part: "Siding & Paint", desc: "Looking sharp" },
- { tab: "learn", part: "Interior Finish", desc: "Making it a home" },
- { tab: "compare", part: "Landscaping", desc: "Curb appeal" },
- { tab: "summary", part: "Move-In Ready!", desc: "Welcome home!" },
-];
 const SKILL_PRESETS = {
  guided: { label: "Guided", sub: "First-Time Homebuyer", icon: "home", desc: "Step-by-step walkthrough. I'll highlight what to fill in next and unlock sections as you go.", unlockedThrough: 1, startsOn: "setup" },
  standard: { label: "Standard", sub: "I Know the Basics", icon: "key", desc: "Full access to everything. Jump to any section.", unlockedThrough: 11, startsOn: "overview" },
@@ -1077,233 +1065,6 @@ const TOGGLE_DESCRIPTIONS = {
  showProp19: { on: "Opens the Prop 19 tab — estimate your transferred property-tax base if you're 55+, disabled, or a disaster victim buying a replacement home in California.", off: "Standard full-reassessment property tax only." },
 };
 
-// ── Construction House SVG — Cape Cod Style ──
-function ConstructionHouse({ stagesComplete, total }) {
- const pct = total > 0 ? stagesComplete / total : 0;
- const s = stagesComplete;
- // Cape Cod palette
- const SIDING = "#B8C8D8", SIDINGDARK = "#94A8BD", TRIM = "#FFFFFF", SHUTTER = "#1C2833";
- const ROOF = "#3D4F5F", ROOFDARK = "#2C3E4E", BRICK = "#A0522D", BRICKDARK = "#8B4513";
- const DOOR = "#2C3E50", GLASS = "#A8D8EA", GLASSWARM = "#FFE4B5";
- const WOOD = "#C49A6C", WOODDARK = "#8B6914", CONCRETE = "#9E9E9E";
- const GRASS1 = "#4CAF50", GRASS2 = "#388E3C", BUSH = "#2E7D32", BUSHL = "#43A047";
- const SKY1 = s >= 11 ? "#0a1628" : "#1a1a2e", SKY2 = s >= 11 ? "#1a3a5c" : "#16213e";
- // Dormer helper
- const Dormer = ({ cx }) => (<g>
-  <polygon points={`${cx},68 ${cx-16},92 ${cx+16},92`} fill={ROOF} stroke={ROOFDARK} strokeWidth="0.5" />
-  <rect x={cx-10} y={78} width="20" height="14" fill={SIDING} stroke={TRIM} strokeWidth="1" />
-  <rect x={cx-7} y={80} width="6" height="10" fill={s >= 9 ? GLASSWARM : GLASS} stroke={TRIM} strokeWidth="0.8" />
-  <rect x={cx+1} y={80} width="6" height="10" fill={s >= 9 ? GLASSWARM : GLASS} stroke={TRIM} strokeWidth="0.8" />
-  <line x1={cx-10} y1={85} x2={cx+10} y2={85} stroke={TRIM} strokeWidth="0.4" opacity="0.5" />
- </g>);
- // Window with shutters
- const Win = ({ x, y, w=22, h=28 }) => (<g>
-  <rect x={x} y={y} width={w} height={h} fill={s >= 9 ? GLASSWARM : GLASS} rx="1" stroke={TRIM} strokeWidth="1.5" />
-  <line x1={x+w/2} y1={y} x2={x+w/2} y2={y+h} stroke={TRIM} strokeWidth="1" />
-  <line x1={x} y1={y+h/2} x2={x+w} y2={y+h/2} stroke={TRIM} strokeWidth="1" />
-  {/* Shutters */}
-  <rect x={x-6} y={y-1} width="5" height={h+2} fill={SHUTTER} rx="0.5" />
-  <rect x={x+w+1} y={y-1} width="5" height={h+2} fill={SHUTTER} rx="0.5" />
-  {/* Shutter louvers */}
-  {[0,4,8,12,16,20,24].filter(v => v < h).map((dy,i) => (<g key={i}>
-   <line x1={x-5.5} y1={y+dy+1} x2={x-1.5} y2={y+dy+1} stroke="#141C24" strokeWidth="0.4" />
-   <line x1={x+w+1.5} y1={y+dy+1} x2={x+w+5.5} y2={y+dy+1} stroke="#141C24" strokeWidth="0.4" />
-  </g>))}
- </g>);
- return (
-  <svg viewBox="0 0 360 240" style={{ width: "100%", maxWidth: 360, display: "block", margin: "0 auto" }}>
-   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-     <stop offset="0%" stopColor={SKY1} /><stop offset="100%" stopColor={SKY2} />
-    </linearGradient>
-    <linearGradient id="grassG" x1="0" y1="0" x2="0" y2="1">
-     <stop offset="0%" stopColor={GRASS1} /><stop offset="100%" stopColor={GRASS2} />
-    </linearGradient>
-   </defs>
-   <rect width="360" height="240" fill="url(#sky)" rx="12" />
-   {/* Stars when complete */}
-   {s >= 11 && <>{[30,80,150,220,290,340,60,180,310].map((x,i) => <circle key={i} cx={x} cy={10+i*4} r={0.8} fill="#fff" opacity={0.6+i*0.04} />)}</>}
-   {/* Ground */}
-   <rect x="0" y="175" width="360" height="65" fill="url(#grassG)" />
-   {/* Construction dirt when building */}
-   {s >= 1 && s < 10 && <rect x="65" y="170" width="230" height="60" fill="#8B7355" rx="3" opacity="0.6" />}
-   {/* ── Stage 0: Empty lot ── */}
-   {s < 1 && <>
-    <rect x="80" y="140" width="3" height="40" fill="#888" />
-    <rect x="68" y="135" width="50" height="22" fill="#fff" rx="2" stroke="#ccc" />
-    <text x="93" y="148" textAnchor="middle" fontSize="7" fontWeight="700" fill="#D32F2F">FOR SALE</text>
-    <rect x="150" y="162" width="14" height="18" fill="#FF6600" rx="2" />
-    <rect x="150" y="166" width="14" height="3" fill="#fff" />
-    <rect x="200" y="162" width="14" height="18" fill="#FF6600" rx="2" />
-    <rect x="200" y="166" width="14" height="3" fill="#fff" />
-   </>}
-   {/* ── Stage 1: Foundation slab ── */}
-   {s >= 1 && <>
-    <rect x="70" y="162" width="220" height="14" fill={CONCRETE} rx="2" />
-    <rect x="72" y="164" width="216" height="2" fill="#B0B0B0" opacity="0.6" />
-    {[90,120,150,180,210,240,268].map((x,i) => <line key={i} x1={x} y1="163" x2={x} y2="176" stroke="#888" strokeWidth="0.5" />)}
-   </>}
-   {/* ── Stage 2: Floor framing (joists) ── */}
-   {s >= 2 && <>
-    <rect x="72" y="155" width="216" height="8" fill={WOOD} rx="1" />
-    {[80,96,112,128,144,160,176,192,208,224,240,256,272,284].map((x,i) => <rect key={i} x={x} y="155" width="3" height="8" fill={WOODDARK} />)}
-   </>}
-   {/* ── Stage 3: Wall framing (studs) ── */}
-   {s >= 3 && <>
-    {[76,92,108,124,140,156,172,188,204,220,236,252,268,282].map((x,i) => <rect key={i} x={x} y="98" width="3" height="58" fill={WOOD} />)}
-    <rect x="72" y="96" width="216" height="4" fill={WOODDARK} />
-    <rect x="72" y="153" width="216" height="3" fill={WOODDARK} />
-   </>}
-   {/* ── Stage 4: Roof trusses — steep Cape Cod pitch ── */}
-   {s >= 4 && <>
-    <polygon points="180,52 66,98 294,98" fill="none" stroke={WOOD} strokeWidth="4" />
-    <polygon points="180,52 66,98 294,98" fill="none" stroke={WOODDARK} strokeWidth="1.5" />
-    <line x1="120" y1="76" x2="240" y2="76" stroke={WOOD} strokeWidth="3" />
-    <line x1="180" y1="52" x2="180" y2="98" stroke={WOOD} strokeWidth="3" />
-    <line x1="150" y1="65" x2="150" y2="98" stroke={WOOD} strokeWidth="2" />
-    <line x1="210" y1="65" x2="210" y2="98" stroke={WOOD} strokeWidth="2" />
-   </>}
-   {/* ── Stage 5: Exterior sheathing ── */}
-   {s >= 5 && <>
-    <rect x="72" y="98" width="216" height="58" fill="#C4B8A0" rx="1" />
-    <rect x="162" y="98" width="36" height="58" fill="#C4B8A0" />
-   </>}
-   {/* ── Stage 6: Roof shingles + dormers ── */}
-   {s >= 6 && <>
-    {/* Main roof */}
-    <polygon points="180,48 60,98 300,98" fill={ROOF} />
-    <polygon points="180,51 64,98 296,98" fill={ROOFDARK} />
-    {/* Shingle rows */}
-    {[60,66,72,78,84,90].map((y,i) => <line key={i} x1={68+i*5} y1={y} x2={292-i*5} y2={y} stroke={ROOF} strokeWidth="0.6" opacity="0.4" />)}
-    {/* Three dormers */}
-    <Dormer cx={130} />
-    <Dormer cx={180} />
-    <Dormer cx={230} />
-    {/* White railing between dormers */}
-    <rect x={118} y={90} width="124" height="2" fill={TRIM} opacity="0.8" />
-    {[120,130,140,150,160,170,180,190,200,210,220,230,238].map((x,i) => <rect key={i} x={x} y={86} width="1" height="6" fill={TRIM} opacity="0.6" />)}
-   </>}
-   {/* ── Stage 7: Windows & doors ── */}
-   {s >= 7 && <>
-    {/* Re-draw walls clean for window mounting */}
-    <rect x="72" y="98" width="216" height="58" fill={s >= 8 ? SIDING : "#C4B8A0"} rx="1" />
-    {/* Four ground-floor windows with shutters */}
-    <Win x={82} y={106} />
-    <Win x={120} y={106} />
-    <Win x={218} y={106} />
-    <Win x={256} y={106} />
-    {/* Central front door — dark with sidelights */}
-    <rect x="167" y="107" width="26" height="49" fill={DOOR} rx="2" stroke={TRIM} strokeWidth="1.5" />
-    {/* Door panels */}
-    <rect x="170" y="110" width="20" height="10" fill="#344955" rx="1" stroke="#253642" strokeWidth="0.5" />
-    <rect x="170" y="123" width="20" height="10" fill="#344955" rx="1" stroke="#253642" strokeWidth="0.5" />
-    <rect x="170" y="136" width="20" height="17" fill="#344955" rx="1" stroke="#253642" strokeWidth="0.5" />
-    {/* Door handle */}
-    <circle cx="189" cy="133" r="1.8" fill="#D4AF37" />
-    {/* Sidelights */}
-    <rect x="161" y="109" width="5" height="36" fill={s >= 9 ? GLASSWARM : GLASS} rx="0.5" stroke={TRIM} strokeWidth="0.8" />
-    <rect x="194" y="109" width="5" height="36" fill={s >= 9 ? GLASSWARM : GLASS} rx="0.5" stroke={TRIM} strokeWidth="0.8" />
-    {/* Pediment above door */}
-    <polygon points="155,104 180,94 205,104" fill={TRIM} stroke="#E0E0E0" strokeWidth="0.5" />
-    <rect x="158" y="104" width="44" height="3" fill={TRIM} />
-    {/* Pilasters */}
-    <rect x="158" y="104" width="3" height="52" fill={TRIM} />
-    <rect x="199" y="104" width="3" height="52" fill={TRIM} />
-   </>}
-   {/* ── Stage 8: Siding & paint — light blue clapboard ── */}
-   {s >= 8 && <>
-    {/* Siding already applied in stage 7 fill. Add clapboard lines */}
-    {[104,108,112,116,120,124,128,132,136,140,144,148,152].map((y,i) => (<g key={i}>
-     <line x1="72" y1={y} x2="158" y2={y} stroke={SIDINGDARK} strokeWidth="0.4" opacity="0.5" />
-     <line x1="202" y1={y} x2="288" y2={y} stroke={SIDINGDARK} strokeWidth="0.4" opacity="0.5" />
-    </g>))}
-    {/* White baseboard trim */}
-    <rect x="72" y="153" width="86" height="3" fill={TRIM} />
-    <rect x="202" y="153" width="86" height="3" fill={TRIM} />
-    {/* White corner boards */}
-    <rect x="72" y="98" width="3" height="58" fill={TRIM} />
-    <rect x="285" y="98" width="3" height="58" fill={TRIM} />
-   </>}
-   {/* ── Stage 9: Interior finish (warm glow) ── */}
-   {/* Warm glow handled via Win/Dormer fill toggle above */}
-   {/* ── Stage 10: Landscaping ── */}
-   {s >= 10 && <>
-    {/* Brick walkway */}
-    <rect x="172" y="156" width="16" height="4" fill={BRICK} />
-    {[162,167,172,177,182,187].map((y,i) => {
-     const w = 12 + i * 2;
-     return <rect key={i} x={180-w/2} y={y} width={w} height="3.5" fill={i%2===0 ? BRICK : BRICKDARK} rx="0.5" opacity="0.9" />;
-    })}
-    {/* Boxwood shrubs — round like the photo */}
-    {[85,108,252,275].map((cx,i) => (<g key={i}>
-     <ellipse cx={cx} cy="158" rx={i%2===0?10:7} ry={i%2===0?8:6} fill={BUSH} />
-     <ellipse cx={cx} cy="156" rx={i%2===0?8:5} ry={i%2===0?6:4} fill={BUSHL} opacity="0.6" />
-    </g>))}
-    {/* Large urns flanking door */}
-    <ellipse cx={156} cy="154" rx="5" ry="3" fill="#8B8B83" />
-    <rect x={152} y="148" width="8" height="6" fill="#9E9E8E" rx="1" />
-    <ellipse cx={156} cy="146" rx="6" ry="5" fill={BUSHL} />
-    <ellipse cx={204} cy="154" rx="5" ry="3" fill="#8B8B83" />
-    <rect x={200} y="148" width="8" height="6" fill="#9E9E8E" rx="1" />
-    <ellipse cx={204} cy="146" rx="6" ry="5" fill={BUSHL} />
-    {/* Trees on sides */}
-    <rect x="38" y="120" width="5" height="48" fill="#5D4037" />
-    <ellipse cx="40" cy="108" rx="22" ry="24" fill="#2E7D32" />
-    <ellipse cx="36" cy="102" rx="14" ry="16" fill="#388E3C" opacity="0.7" />
-    <rect x="317" y="125" width="5" height="43" fill="#5D4037" />
-    <ellipse cx="319" cy="113" rx="20" ry="22" fill="#2E7D32" />
-    <ellipse cx="322" cy="108" rx="13" ry="14" fill="#388E3C" opacity="0.7" />
-    {/* Grass restored over dirt */}
-    <rect x="0" y="175" width="360" height="65" fill="url(#grassG)" />
-    <ellipse cx="180" cy="177" rx="130" ry="6" fill={GRASS1} opacity="0.4" />
-    {/* Re-draw walkway on grass */}
-    {[175,180,185,190].map((y,i) => {
-     const w = 16 + i * 3;
-     return <rect key={i} x={180-w/2} y={y} width={w} height="4" fill={i%2===0 ? BRICK : BRICKDARK} rx="0.5" opacity="0.85" />;
-    })}
-    {/* Fence */}
-    <rect x="18" y="168" width="48" height="2" fill="#DEB887" />
-    <rect x="22" y="158" width="2" height="16" fill="#DEB887" />
-    <rect x="42" y="158" width="2" height="16" fill="#DEB887" />
-    <rect x="62" y="158" width="2" height="16" fill="#DEB887" />
-    <rect x="292" y="168" width="48" height="2" fill="#DEB887" />
-    <rect x="296" y="158" width="2" height="16" fill="#DEB887" />
-    <rect x="316" y="158" width="2" height="16" fill="#DEB887" />
-    <rect x="336" y="158" width="2" height="16" fill="#DEB887" />
-   </>}
-   {/* ── Stage 11: Complete! Chimney, lights, flag ── */}
-   {s >= 11 && <>
-    {/* Brick chimney — central like Cape Cod */}
-    <rect x="174" y="38" width="14" height="24" fill={BRICK} />
-    <rect x="172" y="36" width="18" height="4" fill={BRICKDARK} rx="1" />
-    {/* Brick texture */}
-    {[42,46,50,54,58].map((y,i) => <line key={i} x1="175" y1={y} x2="187" y2={y} stroke={BRICKDARK} strokeWidth="0.4" />)}
-    {/* Chimney smoke */}
-    <ellipse cx="181" cy="28" rx="6" ry="4" fill="#888" opacity="0.35" />
-    <ellipse cx="184" cy="18" rx="8" ry="5" fill="#999" opacity="0.25" />
-    <ellipse cx="179" cy="8" rx="10" ry="6" fill="#aaa" opacity="0.15" />
-    {/* Porch lanterns */}
-    <rect x="152" y="102" width="3" height="5" fill="#444" />
-    <rect x="151" y="99" width="5" height="4" fill="#333" rx="0.5" />
-    <circle cx="153.5" cy="101" r="1.5" fill="#FFD700" opacity="0.9" />
-    <circle cx="153.5" cy="101" r="5" fill="#FFD700" opacity="0.1" />
-    <rect x="205" y="102" width="3" height="5" fill="#444" />
-    <rect x="204" y="99" width="5" height="4" fill="#333" rx="0.5" />
-    <circle cx="206.5" cy="101" r="1.5" fill="#FFD700" opacity="0.9" />
-    <circle cx="206.5" cy="101" r="5" fill="#FFD700" opacity="0.1" />
-    {/* Moon */}
-    <circle cx="320" cy="28" r="12" fill="#F5F5DC" opacity="0.8" />
-    <circle cx="325" cy="25" r="10" fill="url(#sky)" />
-    {/* Welcome mat */}
-    <rect x="173" y="154" width="14" height="3" fill="#8B4513" rx="0.5" />
-   </>}
-   {/* Progress bar */}
-   <rect x="20" y="222" width="320" height="6" rx="3" fill="rgba(255,255,255,0.1)" />
-   <rect x="20" y="222" width={Math.max(6, 320 * pct)} height="6" rx="3" fill={s >= 11 ? "#4CAF50" : s >= 6 ? "#2196F3" : "#FF9800"} />
-   <text x="345" y="228" textAnchor="end" fontSize="8" fill="rgba(255,255,255,0.6)" fontWeight="600">{stagesComplete}/{total}</text>
-  </svg>
- );
-}
 // ═══ WORKSPACE HOST ═══
 // Bridge component: lives inside WorkspaceProvider, uses useWorkspace() to
 // wire BlueprintPane and SellerNetPane callbacks to the shared context.
@@ -3285,7 +3046,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }
  };
  // Count completed stages for house graphic
- const houseStagesComplete = TAB_PROGRESSION.filter(t => completedTabs[t]).length;
 
  // ═══ ONE-SCREEN: Force Overview in guided mode ═══
  React.useEffect(() => {
@@ -5302,29 +5062,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ paddingTop: isDesktop ? 96 : `calc(${isCloud && !isBorrower ? 116 : 92}px + env(safe-area-inset-top, 0px))` }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
-{/* ── Build Mode House (Top of Tab) ── */}
-{gameMode && tab !== "setup" && (
- <div style={{ marginTop: 8, marginBottom: 16 }}>
-  <div style={{ background: T.card, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-   <div style={{ maxWidth: 240, margin: "0 auto", padding: "8px 0 0" }}>
-    <ConstructionHouse stagesComplete={houseStagesComplete} total={TAB_PROGRESSION.length} />
-   </div>
-   <div style={{ padding: "6px 14px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <div>
-     <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].part}</div>
-     <div style={{ fontSize: 10, color: T.textTertiary }}>{HOUSE_STAGES[Math.min(houseStagesComplete, HOUSE_STAGES.length - 1)].desc}</div>
-    </div>
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-     <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: houseStagesComplete >= TAB_PROGRESSION.length ? T.green : T.blue }}>{Math.round(houseStagesComplete / TAB_PROGRESSION.length * 100)}%</div>
-     <div onClick={() => saveGameMode(false)} style={{ width: 36, height: 20, borderRadius: 99, background: T.green, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0, opacity: 0.7 }}>
-      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", marginLeft: 18, transition: "all 0.3s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
-     </div>
-    </div>
-   </div>
-  </div>
- </div>
-)}
-{/* Build Mode toggle is now in the header bar — always accessible */}
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
@@ -5523,8 +5260,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'),
    sheetContent, setSheetContent,
    isPulse, markTouched, guideField, guideTouched,
-   gameMode, houseStagesComplete, TAB_PROGRESSION, ConstructionHouse, completedTabs, isTabFieldsComplete,
-   SKILL_PRESETS, HOUSE_STAGES, showCompareHint, setShowCompareHint,
+   gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete,
+   SKILL_PRESETS, showCompareHint, setShowCompareHint,
    /* Setup / core loan */
    salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
    rate, setRate, term, setTerm, loanType, setLoanType,
@@ -5703,7 +5440,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, city, setCity, propertyZip, setPropertyZip, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, houseStagesComplete, TAB_PROGRESSION, ConstructionHouse, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, HOUSE_STAGES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, refiCurrentEscrow, setRefiCurrentEscrow, refiHasEscrow, setRefiHasEscrow, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, city, setCity, propertyZip, setPropertyZip, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, refiCurrentEscrow, setRefiCurrentEscrow, refiHasEscrow, setRefiHasEscrow, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && (<>
  <div style={{ marginTop: 20 }}>

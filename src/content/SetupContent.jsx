@@ -43,9 +43,9 @@ export default function SetupContent({
     refiPurpose, setRefiPurpose, propertyHomeValue, setPropertyHomeValue, taxState, scenarioName,
     ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor,
     showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel, Inp, Sel, SearchSelect, Note,
-    Hero, Card, InfoTip, gameMode, houseStagesComplete, TAB_PROGRESSION, ConstructionHouse, completedTabs,
+    Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs,
     isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES,
-    SKILL_PRESETS, FILING_STATUSES, HOUSE_STAGES, showCompareHint, setShowCompareHint, setTab,
+    SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab,
     scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI,
     lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton,
     // Refi-specific states
