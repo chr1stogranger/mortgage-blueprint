@@ -3040,33 +3040,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return maxUnlocked;
  };
  const unlockedIndex = getUnlockedIndex();
- const isTabUnlocked = (tabId) => {
-  // Overview is always accessible
-  if (tabId === 'overview') return true;
-  // If not in game mode, standard, or unlockAll — everything open
-  if (!gameMode || unlockAll || skillLevel === "standard") return true;
-  // Setup and Calculator always accessible
-  if (tabId === 'setup' || tabId === 'calc') return true;
-  const idx = TAB_PROGRESSION.indexOf(tabId);
-  if (idx === -1) {
-   // Conditional tabs
-   if (tabId === "refi" || tabId === "refi3") return unlockedIndex >= 2;
-   if (tabId === "reo") return unlockedIndex >= 7;
-   if (tabId === "workspace") return unlockedIndex >= 8;
-   if (tabId === "sell") return unlockedIndex >= 9;
-   if (tabId === "invest") return unlockedIndex >= 9;
-   if (tabId === "rentvbuy") return unlockedIndex >= 9;
-   return true;
-  }
-  // For guided users: check if core inputs are filled before unlocking deeper tabs
-  if (skillLevel === 'guided') {
-   const coreInputsFilled = propertyZip && (salesPrice > 0) && creditScore > 0;
-   if (!coreInputsFilled) {
-    return idx <= 2; // overview(0), setup(1), calc(2)
-   }
-  }
-  return idx <= unlockedIndex;
- };
+ // All tabs are always unlocked, in every flow (guided/standard).
+ // Christo 2026-06-02: no tab should ever be grayed out or gated by flow or
+ // input-completion. The sidebar/swipe nav rely on this returning true.
+ const isTabUnlocked = (tabId) => true;
  const markTabComplete = (tabId) => {
   if (!completedTabs[tabId]) {
    const newTabs = { ...completedTabs, [tabId]: true };
@@ -3075,9 +3052,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Count completed stages for house graphic
 
- // ═══ ONE-SCREEN: Force Overview in guided mode ═══
+ // ═══ ONE-SCREEN: Folded tabs render inside Overview in guided mode ═══
+ // setup/calc/costs/income/debts/assets/qualify/tax/amort/compare are embedded
+ // in the Overview page and have no standalone sidebar entry, so guided users
+ // landing on one (via deep link) get bounced to Overview. Standalone tabs
+ // (learn, workspace, reo, sell, invest, rentvbuy, prop19, refi*, summary,
+ // settings) are fully navigable in guided mode — Christo 2026-06-02.
  React.useEffect(() => {
-  if (skillLevel === "guided" && !["overview", "summary", "settings"].includes(tab)) {
+  const FOLDED_TABS = ["setup","calc","costs","income","debts","assets","qualify","tax","amort","compare"];
+  if (skillLevel === "guided" && FOLDED_TABS.includes(tab)) {
    setTab("overview");
   }
  }, [skillLevel, tab]);
@@ -4251,17 +4234,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // earlier. All of these remain routable tabs — Overview's jump links (setTab)
   // and deep links still resolve; they're just removed from the nav rail.
   ...(isRefi ? [["refi","Refi Summary"],["refi3","3-Point Test"]] : []),
-  ...(skillLevel !== "guided" ? [
-   ...(ownsProperties ? [["reo","REO"]] : []),
-  ] : []),
-  ...(skillLevel !== "guided" ? [
-   ...(isDesktop ? [["workspace","Workspace"]] : []),
-   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
-   ...(showInvestor ? [["invest","Investor"]] : []),
-   ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
-   ["learn","Learn"],
-   ...(showProp19 ? [["prop19","Prop 19"]] : []),
-  ] : []),
+  // Tabs below are gated only by the module/feature toggles they belong to —
+  // never by flow (guided vs standard). Christo 2026-06-02: every tab shows in
+  // every flow.
+  ...(ownsProperties ? [["reo","REO"]] : []),
+  ...(isDesktop ? [["workspace","Workspace"]] : []),
+  ...(hasSellProperty ? [["sell","Seller Net"]] : []),
+  ...(showInvestor ? [["invest","Investor"]] : []),
+  ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
+  ["learn","Learn"],
+  ...(showProp19 ? [["prop19","Prop 19"]] : []),
   ["summary","Share"],
   // Settings is now visible to borrowers too (2026-05-12, per Christo: "i want
   // them all to have the same view"). Multi-client BorrowerPicker remains
