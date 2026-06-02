@@ -120,6 +120,12 @@ function DebtToIncomeSummary({
   };
   const totalRowStyle = {
     ...rowStyle,
+    // minHeight keeps both green Total bands the same height. On mobile the
+    // income label "Total Monthly Income" wraps to two lines while "Total Debts"
+    // stays one line — without this the Debts band only reaches ~2/3 of the
+    // Income band's height. (Christo 2026-06-02.)
+    minHeight: 48,
+    boxSizing: "border-box",
     background: `${T.green}15`,
     fontWeight: 700,
     color: T.text,
@@ -336,10 +342,14 @@ export default function QualifyContent({
      <input type="range" min={300} max={850} step={1} value={creditScore || 650}
       onChange={e => setCreditScore(parseInt(e.target.value, 10))}
       style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
-     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
-      <span>300</span>
-      <span>850</span>
-     </div>
+     {/* 300/850 scale shown on desktop only — on the narrow mobile slider the
+         two labels collide ("300850"), so we hide them. (Christo 2026-06-02.) */}
+     {isDesktop && (
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
+       <span>300</span>
+       <span>850</span>
+      </div>
+     )}
     </div>
     {creditScore > 0 && (
      <div style={{ flexShrink: 0, background: creditScore >= calc.ficoMin ? `${T.green}18` : `${T.red}18`, color: creditScore >= calc.ficoMin ? T.green : T.red, borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 9px", fontSize: isDesktop ? 12 : 11, fontWeight: 700, fontFamily: FONT, whiteSpace: "nowrap" }}>

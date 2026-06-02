@@ -4321,7 +4321,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  return (
   <WorkspaceProvider>
   <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
-   <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; }
+   <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; overscroll-behavior-y: none; }
+    /* Kill the iOS rubber-band overscroll that exposed a white gap above the
+       fixed header when you drag down at the top. The themed background also
+       means the status-bar / safe-area strip matches the app instead of
+       flashing white. (Christo 2026-06-02.) */
+    html { background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
     input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
     @viewport { width: device-width; }
@@ -4441,9 +4446,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></div>
          </div>
         </div>
-        <button onClick={() => setSidebarCollapsed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
-         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-        </button>
+        {/* Collapse is a desktop-only affordance; on mobile the drawer just closes. */}
+        {isDesktop && (
+         <button onClick={() => setSidebarCollapsed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+         </button>
+        )}
        </div>
        {/* Mode Toggle with Split affordance */}
        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -4512,20 +4520,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        const locked = !isTabUnlocked(k);
        const completed = !!completedTabs[k];
        const active = tab === k;
+       // Collapsed (icon-only) styling is a DESKTOP affordance only. The mobile
+       // drawer is always full-width with labels — without this gate the desktop
+       // sidebarCollapsed state leaked into mobile, forcing the icon to width:100%
+       // and squeezing every label to zero width (icons-only, broken). (2026-06-02)
+       const navCollapsed = sidebarCollapsed && isDesktop;
        const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; if (!isDesktop) setMobileMenuOpen(false); } }}
          style={{
-          padding: sidebarCollapsed ? "8px 0" : "7px 12px", cursor: locked ? "not-allowed" : "pointer",
+          padding: navCollapsed ? "8px 0" : "7px 12px", cursor: locked ? "not-allowed" : "pointer",
           display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
           background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
          }}>
-         <span style={{ textAlign: "center", width: sidebarCollapsed ? "100%" : "auto", display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={sidebarCollapsed ? 18 : 15} /></span>
-         {(!sidebarCollapsed || !isDesktop) && (
+         <span style={{ textAlign: "center", width: navCollapsed ? "100%" : "auto", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={navCollapsed ? 18 : 15} /></span>
+         {!navCollapsed && (
           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
          )}
-         {(!sidebarCollapsed || !isDesktop) && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+         {!navCollapsed && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
         </div>
        );
       })}
