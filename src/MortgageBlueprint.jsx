@@ -4321,12 +4321,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  return (
   <WorkspaceProvider>
   <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
-   <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; overscroll-behavior-y: none; }
-    /* Kill the iOS rubber-band overscroll that exposed a white gap above the
-       fixed header when you drag down at the top. The themed background also
-       means the status-bar / safe-area strip matches the app instead of
-       flashing white. (Christo 2026-06-02.) */
-    html { background: ${T.bg}; }
+   <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
     input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
     @viewport { width: device-width; }
