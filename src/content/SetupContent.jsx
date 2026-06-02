@@ -47,7 +47,7 @@ export default function SetupContent({
     isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES,
     SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab,
     scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI,
-    lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton,
+    lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, ClusterContinue,
     // Refi-specific states
     refiCurrentLoanType, setRefiCurrentLoanType, refiOriginalAmount, setRefiOriginalAmount,
     refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate,
@@ -237,8 +237,8 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={firstTimeBuyer}
-      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); markTouched("modules"); }}
-      onNo={() => { setFirstTimeBuyer(false); markTouched("fthb"); markTouched("modules"); }}
+      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); }}
+      onNo={() => { setFirstTimeBuyer(false); markTouched("fthb"); }}
      />
     </div>
     )}
@@ -251,8 +251,8 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={ownsProperties}
-      onYes={() => { setOwnsProperties(true); markTouched("modules"); }}
-      onNo={() => { setOwnsProperties(false); markTouched("modules"); }}
+      onYes={() => { setOwnsProperties(true); }}
+      onNo={() => { setOwnsProperties(false); }}
      />
     </div>
     {/* Selling a Property */}
@@ -265,8 +265,8 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={hasSellProperty}
-      onYes={() => { setHasSellProperty(true); markTouched("modules"); }}
-      onNo={() => { setHasSellProperty(false); markTouched("modules"); }}
+      onYes={() => { setHasSellProperty(true); }}
+      onNo={() => { setHasSellProperty(false); }}
      />
     </div>
     )}
@@ -280,8 +280,8 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={showInvestor}
-      onYes={() => { setShowInvestor(true); markTouched("modules"); }}
-      onNo={() => { setShowInvestor(false); markTouched("modules"); }}
+      onYes={() => { setShowInvestor(true); }}
+      onNo={() => { setShowInvestor(false); }}
      />
     </div>
     )}
@@ -295,8 +295,8 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={showRentVsBuy}
-      onYes={() => { setShowRentVsBuy(true); markTouched("modules"); }}
-      onNo={() => { setShowRentVsBuy(false); markTouched("modules"); }}
+      onYes={() => { setShowRentVsBuy(true); }}
+      onNo={() => { setShowRentVsBuy(false); }}
      />
     </div>
     )}
@@ -310,11 +310,14 @@ export default function SetupContent({
      <YesNoSeg
       T={T}
       value={showProp19}
-      onYes={() => { setShowProp19(true); markTouched("modules"); }}
-      onNo={() => { setShowProp19(false); markTouched("modules"); }}
+      onYes={() => { setShowProp19(true); }}
+      onNo={() => { setShowProp19(false); }}
      />
     </div>
     )}
+    <div style={{ padding: "4px 14px 12px" }}>
+     <ClusterContinue stepId="modules" />
+    </div>
    </div>
   </div>{/* end right column */}
 

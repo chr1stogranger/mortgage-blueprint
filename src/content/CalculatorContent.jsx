@@ -101,7 +101,7 @@ export default function CalculatorContent({
   StopLight, handlePillarClick,
   allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck,
   PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon,
-  GuidedNextButton,
+  GuidedNextButton, ClusterContinue,
 }) {
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.
@@ -755,7 +755,7 @@ export default function CalculatorContent({
        summary cards: Payment Breakdown on the left, CTC on the right). */}
    <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
    {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term */}
-   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} onClick={() => markTouched && markTouched("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s" }}>
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s" }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -776,6 +776,7 @@ export default function CalculatorContent({
      <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req />
     </div>
    </div>
+   <ClusterContinue stepId="calc-pills" />
 
    {/* Compact 5-pillar row — sits BELOW the loan-structure pills and ABOVE
        the Cash to Close Summary. 28px circles, click to jump to the matching
