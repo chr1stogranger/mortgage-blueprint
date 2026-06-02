@@ -3098,13 +3098,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //  6) Down payment         — CalculatorContent (purchase only)
   //  7) Get Today's Rates    — CalculatorContent
   //  8) Loan-structure pills — CalculatorContent (occupancy/type/loan/term)
-  //  9) Assets               — AssetsContent
-  // 10) Debts                — DebtsContent
-  // 11) REO                  — ReoContent (only if they own other property)
-  // 12) Income               — IncomeContent
-  // 13) Pre-Qualified        — QualifyContent
-  // 14) Tax Savings          — TaxContent
-  // 15) Equity               — AmortContent
+  //  9) Costs / Cash to Close — CostsContent (review-only, auto-calculated)
+  // 10) Assets               — AssetsContent
+  // 11) Debts                — DebtsContent
+  // 12) REO                  — ReoContent (only if they own other property)
+  // 13) Income               — IncomeContent
+  // 14) Pre-Qualified        — QualifyContent
+  // 15) Tax Savings          — TaxContent
+  // 16) Equity               — AmortContent
 
   // 1. Transaction type — Purchase or Refinance
   if (isRefi === null) return "transaction-type";
@@ -3139,7 +3140,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    "calc-pills-done"). Changing a single pill no longer advances.
   if (!guideTouched.has("calc-pills-done")) return "calc-pills";
 
-  // 9. Assets — add an account, then fill its value and cash-for-closing.
+  // 9. Costs / Cash to Close — comprehension step. Costs auto-calculate, so
+  //    there is nothing to type; pulse the costs section, let the buyer review
+  //    where their cash-to-close goes, then advance on Continue ("costs-done").
+  //    Anchor: data-field="costs". Not in inputFields → scroll, no focus steal.
+  if (!guideTouched.has("costs-done")) return "costs";
+
+  // 10. Assets — add an account, then fill its value and cash-for-closing.
   //    Current Value advances on blur (markTouched) — it has no predictable
   //    digit count. Funds-for-Closing advances once a 4-digit amount
   //    ($1,000+) is entered, which then moves the pulse to the Debts section.
@@ -3147,22 +3154,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!guideTouched.has("asset-value")) return "asset-value";
   if (!(assets[0].forClosing >= 1000)) return "asset-closing";
 
-  // 10. Debts — answer the "do you own other property?" question
+  // 11. Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
 
-  // 11. REO — only when the borrower owns other property
+  // 12. REO — only when the borrower owns other property
   if (ownsProperties && !guideTouched.has("reo-section")) return "reo-section";
 
-  // 12. Income — at least one borrower needs income entered
+  // 13. Income — at least one borrower needs income entered
   if (!incomes.some(i => i.amount > 0 || i.py1 > 0)) return "income-section";
 
-  // 13. Pre-Qualified — review the qualification result
+  // 14. Pre-Qualified — review the qualification result
   if (!guideTouched.has("qualify-section")) return "qualify-section";
 
-  // 14. Tax Savings
+  // 15. Tax Savings
   if (!guideTouched.has("tax-filing")) return "tax-filing";
 
-  // 15. Equity (amortization)
+  // 16. Equity (amortization)
   if (!guideTouched.has("amort-section")) return "amort-section";
 
   // All guided steps complete — no more highlights
@@ -5087,7 +5094,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
-{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
+{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
 {/* ═══ ASSETS ═══ */}

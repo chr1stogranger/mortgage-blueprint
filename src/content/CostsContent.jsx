@@ -639,7 +639,10 @@ export default function CostsContent({
   emd, setEmd,
   Hero, Card, Sec, Inp, Sel, Note, MRow,
   GuidedNextButton,
+  // Guided-mode wiring (forwarded by OverviewTab / the standalone costs site).
+  skillLevel, isPulse, markTouched, ClusterContinue,
 }) {
+  const isGuided = skillLevel === "guided";
   // Section-level lock state — closing-cost subsections (A, B, C, E, H) start LOCKED for clean read-only view.
   const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, F: true, H: true });
   const [escrowCalendarOpen, setEscrowCalendarOpen] = useState(false);
@@ -705,8 +708,29 @@ export default function CostsContent({
           Monthly Payment view flows directly into the Closing Costs sections
           below, so a second copy here is redundant. */}
 
-      {/* ─── MASTER 1: Closing Costs (default OPEN) ──────────────── */}
-      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={true}>
+      {/* ─── Guided explainer — plain-English intro to closing costs.
+          Shown only in guided mode. data-field="costs" is the pulse anchor the
+          guided sequence scrolls to (step 9); the breakdown boxes below start
+          collapsed in guided so this reads as a summary with opt-in depth. ─── */}
+      {isGuided && (() => {
+        const allCosts = totalClosingCosts + (calc.totalPrepaidExp || 0);
+        const costPct = salesPrice > 0 ? (allCosts / salesPrice) * 100 : 0;
+        return (
+          <div data-field="costs" className={isPulse ? isPulse("costs") : ""} style={{
+            borderRadius: 14, padding: "14px 16px", marginBottom: 14,
+            background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
+            border: `1px solid ${T.blue}38`,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 6, fontFamily: FONT }}>What are closing costs?</div>
+            <div style={{ fontSize: 13, lineHeight: 1.55, color: T.textSecondary, fontFamily: FONT }}>
+              These are one-time fees to set up your loan — lender charges, title &amp; escrow, government taxes, and prepaid items like interest and insurance. They run about <strong style={{ color: T.text }}>{costPct.toFixed(1)}%</strong> of the price (<strong style={{ color: T.text }}>{fmt2(allCosts)}</strong> here), and they're <strong style={{ color: T.text }}>separate from your down payment</strong>. Tap a section below to see the line items, then continue.
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
+      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}>
 
         {/* A. Origination Charges — lockable */}
         <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)} lockable>
@@ -907,7 +931,7 @@ export default function CostsContent({
       </CollapsibleBox>
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
-      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={true}>
+      <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={!isGuided}>
 
         {/* F. Prepaids — lockable so the two Property Tax rows can be revealed for editing.
             Order matches Christo's client-walkthrough spreadsheet:
@@ -1132,6 +1156,9 @@ export default function CostsContent({
         );
       })()}
 
+      {/* Guided "continue" — only renders while costs is the active step.
+          Sets "costs-done", which advances the guided sequence to Assets. */}
+      {typeof ClusterContinue === "function" && <ClusterContinue stepId="costs" label="Got it — continue" />}
       <GuidedNextButton />
     </CostsCtx.Provider>
   );
