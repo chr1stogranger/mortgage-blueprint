@@ -326,11 +326,12 @@ export default async function handler(req, res) {
     // This is the high-yield, low-cost path that fills a whole city in one pass.
     // PRIMARY: us-real-estate /sold-homes — real closed sales at volume for any
     // CA city, no curated zpid list needed. This is what fills Alameda/Berkeley/etc.
-    let newRows = await discoverSoldViaUsRealEstate(
+    const usre = await discoverSoldViaUsRealEstate(
       city, marketId, ingestCutoff, excludeSet, poolZpidSet
     );
+    let newRows = usre.rows;
     let discoverySource = 'us-real-estate';
-    let funnelDbg = { usreRows: newRows.length };
+    let funnelDbg = { usreRows: newRows.length, usreDiag: usre.diag };
 
     // SECONDARY: legacy recentlySold search (only if us-real-estate came back thin).
     if (newRows.length < MIN_SEARCH_YIELD) {
@@ -540,26 +541,42 @@ function searchItemToPoolRow(d, marketId, soldPrice, soldDate) {
 async function discoverSoldViaUsRealEstate(city, marketId, ingestCutoff, excludeSet, poolZpidSet) {
   const apiKey = process.env.RAPIDAPI_KEY;
   const soldHost = process.env.RAPIDAPI_SOLD_HOST || 'us-real-estate.p.rapidapi.com';
-  if (!apiKey) return [];
-  const PER_PAGE = 42;              // Basic plan caps results at ~42/call
-  const MAX_PAGES = USRE_MAX_PAGES; // ~5 pages → up to ~200 sold homes/city
+  // diag is surfaced via ?debug=1 so failures are visible without server logs:
+  // status = last HTTP status, body = last error/empty body snippet,
+  // perPage = the page size that worked, pages = pages successfully consumed.
+  const diag = { status: null, body: null, perPage: null, pages: 0 };
+  if (!apiKey) { diag.body = 'no RAPIDAPI_KEY'; return { rows: [], diag }; }
+  // The plan caps results per call; the accepted `limit` ceiling isn't
+  // documented, so adapt: try big, fall back smaller until a size works.
+  const LIMIT_CANDIDATES = [42, 20, 10];
+  let perPage = null;
   const rows = [];
   const seen = new Set();
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const offset = page * PER_PAGE;
-    const url = `https://${soldHost}/sold-homes?state_code=CA&city=${encodeURIComponent(city)}&limit=${PER_PAGE}&offset=${offset}&sort=sold_date`;
-    let data;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
+  let offset = 0;
+  for (let page = 0; page < USRE_MAX_PAGES; page++) {
+    let results = null;
+    for (const lim of (perPage ? [perPage] : LIMIT_CANDIDATES)) {
+      const url = `https://${soldHost}/sold-homes?state_code=CA&city=${encodeURIComponent(city)}&limit=${lim}&offset=${offset}&sort=sold_date`;
       try {
-        const r = await fetch(url, { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': soldHost }, signal: controller.signal });
-        if (!r.ok) break;
-        data = await r.json();
-      } finally { clearTimeout(timer); }
-    } catch { break; }
-    const results = extractUsreResults(data);
-    if (!Array.isArray(results) || results.length === 0) break;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        let r, text;
+        try {
+          r = await fetch(url, { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': soldHost }, signal: controller.signal });
+          text = await r.text();
+        } finally { clearTimeout(timer); }
+        diag.status = r.status;
+        if (!r.ok) { diag.body = text.slice(0, 160); continue; }     // try smaller limit
+        let data = null;
+        try { data = JSON.parse(text); } catch { diag.body = 'non-JSON response'; continue; }
+        const arr = extractUsreResults(data);
+        if (!Array.isArray(arr) || arr.length === 0) { diag.body = text.slice(0, 160); continue; }
+        results = arr; perPage = lim; diag.perPage = lim;
+        break;
+      } catch (e) { diag.body = String(e && e.message || e).slice(0, 160); }
+    }
+    if (!results) break;
+    diag.pages = page + 1;
     for (const d of results) {
       const row = usRealEstateItemToPoolRow(d, marketId, ingestCutoff);
       if (!row) continue;
@@ -567,10 +584,11 @@ async function discoverSoldViaUsRealEstate(city, marketId, ingestCutoff, exclude
       seen.add(row.zpid);
       rows.push(row);
     }
-    if (results.length < PER_PAGE) break; // last page reached
+    if (results.length < perPage) break; // last page reached
+    offset += perPage;
   }
-  console.error(`[SoldComps] us-real-estate discovery ${marketId}: kept ${rows.length}`);
-  return rows;
+  console.error(`[SoldComps] us-real-estate discovery ${marketId}: kept ${rows.length} (status=${diag.status} perPage=${diag.perPage} pages=${diag.pages} body=${diag.body || 'n/a'})`);
+  return { rows, diag };
 }
 
 // Wrapper-agnostic: find the first array of listing-shaped objects anywhere in
