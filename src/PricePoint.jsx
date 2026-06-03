@@ -10,6 +10,16 @@ import {
   getNotificationPreferences, updateNotificationPreferences,
 } from './lib/pricePointDB';
 
+// Self-contained placeholder shown when a property has no usable photo, or
+// when a photo URL fails to load. Inline SVG data-URI — never 404s, works in
+// both light/dark cards. (Replaces the old images.unsplash.com fallback, which
+// stopped loading and left blank image boxes on Free Play cards.)
+const NO_PHOTO = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='800'%20height='440'%20viewBox='0%200%20800%20440'%3E%3Crect%20width='800'%20height='440'%20fill='%23EEF0F4'/%3E%3Cg%20fill='none'%20stroke='%236366F1'%20stroke-width='12'%20stroke-linejoin='round'%20stroke-linecap='round'%20opacity='0.45'%3E%3Cpath%20d='M250%20232%20L400%20132%20L550%20232'/%3E%3Cpath%20d='M292%20216%20L292%20322%20L508%20322%20L508%20216'/%3E%3Crect%20x='372'%20y='262'%20width='56'%20height='60'/%3E%3C/g%3E%3Ctext%20x='400'%20y='388'%20font-family='Inter,Arial,sans-serif'%20font-size='25'%20fill='%23999999'%20text-anchor='middle'%3EPhoto%20unavailable%3C/text%3E%3C/svg%3E";
+
+// onError handler: swap to the placeholder once, and clear the handler so a
+// failing placeholder can never loop.
+const onPhotoError = (e) => { e.target.onerror = null; e.target.src = NO_PHOTO; };
+
 // ═══════════════════════════════════════════════════════════════
 // PRICEPOINT — Daily Real Estate Price Challenge
 // "How well do you know your market?"
@@ -1899,7 +1909,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, listing, FONT, MONO }) => {
     const [idx, setIdx] = useState(0);
     const touchStartX = useRef(null);
-    const basePhotos = photos && photos.length > 0 ? photos : [fallbackPhoto || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"];
+    const basePhotos = photos && photos.length > 0 ? photos : [fallbackPhoto || NO_PHOTO];
     // Append map as last slide if lat/lng available
     const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
     const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
@@ -1916,8 +1926,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           touchStartX.current = null;
           if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
         }}>
-        <img src={allPhotos[idx]} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
-          onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+          onError={onPhotoError} />
         {/* Map slide "Location" label — top left on map, replaces badges */}
         {isMapSlide ? (
           <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
@@ -1991,8 +2001,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} listing={listing} FONT={FONT} MONO={MONO} />
         ) : (
         <div style={{ position: "relative" }}>
-          <img src={listing.photo} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
-            onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+          <img src={listing.photo || NO_PHOTO} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
+            onError={onPhotoError} />
           <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
             {badge && (
               <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
@@ -2538,8 +2548,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 20 }}>
               <OverlineLabel>TODAY'S RESULT</OverlineLabel>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
-                <img src={dailyResult.photo} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover" }}
-                  onError={e => { e.target.src = "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80"; }} />
+                <img src={dailyResult.photo || NO_PHOTO} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: "cover" }}
+                  onError={onPhotoError} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{resolveNeighborhood(dailyResult)}</div>
                   <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{dailyResult.beds}BR/{dailyResult.baths}BA · {(dailyResult.sqft || 0).toLocaleString()}sf</div>
@@ -2831,7 +2841,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
                           {livePreds.slice(-5).reverse().map((pred, idx) => (
                             <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.inputBg, borderRadius: 10 }}>
-                              {pred.photo && <img src={pred.photo} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />}
+                              <img src={pred.photo || NO_PHOTO} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} onError={onPhotoError} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                   {resolveNeighborhood(pred)}
@@ -2932,7 +2942,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
-              <img src={livePrediction.photo} alt="" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+              <img src={livePrediction.photo || NO_PHOTO} alt="" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} onError={onPhotoError} />
               <div style={{ padding: "20px" }}>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 8 }}>PREDICTION LOCKED</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: T.text, fontFamily: FONT, marginBottom: 12 }}>

@@ -422,8 +422,8 @@ function poolRowToListing(r) {
     soldDate: r.sold_date,
     daysOnMarket: 0,
     status: 'sold',
-    photo: r.photo || null,
-    photos: Array.isArray(r.photos) ? r.photos.slice(0, 6) : [],
+    photo: isUsablePhoto(r.photo) ? r.photo : null,
+    photos: Array.isArray(r.photos) ? r.photos.filter(isUsablePhoto).slice(0, 6) : [],
     neighborhood: r.neighborhood || '',
     pricePerSqft: (r.sqft && r.sold_price) ? Math.round(r.sold_price / r.sqft) : 0,
     latitude: r.latitude || null,
@@ -502,7 +502,8 @@ function searchItemToPoolRow(d, marketId, soldPrice, soldDate) {
       ? Math.round(d.lotAreaValue * 43560)
       : Math.round(d.lotAreaValue);
   }
-  const photo = d.imgSrc || d.hiResImageLink || null;
+  const rawPhoto = d.imgSrc || d.hiResImageLink || null;
+  const photo = isUsablePhoto(rawPhoto) ? rawPhoto : null;
   return {
     market_id: marketId,
     zpid: String(d.zpid),
@@ -776,6 +777,16 @@ function extractListPrice(history) {
   return null;
 }
 
+// Zillow's imgSrc is sometimes a maps.googleapis.com Street View image signed
+// for Zillow's referrer — those 403 when hotlinked from our domain and render
+// as a broken/blank box. Treat them as "no photo" so the client placeholder
+// shows instead.
+function isUsablePhoto(url) {
+  return !!url && typeof url === 'string'
+    && !url.includes('maps.googleapis.com')
+    && !url.includes('streetview');
+}
+
 // ─── Extract photos ───
 function extractPhotos(d) {
   const urls = [];
@@ -784,16 +795,16 @@ function extractPhotos(d) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
       if (jpegs.length > 0) urls.push(jpegs[jpegs.length - 1].url);
     }
-    if (urls.length > 0) return urls;
+    if (urls.length > 0) return urls.filter(isUsablePhoto);
   }
   if (d.responsivePhotos && Array.isArray(d.responsivePhotos)) {
     for (let i = 0; i < d.responsivePhotos.length && urls.length < 12; i++) {
       const srcs = d.responsivePhotos[i]?.mixedSources?.jpeg || [];
       if (srcs.length > 0) urls.push(srcs[srcs.length - 1].url);
     }
-    if (urls.length > 0) return urls;
+    if (urls.length > 0) return urls.filter(isUsablePhoto);
   }
-  if (d.imgSrc) return [d.imgSrc];
+  if (isUsablePhoto(d.imgSrc)) return [d.imgSrc];
   return [];
 }
 
