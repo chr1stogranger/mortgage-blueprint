@@ -52,7 +52,7 @@ export default function RentVsBuyContent(props) {
  </Sec>
  <Sec title="But Buying Builds Wealth">
   <Card>
-   <MRow label="Monthly Tax Savings" value={fmt(calc.monthlyTaxSavings)} />
+   <MRow label="Monthly Tax Savings (Yr 1)" value={fmt(calc.monthlyTaxSavings)} />
    <MRow label="Monthly Principal Paydown" value={fmt(calc.monthlyPrinReduction)} />
    <MRow label="Monthly Appreciation" value={fmt(calc.monthlyAppreciation)} />
    <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>

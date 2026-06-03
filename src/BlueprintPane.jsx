@@ -9,6 +9,7 @@
  */
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
+import { calcPI, getPMIRate } from "./lib/finance.js"; // shared engine — was a drift-prone local copy
 import Icon from "./Icon";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -23,26 +24,7 @@ function fmt(v) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 }
 function pct(v, d = 1) { return ((v || 0) * 100).toFixed(d) + "%"; }
-function calcPI(loanAmt, annualRate, termYears) {
-  if (!loanAmt || loanAmt <= 0) return 0;
-  const mr = (annualRate / 100) / 12;
-  const np = termYears * 12;
-  if (mr <= 0 || np <= 0) return loanAmt / (np || 1);
-  return (loanAmt * mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1);
-}
-function getPMIRate(ltv, fico) {
-  const matrix = {
-    97: { 760: 0.0058, 740: 0.0070, 720: 0.0087, 700: 0.0099, 680: 0.0121, 660: 0.0154, 640: 0.0165, 620: 0.0186 },
-    95: { 760: 0.0038, 740: 0.0048, 720: 0.0059, 700: 0.0068, 680: 0.0087, 660: 0.0111, 640: 0.0119, 620: 0.0138 },
-    90: { 760: 0.0030, 740: 0.0039, 720: 0.0046, 700: 0.0056, 680: 0.0067, 660: 0.0087, 640: 0.0096, 620: 0.0111 },
-    85: { 760: 0.0019, 740: 0.0020, 720: 0.0023, 700: 0.0025, 680: 0.0028, 660: 0.0038, 640: 0.0042, 620: 0.0044 },
-  };
-  const ltvPct = ltv * 100;
-  const bucket = ltvPct > 95 ? 97 : ltvPct > 90 ? 95 : ltvPct > 85 ? 90 : 85;
-  const score = fico || 700;
-  const ficoBucket = score >= 760 ? 760 : score >= 740 ? 740 : score >= 720 ? 720 : score >= 700 ? 700 : score >= 680 ? 680 : score >= 660 ? 660 : score >= 640 ? 640 : 620;
-  return matrix[bucket][ficoBucket] || matrix[bucket][700];
-}
+// calcPI / getPMIRate now imported from ./lib/finance.js (audit M-1 dedup)
 
 const STATE_PROPERTY_TAX_RATES = {
   "Alabama": 0.0040, "Alaska": 0.0118, "Arizona": 0.0062, "Arkansas": 0.0061,

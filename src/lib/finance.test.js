@@ -1,0 +1,182 @@
+// src/lib/finance.test.js
+//
+// The 10 highest-value tests from the CIO audit (M-3), pinning the money math.
+// Run: npm test   (vitest)
+//
+// Expected values are computed INDEPENDENTLY (by hand / closed-form), not by
+// running the code under test — so a regression in finance.js fails loudly.
+
+import { describe, it, expect } from "vitest";
+import {
+  calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
+  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly,
+  computeTaxSavings, buildAmortization, computeProp19,
+} from "./finance.js";
+
+// ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
+describe("calcPI", () => {
+  it("matches the closed-form payment: $640k @ 6.5% / 30yr ≈ $4,045", () => {
+    // M = P·r(1+r)^n/((1+r)^n−1); r=0.065/12, n=360 → 4045.18 (hand-computed)
+    expect(calcPI(640000, 6.5, 30)).toBeCloseTo(4045.18, 0);
+  });
+  it("0% rate falls back to straight-line principal (no division by zero)", () => {
+    expect(calcPI(360000, 0, 30)).toBe(1000); // 360000 / 360
+  });
+  it("zero / missing loan returns 0", () => {
+    expect(calcPI(0, 6.5, 30)).toBe(0);
+    expect(calcPI(undefined, 6.5, 30)).toBe(0);
+  });
+});
+
+// ── 2. Amortization — zeroes out, no drift, extra payments save interest ────
+describe("buildAmortization", () => {
+  const loan = 500000, rate = 6, term = 30;
+  const mr = rate / 100 / 12, np = term * 12;
+  const pi = calcPI(loan, rate, term);
+  const closeDate = new Date(2026, 0, 15);
+
+  it("final balance zeroes out exactly (≤ 1 cent) over the full term", () => {
+    const a = buildAmortization({ loan, mr, np, pi, extra: 0, closeDate });
+    expect(a.amortStandard).toHaveLength(360);
+    expect(a.amortStandard[359].bal).toBeLessThanOrEqual(0.01);
+    expect(a.amortSchedule[a.amortSchedule.length - 1].bal).toBeLessThanOrEqual(0.01);
+  });
+  it("total interest matches closed form: pi×360 − principal", () => {
+    const a = buildAmortization({ loan, mr, np, pi, extra: 0, closeDate });
+    // Σinterest = total paid − principal = 2997.75×360 − 500000 ≈ 579,191
+    expect(a.totalIntStandard).toBeCloseTo(pi * 360 - loan, 0);
+  });
+  it("extra payments shorten the loan and save interest", () => {
+    const a = buildAmortization({ loan, mr, np, pi, extra: 500, closeDate });
+    expect(a.monthsSaved).toBeGreaterThan(0);
+    expect(a.intSaved).toBeGreaterThan(0);
+    expect(a.amortSchedule.length).toBeLessThan(360);
+  });
+});
+
+// ── 3. PMI matrix — bucket boundaries + FICO default ─────────────────────────
+describe("getPMIRate", () => {
+  it("95% LTV / 760 FICO → 0.38% (Radian card)", () => {
+    expect(getPMIRate(0.95, 760)).toBe(0.0038);
+  });
+  it("LTV just above 95% jumps to the 97 bucket", () => {
+    expect(getPMIRate(0.96, 760)).toBe(0.0058);
+  });
+  it("85% LTV / 700 FICO → 0.25%; missing FICO defaults to 700 column", () => {
+    expect(getPMIRate(0.85, 700)).toBe(0.0025);
+    expect(getPMIRate(0.95, 0)).toBe(0.0068); // defaults to 700
+  });
+});
+
+// ── 4. FHA MIP — base-limit and LTV boundaries ───────────────────────────────
+describe("getFHAMipRate", () => {
+  it("≤ $726,200 base: 0.55% above 95% LTV, 0.50% at/below", () => {
+    expect(getFHAMipRate(500000, 0.965)).toBe(0.0055);
+    expect(getFHAMipRate(500000, 0.95)).toBe(0.0050);
+  });
+  it("> $726,200 base: 0.75% / 0.70%; boundary itself counts as NOT over", () => {
+    expect(getFHAMipRate(800000, 0.96)).toBe(0.0075);
+    expect(getFHAMipRate(800000, 0.90)).toBe(0.0070);
+    expect(getFHAMipRate(726200, 0.96)).toBe(0.0055); // exactly at limit
+  });
+});
+
+// ── 5. VA funding fee tiers ───────────────────────────────────────────────────
+describe("vaFundingFeeRate", () => {
+  it("First Use: 2.15% / 1.5% / 1.25% by down-payment band", () => {
+    expect(vaFundingFeeRate("First Use", 0)).toBe(0.0215);
+    expect(vaFundingFeeRate("First Use", 5)).toBe(0.015);
+    expect(vaFundingFeeRate("First Use", 10)).toBe(0.0125);
+  });
+  it("Subsequent use 0-down → 3.3%; Disabled → 0; unknown usage → 0", () => {
+    expect(vaFundingFeeRate("Subsequent", 0)).toBe(0.033);
+    expect(vaFundingFeeRate("Disabled", 0)).toBe(0);
+    expect(vaFundingFeeRate("???", 0)).toBe(0);
+  });
+});
+
+// ── 6. Tax savings — standard-vs-itemized crossover + $750k cap ──────────────
+describe("computeTaxSavings", () => {
+  it("returns $0 when the standard deduction wins (small loan, no-tax state)", () => {
+    // MFJ itemized = 2000 prop tax + 3000 interest = 5000 < 32200 std → no benefit
+    const t = computeTaxSavings({ yearlyInc: 80000, married: "MFJ", taxState: "Texas", yearlyTax: 2000, loan: 100000, rate: 3 });
+    expect(t.totalTaxSavings).toBe(0);
+  });
+  it("applies the $750k interest cap pro-rata ($800k loan → 93.75% deductible)", () => {
+    const t = computeTaxSavings({ yearlyInc: 300000, married: "MFJ", taxState: "California", yearlyTax: 10000, loan: 800000, rate: 6.5 });
+    expect(t.deductibleLoanPct).toBeCloseTo(750000 / 800000, 10);
+    expect(t.totalMortInt).toBeCloseTo(52000, 5); // 800000 × 6.5% (year-1 estimate)
+    expect(t.totalTaxSavings).toBeGreaterThan(0);
+  });
+  it("never returns negative savings", () => {
+    const t = computeTaxSavings({ yearlyInc: 0, married: "Single", taxState: "California", yearlyTax: 0, loan: 0, rate: 0 });
+    expect(t.totalTaxSavings).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ── 7+8. Prop 19 — basis transfer rules ──────────────────────────────────────
+describe("computeProp19", () => {
+  const base = {
+    autoCountyRate: 0.012, rateOverridePct: 0, oldTaxableValue: 200000,
+    oldSalePrice: 1000000, isPrimary: true, fixedAssessments: 0,
+    transfersUsed: 0, saleDate: "", purchaseDate: "", isCalifornia: true,
+  };
+  it("equal-or-lesser replacement keeps the old Prop 13 base 1:1", () => {
+    const p = computeProp19({ ...base, replacementPrice: 900000 });
+    expect(p.sameOrLower).toBe(true);
+    expect(p.newTaxableValue).toBe(200000);
+    // (200000 − 7000 exemption) × 1.2% = 2,316/yr vs (900000−7000)×1.2% = 10,716
+    expect(p.prop19Annual).toBeCloseTo(2316, 5);
+    expect(p.annualSavings).toBeCloseTo(10716 - 2316, 5);
+  });
+  it("greater-value replacement adds ONLY the price difference to the old base", () => {
+    const p = computeProp19({ ...base, replacementPrice: 1500000 });
+    expect(p.sameOrLower).toBe(false);
+    expect(p.newTaxableValue).toBe(200000 + 500000); // old base + (1.5M − 1.0M)
+  });
+  it("730-day window: 729 days OK, 731 days warns (local-midnight parsing, L-6)", () => {
+    const ok = computeProp19({ ...base, replacementPrice: 900000, saleDate: "2025-01-01", purchaseDate: "2026-12-31" }); // 729 days
+    expect(ok.warnings.join(" ")).not.toMatch(/730/);
+    const bad = computeProp19({ ...base, replacementPrice: 900000, saleDate: "2024-01-01", purchaseDate: "2026-01-01" }); // 731 days (2024 leap)
+    expect(bad.warnings.join(" ")).toMatch(/730/);
+  });
+});
+
+// ── 9. LTV / DTI guards ───────────────────────────────────────────────────────
+describe("computeLTV / computeDTI guards", () => {
+  it("LTV returns 0 (not NaN/Infinity) when value is 0", () => {
+    expect(computeLTV(100000, 0)).toBe(0);
+    expect(computeLTV(850000, 1000000)).toBeCloseTo(0.85, 10);
+  });
+  it("DTI returns null (not 0) when income is unknown — UI shows '—'", () => {
+    expect(computeDTI(5000, 0)).toBeNull();
+    expect(computeDTI(5000, -1)).toBeNull();
+  });
+});
+
+// ── 10. DTI display regression (audit C-2: '43%' not '0.4%') ─────────────────
+describe("DTI fraction → percent display", () => {
+  it("$6,785 payment on $25,000/mo income renders 27.1%, not 0.3%", () => {
+    const dti = computeDTI(6785, 25000);
+    expect(dti).toBeCloseTo(0.2714, 4);              // the fraction
+    expect(((dti ?? 0) * 100).toFixed(1) + "%").toBe("27.1%"); // the display (C-2 fix)
+  });
+});
+
+// ── bonus: balance + toMonthly sanity ────────────────────────────────────────
+describe("balances and income frequency", () => {
+  it("balance after 0 payments = full loan; after all payments ≈ 0", () => {
+    expect(calcBalance(300000, 6, 30, 0)).toBeCloseTo(300000, 6);
+    expect(calcBalance(300000, 6, 30, 360)).toBeCloseTo(0, 6);
+    expect(balanceAfter(300000, 0.005, 360, 360)).toBeCloseTo(0, 6);
+  });
+  it("toMonthly converts every supported frequency", () => {
+    expect(toMonthly(120000, "Annual")).toBe(10000);
+    expect(toMonthly(60000, "Bi-Annual")).toBe(10000);
+    expect(toMonthly(30000, "Quarterly")).toBe(10000);
+    expect(toMonthly(5000, "Semi-Monthly")).toBe(10000);
+    expect(toMonthly(4615.38, "Bi-Weekly")).toBeCloseTo(10000, 0);
+    expect(toMonthly(50, "Hourly")).toBeCloseTo(8666.67, 1); // 50×2080/12
+    expect(toMonthly(10000, "Monthly")).toBe(10000);
+  });
+});

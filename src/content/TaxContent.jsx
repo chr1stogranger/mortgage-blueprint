@@ -173,7 +173,9 @@ export default function TaxContent(props) {
  return (<div style={{ marginTop: 20 }}>
 
   {/* 1. Hero — kept */}
-  <Hero value={fmt(calc.totalTaxSavings)} label="Annual Tax Savings" color={T.green} sub={`${fmt(calc.monthlyTaxSavings)}/mo`} />
+  {/* "Year 1": interest is computed on the full starting balance, so savings
+      decline slightly each year as the loan amortizes (audit M-5). */}
+  <Hero value={fmt(calc.totalTaxSavings)} label="Year-1 Tax Savings" color={T.green} sub={`${fmt(calc.monthlyTaxSavings)}/mo · first-year estimate`} />
 
   {/* 2. Educational example: how write-offs work (hardcoded teaching numbers) */}
   <Sec title="Example: How Tax Write-offs Work">

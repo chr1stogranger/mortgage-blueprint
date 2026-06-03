@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
+import { toMonthly } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -117,21 +118,11 @@ function PayTypeOptions() {
   );
 }
 
-// Frequency → monthly conversion (parity with parent toMonthly).
-function toMonthly(amount, frequency) {
-  const a = Number(amount) || 0;
-  switch (frequency) {
-    case "Annual":       return a / 12;
-    case "Bi-Annual":    return (a * 2) / 12;          // 2 payments per year
-    case "Quarterly":    return (a * 4) / 12;          // 4 payments per year
-    case "Monthly":      return a;
-    case "Semi-Monthly": return a * 2;                 // twice per month (24/yr)
-    case "Bi-Weekly":    return (a * 26) / 12;         // 26 payments per year
-    case "Weekly":       return (a * 52) / 12;
-    case "Hourly":       return (a * 40 * 52) / 12;    // 40hr/wk default
-    default: return a / 12;
-  }
-}
+// toMonthly now imported from ../lib/finance.js (audit M-1 dedup).
+// NOTE: the old local copy returned a/12 for UNRECOGNIZED frequencies while
+// the parent returned a — a silent drift bug between two hand-mirrored
+// copies. The shared version uses the parent's behavior; every frequency in
+// FREQ_OPTIONS computes identically in both.
 
 // Pay types that follow the self-employment rules: tax-return-only
 // (no YTD eligible) and 2-year average is the standard.

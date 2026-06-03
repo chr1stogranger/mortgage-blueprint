@@ -1,5 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
+// THE FINANCIAL ENGINE — all money formulas live in lib/finance.js (audit M-1).
+// Pure, unit-tested (src/lib/finance.test.js). Change formulas THERE, not here.
+import {
+ calcPI, calcBalance, balanceAfter, calcAPR, computeLTV, computeDTI,
+ getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, progressiveTax,
+ computeTaxSavings, buildAmortization, computeProp19,
+ VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
+} from "./lib/finance.js";
+import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
 import { apiUrl } from "./apiBase";
@@ -252,11 +261,7 @@ const getTTForCity = (cityName, price) => {
 const MAX_DTI = { Conventional: 0.50, FHA: 0.57, Jumbo: 0.43, VA: 0.60, USDA: 0.50 };
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "USDA"];
 const VA_USAGE = ["First Use", "Subsequent", "Disabled"];
-const VA_FUNDING_FEES = {
- "First Use": { 0: 0.0215, 5: 0.015, 10: 0.0125 },
- "Subsequent": { 0: 0.033, 5: 0.015, 10: 0.0125 },
- "Disabled": { 0: 0, 5: 0, 10: 0 },
-};
+// VA_FUNDING_FEES moved to lib/finance.js
 const PROP_TYPES = ["Single Family", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
 // 2026 FHFA conforming loan limits by unit count. High-balance = 150% of conforming.
 const CONF_LIMITS = { 1: 832750, 2: 1066250, 3: 1288800, 4: 1601750 };
@@ -297,217 +302,18 @@ const getReserveFactor = (accountType, loanType) => {
  return 1;
 };
 const FILING_STATUSES = [{value:"Single",label:"Single"},{value:"MFJ",label:"Married Filing Jointly"},{value:"MFS",label:"Married Filing Separately"},{value:"HOH",label:"Head of Household"}];
-const FED_BRACKETS = {
- Single: [{min:0,max:12400,rate:0.10},{min:12401,max:50400,rate:0.12},{min:50401,max:105700,rate:0.22},{min:105701,max:201775,rate:0.24},{min:201776,max:256225,rate:0.32},{min:256226,max:640600,rate:0.35},{min:640601,max:Infinity,rate:0.37}],
- MFJ: [{min:0,max:24800,rate:0.10},{min:24801,max:100800,rate:0.12},{min:100801,max:211400,rate:0.22},{min:211401,max:403550,rate:0.24},{min:403551,max:512450,rate:0.32},{min:512451,max:768700,rate:0.35},{min:768701,max:Infinity,rate:0.37}],
- MFS: [{min:0,max:12400,rate:0.10},{min:12401,max:50400,rate:0.12},{min:50401,max:105700,rate:0.22},{min:105701,max:201775,rate:0.24},{min:201776,max:256225,rate:0.32},{min:256226,max:384350,rate:0.35},{min:384351,max:Infinity,rate:0.37}],
- HOH: [{min:0,max:17700,rate:0.10},{min:17701,max:67450,rate:0.12},{min:67451,max:105700,rate:0.22},{min:105701,max:201775,rate:0.24},{min:201776,max:256200,rate:0.32},{min:256201,max:640600,rate:0.35},{min:640601,max:Infinity,rate:0.37}],
-};
-const FED_STD_DEDUCTION = { Single: 16100, MFJ: 32200, MFS: 16100, HOH: 24150 };
-const B = (pairs) => pairs.map(([max, rate]) => ({ min: 0, max, rate })).reduce((acc, b, i) => { if (i > 0) acc[i].min = acc[i - 1].max + 1; return acc; }, pairs.map(([max, rate]) => ({ min: 0, max, rate })));
-const STATE_TAX = {
- "Alabama": { type:"progressive", std:{s:2500,m:7500,h:4700},
-  s:B([[500,0.02],[3000,0.04],[Infinity,0.05]]), m:B([[1000,0.02],[6000,0.04],[Infinity,0.05]]) },
- "Alaska": { type:"none" },
- "Arizona": { type:"flat", rate:0.025 },
- "Arkansas": { type:"progressive", std:{s:2340,m:4680,h:2340},
-  s:B([[4300,0.02],[8500,0.04],[Infinity,0.044]]), m:B([[4300,0.02],[8500,0.04],[Infinity,0.044]]) },
- "California": { type:"progressive", std:{s:5363,m:10726,h:10726},
-  s:B([[10756,0.01],[25499,0.02],[40245,0.04],[55865,0.06],[70605,0.08],[360658,0.093],[432787,0.103],[721314,0.113],[Infinity,0.123]]),
-  m:B([[21513,0.01],[50998,0.02],[80490,0.04],[111732,0.06],[141212,0.08],[721318,0.093],[865574,0.103],[1442628,0.113],[Infinity,0.123]]) },
- "Colorado": { type:"flat", rate:0.044 },
- "Connecticut": { type:"progressive", std:{s:0,m:0,h:0},
-  s:B([[10000,0.03],[50000,0.05],[100000,0.055],[200000,0.06],[250000,0.065],[500000,0.069],[Infinity,0.0699]]),
-  m:B([[20000,0.03],[100000,0.05],[200000,0.055],[400000,0.06],[500000,0.065],[1000000,0.069],[Infinity,0.0699]]) },
- "Delaware": { type:"progressive", std:{s:3250,m:6500,h:3250},
-  s:B([[2000,0],[5000,0.022],[10000,0.039],[20000,0.048],[25000,0.052],[60000,0.0555],[Infinity,0.066]]),
-  m:B([[2000,0],[5000,0.022],[10000,0.039],[20000,0.048],[25000,0.052],[60000,0.0555],[Infinity,0.066]]) },
- "Florida": { type:"none" },
- "Georgia": { type:"progressive", std:{s:5400,m:7100,h:5400},
-  s:B([[750,0.01],[2250,0.02],[3750,0.03],[5250,0.04],[7000,0.05],[Infinity,0.055]]),
-  m:B([[1000,0.01],[3000,0.02],[5000,0.03],[7000,0.04],[10000,0.05],[Infinity,0.055]]) },
- "Hawaii": { type:"progressive", std:{s:2200,m:4400,h:3212},
-  s:B([[2400,0.014],[4800,0.032],[9600,0.055],[14400,0.064],[19200,0.068],[24000,0.072],[36000,0.076],[48000,0.079],[150000,0.0825],[175000,0.09],[200000,0.10],[Infinity,0.11]]),
-  m:B([[4800,0.014],[9600,0.032],[19200,0.055],[28800,0.064],[38400,0.068],[48000,0.072],[72000,0.076],[96000,0.079],[300000,0.0825],[350000,0.09],[400000,0.10],[Infinity,0.11]]) },
- "Idaho": { type:"flat", rate:0.058 },
- "Illinois": { type:"flat", rate:0.0495 },
- "Indiana": { type:"flat", rate:0.0305 },
- "Iowa": { type:"progressive", std:{s:2210,m:5450,h:5450},
-  s:B([[1853,0.0044],[9265,0.0482],[Infinity,0.057]]),
-  m:B([[3706,0.0044],[18530,0.0482],[Infinity,0.057]]) },
- "Kansas": { type:"progressive", std:{s:3500,m:8000,h:6000},
-  s:B([[15000,0.031],[30000,0.0525],[Infinity,0.057]]),
-  m:B([[30000,0.031],[60000,0.0525],[Infinity,0.057]]) },
- "Kentucky": { type:"flat", rate:0.04 },
- "Louisiana": { type:"progressive", std:{s:0,m:0,h:0},
-  s:B([[12500,0.0185],[50000,0.035],[Infinity,0.0425]]),
-  m:B([[25000,0.0185],[100000,0.035],[Infinity,0.0425]]) },
- "Maine": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[24500,0.058],[58050,0.0675],[Infinity,0.0715]]),
-  m:B([[49050,0.058],[116100,0.0675],[Infinity,0.0715]]) },
- "Maryland": { type:"progressive", std:{s:2550,m:5150,h:2550},
-  s:B([[1000,0.02],[2000,0.03],[3000,0.04],[100000,0.0475],[125000,0.05],[150000,0.0525],[250000,0.055],[Infinity,0.0575]]),
-  m:B([[1000,0.02],[2000,0.03],[3000,0.04],[150000,0.0475],[175000,0.05],[225000,0.0525],[300000,0.055],[Infinity,0.0575]]) },
- "Massachusetts": { type:"flat", rate:0.05, surtax:{ threshold:1000000, rate:0.04 } },
- "Michigan": { type:"flat", rate:0.0425 },
- "Minnesota": { type:"progressive", std:{s:15300,m:30600,h:23000},
-  s:B([[31690,0.0535],[104090,0.068],[183340,0.0785],[Infinity,0.0985]]),
-  m:B([[46330,0.0535],[184040,0.068],[321450,0.0785],[Infinity,0.0985]]) },
- "Mississippi": { type:"flat", rate:0.047 },
- "Missouri": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[1207,0.02],[2414,0.025],[3621,0.03],[4828,0.035],[6035,0.04],[7242,0.045],[8449,0.05],[Infinity,0.0495]]),
-  m:B([[1207,0.02],[2414,0.025],[3621,0.03],[4828,0.035],[6035,0.04],[7242,0.045],[8449,0.05],[Infinity,0.0495]]) },
- "Montana": { type:"progressive", std:{s:5540,m:11080,h:5540},
-  s:B([[20500,0.047],[Infinity,0.059]]), m:B([[20500,0.047],[Infinity,0.059]]) },
- "Nebraska": { type:"progressive", std:{s:7900,m:15800,h:11600},
-  s:B([[3700,0.0246],[22170,0.0351],[35730,0.0501],[Infinity,0.0584]]),
-  m:B([[7390,0.0246],[44350,0.0351],[71460,0.0501],[Infinity,0.0584]]) },
- "Nevada": { type:"none" },
- "New Hampshire": { type:"none" },
- "New Jersey": { type:"progressive", std:{s:0,m:0,h:0},
-  s:B([[20000,0.014],[35000,0.0175],[40000,0.035],[75000,0.05525],[500000,0.0637],[1000000,0.0897],[Infinity,0.1075]]),
-  m:B([[20000,0.014],[50000,0.0175],[70000,0.035],[80000,0.05525],[150000,0.0637],[500000,0.0897],[Infinity,0.1075]]) },
- "New Mexico": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[5500,0.017],[11000,0.032],[16000,0.047],[210000,0.049],[Infinity,0.059]]),
-  m:B([[8000,0.017],[16000,0.032],[24000,0.047],[315000,0.049],[Infinity,0.059]]) },
- "New York": { type:"progressive", std:{s:8000,m:16050,h:11200},
-  s:B([[8500,0.04],[11700,0.045],[13900,0.0525],[80650,0.055],[215400,0.06],[1077550,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]),
-  m:B([[17150,0.04],[23600,0.045],[27900,0.0525],[161550,0.055],[323200,0.06],[2155350,0.0685],[5000000,0.0965],[25000000,0.103],[Infinity,0.109]]) },
- "North Carolina": { type:"flat", rate:0.045 },
- "North Dakota": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[44725,0.0195],[Infinity,0.025]]), m:B([[74750,0.0195],[Infinity,0.025]]) },
- "Ohio": { type:"progressive", std:{s:0,m:0,h:0},
-  s:B([[26050,0],[46100,0.02765],[92150,0.03226],[Infinity,0.0357]]),
-  m:B([[26050,0],[46100,0.02765],[92150,0.03226],[Infinity,0.0357]]) },
- "Oklahoma": { type:"progressive", std:{s:6350,m:12700,h:9350},
-  s:B([[1000,0.0025],[2500,0.0075],[3750,0.0175],[4900,0.0275],[7200,0.0375],[Infinity,0.0475]]),
-  m:B([[2000,0.0025],[5000,0.0075],[7500,0.0175],[9800,0.0275],[12200,0.0375],[Infinity,0.0475]]) },
- "Oregon": { type:"progressive", std:{s:2745,m:5495,h:4420},
-  s:B([[4050,0.0475],[10200,0.0675],[125000,0.0875],[Infinity,0.099]]),
-  m:B([[8100,0.0475],[20400,0.0675],[250000,0.0875],[Infinity,0.099]]) },
- "Pennsylvania": { type:"flat", rate:0.0307 },
- "Rhode Island": { type:"progressive", std:{s:10550,m:21150,h:15850},
-  s:B([[73450,0.0375],[166950,0.0475],[Infinity,0.0599]]),
-  m:B([[73450,0.0375],[166950,0.0475],[Infinity,0.0599]]) },
- "South Carolina": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[3460,0],[17330,0.03],[Infinity,0.064]]),
-  m:B([[3460,0],[17330,0.03],[Infinity,0.064]]) },
- "South Dakota": { type:"none" },
- "Tennessee": { type:"none" },
- "Texas": { type:"none" },
- "Utah": { type:"flat", rate:0.0465 },
- "Vermont": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[45400,0.0335],[110450,0.066],[229550,0.076],[Infinity,0.0875]]),
-  m:B([[76000,0.0335],[184000,0.066],[Infinity,0.0875]]) },
- "Virginia": { type:"progressive", std:{s:8000,m:16000,h:8000},
-  s:B([[3000,0.02],[5000,0.03],[17000,0.05],[Infinity,0.0575]]),
-  m:B([[3000,0.02],[5000,0.03],[17000,0.05],[Infinity,0.0575]]) },
- "Washington": { type:"none" },
- "West Virginia": { type:"progressive", std:{s:0,m:0,h:0},
-  s:B([[10000,0.0236],[25000,0.0315],[40000,0.0354],[60000,0.0472],[Infinity,0.0512]]),
-  m:B([[10000,0.0236],[25000,0.0315],[40000,0.0354],[60000,0.0472],[Infinity,0.0512]]) },
- "Wisconsin": { type:"progressive", std:{s:13230,m:24500,h:17430},
-  s:B([[14320,0.0354],[28640,0.0465],[315310,0.0530],[Infinity,0.0765]]),
-  m:B([[19120,0.0354],[38240,0.0465],[420420,0.0530],[Infinity,0.0765]]) },
- "Wyoming": { type:"none" },
- "District of Columbia": { type:"progressive", std:{s:16100,m:32200,h:24150},
-  s:B([[10000,0.04],[40000,0.06],[60000,0.065],[250000,0.085],[500000,0.0925],[1000000,0.0975],[Infinity,0.1075]]),
-  m:B([[10000,0.04],[40000,0.06],[60000,0.065],[250000,0.085],[500000,0.0925],[1000000,0.0975],[Infinity,0.1075]]) },
-};
-const STATE_NAMES = Object.keys(STATE_TAX).sort();
-function progressiveTax(taxableIncome, brackets) {
- if (taxableIncome <= 0) return 0;
- let tax = 0;
- for (const b of brackets) { if (taxableIncome <= b.min) break; tax += (Math.min(taxableIncome, b.max) - b.min) * b.rate; }
- return tax;
-}
+// FED_BRACKETS / FED_STD_DEDUCTION / STATE_TAX / STATE_NAMES moved to lib/finance.js
+// progressiveTax moved to lib/finance.js
 function fmt(v, compact) { if (PRIVACY) return "$•••••"; if (v == null || !isFinite(v) || isNaN(v)) return "$0"; if (compact && Math.abs(v) >= 1e6) return "$" + (v/1e6).toFixed(1) + "M"; if (compact && Math.abs(v) >= 1e4) return "$" + (v/1e3).toFixed(0) + "K"; return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v); }
 function fmt2(v) { if (PRIVACY) return "$•••••"; return v == null || !isFinite(v) || isNaN(v) ? "$0.00" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v); }
 function pct(v, d = 1) { if (PRIVACY) return "••.•%"; return ((v || 0) * 100).toFixed(d) + "%"; }
 // ── DRY Helpers ──────────────────────────────────────────────────────────────
-/** Convert income amount to monthly based on pay frequency */
-function toMonthly(amount, frequency) {
- const a = Number(amount) || 0;
- if (frequency === "Annual") return a / 12;
- if (frequency === "Bi-Annual") return (a * 2) / 12;          // 2 payments/yr
- if (frequency === "Quarterly") return (a * 4) / 12;          // 4 payments/yr
- if (frequency === "Semi-Monthly") return a * 2;              // 2 payments/mo (24/yr)
- if (frequency === "Bi-Weekly") return a * 26 / 12;           // 26 payments/yr
- if (frequency === "Weekly") return a * 52 / 12;
- if (frequency === "Hourly") return a * 2080 / 12;
- return a; // Monthly or unrecognized
-}
-/** Standard amortizing P&I payment */
-function calcPI(loanAmt, annualRate, termYears) {
- if (!loanAmt || loanAmt <= 0) return 0;
- const mr = (annualRate / 100) / 12;
- const np = termYears * 12;
- if (mr <= 0 || np <= 0) return loanAmt / (np || 1);
- return (loanAmt * mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1);
-}
-/** Remaining balance after N payments on a standard amortizing loan */
-function calcBalance(loanAmt, annualRate, termYears, paidMonths) {
- const mr = (annualRate / 100) / 12;
- const np = termYears * 12;
- if (mr <= 0 || np <= 0) return Math.max(0, loanAmt * (1 - paidMonths / np));
- return loanAmt * (Math.pow(1 + mr, np) - Math.pow(1 + mr, paidMonths)) / (Math.pow(1 + mr, np) - 1);
-}
-/** APR calculation — effective annual rate including fees amortized over the loan term */
-function calcAPR(loanAmt, annualRate, termYears, totalFees) {
- if (!loanAmt || loanAmt <= 0 || !annualRate || annualRate <= 0) return 0;
- const monthlyPmt = calcPI(loanAmt, annualRate, termYears);
- const np = termYears * 12;
- const netProceeds = loanAmt - totalFees; // what borrower actually receives
- if (netProceeds <= 0) return annualRate;
- // Newton's method to find monthly rate where PV of payments = netProceeds
- let r = annualRate / 100 / 12; // initial guess
- for (let i = 0; i < 100; i++) {
-  const pvFactor = (1 - Math.pow(1 + r, -np)) / r;
-  const pv = monthlyPmt * pvFactor;
-  const pvPrime = monthlyPmt * ((-np * Math.pow(1 + r, -np - 1) * r - (1 - Math.pow(1 + r, -np))) / (r * r));
-  const diff = pv - netProceeds;
-  if (Math.abs(diff) < 0.01) break;
-  r = r - diff / pvPrime;
-  if (r <= 0) { r = annualRate / 100 / 12; break; }
- }
- return r * 12 * 100; // convert monthly rate back to annual percentage
-}
-/** PMI rate lookup — Radian-based matrix by LTV and FICO (>20yr, Purchase/Rate-Term, Non-Refundable) */
-function getPMIRate(ltv, fico) {
- // LTV buckets: 97%, 95%, 90%, 85% — with standard required coverage
- // Rates are annual % of loan amount (monthly = rate * loanAmt / 12)
- // Source: Radian PMI Rate Card (Nov 2021 effective), Primary Res, Fixed, >20yr term
- const matrix = {
-  97: { 760: 0.0058, 740: 0.0070, 720: 0.0087, 700: 0.0099, 680: 0.0121, 660: 0.0154, 640: 0.0165, 620: 0.0186 },
-  95: { 760: 0.0038, 740: 0.0048, 720: 0.0059, 700: 0.0068, 680: 0.0087, 660: 0.0111, 640: 0.0119, 620: 0.0138 },
-  90: { 760: 0.0030, 740: 0.0039, 720: 0.0046, 700: 0.0056, 680: 0.0067, 660: 0.0087, 640: 0.0096, 620: 0.0111 },
-  85: { 760: 0.0019, 740: 0.0020, 720: 0.0023, 700: 0.0025, 680: 0.0028, 660: 0.0038, 640: 0.0042, 620: 0.0044 },
- };
- // Determine LTV bucket
- const ltvPct = ltv * 100;
- const bucket = ltvPct > 95 ? 97 : ltvPct > 90 ? 95 : ltvPct > 85 ? 90 : 85;
- const rates = matrix[bucket];
- // Determine FICO bucket (find highest threshold <= fico)
- const score = fico || 700; // default to 700 if not provided
- const ficoBucket = score >= 760 ? 760 : score >= 740 ? 740 : score >= 720 ? 720 : score >= 700 ? 700 : score >= 680 ? 680 : score >= 660 ? 660 : score >= 640 ? 640 : 620;
- return rates[ficoBucket] || rates[700];
-}
-/** FHA annual MIP rate lookup — FHA has its own schedule, NOT the Radian
- *  PMI matrix. Source: Christo's FHA Mortgage Insurance table (eff. 3/1/2023).
- *  Keyed off the BASE loan amount ($726,200 is the FHA base loan limit) and
- *  the LTV bucket. Returns the annual rate as a fraction (0.0075 = 0.75%).
- *
- *    Base loan > $726,200:   LTV > 95% → 0.75% ; LTV ≤ 95% → 0.70%
- *    Base loan ≤ $726,200:   LTV > 95% → 0.55% ; LTV ≤ 95% → 0.50%
- *
- *  Duration (life-of-loan vs 11-year for LTV ≤ 90%) affects payoff
- *  projections, not the monthly rate, so it isn't encoded here. */
-function getFHAMipRate(baseLoan, ltv) {
- const ltvPct = ltv * 100;
- const overLimit = baseLoan > 726200;
- if (overLimit) return ltvPct > 95 ? 0.0075 : 0.0070;
- return ltvPct > 95 ? 0.0055 : 0.0050;
-}
+// toMonthly moved to lib/finance.js
+// calcPI moved to lib/finance.js
+// calcBalance moved to lib/finance.js
+// calcAPR moved to lib/finance.js
+// getPMIRate moved to lib/finance.js
+// getFHAMipRate moved to lib/finance.js
 let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 const DARK = {
@@ -2348,155 +2154,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   lines.push("Contact a licensed loan officer for an official quote.");
   return lines.join("\n");
  };
- const generatePdfHtml = () => {
-  const c = calc;
-  // Escape user-entered free text before interpolating into this HTML string.
-  // The result is written to a popup via document.write(), so any unescaped
-  // borrower/LO/realtor input (e.g. a name containing <img onerror=...>) would
-  // execute as script. esc() neutralizes the 5 HTML-significant characters.
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-  const loName = esc(loanOfficer || "Loan Officer");
-  const coName = esc(companyName || "");
-  const bName = esc(borrowerName || "Valued Client");
-  const propAddr = propertyTBD ? "TBD" : esc(propertyAddress || "");
-  const propLoc = esc(`${city}, ${propertyState}${propertyZip ? " " + propertyZip : ""}`);
-  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  const row = (l, v, bold, color) => `<tr><td style="padding:8px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;${bold ? "font-weight:700;" : ""}">${l}</td><td style="padding:8px 16px;text-align:right;font-size:13px;font-weight:600;color:${color || "#1a202c"};border-bottom:1px solid #f0f0f0;font-family:system-ui">${v}</td></tr>`;
-  const hdr = (t) => `<tr><td colspan="2" style="padding:14px 16px 6px;font-weight:700;font-size:13px;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #2563eb">${t}</td></tr>`;
-  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(scenarioName)} - Loan Estimate</title><style>
-   *{box-sizing:border-box;margin:0;padding:0}
-   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f8fc;color:#1a202c;-webkit-font-smoothing:antialiased}
-   .wrapper{max-width:640px;margin:0 auto;background:#fff;border-radius:0}
-   .header{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);padding:28px 32px;color:#fff}
-   .header-top{display:flex;justify-content:space-between;align-items:flex-start}
-   .lo-info h2{font-size:20px;font-weight:700;margin-bottom:2px;letter-spacing:-0.3px}
-   .lo-info .title{font-size:12px;opacity:0.85;font-weight:400}
-   .lo-contact{font-size:11px;opacity:0.8;text-align:right;line-height:1.6}
-   .lo-contact a{color:#fff;text-decoration:none}
-   .prepared-for{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.85}
-   .prepared-for strong{font-size:14px;opacity:1;display:block;margin-top:2px}
-   .hero-bar{background:#f0f7ff;padding:24px 32px;text-align:center;border-bottom:1px solid #e2e8f0}
-   .hero-bar .big{font-size:38px;font-weight:800;color:#1e3a5f;letter-spacing:-1.5px;font-family:system-ui}
-   .hero-bar .sub{font-size:13px;color:#64748b;margin-top:4px}
-   .body-content{padding:24px 32px}
-   table{width:100%;border-collapse:collapse;margin:0 0 20px 0}
-   .section-note{background:#f8fafc;border-left:3px solid #2563eb;padding:12px 16px;margin:16px 0;font-size:12px;color:#475569;line-height:1.5;border-radius:0 6px 6px 0}
-   .footer{background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0}
-   .footer-brand{font-size:13px;font-weight:600;color:#1e3a5f}
-   .footer-legal{font-size:10px;color:#94a3b8;line-height:1.5;margin-top:8px}
-   .footer-nmls{font-size:10px;color:#94a3b8;margin-top:4px}
-   .estimate-banner{background:#fef3c7;border-bottom:1px solid #f59e0b;padding:8px 32px;text-align:center;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px}
-   @media print{body{background:#fff}.wrapper{box-shadow:none}}
-   @media(max-width:500px){.header{padding:20px 18px}.body-content{padding:18px}.hero-bar{padding:18px}.header-top{flex-direction:column}.lo-contact{text-align:left;margin-top:10px}}
-  </style></head><body><div class="wrapper">`;
-
-  // HEADER
-  html += `<div class="header"><div class="header-top"><div class="lo-info"><h2>${loName}</h2><div class="title">Loan Officer${loNmls ? " · NMLS #" + esc(loNmls) : ""}</div></div><div class="lo-contact">`;
-  if (loPhone) html += `<div><a href="tel:${loPhone.replace(/\D/g,"")}">${esc(loPhone)}</a></div>`;
-  if (loEmail) html += `<div><a href="mailto:${encodeURIComponent(loEmail)}">${esc(loEmail)}</a></div>`;
-  html += `</div></div>`;
-  if (realtorPartner) {
-   html += `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15)">`;
-   html += `<div><div style="font-size:14px;font-weight:600">${esc(realtorPartner.name)}</div><div style="font-size:11px;opacity:0.85">${esc(realtorPartner.title || "Realtor")}${realtorPartner.brokerage ? " · " + esc(realtorPartner.brokerage) : ""}${realtorPartner.dre ? " · DRE #" + esc(realtorPartner.dre) : ""}</div></div>`;
-   if (realtorPartner.phone) html += `<div style="margin-left:auto;font-size:12px"><a href="tel:${realtorPartner.phone.replace(/\D/g,"")}" style="color:#fff">${esc(realtorPartner.phone)}</a></div>`;
-   html += `</div>`;
-  }
-  html += `<div class="prepared-for">Prepared for<strong>${bName}</strong>${dateStr}</div>`;
-  html += `</div>`;
-  html += `<div class="estimate-banner">Hypothetical Estimate — For Illustrative Purposes Only — Not a Loan Offer</div>`;
-
-  if (isRefi) {
-   // REFI HERO
-   const savColor = c.refiMonthlySavings > 0 ? "#16a34a" : "#dc2626";
-   html += `<div class="hero-bar"><div class="big" style="color:${savColor}">${fmt(c.refiMonthlySavings)}<span style="font-size:18px;font-weight:400">/mo savings</span></div><div class="sub">Monthly P&I Savings · Breakeven in ${c.refiBreakevenMonths} months</div></div>`;
-
-   html += `<div class="body-content">`;
-   // Monthly Payment side-by-side comparison table
-   const pdelta = (cur, nw) => {
-    const d = Math.round(nw - cur);
-    if (Math.abs(d) < 1) return '<span style="color:#888">—</span>';
-    const color = d < 0 ? "#16a34a" : "#dc2626";
-    const sign = d < 0 ? "-" : "+";
-    return '<span style="color:' + color + '">' + sign + "$" + Math.abs(d).toLocaleString() + "</span>";
-   };
-   const pmtRow4 = (label, cur, nw, bold) => {
-    const style = bold ? "padding:10px 16px;font-size:13px;font-weight:700;color:#1a202c;border-top:2px solid #e2e8f0" : "padding:8px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0";
-    return '<tr><td style="' + style + '">' + label + '</td><td style="' + style + ';text-align:right;font-family:system-ui">' + fmt(cur) + '</td><td style="' + style + ';text-align:right;font-family:system-ui;color:#2563eb">' + fmt(nw) + '</td><td style="' + style + ';text-align:right;font-family:system-ui">' + pdelta(cur, nw) + '</td></tr>';
-   };
-   html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px">';
-   html += '<tr><td colspan="4" style="padding:14px 16px 6px;font-weight:700;font-size:13px;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #2563eb">Monthly Payment</td></tr>';
-   html += '<tr style="background:#f8fafc"><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase"></td><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#888;text-align:right;text-transform:uppercase">Current</td><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#2563eb;text-align:right;text-transform:uppercase">New</td><td style="padding:8px 16px;font-size:11px;font-weight:600;color:#888;text-align:right;text-transform:uppercase">Delta</td></tr>';
-   html += pmtRow4("Principal", c.refiCurPrinThisMonth, c.refiNewPrinThisMonth);
-   html += pmtRow4("Interest", c.refiCurIntThisMonth, c.refiNewIntThisMonth);
-   if (c.refiNewMonthlyTax > 0) html += pmtRow4("Taxes", c.refiCurMonthlyTax, c.refiNewMonthlyTax);
-   if (c.refiNewMonthlyIns > 0) html += pmtRow4("Insurance", c.refiCurMonthlyIns, c.refiNewMonthlyIns);
-   html += pmtRow4("Total Payment", c.refiCurTotalPmt, c.refiNewTotalPmt, true);
-   html += '<tr style="background:#f0fdf4"><td colspan="3" style="padding:10px 16px;font-size:13px;font-weight:700;color:#16a34a">Monthly Savings</td><td style="padding:10px 16px;text-align:right;font-size:13px;font-weight:700;color:#16a34a;font-family:system-ui">' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
-   html += '</table>';
-   html += `<table>${hdr("Savings Analysis")}${row("Monthly P&I Savings",fmt(c.refiMonthlySavings),false,c.refiMonthlySavings>0?"#16a34a":"#dc2626")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Months to Breakeven",c.refiBreakevenMonths+" months")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings),true,"#16a34a")}</table>`;
-   const cashOutLabel = c.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Cash to Close";
-   const cashOutValue = c.refiEstCashOut >= 0 ? fmt(c.refiEstCashOut) : fmt(Math.abs(c.refiEstCashOut));
-   const cashInHandLabel = c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing";
-   const cashInHandValue = c.refiNetCashInHand >= 0 ? fmt(c.refiNetCashInHand) : fmt(Math.abs(c.refiNetCashInHand));
-   html += `<table>${hdr("Net Cash Out")}${row("New Loan Amount",fmt(c.refiNetNewLoan))}${row("Closing Costs","-"+fmt(c.refiNetClosingCosts))}${row("Prepaids & Escrow","-"+fmt(c.refiNetPrepaids))}${row("Current Loan Payoff","-"+fmt(c.refiNetPayoff))}${row(cashOutLabel,cashOutValue,false,c.refiEstCashOut>=0?"#16a34a":"#dc2626")}${c.refiSkipPmtAmt>0?row("Skip "+refiSkipMonths+" Payment(s)","+"+fmt(c.refiSkipPmtAmt),false,"#16a34a"):""}${c.refiEscrowRefund>0?row("Escrow Balance Refund","+"+fmt(c.refiEscrowRefund),false,"#16a34a"):""}${row(cashInHandLabel,cashInHandValue,true,c.refiNetCashInHand>=0?"#16a34a":"#dc2626")}</table>`;
-   html += `<table>${hdr("3-Point Refi Test")}${row("Rate Drop ≥ 0.50%",c.refiRateDrop.toFixed(2)+"% "+(c.refiTest1Pass?"✓":"✗"))}${row("Breakeven < 24 Months",c.refiBreakevenMonths+" mos "+(c.refiTest2Pass?"✓":"✗"))}${row("Payoff 1+ Year Faster",c.refiAccelPayoff.yearsFaster.toFixed(1)+" yrs "+(c.refiTest3Pass?"✓":"✗"))}${row("Score",c.refiTestScore+"/3",true,c.refiTestScore>=2?"#16a34a":"#dc2626")}</table>`;
-  } else {
-   // PURCHASE HERO
-   html += `<div class="hero-bar"><div class="big">${fmt(c.housingPayment)}<span style="font-size:18px;font-weight:400">/mo</span></div><div class="sub">${propAddr !== "TBD" && propAddr ? propAddr + " · " : ""}${fmt(c.cashToClose)} cash to close</div></div>`;
-
-   html += `<div class="body-content">`;
-   html += `<table>${hdr("Property & Loan Details")}`;
-   if (propAddr) html += row("Property", propAddr);
-   html += `${row("Location",propLoc)}${row("Purchase Price",fmt(salesPrice))}${row("Down Payment",fmt(c.dp)+" ("+downPct+"%)")}${row("Base Loan Amount",fmt(c.baseLoan))}`;
-   if (c.fhaUp > 0) html += row("FHA Upfront MIP",fmt(c.fhaUp));
-   if (c.vaFundingFee > 0) html += row("VA Funding Fee",fmt(c.vaFundingFee));
-   html += `${row("Total Loan Amount",fmt(c.loan),true)}${row("Loan Type",loanType+" · "+term+" Year")}${row("Interest Rate",rate+"%")}${row("Loan Category",c.loanCategory)}</table>`;
-
-   html += `<table>${hdr("Monthly Payment Breakdown")}${row("Principal & Interest",fmt(c.pi))}${row("Property Tax",fmt(c.monthlyTax))}${row("Homeowner's Insurance",fmt(c.ins))}`;
-   if (c.monthlyMI > 0) html += row("Mortgage Insurance",fmt(c.monthlyMI));
-   if (hoa > 0) html += row("HOA Dues",fmt(hoa));
-   html += `${row("TOTAL PAYMENT",fmt(c.housingPayment),true,"#1e3a5f")}</table>`;
-
-   // Cash to Close — 3-5 bucket summary + detailed breakdown
-   html += `<table>${hdr("Estimated Funds to Close")}`;
-   html += row("Down Payment", fmt(c.dp));
-   html += row("Closing Costs", fmt(c.totalClosingCosts));
-   // Sub-items for closing costs
-   const subStyle = 'padding:4px 16px 4px 32px;font-size:12px;color:#718096;border-bottom:1px solid #f0f0f0';
-   const subValStyle = 'padding:4px 16px;font-size:12px;color:#718096;text-align:right;border-bottom:1px solid #f0f0f0';
-   html += `<tr><td style="${subStyle}">Lender Fees</td><td style="${subValStyle}">${fmt(c.origCharges)}</td></tr>`;
-   html += `<tr><td style="${subStyle}">Third Party Fees</td><td style="${subValStyle}">${fmt(c.cannotShop + c.canShop)}</td></tr>`;
-   html += `<tr><td style="${subStyle}">Taxes & Gov't Fees</td><td style="${subValStyle}">${fmt(c.govCharges)}</td></tr>`;
-   html += row("Prepaid Expenses", fmt(c.totalPrepaidExp));
-   html += `<tr><td style="${subStyle}">Prepaid Interest (${c.autoPrepaidDays} days)</td><td style="${subValStyle}">${fmt2(c.prepaidInt)}</td></tr>`;
-   html += `<tr><td style="${subStyle}">Prepaid Insurance (12 mo)</td><td style="${subValStyle}">${fmt(c.prepaidIns)}</td></tr>`;
-   if (c.initialEscrow > 0) html += `<tr><td style="${subStyle}">Initial Escrow (${c.escrowTaxMonths} mo tax + ${c.escrowInsMonths} mo ins)</td><td style="${subValStyle}">${fmt(c.initialEscrow)}</td></tr>`;
-   if (c.payoffAtClosing > 0) html += row("Loans Paid Off at Closing", fmt(c.payoffAtClosing));
-   if (c.totalCredits > 0) html += row("Credits", "(" + fmt(c.totalCredits) + ")", false, "#16a34a");
-   html += row("ESTIMATED CASH TO CLOSE", fmt(c.cashToClose), true, "#1e3a5f");
-   html += `</table>`;
-
-   if (calc.yearlyInc > 0) {
-    // calc exposes qualifyingIncome (monthly), housingPayment, and yourDTI (a
-    // fraction = totalPayment / qualifyingIncome). It does NOT define monthlyGross,
-    // frontDti, or dti — referencing those threw a TypeError that broke this PDF
-    // for every scenario with income. Front-end DTI = housing payment / income.
-    const frontDtiPct = calc.qualifyingIncome > 0 ? (calc.housingPayment / calc.qualifyingIncome) * 100 : 0;
-    const backDtiPct = (calc.yourDTI ?? 0) * 100;
-    html += `<table>${hdr("Qualification Snapshot")}${row("Gross Monthly Income",fmt(calc.qualifyingIncome))}${row("Front-End DTI (Housing)",frontDtiPct.toFixed(1)+"%")}${row("Back-End DTI (Total Debt)",backDtiPct.toFixed(1)+"%")}${row("After-Tax Monthly Payment",fmt(calc.afterTaxPayment))}</table>`;
-   }
-  }
-
-  html += `<div class="section-note">This is a hypothetical estimate for educational purposes only. It is not a loan offer, commitment to lend, or official rate quote. Actual rates, terms, and costs may vary significantly. Contact a licensed loan officer for a personalized quote based on your specific financial situation.</div>`;
-  html += `</div>`;
-
-  // FOOTER
-  html += `<div class="footer"><div class="footer-brand">${coName}${companyNmls ? " · NMLS #" + esc(companyNmls) : ""}</div>`;
-  html += `<div class="footer-legal">DISCLAIMER: This is a hypothetical estimate generated for educational and illustrative purposes only. It does not constitute a loan offer, pre-approval, rate lock, or commitment to lend. All figures are approximate and based on general market assumptions. Actual rates, fees, and terms will vary based on individual credit profile, property details, and lender guidelines. Please consult a licensed mortgage professional for an official quote.</div>`;
-  html += `<div class="footer-nmls">Generated by RealStack Blueprint · ${dateStr}</div>`;
-  html += `</div></div></body></html>`;
-  return html;
- };
+ // PDF estimate builder extracted to lib/estimatePdf.js (audit M-4) — the
+ // params object below is the complete input contract; the HTML is unchanged.
+ const generatePdfHtml = () => generateEstimateHtml({
+  calc, fmt, fmt2, scenarioName, loanOfficer, companyName, companyNmls,
+  borrowerName, propertyTBD, propertyAddress, city, propertyState, propertyZip,
+  loNmls, loPhone, loEmail, realtorPartner, isRefi, refiSkipMonths,
+  salesPrice, downPct, loanType, term, rate, hoa,
+ });
  const handleEmailSummary = () => {
   const subject = encodeURIComponent(`${isRefi ? "Refinance" : "Purchase"} Estimate — ${scenarioName}`);
   const body = encodeURIComponent(generateSummaryText());
@@ -3416,10 +3081,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const calc = useMemo(() => {
   const dp = salesPrice * downPct / 100;
   const baseLoan = salesPrice - dp;
-  const ltv = salesPrice > 0 ? baseLoan / salesPrice : 0;
+  const ltv = computeLTV(baseLoan, salesPrice);
   const fhaUp = loanType === "FHA" ? baseLoan * 0.0175 : 0;
-  const vaFFTier = VA_FUNDING_FEES[vaUsage] || { 0: 0 };
-  const vaFFRate = downPct >= 10 ? (vaFFTier[10] || 0) : downPct >= 5 ? (vaFFTier[5] || 0) : (vaFFTier[0] || 0);
+  const vaFFRate = vaFundingFeeRate(vaUsage, downPct);
   const autoVAFF = loanType === "VA" ? baseLoan * vaFFRate : 0;
   const vaFundingFee = (!vaFundingFeeLocked && vaFundingFeeOverride > 0) ? vaFundingFeeOverride : autoVAFF;
   const usdaFee = loanType === "USDA" ? baseLoan * 0.01 : 0;
@@ -3573,7 +3237,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const confLimit = getConfLimit(propType), highBalLimit = getHighBalLimit(propType);
   const loanCategory = baseLoan <= confLimit ? "Conforming" : baseLoan <= highBalLimit ? "High Balance" : "Jumbo";
   const maxDTI = MAX_DTI[loanType] || 0.50;
-  const yourDTI = qualifyingIncome > 0 ? totalPayment / qualifyingIncome : null;
+  const yourDTI = computeDTI(totalPayment, qualifyingIncome); // fraction (0.43 = 43%) or null
   const ttEntry = getTTForCity(transferTaxCity, salesPrice);
   const isSF = ttEntry.sfSeller === true;
   // Two independent splits — buyer's share of city vs county.
@@ -3627,80 +3291,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const reservesReq = totalPayment * reserveMonths;
   const resCheck = totalReserves > 0 ? (totalReserves >= reservesReq ? "Good!" : "Short") : "—";
   const yearlyInc = annualIncome;
-  const fedBrackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
-  const fedStdDeduction = FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single;
-  const stInfo = STATE_TAX[taxState] || { type: "none" };
-  const stKey = married === "MFJ" ? "m" : "s";
-  const stHasHOH = stInfo.h;
-  const stBrackets = married === "HOH" && stHasHOH ? stInfo.h : (stInfo[stKey] || []);
-  const stStdKey = married === "MFJ" ? "m" : married === "HOH" ? "h" : "s";
-  const stStdDeduction = stInfo.std ? (stInfo.std[stStdKey] || stInfo.std.s || 0) : 0;
-  const stFlatRate = stInfo.rate || 0;
-  // 2026 SALT cap: $40,400 base ($20,200 MFS)
-  // Phase-out: above $505K MAGI, cap reduces by 30% of excess, floor $10,000 ($5,000 MFS)
-  const saltBase = married === "MFS" ? 20200 : 40400;
-  const saltFloor = married === "MFS" ? 5000 : 10000;
-  const saltPhaseoutStart = married === "MFS" ? 252500 : 505000;
-  const saltCap = yearlyInc > saltPhaseoutStart
-    ? Math.max(saltFloor, Math.round(saltBase - 0.30 * (yearlyInc - saltPhaseoutStart)))
-    : saltBase;
-  const fedPropTax = Math.min(yearlyTax, saltCap);
-  const mortIntDeductLimit = married === "MFS" ? 375000 : 750000;
-  const deductibleLoanPct = loan > 0 ? Math.min(1, mortIntDeductLimit / loan) : 1;
-  const totalMortInt = loan * (rate / 100);
-  const fedMortInt = totalMortInt * deductibleLoanPct;
-  const fedItemized = fedPropTax + fedMortInt;
-  const stateMortInt = totalMortInt;
-  const stateItemized = yearlyTax + stateMortInt;
-  const fedTaxableIncome = yearlyInc - Math.max(fedStdDeduction, fedItemized);
-  const fedTaxBefore = progressiveTax(yearlyInc - fedStdDeduction, fedBrackets);
-  const fedTaxAfter = progressiveTax(fedTaxableIncome, fedBrackets);
-  const fedSavings = fedTaxBefore - fedTaxAfter;
-  let stateTaxBefore = 0, stateTaxAfter = 0;
-  if (stInfo.type === "flat") {
-   const surtax = stInfo.surtax || null;
-   stateTaxBefore = yearlyInc * stFlatRate + (surtax && yearlyInc > surtax.threshold ? (yearlyInc - surtax.threshold) * surtax.rate : 0);
-   const stTaxableAfter = yearlyInc - Math.max(stStdDeduction, stateItemized);
-   stateTaxAfter = Math.max(0, stTaxableAfter) * stFlatRate + (surtax && stTaxableAfter > surtax.threshold ? (stTaxableAfter - surtax.threshold) * surtax.rate : 0);
-  } else if (stInfo.type === "progressive") {
-   const stTaxableIncome = yearlyInc - Math.max(stStdDeduction, stateItemized);
-   stateTaxBefore = progressiveTax(yearlyInc - stStdDeduction, stBrackets);
-   stateTaxAfter = progressiveTax(stTaxableIncome, stBrackets);
-  }
-  const stateSavings = stateTaxBefore - stateTaxAfter;
-  const totalTaxSavings = Math.max(0, fedSavings) + Math.max(0, stateSavings);
-  // ── Delta Analysis (Chris's CPA explanation) ──
-  const fedDelta = Math.max(0, fedItemized - fedStdDeduction);
-  const fedItemizes = fedItemized > fedStdDeduction;
-  const stateDelta = Math.max(0, stateItemized - stStdDeduction);
-  const stateItemizes = stateItemized > stStdDeduction;
-  // Bracket waterfall — show which brackets the delta comes off of, top-down
-  const bracketWaterfall = (income, delta, brackets) => {
-   if (delta <= 0 || income <= 0) return [];
-   const taxableBeforeDelta = income; // income after std deduction already applied
-   const result = [];
-   let remaining = delta;
-   // Walk brackets from top down
-   for (let i = brackets.length - 1; i >= 0 && remaining > 0; i--) {
-    const b = brackets[i];
-    const bMax = b.max === Infinity || b.max === null ? taxableBeforeDelta : Math.min(b.max, taxableBeforeDelta);
-    if (taxableBeforeDelta <= b.min) continue;
-    const incomeInBracket = bMax - b.min;
-    const taxableInThisBracket = Math.min(remaining, Math.max(0, taxableBeforeDelta - b.min), incomeInBracket);
-    if (taxableInThisBracket <= 0) continue;
-    result.push({ rate: b.rate, amount: taxableInThisBracket, savings: taxableInThisBracket * b.rate });
-    remaining -= taxableInThisBracket;
-   }
-   return result;
-  };
-  const fedTaxableBeforeDelta = Math.max(0, yearlyInc - fedStdDeduction);
-  const fedWaterfall = bracketWaterfall(fedTaxableBeforeDelta, fedDelta, fedBrackets);
-  const stTaxableBeforeDelta = Math.max(0, yearlyInc - stStdDeduction);
-  const stWaterfall = stInfo.type === "progressive" ? bracketWaterfall(stTaxableBeforeDelta, stateDelta, stBrackets) : [];
-  // Top marginal rate (for the plain-English explanation)
-  const fedTopRate = fedWaterfall.length > 0 ? fedWaterfall[0].rate : 0;
-  const stTopRate = stWaterfall.length > 0 ? stWaterfall[0].rate : (stInfo.type === "flat" ? stFlatRate : 0);
-  const combinedTopRate = fedTopRate + stTopRate;
+  // Tax-savings engine extracted to lib/finance.js (audit M-1) — year-1 estimate.
+  const {
+   fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit,
+   totalMortInt, deductibleLoanPct, fedMortInt, fedItemized, stateMortInt, stateItemized,
+   fedTaxBefore, fedTaxAfter, fedSavings, stateTaxBefore, stateTaxAfter, stateSavings,
+   totalTaxSavings, fedDelta, fedItemizes, stateDelta, stateItemizes,
+   fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
+   fedTaxableBeforeDelta, stTaxableBeforeDelta,
+  } = computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate });
   const monthlyTaxSavings = totalTaxSavings / 12;
   const afterTaxPayment = housingPayment - monthlyTaxSavings;
   const monthlyPrinReduction = pi - (loan * mr);
@@ -3889,20 +3488,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const aprFinanceCharges = (pointsCost || 0) + (fhaUp || 0) + (vaFundingFee || 0) + (usdaFee || 0) + (underwritingFee || 0) + (processingFee || 0);
   const apr = calcAPR(loan, rate, term, aprFinanceCharges);
   const extra = payExtra ? extraPayment : 0;
-  const amortSchedule = [], amortStandard = [];
-  let bal = loan, stdBal = loan;
-  let totalIntWithExtra = 0, totalIntStandard = 0;
-  const yearlyData = [];
-  let yrInt = 0, yrPrin = 0, yrStdInt = 0, yrStdPrin = 0;
-  for (let m = 1; m <= np; m++) {
-   if (bal > 0.01) { const intPmt = bal * mr; const prinPmt = Math.min(bal, pi - intPmt); const extraPmt = Math.min(bal - prinPmt, extra); const newBal = Math.max(0, bal - prinPmt - extraPmt); totalIntWithExtra += intPmt; yrInt += intPmt; yrPrin += prinPmt + extraPmt; amortSchedule.push({ m, int: intPmt, prin: prinPmt, extra: extraPmt, bal: newBal, pmt: pi }); bal = newBal; }
-   if (stdBal > 0.01) { const si = stdBal * mr; const sp = Math.min(stdBal, pi - si); totalIntStandard += si; yrStdInt += si; yrStdPrin += sp; amortStandard.push({ m, int: si, prin: sp, bal: Math.max(0, stdBal - sp) }); stdBal = Math.max(0, stdBal - sp); }
-   if (m % 12 === 0 || m === np || (bal <= 0.01 && amortSchedule.length === m)) { yearlyData.push({ year: Math.ceil(m / 12), int: yrInt, prin: yrPrin, stdInt: yrStdInt, stdPrin: yrStdPrin, bal, stdBal }); yrInt = 0; yrPrin = 0; yrStdInt = 0; yrStdPrin = 0; }
-  }
-  const intSaved = totalIntStandard - totalIntWithExtra;
-  const monthsSaved = amortStandard.length - amortSchedule.length;
-  const lastPayDate = amortSchedule.length > 0 ? new Date(new Date().getFullYear(), new Date().getMonth() + amortSchedule.length, 1) : null;
-  const firstPayDate = new Date(closeDate.getFullYear(), closeDate.getMonth() + 2, 1);
+  // Amortization engine extracted to lib/finance.js (audit M-1).
+  const { amortSchedule, amortStandard, totalIntWithExtra, totalIntStandard, yearlyData, intSaved, monthsSaved, lastPayDate, firstPayDate } =
+   buildAmortization({ loan, mr, np, pi, extra, closeDate });
   // In refi mode, override displayPayment to use the new refi P&I so donut matches "New" box
   const finalDisplayPayment = (isRefi && refiNewLoanAmt > 0)
    ? (includeEscrow ? (refiNewPi + refiNewMonthlyTax + refiNewMonthlyIns + refiNewMI + hoa) : (refiNewPi + refiNewMI + hoa))
@@ -4012,9 +3600,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // fast forward to start
     if (startMonth > 1) {
      const paid = startMonth - 1;
-     b = calc.loan * (Math.pow(1 + mr, np) - Math.pow(1 + mr, paid)) / (Math.pow(1 + mr, np) - 1);
+     b = balanceAfter(calc.loan, mr, np, paid);
     }
-    const bEnd = calc.loan * (Math.pow(1 + mr, np) - Math.pow(1 + mr, endMonth)) / (Math.pow(1 + mr, np) - 1);
+    const bEnd = balanceAfter(calc.loan, mr, np, endMonth);
     princPaid = b - (bEnd > 0 ? bEnd : 0);
     bal = bEnd > 0 ? bEnd : 0;
    }
@@ -4047,7 +3635,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      const cfY = nY - debtYr - miYr;
      if (y < yr) flows.push(cfY);
      else {
-      const bY = mr > 0 ? calc.loan * (Math.pow(1 + mr, np) - Math.pow(1 + mr, y * 12)) / (Math.pow(1 + mr, np) - 1) : calc.loan * (1 - y * 12 / np);
+      const bY = mr > 0 ? balanceAfter(calc.loan, mr, np, y * 12) : calc.loan * (1 - y * 12 / np);
       const sN = vV - (bY > 0 ? bY : 0) - vV * invSellerComm / 100 - vV * invSellClosing / 100;
       flows.push(cfY + sN);
      }
@@ -4080,63 +3668,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   salesPrice, appreciationRate, hoa, calc]);
  // === CALIFORNIA PROP 19 TRANSFER CALCULATIONS ===
  const prop19 = useMemo(() => {
-  // Replacement home = the main calc's subject property.
-  const replacementPrice = salesPrice;
-  // Auto county rate via the same chain the main calc uses.
+  // Prop 19 engine extracted to lib/finance.js (audit M-1; incl. the L-6
+  // local-midnight date-parse fix for the 730-day window check).
   const autoCountyRate = propertyState === "California"
    ? (CITY_TAX_RATES[city] || 0.012)
    : 0.012;
-  const countyRate = prop19RateOverride > 0
-   ? prop19RateOverride / 100
-   : autoCountyRate;
-  // Core Prop 19 rule:
-  //   If replacementPrice <= oldSalePrice: newTaxableValue = oldTaxableValue
-  //   Else:                                 newTaxableValue = oldTaxableValue + (replacementPrice - oldSalePrice)
-  const oldTV = Math.max(0, prop19OldTaxableValue);
-  const oldSP = Math.max(0, prop19OldSalePrice);
-  const sameOrLower = replacementPrice <= oldSP;
-  const newTaxableValue = sameOrLower
-   ? oldTV
-   : oldTV + (replacementPrice - oldSP);
-  // CA homeowner's exemption ($7,000) applies on primary residence.
-  const isPrimary = loanPurpose === "Purchase Primary";
-  const exemption = isPrimary ? 7000 : 0;
-  const netTaxable = Math.max(0, newTaxableValue - exemption);
-  const fixedAssess = fixedAssessments || 0;
-  const prop19BaseTax = netTaxable * countyRate;
-  const prop19Annual = prop19BaseTax + fixedAssess;
-  const prop19Monthly = prop19Annual / 12;
-  // Compare vs. full reassessment (what they'd pay without Prop 19)
-  const fullReassessNet = Math.max(0, replacementPrice - exemption);
-  const fullReassessBaseTax = fullReassessNet * countyRate;
-  const fullReassessAnnual = fullReassessBaseTax + fixedAssess;
-  const fullReassessMonthly = fullReassessAnnual / 12;
-  const annualSavings = fullReassessAnnual - prop19Annual;
-  const monthlySavings = annualSavings / 12;
-  const tenYearSavings = annualSavings * 10;
-  const thirtyYearSavings = annualSavings * 30;
-  // Eligibility sanity checks (informational — not gating)
-  const warnings = [];
-  if (replacementPrice <= 0) warnings.push("Enter a replacement home price in Setup.");
-  if (oldTV <= 0) warnings.push("Enter your original home's current taxable value.");
-  if (oldSP <= 0) warnings.push("Enter your original home's sale price.");
-  if (prop19TransfersUsed >= 3) warnings.push("Prop 19 allows a maximum of 3 transfers. You've used 3 already.");
-  if (propertyState !== "California") warnings.push("Prop 19 transfers only apply to California replacement homes.");
-  if (prop19SaleDate && prop19PurchaseDate) {
-   const sd = new Date(prop19SaleDate);
-   const pd = new Date(prop19PurchaseDate);
-   const diffDays = Math.abs(pd - sd) / (1000 * 60 * 60 * 24);
-   if (diffDays > 730) warnings.push("Sale and purchase must be within 2 years (730 days) of each other. You're at " + Math.round(diffDays) + " days.");
-  }
-  return {
-   replacementPrice, oldTV, oldSP, sameOrLower,
-   newTaxableValue, netTaxable, countyRate, exemption,
-   prop19BaseTax, prop19Annual, prop19Monthly,
-   fullReassessBaseTax, fullReassessAnnual, fullReassessMonthly,
-   fixedAssessments: fixedAssess,
-   annualSavings, monthlySavings, tenYearSavings, thirtyYearSavings,
-   warnings,
-  };
+  return computeProp19({
+   replacementPrice: salesPrice,
+   autoCountyRate,
+   rateOverridePct: prop19RateOverride,
+   oldTaxableValue: prop19OldTaxableValue,
+   oldSalePrice: prop19OldSalePrice,
+   isPrimary: loanPurpose === "Purchase Primary",
+   fixedAssessments,
+   transfersUsed: prop19TransfersUsed,
+   saleDate: prop19SaleDate,
+   purchaseDate: prop19PurchaseDate,
+   isCalifornia: propertyState === "California",
+  });
  }, [
   salesPrice, city, propertyState, loanPurpose,
   prop19OldTaxableValue, prop19OldSalePrice, prop19RateOverride,
@@ -4169,7 +3718,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     cumBuyCost += annualHousing;
     // Principal paydown
     if (mr > 0 && yr * 12 <= np) {
-     bal = calc.loan * (Math.pow(1 + mr, np) - Math.pow(1 + mr, yr * 12)) / (Math.pow(1 + mr, np) - 1);
+     bal = balanceAfter(calc.loan, mr, np, yr * 12);
     } else if (mr === 0) {
      bal = calc.loan * Math.max(0, 1 - yr * 12 / np);
     }
