@@ -1,0 +1,52 @@
+name: CI
+
+# Runs on every push and PR to main. This is the safety net the CIO audit
+# asked for: nothing ran `npm test` automatically before, so a regression in
+# the finance engine (or a broken build) only surfaced if someone remembered
+# to run it locally. Now every push gets checked.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel an in-progress run if you push again to the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The money math — 24 unit tests in src/lib/finance.test.js. Fails the
+      # whole run if any test breaks, blocking the merge/marking the push red.
+      - name: Run tests
+        run: npm test
+
+      # Confirms the app still compiles (catches the spread-prop / undefined
+      # component class of bug that the Vite build *does* catch at build time).
+      - name: Build
+        run: npm run build
+
+      # Lint is informational only (continue-on-error) for two reasons:
+      #  1) the repo has a large backlog of pre-existing unused-var warnings,
+      #  2) ESLint currently OOMs on the 6,374-line MortgageBlueprint.jsx,
+      # so we lint the extracted, clean subtrees and never block on it.
+      # Remove continue-on-error once the monolith is split and the backlog clears.
+      - name: Lint (informational)
+        continue-on-error: true
+        run: npx eslint src/lib src/content api
