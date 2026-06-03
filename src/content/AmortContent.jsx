@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -8,7 +9,10 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 // amortization curve, after which the marginal change row-to-row gets small.
 const MONTHLY_COLLAPSED_ROWS = 30;
 
-export default function AmortContent({
+export default function AmortContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("AmortContent", props, ["T", "isDesktop", "calc", "fmt", "payExtra", "setPayExtra", "extraPayment", "setExtraPayment", "amortView", "setAmortView", "term", "rate", "salesPrice", "appreciationRate", "setAppreciationRate", "isPulse", "markTouched", "Hero", "Card", "Inp", "Tab", "MRow", "AmortChart", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt,
   payExtra, setPayExtra, extraPayment, setExtraPayment,
   amortView, setAmortView,
@@ -17,7 +21,8 @@ export default function AmortContent({
   isPulse, markTouched,
   Hero, Card, Inp, Tab, MRow, AmortChart,
   GuidedNextButton,
-}) {
+} = props;
+
   // Local collapse state for the Monthly schedule. We default to collapsed
   // every time the component mounts — long tables are intimidating and the
   // user can opt in to the full list with one tap. State resets on

@@ -6,22 +6,13 @@
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — property details don't change often
 
-const ALLOWED_ORIGINS = [
-  "https://blueprint.realstack.app",
-  "https://mortgage-blueprint.vercel.app",
-  "http://localhost:5173", // local dev
-];
+import { applyCors } from "./_cors.js";
+import { rateLimited } from "./_ratelimit.js";
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  } else {
-    res.setHeader("Access-Control-Allow-Origin", "https://blueprint.realstack.app");
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
+  if (applyCors(req, res)) return;
+  if (rateLimited(req, res, { limit: 30 })) return;
 
   const apiKey = process.env.RAPIDAPI_KEY;
   if (!apiKey) {

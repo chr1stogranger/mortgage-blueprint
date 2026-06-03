@@ -1,4 +1,5 @@
 import { useState, useEffect, Component } from 'react'
+import * as Sentry from '@sentry/react'
 import MortgageBlueprint from './MortgageBlueprint'
 import BlueprintAuth from './BlueprintAuth'
 import BorrowerAuthGate from './components/BorrowerAuthGate'
@@ -14,6 +15,10 @@ class ShareFlowErrorBoundary extends Component {
   }
   componentDidCatch(error, errorInfo) {
     console.error('[ShareFlow] Error caught by boundary:', error, errorInfo);
+    // Report to Sentry (no-op if VITE_SENTRY_DSN is unset — init is in main.jsx).
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.captureException(error, { tags: { flow: 'share' }, contexts: { react: { componentStack: errorInfo?.componentStack } } });
+    }
   }
   render() {
     if (this.state.hasError) {

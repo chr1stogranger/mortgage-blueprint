@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -65,7 +66,10 @@ function InlineEditValue({ value, onChange, T }) {
   );
 }
 
-export default function CalculatorContent({
+export default function CalculatorContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "annualIns", "setAnnualIns", "hoa", "setHoa", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
   salesPrice, setSalesPrice, city, taxState,
@@ -102,7 +106,8 @@ export default function CalculatorContent({
   allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck,
   PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon,
   GuidedNextButton, ClusterContinue,
-}) {
+} = props;
+
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);

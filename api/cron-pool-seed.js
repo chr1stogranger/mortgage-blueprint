@@ -24,8 +24,13 @@ export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   // Vercel cron sends Authorization: Bearer <CRON_SECRET>
-  // If CRON_SECRET isn't configured at all (local dev), allow through.
+  // FAIL CLOSED in production: if CRON_SECRET is missing there, refuse to run
+  // rather than leaving a RapidAPI-burning endpoint open (CIO audit L-5).
+  // Local dev (no secret, not production) is still allowed through.
   const secret = process.env.CRON_SECRET;
+  if (!secret && process.env.VERCEL_ENV === 'production') {
+    return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  }
   if (secret) {
     const auth = req.headers.authorization || '';
     if (auth !== `Bearer ${secret}`) {
@@ -44,7 +49,12 @@ export default async function handler(req, res) {
     const url = `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market)}&fresh=1`;
     const t0 = Date.now();
     try {
-      const r = await fetch(url, { method: 'GET' });
+      // Forward the cron secret — sold-comps now requires it to honor fresh=1
+      // (the forced-discovery flag is ignored for unauthenticated callers).
+      const r = await fetch(url, {
+        method: 'GET',
+        headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+      });
       const j = await r.json();
       return {
         market,

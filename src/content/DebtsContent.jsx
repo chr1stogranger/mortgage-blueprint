@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -151,7 +152,10 @@ function TotalCell({ children, align = "right", T }) {
   );
 }
 
-export default function DebtsContent({
+export default function DebtsContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt,
   debts, debtFree, setDebtFree,
   ownsProperties, setOwnsProperties,
@@ -160,7 +164,8 @@ export default function DebtsContent({
   guideTouched, markTouched, isPulse,
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton,
-}) {
+} = props;
+
   const [expandedRowId, setExpandedRowId] = useState(null);
   const toggleExpand = (id) => setExpandedRowId(expandedRowId === id ? null : id);
 

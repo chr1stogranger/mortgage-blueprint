@@ -1,21 +1,48 @@
 // /api/listings — Search listings via Real-Time Real-Estate Data (RapidAPI)
+// NOTE: this file is CommonJS (the rest of /api is ESM), so it can't import
+// the shared api/_cors.js / _ratelimit.js helpers — the same allow-list and a
+// mini rate limiter are inlined here. Keep the origin list in sync with _cors.js.
 var https = require("https");
 
 var ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",
   "https://mortgage-blueprint.vercel.app",
+  "https://localhost",        // Capacitor iOS/Android native app
+  "capacitor://localhost",
   "http://localhost:5173",
+  "http://localhost:4173",
 ];
+
+// In-memory per-IP rate limit (per warm instance) — mirrors api/_ratelimit.js
+var rlBuckets = new Map();
+function rateLimitedCjs(req, res, limit) {
+  var xff = req.headers["x-forwarded-for"];
+  var ip = (typeof xff === "string" && xff.length > 0) ? xff.split(",")[0].trim() : (req.headers["x-real-ip"] || "unknown");
+  var now = Date.now();
+  var hits = (rlBuckets.get(ip) || []).filter(function (t) { return now - t < 60000; });
+  hits.push(now);
+  rlBuckets.set(ip, hits);
+  if (hits.length > limit) {
+    res.setHeader("Retry-After", "60");
+    res.status(429).json({ error: "Too many requests — try again in a minute." });
+    return true;
+  }
+  return false;
+}
 
 module.exports = function handler(req, res) {
   var origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.some(function(o) { return origin.indexOf(o) === 0; })) {
+  // Exact match — indexOf===0 would let https://blueprint.realstack.app.evil.com through.
+  if (origin && ALLOWED_ORIGINS.indexOf(origin) >= 0) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   } else {
     res.setHeader("Access-Control-Allow-Origin", "https://blueprint.realstack.app");
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (rateLimitedCjs(req, res, 30)) return;
 
   var apiKey = process.env.RAPIDAPI_KEY;
   if (!apiKey) {

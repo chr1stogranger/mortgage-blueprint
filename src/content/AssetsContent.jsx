@@ -1,4 +1,5 @@
 import React from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -9,12 +10,16 @@ const OWNER_OPTIONS = [
   { value: "Joint", label: "Joint" },
 ];
 
-export default function AssetsContent({
+export default function AssetsContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("AssetsContent", props, ["T", "isDesktop", "calc", "fmt", "assets", "addAsset", "updateAsset", "removeAsset", "Hero", "Card", "Progress", "Sec", "TextInp", "Inp", "Sel", "Note", "RESERVE_FACTORS", "ASSET_TYPES", "getReserveFactor", "loanType", "guideField", "isPulse", "markTouched", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset,
   Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note,
   RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType,
   guideField, isPulse, markTouched, GuidedNextButton,
-}) {
+} = props;
+
   // Defensive default — if AssetsContent renders before getReserveFactor wires through,
   // fall back to the static factors so the math still works.
   const rf = (type) => typeof getReserveFactor === "function"

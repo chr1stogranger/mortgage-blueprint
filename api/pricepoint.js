@@ -2,6 +2,9 @@
 // Proxies RapidAPI "Real-Time Real-Estate Data" to fetch active + recently sold listings
 // Caches results for 24 hours per location to minimize API calls
 
+import { applyCors } from "./_cors.js";
+import { rateLimited } from "./_ratelimit.js";
+
 // ─── In-memory cache (persists across warm invocations) ───
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
@@ -239,27 +242,14 @@ async function fetchAllPages(location, homeStatus, apiKey, apiHost, maxPages) {
   return all;
 }
 
-// ─── CORS ───
-const ALLOWED_ORIGINS = [
-  "https://blueprint.realstack.app",
-  "https://mortgage-blueprint.vercel.app",
-  "http://localhost:5173",
-];
-
 // Allow longer execution so multi-page fetches finish inside the timeout.
 export const config = { maxDuration: 60 };
 
 // ─── Main handler ───
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  } else {
-    res.setHeader("Access-Control-Allow-Origin", "https://blueprint.realstack.app");
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
+  if (applyCors(req, res)) return;
+  if (rateLimited(req, res, { limit: 30 })) return;
 
   try {
     const { zip, city, state, location: locParam, fresh, debug } = req.query;

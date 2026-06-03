@@ -1,5 +1,6 @@
 import React from "react";
 import Icon from "../Icon";
+import { devCheckProps } from "../lib/devPropCheck.js";
 // AMI lookup retained in src/data/caAmi.js for future re-enabling, but no
 // longer rendered in the Debt to Income Summary card.
 
@@ -273,7 +274,10 @@ function DebtToIncomeSummary({
   );
 }
 
-export default function QualifyContent({
+export default function QualifyContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("QualifyContent", props, ["T", "isDesktop", "calc", "fmt", "pct", "isRefi", "loanType", "firstTimeBuyer", "downPct", "setDownPct", "creditScore", "setCreditScore", "refiPurpose", "refiLtvCheck", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "setTab", "handlePillarClick", "isPulse", "isTabUnlocked", "markTouched", "affordIncome", "affordDebts", "affordDown", "affordTerm", "affordRate", "affordLoanType", "affordTargetDTI", "setAffordTargetDTI", "debts", "debtFree", "salesPrice", "setSalesPrice", "rate", "setRate", "term", "setTerm", "setLoanType", "userLoanTypeRef", "setAutoJumboSwitch", "confirmAffordApply", "setConfirmAffordApply", "getHighBalLimit", "propType", "StopLight", "Card", "Sec", "Inp", "Note", "Progress", "Hero", "MRow", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt, pct,
   isRefi, loanType, firstTimeBuyer, downPct, setDownPct,
   creditScore, setCreditScore,
@@ -294,7 +298,8 @@ export default function QualifyContent({
   reos = [], propertyCounty = "", propertyState = "California",
   StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow,
   GuidedNextButton,
-}) {
+} = props;
+
   // Affordability inputs: prefer the synced state (when user lands on Qualify/Overview the parent's
   // useEffect copies calc.X into these), but fall back to live calc values so the calc never
   // reports "debts exceed DTI" just because the sync hasn't run yet (data loads async on first render).

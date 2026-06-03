@@ -1,9 +1,13 @@
 import React from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
-export default function TaxContent({
+export default function TaxContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt,
   loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate,
   married, setMarried, FILING_STATUSES,
@@ -14,7 +18,8 @@ export default function TaxContent({
   isPulse, markTouched, setTab,
   Hero, Card, Sec, Inp, Sel, Note, MRow,
   GuidedNextButton,
-}) {
+} = props;
+
   return (<>
 
 {/* ── SECOND HOME: No tax savings applicable ── */}

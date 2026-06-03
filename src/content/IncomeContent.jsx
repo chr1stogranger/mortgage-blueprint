@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -901,7 +902,10 @@ function EmployerGroup({
 }
 
 // ─── Main component ─────────────────────────────────────────────────
-export default function IncomeContent({
+export default function IncomeContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("IncomeContent", props, ["T", "isDesktop", "calc", "fmt", "incomes", "addIncome", "updateIncome", "removeIncome", "removeBorrower", "otherIncome", "setOtherIncome", "otherIncome2", "setOtherIncome2", "setNumBorrowers", "setBorrowerNames", "setOtherIncomeByBorrower", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "VARIABLE_PAY_TYPES", "PAY_TYPES", "loanType", "isPulse", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt,
   incomes, addIncome, updateIncome, removeIncome, removeBorrower,
   otherIncome, setOtherIncome, otherIncome2, setOtherIncome2,
@@ -911,7 +915,8 @@ export default function IncomeContent({
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   VARIABLE_PAY_TYPES, PAY_TYPES, loanType,
   isPulse, GuidedNextButton,
-}) {
+} = props;
+
   const ACCENT = T.blue;
   const SUB_BG = `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`;
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);

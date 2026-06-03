@@ -1,16 +1,21 @@
 import React from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
-export default function RentVsBuyContent({
+export default function RentVsBuyContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("RentVsBuyContent", props, ["T", "isDesktop", "calc", "fmt", "rbCalc", "rbCurrentRent", "setRbCurrentRent", "rbRentGrowth", "setRbRentGrowth", "rbInvestReturn", "setRbInvestReturn", "Hero", "Card", "Sec", "Inp", "Note", "MRow", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt, rbCalc,
   rbCurrentRent, setRbCurrentRent,
   rbRentGrowth, setRbRentGrowth,
   rbInvestReturn, setRbInvestReturn,
   Hero, Card, Sec, Inp, Note, MRow,
   GuidedNextButton,
-}) {
+} = props;
+
   return (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Summary (sticky) */}

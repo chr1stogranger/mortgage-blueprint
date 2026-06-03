@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import SellContent from "./SellContent";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -21,7 +22,10 @@ function AutoBadge({ T }) {
    Below: per-row expand for linked debts / equity / DTI impact details.
    Bottom: Planning-to-sell card + DTI Impact summary card.
    ═══════════════════════════════════════════════════════════════ */
-export default function ReoContent({
+export default function ReoContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("ReoContent", props, ["T", "isDesktop", "calc", "fmt", "reos", "addReo", "updateReo", "removeReo", "syncReoPayment", "syncReoBalance", "debts", "setReos", "debtFree", "hasSellProperty", "setHasSellProperty", "sellLinkedReoId", "setSellLinkedReoId", "setSellPrice", "setSellMortgagePayoff", "setSellPrimaryRes", "ownsProperties", "setOwnsProperties", "Hero", "Card", "Sec", "Inp", "Sel", "TextInp", "Note", "Progress", "REO_PROPERTY_TYPES", "REO_OCCUPANCY_TYPES", "isPulse", "markTouched", "GuidedNextButton", "sellPrice", "sellMortgagePayoff", "sellCommission", "setSellCommission", "sellTransferTaxCity", "setSellTransferTaxCity", "sellEscrow", "setSellEscrow", "sellTitle", "setSellTitle", "sellOther", "setSellOther", "sellSellerCredit", "setSellSellerCredit", "sellCostBasis", "setSellCostBasis", "sellImprovements", "setSellImprovements", "sellYearsOwned", "setSellYearsOwned", "sellPrimaryRes", "married", "taxState", "TT_CITY_NAMES", "getTTForCity", "MRow"]);
+  const {
   T, isDesktop, calc, fmt,
   reos, addReo, updateReo, removeReo,
   syncReoPayment, syncReoBalance,
@@ -51,7 +55,8 @@ export default function ReoContent({
   sellPrimaryRes,
   married, taxState,
   TT_CITY_NAMES, getTTForCity, MRow,
-}) {
+} = props;
+
   // Default the inline Seller Net to OPEN once the user picks "yes" so they
   // see the calculator immediately. They can still collapse via the chevron.
   const [sellExpanded, setSellExpanded] = useState(true);

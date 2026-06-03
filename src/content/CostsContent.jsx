@@ -1,6 +1,7 @@
 import React, { useState, useContext, createContext, useMemo } from "react";
 import Icon from "../Icon";
 import CashToCloseSummary from "../components/CashToCloseSummary";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -600,7 +601,10 @@ function EscrowCalendar({
 // CashToCloseSummary moved to ../components/CashToCloseSummary so the Calculator
 // tab can use the same card. Imported at the top of this file.
 
-export default function CostsContent({
+export default function CostsContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
+  const {
   T, isDesktop, calc, fmt, fmt2,
   isRefi, downPct,
   underwritingFee, setUnderwritingFee,
@@ -641,7 +645,8 @@ export default function CostsContent({
   GuidedNextButton,
   // Guided-mode wiring (forwarded by OverviewTab / the standalone costs site).
   skillLevel, isPulse, markTouched, ClusterContinue,
-}) {
+} = props;
+
   const isGuided = skillLevel === "guided";
   // Section-level lock state — closing-cost subsections (A, B, C, E, H) start LOCKED for clean read-only view.
   const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, F: true, H: true });

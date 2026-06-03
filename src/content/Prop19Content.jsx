@@ -1,9 +1,13 @@
 import React from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
-export default function Prop19Content({
+export default function Prop19Content(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("Prop19Content", props, ["T", "isDesktop", "fmt", "prop19", "prop19Eligibility", "setProp19Eligibility", "prop19OldTaxableValue", "setProp19OldTaxableValue", "prop19OldSalePrice", "setProp19OldSalePrice", "prop19SaleDate", "setProp19SaleDate", "prop19PurchaseDate", "setProp19PurchaseDate", "prop19TransfersUsed", "setProp19TransfersUsed", "city", "propertyCounty", "prop19RateOverride", "setProp19RateOverride", "fixedAssessments", "setFixedAssessments", "Hero", "Card", "Sec", "Inp", "Note", "MRow"]);
+  const {
   T, isDesktop, fmt,
   prop19,
   prop19Eligibility, setProp19Eligibility,
@@ -16,7 +20,8 @@ export default function Prop19Content({
   prop19RateOverride, setProp19RateOverride,
   fixedAssessments, setFixedAssessments,
   Hero, Card, Sec, Inp, Note, MRow,
-}) {
+} = props;
+
   return (<>
 
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>

@@ -1,9 +1,13 @@
 import React from "react";
+import { devCheckProps } from "../lib/devPropCheck.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
-export default function InvestContent({
+export default function InvestContent(props) {
+  // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
+  if (import.meta.env.DEV) devCheckProps("InvestContent", props, ["T", "isDesktop", "calc", "fmt", "invCalc", "invMonthlyRent", "setInvMonthlyRent", "invVacancy", "setInvVacancy", "invRentGrowth", "setInvRentGrowth", "invMgmt", "setInvMgmt", "invMaintPct", "setInvMaintPct", "invCapEx", "setInvCapEx", "hoa", "invHoldYears", "setInvHoldYears", "invSellerComm", "setInvSellerComm", "invSellClosing", "setInvSellClosing", "appreciationRate", "setAppreciationRate", "Hero", "Card", "Sec", "Inp", "MRow", "GuidedNextButton"]);
+  const {
   T, isDesktop, calc, fmt, invCalc,
   invMonthlyRent, setInvMonthlyRent,
   invVacancy, setInvVacancy,
@@ -17,7 +21,8 @@ export default function InvestContent({
   invSellClosing, setInvSellClosing,
   appreciationRate, setAppreciationRate,
   Hero, Card, Sec, Inp, MRow, GuidedNextButton,
-}) {
+} = props;
+
   return (<>
  <div style={isDesktop ? { display: "flex", gap: 24, marginTop: 20, alignItems: "flex-start" } : {}}>
  {/* LEFT: Hero + Inputs (sticky) */}

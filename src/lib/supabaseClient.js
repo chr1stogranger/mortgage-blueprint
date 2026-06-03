@@ -18,6 +18,30 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// ── Device identity header ──
+// Same localStorage key PricePoint's getDeviceId() uses (pricePointDB.js).
+// Implemented inline here (not imported) to avoid a circular import —
+// pricePointDB.js imports getSupabaseClient from this file.
+//
+// Why: the tightened RLS policies (migrations/011) bind pp_guesses /
+// pp_predictions / pp_players writes to the device that owns the player row,
+// read server-side via current_setting('request.headers')->>'x-device-id'.
+// Sending the header is harmless under the old permissive policies, so this
+// ships safely BEFORE the migration runs.
+const DEVICE_ID_KEY = 'pp-device-id';
+function readDeviceId() {
+  try {
+    let id = localStorage.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(DEVICE_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return 'unknown-device';
+  }
+}
+
 // Singleton — one client per app lifetime
 let client = null;
 
@@ -30,6 +54,9 @@ export function getSupabaseClient() {
   }
 
   client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: {
+      headers: { 'x-device-id': readDeviceId() },
+    },
     realtime: {
       params: {
         eventsPerSecond: 10,  // Rate limit to prevent flooding

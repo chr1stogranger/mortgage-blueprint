@@ -11,6 +11,8 @@
 // to avoid cascading timeout issues.
 
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from './_cors.js';
+import { rateLimited } from './_ratelimit.js';
 
 // Supabase admin client (server-side only â uses SERVICE key)
 function getSupabaseAdmin() {
@@ -304,11 +306,10 @@ const MARKETS = {
 const dailyCache = new Map();
 
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  // Scoped CORS + rate limit (replaces the old wildcard — this route touches
+  // both RapidAPI and Supabase, so it must not be callable from any website).
+  if (applyCors(req, res)) return;
+  if (rateLimited(req, res, { limit: 30 })) return;
 
   const marketId = (req.query.market || 'sf').toLowerCase();
   const reveal = req.query.reveal === 'true';

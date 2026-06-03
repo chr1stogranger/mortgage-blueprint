@@ -1,10 +1,30 @@
 import { StrictMode, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
+import * as Sentry from '@sentry/react'
 import store from './store/store'
 import './index.css'
 import App from './App.jsx'
 import { Capacitor } from '@capacitor/core'
+
+// ── Error tracking (CIO audit H-5) ──
+// Without this, production crashes are invisible — the PDF TypeError shipped
+// broken with no signal. A Sentry DSN is a PUBLIC identifier (safe in the
+// bundle, unlike an API secret), so the VITE_ prefix is correct here.
+// If VITE_SENTRY_DSN is not set, Sentry.init is skipped and everything below
+// no-ops — the app behaves exactly as before.
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    // Tag native vs web so App Store crashes are distinguishable.
+    initialScope: { tags: { platform: Capacitor.isNativePlatform() ? 'native' : 'web' } },
+    // Errors only — no session replay, no performance tracing, no PII capture.
+    sendDefaultPii: false,
+    tracesSampleRate: 0,
+  })
+}
 
 // ── Error Boundary ──
 class ErrorBoundary extends Component {
@@ -19,6 +39,10 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
+    // Report render crashes to Sentry (no-op when VITE_SENTRY_DSN is unset).
+    if (SENTRY_DSN) {
+      Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo?.componentStack } } });
+    }
   }
 
   render() {
