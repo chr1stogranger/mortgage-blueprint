@@ -2350,15 +2350,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const generatePdfHtml = () => {
   const c = calc;
-  const loName = loanOfficer || "Loan Officer";
-  const coName = companyName || "";
-  const bName = borrowerName || "Valued Client";
-  const propAddr = propertyTBD ? "TBD" : (propertyAddress || "");
-  const propLoc = `${city}, ${propertyState}${propertyZip ? " " + propertyZip : ""}`;
+  // Escape user-entered free text before interpolating into this HTML string.
+  // The result is written to a popup via document.write(), so any unescaped
+  // borrower/LO/realtor input (e.g. a name containing <img onerror=...>) would
+  // execute as script. esc() neutralizes the 5 HTML-significant characters.
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  const loName = esc(loanOfficer || "Loan Officer");
+  const coName = esc(companyName || "");
+  const bName = esc(borrowerName || "Valued Client");
+  const propAddr = propertyTBD ? "TBD" : esc(propertyAddress || "");
+  const propLoc = esc(`${city}, ${propertyState}${propertyZip ? " " + propertyZip : ""}`);
   const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const row = (l, v, bold, color) => `<tr><td style="padding:8px 16px;font-size:13px;color:#4a5568;border-bottom:1px solid #f0f0f0;${bold ? "font-weight:700;" : ""}">${l}</td><td style="padding:8px 16px;text-align:right;font-size:13px;font-weight:600;color:${color || "#1a202c"};border-bottom:1px solid #f0f0f0;font-family:system-ui">${v}</td></tr>`;
   const hdr = (t) => `<tr><td colspan="2" style="padding:14px 16px 6px;font-weight:700;font-size:13px;color:#2563eb;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #2563eb">${t}</td></tr>`;
-  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${scenarioName} - Loan Estimate</title><style>
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(scenarioName)} - Loan Estimate</title><style>
    *{box-sizing:border-box;margin:0;padding:0}
    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f8fc;color:#1a202c;-webkit-font-smoothing:antialiased}
    .wrapper{max-width:640px;margin:0 auto;background:#fff;border-radius:0}
@@ -2386,14 +2391,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </style></head><body><div class="wrapper">`;
 
   // HEADER
-  html += `<div class="header"><div class="header-top"><div class="lo-info"><h2>${loName}</h2><div class="title">Loan Officer${loNmls ? " · NMLS #" + loNmls : ""}</div></div><div class="lo-contact">`;
-  if (loPhone) html += `<div><a href="tel:${loPhone.replace(/\D/g,"")}">${loPhone}</a></div>`;
-  if (loEmail) html += `<div><a href="mailto:${loEmail}">${loEmail}</a></div>`;
+  html += `<div class="header"><div class="header-top"><div class="lo-info"><h2>${loName}</h2><div class="title">Loan Officer${loNmls ? " · NMLS #" + esc(loNmls) : ""}</div></div><div class="lo-contact">`;
+  if (loPhone) html += `<div><a href="tel:${loPhone.replace(/\D/g,"")}">${esc(loPhone)}</a></div>`;
+  if (loEmail) html += `<div><a href="mailto:${encodeURIComponent(loEmail)}">${esc(loEmail)}</a></div>`;
   html += `</div></div>`;
   if (realtorPartner) {
    html += `<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15)">`;
-   html += `<div><div style="font-size:14px;font-weight:600">${realtorPartner.name}</div><div style="font-size:11px;opacity:0.85">${realtorPartner.title || "Realtor"}${realtorPartner.brokerage ? " · " + realtorPartner.brokerage : ""}${realtorPartner.dre ? " · DRE #" + realtorPartner.dre : ""}</div></div>`;
-   if (realtorPartner.phone) html += `<div style="margin-left:auto;font-size:12px"><a href="tel:${realtorPartner.phone.replace(/\D/g,"")}" style="color:#fff">${realtorPartner.phone}</a></div>`;
+   html += `<div><div style="font-size:14px;font-weight:600">${esc(realtorPartner.name)}</div><div style="font-size:11px;opacity:0.85">${esc(realtorPartner.title || "Realtor")}${realtorPartner.brokerage ? " · " + esc(realtorPartner.brokerage) : ""}${realtorPartner.dre ? " · DRE #" + esc(realtorPartner.dre) : ""}</div></div>`;
+   if (realtorPartner.phone) html += `<div style="margin-left:auto;font-size:12px"><a href="tel:${realtorPartner.phone.replace(/\D/g,"")}" style="color:#fff">${esc(realtorPartner.phone)}</a></div>`;
    html += `</div>`;
   }
   html += `<div class="prepared-for">Prepared for<strong>${bName}</strong>${dateStr}</div>`;
@@ -2472,7 +2477,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    html += `</table>`;
 
    if (calc.yearlyInc > 0) {
-    html += `<table>${hdr("Qualification Snapshot")}${row("Gross Monthly Income",fmt(calc.monthlyGross))}${row("Front-End DTI (Housing)",calc.frontDti.toFixed(1)+"%")}${row("Back-End DTI (Total Debt)",calc.dti.toFixed(1)+"%")}${row("After-Tax Monthly Payment",fmt(calc.afterTaxPayment))}</table>`;
+    // calc exposes qualifyingIncome (monthly), housingPayment, and yourDTI (a
+    // fraction = totalPayment / qualifyingIncome). It does NOT define monthlyGross,
+    // frontDti, or dti — referencing those threw a TypeError that broke this PDF
+    // for every scenario with income. Front-end DTI = housing payment / income.
+    const frontDtiPct = calc.qualifyingIncome > 0 ? (calc.housingPayment / calc.qualifyingIncome) * 100 : 0;
+    const backDtiPct = (calc.yourDTI ?? 0) * 100;
+    html += `<table>${hdr("Qualification Snapshot")}${row("Gross Monthly Income",fmt(calc.qualifyingIncome))}${row("Front-End DTI (Housing)",frontDtiPct.toFixed(1)+"%")}${row("Back-End DTI (Total Debt)",backDtiPct.toFixed(1)+"%")}${row("After-Tax Monthly Payment",fmt(calc.afterTaxPayment))}</table>`;
    }
   }
 
@@ -2480,7 +2491,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   html += `</div>`;
 
   // FOOTER
-  html += `<div class="footer"><div class="footer-brand">${coName}${companyNmls ? " · NMLS #" + companyNmls : ""}</div>`;
+  html += `<div class="footer"><div class="footer-brand">${coName}${companyNmls ? " · NMLS #" + esc(companyNmls) : ""}</div>`;
   html += `<div class="footer-legal">DISCLAIMER: This is a hypothetical estimate generated for educational and illustrative purposes only. It does not constitute a loan offer, pre-approval, rate lock, or commitment to lend. All figures are approximate and based on general market assumptions. Actual rates, fees, and terms will vary based on individual credit profile, property details, and lender guidelines. Please consult a licensed mortgage professional for an official quote.</div>`;
   html += `<div class="footer-nmls">Generated by RealStack Blueprint · ${dateStr}</div>`;
   html += `</div></div></body></html>`;
