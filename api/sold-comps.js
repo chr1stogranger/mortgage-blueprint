@@ -277,7 +277,13 @@ export default async function handler(req, res) {
     // discovery pass. The slice still prefers fresh.
     const totalSize = pool.all.length;
 
-    if (!forceDiscover && totalSize >= POOL_THRESHOLD) {
+    // RentCast quota guard: if this market already has RentCast rows, a repeat
+    // discovery won't find more — RentCast already gave us everything it had.
+    // Without this, a small city stuck below POOL_THRESHOLD would burn one
+    // RentCast request on EVERY visit. Only the weekly cron (fresh=1) refreshes.
+    const alreadyRentcasted = pool.all.some(r => String(r.zpid).startsWith('rc_'));
+
+    if (!forceDiscover && (totalSize >= POOL_THRESHOLD || alreadyRentcasted)) {
       const { rows: shuffled, tier } = pickShuffledSlice(pool);
       res.setHeader("Cache-Control", "no-store");
       return res.status(200).json({
@@ -429,7 +435,9 @@ function poolRowToListing(r) {
     status: 'sold',
     photo: isUsablePhoto(r.photo) ? r.photo : null,
     photos: Array.isArray(r.photos) ? r.photos.filter(isUsablePhoto).slice(0, 6) : [],
-    neighborhood: r.neighborhood || '',
+    // cleanNeighborhood on READ too — scrubs the legal-parcel junk already
+    // persisted in existing pool rows without needing a migration.
+    neighborhood: cleanNeighborhood(r.neighborhood) || '',
     pricePerSqft: (r.sqft && r.sold_price) ? Math.round(r.sold_price / r.sqft) : 0,
     latitude: r.latitude || null,
     longitude: r.longitude || null,
@@ -580,6 +588,19 @@ async function discoverSoldViaRentCast(city, marketId, ingestCutoff, excludeSet,
   return { rows, diag };
 }
 
+// County "subdivision" values are often legal parcel descriptions, not
+// neighborhood names ("PARCEL MAP OF 987 DE HARO STREET", "TRACT 7512",
+// "LOT 4 BLOCK A" …). Those leak into the card AND the challenge share text.
+// Only pass through values that plausibly read like a neighborhood.
+function cleanNeighborhood(name) {
+  if (!name || typeof name !== 'string') return null;
+  const n = name.trim();
+  if (n.length < 3 || n.length > 40) return null;
+  if (/\d{3,}/.test(n)) return null; // long digit runs = legal/parcel refs
+  if (/\b(PARCEL|MAP|TRACT|LOT|BLOCK|SURVEY|SUBDIVISION|RESUB|PORTION|ASSESSOR|RECORD|FILED|CONDO PLAN|PLAN NO)\b/i.test(n)) return null;
+  return n;
+}
+
 // Map one RentCast property record → pp_property_pool row. Returns null when
 // the record has no usable sale, is outside the ingest window, or wouldn't
 // make a sensible game card (no living area, or a land-only parcel).
@@ -601,7 +622,7 @@ function rentcastRecordToPoolRow(d, marketId, ingestCutoff) {
     city: d.city || null,
     state: d.state || 'CA',
     zip: d.zipCode || null,
-    neighborhood: d.subdivision || null,
+    neighborhood: cleanNeighborhood(d.subdivision),
     beds: d.bedrooms ?? null,
     baths: d.bathrooms ?? null,
     sqft: d.squareFootage || null,
