@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
 import { apiUrl, API_BASE } from './apiBase';
+import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
   submitGuess, submitPrediction, syncPlayerXP,
@@ -19,6 +20,19 @@ const NO_PHOTO = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'
 // onError handler: swap to the placeholder once, and clear the handler so a
 // failing placeholder can never loop.
 const onPhotoError = (e) => { e.target.onerror = null; e.target.src = NO_PHOTO; };
+
+// ── App Store upsell (challenge recipients) ──
+// Shown only to iOS visitors on the WEB app: native users already have the
+// app, Android has no app yet, and desktop can't install it. Newer iPads
+// report "Macintosh" in the UA, so also treat touch-Macs as iPads.
+const APP_STORE_URL = "https://apps.apple.com/app/id6773117288";
+const isIOSWebVisitor = (() => {
+  try {
+    if (Capacitor.isNativePlatform()) return false;
+    const ua = navigator.userAgent || "";
+    return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  } catch { return false; }
+})();
 
 // ═══════════════════════════════════════════════════════════════
 // PRICEPOINT — Daily Real Estate Price Challenge
@@ -2200,6 +2214,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </button>
             )}
             {onShare && <PillButton onClick={() => onShare(result)} accent style={{ marginBottom: 10 }}>{onChallenge ? "Share" : "Share Your Result"}</PillButton>}
+            {/* App Store upsell — the highest-converting moment: a challenge
+                recipient who just played on the mobile web. iOS web only. */}
+            {comparison && isIOSWebVisitor && (
+              <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 8, padding: 13, marginBottom: 10, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #06B6D4, #3B82F6)", textDecoration: "none", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT, boxShadow: "0 0 20px rgba(6,182,212,0.3)" }}>
+                <Icon name="smartphone" size={15} /> Get the RealStack App
+              </a>
+            )}
             {result.detailUrl && (
               <a href={result.detailUrl.startsWith("http") ? result.detailUrl : `https://www.zillow.com${result.detailUrl}`} target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 6, padding: 12, marginBottom: 10, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: "transparent", textDecoration: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, transition: "all 0.2s" }}
