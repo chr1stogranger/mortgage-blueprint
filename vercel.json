@@ -47,7 +47,7 @@
   "crons": [
     {
       "path": "/api/cron-pool-seed",
-      "schedule": "0 6 * * *"
+      "schedule": "0 6 * * 1"
     },
     {
       "path": "/api/cron-resolve",

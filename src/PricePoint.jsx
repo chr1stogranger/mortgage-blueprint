@@ -842,7 +842,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   const fetchingRef = useRef({}); // track in-flight fetches to avoid duplicates
   const fetchPropertyDetails = useCallback(async (zpid) => {
-    if (!zpid) return;
+    // rc_-prefixed ids are RentCast county records — they have no Zillow
+    // property-details, so skip the fetch entirely (saves RapidAPI quota).
+    if (!zpid || String(zpid).startsWith('rc_')) return;
     // Already have it cached WITH content — just ensure state is synced
     const cached = detailsCacheRef.current[zpid];
     if (cached && (cached.photos?.length > 0 || cached.description)) {
@@ -1909,9 +1911,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, listing, FONT, MONO }) => {
     const [idx, setIdx] = useState(0);
     const touchStartX = useRef(null);
-    const basePhotos = photos && photos.length > 0 ? photos : [fallbackPhoto || NO_PHOTO];
-    // Append map as last slide if lat/lng available
     const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
+    // Real photos first; else the single fallback photo; else let the map be
+    // the hero (licensed sources like RentCast carry no photos); placeholder
+    // only when there's nothing else to show.
+    const basePhotos = photos && photos.length > 0 ? photos : (fallbackPhoto ? [fallbackPhoto] : (mapUrl ? [] : [NO_PHOTO]));
+    // Append map as last slide if lat/lng available
     const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
     const photoCount = basePhotos.length; // real photos only (for counter display)
     const count = allPhotos.length;

@@ -33,7 +33,10 @@ function getSupabaseAdmin() {
 }
 
 // ─── Pool config ───
-const POOL_THRESHOLD = 5;                  // below this, run discovery to grow
+const POOL_THRESHOLD = 40;                 // below this, run discovery to grow. Raised from 5
+                                           // with the RentCast source: one licensed call can fill
+                                           // a whole city, so thin pools (like Alameda's stuck-at-5)
+                                           // now self-heal on the next organic visit.
 const POOL_QUERY_LIMIT = 1000;             // pull up to N pool rows on read
 const RESPONSE_SHUFFLE_CAP = 250;          // default shuffled slice size (was 50 — the
                                            // old ceiling that capped Free Play at 50).
@@ -42,8 +45,8 @@ const RESPONSE_SHUFFLE_CAP = 250;          // default shuffled slice size (was 5
 const SOLD_SEARCH_PAGES = 6;               // recentlySold pages to page through (~40 each)
 const ACTIVE_DEDUP_PAGES = 4;              // forSale pages used only to strip relabeled-active
 const MIN_SEARCH_YIELD = 12;               // below this, fall back to the next discovery tier
-const USRE_MAX_PAGES = 5;                  // us-real-estate /sold-homes pages (~42 each → ~200/city).
-                                           // Each page = 1 RapidAPI call; tune for your plan's quota.
+const RENTCAST_SALE_DAYS = 365;            // "sold within the last N days" window for RentCast discovery
+const RENTCAST_PAGE_LIMIT = 500;           // RentCast max records per call — one call seeds a whole city
 // TIERED sold-date window:
 //   - ingest accepts anything within the last 12 months (broader pool capture)
 //   - on read, 0-6mo entries are PREFERRED; 6-12mo entries only fill in when
@@ -194,34 +197,31 @@ export default async function handler(req, res) {
     const responseCap = Math.min(500, Math.max(10, parseInt(req.query.limit, 10) || RESPONSE_SHUFFLE_CAP));
 
     // ─── TEMP PROBE: &probe=1 (owner-only) ───
-    // Calls the us-real-estate /sold-homes endpoint and dumps a redacted shape
+    // Calls the RentCast /v1/properties endpoint and dumps a redacted shape
     // summary so we can confirm the mapper. REMOVE once verified.
-    // Gated behind CRON_SECRET so anonymous callers can't trigger raw RapidAPI
-    // calls or read response internals (CIO audit H-2 / L-2).
+    // Gated behind CRON_SECRET so anonymous callers can't trigger raw
+    // provider calls or read response internals (CIO audit H-2 / L-2).
     if (req.query.probe === '1' && isPrivileged(req)) {
-      const apiKey = process.env.RAPIDAPI_KEY;
-      const soldHost = process.env.USRE_HOST || 'us-real-estate.p.rapidapi.com';
-      if (!apiKey) return res.status(500).json({ error: 'RAPIDAPI_KEY not configured' });
-      const url = `https://${soldHost}/sold-homes?state_code=CA&city=${encodeURIComponent(city)}&limit=42&offset=0&sort=sold_date`;
+      const rcKey = process.env.RENTCAST_API_KEY;
+      if (!rcKey) return res.status(500).json({ error: 'RENTCAST_API_KEY not configured' });
+      const url = `https://api.rentcast.io/v1/properties?city=${encodeURIComponent(city)}&state=CA&saleDateRange=${RENTCAST_SALE_DAYS}&limit=50&offset=0`;
       try {
-        const r = await fetch(url, { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': soldHost } });
+        const r = await fetch(url, { headers: { 'X-Api-Key': rcKey, 'Accept': 'application/json' } });
         const text = await r.text();
         let json = null; try { json = JSON.parse(text); } catch {}
-        const results = json ? extractUsreResults(json) : [];
-        const rows = results.map(d => usRealEstateItemToPoolRow(d, marketId, ingestCutoff)).filter(Boolean);
-        const stripQs = (u) => typeof u === 'string' ? u.split('?')[0] : u;
+        const results = Array.isArray(json) ? json : [];
+        const rows = results.map(d => rentcastRecordToPoolRow(d, marketId, ingestCutoff)).filter(Boolean);
         const r0 = rows[0] || null;
         res.setHeader('Cache-Control', 'no-store');
         return res.status(200).json({
           httpStatus: r.status,
-          rawResultCount: Array.isArray(results) ? results.length : 0,
+          rawResultCount: results.length,
           mappedRowCount: rows.length,
           firstMappedRow: r0 ? {
             zpid: r0.zpid, city: r0.city, state: r0.state, zip: r0.zip,
             beds: r0.beds, baths: r0.baths, sqft: r0.sqft, year_built: r0.year_built,
-            sold_price: r0.sold_price, sold_date: r0.sold_date, list_price: r0.list_price,
-            property_type: r0.property_type, hasPhoto: !!r0.photo, photoHost: r0.photo ? stripQs(r0.photo).replace(/^https?:\/\//,'').split('/')[0] : null,
-            photosCount: r0.photos.length, lat: r0.latitude, lon: r0.longitude,
+            sold_price: r0.sold_price, sold_date: r0.sold_date,
+            property_type: r0.property_type, lat: r0.latitude, lon: r0.longitude,
           } : null,
           rawBodyIfEmpty: rows.length === 0 ? text.slice(0, 300) : undefined,
         });
@@ -324,14 +324,15 @@ export default async function handler(req, res) {
     // payload), so there are NO per-zpid property-details calls. Relabeled-
     // active garbage is stripped by deduping against the forSale results.
     // This is the high-yield, low-cost path that fills a whole city in one pass.
-    // PRIMARY: us-real-estate /sold-homes — real closed sales at volume for any
-    // CA city, no curated zpid list needed. This is what fills Alameda/Berkeley/etc.
-    const usre = await discoverSoldViaUsRealEstate(
+    // PRIMARY: RentCast /v1/properties — licensed county-record sales at volume
+    // (up to 500 sold-within-a-year records per call) for any CA city, no
+    // curated zpid list needed. This is what fills Alameda/Berkeley/etc.
+    const rc = await discoverSoldViaRentCast(
       city, marketId, ingestCutoff, excludeSet, poolZpidSet
     );
-    let newRows = usre.rows;
-    let discoverySource = 'us-real-estate';
-    let funnelDbg = { usreRows: newRows.length, usreDiag: usre.diag };
+    let newRows = rc.rows;
+    let discoverySource = 'rentcast';
+    let funnelDbg = { rcRows: newRows.length, rcDiag: rc.diag };
 
     // SECONDARY: legacy recentlySold search (only if us-real-estate came back thin).
     if (newRows.length < MIN_SEARCH_YIELD) {
@@ -341,7 +342,7 @@ export default async function handler(req, res) {
       );
       if (searchRows.length > 0) {
         newRows = [...newRows, ...searchRows];
-        discoverySource = newRows.length > searchRows.length ? 'usre+search' : 'search';
+        discoverySource = newRows.length > searchRows.length ? 'rentcast+search' : 'search';
       }
       funnelDbg.searchRows = searchRows.length;
 
@@ -534,126 +535,88 @@ function searchItemToPoolRow(d, marketId, soldPrice, soldDate) {
   };
 }
 
-// ─── PRIMARY discovery: us-real-estate dedicated /sold-homes endpoint ───
-// Realtor.com-backed. Returns real closed sales at volume (≈42/page on the
-// Basic plan, paginated) with price, sold date, photos, beds/baths/sqft and
-// lat/lng inline — no per-zpid detail calls. This is the high-yield path that
-// fills a whole city in one pass for ANY CA city, with no curated zpid list.
-async function discoverSoldViaUsRealEstate(city, marketId, ingestCutoff, excludeSet, poolZpidSet) {
-  const apiKey = process.env.RAPIDAPI_KEY;
-  // NOTE: deliberately NOT reading RAPIDAPI_SOLD_HOST — that Vercel env var
-  // predates this integration and points at the old host, which silently
-  // hijacked these requests (its router answers /sold-homes with a 400
-  // "Required parameter is missing"). USRE_HOST is a fresh name; default is
-  // the correct us-real-estate host.
-  const soldHost = process.env.USRE_HOST || 'us-real-estate.p.rapidapi.com';
-  // diag is surfaced via ?debug=1 so failures are visible without server logs:
-  // status = last HTTP status, body = last error/empty body snippet,
-  // perPage = the page size that worked, pages = pages successfully consumed.
-  const diag = { host: soldHost, status: null, body: null, perPage: null, pages: 0 };
-  if (!apiKey) { diag.body = 'no RAPIDAPI_KEY'; return { rows: [], diag }; }
-  // The plan caps results per call; the accepted `limit` ceiling isn't
-  // documented, so adapt: try big, fall back smaller until a size works.
-  const LIMIT_CANDIDATES = [42, 20, 10];
-  let perPage = null;
+// ─── PRIMARY discovery: RentCast /v1/properties (licensed county records) ───
+// Returns up to 500 properties sold within RENTCAST_SALE_DAYS in ONE call,
+// with sold price + date, beds/baths/sqft, year built, property type and
+// lat/lng. Explicit display rights (no MLS-photo copyright exposure); records
+// carry no photos — the client falls back to the Mapbox map slide and the
+// NO_PHOTO placeholder. Works for ANY CA city, no curated zpid list.
+async function discoverSoldViaRentCast(city, marketId, ingestCutoff, excludeSet, poolZpidSet) {
+  const rcKey = process.env.RENTCAST_API_KEY;
+  // diag is surfaced via ?debug=1 so failures are visible without server logs.
+  const diag = { status: null, body: null, raw: 0 };
+  if (!rcKey) { diag.body = 'no RENTCAST_API_KEY'; return { rows: [], diag }; }
+  // NOTE: RentCast's city parameter is case-sensitive — normalize to Title Case.
+  const cityParam = String(city).trim().replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1).toLowerCase());
+  const url = `https://api.rentcast.io/v1/properties?city=${encodeURIComponent(cityParam)}&state=CA&saleDateRange=${RENTCAST_SALE_DAYS}&limit=${RENTCAST_PAGE_LIMIT}&offset=0`;
+  let results = [];
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let r, text;
+    try {
+      r = await fetch(url, { headers: { 'X-Api-Key': rcKey, 'Accept': 'application/json' }, signal: controller.signal });
+      text = await r.text();
+    } finally { clearTimeout(timer); }
+    diag.status = r.status;
+    if (!r.ok) { diag.body = text.slice(0, 160); return { rows: [], diag }; }
+    try { results = JSON.parse(text); } catch { diag.body = 'non-JSON response'; return { rows: [], diag }; }
+    if (!Array.isArray(results)) { diag.body = text.slice(0, 160); return { rows: [], diag }; }
+  } catch (e) {
+    diag.body = String(e && e.message || e).slice(0, 160);
+    return { rows: [], diag };
+  }
+  diag.raw = results.length;
   const rows = [];
   const seen = new Set();
-  let offset = 0;
-  for (let page = 0; page < USRE_MAX_PAGES; page++) {
-    let results = null;
-    for (const lim of (perPage ? [perPage] : LIMIT_CANDIDATES)) {
-      const url = `https://${soldHost}/sold-homes?state_code=CA&city=${encodeURIComponent(city)}&limit=${lim}&offset=${offset}&sort=sold_date`;
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10000);
-        let r, text;
-        try {
-          r = await fetch(url, { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': soldHost }, signal: controller.signal });
-          text = await r.text();
-        } finally { clearTimeout(timer); }
-        diag.status = r.status;
-        if (!r.ok) { diag.body = text.slice(0, 160); continue; }     // try smaller limit
-        let data = null;
-        try { data = JSON.parse(text); } catch { diag.body = 'non-JSON response'; continue; }
-        const arr = extractUsreResults(data);
-        if (!Array.isArray(arr) || arr.length === 0) { diag.body = text.slice(0, 160); continue; }
-        results = arr; perPage = lim; diag.perPage = lim;
-        break;
-      } catch (e) { diag.body = String(e && e.message || e).slice(0, 160); }
-    }
-    if (!results) break;
-    diag.pages = page + 1;
-    for (const d of results) {
-      const row = usRealEstateItemToPoolRow(d, marketId, ingestCutoff);
-      if (!row) continue;
-      if (seen.has(row.zpid) || excludeSet.has(row.zpid) || poolZpidSet.has(row.zpid)) continue;
-      seen.add(row.zpid);
-      rows.push(row);
-    }
-    if (results.length < perPage) break; // last page reached
-    offset += perPage;
+  for (const d of results) {
+    const row = rentcastRecordToPoolRow(d, marketId, ingestCutoff);
+    if (!row) continue;
+    if (seen.has(row.zpid) || excludeSet.has(row.zpid) || poolZpidSet.has(row.zpid)) continue;
+    seen.add(row.zpid);
+    rows.push(row);
   }
-  console.error(`[SoldComps] us-real-estate discovery ${marketId}: kept ${rows.length} (status=${diag.status} perPage=${diag.perPage} pages=${diag.pages} body=${diag.body || 'n/a'})`);
+  console.error(`[SoldComps] rentcast discovery ${marketId}: raw=${results.length} kept=${rows.length} (status=${diag.status})`);
   return { rows, diag };
 }
 
-// Wrapper-agnostic: find the first array of listing-shaped objects anywhere in
-// the response (handles data.results / data.home_search.results / top-level).
-function extractUsreResults(json) {
-  const stack = [json];
-  let guard = 0;
-  while (stack.length && guard++ < 10000) {
-    const o = stack.shift();
-    if (Array.isArray(o)) {
-      if (o.length && o[0] && typeof o[0] === 'object' && (o[0].description || o[0].property_id)) return o;
-    } else if (o && typeof o === 'object') {
-      for (const k of Object.keys(o)) stack.push(o[k]);
-    }
-  }
-  return [];
-}
-
-// Map one us-real-estate /sold-homes item → pp_property_pool row. Returns null
-// if it has no usable sold price+date or the sale is outside the ingest window.
-function usRealEstateItemToPoolRow(d, marketId, ingestCutoff) {
-  const desc = d.description || {};
-  const loc = d.location || {};
-  const addr = loc.address || {};
-  const soldPrice = desc.sold_price || d.sold_price || null;
-  const soldDate = normalizeSoldDateStr(desc.sold_date || d.sold_date || null);
+// Map one RentCast property record → pp_property_pool row. Returns null when
+// the record has no usable sale, is outside the ingest window, or wouldn't
+// make a sensible game card (no living area, or a land-only parcel).
+function rentcastRecordToPoolRow(d, marketId, ingestCutoff) {
+  const soldPrice = d.lastSalePrice || null;
+  const soldDate = normalizeSoldDateStr(d.lastSaleDate || null);
   if (!soldPrice || !soldDate) return null;
   if (new Date(soldDate) < ingestCutoff) return null;
-  // Realtor data has no Zillow zpid — use property_id with an "re_" prefix so it
-  // can't collide with real zpids from the other discovery paths.
-  const pid = d.property_id || d.listing_id || d.permalink;
-  if (!pid) return null;
-  const zpid = `re_${pid}`;
-  const photoList = Array.isArray(d.photos) ? d.photos.map(p => p && p.href).filter(Boolean) : [];
-  const mainPhoto = (d.primary_photo && d.primary_photo.href) || photoList[0] || null;
-  const coord = addr.coordinate || {};
+  if (!d.id) return null;
+  if (d.propertyType === 'Land') return null;        // no beds/sqft — bad card
+  if (!d.squareFootage || d.squareFootage < 200) return null;
+  if (soldPrice < 50000) return null;                // family transfers / non-arms-length noise
+  // RentCast ids are address slugs — prefix so they can't collide with zpids.
+  const zpid = `rc_${d.id}`;
   return {
     market_id: marketId,
     zpid,
-    address: addr.line || null,
-    city: addr.city || null,
-    state: addr.state_code || 'CA',
-    zip: addr.postal_code || null,
-    neighborhood: (Array.isArray(loc.neighborhoods) && loc.neighborhoods[0] && loc.neighborhoods[0].name) || null,
-    beds: desc.beds || null,
-    baths: desc.baths || desc.baths_consolidated || null,
-    sqft: desc.sqft || null,
-    lot_sqft: desc.lot_sqft || null,
-    year_built: desc.year_built || null,
-    property_type: normalizeHomeType(desc.type),
-    list_price: d.list_price || desc.list_price || soldPrice,
+    address: d.addressLine1 || d.formattedAddress || null,
+    city: d.city || null,
+    state: d.state || 'CA',
+    zip: d.zipCode || null,
+    neighborhood: d.subdivision || null,
+    beds: d.bedrooms ?? null,
+    baths: d.bathrooms ?? null,
+    sqft: d.squareFootage || null,
+    lot_sqft: d.lotSize || null,
+    year_built: d.yearBuilt || null,
+    property_type: d.propertyType || 'Single Family',
+    list_price: soldPrice,            // county records carry no list price
     sold_price: soldPrice,
     sold_date: soldDate,
-    photo: isUsablePhoto(mainPhoto) ? mainPhoto : null,
-    photos: photoList.filter(isUsablePhoto).slice(0, 6),
-    description: desc.text || null,
-    latitude: coord.lat || null,
-    longitude: coord.lon || null,
-    detail_url: d.permalink ? `https://www.realtor.com/realestateandhomes-detail/${d.permalink}` : null,
+    photo: null,                      // no photos in licensed records — client
+    photos: [],                       // shows Mapbox map slide + placeholder
+    description: null,
+    latitude: d.latitude || null,
+    longitude: d.longitude || null,
+    detail_url: null,
   };
 }
 
