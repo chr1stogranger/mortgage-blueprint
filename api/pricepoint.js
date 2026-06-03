@@ -2,7 +2,7 @@
 // Proxies RapidAPI "Real-Time Real-Estate Data" to fetch active + recently sold listings
 // Caches results for 24 hours per location to minimize API calls
 
-import { applyCors } from "./_cors.js";
+import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
 
 // ─── In-memory cache (persists across warm invocations) ───
@@ -253,7 +253,10 @@ export default async function handler(req, res) {
 
   try {
     const { zip, city, state, location: locParam, fresh, debug } = req.query;
-    const skipCache = fresh === "1" || debug === "1";
+    // Cache bypass forces fresh RapidAPI calls (quota burn) and the debug
+    // payload exposes internals — both owner-only now (CIO audit L-2/H-2).
+    const privileged = isPrivileged(req);
+    const skipCache = (fresh === "1" || debug === "1") && privileged;
 
     // Build location string
     let location;
@@ -350,8 +353,8 @@ export default async function handler(req, res) {
       cached: false,
     };
 
-    // Debug mode: include raw API response shapes for troubleshooting
-    if (debug === "1") {
+    // Debug mode: include raw API response shapes for troubleshooting (owner-only, L-2)
+    if (debug === "1" && privileged) {
       result._debug = {
         activeStatus: activeData.status,
         activeRawCount: activeData.status === "fulfilled" ? activeData.value.length : 0,

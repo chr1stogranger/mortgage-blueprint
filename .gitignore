@@ -24,6 +24,11 @@ dist-ssr
 *.sw?
 dist-test/
 dist-build
+# any other stray local build/verify output (dist-check2, dist-verify3, ...)
+dist-*
 
 # sed -i.bak leftovers (sandbox can't delete)
 *.bak
+
+# FUSE-mount artifacts from sandbox sessions — never commit these
+.fuse_hidden*

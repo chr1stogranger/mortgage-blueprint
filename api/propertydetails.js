@@ -6,7 +6,7 @@
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — property details don't change often
 
-import { applyCors } from "./_cors.js";
+import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
 
 export default async function handler(req, res) {
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     const d = raw.data || raw;
 
     // Debug mode: return ALL raw keys + sold-related fields
-    if (req.query.debug === "1") {
+    if (req.query.debug === "1" && isPrivileged(req)) { // owner-only (L-2)
       const allKeys = Object.keys(d);
       const soldFields = {};
       for (const k of ["priceHistory","taxHistory","nearbyHomes","comps","recentlySold","nearbyProperties","dateSold","homeStatus","price","listPrice","zestimate","contingentListingType","homeStatusForHDP"]) {

@@ -9,7 +9,15 @@ export default defineConfig({
     target: 'es2020',
     minify: 'terser',
     terserOptions: {
-      compress: { drop_console: false, passes: 2 },
+      compress: {
+        // Strip chatty console output from production builds (CIO audit L-3):
+        // logs can leak scenario/PII context and add noise. console.error is
+        // KEPT deliberately — live error output has earned its place here
+        // (stale-bundle debugging) and Sentry doesn't capture console.
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+        drop_console: false,
+        passes: 2,
+      },
       mangle: true,
     },
     rollupOptions: {

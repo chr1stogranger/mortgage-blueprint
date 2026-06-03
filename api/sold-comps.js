@@ -393,7 +393,8 @@ export default async function handler(req, res) {
       hasMore: pool.all.length > shuffled.length,
       timestamp: new Date().toISOString(),
     };
-    if (req.query.debug === '1') {
+    // debug funnel internals are owner-only (CIO audit L-2)
+    if (req.query.debug === '1' && isPrivileged(req)) {
       responseBody.funnel = { ...funnelDbg, ingestCutoffStr };
     }
     return res.status(200).json(responseBody);
