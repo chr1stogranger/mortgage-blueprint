@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from './_cors.js';
+import { rateLimited } from './_ratelimit.js';
 
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -7,27 +9,28 @@ function getSupabaseAdmin() {
   return createClient(url, key);
 }
 
-const ALLOWED_ORIGINS = [
-  "https://blueprint.realstack.app",
-  "https://mortgage-blueprint.vercel.app",
-  "http://localhost:5173",
-];
-
-function setCorsHeaders(res, origin) {
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  }
+// ─── Ownership gate (CIO re-audit C-1) ───────────────────────────────────────
+// This route uses the SERVICE key, which bypasses RLS — so without an explicit
+// check, anyone with a player's UUID could read/overwrite their email & phone.
+// Require the caller to prove they own the player row via the x-device-id
+// header (same identity migration 011's RLS policies use). The web client
+// sends this header on every notifications call (src/lib/pricePointDB.js).
+// Returns true if ownership is verified (or there's nothing to verify yet).
+async function ownsPlayer(supabase, playerId, deviceId) {
+  if (!deviceId) return false;
+  const { data, error } = await supabase
+    .from('pp_players')
+    .select('device_id')
+    .eq('id', playerId)
+    .single();
+  if (error || !data) return false;
+  return data.device_id === deviceId;
 }
 
 export default async function handler(req, res) {
-  const origin = req.headers.origin;
-  setCorsHeaders(res, origin);
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  // Scoped CORS (now incl. Capacitor native origins) + rate limit.
+  if (applyCors(req, res, { methods: 'GET, POST, PUT, DELETE, OPTIONS' })) return;
+  if (rateLimited(req, res, { limit: 30 })) return;
 
   const supabase = getSupabaseAdmin();
   if (!supabase) {
@@ -35,15 +38,21 @@ export default async function handler(req, res) {
   }
 
   const action = req.query.action || '';
+  const deviceId = req.headers['x-device-id'] || '';
+
+  // Every operation is scoped to a playerId — resolve it (query for GET, body
+  // otherwise) and verify the caller owns it before doing anything.
+  const playerId = req.query.playerId || (req.body && req.body.playerId) || '';
+  if (!playerId) return res.status(400).json({ error: 'playerId is required' });
+  if (!(await ownsPlayer(supabase, playerId, deviceId))) {
+    return res.status(403).json({ error: 'Not authorized for this player' });
+  }
 
   // ─── GET ────────────────────────────────────────────────────────────
   if (req.method === 'GET') {
 
     // GET /api/notifications?action=preferences&playerId=UUID
     if (action === 'preferences') {
-      const { playerId } = req.query;
-      if (!playerId) return res.status(400).json({ error: 'playerId is required' });
-
       try {
         const { data, error } = await supabase
           .from('pp_players')
@@ -64,8 +73,7 @@ export default async function handler(req, res) {
     }
 
     // GET /api/notifications?playerId=UUID&all=1  (default — fetch notifications)
-    const { playerId, all } = req.query;
-    if (!playerId) return res.status(400).json({ error: 'playerId is required' });
+    const { all } = req.query;
 
     try {
       let query = supabase
@@ -96,9 +104,9 @@ export default async function handler(req, res) {
 
     // POST /api/notifications?action=register  — register device token
     if (action === 'register') {
-      const { playerId, token, platform } = req.body;
-      if (!playerId || !token || !platform) {
-        return res.status(400).json({ error: 'playerId, token, and platform are required' });
+      const { token, platform } = req.body;
+      if (!token || !platform) {
+        return res.status(400).json({ error: 'token and platform are required' });
       }
       if (!['ios', 'android', 'web'].includes(platform)) {
         return res.status(400).json({ error: 'platform must be ios, android, or web' });
@@ -138,8 +146,7 @@ export default async function handler(req, res) {
     }
 
     // POST /api/notifications  (default — mark as read)
-    const { playerId, notificationIds, markAllRead } = req.body;
-    if (!playerId) return res.status(400).json({ error: 'playerId is required' });
+    const { notificationIds, markAllRead } = req.body;
 
     try {
       let updateQuery = supabase
@@ -170,8 +177,7 @@ export default async function handler(req, res) {
   // ─── PUT ────────────────────────────────────────────────────────────
   // PUT /api/notifications  — update notification preferences
   if (req.method === 'PUT') {
-    const { playerId, push_enabled, email_enabled, sms_enabled, email, phone } = req.body;
-    if (!playerId) return res.status(400).json({ error: 'playerId is required' });
+    const { push_enabled, email_enabled, sms_enabled, email, phone } = req.body;
 
     try {
       const updateData = {};
@@ -208,9 +214,9 @@ export default async function handler(req, res) {
   // ─── DELETE ─────────────────────────────────────────────────────────
   // DELETE /api/notifications  — unregister device token
   if (req.method === 'DELETE') {
-    const { playerId, token } = req.body;
-    if (!playerId || !token) {
-      return res.status(400).json({ error: 'playerId and token are required' });
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'token is required' });
     }
 
     try {

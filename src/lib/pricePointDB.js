@@ -377,11 +377,20 @@ export async function getPlayerPredictions(playerId, resolved = false) {
  * @param {string} playerId
  * @param {boolean} all - If true, fetch all (not just unread)
  */
+// /api/notifications enforces device ownership (CIO re-audit C-1) — send the
+// same device id the Supabase client uses so the server can verify the caller
+// owns the player row. JSON helper merges Content-Type when a body is sent.
+function notifHeaders(withJson = false) {
+  const h = { 'x-device-id': getDeviceId() };
+  if (withJson) h['Content-Type'] = 'application/json';
+  return h;
+}
+
 export async function fetchNotifications(playerId, all = false) {
   if (!playerId) return { notifications: [], unreadCount: 0 };
   try {
     const url = apiUrl(`/api/notifications?playerId=${playerId}${all ? '&all=1' : ''}`);
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: notifHeaders() });
     if (!res.ok) return { notifications: [], unreadCount: 0 };
     return await res.json();
   } catch (err) {
@@ -404,7 +413,7 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
     }
     const res = await fetch(apiUrl('/api/notifications'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: notifHeaders(true),
       body: JSON.stringify(body),
     });
     return res.ok;
@@ -422,7 +431,7 @@ export async function registerDeviceToken(playerId, token, platform) {
   try {
     const res = await fetch(apiUrl('/api/notifications?action=register'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: notifHeaders(true),
       body: JSON.stringify({ playerId, token, platform }),
     });
     return res.ok;
@@ -440,7 +449,7 @@ export async function unregisterDeviceToken(playerId, token) {
   try {
     const res = await fetch(apiUrl('/api/notifications'), {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: notifHeaders(true),
       body: JSON.stringify({ playerId, token }),
     });
     return res.ok;

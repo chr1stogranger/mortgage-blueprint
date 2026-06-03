@@ -1941,9 +1941,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const fhaUp = s.loanType === "FHA" ? baseLoan * 0.0175 : 0;
   const vaFF = s.loanType === "VA" ? baseLoan * 0.023 : 0;
   const loan = baseLoan + fhaUp + vaFF;
-  const r = (s.rate || 6.5) / 100 / 12;
   const n = (s.term || 30) * 12;
-  const pi = r > 0 ? loan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : loan / n;
+  const pi = calcPI(loan, s.rate || 6.5, s.term || 30); // shared engine (re-audit L-1, was inline dup)
   const qAutoRate = (s.propertyState || propertyState) === "California" ? (CITY_TAX_RATES[s.city || city] || 0.012) : (STATE_PROPERTY_TAX_RATES[s.propertyState || propertyState] || 0.0102);
   const qTaxRate = taxBaseRateOverride > 0 ? taxBaseRateOverride / 100 : qAutoRate;
   const qLP = s.loanPurpose || loanPurpose;

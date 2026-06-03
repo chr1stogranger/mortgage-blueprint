@@ -16,13 +16,20 @@ export default function handler(req, res) {
     return res.redirect(302, '/');
   }
 
-  const accuracy = parseFloat(data.ac || 0).toFixed(1);
-  const hood = data.h || 'Unknown';
-  const beds = data.b || 0;
-  const baths = data.ba || 0;
-  const sqft = data.sf || 0;
-  const mode = data.m === 'd' ? `Daily #${data.dn || 0}` : 'Free Play';
-  const label = data.lb || '';
+  // The token is attacker-controllable (base64 in the URL), and these values
+  // are interpolated into <title>/<meta content="..."> below. Escape every
+  // string field so a token like h='"><script>...' can't break out of the
+  // attribute and execute (CIO re-audit H-1, reflected XSS).
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, ch =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+  const accuracy = parseFloat(data.ac || 0).toFixed(1);          // numeric — coerced
+  const hood = esc(data.h || 'Unknown');
+  const beds = Number(data.b) || 0;                              // numeric — coerced
+  const baths = Number(data.ba) || 0;                            // numeric — coerced
+  const sqft = Number(data.sf) || 0;                             // numeric — coerced
+  const mode = data.m === 'd' ? `Daily #${Number(data.dn) || 0}` : 'Free Play';
+  const label = esc(data.lb || '');
 
   const title = `PricePoint Challenge — ${accuracy}% on ${hood}`;
   const description = `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;

@@ -123,7 +123,8 @@ async function deliverSms(notification, phone) {
 
 export default async function handler(req, res) {
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+  // Exact match — startsWith would let blueprint.realstack.app.evil.com pass (re-audit M-3).
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
