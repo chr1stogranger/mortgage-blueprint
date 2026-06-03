@@ -6595,48 +6595,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   </Card>
  </Sec>
- <Sec title="Modules">
-  <Card>
-   {(() => {
-    const modules = [
-     ["Refinance?", "Show Refi Summary tab", isRefi, setIsRefi],
-     ["Own Properties?", "Show REO (Real Estate Owned) tab", ownsProperties, setOwnsProperties],
-     ["Selling a Property?", "Show the Seller Net Sheet tab", hasSellProperty, setHasSellProperty],
-     ["Investment Analysis?", "Show the Investor tab with ROI metrics", showInvestor, setShowInvestor],
-     ...(!isRefi ? [["Buy vs Rent?", "Compare buying vs renting over time", showRentVsBuy, setShowRentVsBuy]] : []),
-    ];
-    return modules.map(([title, sub, val, setter], i) => (
-     <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < modules.length - 1 ? `1px solid ${T.separator}` : "none" }}>
-      <div>
-       <div style={{ fontSize: 15, fontWeight: 600 }}>{title}</div>
-       <div style={{ fontSize: 13, color: T.textTertiary }}>{sub}</div>
-      </div>
-      <button onClick={() => { setter(!val); Haptics.light(); }} style={{ width: 52, height: 30, borderRadius: 15, background: val ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
-       <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: val ? 25 : 3, transition: "left 0.3s" }} />
-      </button>
-     </div>
-    ));
-   })()}
-  </Card>
- </Sec>
- <Sec title="Integrations">
-  <Card>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-    <div style={{ flex: 1 }}>
-     <div style={{ fontSize: 15, fontWeight: 600 }}>Live Mortgage Rates</div>
-     <div style={{ fontSize: 12, color: T.textTertiary }}>Freddie Mac PMMS via FRED</div>
-    </div>
-    {fredApiKey ? (
-     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green }} />
-      <span style={{ fontSize: 12, color: T.green, fontWeight: 600 }}>Connected</span>
-     </div>
-    ) : (
-     <span style={{ fontSize: 12, color: T.textTertiary, fontWeight: 500 }}>Managed by admin</span>
-    )}
-   </div>
-  </Card>
- </Sec>
+ {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
+     Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
+     showInvestor/showRentVsBuy state). Quick Start is the single source of truth. */}
+ {/* Settings ▸ Integrations section hidden (2026-06-02, Christo): read-only,
+     admin-managed; nothing actionable for the user. FRED/Freddie Mac rate
+     attribution lives in the footer blurb if needed. */}
  <Sec title="Security & Privacy">
   <Card>
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.separator}` }}>
