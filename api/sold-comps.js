@@ -200,7 +200,7 @@ export default async function handler(req, res) {
     // calls or read response internals (CIO audit H-2 / L-2).
     if (req.query.probe === '1' && isPrivileged(req)) {
       const apiKey = process.env.RAPIDAPI_KEY;
-      const soldHost = process.env.RAPIDAPI_SOLD_HOST || 'us-real-estate.p.rapidapi.com';
+      const soldHost = process.env.USRE_HOST || 'us-real-estate.p.rapidapi.com';
       if (!apiKey) return res.status(500).json({ error: 'RAPIDAPI_KEY not configured' });
       const url = `https://${soldHost}/sold-homes?state_code=CA&city=${encodeURIComponent(city)}&limit=42&offset=0&sort=sold_date`;
       try {
@@ -540,11 +540,16 @@ function searchItemToPoolRow(d, marketId, soldPrice, soldDate) {
 // fills a whole city in one pass for ANY CA city, with no curated zpid list.
 async function discoverSoldViaUsRealEstate(city, marketId, ingestCutoff, excludeSet, poolZpidSet) {
   const apiKey = process.env.RAPIDAPI_KEY;
-  const soldHost = process.env.RAPIDAPI_SOLD_HOST || 'us-real-estate.p.rapidapi.com';
+  // NOTE: deliberately NOT reading RAPIDAPI_SOLD_HOST — that Vercel env var
+  // predates this integration and points at the old host, which silently
+  // hijacked these requests (its router answers /sold-homes with a 400
+  // "Required parameter is missing"). USRE_HOST is a fresh name; default is
+  // the correct us-real-estate host.
+  const soldHost = process.env.USRE_HOST || 'us-real-estate.p.rapidapi.com';
   // diag is surfaced via ?debug=1 so failures are visible without server logs:
   // status = last HTTP status, body = last error/empty body snippet,
   // perPage = the page size that worked, pages = pages successfully consumed.
-  const diag = { status: null, body: null, perPage: null, pages: 0 };
+  const diag = { host: soldHost, status: null, body: null, perPage: null, pages: 0 };
   if (!apiKey) { diag.body = 'no RAPIDAPI_KEY'; return { rows: [], diag }; }
   // The plan caps results per call; the accepted `limit` ceiling isn't
   // documented, so adapt: try big, fall back smaller until a size works.
