@@ -134,8 +134,10 @@ const getRandomMessage = (feedback) =>
 // ── Insight generator — turns a miss into a learning moment ──
 const getInsight = (listing, pctOff, guessedHigher) => {
   if (pctOff <= 10) return null;
-  // Guard: if listPrice is null/0, skip list-vs-sold insights
-  if (!listing.listPrice) {
+  // Guard: if listPrice is null/0, OR equals soldPrice (RentCast county rows
+  // have no real list price — it's backfilled with the sold price), skip
+  // list-vs-sold insights.
+  if (!listing.listPrice || listing.listPrice === listing.soldPrice) {
     if (listing.daysOnMarket > 30) {
       return `${listing.daysOnMarket} days on market tends to mean price reductions. Good to know for next time.`;
     }
@@ -841,10 +843,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const detailsCacheRef = useRef({}); // persist across re-renders
 
   const fetchingRef = useRef({}); // track in-flight fetches to avoid duplicates
-  const fetchPropertyDetails = useCallback(async (zpid) => {
-    // rc_-prefixed ids are RentCast county records — they have no Zillow
-    // property-details, so skip the fetch entirely (saves RapidAPI quota).
-    if (!zpid || String(zpid).startsWith('rc_')) return;
+  // Accepts either a zpid string (Zillow rows) or a full listing object.
+  // RentCast rows (rc_ ids) NEED the listing object — their photos/description
+  // are looked up by street address and persisted server-side on first view.
+  const fetchPropertyDetails = useCallback(async (listingOrZpid) => {
+    const lst = listingOrZpid && typeof listingOrZpid === "object" ? listingOrZpid : null;
+    const zpid = lst ? lst.zpid : listingOrZpid;
+    if (!zpid) return;
+    const isRc = String(zpid).startsWith('rc_');
+    if (isRc && (!lst || !lst.address || !lst.city)) return; // can't resolve without an address
     // Already have it cached WITH content — just ensure state is synced
     const cached = detailsCacheRef.current[zpid];
     if (cached && (cached.photos?.length > 0 || cached.description)) {
@@ -856,7 +863,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     fetchingRef.current[zpid] = true;
     setDetailsLoading(zpid);
     try {
-      const res = await fetch(apiUrl(`/api/propertydetails?zpid=${zpid}`));
+      const reqUrl = isRc
+        ? apiUrl(`/api/propertydetails?rcid=${encodeURIComponent(zpid)}&address=${encodeURIComponent(`${lst.address}, ${lst.city}, ${lst.state || "CA"} ${lst.zip || ""}`.trim())}`)
+        : apiUrl(`/api/propertydetails?zpid=${zpid}`);
+      const res = await fetch(reqUrl);
       if (res.ok) {
         const data = await res.json();
         // Only cache results that have actual content (photos or description)
@@ -907,8 +917,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           console.log(`[PricePoint] Load More: added ${newListings.length} new properties`);
           // Prefetch details for first 3 new ones
           setTimeout(() => {
-            const zpids = shuffled.slice(0, 3).map(l => l?.zpid).filter(Boolean);
-            if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
+            const targets = shuffled.slice(0, 3).filter(l => l && l.zpid);
+            if (targets.length) Promise.all(targets.map(t => fetchPropertyDetails(t)));
           }, 100);
         }
         setFpHasMore(data.hasMore !== false);
@@ -927,16 +937,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // Auto-fetch details when live listing changes — prefetch current + next 3 in PARALLEL
   useEffect(() => {
     if (view === "live" && liveListings.length > 0) {
-      const zpids = liveListings.slice(liveIdx, liveIdx + 4).map(l => l?.zpid).filter(Boolean);
-      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
+      const targets = liveListings.slice(liveIdx, liveIdx + 4).filter(l => l && l.zpid);
+      if (targets.length) Promise.all(targets.map(t => fetchPropertyDetails(t)));
     }
   }, [view, liveIdx, liveListings, fetchPropertyDetails]);
 
   // Auto-fetch details for Free Play — prefetch current + next 2 in PARALLEL
   useEffect(() => {
     if (view === "freeplay" && fpListings.length > 0) {
-      const zpids = fpListings.slice(fpIdx, fpIdx + 3).map(l => l?.zpid).filter(Boolean);
-      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
+      const targets = fpListings.slice(fpIdx, fpIdx + 3).filter(l => l && l.zpid);
+      if (targets.length) Promise.all(targets.map(t => fetchPropertyDetails(t)));
     }
   }, [view, fpIdx, fpListings, fetchPropertyDetails]);
 
@@ -1717,8 +1727,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
     // Prefetch property details for first 3 in PARALLEL
     setTimeout(() => {
-      const zpids = pool.slice(0, 3).map(l => l?.zpid).filter(Boolean);
-      if (zpids.length) Promise.all(zpids.map(z => fetchPropertyDetails(z)));
+      const targets = pool.slice(0, 3).filter(l => l && l.zpid);
+      if (targets.length) Promise.all(targets.map(t => fetchPropertyDetails(t)));
     }, 100);
   };
 
@@ -2062,19 +2072,30 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             ))}
           </div>
-          {/* List Price */}
-          <div style={{ background: T.inputBg, borderRadius: 12, padding: "14px 18px", border: `1px solid ${T.cardBorder}`, marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <OverlineLabel>LIST PRICE</OverlineLabel>
-              <div style={{ fontSize: 26, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 2 }}>{fmt(listing.listPrice)}</div>
-            </div>
-            {listing.daysOnMarket && (
-              <div style={{ textAlign: "right" }}>
-                <OverlineLabel>DAYS ON MKT</OverlineLabel>
-                <div style={{ fontSize: 22, fontWeight: 700, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{listing.daysOnMarket}</div>
+          {/* List Price. RentCast county records carry no list price — their
+              listPrice is set equal to soldPrice, which would GIVE AWAY the
+              answer. For those rows, show the enriched original list price
+              from Zillow's priceHistory when available; otherwise hide. */}
+          {(() => {
+            const isRcRow = String(listing.zpid || "").startsWith("rc_");
+            const enriched = details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null;
+            const displayLp = isRcRow ? enriched : listing.listPrice;
+            if (!displayLp) return null;
+            return (
+              <div style={{ background: T.inputBg, borderRadius: 12, padding: "14px 18px", border: `1px solid ${T.cardBorder}`, marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <OverlineLabel>LIST PRICE</OverlineLabel>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 2 }}>{fmt(displayLp)}</div>
+                </div>
+                {listing.daysOnMarket && (
+                  <div style={{ textAlign: "right" }}>
+                    <OverlineLabel>DAYS ON MKT</OverlineLabel>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{listing.daysOnMarket}</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
           {/* View on Zillow link — Live mode only, shown before guess to enable informed predictions */}
           {showZillowLink && listing.detailUrl && (
             <a href={listing.detailUrl.startsWith("http") ? listing.detailUrl : `https://www.zillow.com${listing.detailUrl}`} target="_blank" rel="noopener noreferrer"

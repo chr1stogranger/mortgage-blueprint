@@ -1,13 +1,34 @@
 // api/propertydetails.js
 // Vercel Serverless Function — fetches property photos + description from RapidAPI
-// Endpoint: /api/propertydetails?zpid=12345678
+// Endpoints:
+//   /api/propertydetails?zpid=12345678                     — Zillow-sourced rows
+//   /api/propertydetails?rcid=rc_...&address=Street,City…  — RentCast rows:
+//     resolves the address to a Zillow zpid via /search, fetches details, and
+//     PERSISTS photos/description/list_price into pp_property_pool so each
+//     property is enriched at most once, ever.
+
+import { createClient } from "@supabase/supabase-js";
+import { applyCors, isPrivileged } from "./_cors.js";
+import { rateLimited } from "./_ratelimit.js";
+
+export const config = { maxDuration: 30 };
 
 // ─── In-memory cache (persists across warm invocations) ───
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — property details don't change often
 
-import { applyCors, isPrivileged } from "./_cors.js";
-import { rateLimited } from "./_ratelimit.js";
+function getSupabaseAdmin() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+// Zillow serves maps.googleapis.com Street View as imgSrc for some homes —
+// those 403 when hotlinked from our domain. Treat as no-photo.
+function isUsablePhoto(u) {
+  return !!u && typeof u === "string" && !u.includes("maps.googleapis.com") && !u.includes("streetview");
+}
 
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
@@ -19,29 +40,86 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
   }
 
-  const zpid = req.query.zpid;
+  const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
+  let zpid = req.query.zpid;
+  const rcid = req.query.rcid;
+  const address = req.query.address;
   const skipCache = req.query.fresh === "1";
-  if (!zpid) {
-    return res.status(400).json({ error: "zpid required" });
+  if (!zpid && !(rcid && address)) {
+    return res.status(400).json({ error: "zpid, or rcid + address, required" });
   }
+
+  // Cache key: rc_ id for RentCast rows (stable), zillow zpid otherwise.
+  const cacheKey = rcid || zpid;
 
   // Check cache (skip if ?fresh=1, or if cached result has no photos — re-fetch to get real data)
   if (!skipCache) {
-    const cached = cache.get(zpid);
+    const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0) {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
       return res.status(200).json({ ...cached.data, cached: true });
     }
     // Clear stale/empty cached entries
     if (cached && (!cached.data.photos?.length || Date.now() - cached.timestamp > CACHE_TTL)) {
-      cache.delete(zpid);
+      cache.delete(cacheKey);
     }
   } else {
-    cache.delete(zpid);
+    cache.delete(cacheKey);
+  }
+
+  // ─── RentCast row: check the pool for prior enrichment, else resolve address → zpid ───
+  if (!zpid && rcid) {
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: rows } = await supabase
+        .from("pp_property_pool")
+        .select("photo, photos, description, list_price, sold_price")
+        .eq("zpid", rcid)
+        .limit(1);
+      const row = rows && rows[0];
+      if (row && ((Array.isArray(row.photos) && row.photos.length > 0) || row.description)) {
+        // Already enriched on a previous view — zero RapidAPI calls.
+        const out = {
+          zpid: rcid,
+          photos: (row.photos || []).filter(isUsablePhoto),
+          description: row.description || "",
+          listPrice: row.list_price && row.list_price !== row.sold_price ? row.list_price : null,
+          photoCount: (row.photos || []).length,
+          cached: true,
+          source: "pool",
+        };
+        res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+        return res.status(200).json(out);
+      }
+    }
+    // Resolve the address to a Zillow zpid. A full street address returns the
+    // exact home (usually exactly 1 result).
+    try {
+      const sResp = await fetch(`https://${apiHost}/search?location=${encodeURIComponent(address)}`, {
+        headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": apiHost },
+      });
+      const sRaw = await sResp.json().catch(() => null);
+      const list = (sRaw && (Array.isArray(sRaw.data) ? sRaw.data : sRaw.data?.results)) || [];
+      const streetNum = String(address).trim().split(/\s+/)[0];
+      let match = null;
+      if (list.length === 1) match = list[0];
+      else if (list.length > 1) {
+        match = list.find(r => String(r?.streetAddress || r?.address || "").trim().startsWith(streetNum)) || null;
+      }
+      if (!match || !match.zpid) {
+        // No Zillow record for this address — nothing to enrich with.
+        res.setHeader("Cache-Control", "no-store");
+        return res.status(200).json({ zpid: rcid, photos: [], description: "", resolved: false });
+      }
+      zpid = String(match.zpid);
+    } catch (e) {
+      console.error(`[PropertyDetails] address resolve failed for ${rcid}:`, e.message);
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ zpid: rcid, photos: [], description: "", resolved: false });
+    }
   }
 
   try {
-    const apiHost = process.env.RAPIDAPI_HOST || "real-time-real-estate-data.p.rapidapi.com";
     const url = `https://${apiHost}/property-details?zpid=${zpid}`;
 
     const response = await fetch(url, {
@@ -122,9 +200,11 @@ export default async function handler(req, res) {
       }
     }
 
+    const usablePhotos = photos.filter(isUsablePhoto);
+
     const result = {
       zpid: String(d.zpid || zpid),
-      photos,
+      photos: usablePhotos,
       description,
       listPrice: originalListPrice || listPrice,
       zestimate: d.zestimate || null,
@@ -133,14 +213,33 @@ export default async function handler(req, res) {
       homeType,
       taxAssessedValue,
       datePosted,
-      photoCount: photos.length,
+      photoCount: usablePhotos.length,
       cached: false,
     };
 
+    // RentCast row: persist the enrichment into the pool so this property is
+    // never enriched again (and future sold-comps reads include it inline).
+    if (rcid && (usablePhotos.length > 0 || description)) {
+      try {
+        const supabase = getSupabaseAdmin();
+        if (supabase) {
+          const upd = {
+            photos: usablePhotos.slice(0, 6),
+            photo: usablePhotos[0] || null,
+            description: description || null,
+          };
+          if (originalListPrice) upd.list_price = originalListPrice;
+          await supabase.from("pp_property_pool").update(upd).eq("zpid", rcid);
+        }
+      } catch (e) {
+        console.error(`[PropertyDetails] pool persist failed for ${rcid}:`, e.message);
+      }
+    }
+
     // Only cache results that have actual content (photos or description)
     // Empty results should be re-fetched next time
-    if (photos.length > 0 || description) {
-      cache.set(zpid, { data: result, timestamp: Date.now() });
+    if (usablePhotos.length > 0 || description) {
+      cache.set(cacheKey, { data: result, timestamp: Date.now() });
     }
     // Evict old entries if cache grows too large
     if (cache.size > 200) {
@@ -151,7 +250,7 @@ export default async function handler(req, res) {
     }
 
     // Only CDN-cache responses with real content; empty results get no-store so they're re-fetched
-    if (photos.length > 0 || description) {
+    if (usablePhotos.length > 0 || description) {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
     } else {
       res.setHeader("Cache-Control", "no-store");
