@@ -895,7 +895,7 @@ function EmployerGroup({
 // ─── Main component ─────────────────────────────────────────────────
 export default function IncomeContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("IncomeContent", props, ["T", "isDesktop", "calc", "fmt", "incomes", "addIncome", "updateIncome", "removeIncome", "removeBorrower", "otherIncome", "setOtherIncome", "otherIncome2", "setOtherIncome2", "setNumBorrowers", "setBorrowerNames", "setOtherIncomeByBorrower", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "VARIABLE_PAY_TYPES", "PAY_TYPES", "loanType", "isPulse", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("IncomeContent", props, ["T", "isDesktop", "calc", "fmt", "incomes", "addIncome", "updateIncome", "removeIncome", "removeBorrower", "otherIncome", "setOtherIncome", "otherIncome2", "setOtherIncome2", "setNumBorrowers", "setBorrowerNames", "setOtherIncomeByBorrower", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "VARIABLE_PAY_TYPES", "PAY_TYPES", "loanType", "isPulse", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt,
   incomes, addIncome, updateIncome, removeIncome, removeBorrower,
@@ -905,7 +905,7 @@ export default function IncomeContent(props) {
   otherIncomeByBorrower = {}, setOtherIncomeByBorrower,
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   VARIABLE_PAY_TYPES, PAY_TYPES, loanType,
-  isPulse, GuidedNextButton,
+  isPulse, GuidedNextButton, ClusterContinue,
 } = props;
 
   const ACCENT = T.blue;
@@ -1093,6 +1093,7 @@ export default function IncomeContent(props) {
         Total Monthly Income card below used to sit flush against this box and
         paint over the bottom of the glow ring, clipping it. (Christo 2026-05-27.) */}
     <div data-field="income-section" className={isPulse && isPulse("income-section")} style={{ marginTop: 20, marginBottom: 16, borderRadius: 14, transition: "all 0.3s" }}>
+     {incomes.some(i => i.amount > 0 || i.py1 > 0) && ClusterContinue && <ClusterContinue stepId="income-section" />}
       {borrowerList.map((n) => {
         if (isBorrowerEmpty(n)) return null;
         const groups = employerGroups.filter(g => g.borrowerNum === n);

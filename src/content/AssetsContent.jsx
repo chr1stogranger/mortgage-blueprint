@@ -12,12 +12,12 @@ const OWNER_OPTIONS = [
 
 export default function AssetsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("AssetsContent", props, ["T", "isDesktop", "calc", "fmt", "assets", "addAsset", "updateAsset", "removeAsset", "Hero", "Card", "Progress", "Sec", "TextInp", "Inp", "Sel", "Note", "RESERVE_FACTORS", "ASSET_TYPES", "getReserveFactor", "loanType", "guideField", "isPulse", "markTouched", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("AssetsContent", props, ["T", "isDesktop", "calc", "fmt", "assets", "addAsset", "updateAsset", "removeAsset", "Hero", "Card", "Progress", "Sec", "TextInp", "Inp", "Sel", "Note", "RESERVE_FACTORS", "ASSET_TYPES", "getReserveFactor", "loanType", "guideField", "isPulse", "markTouched", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset,
   Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note,
   RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType,
-  guideField, isPulse, markTouched, GuidedNextButton,
+  guideField, isPulse, markTouched, GuidedNextButton, ClusterContinue,
 } = props;
 
   // Defensive default — if AssetsContent renders before getReserveFactor wires through,
@@ -46,6 +46,7 @@ export default function AssetsContent(props) {
 
   return (<>
     <div data-field="assets-section" style={{ marginTop: 20 }} />
+    {ClusterContinue && <ClusterContinue stepId="assets-section" />}
 
     {/* ─── DESKTOP: tabular with blue banner header (consistent with Debts / Income) ─── */}
     {isDesktop ? (

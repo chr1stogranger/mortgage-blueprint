@@ -128,9 +128,10 @@ export default function SetupContent(props) {
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-       <button key={label} onClick={() => { setIsRefi(val); setTimeout(() => { const ficoEl = document.querySelector('[data-field="fico-input"] input[type="text"]'); if (ficoEl) { ficoEl.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => ficoEl.focus(), 350); } }, 100); }} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+       <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
       ))}
      </div>
+     {isRefi !== null && <ClusterContinue stepId="transaction-type" />}
     </div>
 
     {/* 3) FICO with slider — Zip/State/City are entered in Monthly Payment section below */}
@@ -142,15 +143,6 @@ export default function SetupContent(props) {
         onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
         onBlur={() => {
           if (creditScore > 0 && creditScore < 300) setCreditScore(300);
-          // Auto-advance: once FICO is entered, scroll to the Monthly Payment section
-          // (Filing Status was removed from Quick Start; modules panel is the next step).
-          if (creditScore > 0) {
-            setTimeout(() => {
-              const modulesEl = document.querySelector('[data-field="modules"]');
-              if (!modulesEl) return;
-              modulesEl.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 200);
-          }
         }}
         style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
       </div>
@@ -173,6 +165,7 @@ export default function SetupContent(props) {
        {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
       </span>
      </div>}
+     {creditScore >= 300 && <ClusterContinue stepId="fico-input" />}
     </div>
     {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
@@ -221,6 +214,7 @@ export default function SetupContent(props) {
       </div>
      )}
     </div>
+    {propertyZip && propertyZip.length === 5 && <ClusterContinue stepId="zip-code" />}
    </Card>
    </div>{/* end zip-code anchor */}
   </div>{/* end left column */}

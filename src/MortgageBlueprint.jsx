@@ -2759,14 +2759,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // 16) Equity               — AmortContent
 
   // 1. Transaction type — Purchase or Refinance
-  if (isRefi === null) return "transaction-type";
+  if (isRefi === null || !guideTouched.has("transaction-type-done")) return "transaction-type";
 
   // 2. FICO score — wait for a full, valid score (300+, the real FICO floor)
   //    before advancing, so typing the first digit doesn't yank the cursor.
-  if (creditScore < 300) return "fico-input";
+  if (creditScore < 300 || !guideTouched.has("fico-input-done")) return "fico-input";
 
   // 3. ZIP code — advances once all 5 digits are in
-  if (!propertyZip || propertyZip.length < 5) return "zip-code";
+  if (!propertyZip || propertyZip.length < 5 || !guideTouched.has("zip-code-done")) return "zip-code";
 
   // 4. Modules — pulse stays on the card until the user clicks "Continue"
   //    (sets "modules-done"). Tapping individual modules no longer advances.
@@ -2776,12 +2776,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    6-digit price ($100k+) is entered. The input is debounced, but a
   //    short value (2-3 digits) would still advance prematurely, yanking
   //    the cursor to Down. Real homes here are 6+ digits.
-  if (!isRefi && salesPrice < 100000) return "calc-price";
+  if (!isRefi && (salesPrice < 100000 || !guideTouched.has("calc-price-done"))) return "calc-price";
 
   // 6. Down payment (purchase only) — a down-payment % has no predictable
   //    digit count, so advance on blur (markTouched fires when the user
   //    clicks/tabs away) rather than per-keystroke.
-  if (!isRefi && !guideTouched.has("calc-down")) return "calc-down";
+  if (!isRefi && !guideTouched.has("calc-down-done")) return "calc-down";
 
   // 7. Get Today's Rates — pulse the live-rates button until it's clicked
   if (!guideTouched.has("get-rates")) return "get-rates";
@@ -2790,6 +2790,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    Cluster step: pulse stays until the user clicks "Continue" (sets
   //    "calc-pills-done"). Changing a single pill no longer advances.
   if (!guideTouched.has("calc-pills-done")) return "calc-pills";
+
+  // 9. Payment Breakdown — comprehension stop. The Continue chip only appears
+  //    after the Tax/PMI carets are expanded (gate lives in CalculatorContent);
+  //    chip sets "payment-breakdown-done".
+  if (!guideTouched.has("payment-breakdown-done")) return "payment-breakdown";
 
   // 9. Costs / Cash to Close — comprehension step. Costs auto-calculate, so
   //    there is nothing to type; pulse the costs section, let the buyer review
@@ -2802,8 +2807,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    digit count. Funds-for-Closing advances once a 4-digit amount
   //    ($1,000+) is entered, which then moves the pulse to the Debts section.
   if (!assets || assets.length === 0) return "add-asset";
-  if (!guideTouched.has("asset-value")) return "asset-value";
-  if (!(assets[0].forClosing >= 1000)) return "asset-closing";
+  if (!guideTouched.has("assets-section-done")) return "assets-section";
 
   // 11. Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
@@ -2812,7 +2816,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (ownsProperties && !guideTouched.has("reo-section")) return "reo-section";
 
   // 13. Income — at least one borrower needs income entered
-  if (!incomes.some(i => i.amount > 0 || i.py1 > 0)) return "income-section";
+  if (!incomes.some(i => i.amount > 0 || i.py1 > 0) || !guideTouched.has("income-section-done")) return "income-section";
 
   // 14. Pre-Qualified — review the qualification result
   if (!guideTouched.has("qualify-section")) return "qualify-section";
@@ -2827,6 +2831,45 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return null;
  })();
  const isPulse = (fieldId) => guideField === fieldId ? "pulse-next" : "";
+ // guidedStep — "Step X of N" descriptor for the guided progress strip.
+ // Mirrors the guideField ladder; conditional steps are filtered per scenario.
+ const guidedStep = (() => {
+  if (skillLevel !== "guided") return null;
+  const ladder = [
+   { id: "transaction-type", label: "Transaction", on: true },
+   { id: "fico-input", label: "Credit score", on: true },
+   { id: "zip-code", label: "Location", on: true },
+   { id: "modules", label: "Modules", on: true },
+   { id: "calc-price", label: "Price", on: !isRefi },
+   { id: "calc-down", label: "Down payment", on: !isRefi },
+   { id: "get-rates", label: "Rate", on: true },
+   { id: "calc-pills", label: "Loan structure", on: true },
+   { id: "payment-breakdown", label: "Payment breakdown", on: true },
+   { id: "costs", label: "Cash to close", on: true },
+   { id: "assets", label: "Assets", on: true },
+   { id: "debts", label: "Debts", on: true },
+   { id: "reo", label: "Other property", on: ownsProperties },
+   { id: "income", label: "Income", on: true },
+   { id: "qualify", label: "Pre-qualified", on: true },
+   { id: "tax", label: "Tax savings", on: true },
+   { id: "equity", label: "Equity", on: true },
+  ].filter(s => s.on);
+  const groupOf = (f) => {
+   if (f === "add-asset" || f === "assets-section") return "assets";
+   if (f === "owns-properties-toggle") return "debts";
+   if (f === "reo-section") return "reo";
+   if (f === "income-section") return "income";
+   if (f === "qualify-section") return "qualify";
+   if (f === "tax-filing") return "tax";
+   if (f === "amort-section") return "equity";
+   return f;
+  };
+  const total = ladder.length;
+  if (!guideField) return { current: total, total, label: "All steps", done: true };
+  const idx = ladder.findIndex(s => s.id === groupOf(guideField));
+  if (idx === -1) return null;
+  return { current: idx + 1, total, label: ladder[idx].label, done: false };
+ })();
  // ── Real-time update highlighting ──
  const [changedFields, setChangedFields] = useState(new Set());
  const prevValsRef = useRef({});
@@ -4631,9 +4674,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
-{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton}} />}
+{tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ ASSETS ═══ */}
-{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton}} />}
+{tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ DEBTS ═══ */}
 {tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton}} />}
 {/* ═══ REO (Real Estate Owned) ═══ */}
@@ -4965,7 +5008,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    /* Shared UI components */
    PayRing, StopLight, AmortChart, Progress, Hero, Card, Sec, MRow,
    Inp, Sel, TextInp, Note, SearchSelect, InfoTip, Icon, Tab, FieldLabel,
-   GuidedNextButton, ClusterContinue,
+   GuidedNextButton, ClusterContinue, guidedStep,
   }} />
  </Suspense>
 )}

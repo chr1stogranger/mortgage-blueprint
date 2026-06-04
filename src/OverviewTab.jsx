@@ -123,6 +123,19 @@ export default function OverviewTab(props) {
         </div>
       </div>
 
+      {/* Guided progress strip — slim, non-floating "Step X of N" indicator.
+          Driven by guidedStep computed in MortgageBlueprint (mirrors guideField). */}
+      {isGuided && props.guidedStep && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 2px" }}>
+          <div style={{ flex: 1, height: 3, background: T.separator, borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${Math.round((props.guidedStep.current / props.guidedStep.total) * 100)}%`, background: props.guidedStep.done ? T.green : T.blue, borderRadius: 2, transition: "width 0.4s ease" }} />
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 10.5, letterSpacing: 0.5, color: T.textTertiary, whiteSpace: "nowrap" }}>
+            {props.guidedStep.done ? "ALL STEPS DONE" : `STEP ${props.guidedStep.current} OF ${props.guidedStep.total}`} · {props.guidedStep.label.toUpperCase()}
+          </div>
+        </div>
+      )}
+
       {/* ═══════════════════════════════════════
           SECTION 1: QUICK START (full Setup tab)
           ═══════════════════════════════════════ */}

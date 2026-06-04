@@ -220,6 +220,7 @@ export default function CalculatorContent(props) {
         <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
         {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */}
         <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
+        {!isRefi && salesPrice >= 100000 && ClusterContinue && <ClusterContinue stepId="calc-price" />}
        </div>
        {isRefi ? (<>
         {/* Refi: Equity & Balance */}
@@ -256,7 +257,7 @@ export default function CalculatorContent(props) {
           ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
           : `${fmtCompactPct(downPct)} down`;
          return (
-          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { if (downPct > 0) markTouched && markTouched("calc-down"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -277,6 +278,7 @@ export default function CalculatorContent(props) {
            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
             {downSubtitle}
            </div>
+           {ClusterContinue && <ClusterContinue stepId="calc-down" />}
           </div>
          );
         })()}
@@ -434,13 +436,16 @@ export default function CalculatorContent(props) {
    </div>
    {/* Payment Breakdown — banded header/footer matching CashToCloseSummary so
        the two cards read as a matched pair (per Christo). Body keeps the
-       larger Inter font weights for the row values. */}
+       larger Inter font weights for the row values. Wrapped in the
+       payment-breakdown guided anchor: step 9 pulses this card and asks the
+       user to expand the Tax/PMI carets before the Continue chip appears. */}
+   <div data-field="payment-breakdown" className={isPulse && isPulse("payment-breakdown")} style={{ borderRadius: 14, transition: "all 0.3s", marginBottom: 16 }}>
    <div style={{
      background: T.card,
      border: `1px solid ${T.cardBorder}`,
      borderRadius: 14,
      overflow: "hidden",
-     marginBottom: 16,
+     marginBottom: 0,
      boxShadow: `0 0 0 1px ${T.blue}10`,
    }}>
     {/* Header band — same style as CashToCloseSummary */}
@@ -672,6 +677,20 @@ export default function CalculatorContent(props) {
        letterSpacing: "-0.02em",
      }}>{fmt(calc.displayPayment)}/mo</div>
     </div>
+   </div>
+   {(() => {
+     // Guided step 9 gate: Tax caret must be expanded (when escrow shown) and
+     // the PMI caret too when PMI applies. Carets share toggles above.
+     const breakdownExplored = (!includeEscrow || propTaxExpanded) && ((calc.monthlyMI || 0) === 0 || pmiExpanded);
+     return (<>
+       {isPulse && isPulse("payment-breakdown") && !breakdownExplored && (
+         <div style={{ marginTop: 10, fontSize: 12, color: T.textSecondary, fontFamily: FONT, textAlign: "center" }}>
+           Tap the ▾ next to Tax{(calc.monthlyMI || 0) > 0 ? " and PMI" : ""} above to see how they're calculated
+         </div>
+       )}
+       {breakdownExplored && ClusterContinue && <ClusterContinue stepId="payment-breakdown" />}
+     </>);
+   })()}
    </div>
    </div>
   </div>
