@@ -30,6 +30,21 @@ function isUsablePhoto(u) {
   return !!u && typeof u === "string" && !u.includes("maps.googleapis.com") && !u.includes("streetview");
 }
 
+// A sold condo's CURRENT Zillow page is often a for-rent listing (sell → re-rent).
+// Without these guards we ingested $5,600/mo rent as "list price" on a $1.05M
+// sale, and a lease-terms description, into the game card.
+function isRentalText(text) {
+  return !!text && /lease type|rent due|notice period|security deposit|monthly rent|per month|application fee|pet deposit/i.test(text);
+}
+// A believable SALE list price: real number, ≥ $50k, and within a plausible
+// band of the known sold price (rents fail the ratio instantly).
+function saneListPrice(lp, soldPrice) {
+  if (!lp || lp < 50000) return null;
+  if (soldPrice && (lp < soldPrice * 0.2 || lp > soldPrice * 5)) return null;
+  if (soldPrice && lp === soldPrice) return null; // not a real anchor — would leak the answer
+  return lp;
+}
+
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
@@ -68,6 +83,7 @@ export default async function handler(req, res) {
   }
 
   // ─── RentCast row: check the pool for prior enrichment, else resolve address → zpid ───
+  let rcSoldPrice = null; // known sale price for sanity-checking enriched list prices
   if (!zpid && rcid) {
     const supabase = getSupabaseAdmin();
     if (supabase) {
@@ -77,13 +93,14 @@ export default async function handler(req, res) {
         .eq("zpid", rcid)
         .limit(1);
       const row = rows && rows[0];
+      if (row) rcSoldPrice = row.sold_price || null;
       if (row && ((Array.isArray(row.photos) && row.photos.length > 0) || row.description)) {
         // Already enriched on a previous view — zero RapidAPI calls.
         const out = {
           zpid: rcid,
           photos: (row.photos || []).filter(isUsablePhoto),
-          description: row.description || "",
-          listPrice: row.list_price && row.list_price !== row.sold_price ? row.list_price : null,
+          description: isRentalText(row.description) ? "" : (row.description || ""),
+          listPrice: saneListPrice(row.list_price, row.sold_price),
           photoCount: (row.photos || []).length,
           cached: true,
           source: "pool",
@@ -183,30 +200,34 @@ export default async function handler(req, res) {
     const taxAssessedValue = d.taxAssessedValue || null;
     const datePosted = d.datePosted || d.dateSold || null;
 
-    // Extract list price (critical for sold listings where search API doesn't include it)
-    const listPrice = d.price || d.listPrice || null;
-    // For sold properties, price is the sold price — look for original list price in history
+    // Extract list price (critical for sold listings where search API doesn't include it).
+    // SALE listings only: "Listed for rent" events and rental d.price (when the
+    // home's current Zillow page is a rental) must never become a list price.
+    const isCurrentlyRental = d.homeStatus === "FOR_RENT" || isRentalText(d.description);
+    const listPrice = isCurrentlyRental ? null : (d.price || d.listPrice || null);
     const priceHistory = d.priceHistory || [];
     let originalListPrice = null;
-    if (priceHistory.length > 0) {
-      for (const evt of priceHistory) {
-        if (evt.event && (evt.event === "Listed for sale" || evt.event === "Listed" || evt.event.includes("list"))) {
-          originalListPrice = evt.price || null;
-          break;
-        }
-      }
-      if (!originalListPrice && priceHistory[priceHistory.length - 1]?.price) {
-        originalListPrice = priceHistory[priceHistory.length - 1].price;
+    for (const evt of priceHistory) {
+      const ev = String(evt?.event || "");
+      if (/rent/i.test(ev)) continue;                       // skip rental events
+      if (ev === "Listed for sale" || /list/i.test(ev)) {
+        originalListPrice = evt.price || null;
+        break;
       }
     }
+    // Sanity: must look like a sale price relative to the known sold price.
+    originalListPrice = saneListPrice(originalListPrice, rcSoldPrice);
 
     const usablePhotos = photos.filter(isUsablePhoto);
+    // Rental-listing text (lease terms, rent due dates) misleads the sold-price
+    // game — drop it. The photos still show the property itself, so keep them.
+    const cleanDescription = isRentalText(description) ? "" : description;
 
     const result = {
       zpid: String(d.zpid || zpid),
       photos: usablePhotos,
-      description,
-      listPrice: originalListPrice || listPrice,
+      description: cleanDescription,
+      listPrice: originalListPrice || (rcid ? saneListPrice(listPrice, rcSoldPrice) : listPrice),
       zestimate: d.zestimate || null,
       yearBuilt,
       lotSize,
@@ -219,14 +240,15 @@ export default async function handler(req, res) {
 
     // RentCast row: persist the enrichment into the pool so this property is
     // never enriched again (and future sold-comps reads include it inline).
-    if (rcid && (usablePhotos.length > 0 || description)) {
+    // Only sane sale prices and non-rental descriptions are ever persisted.
+    if (rcid && (usablePhotos.length > 0 || cleanDescription)) {
       try {
         const supabase = getSupabaseAdmin();
         if (supabase) {
           const upd = {
             photos: usablePhotos.slice(0, 6),
             photo: usablePhotos[0] || null,
-            description: description || null,
+            description: cleanDescription || null,
           };
           if (originalListPrice) upd.list_price = originalListPrice;
           await supabase.from("pp_property_pool").update(upd).eq("zpid", rcid);
@@ -238,7 +260,7 @@ export default async function handler(req, res) {
 
     // Only cache results that have actual content (photos or description)
     // Empty results should be re-fetched next time
-    if (usablePhotos.length > 0 || description) {
+    if (usablePhotos.length > 0 || cleanDescription) {
       cache.set(cacheKey, { data: result, timestamp: Date.now() });
     }
     // Evict old entries if cache grows too large
@@ -250,7 +272,7 @@ export default async function handler(req, res) {
     }
 
     // Only CDN-cache responses with real content; empty results get no-store so they're re-fetched
-    if (usablePhotos.length > 0 || description) {
+    if (usablePhotos.length > 0 || cleanDescription) {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
     } else {
       res.setHeader("Cache-Control", "no-store");

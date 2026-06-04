@@ -427,7 +427,11 @@ function poolRowToListing(r) {
     lotSqft: r.lot_sqft || 0,
     yearBuilt: r.year_built || null,
     propertyType: r.property_type || 'Single Family',
-    listPrice: r.list_price || r.sold_price,
+    // Read-guard: a stored list_price wildly below the sold price is rental
+    // contamination from Zillow enrichment (e.g. $5,600/mo rent persisted as
+    // "list price" on a $1.05M sale). Treat it as unknown → fall back to sold.
+    listPrice: (r.list_price && r.list_price >= 50000 && (!r.sold_price || r.list_price >= r.sold_price * 0.2))
+      ? r.list_price : r.sold_price,
     zestimate: null,
     soldPrice: r.sold_price,
     soldDate: r.sold_date,
@@ -441,7 +445,10 @@ function poolRowToListing(r) {
     pricePerSqft: (r.sqft && r.sold_price) ? Math.round(r.sold_price / r.sqft) : 0,
     latitude: r.latitude || null,
     longitude: r.longitude || null,
-    description: r.description || '',
+    // Read-guard: descriptions that read like rental listings (Zillow page was
+    // a for-rent listing when enriched) confuse the sold-price guessing game.
+    description: (r.description && /lease type|rent due|notice period|security deposit|monthly rent|per month|application fee|pet deposit/i.test(r.description))
+      ? '' : (r.description || ''),
     detailUrl: r.detail_url || null,
     _source: 'sold_comps',
   };
