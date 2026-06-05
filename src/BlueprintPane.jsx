@@ -374,7 +374,7 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   const effectiveLoan = isRefiMode ? calc.adjustedLoan : calc.loan;
 
   return (
-    <div style={{ padding: "16px 0" }}>
+    <div style={{ padding: "32px 0 16px" }}>
       {/* Hero metric */}
       <div style={{ marginBottom: 16, textAlign: "center" }}>
         <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.04em", lineHeight: 1 }}>
