@@ -118,17 +118,15 @@ export default function CalculatorContent(props) {
   // Inline expansion in Payment Breakdown — chevron next to Tax/PMI toggles the
   // breakdown table directly inside the Payment Breakdown card (no jump-and-scroll).
   // Reuses the existing propTaxExpanded / pmiExpanded state from the parent.
-  const toggleTaxInline = () => {
-    const nt = !propTaxExpanded;
-    setPropTaxExpanded(nt);
-    // Guided step 9: expanding the carets IS the advance gesture.
-    if ((!includeEscrow || nt) && ((calc.monthlyMI || 0) === 0 || pmiExpanded)) markTouched && markTouched("payment-breakdown-done");
-  };
-  const togglePmiInline = () => {
-    const np = !pmiExpanded;
-    setPmiExpanded(np);
-    if ((!includeEscrow || propTaxExpanded) && ((calc.monthlyMI || 0) === 0 || np)) markTouched && markTouched("payment-breakdown-done");
-  };
+  const toggleTaxInline = () => setPropTaxExpanded(!propTaxExpanded);
+  const togglePmiInline = () => setPmiExpanded(!pmiExpanded);
+  // Guided step 9: expanding the carets IS the advance gesture. Declarative
+  // effect (not click handlers) so stale closures / pre-expanded carets can
+  // never soft-lock the step — whenever the required carets are open, mark it.
+  React.useEffect(() => {
+    const explored = (!includeEscrow || propTaxExpanded) && ((calc.monthlyMI || 0) === 0 || pmiExpanded);
+    if (explored && markTouched) markTouched("payment-breakdown-done");
+  }, [propTaxExpanded, pmiExpanded, includeEscrow, calc.monthlyMI]);
 
   // Helper values used by the inline Tax breakdown
   const taxAutoRate = calc.autoTaxRate;
