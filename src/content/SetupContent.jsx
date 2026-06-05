@@ -128,10 +128,9 @@ export default function SetupContent(props) {
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-       <button key={label} onClick={() => setIsRefi(val)} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+       <button key={label} onClick={() => { setIsRefi(val); markTouched("transaction-type-done"); }} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
       ))}
      </div>
-     {isRefi !== null && <ClusterContinue stepId="transaction-type" />}
     </div>
 
     {/* 3) FICO with slider — Zip/State/City are entered in Monthly Payment section below */}
@@ -142,13 +141,15 @@ export default function SetupContent(props) {
        <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
         onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
         onBlur={() => {
-          if (creditScore > 0 && creditScore < 300) setCreditScore(300);
+          if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
+          else if (creditScore >= 300) markTouched("fico-input-done");
         }}
         style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
        <input type="range" min={300} max={850} step={5} value={creditScore || 650}
         onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+        onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
         style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
         <span>300</span>
@@ -165,7 +166,6 @@ export default function SetupContent(props) {
        {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
       </span>
      </div>}
-     {creditScore >= 300 && <ClusterContinue stepId="fico-input" />}
     </div>
     {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
@@ -174,7 +174,7 @@ export default function SetupContent(props) {
        the existing useEffect in MortgageBlueprint that watches propertyZip and
        calls lookupZip() to fill the rest. Replaces the 4-pill ZIP/City/County/
        State row that used to sit at the top of the Calculator. */}
-   <div data-field="zip-code" className={isPulse("zip-code")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+   <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s" }}>
    <Card style={{ marginTop: 12 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
     <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
@@ -182,7 +182,7 @@ export default function SetupContent(props) {
       <Inp
        label="Zip Code"
        value={propertyZip || ""}
-       onChange={v => setPropertyZip(String(v).replace(/[^0-9]/g, "").slice(0, 5))}
+       onChange={v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
        type="text"
        placeholder="94501"
        sm
@@ -214,7 +214,6 @@ export default function SetupContent(props) {
       </div>
      )}
     </div>
-    {propertyZip && propertyZip.length === 5 && <ClusterContinue stepId="zip-code" />}
    </Card>
    </div>{/* end zip-code anchor */}
   </div>{/* end left column */}

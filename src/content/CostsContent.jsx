@@ -735,6 +735,7 @@ export default function CostsContent(props) {
       })()}
 
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
+      <div data-field="closing-costs" />
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}>
 
         {/* A. Origination Charges — lockable */}
@@ -935,7 +936,10 @@ export default function CostsContent(props) {
         )}
       </CollapsibleBox>
 
+      {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
+
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
+      <div data-field="prepaids" />
       <CollapsibleBox title="Prepaid Expenses" total={fmt2(calc.totalPrepaidExp)} defaultOpen={!isGuided}>
 
         {/* F. Prepaids — lockable so the two Property Tax rows can be revealed for editing.
@@ -1107,7 +1111,10 @@ export default function CostsContent(props) {
         </LetterSection>
       </CollapsibleBox>
 
+      {typeof ClusterContinue === "function" && <ClusterContinue stepId="prepaids" />}
+
       {/* ─── MASTER 3: Credits to Buyer (default COLLAPSED) ───── */}
+      <div data-field="credits" />
       <CollapsibleBox
         title="Credits to Buyer"
         total={`−${fmt2(calc.totalCredits)}`}
@@ -1163,7 +1170,7 @@ export default function CostsContent(props) {
 
       {/* Guided "continue" — only renders while costs is the active step.
           Sets "costs-done", which advances the guided sequence to Assets. */}
-      {typeof ClusterContinue === "function" && <ClusterContinue stepId="costs" label="Got it — continue" />}
+      {typeof ClusterContinue === "function" && <ClusterContinue stepId="credits" />}
       <GuidedNextButton />
     </CostsCtx.Provider>
   );

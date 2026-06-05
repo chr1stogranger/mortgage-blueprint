@@ -154,7 +154,7 @@ function TotalCell({ children, align = "right", T }) {
 
 export default function DebtsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("DebtsContent", props, ["T", "isDesktop", "calc", "fmt", "debts", "debtFree", "setDebtFree", "ownsProperties", "setOwnsProperties", "reos", "setReos", "syncDebtBalance", "syncDebtPayment", "guideTouched", "markTouched", "isPulse", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "DEBT_TYPES", "PAYOFF_OPTIONS", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt,
   debts, debtFree, setDebtFree,
@@ -163,7 +163,7 @@ export default function DebtsContent(props) {
   syncDebtBalance, syncDebtPayment,
   guideTouched, markTouched, isPulse,
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
-  DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton,
+  DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue,
 } = props;
 
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -197,6 +197,7 @@ export default function DebtsContent(props) {
   return (<>
     {/* ─── Own Properties toggle — full width, structural (gates REO tab) ─── */}
     <div data-field="debts-section" style={{ marginTop: 20, marginBottom: 16 }}>
+      {guideTouched.has("owns-properties-toggle") && ClusterContinue && <ClusterContinue stepId="debts-section" />}
       <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
         <Card>
           <div>

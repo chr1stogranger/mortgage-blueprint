@@ -118,8 +118,17 @@ export default function CalculatorContent(props) {
   // Inline expansion in Payment Breakdown — chevron next to Tax/PMI toggles the
   // breakdown table directly inside the Payment Breakdown card (no jump-and-scroll).
   // Reuses the existing propTaxExpanded / pmiExpanded state from the parent.
-  const toggleTaxInline = () => setPropTaxExpanded(!propTaxExpanded);
-  const togglePmiInline = () => setPmiExpanded(!pmiExpanded);
+  const toggleTaxInline = () => {
+    const nt = !propTaxExpanded;
+    setPropTaxExpanded(nt);
+    // Guided step 9: expanding the carets IS the advance gesture.
+    if ((!includeEscrow || nt) && ((calc.monthlyMI || 0) === 0 || pmiExpanded)) markTouched && markTouched("payment-breakdown-done");
+  };
+  const togglePmiInline = () => {
+    const np = !pmiExpanded;
+    setPmiExpanded(np);
+    if ((!includeEscrow || propTaxExpanded) && ((calc.monthlyMI || 0) === 0 || np)) markTouched && markTouched("payment-breakdown-done");
+  };
 
   // Helper values used by the inline Tax breakdown
   const taxAutoRate = calc.autoTaxRate;
@@ -202,7 +211,7 @@ export default function CalculatorContent(props) {
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
    {/* 1. Purchase Price / Down Payment card — TOP of left column */}
-   <div data-field="calc-price" className={isPulse && isPulse("calc-price")} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+   <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
      <Card>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
@@ -220,7 +229,6 @@ export default function CalculatorContent(props) {
         <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
         {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */}
         <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
-        {!isRefi && salesPrice >= 100000 && ClusterContinue && <ClusterContinue stepId="calc-price" />}
        </div>
        {isRefi ? (<>
         {/* Refi: Equity & Balance */}
@@ -257,7 +265,7 @@ export default function CalculatorContent(props) {
           ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
           : `${fmtCompactPct(downPct)} down`;
          return (
-          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -278,7 +286,6 @@ export default function CalculatorContent(props) {
            <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
             {downSubtitle}
            </div>
-           {ClusterContinue && <ClusterContinue stepId="calc-down" />}
           </div>
          );
         })()}
@@ -688,7 +695,6 @@ export default function CalculatorContent(props) {
            Tap the ▾ next to Tax{(calc.monthlyMI || 0) > 0 ? " and PMI" : ""} above to see how they're calculated
          </div>
        )}
-       {breakdownExplored && ClusterContinue && <ClusterContinue stepId="payment-breakdown" />}
      </>);
    })()}
    </div>

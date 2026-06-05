@@ -2800,7 +2800,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    there is nothing to type; pulse the costs section, let the buyer review
   //    where their cash-to-close goes, then advance on Continue ("costs-done").
   //    Anchor: data-field="costs". Not in inputFields → scroll, no focus steal.
-  if (!guideTouched.has("costs-done")) return "costs";
+  if (!guideTouched.has("closing-costs-done")) return "closing-costs";
+  if (!guideTouched.has("prepaids-done")) return "prepaids";
+  if (!guideTouched.has("credits-done")) return "credits";
 
   // 10. Assets — add an account, then fill its value and cash-for-closing.
   //    Current Value advances on blur (markTouched) — it has no predictable
@@ -2811,6 +2813,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
   // 11. Debts — answer the "do you own other property?" question
   if (!guideTouched.has("owns-properties-toggle")) return "owns-properties-toggle";
+  if (!guideTouched.has("debts-section-done")) return "debts-section";
 
   // 12. REO — only when the borrower owns other property
   if (ownsProperties && !guideTouched.has("reo-section")) return "reo-section";
@@ -2845,7 +2848,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    { id: "get-rates", label: "Rate", on: true },
    { id: "calc-pills", label: "Loan structure", on: true },
    { id: "payment-breakdown", label: "Payment breakdown", on: true },
-   { id: "costs", label: "Cash to close", on: true },
+   { id: "closing-costs", label: "Closing costs", on: true },
+   { id: "prepaids", label: "Prepaid expenses", on: true },
+   { id: "credits", label: "Credits to buyer", on: true },
    { id: "assets", label: "Assets", on: true },
    { id: "debts", label: "Debts", on: true },
    { id: "reo", label: "Other property", on: ownsProperties },
@@ -2856,7 +2861,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ].filter(s => s.on);
   const groupOf = (f) => {
    if (f === "add-asset" || f === "assets-section") return "assets";
-   if (f === "owns-properties-toggle") return "debts";
+   if (f === "owns-properties-toggle" || f === "debts-section") return "debts";
    if (f === "reo-section") return "reo";
    if (f === "income-section") return "income";
    if (f === "qualify-section") return "qualify";
@@ -4678,7 +4683,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ ASSETS ═══ */}
 {tab === "assets" && <AssetsContent {...{T, isDesktop, calc, fmt, assets, addAsset, updateAsset, removeAsset, Hero, Card, Progress, Sec, TextInp, Inp, Sel, Note, RESERVE_FACTORS, ASSET_TYPES, getReserveFactor, loanType, guideField, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ DEBTS ═══ */}
-{tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton}} />}
+{tab === "debts" && <DebtsContent {...{T, isDesktop, calc, fmt, debts, debtFree, setDebtFree, ownsProperties, setOwnsProperties, reos, setReos, syncDebtBalance, syncDebtPayment, guideTouched, markTouched, isPulse, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, DEBT_TYPES, PAYOFF_OPTIONS, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ REO (Real Estate Owned) ═══ */}
 {tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, MRow, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
