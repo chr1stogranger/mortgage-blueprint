@@ -40,7 +40,7 @@ export default defineConfig({
         short_name: 'Blueprint',
         description: 'The supercharged mortgage calculator by Xpert Home Lending',
         theme_color: '#050505',
-        background_color: '#0d1117',
+        background_color: '#050505',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
