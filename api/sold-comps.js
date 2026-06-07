@@ -249,7 +249,9 @@ export default async function handler(req, res) {
         console.error('[SoldComps] Pool read error:', error.message);
         return { fresh: [], older: [], all: [] };
       }
-      const rows = (data || []).filter(r => !excludeSet.has(String(r.zpid)));
+      // Cull non-playable cards (0-bed/non-residential) on read too, so junk
+      // already persisted in the pool never reaches a player — no migration.
+      const rows = (data || []).filter(r => !excludeSet.has(String(r.zpid)) && isPlayableRow(r));
       const fresh = rows.filter(r => new Date(r.sold_date) >= preferredCutoff);
       const older = rows.filter(r => new Date(r.sold_date) < preferredCutoff);
       return { fresh, older, all: rows };
@@ -608,18 +610,36 @@ function cleanNeighborhood(name) {
   return n;
 }
 
+// A property makes a sensible price-guessing card only if it's a recognizable
+// home with beds and living area. We INCLUDE Multi-Family (RentCast's tag for
+// 2-4 unit residential — duplex/triplex/fourplex, financeable as residential
+// and prime lead-gen). We EXCLUDE "Apartment" (5+ unit commercial buildings),
+// "Land" (no structure), and 0-bed rows (almost always mislabeled multi-unit /
+// commercial like a "0 bed, 1,750 sqft" building, not real studios).
+// Used at BOTH ingest and read so existing junk is culled too.
+const PLAYABLE_TYPES = new Set(['Single Family', 'Condo', 'Townhouse', 'Manufactured', 'Multi-Family']);
+function isPlayableRow(r) {
+  const beds = r.beds;
+  const sqft = r.sqft;
+  const type = r.property_type;
+  if (beds == null || beds < 1) return false;
+  if (!sqft || sqft < 300) return false;
+  if (type && !PLAYABLE_TYPES.has(type)) return false;
+  return true;
+}
+
 // Map one RentCast property record → pp_property_pool row. Returns null when
 // the record has no usable sale, is outside the ingest window, or wouldn't
-// make a sensible game card (no living area, or a land-only parcel).
+// make a sensible game card.
 function rentcastRecordToPoolRow(d, marketId, ingestCutoff) {
   const soldPrice = d.lastSalePrice || null;
   const soldDate = normalizeSoldDateStr(d.lastSaleDate || null);
   if (!soldPrice || !soldDate) return null;
   if (new Date(soldDate) < ingestCutoff) return null;
   if (!d.id) return null;
-  if (d.propertyType === 'Land') return null;        // no beds/sqft — bad card
-  if (!d.squareFootage || d.squareFootage < 200) return null;
   if (soldPrice < 50000) return null;                // family transfers / non-arms-length noise
+  // Quality gate (residential, ≥1 bed, real living area) — see isPlayableRow.
+  if (!isPlayableRow({ beds: d.bedrooms, sqft: d.squareFootage, property_type: d.propertyType })) return null;
   // RentCast ids are address slugs — prefix so they can't collide with zpids.
   const zpid = `rc_${d.id}`;
   return {
