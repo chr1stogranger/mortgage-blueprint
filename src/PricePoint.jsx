@@ -2009,10 +2009,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             })}
           </div>
         )}
-        {/* Bottom row: neighborhood (left) + sold date (right) — hidden on map slide */}
-        {!isMapSlide && listing && (resolveNeighborhood(listing) !== "Unknown Area" || (showSoldDate && fmtSoldPill(listing.soldDate))) && (
+        {/* Bottom row: neighborhood (left, photos only) + sold date (right, every slide
+            incl. map — sold date is orthogonal to location, and RentCast Free Play
+            listings are often map-only, where it's most useful) */}
+        {listing && ((!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area") || (showSoldDate && fmtSoldPill(listing.soldDate))) && (
           <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
-            {resolveNeighborhood(listing) !== "Unknown Area" && (
+            {!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area" && (
               <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <Icon name="map-pin" size={13} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
@@ -2020,8 +2022,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             )}
             {showSoldDate && fmtSoldPill(listing.soldDate) && (
               <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="calendar" size={12} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: MONO, letterSpacing: 0.5 }}>{fmtSoldPill(listing.soldDate)}</span>
+                <Icon name="calendar" size={13} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{fmtSoldPill(listing.soldDate)}</span>
               </div>
             )}
           </div>
