@@ -12,7 +12,7 @@ import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import { DARK, LIGHT } from "./lib/theme.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
-import { apiUrl } from "./apiBase";
+import { apiUrl, WEB_ORIGIN } from "./apiBase";
 // Lazy load heavy components for faster initial page load
 const PricePoint = lazy(() => import("./PricePoint"));
 const Markets = lazy(() => import("./Markets"));
@@ -2251,7 +2251,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    });
    const newScenarioId = Array.isArray(scResult) ? scResult[0]?.id : scResult?.id;
    // ── Step 4: Build URL and dispatch action ──────────────────────────────
-   const shareUrl = `${window.location.origin}?share=${borrower.share_token}`;
+   const shareUrl = `${WEB_ORIGIN}?share=${borrower.share_token}`;
    if (action === "copy") {
     try {
      await navigator.clipboard.writeText(shareUrl);
@@ -4705,7 +4705,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {activeBorrower?.share_token && (
    <button
     onClick={() => {
-     const url = `${window.location.origin}?share=${activeBorrower.share_token}`;
+     const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
      navigator.clipboard.writeText(url).then(() => {
       const btn = document.getElementById('bp-share-link-summary');
       if (btn) { btn.querySelector('span').textContent = 'Copied!'; setTimeout(() => { btn.querySelector('span').textContent = 'Copy Link'; }, 2000); }

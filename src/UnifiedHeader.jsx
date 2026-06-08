@@ -1,5 +1,6 @@
 import React from "react";
 import Icon from "./Icon";
+import { WEB_ORIGIN } from "./apiBase";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -344,7 +345,7 @@ export default function UnifiedHeader({
           {activeBorrower?.share_token && (
             <button
               onClick={() => {
-                const url = `${window.location.origin}?share=${activeBorrower.share_token}`;
+                const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
                 navigator.clipboard.writeText(url).then(() => {
                   const btn = document.getElementById('bp-copy-share-btn');
                   if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Share Link'; }, 2000); }

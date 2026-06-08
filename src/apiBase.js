@@ -18,3 +18,13 @@ export const API_BASE = Capacitor.isNativePlatform()
 
 // Build a full URL for an API path, e.g. apiUrl("/api/rates").
 export const apiUrl = (path) => `${API_BASE}${path}`;
+
+// Canonical web origin for SHAREABLE links (e.g. borrower share links).
+//
+// On the web, window.location.origin already is https://blueprint.realstack.app.
+// In the native iOS/Android app, window.location.origin is https://localhost,
+// so a share link built from it would be dead for anyone else. Use this instead
+// of window.location.origin anywhere you build a link you hand to another person.
+export const WEB_ORIGIN = Capacitor.isNativePlatform()
+  ? "https://blueprint.realstack.app"
+  : window.location.origin;
