@@ -3839,8 +3839,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // them all to have the same view"). Multi-client BorrowerPicker remains
   // broker-only via the gate inside UnifiedHeader.jsx line 337.
   ["settings","Settings"]];
- // Swipe navigation between tabs
  const visibleTabs = TABS.map(([k]) => k).filter(k => isTabUnlocked(k));
+ // Swipe navigation between the three apps (Blueprint <-> PricePoint <-> Markets).
+ // Order matches the sidebar mode toggle. Blueprint's internal tabs are reached
+ // via the tab bar, not swipe. (2026-06-09)
+ const APP_ORDER = ["blueprint", "pricepoint", "markets"];
  const handleTouchStart = (e) => {
   touchStartRef.current = e.touches[0].clientX;
   touchStartYRef.current = e.touches[0].clientY;
@@ -3853,10 +3856,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   touchStartYRef.current = null;
   // Only trigger on horizontal swipes (more X than Y movement, and threshold)
   if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
-  const curIdx = visibleTabs.indexOf(tab);
+  // Don't hijack swipes while split-screen is active (desktop only).
+  if (splitMode) return;
+  const curIdx = APP_ORDER.indexOf(appMode);
   if (curIdx === -1) return;
-  if (dx < -60 && curIdx < visibleTabs.length - 1) setTab(visibleTabs[curIdx + 1]);
-  else if (dx > 60 && curIdx > 0) setTab(visibleTabs[curIdx - 1]);
+  if (dx < -60 && curIdx < APP_ORDER.length - 1) setAppMode(APP_ORDER[curIdx + 1]);
+  else if (dx > 60 && curIdx > 0) setAppMode(APP_ORDER[curIdx - 1]);
  };
  // Auto-scroll tab bar to center active tab
  React.useEffect(() => {
@@ -6304,6 +6309,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* PRICEPOINT MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "pricepoint" && (
+    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
     <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: T.textDim, fontSize: 13 }}>Loading PricePoint...</div>}>
     <PricePoint
      T={T}
@@ -6328,11 +6334,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      onOpenMarkets={() => setAppMode("markets")}
     />
     </Suspense>
+    </div>
    )}
    {/* ═══════════════════════════════════════════ */}
    {/* MARKETS MODE */}
    {/* ═══════════════════════════════════════════ */}
    {appMode === "markets" && (
+    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
     <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: T.textDim, fontSize: 13 }}>Loading Markets...</div>}>
     <Markets
      T={T}
@@ -6343,6 +6351,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      onBackToBlueprint={() => setAppMode("blueprint")}
     />
     </Suspense>
+    </div>
    )}
    {/* FloatingNextBar removed — replaced by TabProgressUnderline */}
 

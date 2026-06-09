@@ -1712,11 +1712,38 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Live Mode — re-fetches if activeListings cache is empty ──
   const enterLiveMode = async (zipFilter, hoodName) => {
+    // Switch to the Live view IMMEDIATELY so the tap feels responsive. Previously
+    // we awaited the (sometimes 30s) /api/pricepoint fetch BEFORE switching views,
+    // leaving the user on the picker with no feedback — the tap looked dead.
+    setLiveHoodFilter(zipFilter || null);
+    setLiveHoodName(hoodName || null);
+    setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null);
+    setView("live");
+
+    const buildPool = (src) => {
+      let pool = src.filter(isTrueActive);
+      if (zipFilter) pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
+      pool.sort(() => Math.random() - 0.5);
+      return pool;
+    };
+    const prefetchFirst3 = (pool) => setTimeout(() => {
+      const targets = pool.slice(0, 3).filter(l => l && l.zpid);
+      if (targets.length) Promise.all(targets.map(t => fetchPropertyDetails(t)));
+    }, 100);
+
     let listings = activeListings;
 
-    // Safety net: if no active listings in state, try re-fetching
-    if (listings.filter(isTrueActive).length === 0 && market) {
-      console.log("[PricePoint] No active listings in state — re-fetching for Live mode...");
+    // Fast path: cache already has active listings — render instantly, no fetch.
+    if (listings.filter(isTrueActive).length > 0) {
+      const pool = buildPool(listings);
+      setLiveListings(pool);
+      prefetchFirst3(pool);
+      return;
+    }
+
+    // Slow path: cache empty — show the loading state in the Live view, then fetch.
+    setLiveListings([]);
+    if (market) {
       setLoading(true);
       try {
         const resp = await fetch(apiUrl(`/api/pricepoint?city=${encodeURIComponent(market.city || market.label)}&state=CA`));
@@ -1726,7 +1753,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             listings = data.activeListings;
             setActiveListings(listings);
             try { localStorage.setItem("pp-active-listings", JSON.stringify(listings)); } catch {}
-            console.log(`[PricePoint] Live mode re-fetch got ${listings.length} active listings`);
           }
         }
       } catch (e) {
@@ -1736,24 +1762,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       }
     }
 
-    // Only show listings from the forSale API endpoint
-    let pool = listings.filter(isTrueActive);
-
-    if (zipFilter) {
-      pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
-    }
-
-    pool.sort(() => Math.random() - 0.5);
+    const pool = buildPool(listings);
     setLiveListings(pool);
-    setLiveHoodFilter(zipFilter || null);
-    setLiveHoodName(hoodName || null);
-    setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null); setView("live");
-
-    // Prefetch property details for first 3 in PARALLEL
-    setTimeout(() => {
-      const targets = pool.slice(0, 3).filter(l => l && l.zpid);
-      if (targets.length) Promise.all(targets.map(t => fetchPropertyDetails(t)));
-    }, 100);
+    prefetchFirst3(pool);
   };
 
   const handleLiveGuessInput = (e) => {
@@ -1958,8 +1969,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
     return (
       <div style={{ position: "relative", touchAction: "pan-y" }}
-        onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchStart={e => { e.stopPropagation(); touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={e => {
+          // Keep photo swipes local — don't let them bubble up and switch apps.
+          e.stopPropagation();
           if (touchStartX.current === null) return;
           const dx = e.changedTouches[0].clientX - touchStartX.current;
           touchStartX.current = null;
@@ -3044,6 +3057,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>68% of players think it'll sell higher. We'll notify you when this one closes.</div>
                 </div>
                 <PillButton onClick={liveNextProperty} secondary>Next Property</PillButton>
+              </div>
+            </div>
+          ) : loading ? (
+            /* Fetching active listings — instant feedback so the tap never looks dead */
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.red}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.red}20`, animation: "ppPulse 1.2s ease infinite" }}>
+                <Icon name="radio" size={24} style={{ color: T.red }} />
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>Finding active listings…</div>
+              <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5 }}>
+                Pulling the latest {liveHoodName || ""} listings in {locationLabel || market?.label || "your market"}.
               </div>
             </div>
           ) : liveListings.length === 0 ? (
