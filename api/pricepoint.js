@@ -1,6 +1,21 @@
 // /api/pricepoint.js — Vercel Serverless Function
 // Proxies RapidAPI "Real-Time Real-Estate Data" to fetch active + recently sold listings
 // Caches results for 24 hours per location to minimize API calls
+//
+// Cache layers (checked in order):
+//   L1: in-memory Map — instant, but dies on cold start / not shared across instances
+//   L2: Supabase pp_city_cache table — persistent, shared, survives cold starts
+//   L3: RapidAPI fetch (parallel-paged) — the expensive path (~2-4s)
+
+import { createClient } from "@supabase/supabase-js";
+
+// ─── Supabase admin client (server-side, bypasses RLS) — same pattern as sold-comps ───
+function getSupabaseAdmin() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
@@ -212,22 +227,16 @@ function extractListings(response) {
   return [];
 }
 
-// Fetch successive pages until the API runs out or we hit maxPages. De-dupes by
-// zpid across pages and stops early when a page adds nothing new — a guard
-// against an endpoint that ignores &page and keeps returning the first page.
+// Fetch all pages, de-duped by zpid. Page 1 goes first (its size tells us
+// whether more pages exist); pages 2..maxPages then fire IN PARALLEL.
+// The old version fetched pages sequentially — at ~2s per RapidAPI call,
+// 10 pages = ~20s per cache miss. Parallel fan-out cuts that to ~2-4s.
+// De-dup via the `seen` set also guards against an endpoint that ignores
+// &page and returns page 1 repeatedly: duplicates simply add nothing.
 async function fetchAllPages(location, homeStatus, apiKey, apiHost, maxPages) {
   const all = [];
   const seen = new Set();
-  for (let page = 1; page <= maxPages; page++) {
-    let data;
-    try {
-      data = await fetchListings(location, homeStatus, apiKey, apiHost, page);
-    } catch (err) {
-      if (page === 1) throw err;   // first-page failure is a real error
-      break;                       // a later page failing: keep what we have
-    }
-    const items = extractListings(data);
-    if (items.length === 0) break;
+  const addItems = (items) => {
     let added = 0;
     for (const it of items) {
       const z = String(it?.zpid || "");
@@ -236,8 +245,26 @@ async function fetchAllPages(location, homeStatus, apiKey, apiHost, maxPages) {
       all.push(it);
       added++;
     }
-    if (added === 0) break;                       // nothing new — exhausted/looping
-    if (items.length < PAGE_SIZE_HINT / 2) break; // partial page → likely the last
+    return added;
+  };
+
+  // Page 1 — a failure here is a real error
+  const first = await fetchListings(location, homeStatus, apiKey, apiHost, 1);
+  const firstItems = extractListings(first);
+  addItems(firstItems);
+
+  // Partial first page → that's the whole inventory, no more pages to fetch
+  if (firstItems.length < PAGE_SIZE_HINT / 2 || maxPages <= 1) return all;
+
+  // Pages 2..maxPages in parallel; individual page failures just mean we
+  // keep what we have (same behavior as the old "break on later-page error")
+  const settled = await Promise.allSettled(
+    Array.from({ length: maxPages - 1 }, (_, i) =>
+      fetchListings(location, homeStatus, apiKey, apiHost, i + 2)
+    )
+  );
+  for (const s of settled) {
+    if (s.status === "fulfilled") addItems(extractListings(s.value));
   }
   return all;
 }
@@ -276,10 +303,29 @@ export default async function handler(req, res) {
 
     // Check cache (skip if ?fresh=1 or ?debug=1)
     const cacheKey = location.toLowerCase().trim();
+    const supabase = getSupabaseAdmin();
     if (!skipCache) {
+      // L1: in-memory (this lambda instance only)
       const cached = getCached(cacheKey);
       if (cached) {
         return res.status(200).json({ ...cached, cached: true });
+      }
+      // L2: Supabase — survives cold starts and is shared across instances
+      if (supabase) {
+        try {
+          const { data: row } = await supabase
+            .from("pp_city_cache")
+            .select("data, updated_at")
+            .eq("cache_key", cacheKey)
+            .maybeSingle();
+          if (row?.data && Date.now() - new Date(row.updated_at).getTime() < CACHE_TTL) {
+            setCache(cacheKey, row.data); // re-warm L1 for this instance
+            res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+            return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
+          }
+        } catch (e) {
+          console.error(`[PricePoint] Supabase cache read failed (continuing): ${e.message}`);
+        }
       }
     } else {
       cache.delete(cacheKey); // clear stale entry
@@ -369,9 +415,21 @@ export default async function handler(req, res) {
       };
     }
 
-    // Only cache if we got results
+    // Only cache if we got results — write both layers
     if (active.length > 0 || sold.length > 0) {
       setCache(cacheKey, result);
+      if (supabase) {
+        try {
+          await supabase
+            .from("pp_city_cache")
+            .upsert(
+              { cache_key: cacheKey, data: result, updated_at: new Date().toISOString() },
+              { onConflict: "cache_key" }
+            );
+        } catch (e) {
+          console.error(`[PricePoint] Supabase cache write failed (non-fatal): ${e.message}`);
+        }
+      }
     }
 
     // Don't CDN-cache debug/fresh requests

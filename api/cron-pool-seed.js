@@ -70,7 +70,30 @@ export default async function handler(req, res) {
       return { market, error: err.message, latencyMs: Date.now() - t0 };
     }
   });
-  const results = await Promise.all(promises);
+
+  // Also pre-warm /api/pricepoint (active + sold inventory) for each market.
+  // fresh=1 forces a RapidAPI re-fetch whose result lands in the Supabase
+  // pp_city_cache table — so the first user to click a city each day gets a
+  // sub-second cache hit instead of paying the multi-page fetch themselves.
+  const warmPromises = MARKETS_TO_SEED.map(async (market) => {
+    const url = `${baseUrl}/api/pricepoint?city=${encodeURIComponent(market)}&state=CA&fresh=1`;
+    const t0 = Date.now();
+    try {
+      const r = await fetch(url, { method: 'GET' });
+      const j = await r.json();
+      return {
+        market: `${market} (pricepoint warm)`,
+        status: r.status,
+        latencyMs: Date.now() - t0,
+        activeCount: j.activeCount,
+        soldCount: j.soldCount,
+      };
+    } catch (err) {
+      return { market: `${market} (pricepoint warm)`, error: err.message, latencyMs: Date.now() - t0 };
+    }
+  });
+
+  const results = await Promise.all([...promises, ...warmPromises]);
 
   return res.status(200).json({
     ok: true,

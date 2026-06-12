@@ -1227,7 +1227,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       }
       // ALWAYS fetch by city name — zip-level queries only return listings for that
       // one zip, not the whole market. City-wide gives us all neighborhoods.
-      fetchListings(market.city || market.label, needsFreshFetch || isStale || cityMismatch);
+      // NOTE: plain staleness (>6h) no longer passes fresh=1 — the server cache
+      // (CDN + Supabase, 24h TTL, cron-refreshed daily at 6am) answers in <1s.
+      // fresh=1 forces a full ~16-call RapidAPI re-fetch and is reserved for
+      // version migrations (needsFreshFetch) and wrong-city data (cityMismatch).
+      fetchListings(market.city || market.label, needsFreshFetch || cityMismatch);
     }
   }, [market]);
 
@@ -1320,9 +1324,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       localStorage.removeItem("pp-active-listings");
     } catch {}
     try { localStorage.setItem("pp-market", JSON.stringify(mkt)); localStorage.setItem("pp-location-label", mkt.label); } catch {}
-    await fetchListings(launchMarket.name);
+    // Switch view IMMEDIATELY — the daily view shows a skeleton until sold
+    // data lands. The old `await fetchListings(...)` here kept the user
+    // staring at the city picker for the full fetch (~20s on a cache miss).
     if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
     else if (view === "onboarding") setView("daily");
+    // Mark fetched so the [market] auto-fetch effect doesn't double-fire the
+    // same request. fetchListings resets this on failure, so retry still works.
+    hasFetchedRef.current = true;
+    fetchListings(launchMarket.name); // intentionally not awaited
   };
 
   // ── Legacy: Set Market from text input (backward compat) ──
@@ -2600,6 +2610,32 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading listings...</div>
           )}
           {error && <div style={{ marginTop: 12, fontSize: 12, color: T.orange, textAlign: "center", fontFamily: FONT }}>{error}</div>}
+        </div>
+      )}
+
+      {/* ═══ DAILY CHALLENGE — loading skeleton (listings still fetching) ═══ */}
+      {view === "daily" && !dailyProperty && (
+        <div style={{ padding: "16px 16px 100px", animation: "ppFadeIn 0.3s ease" }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
+            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label || "Your Market"}</div>
+          </div>
+          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ height: 220, background: T.inputBg, animation: "ppPulse 1.4s ease infinite" }} />
+            <div style={{ padding: 16 }}>
+              <div style={{ height: 18, width: "70%", background: T.inputBg, borderRadius: 6, marginBottom: 10, animation: "ppPulse 1.4s ease infinite" }} />
+              <div style={{ height: 13, width: "45%", background: T.inputBg, borderRadius: 6, marginBottom: 18, animation: "ppPulse 1.4s ease infinite" }} />
+              <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} style={{ height: 28, flex: 1, background: T.inputBg, borderRadius: 9999, animation: "ppPulse 1.4s ease infinite" }} />
+                ))}
+              </div>
+              <div style={{ height: 44, background: T.inputBg, borderRadius: 9999, animation: "ppPulse 1.4s ease infinite" }} />
+            </div>
+          </div>
+          <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>
+            {error ? error : "Pulling today's home..."}
+          </div>
         </div>
       )}
 
