@@ -1357,11 +1357,12 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
       {ui.activeTab === 'live' && (
         <div>
           {/* Search / Filters */}
-          <div style={{ ...card, padding: '14px 16px' }}>
+          <div style={{ ...card, padding: '14px 16px', '--mkt-ph': T.textSecondary }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 ref={searchInputRef}
                 type="text"
+                className="mkt-filter-input"
                 value={ui.filters.zip}
                 onChange={(e) => dispatch(setFilters({ zip: e.target.value }))}
                 placeholder="ZIP code (e.g. 94122)"
@@ -1385,6 +1386,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
             <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
               <input
                 type="text"
+                className="mkt-filter-input"
                 value={ui.filters.city}
                 onChange={(e) => dispatch(setFilters({ city: e.target.value }))}
                 placeholder="City"
@@ -1392,6 +1394,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               />
               <input
                 type="number"
+                className="mkt-filter-input"
                 value={ui.filters.minPrice || ''}
                 onChange={(e) => dispatch(setFilters({ minPrice: e.target.value ? Number(e.target.value) : null }))}
                 placeholder="Min price"
@@ -1399,6 +1402,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               />
               <input
                 type="number"
+                className="mkt-filter-input"
                 value={ui.filters.maxPrice || ''}
                 onChange={(e) => dispatch(setFilters({ maxPrice: e.target.value ? Number(e.target.value) : null }))}
                 placeholder="Max price"

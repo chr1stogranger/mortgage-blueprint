@@ -105,3 +105,15 @@ button:focus-visible {
     background-color: #F0F0F0;
   }
 }
+
+/* Markets search/filter inputs — readable placeholder text that adapts to
+   dark/light mode via --mkt-ph (set on the container from the theme). The
+   browser default placeholder is ~54% opacity and too faint to read. */
+.mkt-filter-input::placeholder {
+  color: var(--mkt-ph, #525252);
+  opacity: 1;
+}
+.mkt-filter-input::-webkit-input-placeholder {
+  color: var(--mkt-ph, #525252);
+  opacity: 1;
+}
