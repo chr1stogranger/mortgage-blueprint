@@ -107,13 +107,15 @@ button:focus-visible {
 }
 
 /* Markets search/filter inputs — readable placeholder text that adapts to
-   dark/light mode via --mkt-ph (set on the container from the theme). The
-   browser default placeholder is ~54% opacity and too faint to read. */
+   dark/light mode via --mkt-ph (set on the container from the theme).
+   !important is required to beat the app-wide `input::placeholder` rule
+   injected in MortgageBlueprint.jsx (white 15%, built for dark backgrounds),
+   which otherwise renders these placeholders nearly invisible in light mode. */
 .mkt-filter-input::placeholder {
-  color: var(--mkt-ph, #525252);
-  opacity: 1;
+  color: var(--mkt-ph, #525252) !important;
+  opacity: 1 !important;
 }
 .mkt-filter-input::-webkit-input-placeholder {
-  color: var(--mkt-ph, #525252);
-  opacity: 1;
+  color: var(--mkt-ph, #525252) !important;
+  opacity: 1 !important;
 }
