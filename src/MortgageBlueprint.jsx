@@ -3840,6 +3840,45 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // broker-only via the gate inside UnifiedHeader.jsx line 337.
   ["settings","Settings"]];
  const visibleTabs = TABS.map(([k]) => k).filter(k => isTabUnlocked(k));
+ // ═══ "ON THIS PAGE" SECTION INDEX (Standard-mode sidebar table of contents) ═══
+ // Mirrors the section ORDER + visibility conditions in OverviewTab.jsx. Each
+ // `id` matches a <CollapsibleSection id="..."> rendered there, so a click can
+ // scroll-jump straight to it. KEEP THIS IN SYNC WITH OverviewTab.jsx — if a
+ // section is added/removed/reordered there, mirror it here. Conditional rows
+ // use the same guards as OverviewTab so the list never lists a hidden section.
+ const OVERVIEW_SECTIONS = [
+  { id: "overview-setup",         label: "Quick Start" },
+  { id: "overview-payment",       label: "Monthly Payment" },
+  { id: "overview-costs",         label: isRefi ? "Refi Costs" : "Costs" },
+  { id: "overview-assets",        label: "Assets" },
+  { id: "overview-debts",         label: "Debts" },
+  ...(ownsProperties ? [{ id: "overview-reo", label: "REO" }] : []),
+  { id: "overview-income",        label: "Income" },
+  { id: "overview-qualification", label: "Pre-Qualified?" },
+  { id: "overview-tax",           label: "Tax Savings" },
+  { id: "overview-equity",        label: "Equity" },
+  ...((showRentVsBuy && !isRefi) ? [{ id: "overview-rentvbuy", label: "Rent vs Buy" }] : []),
+  ...(showInvestor ? [{ id: "overview-investor", label: "Investor" }] : []),
+  ...((hasSellProperty && sellPrice > 0) ? [{ id: "overview-seller", label: "Seller Net" }] : []),
+  ...((showProp19 && propertyState === "California" && !isRefi) ? [{ id: "overview-prop19", label: "Prop 19" }] : []),
+ ];
+ // Core destinations that stay PINNED above the section index. These are real
+ // tab switches (not in-page scrolls), in the order Christo specified.
+ const CORE_TAB_KEYS = ["overview", "refi", "refi3", "workspace", "learn", "summary", "settings"];
+ // Jump to an Overview section: make sure we're on the Overview tab, then scroll
+ // the section into view. Polls briefly because OverviewTab is lazy-loaded and
+ // may not be mounted on the same frame we switch tabs. scroll-margin-top (CSS,
+ // [id^="overview-"]) keeps the sticky header from covering the section.
+ const jumpToSection = (sectionId) => {
+  if (!isDesktop) setMobileMenuOpen(false);
+  const tryScroll = (attempts) => {
+   const el = document.getElementById(sectionId);
+   if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+   if (attempts > 0) setTimeout(() => tryScroll(attempts - 1), 80);
+  };
+  if (tab !== "overview") { setTab("overview"); setTimeout(() => tryScroll(10), 90); }
+  else tryScroll(10);
+ };
  // Swipe navigation between the three apps (Blueprint <-> PricePoint <-> Markets).
  // Order matches the sidebar mode toggle. Blueprint's internal tabs are reached
  // via the tab bar, not swipe. (2026-06-09)
@@ -3949,6 +3988,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     .bp-sidebar::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 2px; }
     .bp-sidebar-item { transition: all 0.15s ease; }
     .bp-sidebar-item:hover { background: ${T.tabActiveBg}; }
+    /* Sidebar "On this page" jump-links land below the fixed header, not under it. */
+    [id^="overview-"] { scroll-margin-top: calc(92px + env(safe-area-inset-top, 0px)); }
     /* Split button appears on hover */
     .split-btn { opacity: 0 !important; }
     div:hover > .split-btn { opacity: 0.6 !important; }
@@ -4106,32 +4147,71 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      {/* Mode-specific nav items */}
      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
       {/* Blueprint nav */}
-      {appMode === "blueprint" && TABS.map(([k, l]) => {
-       const locked = !isTabUnlocked(k);
-       const completed = !!completedTabs[k];
-       const active = tab === k;
+      {appMode === "blueprint" && (() => {
        // Collapsed (icon-only) styling is a DESKTOP affordance only. The mobile
        // drawer is always full-width with labels — without this gate the desktop
        // sidebarCollapsed state leaked into mobile, forcing the icon to width:100%
        // and squeezing every label to zero width (icons-only, broken). (2026-06-02)
        const navCollapsed = sidebarCollapsed && isDesktop;
        const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
+       // Renders one core/destination nav item (real tab switch). Unchanged markup.
+       const renderTabItem = ([k, l]) => {
+        const locked = !isTabUnlocked(k);
+        const completed = !!completedTabs[k];
+        const active = tab === k;
+        return (
+         <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; if (!isDesktop) setMobileMenuOpen(false); } }}
+          style={{
+           padding: navCollapsed ? "8px 0" : "7px 12px", cursor: locked ? "not-allowed" : "pointer",
+           display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
+           background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
+           borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
+          }}>
+          <span style={{ textAlign: "center", width: navCollapsed ? "100%" : "auto", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={navCollapsed ? 18 : 15} /></span>
+          {!navCollapsed && (
+           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
+          )}
+          {!navCollapsed && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+         </div>
+        );
+       };
+       // GUIDED MODE: leave the sidebar exactly as it was — the full tab list.
+       // The council flagged that letting guided users jump around the page
+       // mid-wizard risks the known stale-closure soft-locks, so the "On this
+       // page" jump index is a Standard-mode feature only. (2026-06-15)
+       if (skillLevel === "guided") return TABS.map(renderTabItem);
+       // STANDARD MODE: pinned core destinations, then a labeled "On this page"
+       // index whose rows scroll-jump to Overview sections (single source of
+       // truth: OVERVIEW_SECTIONS, mirroring OverviewTab.jsx order/conditions).
+       const coreTabs = TABS.filter(([k]) => CORE_TAB_KEYS.includes(k));
        return (
-        <div key={k} className="bp-sidebar-item" onClick={() => { if (!locked) { setTab(k); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; if (!isDesktop) setMobileMenuOpen(false); } }}
-         style={{
-          padding: navCollapsed ? "8px 0" : "7px 12px", cursor: locked ? "not-allowed" : "pointer",
-          display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
-          background: active ? T.tabActiveBg : "transparent", opacity: locked ? 0.35 : 1,
-          borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
-         }}>
-         <span style={{ textAlign: "center", width: navCollapsed ? "100%" : "auto", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : locked ? T.textTertiary : T.textSecondary }}><Icon name={icons[k] || "file"} size={navCollapsed ? 18 : 15} /></span>
-         {!navCollapsed && (
-          <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
+        <>
+         {coreTabs.map(renderTabItem)}
+         {!navCollapsed && OVERVIEW_SECTIONS.length > 0 && (
+          <>
+           <div style={{ height: 1, background: T.separator, margin: "10px 12px 0" }} />
+           <div style={{ padding: "10px 18px 4px" }}>
+            <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", color: T.textTertiary }}>On this page</span>
+           </div>
+           {OVERVIEW_SECTIONS.map((s) => {
+            const active = tab === "overview";
+            return (
+             <div key={s.id} className="bp-sidebar-item" onClick={() => jumpToSection(s.id)}
+              style={{
+               padding: "6px 12px 6px 14px", cursor: "pointer",
+               display: "flex", alignItems: "center", gap: 9, margin: "1px 6px", borderRadius: 8,
+               background: "transparent",
+              }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.textTertiary, opacity: active ? 0.55 : 0.35, flexShrink: 0 }} />
+              <span style={{ fontSize: 12.5, fontWeight: 500, color: T.textSecondary, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
+             </div>
+            );
+           })}
+          </>
          )}
-         {!navCollapsed && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
-        </div>
+        </>
        );
-      })}
+      })()}
       {/* Blueprint switcher — pinned + recent blueprints (LO view only) */}
       {appMode === "blueprint" && isCloud && !isBorrower && (!sidebarCollapsed || !isDesktop) && (
        <SidebarSwitcher
