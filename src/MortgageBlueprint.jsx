@@ -4191,7 +4191,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <>
            <div style={{ height: 1, background: T.separator, margin: "10px 12px 0" }} />
            <div style={{ padding: "10px 18px 4px" }}>
-            <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", color: T.textTertiary }}>On this page</span>
+            <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, letterSpacing: 0.2, color: T.textTertiary }}>On this page</span>
            </div>
            {OVERVIEW_SECTIONS.map((s) => {
             const active = tab === "overview";
