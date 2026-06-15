@@ -94,14 +94,20 @@ export default function BorrowerPicker({
 
   useEffect(() => { setHighlightIdx(0); }, [search, step]);
 
+  // Outside-click-to-close only applies to the desktop dropdown, which renders
+  // inside containerRef. In drawer mode the panel is portaled to document.body
+  // (outside containerRef), so this handler would fire on EVERY click inside the
+  // drawer — closing it on mousedown before a row's click could register (that
+  // was the "clicking a client does nothing" bug). The drawer dismisses itself
+  // via its overlay's onClick instead, so we skip the document handler there.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isDesktop) return;
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) closePicker();
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen, closePicker]);
+  }, [isOpen, isDesktop, closePicker]);
 
   useEffect(() => {
     if (isOpen && step === 1 && inputRef.current) inputRef.current.focus();
