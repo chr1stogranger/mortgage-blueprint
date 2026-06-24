@@ -89,10 +89,10 @@ export default function AssetsContent(props) {
             <span>Bank Name</span>
             <span>Owner</span>
             <span>Type</span>
-            <span style={{ textAlign: "right" }}>Current Value</span>
-            <span style={{ textAlign: "right" }}>For Closing</span>
-            <span style={{ textAlign: "right" }}>Factor</span>
-            <span style={{ textAlign: "right" }}>For Reserves</span>
+            <span>Current Value</span>
+            <span>For Closing</span>
+            <span>Factor</span>
+            <span>For Reserves</span>
             <span></span>
           </div>
 
