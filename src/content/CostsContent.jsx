@@ -603,12 +603,14 @@ function EscrowCalendar({
 
 export default function CostsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2,
   isRefi, downPct,
   underwritingFee, setUnderwritingFee,
   processingFee, setProcessingFee,
+  adminFee, setAdminFee,
+  lenderWireFee, setLenderWireFee,
   discountPts, setDiscountPts,
   originatorComp, setOriginatorComp,
   appraisalFee, setAppraisalFee,
@@ -617,6 +619,10 @@ export default function CostsContent(props) {
   mersFee, setMersFee,
   taxServiceFee, setTaxServiceFee,
   escrowFee, setEscrowFee,
+  courierFee, setCourierFee,
+  loanTieInFee, setLoanTieInFee,
+  notaryFee, setNotaryFee,
+  envProtectionLien, setEnvProtectionLien,
   titleInsurance, setTitleInsurance,
   titleSearch, setTitleSearch,
   settlementFee, setSettlementFee,
@@ -640,7 +646,7 @@ export default function CostsContent(props) {
   lenderCredit, setLenderCredit,
   sellerCredit, setSellerCredit,
   realtorCredit, setRealtorCredit,
-  emd, setEmd,
+  emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid,
   Hero, Card, Sec, Inp, Sel, Note, MRow,
   GuidedNextButton,
   // Guided-mode wiring (forwarded by OverviewTab / the standalone costs site).
@@ -774,10 +780,9 @@ export default function CostsContent(props) {
             }
           />
           <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
+          <FeeRow label="Administration Fee"       value={adminFee}        onChange={setAdminFee}        explainer="Lender administration fee" />
+          <FeeRow label="Lender Wire Fee"          value={lenderWireFee}   onChange={setLenderWireFee}   explainer="Fee to wire loan funds at closing" />
           <FeeRow label="Underwriting Fee"        value={underwritingFee} onChange={setUnderwritingFee} explainer="Lender's fee for evaluating the loan" />
-          {processingFee > 0 && (
-            <FeeRow label="Processing Fee" value={processingFee} onChange={setProcessingFee} explainer="Lender's fee for processing loan documents" />
-          )}
         </LetterSection>
 
         {/* B. Services You Cannot Shop For — lockable */}
@@ -786,6 +791,7 @@ export default function CostsContent(props) {
           <FeeRow label="Credit Report Fee"      value={creditReportFee} onChange={setCreditReportFee} explainer="Pull tri-merge credit report" />
           <FeeRow label="Flood Certificate Fee"  value={floodCertFee}    onChange={setFloodCertFee}    explainer="Determines if property is in a flood zone" />
           <FeeRow label="MERS Registration Fee"  value={mersFee}         onChange={setMersFee}         explainer="Mortgage Electronic Registration System" />
+          <FeeRow label="Processing Fee"         value={processingFee}   onChange={setProcessingFee}   explainer="Fee for processing loan documents" />
           <FeeRow label="Tax Service Fee"        value={taxServiceFee}   onChange={setTaxServiceFee}   explainer="Lender's tax-monitoring service" />
         </LetterSection>
 
@@ -795,10 +801,14 @@ export default function CostsContent(props) {
             <FeeRow label="Title / Escrow Flat Fee" value={escrowFee} onChange={setEscrowFee} explainer="Refinances use a flat title/escrow fee" note="Refinances use a flat title/escrow fee." />
           ) : (
             <>
-              <FeeRow label="Title — Insurance Binder"        value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
+              <FeeRow label="Lender's Title Insurance Policy" value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
+              <FeeRow label="Escrow Fee"                      value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
               <FeeRow label="Title — Settlement Agent Fee"    value={settlementFee}  onChange={setSettlementFee}  explainer="Settlement/closing agent fee" />
               <FeeRow label="Title — Title Search"            value={titleSearch}    onChange={setTitleSearch}    explainer="Researches the property's title history" />
-              <FeeRow label="Title — Escrow/Settlement Fee"   value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
+              <FeeRow label="Courier / FedEx"                 value={courierFee}     onChange={setCourierFee}     explainer="Document courier / overnight delivery" />
+              <FeeRow label="Loan Tie-in Fee"                 value={loanTieInFee}   onChange={setLoanTieInFee}   explainer="Escrow's fee to coordinate with the lender" />
+              <FeeRow label="Notary"                          value={notaryFee}      onChange={setNotaryFee}      explainer="Notarizes closing documents" />
+              <FeeRow label="Environmental Protection Lien"   value={envProtectionLien} onChange={setEnvProtectionLien} explainer="Endorsement protecting against environmental liens" />
               {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" readOnly autoBadge explainer="Required for condos & townhomes" />}
             </>
           )}
@@ -922,13 +932,19 @@ export default function CostsContent(props) {
                 label="Buyer Agent Commission"
                 value={liveBuyerComm}
                 readOnly
-                autoBadge
                 calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
                 explainer="Commission paid to buyer's real estate agent"
+                alwaysEdit
                 inlineEditor={
-                  <div style={{ width: 110 }}>
-                    <Inp value={buyerCommPct} onChange={setBuyerCommPct} prefix="" suffix="%" step={0.1} max={10} sm />
-                  </div>
+                  <CompactNumPill
+                    value={buyerCommPct}
+                    onChange={setBuyerCommPct}
+                    suffix="%"
+                    min={0}
+                    max={10}
+                    width={48}
+                    title="Buyer's agent commission as a % of sales price."
+                  />
                 }
               />
             )}
@@ -1123,13 +1139,26 @@ export default function CostsContent(props) {
       >
         <FeeRow
           label="Earnest Money Deposit (EMD)"
-          value={isRefi ? 0 : emd}
-          onChange={setEmd}
-          readOnly={isRefi}
+          value={isRefi ? 0 : calc.emdCredit}
+          readOnly
           alwaysEdit={!isRefi}
-          calc={!isRefi && salesPrice > 0 && emd > 0 ? `${((emd / salesPrice) * 100).toFixed(2)}% of ${fmt(salesPrice)} sales price` : undefined}
-          explainer="Money already paid to seller — reduces cash needed at closing"
+          color={!isRefi && !emdPaid ? T.muted : undefined}
+          calc={!isRefi && salesPrice > 0
+            ? `${emdPct}% × ${fmt(salesPrice)} = ${fmt2(calc.emdAmt)}${emdPaid ? "" : " — not yet paid ($0 credited)"}`
+            : undefined}
+          explainer="Deposit (3% standard in CA). Only credited toward cash to close once it's been paid to escrow."
+          inlineEditor={!isRefi
+            ? <CompactNumPill value={emdPct} onChange={setEmdPct} suffix="%" min={0} max={100} width={48} title="EMD as % of sales price (3% is standard in CA)." />
+            : null}
         />
+        {!isRefi && (
+          <ToggleRow
+            label="EMD Paid to Escrow"
+            hint="Toggle on once the deposit has been received by escrow — only then is it credited"
+            on={emdPaid}
+            onChange={setEmdPaid}
+          />
+        )}
         {!isRefi && (
           <FeeRow label="Seller Credit"   value={sellerCredit}  onChange={setSellerCredit}  alwaysEdit
             explainer="Negotiated credit from seller toward buyer's closing costs" />

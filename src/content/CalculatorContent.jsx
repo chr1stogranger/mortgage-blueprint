@@ -498,18 +498,23 @@ export default function CalculatorContent(props) {
            onClick={onToggle}
            title={isExpanded ? "Hide breakdown" : `Show ${row.label} breakdown`}
            style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: T.blue,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
             cursor: "pointer",
-            padding: "0 4px",
-            lineHeight: 1,
             userSelect: "none",
-            display: "inline-block",
+            marginLeft: 2,
+           }}
+          >
+           <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How it's calculated</span>
+           <span style={{
+            fontSize: 10,
+            color: T.blue,
+            lineHeight: 1,
             transform: `translateY(-1px) rotate(${isExpanded ? 180 : 0}deg)`,
             transition: "transform 0.2s",
-           }}
-          >▾</span>
+           }}>▾</span>
+          </span>
          )}
         </div>
         {row.editable

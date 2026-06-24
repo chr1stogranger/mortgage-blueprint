@@ -27,6 +27,8 @@ export default function UnifiedHeader({
   /* Scenarios */
   scenarioName, scenarioList, switchScenario,
   saving, loaded, cloudSyncStatus, sync,
+  /* Whose blueprint this is */
+  borrowerName,
   /* Controls */
   darkMode, themeMode, cycleTheme,
   privacyMode, setPrivacyMode,
@@ -177,6 +179,22 @@ export default function UnifiedHeader({
             letterSpacing: "-0.03em", color: T.text,
             whiteSpace: "nowrap",
           }}>Blueprint</span>
+          {borrowerName && borrowerName.trim() && (
+            <>
+              <span style={{
+                fontSize: isDesktop ? 14 : 12, color: T.textTertiary,
+                fontWeight: 500, marginLeft: 2, marginRight: 2,
+                userSelect: "none",
+              }}>·</span>
+              <span style={{
+                fontSize: isDesktop ? 14 : 12, fontWeight: 600,
+                color: T.blue, fontFamily: FONT,
+                whiteSpace: "nowrap", letterSpacing: "-0.01em",
+                minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
+                maxWidth: isDesktop ? 260 : 130,
+              }} title={`Blueprint for ${borrowerName}`}>{borrowerName}</span>
+            </>
+          )}
           {tab && tab !== "overview" && tabLabel && (
             <>
               <span style={{

@@ -112,8 +112,10 @@ export default function ReoContent(props) {
     return acc;
   }, { value: 0, liens: 0, expenses: 0, income: 0, net: 0, dtiImpact: 0 });
 
-  // 15-col grid
+  // 15-col grid (legacy, kept for reference)
   const COLS = "minmax(140px, 1fr) 110px 115px 100px 100px 70px 90px 80px 90px 80px 90px 100px 100px 90px 64px";
+  // Collapsed summary grid — Address, Value, Net, actions. Everything else lives in the chevron expand.
+  const COLS_SUM = "minmax(180px, 1fr) 140px 120px 70px";
 
   // ─── Empty state — no REOs ───
   if (!reos || reos.length === 0) {
@@ -167,27 +169,16 @@ export default function ReoContent(props) {
           </span>
         </div>
 
-        {/* Column headers */}
+        {/* Column headers — collapsed summary */}
         <div style={{
-          display: "grid", gridTemplateColumns: COLS, gap: 0,
+          display: "grid", gridTemplateColumns: COLS_SUM, gap: 0,
           background: HEAD_BG, borderBottom: `1px solid ${HEAD_BORDER}`,
           padding: "8px 12px",
           fontSize: 10, fontFamily: FONT, fontWeight: 700, letterSpacing: 1,
           textTransform: "uppercase", color: T.textTertiary,
         }}>
           <span>Address</span>
-          <span>Type</span>
-          <span>Occup.</span>
           <span style={{ textAlign: "right" }}>Value</span>
-          <span style={{ textAlign: "right" }}>Liens</span>
-          <span style={{ textAlign: "right" }}>LTV</span>
-          <span style={{ textAlign: "right" }}>P&amp;I</span>
-          <span style={{ textAlign: "right" }}>Tax</span>
-          <span style={{ textAlign: "right" }}>Insurance</span>
-          <span style={{ textAlign: "right" }}>HOA</span>
-          <span style={{ textAlign: "right" }}>HELOC</span>
-          <span style={{ textAlign: "right" }}>Expenses</span>
-          <span style={{ textAlign: "right" }}>Income</span>
           <span style={{ textAlign: "right" }}>Net</span>
           <span></span>
         </div>
@@ -200,80 +191,31 @@ export default function ReoContent(props) {
           return (
             <React.Fragment key={r.id}>
               <div style={{
-                display: "grid", gridTemplateColumns: COLS, gap: 0,
+                display: "grid", gridTemplateColumns: COLS_SUM, gap: 8,
                 padding: "8px 12px", borderBottom: `1px solid ${T.separator}`,
                 alignItems: "center",
                 background: isExpanded ? `${ACCENT}06` : "transparent",
               }}>
-                <TextInp value={r.address} onChange={v => updateReo(r.id, "address", v)} placeholder="123 Main St" sm />
-                <Sel value={r.propType || "Single Family"} onChange={v => updateReo(r.id, "propType", v)} options={propTypeOpts} sm />
-                <Sel value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <button onClick={() => setExpandedRowId(isExpanded ? null : r.id)} aria-label="Toggle details" style={{
+                    width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+                    background: isExpanded ? `${ACCENT}20` : "transparent",
+                    border: `1px solid ${T.separator}`, color: T.textSecondary,
+                    fontSize: 10, lineHeight: 1, cursor: "pointer", padding: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.2s",
+                  }}>▸</button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <TextInp value={r.address} onChange={v => updateReo(r.id, "address", v)} placeholder="123 Main St" sm />
+                  </div>
+                </div>
                 <Inp value={r.value} onChange={v => updateReo(r.id, "value", v)} sm />
-                {/* Liens */}
-                {c.hasLinked ? (
-                  <div style={{ textAlign: "right", fontSize: 12, fontFamily: FONT, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                    {fmt(c.liens)}<AutoBadge T={T} />
-                  </div>
-                ) : (
-                  <Inp value={r.mortgageBalance} onChange={v => updateReo(r.id, "mortgageBalance", v)} sm />
-                )}
-                {/* LTV */}
-                <div style={{ textAlign: "right", fontSize: 12, fontFamily: FONT, fontWeight: 600, color: c.ltv > 80 ? T.orange : T.text }}>
-                  {Number(r.value) > 0 ? `${c.ltv.toFixed(0)}%` : "—"}
-                </div>
-                {/* P&I — when piMerged: span 4 cols across P&I+Tax+Ins+HOA */}
-                {piMerged ? (
-                  <div style={{ gridColumn: "span 4", display: "flex", alignItems: "center", gap: 6 }}>
-                    {c.hasLinked ? (
-                      <div style={{ flex: 1, textAlign: "right", fontSize: 12, fontFamily: FONT, fontWeight: 600 }}>
-                        {fmt(c.pi)}<AutoBadge T={T} />
-                      </div>
-                    ) : (
-                      <div style={{ flex: 1 }}>
-                        <Inp value={r.payment} onChange={v => updateReo(r.id, "payment", v)} sm />
-                      </div>
-                    )}
-                    <span title="Payment includes Tax / Ins / HOA — click to split"
-                      onClick={() => updateReo(r.id, "includesTI", false)}
-                      style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: FONT, letterSpacing: 0.5, padding: "2px 6px", border: `1px solid ${T.green}55`, borderRadius: 4, textTransform: "uppercase", whiteSpace: "nowrap", cursor: "pointer" }}>PITIA</span>
-                  </div>
-                ) : (
-                  <>
-                    {c.hasLinked ? (
-                      <div style={{ textAlign: "right", fontSize: 12, fontFamily: FONT, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                        {fmt(c.pi)}<AutoBadge T={T} />
-                      </div>
-                    ) : (
-                      <Inp value={r.payment} onChange={v => updateReo(r.id, "payment", v)} sm />
-                    )}
-                    <Inp value={r.reoTax} onChange={v => updateReo(r.id, "reoTax", v)} sm />
-                    <Inp value={r.reoIns} onChange={v => updateReo(r.id, "reoIns", v)} sm />
-                    <Inp value={r.reoHoa} onChange={v => updateReo(r.id, "reoHoa", v)} sm />
-                  </>
-                )}
-                {/* HELOC — auto from linked HELOC debts */}
-                <div style={{ textAlign: "right", fontSize: 12, fontFamily: FONT, fontWeight: 600, color: c.helocPmt > 0 ? T.text : T.textTertiary, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                  {c.helocPmt > 0 ? <>{fmt(c.helocPmt)}<AutoBadge T={T} /></> : "—"}
-                </div>
-                {/* Expenses — auto */}
-                <div style={{ textAlign: "right", fontSize: 12, fontFamily: FONT, fontWeight: 700, color: T.text, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                  {fmt(c.expenses)}<AutoBadge T={T} />
-                </div>
-                {/* Income */}
-                <Inp value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} sm />
                 {/* Net — auto */}
                 <div style={{ textAlign: "right", fontSize: 13, fontFamily: FONT, fontWeight: 700, color: c.net >= 0 ? T.green : T.red }}>
                   {fmt(c.net)}
                 </div>
                 {/* Actions */}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 4 }}>
-                  <button onClick={() => setExpandedRowId(isExpanded ? null : r.id)} aria-label="Toggle details" style={{
-                    width: 22, height: 22, borderRadius: 4,
-                    background: isExpanded ? `${ACCENT}20` : "transparent",
-                    border: `1px solid ${T.separator}`, color: T.textSecondary,
-                    fontSize: 12, lineHeight: 1, cursor: "pointer", padding: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>{isExpanded ? "−" : "+"}</button>
                   <button onClick={() => removeReo(r.id)} aria-label="Remove" style={{
                     width: 22, height: 22, borderRadius: 4,
                     background: "transparent", border: "none", color: T.textTertiary,
@@ -282,9 +224,36 @@ export default function ReoContent(props) {
                 </div>
               </div>
 
-              {/* Expand panel — linked debts UI + equity/cash flow detail */}
+              {/* Expand panel — property details + linked debts UI + equity/cash flow detail */}
               {isExpanded && (
                 <div style={{ padding: "14px 20px", background: `${ACCENT}06`, borderBottom: `1px solid ${T.separator}` }}>
+                  {/* Property Details — moved out of the collapsed row */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+                      Property Details
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                      <Sel label="Type" value={r.propType || "Single Family"} onChange={v => updateReo(r.id, "propType", v)} options={propTypeOpts} sm />
+                      <Sel label="Occupancy" value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm />
+                      <Inp label="Purchase Price" value={r.purchasePrice || 0} onChange={v => updateReo(r.id, "purchasePrice", v)} sm />
+                      {c.hasLinked
+                        ? <Inp label="Liens (auto)" value={c.liens} onChange={() => {}} sm readOnly />
+                        : <Inp label="Liens" value={r.mortgageBalance} onChange={v => updateReo(r.id, "mortgageBalance", v)} sm />}
+                      {c.hasLinked
+                        ? <Inp label="P&I (auto)" value={c.pi} onChange={() => {}} sm readOnly />
+                        : <Inp label={piMerged ? "Payment (PITIA)" : "P&I"} value={r.payment} onChange={v => updateReo(r.id, "payment", v)} sm />}
+                      {!piMerged && <Inp label="Tax" value={r.reoTax} onChange={v => updateReo(r.id, "reoTax", v)} sm />}
+                      {!piMerged && <Inp label="Insurance" value={r.reoIns} onChange={v => updateReo(r.id, "reoIns", v)} sm />}
+                      {!piMerged && <Inp label="HOA" value={r.reoHoa} onChange={v => updateReo(r.id, "reoHoa", v)} sm />}
+                      <Inp label="Rental Income" value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} sm />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 0", marginTop: 10, borderTop: `1px solid ${T.separator}` }}>
+                      <span style={{ fontSize: 12, color: T.textSecondary }}>Payment includes Tax, Ins &amp; HOA?</span>
+                      <div onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", transform: r.includesTI ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+                      </div>
+                    </div>
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
@@ -349,12 +318,6 @@ export default function ReoContent(props) {
                           )}
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 0", marginTop: 10, borderTop: `1px solid ${T.separator}` }}>
-                        <span style={{ fontSize: 12, color: T.textSecondary }}>Payment includes Tax, Ins &amp; HOA?</span>
-                        <div onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
-                          <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", transform: r.includesTI ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -365,20 +328,15 @@ export default function ReoContent(props) {
 
         {/* Totals row */}
         <div style={{
-          display: "grid", gridTemplateColumns: COLS, gap: 0,
+          display: "grid", gridTemplateColumns: COLS_SUM, gap: 8,
           padding: "10px 12px", background: T.inputBg,
           borderTop: `1px solid ${HEAD_BORDER}`,
           alignItems: "center",
           fontSize: 12, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5,
           textTransform: "uppercase", color: T.text,
         }}>
-          <span style={{ gridColumn: "1 / 4" }}>Total Rental Income / Loss</span>
+          <span>Total Rental Income / Loss</span>
           <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totals.value)}</span>
-          <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totals.liens)}</span>
-          <span></span>
-          <span style={{ gridColumn: "7 / 12" }}></span>
-          <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totals.expenses)}</span>
-          <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totals.income)}</span>
           <span style={{ textAlign: "right", fontFamily: FONT, color: totals.net >= 0 ? T.green : T.red, fontSize: 13 }}>{fmt(totals.net)}</span>
           <span></span>
         </div>

@@ -26,8 +26,11 @@ export default function AssetsContent(props) {
     ? getReserveFactor(type, loanType)
     : (RESERVE_FACTORS[type] ?? 1);
 
-  const totalValue = assets.reduce((s, a) => s + (a.value || 0), 0);
-  const totalForClosing = assets.reduce((s, a) => s + (a.forClosing || 0), 0);
+  // Net proceeds from a property sale (from the Seller Net tab) become liquid cash toward
+  // the new purchase. Surfaced as a read-only, fully-allocated-to-closing asset row.
+  const saleProceeds = calc.saleProceedsAsset || 0;
+  const totalValue = assets.reduce((s, a) => s + (a.value || 0), 0) + saleProceeds;
+  const totalForClosing = assets.reduce((s, a) => s + (a.forClosing || 0), 0) + saleProceeds;
   const totalReserves = assets.reduce((s, a) => {
     const remaining = Math.max(0, (a.value || 0) - (a.forClosing || 0));
     return s + remaining * rf(a.type);
@@ -94,14 +97,14 @@ export default function AssetsContent(props) {
           </div>
 
           {/* Rows */}
-          {assets.length === 0 ? (
+          {assets.length === 0 && saleProceeds === 0 ? (
             <div data-field="add-asset" className={isPulse("add-asset")} style={{ padding: "20px 0", textAlign: "center" }}>
               <button onClick={onAdd} style={{ background: "none", border: `2px dashed ${T.separator}`, color: T.blue, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "16px 24px", borderRadius: 12, fontFamily: FONT }}>
                 + Add Asset Account
               </button>
             </div>
-          ) : (
-            assets.map((a, aIdx) => {
+          ) : (<>
+            {assets.map((a, aIdx) => {
               const factor = rf(a.type);
               const factorPct = (factor * 100).toFixed(0) + "%";
               const remaining = Math.max(0, (a.value || 0) - (a.forClosing || 0));
@@ -136,11 +139,34 @@ export default function AssetsContent(props) {
                   <button onClick={() => removeAsset(a.id)} aria-label="Remove" style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 16, cursor: "pointer", padding: 4, borderRadius: 4, lineHeight: 1 }}>×</button>
                 </div>
               );
-            })
-          )}
+            })}
+            {saleProceeds > 0 && (
+              <div data-asset-row style={{
+                display: "grid",
+                gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1.2fr 0.7fr 1fr 32px",
+                gap: 8,
+                padding: "10px 0",
+                borderBottom: `1px solid ${T.separator}`,
+                alignItems: "center",
+                background: `${T.blue}08`,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, display: "flex", alignItems: "center", gap: 6 }}>
+                  Net Proceeds from Sale
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: T.blue, border: `1px solid ${T.blue}55`, borderRadius: 4, padding: "1px 4px" }}>AUTO</span>
+                </span>
+                <span style={{ fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>—</span>
+                <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>Sale Proceeds</span>
+                <span style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
+                <span style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
+                <span style={{ textAlign: "right", fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>—</span>
+                <span style={{ textAlign: "right", fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>{fmt(0)}</span>
+                <span></span>
+              </div>
+            )}
+          </>)}
 
           {/* Totals row */}
-          {assets.length > 0 && (
+          {(assets.length > 0 || saleProceeds > 0) && (
             <div style={{
               display: "grid",
               gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1.2fr 0.7fr 1fr 32px",
@@ -161,7 +187,7 @@ export default function AssetsContent(props) {
           )}
 
           {/* Add row button */}
-          {assets.length > 0 && (
+          {(assets.length > 0 || saleProceeds > 0) && (
             <div style={{ paddingTop: 10 }}>
               <button onClick={onAdd} style={{ width: "100%", padding: 12, background: `${T.blue}10`, border: `1px dashed ${T.blue}44`, borderRadius: 10, color: T.blue, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
                 + Add Asset Account
@@ -206,7 +232,27 @@ export default function AssetsContent(props) {
             </div>
           );
         })}
-        {assets.length === 0 && (
+        {saleProceeds > 0 && (
+          <div data-asset-row style={{ borderRadius: 18 }}>
+            <Card style={{ background: `${T.blue}08` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", gap: 6 }}>
+                  Net Proceeds from Sale
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: T.blue, border: `1px solid ${T.blue}55`, borderRadius: 4, padding: "1px 4px" }}>AUTO</span>
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                <span style={{ color: T.textSecondary }}>From Seller Net tab</span>
+                <span style={{ fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                <span style={{ color: T.textSecondary }}>Available for Closing</span>
+                <span style={{ fontWeight: 600, fontFamily: FONT, color: T.green }}>{fmt(saleProceeds)}</span>
+              </div>
+            </Card>
+          </div>
+        )}
+        {assets.length === 0 && saleProceeds === 0 && (
           <div data-field="add-asset" className={isPulse("add-asset")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
             <Card style={{ border: `2px dashed ${T.separator}`, background: "transparent", boxShadow: "none", textAlign: "center", padding: 24 }}>
               <button onClick={onAdd} style={{ background: "none", border: "none", color: T.blue, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>+ Add Asset Account</button>

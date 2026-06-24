@@ -1170,31 +1170,43 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [propTaxCustomize, setPropTaxCustomize] = useState(false); // Layer 3 customize panel visibility
  const [includeEscrow, setIncludeEscrow] = useState(true);
  const [subjectRentalIncome, setSubjectRentalIncome] = useState(0);
- const [transferTaxCity, setTransferTaxCity] = useState("Alameda");
+ const [transferTaxCity, setTransferTaxCity] = useState("Not listed");
  // Buyer's share of CITY transfer tax: "buyer" (100%) | "split50" (50%) | "seller" (0%). Default 50/50.
  const [transferTaxSplit, setTransferTaxSplit] = useState("split50");
  // Buyer's share of COUNTY transfer tax — independent of city per Christo (different deals split these differently).
  const [transferTaxCountySplit, setTransferTaxCountySplit] = useState("split50");
  const [discountPts, setDiscountPts] = useState(0);
  const [originatorComp, setOriginatorComp] = useState(0);
- const [underwritingFee, setUnderwritingFee] = useState(1195);
- const [processingFee, setProcessingFee] = useState(400);
- const [appraisalFee, setAppraisalFee] = useState(795);
- const [creditReportFee, setCreditReportFee] = useState(95);
+ // Section A — lender/origination fees (defaults match Christo's fee worksheet)
+ const [adminFee, setAdminFee] = useState(795);
+ const [lenderWireFee, setLenderWireFee] = useState(295);
+ const [underwritingFee, setUnderwritingFee] = useState(1250);
+ // Processing Fee lives in Section B (Services You Cannot Shop For) per the fee worksheet
+ const [processingFee, setProcessingFee] = useState(695);
+ const [appraisalFee, setAppraisalFee] = useState(850);
+ const [creditReportFee, setCreditReportFee] = useState(134);
  const [floodCertFee, setFloodCertFee] = useState(8);
  const [mersFee, setMersFee] = useState(25);
  const [taxServiceFee, setTaxServiceFee] = useState(85);
- const [titleInsurance, setTitleInsurance] = useState(700);
+ const [titleInsurance, setTitleInsurance] = useState(2000);
  const [titleSearch, setTitleSearch] = useState(1261);
  const [settlementFee, setSettlementFee] = useState(502);
  const [escrowFee, setEscrowFee] = useState(2400);
+ // Section C — additional title/escrow line items (from the fee worksheet)
+ const [courierFee, setCourierFee] = useState(150);
+ const [loanTieInFee, setLoanTieInFee] = useState(150);
+ const [notaryFee, setNotaryFee] = useState(175);
+ const [envProtectionLien, setEnvProtectionLien] = useState(100);
  const [recordingFee, setRecordingFee] = useState(200);
  const [lenderCredit, setLenderCredit] = useState(0);
  const [sellerCredit, setSellerCredit] = useState(0);
  const [realtorCredit, setRealtorCredit] = useState(0);
- const [emd, setEmd] = useState(0);
+ const [emd, setEmd] = useState(0); // legacy $ EMD (kept for back-compat with saved scenarios)
+ // EMD entered as a % of price (3% is standard in CA). Only credited if actually paid to escrow.
+ const [emdPct, setEmdPct] = useState(3);
+ const [emdPaid, setEmdPaid] = useState(false);
  // Section H: Other Costs
- const [ownersTitleIns, setOwnersTitleIns] = useState(2000);
+ const [ownersTitleIns, setOwnersTitleIns] = useState(3000);
  const [homeWarranty, setHomeWarranty] = useState(500);
  const [hoaTransferFee, setHoaTransferFee] = useState(0); // auto-set to 1 month HOA
  const [buyerPaysComm, setBuyerPaysComm] = useState(false);
@@ -1424,7 +1436,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const getState = () => ({
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  transferTaxCity, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
   prepaidDays, coeDays, closingMonth, closingDay, propertyTaxesInstallment, sellersProratedTaxCredit, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -1473,6 +1485,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setTransferTaxCity(match ? match.city : (TT_CITY_NAMES.includes(s.transferTaxCity) ? s.transferTaxCity : "Not listed"));
   }
   if (s.discountPts !== undefined) setDiscountPts(s.discountPts);
+  if (s.adminFee !== undefined) setAdminFee(s.adminFee);
+  if (s.lenderWireFee !== undefined) setLenderWireFee(s.lenderWireFee);
   if (s.underwritingFee !== undefined) setUnderwritingFee(s.underwritingFee);
   if (s.processingFee !== undefined) setProcessingFee(s.processingFee);
   if (s.appraisalFee !== undefined) setAppraisalFee(s.appraisalFee);
@@ -1484,11 +1498,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.titleSearch !== undefined) setTitleSearch(s.titleSearch);
   if (s.settlementFee !== undefined) setSettlementFee(s.settlementFee);
   if (s.escrowFee !== undefined) setEscrowFee(s.escrowFee);
+  if (s.courierFee !== undefined) setCourierFee(s.courierFee);
+  if (s.loanTieInFee !== undefined) setLoanTieInFee(s.loanTieInFee);
+  if (s.notaryFee !== undefined) setNotaryFee(s.notaryFee);
+  if (s.envProtectionLien !== undefined) setEnvProtectionLien(s.envProtectionLien);
   if (s.recordingFee !== undefined) setRecordingFee(s.recordingFee);
   if (s.lenderCredit !== undefined) setLenderCredit(s.lenderCredit);
   if (s.sellerCredit !== undefined) setSellerCredit(s.sellerCredit);
   if (s.realtorCredit !== undefined) setRealtorCredit(s.realtorCredit);
   if (s.emd !== undefined) setEmd(s.emd);
+  if (s.emdPct !== undefined) setEmdPct(s.emdPct);
+  // Back-compat: older scenarios stored a $ EMD with no paid flag — treat a positive EMD as paid.
+  if (s.emdPaid !== undefined) setEmdPaid(s.emdPaid);
+  else if (s.emd > 0) setEmdPaid(true);
   if (s.ownersTitleIns !== undefined) setOwnersTitleIns(s.ownersTitleIns);
   if (s.homeWarranty !== undefined) setHomeWarranty(s.homeWarranty);
   if (s.hoaTransferFee !== undefined) setHoaTransferFee(s.hoaTransferFee);
@@ -1790,7 +1812,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  transferTaxCity, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
@@ -1877,7 +1899,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setSalesPrice(1000000); setDownPct(20); setRate(6.5); setTerm(30);
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
   setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
-  setSellerCredit(0); setRealtorCredit(0); setEmd(0); setDebts([]); setIncomes([]);
+  setSellerCredit(0); setRealtorCredit(0); setEmd(0); setEmdPct(3); setEmdPaid(false); setDebts([]); setIncomes([]);
   setOtherIncome(0); setOtherIncome2(0); setAssets([]); setCreditScore(0); setExtraPayment(0); setPayExtra(false);
   setHasSellProperty(false); setOwnsProperties(false); setIsRefi(null); setShowInvestor(false);
   // Reset Prop 19
@@ -2998,8 +3020,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Auto-sync transfer tax city when property city or state changes
  useEffect(() => {
   const stateCities = getTTCitiesForState(propertyState);
+  // If the property's city has its own city transfer tax, use it. Otherwise reset to
+  // "Not listed" (rate 0) — most cities (e.g. Danville, CA) have NO city transfer tax,
+  // so we must NOT leave a stale default city like "Alameda" applying a phantom rate.
   if (stateCities.includes(city)) setTransferTaxCity(city);
-  else if (!stateCities.includes(transferTaxCity)) setTransferTaxCity("Not listed");
+  else setTransferTaxCity("Not listed");
  }, [city, propertyState]);
  // Auto-fill city, state, county when zip code changes (transfer tax auto-synced by city/state effect above)
  useEffect(() => {
@@ -3081,12 +3106,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setSettlementFee(0);
    setEscrowFee(1995);
    setAppraisalFee(595);
+   // Refi uses a flat title/escrow fee — zero the itemized purchase-only lines
+   setCourierFee(0);
+   setLoanTieInFee(0);
+   setNotaryFee(0);
+   setEnvProtectionLien(0);
   } else {
-   setTitleInsurance(700);
+   setTitleInsurance(2000);
    setTitleSearch(1261);
    setSettlementFee(502);
    setEscrowFee(2400);
-   setAppraisalFee(795);
+   setAppraisalFee(850);
+   setCourierFee(150);
+   setLoanTieInFee(150);
+   setNotaryFee(175);
+   setEnvProtectionLien(100);
   }
  }, [isRefi]);
  useEffect(() => {
@@ -3271,10 +3305,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const buyerCityTT = isRefi ? 0 : (salesPrice / 1000 * ttEntry.rate) * cityBuyerShare;
   const buyerCountyTT = isRefi ? 0 : (salesPrice / 1000 * countyTTRate) * countyBuyerShare;
   const pointsCost = loan * (discountPts / 100);
-  const origCharges = underwritingFee + processingFee + pointsCost + originatorComp;
+  const origCharges = underwritingFee + adminFee + lenderWireFee + pointsCost + originatorComp;
   const hoaCert = (!isRefi && (propType === "Condo" || propType === "Townhouse")) ? 500 : 0;
-  const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + taxServiceFee;
-  const titleEscrowTotal = titleInsurance + titleSearch + settlementFee + escrowFee;
+  const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + processingFee + taxServiceFee;
+  const titleEscrowTotal = titleInsurance + titleSearch + settlementFee + escrowFee + courierFee + loanTieInFee + notaryFee + envProtectionLien;
   const canShop = titleEscrowTotal + hoaCert;
   const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
   const buyerCommAmt = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
@@ -3301,7 +3335,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const escrowInsMonths = 3;
   const initialEscrow = includeEscrow ? (monthlyTax * escrowTaxMonths) + (ins * escrowInsMonths) : 0;
   const totalPrepaidExp = totalPrepaids + initialEscrow;
-  const totalCredits = isRefi ? lenderCredit : (sellerCredit + realtorCredit + emd + lenderCredit);
+  // EMD: a % of price, only credited toward cash-to-close once it's actually been paid to escrow.
+  const emdAmt = isRefi ? 0 : salesPrice * (emdPct / 100);
+  const emdCredit = (!isRefi && emdPaid) ? emdAmt : 0;
+  const totalCredits = isRefi ? lenderCredit : (sellerCredit + realtorCredit + emdCredit + lenderCredit);
   const cashToClose = (isRefi ? 0 : dp) + totalClosingCosts + totalPrepaidExp + payoffAtClosing - totalCredits;
   const ficoMin = loanType === "FHA" ? 580 : loanType === "Jumbo" ? 700 : loanType === "VA" ? 580 : 620;
   const ficoCheck = creditScore > 0 ? (creditScore >= ficoMin ? "Good!" : "Too Low") : "—";
@@ -3505,10 +3542,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sellStateCapGainsTax = sellTaxableGain * sellStateCapGainsRate;
   const sellTotalCapGainsTax = sellFedCapGainsTax + sellStateCapGainsTax;
   const sellNetAfterTax = sellNetProceeds - sellTotalCapGainsTax;
+  // ── Net sale proceeds available as an asset toward the new purchase ──
+  // When "Selling a Property" is on, the after-tax net proceeds become liquid cash the buyer
+  // can apply to closing. We surface it as a read-only asset row and fold it into the asset
+  // totals + cash check (fully allocated to closing → adds nothing to reserves).
+  const saleProceedsAsset = (hasSellProperty && sellNetAfterTax > 0) ? Math.round(sellNetAfterTax) : 0;
+  const totalAssetValueAll = totalAssetValue + saleProceedsAsset;
+  const totalForClosingAll = totalForClosing + saleProceedsAsset;
+  const cashCheckAll = totalForClosingAll > 0 ? (totalForClosingAll >= cashToClose ? "Good!" : "Short") : "—";
   // ── APR Calculation ──
   // APR includes all finance charges: origination, discount points, MI upfront, prepaid interest
   // Excluded per TILA: appraisal, title, escrow, recording, credit report, flood cert
-  const aprFinanceCharges = (pointsCost || 0) + (fhaUp || 0) + (vaFundingFee || 0) + (usdaFee || 0) + (underwritingFee || 0) + (processingFee || 0);
+  const aprFinanceCharges = (pointsCost || 0) + (fhaUp || 0) + (vaFundingFee || 0) + (usdaFee || 0) + (underwritingFee || 0) + (adminFee || 0) + (lenderWireFee || 0) + (processingFee || 0);
   const apr = calcAPR(loan, rate, term, aprFinanceCharges);
   const extra = payExtra ? extraPayment : 0;
   // Amortization engine extracted to lib/finance.js (audit M-1).
@@ -3521,14 +3566,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return {
    dp, baseLoan, loan, fhaUp, vaFundingFee, autoVAFF, vaFFRate, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, autoPmiRate, monthlyPMI, monthlyMIP, fhaMipRate, usdaMI, monthlyMI,
    taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
-   housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue, totalForClosing, totalReserves,
+   housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue: totalAssetValueAll, totalForClosing: totalForClosingAll, totalReserves, saleProceedsAsset,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
    ttEntry, buyerCityTT, buyerCountyTT, countyTTRate, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
    govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
-   totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose,
-   reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck, resCheck, minDPpct, recDPpct, dpWarning,
+   totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose, emdAmt, emdCredit,
+   reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
    stateMortInt, stateItemized, fedTaxBefore, fedTaxAfter, fedSavings,
    stateTaxBefore, stateTaxAfter, stateSavings, totalTaxSavings, monthlyTaxSavings,
@@ -3563,7 +3608,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd,
+  transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid,
   sellerTaxBasis, prepaidDays, coeDays, closingMonth, closingDay, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
@@ -4298,6 +4343,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     dpOk={dpOk} refiLtvCheck={refiLtvCheck}
     scenarioName={scenarioName} scenarioList={scenarioList} switchScenario={switchScenario}
     saving={saving} loaded={loaded} cloudSyncStatus={cloudSyncStatus} sync={sync}
+    borrowerName={borrowerName}
     darkMode={darkMode} themeMode={themeMode} cycleTheme={cycleTheme}
     privacyMode={privacyMode} setPrivacyMode={setPrivacyMode}
     isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}
@@ -4762,7 +4808,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
-{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
+{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ ASSETS ═══ */}
@@ -5021,15 +5067,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    TT_CITY_NAMES,
    /* Fees for IFW-style costs */
    underwritingFee, setUnderwritingFee, processingFee, setProcessingFee,
+   adminFee, setAdminFee, lenderWireFee, setLenderWireFee,
    discountPts, setDiscountPts,
    appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee,
    floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee,
    titleInsurance, setTitleInsurance, titleSearch, setTitleSearch,
    settlementFee, setSettlementFee, escrowFee, setEscrowFee,
+   courierFee, setCourierFee, loanTieInFee, setLoanTieInFee,
+   notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien,
    transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit,
    recordingFee, setRecordingFee,
    lenderCredit, setLenderCredit, sellerCredit, setSellerCredit,
-   realtorCredit, setRealtorCredit, emd, setEmd,
+   realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid,
    ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty,
    hoaTransferFee, setHoaTransferFee,
    buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct,
