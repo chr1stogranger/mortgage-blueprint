@@ -121,7 +121,7 @@ export default function AssetsContent(props) {
                     alignItems: "center",
                     transition: "all 0.3s",
                   }}>
-                  <div style={{ maxWidth: 150 }}>
+                  <div style={{ maxWidth: 200 }}>
                     <TextInp value={a.bank} onChange={v => updateAsset(a.id, "bank", v)} sm placeholder="e.g. Chase" />
                   </div>
                   <div style={{ maxWidth: 120 }}>
