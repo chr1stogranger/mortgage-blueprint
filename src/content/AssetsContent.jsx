@@ -121,25 +121,25 @@ export default function AssetsContent(props) {
                     alignItems: "center",
                     transition: "all 0.3s",
                   }}>
-                  <div style={{ maxWidth: 200 }}>
+                  <div style={{ maxWidth: 150 }}>
                     <TextInp value={a.bank} onChange={v => updateAsset(a.id, "bank", v)} sm placeholder="e.g. Chase" />
                   </div>
-                  <div style={{ maxWidth: 150 }}>
+                  <div style={{ maxWidth: 120 }}>
                     <Sel value={a.owner || ""} onChange={v => updateAsset(a.id, "owner", v)} options={[{ value: "", label: "—" }, ...OWNER_OPTIONS]} sm />
                   </div>
-                  <div style={{ maxWidth: 160 }}>
+                  <div style={{ maxWidth: 130 }}>
                     <Sel value={a.type} onChange={v => updateAsset(a.id, "type", v)} options={ASSET_TYPES.map(t => ({ value: t, label: t }))} sm />
                   </div>
-                  <div style={{ maxWidth: 150 }} onBlur={() => { if (aIdx === 0 && a.value > 0) markTouched && markTouched("asset-value"); }}>
+                  <div style={{ maxWidth: 128 }} onBlur={() => { if (aIdx === 0 && a.value > 0) markTouched && markTouched("asset-value"); }}>
                     <Inp value={a.value} onChange={v => updateAsset(a.id, "value", v)} sm />
                   </div>
-                  <div style={{ maxWidth: 150 }} onBlur={() => { if (aIdx === 0 && a.forClosing > 0) markTouched && markTouched("asset-closing"); }}>
+                  <div style={{ maxWidth: 128 }} onBlur={() => { if (aIdx === 0 && a.forClosing > 0) markTouched && markTouched("asset-closing"); }}>
                     <Inp value={a.forClosing} onChange={v => updateAsset(a.id, "forClosing", v)} sm />
                   </div>
-                  <div style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: isGift ? T.orange : T.text }}>
+                  <div style={{ textAlign: "left", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: isGift ? T.orange : T.text }}>
                     {factorPct}
                   </div>
-                  <div style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: reserveAmt > 0 ? T.green : T.textTertiary }}>
+                  <div style={{ textAlign: "left", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: reserveAmt > 0 ? T.green : T.textTertiary }}>
                     {fmt(reserveAmt)}
                   </div>
                   <button onClick={() => removeAsset(a.id)} aria-label="Remove" style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 16, cursor: "pointer", padding: 4, borderRadius: 4, lineHeight: 1 }}>×</button>
@@ -162,10 +162,10 @@ export default function AssetsContent(props) {
                 </span>
                 <span style={{ fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>—</span>
                 <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>Sale Proceeds</span>
-                <span style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
-                <span style={{ textAlign: "right", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
-                <span style={{ textAlign: "right", fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>—</span>
-                <span style={{ textAlign: "right", fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>{fmt(0)}</span>
+                <span style={{ textAlign: "left", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
+                <span style={{ textAlign: "left", fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(saleProceeds)}</span>
+                <span style={{ textAlign: "left", fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>—</span>
+                <span style={{ textAlign: "left", fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>{fmt(0)}</span>
                 <span></span>
               </div>
             )}
@@ -184,10 +184,10 @@ export default function AssetsContent(props) {
               borderTop: `2px solid ${T.separator}`,
             }}>
               <span style={{ gridColumn: "1 / 4", color: T.textSecondary, fontWeight: 600 }}>Total Funds</span>
-              <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totalValue)}</span>
-              <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totalForClosing)}</span>
+              <span style={{ textAlign: "left", fontFamily: FONT }}>{fmt(totalValue)}</span>
+              <span style={{ textAlign: "left", fontFamily: FONT }}>{fmt(totalForClosing)}</span>
               <span></span>
-              <span style={{ textAlign: "right", fontFamily: FONT, color: T.green }}>{fmt(totalReserves)}</span>
+              <span style={{ textAlign: "left", fontFamily: FONT, color: T.green }}>{fmt(totalReserves)}</span>
               <span></span>
             </div>
           )}
