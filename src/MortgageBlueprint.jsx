@@ -2327,7 +2327,48 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const matched = rateMap[loanType];
    if (matched && !isNaN(matched)) setRate(matched);
   };
-  // Attempt 1: Vercel serverless proxy (avoids CORS)
+  // Normalize the RealStack Ops market-rates payload → Blueprint's flat shape.
+  // Ops returns { provider, asOf, rates: { "30yr_fixed": { rate, change, ... }, ... } }
+  // with products keyed 30yr_fixed / 15yr_fixed / 30yr_fha / 30yr_va / 30yr_jumbo / arm_7_6.
+  const mapOpsRates = (payload) => {
+   const r = (payload && payload.rates) || {};
+   const num = (k) => { const v = r[k] && r[k].rate; return (typeof v === "number" && !isNaN(v)) ? v : null; };
+   const out = {
+    date: (payload && payload.asOf) || new Date().toISOString().split("T")[0],
+    "30yr_fixed": num("30yr_fixed"),
+    "15yr_fixed": num("15yr_fixed"),
+    "30yr_fha": num("30yr_fha"),
+    "30yr_va": num("30yr_va"),
+    "30yr_jumbo": num("30yr_jumbo"),
+    "5yr_arm": num("arm_7_6"),
+    source: payload && payload.provider === "fred" ? "FRED / Freddie Mac PMMS" : "Mortgage News Daily",
+   };
+   // Fill any gaps off the 30yr so the rate table never shows blanks.
+   const base = out["30yr_fixed"];
+   if (base) {
+    if (out["15yr_fixed"] == null) out["15yr_fixed"] = +(base - 0.6).toFixed(2);
+    if (out["30yr_fha"] == null) out["30yr_fha"] = +(base - 0.25).toFixed(2);
+    if (out["30yr_va"] == null) out["30yr_va"] = +(base - 0.35).toFixed(2);
+    if (out["30yr_jumbo"] == null) out["30yr_jumbo"] = +(base + 0.25).toFixed(2);
+    if (out["5yr_arm"] == null) out["5yr_arm"] = +(base - 0.3).toFixed(2);
+   }
+   return out;
+  };
+  // Attempt 1: RealStack Ops market-rates — Mortgage News Daily (updated daily,
+  // more current than FRED's weekly survey); Ops falls back to FRED server-side
+  // on its end. Absolute URL: Ops is a different origin and CORS-allows this read.
+  try {
+   const res = await fetch("https://ops.realstack.app/api/market-rates");
+   if (res.ok) {
+    const parsed = mapOpsRates(await res.json());
+    if (parsed["30yr_fixed"] > 2 && parsed["30yr_fixed"] < 15) {
+     applyRates(parsed);
+     setRatesLoading(false);
+     return;
+    }
+   }
+  } catch (e) { console.log("Ops market-rates fetch failed:", e.message); }
+  // Attempt 2: Blueprint's own serverless proxy (legacy FRED; key stays server-side).
   try {
    const res = await fetch(apiUrl("/api/rates"));
    if (res.ok) {
@@ -2339,8 +2380,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     }
    }
   } catch(e) { console.log("Proxy fetch failed:", e.message); }
-  // Rate fetch failed — all rate data flows through /api/rates server-side proxy
-  // (FRED API key is never exposed to the client)
+  // Both sources failed.
   setRatesError("Could not fetch rates — try again in a moment");
   setRatesLoading(false);
  };
