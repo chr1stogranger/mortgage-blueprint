@@ -4481,6 +4481,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     open={showAccountSheet}
     onClose={() => setShowAccountSheet(false)}
     accountHook={account}
+    onResetSync={selfSync.resetSync}
     T={T} darkMode={darkMode}
    />
   )}

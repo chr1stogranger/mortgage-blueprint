@@ -23,8 +23,18 @@ import {
   fetchOwnedScenario,
   createOwnedScenario,
   updateOwnedScenario,
+  deleteOwnedScenario,
   stripDevicePrefs,
 } from '../lib/cloudScenarios';
+
+// Guard every cloud op so a wedged request (e.g. Supabase auth-lock contention
+// across tabs) can never hang the UI forever — it fails that item instead.
+function withTimeout(promise, ms = 15000, label = 'cloud op') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), ms)),
+  ]);
+}
 
 const MAP_KEY = 'bp_cloud_map';
 const MERGE_DONE_KEY = 'bp_merge_done';
@@ -92,11 +102,20 @@ export default function useSelfCloudSync({
       const entry = map[name];
 
       if (entry?.id) {
-        await updateOwnedScenario(entry.id, { stateData: state, name });
+        await withTimeout(updateOwnedScenario(entry.id, { stateData: state, name }), 15000, 'update');
         map[name] = { id: entry.id, syncedAt: Date.now() };
       } else {
-        const created = await createOwnedScenario(accountId, { name, stateData: state });
-        map[name] = { id: created.id, syncedAt: Date.now() };
+        // No mapping yet — adopt an existing same-named cloud row if one
+        // exists (prevents forking "Scenario 1" into duplicates); else create.
+        const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
+        const existing = cloudRows.find(r => r.name === name);
+        if (existing) {
+          await withTimeout(updateOwnedScenario(existing.id, { stateData: state, name }), 15000, 'update');
+          map[name] = { id: existing.id, syncedAt: Date.now() };
+        } else {
+          const created = await withTimeout(createOwnedScenario(accountId, { name, stateData: state }), 15000, 'create');
+          map[name] = { id: created.id, syncedAt: Date.now() };
+        }
       }
       writeMap(map);
       setLastSyncedAt(new Date());
@@ -114,60 +133,51 @@ export default function useSelfCloudSync({
     pushTimer.current = setTimeout(pushActive, PUSH_DEBOUNCE_MS);
   }, [enabled, pushActive]);
 
-  // ── PULL: on sign-in / mount, download newer cloud copies ───────────────
+  // ── PULL: reconcile cloud → local. Identity is the scenario NAME:
+  // exactly one cloud row per name. Same-named duplicates (from older buggy
+  // versions or two devices uploading "Scenario 1") collapse to the newest,
+  // and the extras are deleted. Never creates "(2)" renamed copies. ─────────
   const pullNow = useCallback(async () => {
     if (!enabled || !accountId) return;
     try {
-      const cloudRows = await listOwnedScenarios(accountId);
+      const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
       if (!cloudRows.length) return;
 
-      const map = readMap();
-      const idToName = {};
-      for (const [name, entry] of Object.entries(map)) {
-        if (entry?.id) idToName[entry.id] = name;
+      // One row per name (newest updated_at wins); gather older dupes to delete.
+      const byName = new Map();
+      const dupes = [];
+      for (const row of cloudRows) {
+        const cur = byName.get(row.name);
+        if (!cur) { byName.set(row.name, row); continue; }
+        const rowNewer = new Date(row.updated_at) >= new Date(cur.updated_at);
+        byName.set(row.name, rowNewer ? row : cur);
+        dupes.push(rowNewer ? cur : row);
+      }
+      for (const d of dupes) {
+        try { await withTimeout(deleteOwnedScenario(d.id), 10000, 'dedupe'); } catch { /* noop */ }
       }
 
+      const map = readMap();
       const localNames = new Set(readLocalScenarioNames());
       const addedNames = [];
 
-      for (const row of cloudRows) {
-        let name = idToName[row.id];
-
-        if (!name) {
-          // New-to-this-device cloud scenario → download it
-          name = row.name || 'My Blueprint';
-          // Avoid clobbering an unmapped local scenario with the same name
-          let candidate = name;
-          let n = 2;
-          while (localNames.has(candidate) && map[candidate]?.id !== row.id) {
-            candidate = `${name} (${n++})`;
-          }
-          name = candidate;
-
-          const full = await fetchOwnedScenario(row.id);
-          if (full?.state_data) {
-            writeLocalScenario(name, full.state_data);
-            map[name] = { id: row.id, syncedAt: Date.now() };
-            localNames.add(name);
-            addedNames.push(name);
-          }
-          continue;
-        }
-
-        // Known scenario → refresh local copy if the cloud version is newer
-        const entry = map[name];
+      for (const [name, row] of byName) {
+        const prev = map[name];
         const cloudTs = new Date(row.updated_at).getTime();
-        if (cloudTs > (entry.syncedAt || 0) + 1500) {
-          const full = await fetchOwnedScenario(row.id);
+        const haveLocal = localNames.has(name);
+        // Download cloud content when we have no local copy, or the cloud
+        // version is newer than our last sync of this name.
+        if (!haveLocal || cloudTs > ((prev?.syncedAt) || 0) + 1500) {
+          const full = await withTimeout(fetchOwnedScenario(row.id), 15000, 'fetch');
           if (full?.state_data) {
             writeLocalScenario(name, full.state_data);
-            map[name] = { id: row.id, syncedAt: Date.now() };
-            // If it's the active scenario, apply it live
+            if (!haveLocal) addedNames.push(name);
             if (name === scenarioNameRef.current && loadStateRef?.current) {
               loadStateRef.current(stripDevicePrefs(full.state_data));
             }
           }
         }
+        map[name] = { id: row.id, syncedAt: Date.now() };
       }
 
       writeMap(map);
@@ -203,13 +213,32 @@ export default function useSelfCloudSync({
   const uploadLocal = useCallback(async (names) => {
     if (!accountId) throw new Error('Not signed in');
     const map = readMap();
+
+    // Adopt-by-name: if the cloud already has a scenario with this name (e.g.
+    // uploaded from another device), update it in place instead of creating a
+    // duplicate. This is what prevents the "Scenario 1 (2)/(3)" forking.
+    let cloudByName = new Map();
+    try {
+      const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
+      for (const r of cloudRows) {
+        const cur = cloudByName.get(r.name);
+        if (!cur || new Date(r.updated_at) > new Date(cur.updated_at)) cloudByName.set(r.name, r);
+      }
+    } catch { /* offline — treat as empty, create below */ }
+
     let uploaded = 0;
     for (const name of names) {
       const state = readLocalScenario(name);
       if (!state) continue;
       try {
-        const created = await createOwnedScenario(accountId, { name, stateData: state });
-        map[name] = { id: created.id, syncedAt: Date.now() };
+        const existing = cloudByName.get(name);
+        if (existing) {
+          await withTimeout(updateOwnedScenario(existing.id, { stateData: state, name }), 15000, 'update');
+          map[name] = { id: existing.id, syncedAt: Date.now() };
+        } else {
+          const created = await withTimeout(createOwnedScenario(accountId, { name, stateData: state }), 15000, 'create');
+          map[name] = { id: created.id, syncedAt: Date.now() };
+        }
         uploaded++;
       } catch (e) {
         console.warn(`[selfCloudSync] upload of "${name}" failed:`, e.message);
@@ -221,18 +250,56 @@ export default function useSelfCloudSync({
     return uploaded;
   }, [accountId]);
 
+  // ── RESET: wipe cloud scenarios + local sync state for a clean re-sync.
+  // Deletes every cloud scenario this account owns and clears the local
+  // name→id map + merge flag. Local scenarios are left untouched, so the
+  // user can re-enable sync and upload a fresh, clean set from one device.
+  const resetSync = useCallback(async () => {
+    if (!accountId) return 0;
+    let deleted = 0;
+    try {
+      const rows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
+      for (const r of rows) {
+        try { await withTimeout(deleteOwnedScenario(r.id), 10000, 'delete'); deleted++; } catch { /* noop */ }
+      }
+    } catch (e) {
+      console.warn('[selfCloudSync] reset failed:', e.message);
+    }
+    try { localStorage.removeItem(MAP_KEY); localStorage.removeItem(MERGE_DONE_KEY); } catch { /* noop */ }
+    pulledRef.current = false;
+    setMergeCandidates(null);
+    return deleted;
+  }, [accountId]);
+
   const skipMerge = useCallback(() => {
     try { localStorage.setItem(MERGE_DONE_KEY, '1'); } catch { /* noop */ }
     setMergeCandidates([]);
   }, []);
 
-  // ── Lifecycle: when sync becomes active, pull once + detect merge ───────
+  // ── Lifecycle: when sync becomes active ─────────────────────────────────
+  // If the account ALREADY has cloud scenarios (any device synced before),
+  // just load them — never prompt to upload. The merge/upload prompt appears
+  // only on the very first device, when the cloud is still empty.
   useEffect(() => {
     if (!enabled || !accountId || !loaded) { pulledRef.current = false; return; }
     if (pulledRef.current) return;
     pulledRef.current = true;
-    computeMergeCandidates();
-    pullNow();
+
+    (async () => {
+      let cloudRows = [];
+      try { cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list'); }
+      catch { /* offline — fall through */ }
+
+      if (cloudRows.length > 0) {
+        // Account already populated → adopt cloud, skip the upload prompt.
+        try { localStorage.setItem(MERGE_DONE_KEY, '1'); } catch { /* noop */ }
+        setMergeCandidates([]);
+        await pullNow();
+      } else {
+        // First device (empty cloud) → offer to upload local scenarios, if any.
+        computeMergeCandidates();
+      }
+    })();
   }, [enabled, accountId, loaded, computeMergeCandidates, pullNow]);
 
   // ── Flush pending push on unmount ───────────────────────────────────────
@@ -254,5 +321,6 @@ export default function useSelfCloudSync({
     mergeCandidates,    // null (not computed) | [] (nothing to merge) | [names]
     uploadLocal,
     skipMerge,
+    resetSync,          // wipe cloud scenarios + local sync state (troubleshooting)
   };
 }

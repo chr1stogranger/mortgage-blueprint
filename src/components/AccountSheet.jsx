@@ -25,7 +25,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export default function AccountSheet({ open, onClose, accountHook, T, darkMode }) {
+export default function AccountSheet({ open, onClose, accountHook, onResetSync, T, darkMode }) {
   const {
     session, account, isSignedIn, syncEnabled,
     setSyncEnabled, signOut, deleteAccount,
@@ -38,6 +38,7 @@ export default function AccountSheet({ open, onClose, accountHook, T, darkMode }
   const [error, setError] = useState('');
   const [deleteText, setDeleteText] = useState('');
   const [exportCount, setExportCount] = useState(null);
+  const [resetMsg, setResetMsg] = useState('');
 
   if (!open) return null;
 
@@ -271,6 +272,29 @@ export default function AccountSheet({ open, onClose, accountHook, T, darkMode }
             <button onClick={handleExport} disabled={busy} style={{ ...pill('transparent', secondary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}` }), marginBottom: 10 }}>
               {exportCount != null ? `Exported ${exportCount} blueprint${exportCount === 1 ? '' : 's'}` : 'Export my data (JSON)'}
             </button>
+
+            {/* Reset sync (troubleshooting) — clears cloud copies so you can
+                re-sync a clean set from one device. Local blueprints are kept. */}
+            {onResetSync && (
+              <button
+                onClick={async () => {
+                  if (busy) return;
+                  setBusy(true); setError(''); setResetMsg('');
+                  try {
+                    const n = await onResetSync();
+                    setResetMsg(`Cleared ${n} cloud copy${n === 1 ? '' : 's'}. Turn Cloud sync on to re-upload a clean set.`);
+                  } catch (e) { setError(e.message || 'Reset failed'); }
+                  setBusy(false);
+                }}
+                disabled={busy}
+                style={{ ...pill('transparent', tertiary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}`, fontSize: 13 }), marginBottom: 10 }}
+              >
+                {busy ? 'Working…' : 'Reset cloud sync'}
+              </button>
+            )}
+            {resetMsg && (
+              <div style={{ fontSize: 12, color: secondary, lineHeight: 1.5, margin: '0 0 12px', textAlign: 'center' }}>{resetMsg}</div>
+            )}
 
             {/* Sign out */}
             <button onClick={async () => { await signOut(); onClose(); }} style={{ ...pill('transparent', secondary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}` }), marginBottom: 10 }}>
