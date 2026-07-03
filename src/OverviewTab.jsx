@@ -117,8 +117,19 @@ export default function OverviewTab(props) {
               <span onClick={onCompare} style={{ fontSize: 9, fontWeight: 700, color: T.blue, background: `${T.blue}15`, borderRadius: 5, padding: "1px 5px", cursor: "pointer", whiteSpace: "nowrap" }}>Compare</span>
             )}
           </div>
-          {!isCloud && !auth?.localMode && auth?.requestLogin && (
-            <button onClick={auth.requestLogin} style={{ fontSize: 10, color: T.blue, background: "none", border: `1px solid ${T.blue}30`, borderRadius: 8, padding: "2px 8px", cursor: "pointer", fontFamily: FONT }}>Sign in to sync</button>
+          {/* Borrower account affordance (public calculator only). When signed
+              in + syncing → a subtle "Synced" chip; otherwise a "Sign in to
+              sync" button that opens the borrower AccountSheet (NOT the LO
+              login gate, which is allowlist-only). */}
+          {props.showAccountButton && (
+            props.selfAccount ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, borderRadius: 8, padding: "2px 8px", fontFamily: FONT, whiteSpace: "nowrap" }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.green, display: "inline-block" }} />
+                {props.syncEnabled ? "Synced" : "Signed in"}
+              </span>
+            ) : (
+              <button onClick={props.onOpenAccountSheet} style={{ fontSize: 10, color: T.blue, background: "none", border: `1px solid ${T.blue}30`, borderRadius: 8, padding: "2px 8px", cursor: "pointer", fontFamily: FONT }}>Sign in to sync</button>
+            )
           )}
         </div>
       </div>

@@ -5095,6 +5095,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setTab, isCloud, auth, isBorrower,
    /* Scenario */
    scenarioName, scenarioList, switchScenario, onCompare: () => setTab("compare"),
+   /* Borrower account (self-serve cloud sync) */
+   showAccountButton: !isBorrower && !isCloud,
+   selfAccount: selfMode ? (account.account || { email: account.session?.user?.email || '' }) : null,
+   syncEnabled: selfMode && account.syncEnabled,
+   onOpenAccountSheet: () => setShowAccountSheet(true),
    /* Skill / guided */
    skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'),
    sheetContent, setSheetContent,
