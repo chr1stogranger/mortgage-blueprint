@@ -87,6 +87,9 @@
     .contact-box p { font-size: 14px; }
     a { color: #4a9eff; text-decoration: none; }
     a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 14px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #1e1e3a; color: #c0c0c0; vertical-align: top; }
+    th { color: #ffffff; font-weight: 600; }
     .footer {
       margin-top: 48px;
       padding-top: 24px;
@@ -105,78 +108,97 @@
       <div class="broker">A product of RealStack · NMLS #2179191</div>
     </div>
 
-    <p class="effective-date">Effective Date: March 1, 2026 · Last Updated: March 1, 2026</p>
+    <p class="effective-date">Effective Date: March 1, 2026 · Last Updated: July 3, 2026</p>
 
     <div class="highlight-box">
-      <p><strong>Summary:</strong> Mortgage Blueprint does not collect, sell, or share your personal data. All loan calculations and scenarios are processed locally on your device or in your browser session.</p>
+      <p><strong>Summary:</strong> The calculator works without an account, and in that mode your inputs stay on your device. If you create an optional account and turn on cloud sync — or if a loan officer shares a blueprint with you — the blueprint data you enter is stored encrypted in our database so it can sync across your devices and be collaborated on. We never sell your data, and you can export or delete your cloud data at any time.</p>
     </div>
 
     <h2>1. Introduction</h2>
-    <p>Mortgage Blueprint ("the App") is a mortgage calculator and educational tool developed by Chris Granger, a licensed mortgage broker (NMLS #952015) operating under Xpert Home Lending, Inc. (NMLS #2179191). This Privacy Policy explains how the App handles your information across our web application (blueprint.realstack.app) and mobile applications (iOS and Android).</p>
-    <p>We take your privacy seriously. The App is designed as a calculator and educational tool — not a data collection platform.</p>
+    <p>RealStack Blueprint ("the App") is a mortgage calculator and educational tool developed by Chris Granger, a licensed mortgage broker (NMLS #952015) operating under Xpert Home Lending, Inc. (NMLS #2179191). This Privacy Policy explains how the App handles your information across our web application (blueprint.realstack.app) and mobile applications (iOS and Android).</p>
 
-    <h2>2. Information We Do Not Collect</h2>
-    <p>The App does not collect, store, or transmit the following:</p>
+    <h2>2. Three Ways to Use the App — and What Each Stores</h2>
+
+    <h3>a. Without an account (the default)</h3>
+    <p>Loan scenario inputs, property details, and financial profile details (purchase price, down payment, interest rate, income, debts, FICO score, assets) are processed on your device and saved in your browser's local storage. In this mode, this data is not transmitted to or stored on our servers, and it is deleted when you clear your browser data or uninstall the App.</p>
+
+    <h3>b. With an optional account and cloud sync</h3>
+    <p>If you create an account (via email sign-in link or Google) and turn on cloud sync, the blueprints you choose to upload are stored in our database (hosted by Supabase) so they stay backed up and sync across your devices. You choose what uploads — nothing is uploaded silently. You can turn sync off, export everything as a file, or permanently delete your account and all cloud data at any time from Account settings in the App.</p>
+
+    <h3>c. Blueprints shared with you by a loan officer</h3>
+    <p>If your loan officer shares a pre-filled blueprint with you via a secure link, that blueprint (and the edits you both make) is stored in our database so you can collaborate in real time. Access requires signing in, and access controls limit each blueprint to you and your loan officer.</p>
+
+    <h2>3. Information We Collect (Accounts &amp; Shared Blueprints Only)</h2>
+    <table>
+      <tr><th>Category</th><th>Examples</th><th>Purpose</th></tr>
+      <tr><td>Identifiers</td><td>Name, email address</td><td>Sign-in, account management, share access</td></tr>
+      <tr><td>Financial scenario data</td><td>Purchase price, down payment, rate, income, debts, assets, credit score</td><td>Saving and syncing your blueprints; collaboration with your loan officer</td></tr>
+      <tr><td>Usage records</td><td>Sign-in timestamps, edit history on shared blueprints</td><td>Security, undo/version history, loan officer collaboration</td></tr>
+    </table>
+    <p>We do <strong>not</strong> collect: Social Security numbers, dates of birth, government-issued IDs, bank account or credit card numbers, credit reports, GPS location, or your contacts, photos, or files. Please do not enter this information anywhere in the App.</p>
+
+    <h2>4. How Your Data Is Protected</h2>
     <ul>
-      <li>Your name, email address, phone number, or other personal identifiers</li>
-      <li>Social Security numbers, dates of birth, or government-issued IDs</li>
-      <li>Bank account numbers, credit card numbers, or financial account details</li>
-      <li>Credit reports or credit scores (any FICO score you enter stays on your device)</li>
-      <li>Location data or GPS coordinates</li>
-      <li>Contacts, photos, or files from your device</li>
+      <li>All connections use HTTPS/TLS encryption in transit.</li>
+      <li>Cloud data is stored with Supabase (SOC 2 Type II audited) and encrypted at rest.</li>
+      <li>Database row-level security restricts every record to its owner (you) and, for shared blueprints, your loan officer.</li>
+      <li>As a licensed mortgage professional, we treat financial data you provide in connection with loan services as nonpublic personal information under the Gramm-Leach-Bliley Act and safeguard it accordingly.</li>
     </ul>
 
-    <h2>3. Information Processed Locally</h2>
-    <p>When you use the App, the following data is entered by you and processed entirely on your device or within your browser session:</p>
-    <ul>
-      <li>Loan scenario inputs (purchase price, down payment, interest rate, loan term, etc.)</li>
-      <li>Property details (address, zip code, property type)</li>
-      <li>Borrower profile details (FICO score, income, debts)</li>
-      <li>PricePoint game scores and progress</li>
-    </ul>
-    <p>This data is stored in your browser's local storage or device memory. It is never transmitted to our servers and is deleted when you clear your browser data or uninstall the App.</p>
+    <h2>5. Third-Party Services</h2>
+    <p>The App connects to the following external services. These connections transmit only the minimum information needed to fulfill the request:</p>
 
-    <h2>4. Third-Party Services</h2>
-    <p>The App connects to the following external services to provide live data. These connections transmit only the minimum information needed to fulfill the request:</p>
+    <h3>Supabase (Database &amp; Authentication)</h3>
+    <p>Stores account and cloud-synced blueprint data and processes sign-ins. Privacy policy: <a href="https://supabase.com/privacy" target="_blank">supabase.com/privacy</a>.</p>
+
+    <h3>Google Sign-In (optional)</h3>
+    <p>If you choose "Continue with Google," Google shares your name, email address, and profile photo with us to create your account. Privacy policy: <a href="https://policies.google.com/privacy" target="_blank">policies.google.com/privacy</a>.</p>
+
+    <h3>Resend (Email Delivery)</h3>
+    <p>Delivers sign-in links and notification emails to the address you provide. Privacy policy: <a href="https://resend.com/legal/privacy-policy" target="_blank">resend.com/legal/privacy-policy</a>.</p>
 
     <h3>FRED API (Federal Reserve Economic Data)</h3>
-    <p>Used to display current mortgage interest rates. The App sends a rate data request to the FRED API. No personal information is included in this request. FRED's privacy policy is available at <a href="https://fred.stlouisfed.org/legal" target="_blank">fred.stlouisfed.org/legal</a>.</p>
+    <p>Used to display current mortgage interest rates. No personal information is included in this request. FRED's privacy policy is available at <a href="https://fred.stlouisfed.org/legal" target="_blank">fred.stlouisfed.org/legal</a>.</p>
 
     <h3>RapidAPI (Real Estate Data)</h3>
-    <p>Used by the PricePoint feature to display real estate listings for the price-guessing game. The App sends zip code queries to retrieve public listing data (property photos, descriptions, and listing prices). No personal information is included. RapidAPI's privacy policy is available at <a href="https://rapidapi.com/privacy" target="_blank">rapidapi.com/privacy</a>.</p>
+    <p>Used by the PricePoint feature to display real estate listings for the price-guessing game. The App sends zip code queries to retrieve public listing data. No personal information is included. RapidAPI's privacy policy is available at <a href="https://rapidapi.com/privacy" target="_blank">rapidapi.com/privacy</a>.</p>
 
     <h3>Vercel (Hosting)</h3>
     <p>The App is hosted on Vercel. Vercel may collect standard server logs including IP addresses, browser type, and access timestamps as part of normal web hosting operations. Vercel's privacy policy is available at <a href="https://vercel.com/legal/privacy-policy" target="_blank">vercel.com/legal/privacy-policy</a>.</p>
 
-    <h2>5. Cookies and Tracking</h2>
-    <p>The App does not use cookies, analytics trackers, advertising pixels, or any third-party tracking scripts. We do not use Google Analytics, Facebook Pixel, or similar services. We do not track your behavior across websites or apps.</p>
+    <h2>6. Cookies and Tracking</h2>
+    <p>The App does not use advertising trackers, ad pixels, or cross-site tracking scripts. We do not use Google Analytics, Facebook Pixel, or similar services. Local storage is used for your calculator data and your sign-in session only.</p>
 
-    <h2>6. Data Sharing and Sales</h2>
+    <h2>7. Data Sharing and Sales</h2>
     <div class="highlight-box">
-      <p><strong>We do not sell, rent, lease, or share your personal information with any third party.</strong> Period.</p>
+      <p><strong>We do not sell, rent, lease, or share your personal information with any third party for their own use.</strong> Period.</p>
     </div>
-    <p>The App does not participate in data broker networks, lead generation services, or advertising networks. Your loan scenarios and financial inputs are never transmitted to lenders, real estate agents, or any other parties.</p>
+    <p>The App does not participate in data broker networks, lead generation services, or advertising networks. Your blueprints are visible only to you and — for blueprints created or shared by your loan officer — that loan officer.</p>
 
-    <h2>7. Children's Privacy</h2>
-    <p>The App is a financial calculator intended for adults. We do not knowingly collect information from children under 13 years of age. If you believe a child has provided information through the App, please contact us and we will address the concern promptly.</p>
-
-    <h2>8. Security</h2>
-    <p>Because the App processes data locally on your device, your financial information never travels over the internet to our servers. The App connects to third-party APIs over HTTPS (encrypted connections) for rate data and property listings only.</p>
+    <h2>8. Data Retention and Deletion</h2>
+    <ul>
+      <li><strong>Local data:</strong> stays on your device until you clear it or uninstall the App.</li>
+      <li><strong>Account &amp; cloud blueprints:</strong> kept until you delete them or delete your account (Account → Delete my account, available in-app on all platforms). Deletion is permanent and removes your cloud blueprints, edit history, and sign-in.</li>
+      <li><strong>Loan officer records:</strong> if you work with a loan officer, records they maintain for your loan file (contact details, shared blueprint records) are business records they are required to retain under applicable law and are not deleted by deleting your App account.</li>
+    </ul>
 
     <h2>9. Your Rights</h2>
-    <p>Since we do not collect or store personal data, there is typically no data for us to provide, modify, or delete. However, if you have any questions about your data or wish to exercise any privacy rights under applicable law (including the California Consumer Privacy Act), please contact us using the information below.</p>
+    <p>Depending on where you live (including under the California Consumer Privacy Act), you may have the right to know, access, correct, export, and delete the personal information we hold about you, and to not be discriminated against for exercising these rights. The App provides self-service export (Account → Export my data) and deletion (Account → Delete my account). For anything else, contact us using the information below — we respond within 30 days.</p>
 
-    <h2>10. Changes to This Policy</h2>
-    <p>We may update this Privacy Policy from time to time. Changes will be reflected by updating the "Last Updated" date at the top of this page. If we make material changes to how we handle personal information, we will provide notice within the App.</p>
+    <h2>10. Children's Privacy</h2>
+    <p>The App is a financial calculator intended for adults. We do not knowingly collect information from children under 13 years of age. If you believe a child has provided information through the App, please contact us and we will address the concern promptly.</p>
 
-    <h2>11. Contact Us</h2>
+    <h2>11. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. Changes will be reflected by updating the "Last Updated" date at the top of this page. If we make material changes to how we handle personal information, we will provide notice within the App. The July 2026 update describes the introduction of optional accounts and cloud sync.</p>
+
+    <h2>12. Contact Us</h2>
     <div class="contact-box">
-      <p><strong>Mortgage Blueprint</strong></p>
+      <p><strong>RealStack Blueprint</strong></p>
       <p>Developed by Chris Granger</p>
       <p>Licensed Mortgage Broker · NMLS #952015</p>
       <p>Xpert Home Lending, Inc. · NMLS #2179191</p>
       <p style="margin-top: 12px;">
-        Email: <a href="mailto:chrisgrangermortgage@gmail.com">chrisgrangermortgage@gmail.com</a>
+        Email: <a href="mailto:cgranger@xperthomelending.com">cgranger@xperthomelending.com</a>
       </p>
       <p>
         Web: <a href="https://blueprint.realstack.app" target="_blank">blueprint.realstack.app</a>

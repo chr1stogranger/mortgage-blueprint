@@ -1,26 +1,29 @@
 /**
  * BorrowerAuthGate — Handles the borrower authentication flow for share links.
  *
+ * NOW POWERED BY NATIVE SUPABASE AUTH (magic link + Google OAuth).
+ * The old custom magic-token/HMAC-session system is retired; Supabase
+ * handles token issuance, refresh, and the email round-trip. RLS policies
+ * (loan-pipeline migrations/010) bind all data access to auth.uid().
+ *
  * Flow:
  *   1. Show branded splash screen
- *   2. Check for existing session in localStorage (bp_borrower_session)
- *   3. If valid → fetch profile + shared data → auto-proceed
- *   4. If no session → show auth screen (Google Sign-In + Magic Link)
- *   5. After auth → fetch shared data → call onAuthenticated with data
- *
- * Also handles ?magic=TOKEN&email=EMAIL for magic link verification.
+ *   2. Check for existing Supabase session → auto-proceed
+ *   3. If no session → show auth screen (Google OAuth + Magic Link)
+ *   4. Magic link redirects back here; detectSessionInUrl completes sign-in
+ *   5. After auth → fetch shared data → call onAuthenticated with context
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { fetchSharedData } from '../api';
 import {
-  fetchSharedData,
-  fetchBorrowerProfile,
-  authenticateBorrowerGoogle,
-  requestBorrowerMagicLink,
-  verifyBorrowerMagicLink,
-} from '../api';
+  getSession,
+  onAuthStateChange,
+  signInWithMagicLink,
+  signInWithGoogle,
+  fetchMyAccount,
+} from '../lib/supabaseClient';
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const T = {
   bg: '#050505', card: '#0A0A0A', surface: '#0F0F0F',
@@ -31,10 +34,6 @@ const T = {
   separator: 'rgba(255,255,255,0.06)',
   inputBg: '#1A1A1A', inputBorder: 'rgba(255,255,255,0.12)',
 };
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-const SESSION_KEY = 'bp_borrower_session';
-const BORROWER_KEY = 'bp_borrower_data';
 
 // ─── Google Icon ──────────────────────────────────────────────────────────────
 const GoogleIcon = () => (
@@ -87,126 +86,65 @@ const ShieldIcon = () => (
 );
 
 export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError }) {
-  // Phase: 'splash' → 'checking' → 'auth' → 'magic-sent' → 'magic-verify' → 'loading' → 'done'
+  // Phase: 'splash' → 'checking' → 'auth' → 'magic-sent' → 'loading' → 'done'
   const [phase, setPhase] = useState('splash');
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [borrowerName, setBorrowerName] = useState('');
   const [sending, setSending] = useState(false);
-  const [googleReady, setGoogleReady] = useState(false);
   const [showMagicLink, setShowMagicLink] = useState(false);
-  const scriptLoadedRef = useRef(false);
+  const proceedingRef = useRef(false);
 
-  // ── Step 1: Splash → Check existing session ────────────────────────────
+  // ── Step 1: Splash → Check existing Supabase session ────────────────────
   useEffect(() => {
     const timer = setTimeout(() => {
       checkExistingSession();
     }, 1200); // Show splash for 1.2s minimum
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Handle ?magic=TOKEN&email=EMAIL in URL (magic link click) ──────────
+  // ── Listen for auth completion (magic-link / OAuth redirect back) ───────
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const magicToken = params.get('magic');
-    const magicEmail = params.get('email');
-    if (magicToken && magicEmail) {
-      setPhase('magic-verify');
-      verifyMagicLink(magicToken, magicEmail);
-    }
-  }, []);
-
-  // ── Load Google Identity Services ──────────────────────────────────────
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
-    const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-    if (existing) {
-      if (window.google?.accounts) {
-        initializeGoogle();
-      } else {
-        existing.addEventListener('load', initializeGoogle);
+    const sub = onAuthStateChange((session) => {
+      if (session && !proceedingRef.current) {
+        proceedingRef.current = true;
+        proceedWithSession(session);
       }
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = initializeGoogle;
-    document.head.appendChild(script);
-  }, []);
-
-  function initializeGoogle() {
-    if (scriptLoadedRef.current) return;
-    scriptLoadedRef.current = true;
-    if (!window.google?.accounts) return;
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential,
     });
-    setGoogleReady(true);
-  }
+    return () => sub.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ── Check existing borrower session ────────────────────────────────────
+  // ── Check existing session ───────────────────────────────────────────────
   async function checkExistingSession() {
-    const sessionToken = localStorage.getItem(SESSION_KEY);
-    if (sessionToken) {
-      try {
-        setPhase('checking');
-        const profile = await fetchBorrowerProfile(sessionToken);
-        if (profile?.account) {
-          setBorrowerName(profile.account.name || '');
-          // Session valid — load shared data
-          await loadSharedData(sessionToken, profile);
-          return;
+    setPhase('checking');
+    try {
+      const session = await getSession();
+      if (session) {
+        if (!proceedingRef.current) {
+          proceedingRef.current = true;
+          await proceedWithSession(session);
         }
-      } catch {
-        // Session expired — clear and show auth
-        localStorage.removeItem(SESSION_KEY);
-        localStorage.removeItem(BORROWER_KEY);
+        return;
       }
-    }
-    setPhase('auth');
+    } catch { /* fall through to auth screen */ }
+    if (!proceedingRef.current) setPhase('auth');
   }
 
-  // ── Google Sign-In handler ─────────────────────────────────────────────
-  async function handleGoogleCredential(response) {
+  // ── Google Sign-In (OAuth redirect — completes via onAuthStateChange) ───
+  async function handleGoogleClick() {
     try {
-      setPhase('loading');
       setError('');
-
-      const result = await authenticateBorrowerGoogle(response.credential, shareToken);
-
-      if (result.success && result.session_token) {
-        localStorage.setItem(SESSION_KEY, result.session_token);
-        localStorage.setItem(BORROWER_KEY, JSON.stringify(result.account));
-        setBorrowerName(result.account.name || '');
-        await loadSharedData(result.session_token, result);
-      } else {
-        throw new Error('Authentication failed');
-      }
+      await signInWithGoogle({ shareToken });
+      // Full-page redirect follows; nothing else to do here.
     } catch (e) {
       setError(e.message || 'Google sign-in failed');
       setPhase('auth');
     }
   }
 
-  function handleGoogleClick() {
-    if (!window.google) return;
-    window.google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Fallback: render hidden button and click it
-        const btn = document.createElement('div');
-        btn.id = 'bp_borrower_g_signin';
-        btn.style.display = 'none';
-        document.body.appendChild(btn);
-        window.google.accounts.id.renderButton(btn, { type: 'standard', size: 'large' });
-        setTimeout(() => btn.querySelector('[role="button"]')?.click(), 100);
-      }
-    });
-  }
-
-  // ── Magic Link: Request ────────────────────────────────────────────────
+  // ── Magic Link: Request ──────────────────────────────────────────────────
   async function handleRequestMagicLink(e) {
     e.preventDefault();
     if (!email.trim()) return;
@@ -214,63 +152,47 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
     setSending(true);
     setError('');
     try {
-      await requestBorrowerMagicLink(email.trim(), borrowerName, shareToken);
+      await signInWithMagicLink(email.trim(), { shareToken, name: borrowerName });
       setPhase('magic-sent');
-    } catch (e) {
-      setError(e.message || 'Could not send magic link');
+    } catch (err) {
+      setError(err.message || 'Could not send magic link');
     }
     setSending(false);
   }
 
-  // ── Magic Link: Verify ─────────────────────────────────────────────────
-  async function verifyMagicLink(token, verifyEmail) {
-    try {
-      setError('');
-      const result = await verifyBorrowerMagicLink(token, verifyEmail);
-
-      if (result.success && result.session_token) {
-        localStorage.setItem(SESSION_KEY, result.session_token);
-        localStorage.setItem(BORROWER_KEY, JSON.stringify(result.account));
-        setBorrowerName(result.account.name || '');
-
-        // Clean URL
-        const url = new URL(window.location);
-        url.searchParams.delete('magic');
-        url.searchParams.delete('email');
-        window.history.replaceState({}, '', url.toString());
-
-        await loadSharedData(result.session_token, result);
-      } else {
-        throw new Error('Verification failed');
-      }
-    } catch (e) {
-      setError(e.message || 'Invalid or expired magic link');
-      setPhase('auth');
-    }
-  }
-
-  // ── Load shared data and proceed ───────────────────────────────────────
-  async function loadSharedData(sessionToken, authResult) {
+  // ── Load shared data and proceed ─────────────────────────────────────────
+  async function proceedWithSession(session) {
     try {
       setPhase('loading');
-      const shared = await fetchSharedData(shareToken);
 
+      const name = session.user?.user_metadata?.full_name
+        || session.user?.user_metadata?.name
+        || '';
+      setBorrowerName(name);
+
+      // Account row is provisioned by the DB trigger on first sign-in;
+      // may lag by a moment — retry briefly.
+      let account = await fetchMyAccount();
+      if (!account) {
+        await new Promise(r => setTimeout(r, 800));
+        account = await fetchMyAccount();
+      }
+
+      const shared = await fetchSharedData(shareToken);
       if (!shared || !shared.scenarios) {
         throw new Error('No scenarios found');
       }
 
-      // Build the borrower context
-      const borrowerContext = {
-        sessionToken,
-        account: authResult.account || JSON.parse(localStorage.getItem(BORROWER_KEY) || '{}'),
+      onAuthenticated({
+        sessionToken: session.access_token,
+        account: account || { email: session.user?.email, name },
         shareToken,
         borrower: shared.borrower,
         accessLevel: shared.accessLevel,
         scenarios: shared.scenarios,
-      };
-
-      onAuthenticated(borrowerContext);
+      });
     } catch (e) {
+      proceedingRef.current = false;
       if (e.message?.includes('Share link not found')) {
         onError?.('expired');
       } else {
@@ -280,7 +202,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
     }
   }
 
-  // ─── Render: Splash ────────────────────────────────────────────────────
+  // ─── Render: Splash / Checking ─────────────────────────────────────────
   if (phase === 'splash' || phase === 'checking') {
     return (
       <div style={{
@@ -336,6 +258,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             borderRadius: 16, background: 'rgba(16,185,129,0.1)',
             border: '1px solid rgba(16,185,129,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: T.green,
           }}>
             <MailIcon />
           </div>
@@ -349,7 +272,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             {email}
           </div>
           <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.6 }}>
-            Click the link in your email to access your Blueprint. The link expires in 15 minutes.
+            Click the link in your email to access your Blueprint. You can close this tab — the link will bring you right back.
           </div>
           <button
             onClick={() => { setPhase('auth'); setError(''); }}
@@ -363,34 +286,6 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             Back to sign in
           </button>
         </div>
-      </div>
-    );
-  }
-
-  // ─── Render: Magic Link Verifying ──────────────────────────────────────
-  if (phase === 'magic-verify') {
-    return (
-      <div style={{
-        minHeight: '100vh', background: T.bg,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: FONT,
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: 64, height: 64, margin: '0 auto 20px',
-            borderRadius: 16, background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            animation: 'pulse-glow 2s ease-in-out infinite',
-          }}>
-            <ShieldIcon />
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.text }}>
-            Verifying your link...
-          </div>
-        </div>
-        <style>{`
-          @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 80px rgba(99,102,241,0.5); } }
-        `}</style>
       </div>
     );
   }
@@ -491,39 +386,33 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           </div>
 
           {/* Google Sign-In button */}
-          {GOOGLE_CLIENT_ID && (
-            <button
-              onClick={handleGoogleClick}
-              disabled={!googleReady}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                width: '100%', padding: '13px 20px',
-                background: '#fff', color: '#3c4043',
-                border: '1px solid #dadce0', borderRadius: 12,
-                fontSize: 15, fontWeight: 500, cursor: googleReady ? 'pointer' : 'default',
-                fontFamily: FONT, transition: 'all 0.15s',
-                opacity: googleReady ? 1 : 0.6,
-              }}
-            >
-              <GoogleIcon />
-              Continue with Google
-            </button>
-          )}
+          <button
+            onClick={handleGoogleClick}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              width: '100%', padding: '13px 20px',
+              background: '#fff', color: '#3c4043',
+              border: '1px solid #dadce0', borderRadius: 12,
+              fontSize: 15, fontWeight: 500, cursor: 'pointer',
+              fontFamily: FONT, transition: 'all 0.15s',
+            }}
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
 
           {/* Divider */}
-          {GOOGLE_CLIENT_ID && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              margin: '20px 0', color: T.textTertiary, fontSize: 12,
-            }}>
-              <div style={{ flex: 1, height: 1, background: T.separator }} />
-              <span style={{ fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>or</span>
-              <div style={{ flex: 1, height: 1, background: T.separator }} />
-            </div>
-          )}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            margin: '20px 0', color: T.textTertiary, fontSize: 12,
+          }}>
+            <div style={{ flex: 1, height: 1, background: T.separator }} />
+            <span style={{ fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>or</span>
+            <div style={{ flex: 1, height: 1, background: T.separator }} />
+          </div>
 
           {/* Magic link section */}
-          {!showMagicLink && GOOGLE_CLIENT_ID ? (
+          {!showMagicLink ? (
             <button
               onClick={() => setShowMagicLink(true)}
               style={{

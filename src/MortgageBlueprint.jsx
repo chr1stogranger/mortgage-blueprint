@@ -54,6 +54,10 @@ import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
 import SidebarSwitcher from "./components/SidebarSwitcher";
 import useBlueprintShelf from "./hooks/useBlueprintShelf";
+import useAccount from "./hooks/useAccount";
+import useSelfCloudSync from "./hooks/useSelfCloudSync";
+import AccountSheet from "./components/AccountSheet";
+import CloudMergeSheet from "./components/CloudMergeSheet";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -1387,6 +1391,35 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [showPrivacy, setShowPrivacy] = useState(false);
  const [loaded, setLoaded] = useState(false);
  const [saving, setSaving] = useState(false);
+ // ── Borrower account (self-serve cloud sync on the public calculator) ──
+ // Entirely optional: anonymous users never touch this. LO mode (isCloud)
+ // and share-link borrower mode are unaffected. LO allowlist emails keep
+ // using LO auth — the account button is hidden for them (isCloud check).
+ const account = useAccount();
+ const selfMode = !isBorrower && !isCloud && account.isSignedIn;
+ const [showAccountSheet, setShowAccountSheet] = useState(false);
+ const selfSync = useSelfCloudSync({
+  enabled: selfMode && account.syncEnabled,
+  account: account.account,
+  scenarioName,
+  setScenarioList,
+  getStateRef,
+  loadStateRef,
+  loaded,
+ });
+ // First sign-in from this device: record Terms/Privacy consent and turn
+ // cloud sync on (signing in to save is the whole point of the flow).
+ useEffect(() => {
+  if (!account.isSignedIn) return;
+  let pending = false;
+  try { pending = localStorage.getItem('bp_pending_consent') === '1'; } catch {}
+  if (pending) {
+   try { localStorage.removeItem('bp_pending_consent'); } catch {}
+   account.recordConsent();
+   account.setSyncEnabled(true);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [account.isSignedIn]);
  const [newScenarioName, setNewScenarioName] = useState("");
  const [compareData, setCompareData] = useState([]);
  const [compareLoading, setCompareLoading] = useState(false);
@@ -1804,6 +1837,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (isCloud && activeBorrower) {
      recordRecentBlueprint(makeClientEntry(activeBorrower));
     }
+    // ── Self-owned cloud sync (signed-in homebuyer, opt-in) ──
+    // No-op unless the user signed in AND turned sync on.
+    selfSync.schedulePush();
    }
    // ── Real-time sync (pushes changes to other connected users) ──
    sync.scheduleSync();
@@ -4395,6 +4431,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
+    showAccountButton={!isBorrower && !isCloud}
+    selfAccount={selfMode ? (account.account || { email: account.session?.user?.email || '' }) : null}
+    onOpenAccountSheet={() => setShowAccountSheet(true)}
+    selfSyncStatus={selfMode && account.syncEnabled ? selfSync.status : ''}
     borrowerList={borrowerList} activeBorrower={activeBorrower}
     borrowerLoading={borrowerLoading}
     borrowerScenarios={borrowerScenarios}
@@ -4435,6 +4475,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       Saved ~50px of sticky fold and removed nav-redundancy with the drawer. */}
    />
   )}
+  {/* ═══ ACCOUNT SHEET + FIRST-RUN CLOUD MERGE (public calculator only) ═══ */}
+  {!isBorrower && !isCloud && (
+   <AccountSheet
+    open={showAccountSheet}
+    onClose={() => setShowAccountSheet(false)}
+    accountHook={account}
+    T={T} darkMode={darkMode}
+   />
+  )}
+  {selfMode && account.syncEnabled && Array.isArray(selfSync.mergeCandidates) && selfSync.mergeCandidates.length > 0 && (
+   <CloudMergeSheet
+    candidates={selfSync.mergeCandidates}
+    onUpload={async (names) => { await selfSync.uploadLocal(names); }}
+    onSkip={selfSync.skipMerge}
+    T={T} darkMode={darkMode}
+   />
+  )}
   {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ── Borrower mode header bar (removed 2026-05-12) ──
       Was a gradient pill reading "Your Blueprint · PREPARED FOR <name>"
@@ -4457,7 +4514,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      This mortgage calculator processes sensitive financial information including income, debts, credit scores, and assets. By continuing, you acknowledge:
     </div>
     <div style={{ background: T.pillBg, borderRadius: 14, padding: 14, marginBottom: 16, fontSize: 12, color: T.textSecondary, lineHeight: 1.8 }}>
-     <div style={{ marginBottom: 6 }}><strong>Data is stored locally</strong> on this device via secure storage</div>
+     <div style={{ marginBottom: 6 }}><strong>Data stays on this device</strong> unless you sign in and turn on cloud sync</div>
      <div style={{ marginBottom: 6 }}><strong>Privacy Mode</strong> available to mask sensitive numbers</div>
      <div style={{ marginBottom: 6 }}><strong>Emailed summaries</strong> are not encrypted — use caution</div>
      <div style={{ marginBottom: 6 }}> <strong>You can delete all data</strong> at any time in Settings</div>
@@ -6421,7 +6478,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ marginTop: 12, fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>
       <div style={{ fontWeight: 700, fontSize: 14, color: T.text, marginBottom: 8 }}>Privacy Policy — RealStack Blueprint</div>
       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 12 }}>Last updated: February 2026</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Storage:</strong> All financial data you enter is stored locally on your device using browser localStorage. Your data never leaves your device and is never transmitted to any server.</div>
+      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Storage:</strong> By default, everything you enter is stored locally on this device using browser storage and is not sent to our servers. If you create an account and turn on cloud sync, your blueprints are stored encrypted in our database so they can sync across your devices — you can export or delete them anytime from your account settings. Blueprints shared with you by a loan officer are stored securely so you can both work on them. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Tracking:</strong> RealStack Blueprint does not use cookies, analytics, or any third-party tracking. We do not collect, store, or sell your personal information.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>FRED API:</strong> If you enable live rate fetching, your device makes direct requests to the Federal Reserve Economic Data (FRED) API to retrieve current mortgage rates. No personal or financial data is included in these requests — only your API key and the rate series ID.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Accounts:</strong> RealStack Blueprint does not require account creation, login, or any personal identification to use.</div>

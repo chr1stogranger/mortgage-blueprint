@@ -38,6 +38,8 @@ export default function UnifiedHeader({
   setTab, onCompare,
   /* Auth */
   isCloud, isBorrower, auth,
+  /* Borrower account (self-serve sign-in on the public calculator) */
+  showAccountButton, selfAccount, onOpenAccountSheet, selfSyncStatus,
   borrowerList, activeBorrower, borrowerLoading,
   borrowerScenarios, borrowerScenariosLoading,
   BorrowerPicker, borrowerPickerCallbacks,
@@ -221,6 +223,9 @@ export default function UnifiedHeader({
               {sync?.status === 'saving' && <span style={{ fontSize: 9, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
               {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#10B981' }}>live</span>}
               {sync?.onlineUsers?.length > 0 && <span style={{ fontSize: 9, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
+              {selfSyncStatus === 'saving' && <span style={{ fontSize: 9, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
+              {selfSyncStatus === 'saved' && <span style={{ fontSize: 9, color: '#10B981' }}>synced</span>}
+              {selfSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>sync error</span>}
             </div>
           )}
         </div>
@@ -295,6 +300,41 @@ export default function UnifiedHeader({
             MortgageBlueprint in case we re-surface it via a settings
             menu later. */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {/* ── Borrower account: sign-in pill (anonymous) / avatar (signed in).
+              Hidden in LO mode and share-link borrower mode. ── */}
+          {showAccountButton && (
+            selfAccount ? (
+              <button
+                onClick={onOpenAccountSheet}
+                title={selfAccount.email || 'My account'}
+                style={{
+                  width: 28, height: 28, borderRadius: "50%", border: "none",
+                  background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+                  color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: FONT, flexShrink: 0, padding: 0,
+                }}
+              >
+                {((selfAccount.name || selfAccount.email || '?').trim()[0] || '?').toUpperCase()}
+              </button>
+            ) : (
+              <button
+                onClick={onOpenAccountSheet}
+                title="Save your Blueprint to an account"
+                style={{
+                  padding: isDesktop ? "4px 12px" : "4px 10px",
+                  borderRadius: 9999,
+                  border: "1px solid rgba(99,102,241,0.35)",
+                  background: "rgba(99,102,241,0.08)",
+                  color: "#6366F1", fontSize: 11, fontWeight: 600,
+                  cursor: "pointer", fontFamily: FONT,
+                  whiteSpace: "nowrap", flexShrink: 0,
+                }}
+              >
+                Sign in
+              </button>
+            )
+          )}
           <button
             onClick={cycleTheme}
             title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

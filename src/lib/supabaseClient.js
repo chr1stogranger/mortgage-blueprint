@@ -63,15 +63,102 @@ export function getSupabaseClient() {
       },
     },
     // We don't use Supabase Auth for LO (Google JWT handled separately)
-    // But we will use it for borrower magic links (Phase 5)
+    // Borrowers authenticate with native Supabase Auth (magic link + Google)
     auth: {
       autoRefreshToken: true,
       persistSession: true,
       storageKey: 'bp_supabase_auth',
+      detectSessionInUrl: true,   // handles the magic-link redirect hash
+      flowType: 'pkce',
     },
   });
 
   return client;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BORROWER AUTH (native Supabase Auth)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Send a magic sign-in link. `next` params (like a share token) survive the
+ * round-trip via emailRedirectTo.
+ */
+export async function signInWithMagicLink(email, { shareToken = null, name = '' } = {}) {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Sync is not configured');
+
+  const redirectTo = new URL(window.location.origin);
+  if (shareToken) redirectTo.searchParams.set('share', shareToken);
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options: {
+      emailRedirectTo: redirectTo.toString(),
+      data: name ? { full_name: name } : undefined,
+    },
+  });
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
+/**
+ * Google OAuth sign-in (full redirect flow — works in PWA and Capacitor
+ * via the configured redirect URLs).
+ */
+export async function signInWithGoogle({ shareToken = null } = {}) {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Sync is not configured');
+
+  const redirectTo = new URL(window.location.origin);
+  if (shareToken) redirectTo.searchParams.set('share', shareToken);
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: redirectTo.toString() },
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function signOut() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
+
+export async function getSession() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data?.session || null;
+}
+
+export function onAuthStateChange(callback) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { unsubscribe: () => {} };
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  return { unsubscribe: () => data?.subscription?.unsubscribe() };
+}
+
+/**
+ * Fetch the borrower_accounts row for the signed-in user (RLS-scoped).
+ * Returns null when signed out or when the account row hasn't provisioned yet.
+ */
+export async function fetchMyAccount() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) return null;
+  const { data, error } = await supabase
+    .from('borrower_accounts')
+    .select('id, email, name, avatar_url, borrower_id, sync_enabled, consent_at, notification_prefs')
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn('[Supabase] fetchMyAccount failed:', error.message);
+    return null;
+  }
+  return data;
 }
 
 /**
