@@ -17,7 +17,7 @@
  *   bp_merge_done     '1' once the user has completed the first-run merge
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   listOwnedScenarios,
   fetchOwnedScenario,
@@ -26,6 +26,7 @@ import {
   deleteOwnedScenario,
   stripDevicePrefs,
 } from '../lib/cloudScenarios';
+import { subscribeToScenario } from '../lib/supabaseClient';
 
 // Guard every cloud op so a wedged request (e.g. Supabase auth-lock contention
 // across tabs) can never hang the UI forever — it fails that item instead.
@@ -85,6 +86,7 @@ export default function useSelfCloudSync({
   const pushTimer = useRef(null);
   const scenarioNameRef = useRef(scenarioName);
   const pulledRef = useRef(false);
+  const lastWriteRef = useRef(0);   // suppress our own realtime echo
   useEffect(() => { scenarioNameRef.current = scenarioName; }, [scenarioName]);
 
   const accountId = account?.id || null;
@@ -97,6 +99,7 @@ export default function useSelfCloudSync({
 
     try {
       setStatus('saving');
+      lastWriteRef.current = Date.now();   // mark so realtime ignores our echo
       const state = stripDevicePrefs(getStateRef.current());
       const map = readMap();
       const entry = map[name];
@@ -275,6 +278,38 @@ export default function useSelfCloudSync({
     try { localStorage.setItem(MERGE_DONE_KEY, '1'); } catch { /* noop */ }
     setMergeCandidates([]);
   }, []);
+
+  // Active scenario's cloud id — recomputed only when the scenario changes or
+  // a sync assigns/updates its id, so the realtime subscription below re-subs
+  // only when the id actually changes (not on every debounced push).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const activeCloudId = useMemo(() => readMap()[scenarioName]?.id || null, [scenarioName, lastSyncedAt]);
+
+  // ── REALTIME: live-update the active scenario when another device edits it.
+  // Subscribes to postgres UPDATEs on the active scenario's cloud row (RLS
+  // scopes it to this user). ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!enabled || !accountId || !activeCloudId) return;
+
+    const { unsubscribe } = subscribeToScenario(activeCloudId, (newRow) => {
+      // Ignore the echo of our own just-sent write.
+      if (Date.now() - lastWriteRef.current < 2500) return;
+      if (!newRow?.state_data) return;
+
+      const activeName = scenarioNameRef.current;
+      writeLocalScenario(activeName, newRow.state_data);
+      const map = readMap();
+      if (map[activeName]) { map[activeName].syncedAt = Date.now(); writeMap(map); }
+
+      // Apply live if this is the scenario currently on screen.
+      if (loadStateRef?.current) {
+        loadStateRef.current(stripDevicePrefs(newRow.state_data));
+      }
+      setLastSyncedAt(new Date());
+    });
+
+    return () => { try { unsubscribe(); } catch { /* noop */ } };
+  }, [enabled, accountId, activeCloudId, loadStateRef]);
 
   // ── Lifecycle: when sync becomes active ─────────────────────────────────
   // If the account ALREADY has cloud scenarios (any device synced before),
