@@ -65,6 +65,9 @@ export function getSupabaseClient() {
     // We don't use Supabase Auth for LO (Google JWT handled separately)
     // Borrowers authenticate with native Supabase Auth (magic link + Google)
     auth: {
+      // TEMP DIAGNOSTIC: verbose GoTrue logging to trace why the URL token
+      // isn't being consumed. Remove once the sign-in loop is fixed.
+      debug: true,
       autoRefreshToken: true,
       persistSession: true,
       storageKey: 'bp_supabase_auth',
@@ -90,6 +93,9 @@ export function getSupabaseClient() {
       try { client.realtime.setAuth(session?.access_token ?? null); } catch { /* noop */ }
     });
   } catch { /* noop */ }
+
+  // TEMP DIAGNOSTIC: expose the client for live inspection in the console.
+  try { if (typeof window !== 'undefined') window.__sb = client; } catch { /* noop */ }
 
   return client;
 }
