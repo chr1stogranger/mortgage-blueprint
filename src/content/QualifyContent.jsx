@@ -133,34 +133,26 @@ function DebtToIncomeSummary({
   };
   const cellLabel = { color: T.textSecondary };
   const cellValue = { color: T.text, fontWeight: 600, fontFamily: FONT };
+  const divider = `1px solid ${T.separator}`;
 
-  // Render a single section column (Income or Debts) with title-row + line items + total
-  const Column = ({ title, rows, totalLabel, totalValue, totalAnnual }) => (
-    <div style={{ minWidth: 0 }}>
-      <div style={subHeaderStyle}>{title}</div>
-      {rows.map((r, i) => (
-        // minHeight keeps every line-item row a uniform height so the two
-        // columns stay aligned even when one side's label wraps and the other
-        // doesn't. On mobile "Monthly Employment Income" wraps to THREE lines
-        // while "New Housing PITI Payment" only wraps to two — so the floor must
-        // fit 3 lines (66px) on mobile, or the Income column grows taller and
-        // Total Debts / every row below drift out of sync. Desktop labels don't
-        // wrap, so 52 stays compact there. (Christo 2026-07-03.)
-        <div key={i} style={{ ...rowStyle, minHeight: isDesktop ? 52 : 66, boxSizing: "border-box" }}>
-          <span style={cellLabel}>{r.label}</span>
-          <span style={cellValue}>{fmt(r.value)}</span>
-        </div>
-      ))}
-      <div style={totalRowStyle}>
-        <span>{totalLabel}</span>
-        <span>{fmt(totalValue)}</span>
-      </div>
-      {totalAnnual !== undefined && (
-        <div style={{ ...rowStyle, background: `${T.blue}06`, fontWeight: 600, color: T.textSecondary }}>
-          <span style={{ fontSize: 11 }}>Total Annual</span>
-          <span style={{ fontSize: 11, fontFamily: FONT }}>{fmt(totalAnnual)}</span>
-        </div>
-      )}
+  // The Income and Debts line items, paired row-by-row. Rendered into ONE grid
+  // (below) in row-major order so each grid row sizes to the TALLER of its two
+  // cells — this is what actually keeps the columns aligned when one label wraps
+  // to 3 lines ("Monthly Employment Income") and the other to 2 ("New Housing
+  // PITI Payment"). A per-cell minHeight floor can't do this: if a single cell
+  // exceeds the floor, only that column grows. (Christo 2026-07-03, grid rewrite.)
+  const lineItemPairs = [
+    { l: { label: "Monthly Employment Income",  value: employmentIncome },  r: { label: "New Housing PITI Payment",     value: newHousingPiti } },
+    { l: { label: "Subject Property Income",     value: subjectPropIncome }, r: { label: "Monthly Liabilities (Credit)", value: monthlyLiabilities } },
+    { l: { label: "Investment Property Income",  value: investmentIncome },  r: { label: "Primary & Secondary Home",     value: primarySecondaryHomeExpenses } },
+    { l: { label: "Other Monthly Income",        value: otherTotal },        r: { label: isDesktop ? "Investment Real Estate Net" : "Invest. Real Estate Net", value: investmentReNet } },
+  ];
+
+  // A single label/value grid cell. `left` adds the vertical divider.
+  const Cell = ({ label, value, left, style, labelStyle, valueStyle }) => (
+    <div style={{ ...rowStyle, boxSizing: "border-box", borderRight: left ? divider : "none", ...style }}>
+      <span style={{ ...cellLabel, ...labelStyle }}>{label}</span>
+      <span style={{ ...cellValue, ...valueStyle }}>{value}</span>
     </div>
   );
 
@@ -176,73 +168,48 @@ function DebtToIncomeSummary({
       {/* Top header band */}
       <div style={headerStyle}>Debt to Income Summary</div>
 
-      {/* 2-column body — Income | Debts. AMI removed per Christo. */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-        {/* INCOME column */}
-        <div style={{ borderRight: `1px solid ${T.separator}` }}>
-          <Column
-            title="Income"
-            rows={[
-              { label: "Monthly Employment Income",  value: employmentIncome },
-              { label: "Subject Property Income",    value: subjectPropIncome },
-              { label: "Investment Property Income", value: investmentIncome },
-              { label: "Other Monthly Income",       value: otherTotal },
-            ]}
-            totalLabel="Total Monthly Income"
-            totalValue={totalMonthlyIncome}
-            totalAnnual={totalAnnualIncome}
-          />
-          {/* Income Min/Delta footer */}
-          <div style={{ ...rowStyle, background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }}>
-            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Min</span>
-            <span style={cellValue}>{fmt(incomeMin)}</span>
-          </div>
-          <div style={{
-            ...rowStyle,
-            background: incomeDelta < 0 ? `${T.red}10` : `${T.green}10`,
-            color: incomeDelta < 0 ? T.red : T.green,
-            fontWeight: 700,
-          }}>
-            <span style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
-            <span style={{ fontFamily: FONT, fontWeight: 700 }}>
-              {incomeDelta < 0 ? "−" : ""}{fmt(Math.abs(incomeDelta))}
-            </span>
-          </div>
-        </div>
+      {/* 2-column body — Income | Debts rendered as ONE grid so each row's two
+          cells share a height (grid row = tallest cell). AMI removed per Christo. */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, alignItems: "stretch" }}>
+        {/* Sub-headers */}
+        <div style={{ ...subHeaderStyle, borderRight: divider }}>Income</div>
+        <div style={subHeaderStyle}>Debts</div>
 
-        {/* DEBTS column */}
-        <div>
-          <Column
-            title="Debts"
-            rows={[
-              { label: "New Housing PITI Payment",         value: newHousingPiti },
-              { label: "Monthly Liabilities (Credit)",     value: monthlyLiabilities },
-              { label: "Primary & Secondary Home",         value: primarySecondaryHomeExpenses },
-              // On mobile, abbreviate "Investment" → "Invest." so the row fits
-              // on one line and lines up cleanly with the others. (Christo 2026-05-12.)
-              { label: isDesktop ? "Investment Real Estate Net" : "Invest. Real Estate Net", value: investmentReNet },
-            ]}
-            totalLabel="Total Debts"
-            totalValue={totalDebts}
-            totalAnnual={totalAnnualDebts}
-          />
-          {/* Debts Max/Delta footer */}
-          <div style={{ ...rowStyle, background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }}>
-            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Max</span>
-            <span style={cellValue}>{fmt(debtsMax)}</span>
-          </div>
-          <div style={{
-            ...rowStyle,
-            background: debtsDelta > 0 ? `${T.red}10` : `${T.green}10`,
-            color: debtsDelta > 0 ? T.red : T.green,
-            fontWeight: 700,
-          }}>
-            <span style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 0.6, textTransform: "uppercase" }}>Delta</span>
-            <span style={{ fontFamily: FONT, fontWeight: 700 }}>
-              {debtsDelta > 0 ? "+" : ""}{fmt(debtsDelta)}
-            </span>
-          </div>
-        </div>
+        {/* Line items — interleaved left/right so grid keeps them aligned */}
+        {lineItemPairs.map((p, i) => (
+          <React.Fragment key={i}>
+            <Cell left label={p.l.label} value={fmt(p.l.value)} />
+            <Cell label={p.r.label} value={fmt(p.r.value)} />
+          </React.Fragment>
+        ))}
+
+        {/* Totals (green band) */}
+        <Cell left label="Total Monthly Income" value={fmt(totalMonthlyIncome)}
+          style={{ ...totalRowStyle, borderRight: divider }} labelStyle={{ color: T.text }} valueStyle={{ color: T.text, fontWeight: 700 }} />
+        <Cell label="Total Debts" value={fmt(totalDebts)}
+          style={totalRowStyle} labelStyle={{ color: T.text }} valueStyle={{ color: T.text, fontWeight: 700 }} />
+
+        {/* Total Annual */}
+        <Cell left label="Total Annual" value={fmt(totalAnnualIncome)}
+          style={{ background: `${T.blue}06` }} labelStyle={{ fontSize: 11, color: T.textSecondary, fontWeight: 600 }} valueStyle={{ fontSize: 11, color: T.textSecondary, fontWeight: 600 }} />
+        <Cell label="Total Annual" value={fmt(totalAnnualDebts)}
+          style={{ background: `${T.blue}06` }} labelStyle={{ fontSize: 11, color: T.textSecondary, fontWeight: 600 }} valueStyle={{ fontSize: 11, color: T.textSecondary, fontWeight: 600 }} />
+
+        {/* Min / Max */}
+        <Cell left label="Min" value={fmt(incomeMin)}
+          style={{ background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }} labelStyle={{ fontSize: 11, color: T.textTertiary, letterSpacing: 0.6, textTransform: "uppercase" }} />
+        <Cell label="Max" value={fmt(debtsMax)}
+          style={{ background: `${T.bg || "#fafafa"}`, padding: "10px 12px" }} labelStyle={{ fontSize: 11, color: T.textTertiary, letterSpacing: 0.6, textTransform: "uppercase" }} />
+
+        {/* Delta */}
+        <Cell left label="Delta" value={`${incomeDelta < 0 ? "−" : ""}${fmt(Math.abs(incomeDelta))}`}
+          style={{ background: incomeDelta < 0 ? `${T.red}10` : `${T.green}10` }}
+          labelStyle={{ fontSize: 11, letterSpacing: 0.6, textTransform: "uppercase", color: incomeDelta < 0 ? T.red : T.green, fontWeight: 700 }}
+          valueStyle={{ color: incomeDelta < 0 ? T.red : T.green, fontWeight: 700 }} />
+        <Cell label="Delta" value={`${debtsDelta > 0 ? "+" : ""}${fmt(debtsDelta)}`}
+          style={{ background: debtsDelta > 0 ? `${T.red}10` : `${T.green}10` }}
+          labelStyle={{ fontSize: 11, letterSpacing: 0.6, textTransform: "uppercase", color: debtsDelta > 0 ? T.red : T.green, fontWeight: 700 }}
+          valueStyle={{ color: debtsDelta > 0 ? T.red : T.green, fontWeight: 700 }} />
       </div>
 
       {/* Qualifying Ratios footer — same soft tint as the top header */}
