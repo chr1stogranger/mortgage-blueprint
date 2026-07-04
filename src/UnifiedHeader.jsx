@@ -143,6 +143,12 @@ export default function UnifiedHeader({
         alignItems: "center",
         padding: isDesktop ? "0 32px" : "0 14px",
         paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
+        // Breathing room below the controls so the avatar / theme toggle don't
+        // sit flush against the bottom border. Needed because in standalone-PWA
+        // mode the safe-area paddingTop above, combined with border-box sizing,
+        // squeezes the content box and pushes the row's contents to the very
+        // bottom edge (the account circle was touching the divider). (2026-07-03)
+        paddingBottom: isDesktop ? 0 : 7,
         gap: isDesktop ? 16 : 8,
         minHeight: isDesktop ? 44 : 48,
         position: "relative",
