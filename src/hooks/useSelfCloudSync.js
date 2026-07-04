@@ -357,6 +357,32 @@ export default function useSelfCloudSync({
     return () => { try { unsubscribe(); } catch { /* noop */ } };
   }, [enabled, accountId, activeCloudId, loadStateRef]);
 
+  // ── SAFETY NET: realtime events get missed (tab backgrounded, phone asleep,
+  // socket blip) — that's what makes sync feel like it "works half the time."
+  // Re-pull whenever the device regains focus/visibility and on a light
+  // interval so it always catches up within seconds even if no live event
+  // arrived. This also heals a stale active subscription: pullNow rewrites the
+  // name→id map to the real cloud rows, which re-subscribes realtime to the
+  // correct row on the next render. ──────────────────────────────────────────
+  useEffect(() => {
+    if (!enabled || !accountId || !loaded) return;
+    const refresh = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      // Don't clobber an edit the user just made locally — let its push win.
+      if (Date.now() - lastWriteRef.current < 4000) return;
+      pullNow();
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    const iv = setInterval(refresh, 20000);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(iv);
+    };
+  }, [enabled, accountId, loaded, pullNow]);
+
   // ── Lifecycle: when sync becomes active ─────────────────────────────────
   // If the account ALREADY has cloud scenarios (any device synced before),
   // just load them — never prompt to upload. The merge/upload prompt appears
