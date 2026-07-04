@@ -40,6 +40,18 @@ function withTimeout(promise, ms = 15000, label = 'cloud op') {
 
 const MAP_KEY = 'bp_cloud_map';
 const MERGE_DONE_KEY = 'bp_merge_done';
+// Persistent tombstones: names the user has explicitly deleted. Kept in
+// localStorage (not just an in-memory Set) so a deleted scenario stays deleted
+// across reloads — otherwise a lingering or another-device-re-uploaded cloud row
+// (the "Scenario 1 zombie") gets pulled straight back after every refresh.
+const TOMBSTONE_KEY = 'bp_deleted_names';
+function readTombstones() {
+  try { return new Set(JSON.parse(localStorage.getItem(TOMBSTONE_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+function writeTombstones(set) {
+  try { localStorage.setItem(TOMBSTONE_KEY, JSON.stringify([...set])); } catch { /* noop */ }
+}
 const PUSH_DEBOUNCE_MS = 700;   // write shortly after the last change so the
                                 // other device sees it fast (was 2000).
 
@@ -89,7 +101,7 @@ export default function useSelfCloudSync({
   const scenarioNameRef = useRef(scenarioName);
   const pulledRef = useRef(false);
   const lastWriteRef = useRef(0);   // suppress our own realtime echo
-  const deletedNamesRef = useRef(new Set()); // tombstones — never re-push these
+  const deletedNamesRef = useRef(readTombstones()); // persistent tombstones — never re-push/re-pull these
   useEffect(() => { scenarioNameRef.current = scenarioName; }, [scenarioName]);
 
   const accountId = account?.id || null;
@@ -153,10 +165,23 @@ export default function useSelfCloudSync({
       const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
       if (!cloudRows.length) return;
 
+      // Drop any cloud row whose name the user has deleted (persistent
+      // tombstone) and hard-delete it, so a lingering or another-device
+      // re-uploaded "zombie" can't keep coming back on every pull.
+      const tomb = deletedNamesRef.current;
+      const liveRows = [];
+      for (const row of cloudRows) {
+        if (tomb.has(row.name)) {
+          try { await withTimeout(deleteOwnedScenario(row.id), 10000, 'tombstone'); } catch { /* noop */ }
+        } else {
+          liveRows.push(row);
+        }
+      }
+
       // One row per name (newest updated_at wins); gather older dupes to delete.
       const byName = new Map();
       const dupes = [];
-      for (const row of cloudRows) {
+      for (const row of liveRows) {
         const cur = byName.get(row.name);
         if (!cur) { byName.set(row.name, row); continue; }
         const rowNewer = new Date(row.updated_at) >= new Date(cur.updated_at);
@@ -292,6 +317,7 @@ export default function useSelfCloudSync({
     // Tombstone the name and cancel any pending debounced push for it, so a
     // late save can't resurrect it right after we delete it.
     deletedNamesRef.current.add(name);
+    writeTombstones(deletedNamesRef.current);
     if (pushTimer.current) { clearTimeout(pushTimer.current); pushTimer.current = null; }
     const map = readMap();
     let id = map[name]?.id;
@@ -316,10 +342,12 @@ export default function useSelfCloudSync({
   // was previously tombstoned by a delete in this session).
   const clearTombstone = useCallback((name) => {
     deletedNamesRef.current.delete(name);
+    writeTombstones(deletedNamesRef.current);
   }, []);
 
   const renameByName = useCallback(async (oldName, newName) => {
     deletedNamesRef.current.delete(newName);
+    writeTombstones(deletedNamesRef.current);
     const map = readMap();
     const entry = map[oldName];
     if (entry?.id) {
