@@ -279,6 +279,31 @@ export default function useSelfCloudSync({
     setMergeCandidates([]);
   }, []);
 
+  // ── DELETE the cloud copy of a scenario by name + drop its mapping, so a
+  // locally-deleted scenario doesn't get pulled back down on the next sync.
+  const deleteByName = useCallback(async (name) => {
+    const map = readMap();
+    const entry = map[name];
+    if (entry?.id) {
+      try { await withTimeout(deleteOwnedScenario(entry.id), 10000, 'delete'); } catch { /* noop */ }
+    }
+    delete map[name];
+    writeMap(map);
+  }, []);
+
+  // ── RENAME the cloud copy in place (keep the same id) + remap, so the old
+  // name doesn't linger in the cloud and resync as a duplicate.
+  const renameByName = useCallback(async (oldName, newName) => {
+    const map = readMap();
+    const entry = map[oldName];
+    if (entry?.id) {
+      try { await withTimeout(updateOwnedScenario(entry.id, { name: newName }), 10000, 'rename'); } catch { /* noop */ }
+      map[newName] = { id: entry.id, syncedAt: Date.now() };
+      delete map[oldName];
+      writeMap(map);
+    }
+  }, []);
+
   // Active scenario's cloud id — recomputed only when the scenario changes or
   // a sync assigns/updates its id, so the realtime subscription below re-subs
   // only when the id actually changes (not on every debounced push).
@@ -357,5 +382,7 @@ export default function useSelfCloudSync({
     uploadLocal,
     skipMerge,
     resetSync,          // wipe cloud scenarios + local sync state (troubleshooting)
+    deleteByName,       // delete a scenario's cloud copy so it won't resync
+    renameByName,       // rename a scenario's cloud copy in place
   };
 }

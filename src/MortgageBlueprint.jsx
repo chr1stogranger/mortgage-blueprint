@@ -1957,6 +1957,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const deleteScenario = async (name) => {
   if (scenarioList.length <= 1) return;
   try { await LS.delete("scenario:" + name); } catch(e) {}
+  // Also remove the cloud copy so it doesn't get pulled back on next sync.
+  try { await selfSync.deleteByName?.(name); } catch(e) {}
   const newList = scenarioList.filter(n => n !== name);
   setScenarioList(newList);
   if (name === scenarioName) switchScenario(newList[0]);
@@ -1979,6 +1981,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (old) await LS.set("scenario:" + newName, old.value);
    await LS.delete("scenario:" + oldName);
   } catch(e) {}
+  // Rename the cloud copy in place so the old name doesn't resync as a dupe.
+  try { await selfSync.renameByName?.(oldName, newName); } catch(e) {}
   const newList = scenarioList.map(n => n === oldName ? newName : n);
   setScenarioList(newList);
   try { await LS.set("scenario-list", JSON.stringify(newList)); } catch(e) {}
@@ -3949,6 +3953,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // never by flow (guided vs standard). Christo 2026-06-02: every tab shows in
   // every flow.
   ...(ownsProperties ? [["reo","REO"]] : []),
+  // Compare gets its own sidebar tab (Christo 2026-07-03) — side-by-side of all
+  // saved loan options. Available on every device (unlike Workspace, which is
+  // the desktop-only multi-pane editor).
+  ["compare","Compare"],
   ...(isDesktop ? [["workspace","Workspace"]] : []),
   ...(hasSellProperty ? [["sell","Seller Net"]] : []),
   ...(showInvestor ? [["invest","Investor"]] : []),
