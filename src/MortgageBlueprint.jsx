@@ -9,6 +9,8 @@ import {
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
 import { generateEstimateHtml } from "./lib/estimatePdf.js";
+import SendWorksheetModal, { downloadWorksheetPdf } from "./components/SendWorksheetModal.jsx";
+import { gmailSendAvailable } from "./lib/gmailAuth.js";
 import { DARK, LIGHT } from "./lib/theme.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
@@ -1298,6 +1300,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [fredApiKey, setFredApiKey] = useState("");
  const [borrowerEmail, setBorrowerEmail] = useState("");
  const [showEmailModal, setShowEmailModal] = useState(false);
+ const [showWorksheetModal, setShowWorksheetModal] = useState(false); // Fees Worksheet preview → Gmail send
  // ── Share modal: live-link send state (ephemeral, modal-local) ──
  // liveLinkSending disables both new buttons during the create-borrower →
  // save-scenario chain (~500ms–1.5s). liveLinkError surfaces server / cloud
@@ -2264,6 +2267,54 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const to = encodeURIComponent(borrowerEmail || "");
   const bccParam = loEmail ? `&bcc=${encodeURIComponent(loEmail)}` : "";
   window.open(`mailto:${to}?subject=${subject}&body=${body}${bccParam}`, "_self");
+ };
+ // ── Fees Worksheet (PDF) — build props + one-click Gmail send ──
+ // Same explicit-input contract as generatePdfHtml: every value the PDF
+ // needs is listed here. If you add a fee to the calc, add it here too.
+ const buildWorksheetProps = () => ({
+  calc, scenarioName, loanOfficer, companyName, companyNmls, borrowerName,
+  propertyTBD, propertyAddress, city, propertyState, propertyZip,
+  loNmls, loPhone, loEmail, isRefi, refiSkipMonths, refiPurpose, refiHomeValue, refiCashOut,
+  salesPrice, downPct, loanType, term, rate, hoa, creditScore, includeEscrow,
+  discountPts, originatorComp, underwritingFee, adminFee, lenderWireFee,
+  appraisalFee, creditReportFee, processingFee, floodCertFee, mersFee, taxServiceFee,
+  titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee,
+  notaryFee, envProtectionLien, ownersTitleIns, homeWarranty, recordingFee,
+  propertyTaxesInstallment, sellersProratedTaxCredit,
+ });
+ // Short note in Christo's voice + headline figures; the PDF carries the detail.
+ const buildWorksheetEmailBody = () => {
+  const firstName = (borrowerName || "").trim().split(/\s+/)[0];
+  const lines = [
+   firstName ? `Hi ${firstName},` : "Hi there,",
+   "",
+   "Attached is your personalized fees worksheet — the full picture of this scenario on one page.",
+   "",
+   "The headlines:",
+   `• Total monthly payment: ${fmt(isRefi ? calc.refiNewTotalPmt : calc.housingPayment)}`,
+   isRefi
+    ? `• Monthly savings: ${fmt(calc.refiMonthlyTotalSavings)}`
+    : `• Estimated cash to close: ${fmt(calc.cashToClose)}`,
+   `• Rate: ${rate}% (${loanType}, ${term}-year)`,
+   "",
+   "Look it over and reply with any questions — happy to walk through it together.",
+   "",
+   loanOfficer || "Your Loan Officer",
+   [companyName, loNmls ? `NMLS #${loNmls}` : ""].filter(Boolean).join(" · "),
+   loPhone || "",
+  ].filter((l) => l !== null && l !== undefined);
+  return lines.join("\n");
+ };
+ // Primary email action: Gmail preview→send when available, mailto otherwise.
+ const handleEmailWorksheet = () => {
+  if (gmailSendAvailable()) setShowWorksheetModal(true);
+  else handleEmailSummary();
+ };
+ const handleDownloadWorksheet = () => {
+  downloadWorksheetPdf(buildWorksheetProps(), scenarioName).catch((e) => {
+   console.error("Worksheet download failed:", e);
+   alert("Could not generate the PDF — please try again.");
+  });
  };
  const handlePrintPdf = () => {
   const html = generatePdfHtml();
@@ -4669,6 +4720,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    </div>
   </div>}
+  {/* ═══ FEES WORKSHEET → GMAIL SEND MODAL ═══ */}
+  {showWorksheetModal && <SendWorksheetModal
+   open={showWorksheetModal}
+   onClose={() => setShowWorksheetModal(false)}
+   T={T}
+   buildWorksheetProps={buildWorksheetProps}
+   defaultTo={borrowerEmail}
+   defaultSubject={`Your ${isRefi ? "Refinance" : "Purchase"} Fees Worksheet — ${scenarioName}`}
+   defaultBody={buildWorksheetEmailBody()}
+   loEmail={loEmail}
+   loanOfficer={loanOfficer}
+   scenarioName={scenarioName}
+   onFallbackMailto={handleEmailSummary}
+  />}
   {/* ═══ SHARE MODAL ═══ */}
   {showEmailModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowEmailModal(false)}>
    <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={e => e.stopPropagation()}>
@@ -4692,13 +4757,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself.</Note>}
     {/* ── Static summary row: Email Summary + Save PDF ── */}
     <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-     <button onClick={() => { handleEmailSummary(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-      Email Summary
+     <button onClick={() => { setShowEmailModal(false); handleEmailWorksheet(); }} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      Email Worksheet (PDF)
      </button>
      <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       Save PDF
      </button>
     </div>
+    {/* ── Download the fees worksheet directly (no email) ── */}
+    <button onClick={handleDownloadWorksheet} style={{ width: "100%", padding: 12, marginBottom: 10, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
+     Download Fees Worksheet (PDF)
+    </button>
     {/* ── Divider: "OR SEND A LIVE LINK" ── */}
     <div style={{
      display: "flex", alignItems: "center", gap: 10, margin: "14px 0 12px",
@@ -5576,7 +5645,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
    <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-    <button onClick={handleEmailSummary} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Email</button>
+    <button onClick={handleEmailWorksheet} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Email</button>
     <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>PDF</button>
     <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}> Preview</button>
    </div>

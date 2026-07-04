@@ -1,0 +1,310 @@
+// src/lib/FeesWorksheetPdf.jsx
+//
+// Initial Fees Worksheet — a real, vector PDF built with @react-pdf/renderer.
+// Layout mirrors the industry-standard Initial Fees Worksheet (IFW) that
+// pricing engines produce, skinned with RealStack branding (indigo accent,
+// mono figures). Handles BOTH purchase and refinance scenarios.
+//
+// Contract mirrors lib/estimatePdf.js: a pure module — every input arrives
+// explicitly via props; nothing reads component state. The heavy library is
+// only ever loaded through renderWorksheetBlob()'s dynamic import, so the
+// main bundle does not grow.
+//
+// Fonts: react-pdf's built-in Helvetica (labels) + Courier (figures). Brand
+// fonts (Inter / JetBrains Mono) need bundled TTFs — drop them in
+// src/assets/fonts and Font.register here as a follow-up; everything else
+// about the layout already matches the Brand Kit.
+
+import React from "react";
+import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+
+// ── Formatters (PDF always shows real numbers; in-app PRIVACY mode is a
+//    display concern and must never redact a borrower-facing document) ──
+const usd = (v) =>
+  v == null || !isFinite(v) || isNaN(v)
+    ? "$0"
+    : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+const usd2 = (v) =>
+  v == null || !isFinite(v) || isNaN(v)
+    ? "$0.00"
+    : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+
+const INDIGO = "#6366F1";
+const INK = "#171717";
+const SUB = "#525252";
+const MUTED = "#737373";
+const HAIR = "#E8E8E8";
+const GREEN = "#10B981";
+const TINT = "#EEF0FE"; // indigo @ ~8% on white
+
+const s = StyleSheet.create({
+  page: { paddingTop: 24, paddingBottom: 22, paddingHorizontal: 34, fontFamily: "Helvetica", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
+  // Header
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  loName: { fontFamily: "Helvetica-Bold", fontSize: 15 },
+  loMeta: { fontSize: 8.5, color: SUB, marginTop: 2 },
+  hTitle: { fontFamily: "Helvetica-Bold", fontSize: 19, color: INDIGO, textAlign: "right" },
+  hSub: { fontSize: 8.5, color: SUB, textAlign: "right", marginTop: 2 },
+  rule: { height: 2, backgroundColor: INDIGO, marginTop: 8, marginBottom: 8 },
+  advisory: { fontSize: 8.5, color: SUB, textAlign: "center", marginBottom: 6 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED, marginBottom: 8 },
+  // Loan summary grid
+  grid: { flexDirection: "row", flexWrap: "wrap", borderWidth: 1, borderColor: HAIR, backgroundColor: "#FAFAFA", borderRadius: 4, padding: 5, marginBottom: 8 },
+  cell: { width: "33.33%", paddingVertical: 2.5, paddingHorizontal: 6 },
+  cellLabel: { fontSize: 7, color: MUTED, textTransform: "uppercase", letterSpacing: 0.5 },
+  cellValue: { fontFamily: "Courier-Bold", fontSize: 9.5, marginTop: 1.5 },
+  // Columns of fee boxes
+  cols: { flexDirection: "row", gap: 10 },
+  col: { flex: 1 },
+  box: { borderWidth: 1, borderColor: HAIR, borderRadius: 4, marginBottom: 8, overflow: "hidden" },
+  secHead: { flexDirection: "row", justifyContent: "space-between", backgroundColor: TINT, paddingVertical: 4, paddingHorizontal: 8 },
+  secTitle: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: INDIGO, textTransform: "uppercase", letterSpacing: 0.8 },
+  secTotal: { fontFamily: "Courier-Bold", fontSize: 9, color: INDIGO },
+  subHead: { fontFamily: "Helvetica-Bold", fontSize: 7.5, color: SUB, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 8, paddingTop: 6, paddingBottom: 2 },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.4, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: HAIR },
+  rowLabel: { fontSize: 8.5, color: SUB, flexShrink: 1, paddingRight: 6 },
+  rowValue: { fontFamily: "Courier", fontSize: 8.5, color: INK },
+  totalBar: { flexDirection: "row", justifyContent: "space-between", backgroundColor: INDIGO, paddingVertical: 5, paddingHorizontal: 8 },
+  totalLabel: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#FFFFFF", textTransform: "uppercase", letterSpacing: 0.6 },
+  totalValue: { fontFamily: "Courier-Bold", fontSize: 10, color: "#FFFFFF" },
+  // Footer
+  disclaimer: { fontSize: 6.8, color: MUTED, lineHeight: 1.45, marginTop: 2 },
+  footBrand: { fontSize: 8, fontFamily: "Helvetica-Bold", color: INK, marginTop: 6 },
+  footGen: { fontSize: 7, color: MUTED, marginTop: 2 },
+});
+
+const Row = ({ label, value, color, bold, cents }) => (
+  <View style={s.row}>
+    <Text style={[s.rowLabel, bold ? { fontFamily: "Helvetica-Bold", color: INK } : null]}>{label}</Text>
+    <Text style={[s.rowValue, bold ? { fontFamily: "Courier-Bold" } : null, color ? { color } : null]}>
+      {typeof value === "number" ? (cents ? usd2(value) : usd(value)) : value}
+    </Text>
+  </View>
+);
+
+const Box = ({ title, total, children }) => (
+  <View style={s.box} wrap={false}>
+    <View style={s.secHead}>
+      <Text style={s.secTitle}>{title}</Text>
+      {total !== undefined && <Text style={s.secTotal}>{usd(total)}</Text>}
+    </View>
+    {children}
+  </View>
+);
+
+const TotalBar = ({ label, value }) => (
+  <View style={s.totalBar}>
+    <Text style={s.totalLabel}>{label}</Text>
+    <Text style={s.totalValue}>{usd(value)}</Text>
+  </View>
+);
+
+const Cell = ({ label, value }) => (
+  <View style={s.cell}>
+    <Text style={s.cellLabel}>{label}</Text>
+    <Text style={s.cellValue}>{value}</Text>
+  </View>
+);
+
+// Drop zero-value rows: a fee worksheet only shows fees that exist.
+const rows = (list) => list.filter((r) => r && (typeof r.value !== "number" || Math.abs(r.value) >= 0.5));
+
+export function FeesWorksheetDoc(p) {
+  const c = p.calc || {};
+  const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const timeStr = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const propLine = p.propertyTBD ? "TBD" : (p.propertyAddress || "—");
+  const locLine = `${p.city || ""}${p.propertyState ? ", " + p.propertyState : ""}${p.propertyZip ? " " + p.propertyZip : ""}`;
+  const isRefi = !!p.isRefi;
+
+  // ── Section data ──
+  const lenderRows = rows([
+    p.discountPts > 0 && { label: `${Number(p.discountPts).toFixed(3)}% of Loan Amount (Points)`, value: c.pointsCost },
+    { label: "Originator Compensation", value: p.originatorComp },
+    { label: "Underwriting Fee", value: p.underwritingFee },
+    { label: "Admin Fee", value: p.adminFee },
+    { label: "Lender Wire Fee", value: p.lenderWireFee },
+  ]);
+  const cannotShopRows = rows([
+    { label: "Appraisal Fee", value: p.appraisalFee },
+    { label: "Credit Report Fee", value: p.creditReportFee },
+    { label: "Processing Fee", value: p.processingFee },
+    { label: "Flood Certificate Fee", value: p.floodCertFee },
+    { label: "MERS Registration Fee", value: p.mersFee },
+    { label: "Tax Service Fee", value: p.taxServiceFee },
+  ]);
+  const canShopRows = rows([
+    { label: "Title - Lender's Title Insurance", value: p.titleInsurance },
+    { label: "Title - Title Search", value: p.titleSearch },
+    { label: "Title - Settlement Agent Fee", value: p.settlementFee },
+    { label: "Title - Escrow/Settlement Fee", value: p.escrowFee },
+    { label: "Courier / Messenger Fee", value: p.courierFee },
+    { label: "Loan Tie-In Fee", value: p.loanTieInFee },
+    { label: "Notary Fee", value: p.notaryFee },
+    { label: "Environmental Protection Lien", value: p.envProtectionLien },
+    { label: "HOA Certification", value: c.hoaCert },
+  ]);
+  const otherRows = isRefi ? [] : rows([
+    { label: "Owner's Title Insurance", value: p.ownersTitleIns },
+    { label: "Home Warranty", value: p.homeWarranty },
+    { label: "HOA Transfer Fee", value: c.hoaTransferActual },
+    { label: "Buyer-Paid Commission", value: c.buyerCommAmt },
+  ]);
+  const govRows = rows([
+    { label: "Recording Fees - Mortgage", value: p.recordingFee },
+    { label: "City Transfer Tax (buyer share)", value: c.buyerCityTT },
+    { label: "County Transfer Tax (buyer share)", value: c.buyerCountyTT },
+  ]);
+  const prepaidRows = rows([
+    { label: `Prepaid Interest (${c.autoPrepaidDays || 0} days @ ${usd2(c.dailyInt)}/day)`, value: c.prepaidInt, cents: true },
+    { label: "Hazard Insurance Premium (12 months)", value: c.prepaidIns },
+    { label: "Property Taxes (installment due at close)", value: p.propertyTaxesInstallment },
+    p.sellersProratedTaxCredit > 0 && { label: "Seller's Prorated Tax Credit", value: -p.sellersProratedTaxCredit, color: GREEN },
+    { label: `Initial Escrow (${c.escrowTaxMonths || 0} mo tax + ${c.escrowInsMonths || 0} mo ins)`, value: c.initialEscrow },
+  ]);
+
+  return (
+    <Document title={`Fees Worksheet — ${p.scenarioName || ""}`} author={p.loanOfficer || "Loan Officer"}>
+      <Page size="LETTER" style={s.page}>
+        {/* Header */}
+        <View style={s.headerRow}>
+          <View>
+            <Text style={s.loName}>{p.loanOfficer || "Loan Officer"}</Text>
+            <Text style={s.loMeta}>Loan Officer{p.loNmls ? ` · NMLS #${p.loNmls}` : ""}</Text>
+            {!!p.loPhone && <Text style={s.loMeta}>{p.loPhone}</Text>}
+            {!!p.loEmail && <Text style={s.loMeta}>{p.loEmail}</Text>}
+          </View>
+          <View>
+            <Text style={s.hTitle}>FEES WORKSHEET</Text>
+            <Text style={s.hSub}>
+              <Text style={{ color: INK, fontFamily: "Helvetica-Bold" }}>Real</Text>
+              <Text style={{ color: INDIGO, fontFamily: "Helvetica-Bold" }}>Stack</Text>
+              {"  Blueprint"}
+            </Text>
+            {!!p.borrowerName && <Text style={s.hSub}>Prepared for {p.borrowerName}</Text>}
+          </View>
+        </View>
+        <View style={s.rule} />
+        <Text style={s.advisory}>
+          Your actual rate, payment and costs could be higher. Get an official Loan Estimate before choosing a loan.
+        </Text>
+        <View style={s.metaRow}>
+          <Text>Scenario: {p.scenarioName || "—"}</Text>
+          <Text>Preparation Date: {dateStr} {timeStr}</Text>
+        </View>
+
+        {/* Loan summary grid */}
+        <View style={s.grid}>
+          <Cell label="Loan Purpose" value={isRefi ? `Refinance — ${p.refiPurpose || "Rate/Term"}` : "Purchase"} />
+          <Cell label={isRefi ? "Estimated Value" : "Purchase Price"} value={usd(isRefi ? p.refiHomeValue || p.salesPrice : p.salesPrice)} />
+          <Cell label="Loan Amount" value={usd(isRefi ? c.refiNewLoanAmt : c.loan)} />
+          <Cell label="Loan Type" value={`${p.loanType || ""} · ${p.term || ""} Year Fixed`} />
+          <Cell label="Rate" value={`${p.rate ?? ""}%`} />
+          {!isRefi
+            ? <Cell label="Down Payment" value={`${usd(c.dp)} (${p.downPct}%)`} />
+            : <Cell label="Cash Out" value={usd(p.refiCashOut || 0)} />}
+          <Cell label="Property" value={propLine !== "—" ? propLine : locLine} />
+          <Cell label="Escrow (Impounds)" value={p.includeEscrow ? "Yes" : "Waived"} />
+          <Cell label="Credit Score" value={p.creditScore > 0 ? String(p.creditScore) : "Not verified"} />
+        </View>
+
+        {/* Fee sections — two columns */}
+        <View style={s.cols}>
+          <View style={s.col}>
+            <Box title="Lender Fees" total={c.origCharges}>
+              {lenderRows.map((r, i) => <Row key={i} {...r} />)}
+            </Box>
+            <Box title="Third Party Fees" total={(c.cannotShop || 0) + (c.canShop || 0)}>
+              <Text style={s.subHead}>Services You Cannot Shop For</Text>
+              {cannotShopRows.map((r, i) => <Row key={i} {...r} />)}
+              <Text style={s.subHead}>Services You Can Shop For</Text>
+              {canShopRows.map((r, i) => <Row key={i} {...r} />)}
+            </Box>
+          </View>
+          <View style={s.col}>
+            <Box title="Taxes & Government Fees" total={c.govCharges}>
+              {govRows.map((r, i) => <Row key={i} {...r} />)}
+            </Box>
+            <Box title="Prepaids & Initial Escrow" total={c.totalPrepaidExp}>
+              {prepaidRows.map((r, i) => <Row key={i} {...r} />)}
+            </Box>
+            {otherRows.length > 0 && (
+              <Box title="Other Costs" total={c.sectionH}>
+                {otherRows.map((r, i) => <Row key={i} {...r} />)}
+              </Box>
+            )}
+          </View>
+        </View>
+
+        {/* Bottom row: monthly payment + funds to close */}
+        <View style={s.cols}>
+          <View style={s.col}>
+            {!isRefi ? (
+              <Box title="Estimated Monthly Payment">
+                <Row label="Principal & Interest" value={c.pi} />
+                <Row label="Property Taxes" value={c.monthlyTax} />
+                <Row label="Homeowner's Insurance" value={c.ins} />
+                {c.monthlyMI >= 0.5 && <Row label="Mortgage Insurance" value={c.monthlyMI} />}
+                {p.hoa >= 0.5 && <Row label="Homeowner Assn. Dues" value={p.hoa} />}
+                <TotalBar label="Total Monthly Payment" value={c.housingPayment} />
+              </Box>
+            ) : (
+              <Box title="Estimated Monthly Payment">
+                <Row label="Current Total Payment" value={c.refiCurTotalPmt} />
+                <Row label="New Principal & Interest" value={c.refiNewPi} />
+                {c.refiNewMonthlyTax >= 0.5 && <Row label="New Property Taxes" value={c.refiNewMonthlyTax} />}
+                {c.refiNewMonthlyIns >= 0.5 && <Row label="New Insurance" value={c.refiNewMonthlyIns} />}
+                {c.refiNewMI >= 0.5 && <Row label="New Mortgage Insurance" value={c.refiNewMI} />}
+                {p.hoa >= 0.5 && <Row label="Homeowner Assn. Dues" value={p.hoa} />}
+                <Row label="New Total Payment" value={c.refiNewTotalPmt} bold />
+                <TotalBar label="Monthly Savings" value={c.refiMonthlyTotalSavings} />
+              </Box>
+            )}
+          </View>
+          <View style={s.col}>
+            {!isRefi ? (
+              <Box title="Estimated Funds to Close">
+                <Row label="Down Payment" value={c.dp} />
+                <Row label="Closing Costs" value={c.totalClosingCosts} />
+                <Row label="Prepaids & Initial Escrow" value={c.totalPrepaidExp} />
+                {c.payoffAtClosing >= 0.5 && <Row label="Debts Paid at Closing" value={c.payoffAtClosing} />}
+                {c.totalCredits >= 0.5 && <Row label="Credits (seller / lender / EMD)" value={-c.totalCredits} color={GREEN} />}
+                <TotalBar label="Estimated Cash to Close" value={c.cashToClose} />
+              </Box>
+            ) : (
+              <Box title="Net Cash Out">
+                <Row label="New Loan Amount" value={c.refiNetNewLoan} />
+                <Row label="Closing Costs" value={-(c.refiNetClosingCosts || 0)} />
+                <Row label="Prepaids & Escrow" value={-(c.refiNetPrepaids || 0)} />
+                <Row label="Current Loan Payoff" value={-(c.refiNetPayoff || 0)} />
+                <Row
+                  label={c.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Cash to Close"}
+                  value={Math.abs(c.refiEstCashOut || 0)}
+                  color={c.refiEstCashOut >= 0 ? GREEN : undefined}
+                />
+                {c.refiSkipPmtAmt >= 0.5 && <Row label={`Skip ${p.refiSkipMonths} Payment(s)`} value={c.refiSkipPmtAmt} color={GREEN} />}
+                {c.refiEscrowRefund >= 0.5 && <Row label="Escrow Balance Refund" value={c.refiEscrowRefund} color={GREEN} />}
+                <TotalBar
+                  label={c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing"}
+                  value={Math.abs(c.refiNetCashInHand || 0)}
+                />
+              </Box>
+            )}
+          </View>
+        </View>
+
+        {/* Footer */}
+        <Text style={s.disclaimer}>
+          This estimate is provided for illustrative and informational purposes only, based on the loan scenario provided. It is a hypothetical
+          estimate — NOT a Loan Estimate, loan approval, rate lock, or commitment to lend. Actual rates, payments, and costs could be higher and
+          will vary based on credit profile, property details, and lender guidelines. Until you lock your rate, terms are subject to change.
+          Contact a licensed loan officer for an official quote.
+        </Text>
+        <Text style={s.footBrand}>
+          {p.companyName || ""}{p.companyNmls ? ` · Company NMLS #${p.companyNmls}` : ""}
+        </Text>
+        <Text style={s.footGen}>Generated by RealStack Blueprint · {dateStr}</Text>
+      </Page>
+    </Document>
+  );
+}

@@ -8,7 +8,11 @@ export default async function handler(req, res) {
   if (applyCors(req, res)) return;
   if (rateLimited(req, res, { limit: 60 })) return;
 
-  const apiKey = process.env.VITE_FRED_API_KEY;
+  // Prefer the server-only FRED_API_KEY. VITE_FRED_API_KEY is kept as a
+  // transitional fallback ONLY — the VITE_ prefix makes Vite bundle a var into
+  // the client, so the canonical name is the unprefixed, server-only one.
+  // Action: add FRED_API_KEY in Vercel, then delete VITE_FRED_API_KEY.
+  const apiKey = process.env.FRED_API_KEY || process.env.VITE_FRED_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "FRED API key not configured" });
   }
