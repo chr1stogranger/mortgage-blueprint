@@ -2061,19 +2061,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // Force-save current scenario so storage is up-to-date
    try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
    const results = [];
-   // Current scenario — use live calc values (always fresh)
-   results.push({ name: scenarioName, metrics: { salesPrice, downPct, rate, term, loanType, loan: calc.loan, pi: calc.pi, monthlyPayment: calc.displayPayment, cashToClose: calc.cashToClose, dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome, monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, hoaM: hoa, ltv: calc.ltv }, isCurrent: true });
-   // Load other scenarios from storage
+   const liveMetrics = { salesPrice, downPct, rate, term, loanType, loan: calc.loan, pi: calc.pi, monthlyPayment: calc.displayPayment, cashToClose: calc.cashToClose, dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome, monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, hoaM: hoa, ltv: calc.ltv };
+   // Build STRICTLY from the current scenario list so a just-deleted scenario
+   // can't ghost into the cards. The active scenario (scenarioName) uses live
+   // calc values; the rest load from storage. If scenarioName isn't in the list
+   // yet (mid-switch after a delete), it simply isn't shown until things settle.
    for (const name of scenarioList) {
-    if (name === scenarioName) continue;
-    try {
-     const res = await LS.get("scenario:" + name);
-     if (res && res.value) {
-      const s = JSON.parse(res.value);
-      const m = calcQuickMetrics(s);
-      if (m) results.push({ name, metrics: m, isCurrent: false });
-     }
-    } catch(e) { /* skip broken scenarios */ }
+    if (name === scenarioName) {
+     results.push({ name, metrics: liveMetrics, isCurrent: true });
+    } else {
+     try {
+      const res = await LS.get("scenario:" + name);
+      if (res && res.value) {
+       const s = JSON.parse(res.value);
+       const m = calcQuickMetrics(s);
+       if (m) results.push({ name, metrics: m, isCurrent: false });
+      }
+     } catch(e) { /* skip broken scenarios */ }
+    }
    }
    setCompareData(results);
   } catch(e) { console.error("Compare load error", e); }
