@@ -140,11 +140,13 @@ function DebtToIncomeSummary({
       <div style={subHeaderStyle}>{title}</div>
       {rows.map((r, i) => (
         // minHeight keeps every line-item row a uniform height so the two
-        // columns stay aligned even when one side's label wraps to two lines
-        // (e.g. "Other Monthly Income") and the other doesn't ("Invest. Real
-        // Estate Net"). Without this, Total Debts floats above Total Monthly
-        // Income and the rest of the rows drift out of sync. (Christo 2026-05-27.)
-        <div key={i} style={{ ...rowStyle, minHeight: 52, boxSizing: "border-box" }}>
+        // columns stay aligned even when one side's label wraps and the other
+        // doesn't. On mobile "Monthly Employment Income" wraps to THREE lines
+        // while "New Housing PITI Payment" only wraps to two — so the floor must
+        // fit 3 lines (66px) on mobile, or the Income column grows taller and
+        // Total Debts / every row below drift out of sync. Desktop labels don't
+        // wrap, so 52 stays compact there. (Christo 2026-07-03.)
+        <div key={i} style={{ ...rowStyle, minHeight: isDesktop ? 52 : 66, boxSizing: "border-box" }}>
           <span style={cellLabel}>{r.label}</span>
           <span style={cellValue}>{fmt(r.value)}</span>
         </div>
