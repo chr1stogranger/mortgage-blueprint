@@ -359,11 +359,14 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
         position: "sticky", top: 0, zIndex: 30, flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={closeWorkspace} style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: T.textTertiary, display: "flex", padding: 4, borderRadius: 4,
+          <button onClick={closeWorkspace} title="Back to layout options" style={{
+            background: `${T.accent}10`, border: `1px solid ${T.accent}25`, cursor: "pointer",
+            color: T.accent, display: "flex", alignItems: "center", gap: 5,
+            padding: "5px 12px 5px 8px", borderRadius: 9999, fontFamily: FONT,
+            fontSize: 12, fontWeight: 600,
           }}>
-            <Icon name="chevron-left" size={16} />
+            <Icon name="chevron-left" size={15} />
+            Change Layout
           </button>
           <span style={{
             fontSize: 11, fontWeight: 600, fontFamily: FONT,
