@@ -4303,7 +4303,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           {!navCollapsed && (
            <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
           )}
-          {!navCollapsed && completed && !locked && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+          {!navCollapsed && completed && !locked && k !== "compare" && k !== "workspace" && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
          </div>
         );
        };
