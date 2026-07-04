@@ -2079,8 +2079,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch(e) { console.error("Compare load error", e); }
   setCompareLoading(false);
  };
- // Auto-load compare data when switching to compare tab
- React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab]);
+ // Auto-load compare data when switching to compare tab, AND whenever the
+ // scenario list or active scenario changes (so deleting/renaming/switching a
+ // scenario refreshes the side-by-side cards instead of showing stale data).
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab, scenarioName, scenarioList]);
  React.useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; }, [tab]);
  React.useEffect(() => { if (loanType === "FHA" || loanType === "VA") setIncludeEscrow(true); }, [loanType]);
  // Sync escrow toggles between purchase flow (includeEscrow) and refi flow (refiHasEscrow)
