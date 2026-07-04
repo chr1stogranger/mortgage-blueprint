@@ -3993,7 +3993,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  ];
  // Core destinations that stay PINNED above the section index. These are real
  // tab switches (not in-page scrolls), in the order Christo specified.
- const CORE_TAB_KEYS = ["overview", "refi", "refi3", "workspace", "learn", "summary", "settings"];
+ const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "summary", "settings"];
  // Jump to an Overview section: make sure we're on the Overview tab, then scroll
  // the section into view. Polls briefly because OverviewTab is lazy-loaded and
  // may not be mounted on the same frame we switch tabs. scroll-margin-top (CSS,
