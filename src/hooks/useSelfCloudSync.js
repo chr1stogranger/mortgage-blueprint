@@ -134,6 +134,10 @@ export default function useSelfCloudSync({
 
   const schedulePush = useCallback(() => {
     if (!enabled) return;
+    // Mark the edit NOW (not just when the debounced push lands) so an
+    // incoming pull / realtime echo can't revert a change during the debounce
+    // window. This is what caused a toggle to "revert unless you click off."
+    lastWriteRef.current = Date.now();
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(pushActive, PUSH_DEBOUNCE_MS);
   }, [enabled, pushActive]);
@@ -368,7 +372,10 @@ export default function useSelfCloudSync({
     if (!enabled || !accountId || !loaded) return;
     const refresh = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-      // Don't clobber an edit the user just made locally — let its push win.
+      // Never pull while a local edit is still pending its push, or within 4s of
+      // the last edit — otherwise the pull reloads stale cloud state and reverts
+      // the change the user just made.
+      if (pushTimer.current) return;
       if (Date.now() - lastWriteRef.current < 4000) return;
       pullNow();
     };
