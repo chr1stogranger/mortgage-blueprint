@@ -87,6 +87,7 @@ export default function useSelfCloudSync({
   const scenarioNameRef = useRef(scenarioName);
   const pulledRef = useRef(false);
   const lastWriteRef = useRef(0);   // suppress our own realtime echo
+  const deletedNamesRef = useRef(new Set()); // tombstones — never re-push these
   useEffect(() => { scenarioNameRef.current = scenarioName; }, [scenarioName]);
 
   const accountId = account?.id || null;
@@ -96,6 +97,9 @@ export default function useSelfCloudSync({
     if (!enabled || !accountId || !getStateRef?.current) return;
     const name = scenarioNameRef.current;
     if (!name) return;
+    // Never re-create a scenario the user just deleted (guards the race where a
+    // pending debounced push fires after delete and resurrects it in the cloud).
+    if (deletedNamesRef.current.has(name)) return;
 
     try {
       setStatus('saving');
@@ -282,6 +286,10 @@ export default function useSelfCloudSync({
   // ── DELETE the cloud copy of a scenario by name + drop its mapping, so a
   // locally-deleted scenario doesn't get pulled back down on the next sync.
   const deleteByName = useCallback(async (name) => {
+    // Tombstone the name and cancel any pending debounced push for it, so a
+    // late save can't resurrect it right after we delete it.
+    deletedNamesRef.current.add(name);
+    if (pushTimer.current) { clearTimeout(pushTimer.current); pushTimer.current = null; }
     const map = readMap();
     let id = map[name]?.id;
     // If the mapping was lost, still find & delete the cloud row by name so a
@@ -301,7 +309,14 @@ export default function useSelfCloudSync({
 
   // ── RENAME the cloud copy in place (keep the same id) + remap, so the old
   // name doesn't linger in the cloud and resync as a duplicate.
+  // Allow a name to sync again (e.g. user re-creates or renames TO a name that
+  // was previously tombstoned by a delete in this session).
+  const clearTombstone = useCallback((name) => {
+    deletedNamesRef.current.delete(name);
+  }, []);
+
   const renameByName = useCallback(async (oldName, newName) => {
+    deletedNamesRef.current.delete(newName);
     const map = readMap();
     const entry = map[oldName];
     if (entry?.id) {
@@ -392,5 +407,6 @@ export default function useSelfCloudSync({
     resetSync,          // wipe cloud scenarios + local sync state (troubleshooting)
     deleteByName,       // delete a scenario's cloud copy so it won't resync
     renameByName,       // rename a scenario's cloud copy in place
+    clearTombstone,     // re-allow syncing a name after a delete (on re-create)
   };
 }

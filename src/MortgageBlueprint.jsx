@@ -1928,6 +1928,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const createScenario = async (name) => {
   if (!name || scenarioList.includes(name)) return;
+  try { selfSync.clearTombstone?.(name); } catch(e) {}
   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
   const newList = [...scenarioList, name];
   setScenarioList(newList);
@@ -1967,6 +1968,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   let newName = scenarioName + " Copy";
   let i = 2;
   while (scenarioList.includes(newName)) { newName = scenarioName + " Copy " + i; i++; }
+  try { selfSync.clearTombstone?.(newName); } catch(e) {}
   const newList = [...scenarioList, newName];
   setScenarioList(newList);
   try { await LS.set("scenario:" + newName, JSON.stringify(getState())); } catch(e) {}
