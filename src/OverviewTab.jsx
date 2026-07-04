@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { STATE_ABBR } from "./citiesData.js";
 import SetupContent from "./content/SetupContent";
 import IncomeContent from "./content/IncomeContent";
 import AssetsContent from "./content/AssetsContent";
@@ -100,7 +101,7 @@ export default function OverviewTab(props) {
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {(city || propertyZip) && (
             <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, letterSpacing: "0.01em" }}>
-              {city}{city && propertyState ? ", " : ""}{propertyState ? (propertyState.length > 2 ? propertyState.substring(0, 2).toUpperCase() : propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
+              {city}{city && propertyState ? ", " : ""}{propertyState ? (STATE_ABBR[propertyState] || propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
             </span>
           )}
           {(city || propertyZip) && <span style={{ color: T.textTertiary, fontSize: 10 }}>·</span>}
