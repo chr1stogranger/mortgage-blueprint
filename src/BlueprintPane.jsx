@@ -8,7 +8,7 @@
  * Phase 2 of Workspace: real, interactive calculators in each pane.
  */
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES } from "./citiesData.js";
+import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
 import { calcPI, getPMIRate } from "./lib/finance.js"; // shared engine — was a drift-prone local copy
 import Icon from "./Icon";
 
@@ -241,6 +241,8 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
     let yearlyTax;
     if (propertyState === "California" && CA_CITY_TAX_RATES[city]) {
       yearlyTax = salesPrice * CA_CITY_TAX_RATES[city];
+    } else if (propertyState === "Nevada" && NV_CITY_TAX_RATES[city]) {
+      yearlyTax = salesPrice * NV_CITY_TAX_RATES[city];
     } else {
       const stateRate = STATE_PROPERTY_TAX_RATES[propertyState] || 0.0125;
       yearlyTax = salesPrice * stateRate;

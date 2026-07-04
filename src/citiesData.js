@@ -1,39 +1,75 @@
 // ═══ COMPREHENSIVE US CITY DATA ═══
 // CA cities have individual tax rates where known; default 1.25% for others.
-// Non-CA states use state-level average rates (from STATE_PROPERTY_TAX_RATES in main file).
+// Non-CA states use state-level average rates (from STATE_PROPERTY_TAX_RATES in main file),
+// except Nevada, which has city-level effective rates below (NV_CITY_TAX_RATES).
+//
+// ── TAX DATA VINTAGE: FY 2025-26 (July 2025 – June 2026) ──
+// Updated 2026-07-03 from each county's official Auditor-Controller tax rate book:
+//  • Alameda: "2025/26 Tax Rate Book" (auditor.alamedacountyca.gov)
+//  • Contra Costa: "Detail of Tax Rates 2025-2026" (contracosta.ca.gov, Oct 2025)
+//  • San Mateo: "Tax Rates and Valuation FY 2025-2026" (smcgov.org)
+//  • San Francisco: SF Treasurer secured rate FY 2025-26 (sftreasurer.org)
+//  • Santa Clara: "Compilation of Tax Rates FY 2025-2026" (santaclaracounty.gov)
+//  • Marin: "FY2025-26 Tax Rate Book" (marincounty.gov)
+//  • Napa: "Tax Rates and Information FY 2025-26" (napacounty.gov)
+//  • Solano: "General Tax Rate by City FY 25-26" (solanocounty.gov)
+//  • Sonoma: "Multi-Year Tax Rates, Tax Year 2025" (sonomacounty.gov ACTTC)
+// Each rate = total ad-valorem rate (1% base + voter-approved bonds) for the city's
+// primary/most-common Tax Rate Area. Flat parcel taxes / Mello-Roos NOT included.
+// NEXT UPDATE: ~Oct 2026 when counties publish FY 2026-27 rate books.
 
 export const CA_CITY_TAX_RATES = {
- // ── Existing known rates (Bay Area + Wine Country + key metros) ──
- "Alameda": 0.012127, "Alamo": 0.010826, "Albany": 0.013571, "Alhambra Valley": 0.011224,
- "Amador Valley": 0.01139, "American Canyon": 0.000217, "Antioch": 0.010492, "Ashland": 0.011946,
- "Atherton": 0.010913, "Bay Point": 0.011023, "Bayview": 0.011023, "Belmont": 0.011247,
- "Belvedere": 0.010931, "Benicia": 0.01157, "Berkeley": 0.012323, "Bethel Island": 0.010876,
- "Blackhawk": 0.010876, "Bolinas": 0.010911, "Brentwood": 0.011045, "Briones": 0.011556,
- "Brisbane": 0.010921, "Broadmoor": 0.011494, "Burlingame": 0.011196, "Byron": 0.010964,
- "Calistoga": 0.000309, "Camino Tassajara": 0.010824, "Campbell": 0.011973, "Castro Valley": 0.011946,
- "Clayton": 0.010994, "Cloverdale": 0.010989, "Colma": 0.01116, "Concord": 0.011161,
- "Corte Madera": 0.011084, "Cotati": 0.011148, "Cupertino": 0.012076, "Daly City": 0.011369,
- "Danville": 0.010826, "Discovery Bay": 0.010964, "Dublin": 0.011515, "East Palo Alto": 0.011534,
- "El Cerrito": 0.013033, "El Sobrante": 0.012161, "Emeryville": 0.012469, "Fairfax": 0.010963,
- "Fairfield": 0.011558, "Foster City": 0.011274, "Fremont": 0.011987, "Gilroy": 0.011919,
- "Half Moon Bay": 0.011126, "Hayward": 0.012265, "Healdsburg": 0.010989, "Hercules": 0.011556,
- "Hillsborough": 0.010901, "Kensington": 0.013033, "Knightsen": 0.010964, "Lafayette": 0.011081,
- "Lagunitas": 0.010911, "Larkspur": 0.011089, "Livermore": 0.011752, "Los Altos": 0.011519,
- "Los Altos Hills": 0.011369, "Los Gatos": 0.011813, "Martinez": 0.011224, "Menlo Park": 0.011199,
- "Mill Valley": 0.011065, "Millbrae": 0.011274, "Milpitas": 0.012193, "Monte Sereno": 0.011813,
- "Moraga": 0.011203, "Morgan Hill": 0.01186, "Mountain View": 0.012018, "Napa": 0.011387,
- "Newark": 0.012081, "Nicasio": 0.010911, "Novato": 0.011233, "Oakland": 0.013671,
- "Oakley": 0.011045, "Orinda": 0.011068, "Pacifica": 0.011369, "Palo Alto": 0.011359,
- "Petaluma": 0.011148, "Piedmont": 0.012785, "Pinole": 0.011556, "Pittsburg": 0.011204,
- "Pleasant Hill": 0.011073, "Pleasanton": 0.011471, "Portola Valley": 0.01086,
- "Redwood City": 0.011534, "Richmond": 0.013138, "Rodeo": 0.011556, "Rohnert Park": 0.011148,
- "Ross": 0.010931, "San Anselmo": 0.010963, "San Bruno": 0.011369, "San Carlos": 0.011247,
- "San Francisco": 0.011665, "San Jose": 0.012076, "San Leandro": 0.012081, "San Lorenzo": 0.011946,
- "San Mateo": 0.011274, "San Pablo": 0.013138, "San Rafael": 0.011065, "San Ramon": 0.010826,
- "Santa Clara": 0.012076, "Santa Rosa": 0.010989, "Saratoga": 0.011813, "Sausalito": 0.011065,
- "Sebastopol": 0.010989, "Sonoma": 0.011148, "South San Francisco": 0.011369,
- "Sunnyvale": 0.012018, "Tiburon": 0.010931, "Union City": 0.012081, "Vacaville": 0.011558,
- "Vallejo": 0.011558, "Walnut Creek": 0.011023, "Windsor": 0.010989, "Woodside": 0.01086,
+ // ── ALAMEDA COUNTY (FY 2025-26) ──
+ "Alameda": 0.012127, "Albany": 0.013571, "Ashland": 0.011946, "Berkeley": 0.012323,
+ "Castro Valley": 0.011800, "Dublin": 0.012385, "Emeryville": 0.011665, "Fremont": 0.011741,
+ "Hayward": 0.011724, "Livermore": 0.011325, "Newark": 0.011492, "Oakland": 0.012779,
+ "Piedmont": 0.011798, "Pleasanton": 0.011694, "San Leandro": 0.012436, "San Lorenzo": 0.011946,
+ "Union City": 0.012621,
+ "Amador Valley": 0.01139, // UNVERIFIED — region name, not a TRA; carried over from old data
+ // ── CONTRA COSTA COUNTY (FY 2025-26) ──
+ // Antioch: 1.0492 = non-SFID TRAs (SE/newer Antioch); downtown SFID areas are 1.1170
+ "Alamo": 0.010826, "Alhambra Valley": 0.011556, "Antioch": 0.010492, "Bay Point": 0.011023,
+ "Bayview": 0.011556, "Bethel Island": 0.010876, "Blackhawk": 0.010826, "Brentwood": 0.011045,
+ "Briones": 0.011556, "Byron": 0.010964, "Camino Tassajara": 0.010826, "Clayton": 0.011023,
+ "Concord": 0.011023, "Crockett": 0.011124, "Danville": 0.010826, "Discovery Bay": 0.010964,
+ "El Cerrito": 0.012843, "El Sobrante": 0.012843, "Hercules": 0.012843, "Kensington": 0.012843,
+ "Knightsen": 0.010565, "Lafayette": 0.010853, "Martinez": 0.011723, "Moraga": 0.011095,
+ "Oakley": 0.010876, "Orinda": 0.011387, "Pinole": 0.012843, "Pittsburg": 0.011451,
+ "Pleasant Hill": 0.011153, "Richmond": 0.014243, "Rodeo": 0.011124, "San Pablo": 0.012843,
+ "San Ramon": 0.010826, "Walnut Creek": 0.010937,
+ // ── SAN FRANCISCO (FY 2025-26, single citywide rate) ──
+ "San Francisco": 0.01182683,
+ // ── SAN MATEO COUNTY (FY 2025-26) ──
+ "Atherton": 0.010913, "Belmont": 0.011247, "Brisbane": 0.011560, "Broadmoor": 0.011602,
+ "Burlingame": 0.011196, "Colma": 0.011602, "Daly City": 0.011602, "East Palo Alto": 0.011191,
+ "Foster City": 0.011323, "Half Moon Bay": 0.011598, "Hillsborough": 0.011185,
+ "Menlo Park": 0.010958, "Millbrae": 0.011263, "Pacifica": 0.011774, "Portola Valley": 0.010860,
+ "Redwood City": 0.010941, "San Bruno": 0.010831, "San Carlos": 0.011161, "San Mateo": 0.011201,
+ "South San Francisco": 0.010718, "Woodside": 0.010935,
+ // ── SANTA CLARA COUNTY (FY 2025-26) ──
+ "Campbell": 0.012169, "Cupertino": 0.011636, "Gilroy": 0.012186, "Los Altos": 0.011530,
+ "Los Altos Hills": 0.011530, "Los Gatos": 0.011459, "Milpitas": 0.011389,
+ "Monte Sereno": 0.011483, "Morgan Hill": 0.011297, "Mountain View": 0.011599,
+ "Palo Alto": 0.0120135, "San Jose": 0.012079, "Santa Clara": 0.011825, "Saratoga": 0.011467,
+ "Sunnyvale": 0.011730,
+ // ── MARIN COUNTY (FY 2025-26) ──
+ "Belvedere": 0.010968, "Bolinas": 0.010752, "Corte Madera": 0.011213, "Fairfax": 0.012211,
+ "Lagunitas": 0.010981, "Larkspur": 0.011213, "Mill Valley": 0.011214, "Nicasio": 0.010752,
+ "Novato": 0.011184, "Ross": 0.011257, "San Anselmo": 0.011681, "San Rafael": 0.012056,
+ "Sausalito": 0.011356, "Tiburon": 0.010968,
+ "Woodacre": 0.010981, "Forest Knolls": 0.010981, "San Geronimo": 0.010981,
+ "Kentfield": 0.011321, "Greenbrae": 0.011321, "Muir Beach": 0.011214,
+ "Stinson Beach": 0.010752, "Inverness": 0.010653, "Point Reyes Station": 0.010653,
+ "Marshall": 0.010653, "Tomales": 0.010853, "Dillon Beach": 0.010653,
+ // ── NAPA COUNTY (FY 2025-26) ──
+ "American Canyon": 0.011129, "Calistoga": 0.010823, "Napa": 0.011266, "St. Helena": 0.010620,
+ "Angwin": 0.010187, "Rutherford": 0.010523, "Oakville": 0.011116, "Deer Park": 0.010523,
+ // ── SOLANO COUNTY (FY 2025-26) ──
+ "Benicia": 0.011569, "Fairfield": 0.011100, "Vacaville": 0.011443, "Vallejo": 0.011194,
+ // ── SONOMA COUNTY (FY 2025-26) ──
+ "Cloverdale": 0.011905, "Cotati": 0.011405, "Healdsburg": 0.011570, "Petaluma": 0.011290,
+ "Rohnert Park": 0.011405, "Santa Rosa": 0.011375, "Sebastopol": 0.011357, "Sonoma": 0.011230,
+ "Windsor": 0.011325,
  // ── All other CA incorporated cities (default 1.25%) ──
  "Adelanto": 0.0125, "Agoura Hills": 0.0125, "Alhambra": 0.0125, "Alturas": 0.0125,
  "Amador City": 0.0125, "Anaheim": 0.0125, "Anderson": 0.0125, "Angels Camp": 0.0125,
@@ -42,7 +78,7 @@ export const CA_CITY_TAX_RATES = {
  "Auburn": 0.0125, "Avalon": 0.0125, "Avenal": 0.0125, "Azusa": 0.0125,
  "Bakersfield": 0.0125, "Baldwin Park": 0.0125, "Banning": 0.0125, "Barstow": 0.0125,
  "Beaumont": 0.0125, "Bell": 0.0125, "Bell Gardens": 0.0125, "Bellflower": 0.0125,
- "Belvedere": 0.010931, "Benicia": 0.01157, "Beverly Hills": 0.0125, "Big Bear Lake": 0.0125,
+ "Beverly Hills": 0.0125, "Big Bear Lake": 0.0125,
  "Biggs": 0.0125, "Bishop": 0.0125, "Blue Lake": 0.0125, "Blythe": 0.0125,
  "Bradbury": 0.0125, "Brawley": 0.0125, "Brea": 0.0125, "Buellton": 0.0125,
  "Buena Park": 0.0125, "Burbank": 0.0125, "Calabasas": 0.0125, "Calexico": 0.0125,
@@ -57,8 +93,8 @@ export const CA_CITY_TAX_RATES = {
  "Crescent City": 0.0125, "Cudahy": 0.0125, "Culver City": 0.0125, "Cypress": 0.0125,
  "Dana Point": 0.0125, "Davis": 0.0125, "Del Mar": 0.0125, "Del Rey Oaks": 0.0125,
  "Delano": 0.0125, "Desert Hot Springs": 0.0125, "Diamond Bar": 0.0125, "Dinuba": 0.0125,
- "Dixon": 0.0125, "Dorris": 0.0125, "Dos Palos": 0.0125, "Downey": 0.0125,
- "Duarte": 0.0125, "Dunsmuir": 0.0125, "East Palo Alto": 0.011534,
+ "Dixon": 0.010961, "Dorris": 0.0125, "Dos Palos": 0.0125, "Downey": 0.0125,
+ "Duarte": 0.0125, "Dunsmuir": 0.0125,
  "Eastvale": 0.0125, "El Cajon": 0.0125, "El Centro": 0.0125, "El Monte": 0.0125,
  "El Segundo": 0.0125, "Elk Grove": 0.0125, "Encinitas": 0.0125, "Escalon": 0.0125,
  "Escondido": 0.0125, "Etna": 0.0125, "Eureka": 0.0125, "Exeter": 0.0125,
@@ -85,12 +121,12 @@ export const CA_CITY_TAX_RATES = {
  "Lathrop": 0.0125, "Lawndale": 0.0125, "Lemon Grove": 0.0125, "Lemoore": 0.0125,
  "Lincoln": 0.0125, "Lindsay": 0.0125, "Live Oak": 0.0125, "Lodi": 0.0125,
  "Loma Linda": 0.0125, "Lomita": 0.0125, "Lompoc": 0.0125, "Long Beach": 0.0125,
- "Los Alamitos": 0.0125, "Los Angeles": 0.0125, "Los Banos": 0.0125, "Los Gatos": 0.011813,
+ "Los Alamitos": 0.0125, "Los Angeles": 0.0125, "Los Banos": 0.0125,
  "Loyalton": 0.0125, "Lynwood": 0.0125, "Madera": 0.0125, "Malibu": 0.0125,
  "Mammoth Lakes": 0.0125, "Manhattan Beach": 0.0125, "Manteca": 0.0125, "Maricopa": 0.0125,
  "Marina": 0.0125, "Maywood": 0.0125, "McFarland": 0.0125, "Mendota": 0.0125,
  "Menifee": 0.0125, "Merced": 0.0125, "Mission Viejo": 0.0125, "Modesto": 0.0125,
- "Monrovia": 0.0125, "Montague": 0.0125, "Montclair": 0.0125, "Monte Sereno": 0.011813,
+ "Monrovia": 0.0125, "Montague": 0.0125, "Montclair": 0.0125,
  "Montebello": 0.0125, "Monterey": 0.0125, "Monterey Park": 0.0125, "Moorpark": 0.0125,
  "Moreno Valley": 0.0125, "Morro Bay": 0.0125, "Mount Shasta": 0.0125,
  "Mountain House": 0.0125, "Murrieta": 0.0125, "National City": 0.0125,
@@ -124,24 +160,65 @@ export const CA_CITY_TAX_RATES = {
  "Signal Hill": 0.0125, "Simi Valley": 0.0125, "Solana Beach": 0.0125,
  "Soledad": 0.0125, "Solvang": 0.0125, "South El Monte": 0.0125,
  "South Gate": 0.0125, "South Lake Tahoe": 0.0125, "South Pasadena": 0.0125,
- "Stanton": 0.0125, "Stockton": 0.0125, "Suisun City": 0.0125,
+ "Stanton": 0.0125, "Stockton": 0.0125, "Suisun City": 0.011103,
  "Susanville": 0.0125, "Sutter Creek": 0.0125, "Taft": 0.0125, "Tehachapi": 0.0125,
  "Tehama": 0.0125, "Temecula": 0.0125, "Temple City": 0.0125, "Thousand Oaks": 0.0125,
  "Torrance": 0.0125, "Tracy": 0.0125, "Trinidad": 0.0125, "Truckee": 0.0125,
  "Tulare": 0.0125, "Turlock": 0.0125, "Tustin": 0.0125, "Twentynine Palms": 0.0125,
- "Ukiah": 0.0125, "Upland": 0.0125, "Vacaville": 0.011558, "Ventura": 0.0125,
+ "Ukiah": 0.0125, "Upland": 0.0125, "Ventura": 0.0125,
  "Vernon": 0.0125, "Victorville": 0.0125, "Villa Park": 0.0125, "Visalia": 0.0125,
  "Vista": 0.0125, "Walnut": 0.0125, "Wasco": 0.0125, "Waterford": 0.0125,
  "Watsonville": 0.0125, "Weed": 0.0125, "West Covina": 0.0125, "West Hollywood": 0.0125,
  "West Sacramento": 0.0125, "Westlake Village": 0.0125, "Westminster": 0.0125,
  "Westmorland": 0.0125, "Wheatland": 0.0125, "Whittier": 0.0125, "Wildomar": 0.0125,
  "Williams": 0.0125, "Willits": 0.0125, "Willows": 0.0125, "Winters": 0.0125,
- "Woodlake": 0.0125, "Woodland": 0.0125, "Yorba Linda": 0.0125, "Yountville": 0.0125,
+ "Woodlake": 0.0125, "Woodland": 0.0125, "Yorba Linda": 0.0125, "Yountville": 0.010912,
  "Yreka": 0.0125, "Yuba City": 0.0125, "Yucaipa": 0.0125, "Yucca Valley": 0.0125,
 };
 
 // Sorted CA city names for dropdown
 export const CA_CITY_NAMES = Object.keys(CA_CITY_TAX_RATES).sort();
+
+// ═══ NEVADA CITY TAX RATES (FY 2025-26) ═══
+// Source: NV Dept. of Taxation "Property Tax Rates for Nevada Local Governments"
+// (FY 2025-2026 Redbook, certified June 25, 2025) — total rate per $100 assessed,
+// converted to an effective % of taxable value: (rate/100) × 0.35 assessment ratio
+// (NRS 361.225). E.g. Carson City: 3.5700 × 0.35 = 1.2495%.
+// NOTE: This estimates a NEW-purchase tax bill assuming taxable value ≈ price.
+// Nevada assesses improvements at replacement cost less depreciation and caps
+// annual increases (3% owner-occupied abatement), so actual bills on resale
+// homes often run LOWER — treat as a conservative estimate and override with
+// the seller's actual tax bill when available.
+export const NV_CITY_TAX_RATES = {
+ "Carson City": 0.012495,
+ // Clark County
+ "Las Vegas": 0.011474, "Henderson": 0.010364, "North Las Vegas": 0.011740,
+ "Mesquite": 0.009708, "Boulder City": 0.009134,
+ "Paradise": 0.010265, "Enterprise": 0.010265, "Spring Valley": 0.010265,
+ "Summerlin South": 0.010265, "Sunrise Manor": 0.010265, "Whitney": 0.010265,
+ "Winchester": 0.010265,
+ // Washoe County
+ "Reno": 0.012810, "Sparks": 0.012810,
+ // Other counties (county seat / principal towns)
+ "Fallon": 0.012810, "Minden": 0.012810, "Gardnerville": 0.012810,
+ "Elko": 0.012810, "Spring Creek": 0.009369, "Goldfield": 0.010917,
+ "Eureka": 0.008014, "Winnemucca": 0.011451, "Battle Mountain": 0.011918,
+ "Pioche": 0.011524, "Yerington": 0.012810, "Fernley": 0.012803,
+ "Dayton": 0.010489, "Hawthorne": 0.012810, "Tonopah": 0.012810,
+ "Pahrump": 0.011932, "Lovelock": 0.012807, "Virginia City": 0.012112,
+ "Ely": 0.012810,
+};
+
+// Representative effective rate per NV county (largest population center),
+// same FY 2025-26 Redbook source — fallback when a city isn't in the map above.
+export const NV_COUNTY_TAX_RATES = {
+ "Carson City": 0.012495, "Churchill": 0.012810, "Clark": 0.011474,
+ "Douglas": 0.012810, "Elko": 0.012810, "Esmeralda": 0.010917,
+ "Eureka": 0.008014, "Humboldt": 0.011451, "Lander": 0.011918,
+ "Lincoln": 0.011524, "Lyon": 0.012803, "Mineral": 0.012810,
+ "Nye": 0.011932, "Pershing": 0.012807, "Storey": 0.012112,
+ "Washoe": 0.012810, "White Pine": 0.012810,
+};
 
 // ═══ CITIES BY STATE (non-CA) ═══
 // Major cities per state for the city dropdown. Users can also type custom city names.
@@ -173,7 +250,7 @@ export const STATE_CITIES = {
  "Missouri": ["Arnold","Ballwin","Belton","Blue Springs","Cape Girardeau","Chesterfield","Clayton","Columbia","Creve Coeur","Excelsior Springs","Farmington","Ferguson","Florissant","Gladstone","Grandview","Hannibal","Hazelwood","Independence","Jefferson City","Joplin","Kansas City","Kirksville","Kirkwood","Lake St. Louis","Lee's Summit","Liberty","Manchester","Maryland Heights","Mehlville","Nixa","O'Fallon","Ozark","Raymore","Raytown","Republic","Rolla","Sedalia","Springfield","St. Charles","St. Joseph","St. Louis","St. Peters","University City","Warrensburg","Webster Groves","Wentzville","Wildwood"],
  "Montana": ["Belgrade","Billings","Bozeman","Butte","Great Falls","Hamilton","Havre","Helena","Kalispell","Laurel","Lewistown","Livingston","Miles City","Missoula","Polson","Sidney","Whitefish"],
  "Nebraska": ["Beatrice","Bellevue","Columbus","Fremont","Grand Island","Gretna","Hastings","Kearney","La Vista","Lexington","Lincoln","Norfolk","North Platte","Omaha","Papillion","Ralston","Scottsbluff","South Sioux City"],
- "Nevada": ["Boulder City","Carson City","Elko","Enterprise","Fallon","Fernley","Henderson","Las Vegas","Laughlin","Mesquite","North Las Vegas","Pahrump","Paradise","Reno","Sparks","Spring Valley","Summerlin South","Sunrise Manor","Whitney","Winchester"],
+ "Nevada": ["Battle Mountain","Boulder City","Carson City","Dayton","Elko","Ely","Enterprise","Eureka","Fallon","Fernley","Gardnerville","Goldfield","Hawthorne","Henderson","Las Vegas","Laughlin","Lovelock","Mesquite","Minden","North Las Vegas","Pahrump","Paradise","Pioche","Reno","Sparks","Spring Creek","Spring Valley","Summerlin South","Sunrise Manor","Tonopah","Virginia City","Whitney","Winchester","Winnemucca","Yerington"],
  "New Hampshire": ["Bedford","Claremont","Concord","Conway","Derry","Dover","Exeter","Goffstown","Hampton","Hanover","Hooksett","Hudson","Keene","Laconia","Lebanon","Londonderry","Manchester","Merrimack","Milford","Nashua","Pelham","Portsmouth","Rochester","Salem","Somersworth","Windham"],
  "New Jersey": ["Atlantic City","Bayonne","Belleville","Bergenfield","Bloomfield","Brick","Bridgewater","Camden","Cherry Hill","Clifton","Cranford","East Brunswick","East Orange","Edison","Elizabeth","Englewood","Evesham","Ewing","Fair Lawn","Fort Lee","Franklin","Garfield","Gloucester","Hackensack","Hamilton","Harrison","Hoboken","Howell","Irvington","Jackson","Jersey City","Kearny","Lakewood","Linden","Livingston","Lodi","Long Branch","Manalapan","Marlboro","Middletown","Millville","Monroe","Montclair","Moorestown","Morris","Mount Laurel","New Brunswick","Newark","North Bergen","North Brunswick","Nutley","Old Bridge","Orange","Parsippany-Troy Hills","Passaic","Paterson","Piscataway","Perth Amboy","Plainfield","Princeton","Rahway","Ridgewood","Roselle","Sayreville","Scotch Plains","Secaucus","Somerset","South Brunswick","South Orange","Summit","Teaneck","Toms River","Trenton","Union","Union City","Vineland","Wayne","West New York","West Orange","Westfield","Woodbridge"],
  "New Mexico": ["Alamogordo","Albuquerque","Anthony","Artesia","Belen","Carlsbad","Clovis","Deming","Espanola","Farmington","Gallup","Hobbs","Las Cruces","Las Vegas","Los Alamos","Los Lunas","Lovington","Portales","Rio Rancho","Roswell","Ruidoso","Santa Fe","Silver City","Socorro","South Valley","Sunland Park","Taos","Truth or Consequences"],
