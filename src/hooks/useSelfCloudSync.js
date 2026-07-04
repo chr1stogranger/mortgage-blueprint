@@ -165,15 +165,16 @@ export default function useSelfCloudSync({
       const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
       if (!cloudRows.length) return;
 
-      // Self-heal stale tombstones: a name that exists in localStorage is live
-      // by definition (delete removes the local key before tombstoning), so a
-      // tombstone on it is left over from an older bug and must not block sync.
+      // Self-heal a stale tombstone on the ACTIVE scenario only — it's on
+      // screen, so it's live by definition (heals devices broken by the old
+      // resurrection bug). Never self-heal other names: a tombstoned non-active
+      // key is a delete-race artifact, not a real scenario.
       const tomb = deletedNamesRef.current;
-      let tombChanged = false;
-      for (const n of readLocalScenarioNames()) {
-        if (tomb.delete(n)) tombChanged = true;
+      const activeName = scenarioNameRef.current;
+      if (activeName && tomb.has(activeName) && readLocalScenario(activeName)) {
+        tomb.delete(activeName);
+        writeTombstones(tomb);
       }
-      if (tombChanged) writeTombstones(tomb);
 
       // Drop any cloud row whose name the user has deleted (persistent
       // tombstone) and hard-delete it, so a lingering or another-device
@@ -213,6 +214,10 @@ export default function useSelfCloudSync({
         // version is newer than our last sync of this name.
         if (!haveLocal || cloudTs > ((prev?.syncedAt) || 0) + 1500) {
           const full = await withTimeout(fetchOwnedScenario(row.id), 15000, 'fetch');
+          // Re-check the tombstone AFTER the await: if the user deleted this
+          // scenario while the fetch was in flight, writing it back would
+          // resurrect the local key as an orphan (the race our live test hit).
+          if (deletedNamesRef.current.has(name)) continue;
           if (full?.state_data) {
             writeLocalScenario(name, full.state_data);
             if (!haveLocal) addedNames.push(name);
@@ -327,10 +332,12 @@ export default function useSelfCloudSync({
   // ── DELETE the cloud copy of a scenario by name + drop its mapping, so a
   // locally-deleted scenario doesn't get pulled back down on the next sync.
   const deleteByName = useCallback(async (name) => {
-    // Tombstone the name and cancel any pending debounced push for it, so a
-    // late save can't resurrect it right after we delete it.
+    // SYNCHRONOUS local cleanup first: tombstone AND remove the local copy in
+    // the same tick. Doing these in separate async steps leaves a gap where an
+    // in-flight pull can observe "key exists, no tombstone" and resurrect it.
     deletedNamesRef.current.add(name);
     writeTombstones(deletedNamesRef.current);
+    try { localStorage.removeItem('scenario:' + name); } catch { /* noop */ }
     if (pushTimer.current) { clearTimeout(pushTimer.current); pushTimer.current = null; }
     const map = readMap();
     let id = map[name]?.id;

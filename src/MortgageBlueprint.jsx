@@ -1682,13 +1682,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
    try {
     const listResult = await LS.list("scenario:");
-    const names = listResult?.keys?.map(k => k.replace("scenario:", "")) || [];
-    setScenarioList(names);
+    let names = listResult?.keys?.map(k => k.replace("scenario:", "")) || [];
     let activeName = "Scenario 1";
     try {
      const active = await LS.get("active-scenario");
      if (active?.value) activeName = active.value;
     } catch(e) {}
+    // Purge resurrection artifacts: a tombstoned (deleted) name whose
+    // "scenario:" key still exists is junk left by an interrupted delete —
+    // remove it so it can't rejoin the list. EXCEPTION: the active scenario
+    // is live by definition — un-tombstone it instead (heals devices where
+    // the old bug tombstoned the scenario the user is actually working in).
+    try {
+     const tombs = new Set(JSON.parse(localStorage.getItem("bp_deleted_names") || "[]"));
+     if (tombs.has(activeName)) {
+      tombs.delete(activeName);
+      localStorage.setItem("bp_deleted_names", JSON.stringify([...tombs]));
+     }
+     const junk = names.filter(n => tombs.has(n));
+     for (const n of junk) { try { await LS.delete("scenario:" + n); } catch(e) {} }
+     names = names.filter(n => !tombs.has(n));
+    } catch(e) {}
+    setScenarioList(names);
     setScenarioName(activeName);
     try {
      const saved = await LS.get("scenario:" + activeName);
@@ -1967,13 +1982,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (scenarioList.length <= 1) return;
   const newList = scenarioList.filter(n => n !== name);
   setScenarioList(newList);
-  // Switch away FIRST (with skipSave) when deleting the active scenario.
-  // The old order deleted the key and THEN switchScenario's "save current"
-  // wrote it right back — that resurrected deleted scenarios on refresh.
-  if (name === scenarioName) await switchScenario(newList[0], { skipSave: true });
-  try { await LS.delete("scenario:" + name); } catch(e) {}
-  // Also remove the cloud copy so it doesn't get pulled back on next sync.
+  // deleteByName FIRST: it tombstones AND removes the local key in the same
+  // synchronous tick (no gap for an in-flight pull to resurrect it), then
+  // deletes the cloud row. LS.delete after is belt-and-braces for the
+  // signed-out case. Switch away LAST, with skipSave — the old order let
+  // switchScenario's "save current" re-write the deleted key (the zombie).
   try { await selfSync.deleteByName?.(name); } catch(e) {}
+  try { await LS.delete("scenario:" + name); } catch(e) {}
+  if (name === scenarioName) await switchScenario(newList[0], { skipSave: true });
  };
  const duplicateScenario = async () => {
   let newName = scenarioName + " Copy";
