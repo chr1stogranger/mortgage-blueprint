@@ -68,10 +68,28 @@ export function getSupabaseClient() {
       autoRefreshToken: true,
       persistSession: true,
       storageKey: 'bp_supabase_auth',
-      detectSessionInUrl: true,   // handles the magic-link redirect hash
-      flowType: 'pkce',
+      detectSessionInUrl: true,   // handles the magic-link / OAuth redirect
+      // Implicit flow (token in URL hash) rather than PKCE: borrowers routinely
+      // request a magic link on one device and open it on another. PKCE needs
+      // the code_verifier stored on the SAME device that started sign-in, so a
+      // cross-device click fails the exchange and bounces them back to login.
+      // Implicit carries the session in the link itself, so any device completes
+      // it. Google OAuth (same-device redirect) works under either flow.
+      flowType: 'implicit',
     },
   });
+
+  // ── Authenticate the Realtime socket with the signed-in user's JWT ──
+  // Realtime postgres_changes are RLS-filtered by the socket's token. Since we
+  // locked down the anon role (loan-pipeline migration 011), an unauthenticated
+  // socket sees nothing. Push the user's access token to Realtime on every auth
+  // change (INITIAL_SESSION fires on load) so authenticated borrowers receive
+  // live updates for their own scenarios.
+  try {
+    client.auth.onAuthStateChange((_event, session) => {
+      try { client.realtime.setAuth(session?.access_token ?? null); } catch { /* noop */ }
+    });
+  } catch { /* noop */ }
 
   return client;
 }
