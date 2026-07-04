@@ -19,7 +19,7 @@
     "@capacitor/status-bar": "^8.0.1",
     "@reduxjs/toolkit": "^2.11.2",
     "@sentry/react": "^10.56.0",
-    "@supabase/supabase-js": "^2.99.3",
+    "@supabase/supabase-js": "^2.110.0",
     "@vercel/og": "^0.6.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
