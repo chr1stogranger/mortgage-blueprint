@@ -40,7 +40,8 @@ function withTimeout(promise, ms = 15000, label = 'cloud op') {
 
 const MAP_KEY = 'bp_cloud_map';
 const MERGE_DONE_KEY = 'bp_merge_done';
-const PUSH_DEBOUNCE_MS = 2000;
+const PUSH_DEBOUNCE_MS = 700;   // write shortly after the last change so the
+                                // other device sees it fast (was 2000).
 
 function readMap() {
   try { return JSON.parse(localStorage.getItem(MAP_KEY) || '{}') || {}; } catch { return {}; }
@@ -342,8 +343,9 @@ export default function useSelfCloudSync({
     if (!enabled || !accountId || !activeCloudId) return;
 
     const { unsubscribe } = subscribeToScenario(activeCloudId, (newRow) => {
-      // Ignore the echo of our own just-sent write.
-      if (Date.now() - lastWriteRef.current < 2500) return;
+      // Ignore the echo of our own just-sent write. Kept just above the push
+      // debounce so a real remote edit isn't suppressed for long.
+      if (Date.now() - lastWriteRef.current < 1500) return;
       if (!newRow?.state_data) return;
 
       const activeName = scenarioNameRef.current;
