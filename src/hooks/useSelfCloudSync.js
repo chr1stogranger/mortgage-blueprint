@@ -21,6 +21,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   listOwnedScenarios,
   fetchOwnedScenario,
+  findOwnedScenarioIdByName,
   createOwnedScenario,
   updateOwnedScenario,
   deleteOwnedScenario,
@@ -106,23 +107,20 @@ export default function useSelfCloudSync({
       lastWriteRef.current = Date.now();   // mark so realtime ignores our echo
       const state = stripDevicePrefs(getStateRef.current());
       const map = readMap();
-      const entry = map[name];
 
-      if (entry?.id) {
-        await withTimeout(updateOwnedScenario(entry.id, { stateData: state, name }), 15000, 'update');
-        map[name] = { id: entry.id, syncedAt: Date.now() };
+      // Always resolve the real cloud row by NAME at push time — never trust
+      // the locally cached id (a Reset on another device can delete the row the
+      // cache points to, which caused "sync error" and broke cross-device sync).
+      let id = null;
+      try { id = await withTimeout(findOwnedScenarioIdByName(accountId, name), 15000, 'find'); }
+      catch { id = map[name]?.id || null; }
+
+      if (id) {
+        await withTimeout(updateOwnedScenario(id, { stateData: state, name }), 15000, 'update');
+        map[name] = { id, syncedAt: Date.now() };
       } else {
-        // No mapping yet — adopt an existing same-named cloud row if one
-        // exists (prevents forking "Scenario 1" into duplicates); else create.
-        const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
-        const existing = cloudRows.find(r => r.name === name);
-        if (existing) {
-          await withTimeout(updateOwnedScenario(existing.id, { stateData: state, name }), 15000, 'update');
-          map[name] = { id: existing.id, syncedAt: Date.now() };
-        } else {
-          const created = await withTimeout(createOwnedScenario(accountId, { name, stateData: state }), 15000, 'create');
-          map[name] = { id: created.id, syncedAt: Date.now() };
-        }
+        const created = await withTimeout(createOwnedScenario(accountId, { name, stateData: state }), 15000, 'create');
+        map[name] = { id: created.id, syncedAt: Date.now() };
       }
       writeMap(map);
       setLastSyncedAt(new Date());

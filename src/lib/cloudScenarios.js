@@ -66,6 +66,21 @@ export async function listOwnedScenarios(accountId) {
   return data || [];
 }
 
+/** Resolve the cloud id of an owned scenario by name (newest wins), or null. */
+export async function findOwnedScenarioIdByName(accountId, name) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !accountId) return null;
+  const { data, error } = await supabase
+    .from('scenarios')
+    .select('id, updated_at')
+    .eq('owner_account_id', accountId)
+    .eq('name', name)
+    .order('updated_at', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return data && data[0] ? data[0].id : null;
+}
+
 /** Fetch one owned scenario with full state_data. */
 export async function fetchOwnedScenario(id) {
   const supabase = getSupabaseClient();
