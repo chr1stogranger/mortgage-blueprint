@@ -283,13 +283,21 @@ export default function useSelfCloudSync({
   // locally-deleted scenario doesn't get pulled back down on the next sync.
   const deleteByName = useCallback(async (name) => {
     const map = readMap();
-    const entry = map[name];
-    if (entry?.id) {
-      try { await withTimeout(deleteOwnedScenario(entry.id), 10000, 'delete'); } catch { /* noop */ }
+    let id = map[name]?.id;
+    // If the mapping was lost, still find & delete the cloud row by name so a
+    // stale cloud orphan can't keep resyncing back after a local delete.
+    if (!id && accountId) {
+      try {
+        const rows = await withTimeout(listOwnedScenarios(accountId), 10000, 'list');
+        for (const r of rows) if (r.name === name && !id) id = r.id;
+      } catch { /* noop */ }
+    }
+    if (id) {
+      try { await withTimeout(deleteOwnedScenario(id), 10000, 'delete'); } catch { /* noop */ }
     }
     delete map[name];
     writeMap(map);
-  }, []);
+  }, [accountId]);
 
   // ── RENAME the cloud copy in place (keep the same id) + remap, so the old
   // name doesn't linger in the cloud and resync as a duplicate.
