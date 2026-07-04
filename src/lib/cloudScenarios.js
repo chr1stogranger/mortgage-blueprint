@@ -117,6 +117,36 @@ export async function createOwnedScenario(accountId, { name, type = 'purchase', 
   return data;
 }
 
+/**
+ * Atomically create-or-update a self-owned scenario by NAME.
+ * Backed by the DB unique constraint on (owner_account_id, name)
+ * (loan-pipeline migration 013), so two devices pushing the same name at the
+ * same time can never fork duplicate rows — the old find-then-create race
+ * behind the "Scenario 1 zombie". Returns the row (with its id).
+ */
+export async function upsertOwnedScenario(accountId, { name, type = 'purchase', stateData }) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !accountId) throw new Error('Not signed in');
+  const clean = stripDevicePrefs(stateData || {});
+  const { data, error } = await supabase
+    .from('scenarios')
+    .upsert({
+      owner_account_id: accountId,
+      borrower_id: null,
+      name: (name || 'My Blueprint').slice(0, 120),
+      type,
+      status: 'active',
+      created_by: 'borrower',
+      state_data: clean,
+      calc_summary: buildCalcSummary(clean),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'owner_account_id,name' })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 /** Update an owned scenario's state (debounced writes call this). */
 export async function updateOwnedScenario(id, { stateData, name }) {
   const supabase = getSupabaseClient();

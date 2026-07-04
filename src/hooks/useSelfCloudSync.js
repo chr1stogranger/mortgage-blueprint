@@ -21,8 +21,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   listOwnedScenarios,
   fetchOwnedScenario,
-  findOwnedScenarioIdByName,
-  createOwnedScenario,
+  upsertOwnedScenario,
   updateOwnedScenario,
   deleteOwnedScenario,
   stripDevicePrefs,
@@ -113,28 +112,29 @@ export default function useSelfCloudSync({
     if (!name) return;
     // Never re-create a scenario the user just deleted (guards the race where a
     // pending debounced push fires after delete and resurrects it in the cloud).
-    if (deletedNamesRef.current.has(name)) return;
+    // EXCEPTION — self-heal: if the name exists in localStorage it is live by
+    // definition (delete removes the local key first), so the tombstone is
+    // stale (left over from the old resurrection bug). Clear it and sync.
+    if (deletedNamesRef.current.has(name)) {
+      if (readLocalScenario(name)) {
+        deletedNamesRef.current.delete(name);
+        writeTombstones(deletedNamesRef.current);
+      } else {
+        return;
+      }
+    }
 
     try {
       setStatus('saving');
       lastWriteRef.current = Date.now();   // mark so realtime ignores our echo
       const state = stripDevicePrefs(getStateRef.current());
+
+      // Atomic UPSERT on (owner_account_id, name) — the DB unique constraint
+      // (migration 013) makes the name the identity, so concurrent pushes from
+      // two devices can never fork duplicate rows (old find-then-create race).
+      const row = await withTimeout(upsertOwnedScenario(accountId, { name, stateData: state }), 15000, 'upsert');
       const map = readMap();
-
-      // Always resolve the real cloud row by NAME at push time — never trust
-      // the locally cached id (a Reset on another device can delete the row the
-      // cache points to, which caused "sync error" and broke cross-device sync).
-      let id = null;
-      try { id = await withTimeout(findOwnedScenarioIdByName(accountId, name), 15000, 'find'); }
-      catch { id = map[name]?.id || null; }
-
-      if (id) {
-        await withTimeout(updateOwnedScenario(id, { stateData: state, name }), 15000, 'update');
-        map[name] = { id, syncedAt: Date.now() };
-      } else {
-        const created = await withTimeout(createOwnedScenario(accountId, { name, stateData: state }), 15000, 'create');
-        map[name] = { id: created.id, syncedAt: Date.now() };
-      }
+      map[name] = { id: row.id, syncedAt: Date.now() };
       writeMap(map);
       setLastSyncedAt(new Date());
       setStatus('saved');
@@ -165,10 +165,19 @@ export default function useSelfCloudSync({
       const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
       if (!cloudRows.length) return;
 
+      // Self-heal stale tombstones: a name that exists in localStorage is live
+      // by definition (delete removes the local key before tombstoning), so a
+      // tombstone on it is left over from an older bug and must not block sync.
+      const tomb = deletedNamesRef.current;
+      let tombChanged = false;
+      for (const n of readLocalScenarioNames()) {
+        if (tomb.delete(n)) tombChanged = true;
+      }
+      if (tombChanged) writeTombstones(tomb);
+
       // Drop any cloud row whose name the user has deleted (persistent
       // tombstone) and hard-delete it, so a lingering or another-device
       // re-uploaded "zombie" can't keep coming back on every pull.
-      const tomb = deletedNamesRef.current;
       const liveRows = [];
       for (const row of cloudRows) {
         if (tomb.has(row.name)) {
@@ -215,13 +224,32 @@ export default function useSelfCloudSync({
         map[name] = { id: row.id, syncedAt: Date.now() };
       }
 
+      // AUTHORITATIVE RECONCILE: the cloud is the source of truth for what
+      // exists. A name we previously synced (it's in the map) that no longer
+      // has a cloud row was deleted on another device — remove it locally too,
+      // so deletes converge everywhere instead of resurrecting. Never touches
+      // (a) the scenario currently on screen or (b) local scenarios that were
+      // never synced (not in the map) — those still upload normally.
+      const cloudNames = new Set(byName.keys());
+      const removedNames = [];
+      for (const name of Object.keys(map)) {
+        if (cloudNames.has(name)) continue;
+        if (name === scenarioNameRef.current) { delete map[name]; continue; }
+        if (localNames.has(name)) {
+          try { localStorage.removeItem('scenario:' + name); } catch { /* noop */ }
+          removedNames.push(name);
+        }
+        delete map[name];
+      }
+
       writeMap(map);
 
-      if (addedNames.length && setScenarioList) {
+      if ((addedNames.length || removedNames.length) && setScenarioList) {
         setScenarioList(prev => {
-          const merged = [...prev];
+          let merged = prev.filter(n => !removedNames.includes(n));
           for (const n of addedNames) if (!merged.includes(n)) merged.push(n);
-          return merged;
+          // Never leave the list empty — keep prev if reconcile emptied it.
+          return merged.length ? merged : prev;
         });
       }
       setLastSyncedAt(new Date());
@@ -249,31 +277,16 @@ export default function useSelfCloudSync({
     if (!accountId) throw new Error('Not signed in');
     const map = readMap();
 
-    // Adopt-by-name: if the cloud already has a scenario with this name (e.g.
-    // uploaded from another device), update it in place instead of creating a
-    // duplicate. This is what prevents the "Scenario 1 (2)/(3)" forking.
-    let cloudByName = new Map();
-    try {
-      const cloudRows = await withTimeout(listOwnedScenarios(accountId), 15000, 'list');
-      for (const r of cloudRows) {
-        const cur = cloudByName.get(r.name);
-        if (!cur || new Date(r.updated_at) > new Date(cur.updated_at)) cloudByName.set(r.name, r);
-      }
-    } catch { /* offline — treat as empty, create below */ }
-
+    // Atomic UPSERT by (owner_account_id, name): if the cloud already has a
+    // scenario with this name (e.g. uploaded from another device), it updates
+    // in place instead of creating a duplicate — no "Scenario 1 (2)/(3)" forks.
     let uploaded = 0;
     for (const name of names) {
       const state = readLocalScenario(name);
       if (!state) continue;
       try {
-        const existing = cloudByName.get(name);
-        if (existing) {
-          await withTimeout(updateOwnedScenario(existing.id, { stateData: state, name }), 15000, 'update');
-          map[name] = { id: existing.id, syncedAt: Date.now() };
-        } else {
-          const created = await withTimeout(createOwnedScenario(accountId, { name, stateData: state }), 15000, 'create');
-          map[name] = { id: created.id, syncedAt: Date.now() };
-        }
+        const row = await withTimeout(upsertOwnedScenario(accountId, { name, stateData: state }), 15000, 'upsert');
+        map[name] = { id: row.id, syncedAt: Date.now() };
         uploaded++;
       } catch (e) {
         console.warn(`[selfCloudSync] upload of "${name}" failed:`, e.message);

@@ -1917,8 +1917,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setBorrowerScenariosLoading(false);
  };
 
- const switchScenario = async (name) => {
-  try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
+ const switchScenario = async (name, opts = {}) => {
+  // skipSave: set when the outgoing scenario was just DELETED — the old
+  // unconditional save re-wrote the deleted "scenario:<name>" key, which
+  // resurrected it in the list on the next refresh (the "Scenario 1 zombie").
+  if (!opts.skipSave) {
+   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
+  }
+  // A scenario you're switching to exists by definition — never leave it
+  // tombstoned (a stale tombstone silently blocks its cloud sync).
+  try { selfSync.clearTombstone?.(name); } catch(e) {}
   setScenarioName(name);
   try {
    const saved = await LS.get("scenario:" + name);
@@ -1957,12 +1965,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const deleteScenario = async (name) => {
   if (scenarioList.length <= 1) return;
+  const newList = scenarioList.filter(n => n !== name);
+  setScenarioList(newList);
+  // Switch away FIRST (with skipSave) when deleting the active scenario.
+  // The old order deleted the key and THEN switchScenario's "save current"
+  // wrote it right back — that resurrected deleted scenarios on refresh.
+  if (name === scenarioName) await switchScenario(newList[0], { skipSave: true });
   try { await LS.delete("scenario:" + name); } catch(e) {}
   // Also remove the cloud copy so it doesn't get pulled back on next sync.
   try { await selfSync.deleteByName?.(name); } catch(e) {}
-  const newList = scenarioList.filter(n => n !== name);
-  setScenarioList(newList);
-  if (name === scenarioName) switchScenario(newList[0]);
  };
  const duplicateScenario = async () => {
   let newName = scenarioName + " Copy";
