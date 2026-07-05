@@ -67,6 +67,57 @@ function InlineEditValue({ value, onChange, T }) {
   );
 }
 
+// Compact inline editor for breakdown-table rows (Christo 2026-07-05: the
+// customize pills under the tax table were redundant — numbers edit right in
+// the table, gated by mini inline locks). Tight height per the FeeRow
+// inline-editor rule: raw input, height 20, no wrapping margins.
+function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) {
+  const [focused, setFocused] = useState(false);
+  const [editStr, setEditStr] = useState(null);
+  const fmtComma = (n) => {
+    if (n === 0 || n === "0") return "0";
+    if (n === "" || n == null) return "";
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+  const shown = focused
+    ? (editStr !== null ? editStr : (value === 0 ? "" : String(value)))
+    : `${prefix}${fmtComma(value || 0)}`;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={shown}
+        onFocus={() => { setFocused(true); setEditStr(null); }}
+        onBlur={() => {
+          setFocused(false);
+          if (editStr !== null) {
+            const n = parseFloat(editStr.replace(/,/g, ""));
+            onChange(isNaN(n) ? 0 : n);
+            setEditStr(null);
+          }
+        }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^0-9.]/g, "");
+          if (/^\d*\.?\d*$/.test(raw)) {
+            setEditStr(raw);
+            const n = parseFloat(raw);
+            if (!isNaN(n)) onChange(n);
+          }
+        }}
+        style={{
+          background: focused ? T.inputBg : "transparent",
+          border: focused ? `1.5px solid ${T.blue}` : `1px dashed ${T.blue}55`,
+          borderRadius: 6, padding: "0 6px", height: 20, boxSizing: "border-box",
+          color: T.blue, fontSize: 12, fontWeight: 600, fontFamily: FONT,
+          textAlign: "right", width, outline: "none", cursor: "text",
+        }}
+      />
+      {suffix && <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>{suffix}</span>}
+    </span>
+  );
+}
+
 export default function CalculatorContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
   if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "annualIns", "setAnnualIns", "hoa", "setHoa", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
@@ -529,25 +580,72 @@ export default function CalculatorContent(props) {
         }
        </div>
 
-       {/* Inline Tax breakdown */}
-       {row.jumpTo === "tax" && propTaxExpanded && (
+       {/* Inline Tax breakdown — numbers edit right in the table behind mini
+           locks (customize pills removed 2026-07-05, Christo). Base Rate and
+           Exemption default LOCKED (auto-synced); Fixed Assessments is always
+           editable. Click a lock to unlock and edit; click again to re-lock
+           and snap back to the auto value. */}
+       {row.jumpTo === "tax" && propTaxExpanded && (() => {
+        const trStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${T.separator}`, minHeight: 22 };
+        const labStyle = { fontSize: 12, color: T.textSecondary, display: "inline-flex", alignItems: "center", gap: 5 };
+        const valStyle = { fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text };
+        const LockBtn = ({ locked, onClick }) => (
+         <button onClick={onClick} title={locked ? "Unlock to edit" : "Lock to auto-sync"}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" }}>
+          <Icon name={locked ? "lock" : "unlock"} size={12} style={{ color: locked ? T.textTertiary : T.blue }} />
+         </button>
+        );
+        const toggleRateLock = () => {
+         if (taxRateLocked) {
+          setTaxRateLocked(false);
+          if (taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((taxAutoRate * 100).toFixed(4)));
+         } else {
+          setTaxRateLocked(true);
+          const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : propertyState === "Nevada" ? (NV_CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES["Nevada"] || 0.0102) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102);
+          setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4)));
+         }
+        };
+        const toggleExemptionLock = () => {
+         if (taxExemptionLocked) {
+          setTaxExemptionLocked(false);
+          setTaxExemptionOverride(calc.exemption);
+         } else {
+          setTaxExemptionLocked(true);
+          const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out";
+          setTaxExemptionOverride(ip ? 7000 : 0);
+         }
+        };
+        return (
         <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
-         {/* Breakdown table (the "How it's calculated" link beside the row
-             label is the only toggle — inner duplicate removed 2026-07-05) */}
          <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
-          {[
-           ["Home Value", fmt(salesPrice)],
-           ["Exemption", calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"],
-           ["Taxable Value", fmt(calc.taxableValue)],
-           [`Base Rate (${taxCityLabel})`, `${taxDisplayRate.toFixed(4)}%`],
-           ["Base Tax", fmt2(calc.baseTax)],
-           ...(fixedAssessments > 0 ? [["Fixed Assessments", `${fmt(fixedAssessments)}/yr`]] : []),
-          ].map(([label, value], k) => (
-           <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
-            <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-            <span style={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text }}>{value}</span>
-           </div>
-          ))}
+          <div style={trStyle}>
+           <span style={labStyle}>Home Value</span>
+           <span style={valStyle}>{fmt(salesPrice)}</span>
+          </div>
+          <div style={trStyle}>
+           <span style={labStyle}>Exemption <LockBtn locked={taxExemptionLocked} onClick={toggleExemptionLock} /></span>
+           {taxExemptionLocked
+            ? <span style={valStyle}>{calc.exemption > 0 ? `-${fmt(calc.exemption)}` : "$0"}</span>
+            : <MiniEdit value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" T={T} />}
+          </div>
+          <div style={trStyle}>
+           <span style={labStyle}>Taxable Value</span>
+           <span style={valStyle}>{fmt(calc.taxableValue)}</span>
+          </div>
+          <div style={trStyle}>
+           <span style={labStyle}>Base Rate ({taxCityLabel}) <LockBtn locked={taxRateLocked} onClick={toggleRateLock} /></span>
+           {taxRateLocked
+            ? <span style={valStyle}>{taxDisplayRate.toFixed(4)}%</span>
+            : <MiniEdit value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} suffix="%" T={T} />}
+          </div>
+          <div style={trStyle}>
+           <span style={labStyle}>Base Tax</span>
+           <span style={valStyle}>{fmt2(calc.baseTax)}</span>
+          </div>
+          <div style={trStyle}>
+           <span style={labStyle}>Fixed Assessments <InfoTip text="Mello-Roos, bonds, parcel taxes. Check your county tax bill." /></span>
+           <MiniEdit value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" T={T} />
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Annual Total</span>
            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt2(calc.yearlyTax)}</span>
@@ -556,54 +654,15 @@ export default function CalculatorContent(props) {
            <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Effective rate: {(calc.effectiveTaxRate * 100).toFixed(3)}%</div>
           )}
          </div>
-         {/* Customize layer */}
-         {!taxAnyUnlocked && !propTaxCustomize ? (
-          <div style={{ textAlign: "center", marginTop: 8 }}>
-           <span onClick={() => { setPropTaxCustomize(true); if (taxRateLocked && taxBaseRateOverride === 0) setTaxBaseRateOverride(parseFloat((taxAutoRate * 100).toFixed(4))); }}
-            style={{ fontSize: 12, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Customize rate, exemption, or assessments</span>
-          </div>
-         ) : (
-          <div style={{ marginTop: 10 }}>
-           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-            <div>
-             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Base Tax Rate <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 10, marginLeft: 3 }}>({taxCityLabel})</span></span>
-              <button onClick={() => {
-               if (taxRateLocked) { setTaxRateLocked(false); }
-               else { setTaxRateLocked(true); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : propertyState === "Nevada" ? (NV_CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES["Nevada"] || 0.0102) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); }
-              }} title={taxRateLocked ? "Unlock to customize" : "Lock to auto-sync"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
-               <Icon name={taxRateLocked ? "lock" : "unlock"} size={14} style={{ color: taxRateLocked ? T.textTertiary : T.blue }} />
-              </button>
-             </div>
-             <div style={{ opacity: taxRateLocked ? 0.6 : 1 }}><Inp value={taxBaseRateOverride} onChange={setTaxBaseRateOverride} prefix="" suffix="%" max={10} step={0.001} sm readOnly={taxRateLocked} /></div>
-            </div>
-            <div>
-             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Exemption</span>
-              <button onClick={() => {
-               if (taxExemptionLocked) { setTaxExemptionLocked(false); }
-               else { setTaxExemptionLocked(true); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); }
-              }} title={taxExemptionLocked ? "Unlock to customize" : "Lock to auto-sync"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}>
-               <Icon name={taxExemptionLocked ? "lock" : "unlock"} size={14} style={{ color: taxExemptionLocked ? T.textTertiary : T.blue }} />
-              </button>
-             </div>
-             <div style={{ opacity: taxExemptionLocked ? 0.6 : 1 }}><Inp value={taxExemptionOverride} onChange={setTaxExemptionOverride} prefix="$" max={500000} sm readOnly={taxExemptionLocked} /></div>
-            </div>
-           </div>
-           <Inp label="Fixed Assessments" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} sm tip="Mello-Roos, bonds, parcel taxes. Check your county tax bill." />
-           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, lineHeight: 1.5, fontFamily: FONT }}>
-            Exemption: primary residence reduction (CA $7K). Fixed Assessments: Mello-Roos, bonds, parcel taxes.
-           </div>
-           {taxAnyUnlocked && (
-            <div style={{ textAlign: "center", marginTop: 6 }}>
-             <span onClick={() => { setTaxRateLocked(true); setTaxExemptionLocked(true); setFixedAssessments(1500); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : propertyState === "Nevada" ? (NV_CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES["Nevada"] || 0.0102) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); setPropTaxCustomize(false); }}
-              style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline" }}>Reset to auto</span>
-            </div>
-           )}
+         {taxAnyUnlocked && (
+          <div style={{ textAlign: "center", marginTop: 6 }}>
+           <span onClick={() => { setTaxRateLocked(true); setTaxExemptionLocked(true); setFixedAssessments(1500); const ar = propertyState === "California" ? (CITY_TAX_RATES[city] || 0.012) : propertyState === "Nevada" ? (NV_CITY_TAX_RATES[city] || STATE_PROPERTY_TAX_RATES["Nevada"] || 0.0102) : (STATE_PROPERTY_TAX_RATES[propertyState] || 0.0102); setTaxBaseRateOverride(parseFloat((ar * 100).toFixed(4))); const ip = loanPurpose === "Purchase Primary" || loanPurpose === "Refi Rate/Term" || loanPurpose === "Refi Cash-Out"; setTaxExemptionOverride(ip ? 7000 : 0); setPropTaxCustomize(false); }}
+            style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline" }}>Reset to auto</span>
           </div>
          )}
         </div>
-       )}
+        );
+       })()}
 
        {/* Inline PMI breakdown */}
        {row.jumpTo === "pmi" && pmiExpanded && (
