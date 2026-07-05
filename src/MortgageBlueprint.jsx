@@ -2259,14 +2259,31 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   lines.push("Contact a licensed loan officer for an official quote.");
   return lines.join("\n");
  };
- // PDF estimate builder extracted to lib/estimatePdf.js (audit M-4) — the
- // params object below is the complete input contract; the HTML is unchanged.
+ // PDF strategy (Christo 2026-07-05): PURCHASE PDFs = the Fees Worksheet
+ // (FeesWorksheetPdf.jsx) — the legacy purchase estimate is retired. REFI
+ // PDFs = the legacy refi estimate below (savings analysis, net cash out,
+ // 3-point test) — totally different document, keep it.
  const generatePdfHtml = () => generateEstimateHtml({
   calc, fmt, fmt2, scenarioName, loanOfficer, companyName, companyNmls,
   borrowerName, propertyTBD, propertyAddress, city, propertyState, propertyZip,
   loNmls, loPhone, loEmail, realtorPartner, isRefi, refiSkipMonths,
   salesPrice, downPct, loanType, term, rate, hoa,
  });
+ const handlePrintPdf = () => {
+  const html = generatePdfHtml();
+  const w = window.open("", "_blank", "width=700,height=900");
+  if (w) {
+   w.document.write(html);
+   w.document.close();
+   setTimeout(() => w.print(), 500);
+  }
+ };
+ // One entry point for every "save the PDF" button: worksheet for purchases,
+ // legacy refi estimate for refis.
+ const handleSaveScenarioPdf = () => {
+  if (isRefi) handlePrintPdf();
+  else handleDownloadWorksheet();
+ };
  const handleEmailSummary = () => {
   const subject = encodeURIComponent(`${isRefi ? "Refinance" : "Purchase"} Estimate — ${scenarioName}`);
   const body = encodeURIComponent(generateSummaryText());
@@ -2275,8 +2292,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   window.open(`mailto:${to}?subject=${subject}&body=${body}${bccParam}`, "_self");
  };
  // ── Fees Worksheet (PDF) — build props + one-click Gmail send ──
- // Same explicit-input contract as generatePdfHtml: every value the PDF
- // needs is listed here. If you add a fee to the calc, add it here too.
+ // Explicit-input contract: every value the PDF needs is listed here.
+ // If you add a fee to the calc, add it here too.
  const buildWorksheetProps = () => ({
   calc, scenarioName, loanOfficer, companyName, companyNmls, borrowerName,
   propertyTBD, propertyAddress, city, propertyState, propertyZip,
@@ -2322,15 +2339,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    console.error("Worksheet download failed:", e);
    alert("Could not generate the PDF — please try again.");
   });
- };
- const handlePrintPdf = () => {
-  const html = generatePdfHtml();
-  const w = window.open("", "_blank", "width=700,height=900");
-  if (w) {
-   w.document.write(html);
-   w.document.close();
-   setTimeout(() => w.print(), 500);
-  }
  };
  // ── Live-link mailto builder ──
  // Short body — this is a link email, not a summary. The borrower clicks the
@@ -4767,14 +4775,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <button onClick={() => { setShowEmailModal(false); handleEmailWorksheet(); }} style={{ flex: 1, padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       Email Worksheet (PDF)
      </button>
-     <button onClick={() => { handlePrintPdf(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+     {/* Purchase → fees worksheet download; refi → legacy refi estimate. */}
+     <button onClick={() => { handleSaveScenarioPdf(); setShowEmailModal(false); }} style={{ flex: 1, padding: 16, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       Save PDF
      </button>
     </div>
-    {/* ── Download the fees worksheet directly (no email) ── */}
-    <button onClick={handleDownloadWorksheet} style={{ width: "100%", padding: 12, marginBottom: 10, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
-     Download Fees Worksheet (PDF)
-    </button>
     {/* ── Divider: "OR SEND A LIVE LINK" ── */}
     <div style={{
      display: "flex", alignItems: "center", gap: 10, margin: "14px 0 12px",
@@ -5091,6 +5096,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </button>
   )}
  </div>
+ {/* ── One-click PDF: fees worksheet for purchases, legacy refi estimate
+     for refis. Sits between Email and Get Pre-Approved (Christo 2026-07-05). ── */}
+ <button onClick={handleSaveScenarioPdf} style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+  <Icon name="download" size={15} />
+  Save Scenario as PDF
+ </button>
  {!activeBorrower?.share_token && isCloud && (
   <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 8, fontFamily: FONT }}>
    Select a borrower above to generate a shareable live link
@@ -5654,7 +5665,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
     <button onClick={handleEmailWorksheet} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Email</button>
     <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>PDF</button>
-    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}> Preview</button>
+    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Preview</button>
    </div>
    {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
   </Card>
