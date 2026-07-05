@@ -681,7 +681,7 @@ function PayRing({ segments, total, size, hideLegend }) {
 }
 function Tab({ label, active, onClick, locked, completed, tabId }) {
  return (<button data-tab={tabId} onClick={locked ? undefined : onClick} style={{ background: active ? T.tabActiveBg : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
-  {locked && <span style={{ marginRight: 3, fontSize: 10 }}></span>}{label}{completed && !active && <span style={{ marginLeft: 3, fontSize: 9 }}>✓</span>}
+  {locked && <span style={{ marginRight: 3, fontSize: 10 }}></span>}{label}
  </button>);
 }
 function Progress({ value, max, color, height }) {
@@ -4425,7 +4425,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           {!navCollapsed && (
            <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : locked ? T.textTertiary : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l}</span>
           )}
-          {!navCollapsed && completed && !locked && k !== "compare" && k !== "workspace" && <span style={{ fontSize: 10, color: T.green }}>✓</span>}
+          {/* Completed-tab checkmarks removed 2026-07-05 (Christo: no checkmarks on any tabs) */}
          </div>
         );
        };

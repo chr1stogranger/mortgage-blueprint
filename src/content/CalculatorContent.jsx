@@ -532,11 +532,8 @@ export default function CalculatorContent(props) {
        {/* Inline Tax breakdown */}
        {row.jumpTo === "tax" && propTaxExpanded && (
         <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
-         <div onClick={toggleTaxInline} style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 0 8px", cursor: "pointer" }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
-          <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: "rotate(180deg)" }}>▾</span>
-         </div>
-         {/* Breakdown table */}
+         {/* Breakdown table (the "How it's calculated" link beside the row
+             label is the only toggle — inner duplicate removed 2026-07-05) */}
          <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
           {[
            ["Home Value", fmt(salesPrice)],
@@ -611,10 +608,7 @@ export default function CalculatorContent(props) {
        {/* Inline PMI breakdown */}
        {row.jumpTo === "pmi" && pmiExpanded && (
         <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
-         <div onClick={togglePmiInline} style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 0 8px", cursor: "pointer" }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How this is calculated</span>
-          <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: "rotate(180deg)" }}>▾</span>
-         </div>
+         {/* Inner duplicate "How this is calculated" toggle removed 2026-07-05 */}
          <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
           {miZeroReason && (
            <div style={{ fontSize: 11, color: T.green, background: `${T.green}10`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, lineHeight: 1.4 }}>
