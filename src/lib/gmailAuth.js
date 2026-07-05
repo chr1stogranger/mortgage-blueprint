@@ -100,3 +100,29 @@ export async function ensureGmailToken() {
   if (stored) return stored;
   return requestGmailToken();
 }
+
+/**
+ * Auto-connect on login: silently mint a send token for the account the LO
+ * just signed in with (login_hint skips the account chooser). Google only
+ * allows this with NO consent UI if the user granted the gmail scopes once
+ * before in this browser — the first-ever send still shows one popup. All
+ * failures are swallowed: this is opportunistic warming, the send button
+ * handles the interactive path itself.
+ */
+let warmAttempted = false;
+export function warmGmailToken(email) {
+  if (warmAttempted || !gmailSendAvailable() || getStoredGmailToken()) return;
+  warmAttempted = true;
+  loadGis()
+    .then(() => new Promise((resolve, reject) => {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: GMAIL_CLIENT_ID,
+        scope: SCOPES,
+        callback: (resp) => resp?.access_token ? resolve(resp.access_token) : reject(new Error(resp?.error || "no token")),
+        error_callback: (err) => reject(new Error(err?.message || "silent auth unavailable")),
+      });
+      client.requestAccessToken({ prompt: "", login_hint: email || "" });
+    }))
+    .then((token) => storeGmailToken(token))
+    .catch(() => { /* not granted yet — the send button will ask when needed */ });
+}

@@ -10,7 +10,7 @@ import {
 } from "./lib/finance.js";
 import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import SendWorksheetModal, { downloadWorksheetPdf } from "./components/SendWorksheetModal.jsx";
-import { gmailSendAvailable } from "./lib/gmailAuth.js";
+import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT } from "./lib/theme.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
@@ -951,6 +951,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const rawAuth = useBlueprintAuth(); // Always called (React hook rules)
  const auth = isBorrower ? null : rawAuth;
  const isCloud = isBorrower ? true : (auth?.isAuthenticated && !auth?.localMode);
+ // Auto-connect Gmail send for the signed-in LO (silent — one-time consent
+ // popup only ever appears on the first send in a fresh browser). Borrowers
+ // never get this: their Google accounts aren't in the Ops send allowlist.
+ React.useEffect(() => {
+  if (!isBorrower && isCloud && auth?.user?.email) warmGmailToken(auth.user.email);
+ }, [isBorrower, isCloud, auth?.user?.email]);
 
  // ── Borrower state (Supabase-synced when authenticated) ──
  const [activeBorrower, setActiveBorrower] = useState(
