@@ -72,7 +72,11 @@ function InfoTipBubble({ explainer }) {
 // Master collapsible "card" — replaces AriveBox for top-level groups.
 // Header is a button that toggles open/closed. Total stays visible
 // in the header even when collapsed (Linear/Vercel pattern).
-function CollapsibleBox({ title, total, totalColor, defaultOpen = true, children }) {
+// `headerExtra` — optional element (e.g. the master Edit-All lock pill)
+// rendered in the header between the title and the total. Must be a
+// non-button element with its own stopPropagation: the whole header is a
+// <button> (nested buttons are invalid HTML and double-fire the collapse).
+function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerExtra = null, children }) {
   const { T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER } = useContext(CostsCtx);
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -123,14 +127,18 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, children
             fontFamily: FONT,
           }}>{title}</span>
         </div>
-        {total !== undefined && (
-          <div style={{
-            fontSize: 14,
-            fontWeight: 700,
-            fontFamily: FONT,
-            color: totalColor || ACCENT,
-            flexShrink: 0,
-          }}>{total}</div>
+        {(headerExtra || total !== undefined) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            {headerExtra}
+            {total !== undefined && (
+              <div style={{
+                fontSize: 14,
+                fontWeight: 700,
+                fontFamily: FONT,
+                color: totalColor || ACCENT,
+              }}>{total}</div>
+            )}
+          </div>
         )}
       </button>
       {open && (
@@ -659,6 +667,40 @@ export default function CostsContent(props) {
   const [escrowCalendarOpen, setEscrowCalendarOpen] = useState(false);
   const toggleLock = (k) => setSectionLocks(s => ({ ...s, [k]: !s[k] }));
 
+  // Master "Edit All" lock pill for a CollapsibleBox header — one click
+  // unlocks (or re-locks) every lockable subsection under that master box
+  // (Christo 2026-07-05). Same visual language as the per-section pill.
+  // Rendered as a span with stopPropagation — the header itself is a button.
+  const masterLockPill = (letters) => {
+    const anyLocked = letters.some((l) => sectionLocks[l]);
+    const toggleAll = (e) => {
+      e.stopPropagation();
+      setSectionLocks((s) => ({ ...s, ...Object.fromEntries(letters.map((l) => [l, !anyLocked])) }));
+    };
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={toggleAll}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") toggleAll(e); }}
+        aria-label={anyLocked ? "Unlock all sections to edit" : "Lock all sections"}
+        style={{
+          fontSize: 10, fontWeight: 700, fontFamily: FONT, letterSpacing: 1,
+          textTransform: "uppercase",
+          color: anyLocked ? T.textTertiary : "#fff",
+          background: anyLocked ? "transparent" : ACCENT,
+          border: `1px solid ${anyLocked ? T.separator : ACCENT}`,
+          borderRadius: 9999, padding: "3px 9px", cursor: "pointer",
+          display: "inline-flex", alignItems: "center", gap: 5,
+          transition: "all 0.15s",
+        }}
+      >
+        <Icon name={anyLocked ? "lock" : "unlock"} size={11} />
+        {anyLocked ? "Edit All" : "Done"}
+      </span>
+    );
+  };
+
   const ACCENT = T.blue;
   const HEAD_BG = `${ACCENT}14`;
   const HEAD_BORDER = `${ACCENT}38`;
@@ -742,7 +784,8 @@ export default function CostsContent(props) {
 
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
-      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}>
+      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}
+        headerExtra={masterLockPill(isRefi ? ["A", "B", "C", "E"] : ["A", "B", "C", "E", "H"])}>
 
         {/* A. Origination Charges — lockable */}
         <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)} lockable>
