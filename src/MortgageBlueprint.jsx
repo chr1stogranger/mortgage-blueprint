@@ -2287,6 +2287,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee,
   notaryFee, envProtectionLien, ownersTitleIns, homeWarranty, recordingFee,
   propertyTaxesInstallment, sellersProratedTaxCredit,
+  sellerCredit, lenderCredit, realtorCredit,
  });
  // Short note in Christo's voice + headline figures; the PDF carries the detail.
  const buildWorksheetEmailBody = () => {

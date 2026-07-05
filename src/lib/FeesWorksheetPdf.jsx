@@ -38,16 +38,16 @@ const GREEN = "#10B981";
 const TINT = "#EEF0FE"; // indigo @ ~8% on white
 
 const s = StyleSheet.create({
-  page: { paddingTop: 24, paddingBottom: 22, paddingHorizontal: 34, fontFamily: "Helvetica", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
+  page: { paddingTop: 20, paddingBottom: 16, paddingHorizontal: 34, fontFamily: "Helvetica", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
   // Header
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   loName: { fontFamily: "Helvetica-Bold", fontSize: 15 },
   loMeta: { fontSize: 8.5, color: SUB, marginTop: 2 },
   hTitle: { fontFamily: "Helvetica-Bold", fontSize: 19, color: INDIGO, textAlign: "right" },
   hSub: { fontSize: 8.5, color: SUB, textAlign: "right", marginTop: 2 },
-  rule: { height: 2, backgroundColor: INDIGO, marginTop: 8, marginBottom: 8 },
-  advisory: { fontSize: 8.5, color: SUB, textAlign: "center", marginBottom: 6 },
-  metaRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED, marginBottom: 8 },
+  rule: { height: 2, backgroundColor: INDIGO, marginTop: 7, marginBottom: 6 },
+  advisory: { fontSize: 8.5, color: SUB, textAlign: "center", marginBottom: 4 },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED, marginBottom: 6 },
   // Loan summary grid
   grid: { flexDirection: "row", flexWrap: "wrap", borderWidth: 1, borderColor: HAIR, backgroundColor: "#FAFAFA", borderRadius: 4, padding: 5, marginBottom: 8 },
   cell: { width: "33.33%", paddingVertical: 2.5, paddingHorizontal: 6 },
@@ -60,8 +60,8 @@ const s = StyleSheet.create({
   secHead: { flexDirection: "row", justifyContent: "space-between", backgroundColor: TINT, paddingVertical: 4, paddingHorizontal: 8 },
   secTitle: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: INDIGO, textTransform: "uppercase", letterSpacing: 0.8 },
   secTotal: { fontFamily: "Courier-Bold", fontSize: 9, color: INDIGO },
-  subHead: { fontFamily: "Helvetica-Bold", fontSize: 7.5, color: SUB, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 8, paddingTop: 6, paddingBottom: 2 },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.4, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: HAIR },
+  subHead: { fontFamily: "Helvetica-Bold", fontSize: 7.5, color: SUB, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 8, paddingTop: 4, paddingBottom: 2 },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.1, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: HAIR },
   rowLabel: { fontSize: 8.5, color: SUB, flexShrink: 1, paddingRight: 6 },
   rowValue: { fontFamily: "Courier", fontSize: 8.5, color: INK },
   totalBar: { flexDirection: "row", justifyContent: "space-between", backgroundColor: INDIGO, paddingVertical: 5, paddingHorizontal: 8 },
@@ -82,8 +82,11 @@ const Row = ({ label, value, color, bold, cents }) => (
   </View>
 );
 
-const Box = ({ title, total, children }) => (
-  <View style={s.box} wrap={false}>
+// `grow` stretches the box to fill its column — used on the bottom row so the
+// two boxes are equal height and their indigo total bars sit on the same line
+// (pair with a <Spacer/> just before the TotalBar).
+const Box = ({ title, total, children, grow }) => (
+  <View style={grow ? [s.box, { flexGrow: 1, marginBottom: 0 }] : s.box} wrap={false}>
     <View style={s.secHead}>
       <Text style={s.secTitle}>{title}</Text>
       {total !== undefined && <Text style={s.secTotal}>{usd(total)}</Text>}
@@ -91,6 +94,8 @@ const Box = ({ title, total, children }) => (
     {children}
   </View>
 );
+
+const Spacer = () => <View style={{ flexGrow: 1 }} />;
 
 const TotalBar = ({ label, value }) => (
   <View style={s.totalBar}>
@@ -236,20 +241,23 @@ export function FeesWorksheetDoc(p) {
           </View>
         </View>
 
-        {/* Bottom row: monthly payment + funds to close */}
+        {/* Bottom row: monthly payment + funds to close. Both boxes grow to
+            equal height and a Spacer pushes each TotalBar to the bottom, so
+            the two indigo bars always sit on the same line. */}
         <View style={s.cols}>
           <View style={s.col}>
             {!isRefi ? (
-              <Box title="Estimated Monthly Payment">
+              <Box title="Estimated Monthly Payment" grow>
                 <Row label="Principal & Interest" value={c.pi} />
                 <Row label="Property Taxes" value={c.monthlyTax} />
                 <Row label="Homeowner's Insurance" value={c.ins} />
                 {c.monthlyMI >= 0.5 && <Row label="Mortgage Insurance" value={c.monthlyMI} />}
                 {p.hoa >= 0.5 && <Row label="Homeowner Assn. Dues" value={p.hoa} />}
+                <Spacer />
                 <TotalBar label="Total Monthly Payment" value={c.housingPayment} />
               </Box>
             ) : (
-              <Box title="Estimated Monthly Payment">
+              <Box title="Estimated Monthly Payment" grow>
                 <Row label="Current Total Payment" value={c.refiCurTotalPmt} />
                 <Row label="New Principal & Interest" value={c.refiNewPi} />
                 {c.refiNewMonthlyTax >= 0.5 && <Row label="New Property Taxes" value={c.refiNewMonthlyTax} />}
@@ -257,22 +265,32 @@ export function FeesWorksheetDoc(p) {
                 {c.refiNewMI >= 0.5 && <Row label="New Mortgage Insurance" value={c.refiNewMI} />}
                 {p.hoa >= 0.5 && <Row label="Homeowner Assn. Dues" value={p.hoa} />}
                 <Row label="New Total Payment" value={c.refiNewTotalPmt} bold />
+                <Spacer />
                 <TotalBar label="Monthly Savings" value={c.refiMonthlyTotalSavings} />
               </Box>
             )}
           </View>
           <View style={s.col}>
             {!isRefi ? (
-              <Box title="Estimated Funds to Close">
+              <Box title="Estimated Funds to Close" grow>
                 <Row label="Down Payment" value={c.dp} />
                 <Row label="Closing Costs" value={c.totalClosingCosts} />
                 <Row label="Prepaids & Initial Escrow" value={c.totalPrepaidExp} />
                 {c.payoffAtClosing >= 0.5 && <Row label="Debts Paid at Closing" value={c.payoffAtClosing} />}
-                {c.totalCredits >= 0.5 && <Row label="Credits (seller / lender / EMD)" value={-c.totalCredits} color={GREEN} />}
+                {c.totalCredits >= 0.5 && (
+                  <>
+                    <Text style={s.subHead}>Credits</Text>
+                    {p.sellerCredit >= 0.5 && <Row label="Seller Credit" value={-p.sellerCredit} color={GREEN} />}
+                    {p.lenderCredit >= 0.5 && <Row label="Lender Credit" value={-p.lenderCredit} color={GREEN} />}
+                    {p.realtorCredit >= 0.5 && <Row label="Realtor Credit" value={-p.realtorCredit} color={GREEN} />}
+                    {c.emdCredit >= 0.5 && <Row label="EMD (Deposit Already Paid)" value={-c.emdCredit} color={GREEN} />}
+                  </>
+                )}
+                <Spacer />
                 <TotalBar label="Estimated Cash to Close" value={c.cashToClose} />
               </Box>
             ) : (
-              <Box title="Net Cash Out">
+              <Box title="Net Cash Out" grow>
                 <Row label="New Loan Amount" value={c.refiNetNewLoan} />
                 <Row label="Closing Costs" value={-(c.refiNetClosingCosts || 0)} />
                 <Row label="Prepaids & Escrow" value={-(c.refiNetPrepaids || 0)} />
@@ -284,6 +302,7 @@ export function FeesWorksheetDoc(p) {
                 />
                 {c.refiSkipPmtAmt >= 0.5 && <Row label={`Skip ${p.refiSkipMonths} Payment(s)`} value={c.refiSkipPmtAmt} color={GREEN} />}
                 {c.refiEscrowRefund >= 0.5 && <Row label="Escrow Balance Refund" value={c.refiEscrowRefund} color={GREEN} />}
+                <Spacer />
                 <TotalBar
                   label={c.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing"}
                   value={Math.abs(c.refiNetCashInHand || 0)}
