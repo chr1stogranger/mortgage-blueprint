@@ -302,6 +302,65 @@ function CompactNumPill({ value, onChange, suffix = "", min = -Infinity, max = I
   );
 }
 
+// DashedInline — the dashed-blue in-place value editor, same visual language
+// as the tax-breakdown inline editors in CalculatorContent (box around blue
+// font). Replaces the old 130px Inp pill when a section is unlocked
+// (Christo 2026-07-05). Raw input, height 20, tight padding — per the
+// FeeRow inline-editor rule (no Inp/Sel wrappers here).
+function DashedInline({ value, onChange, prefix = "$", suffix = null, max }) {
+  const { T } = useContext(CostsCtx);
+  const [focused, setFocused] = useState(false);
+  const [editStr, setEditStr] = useState(null);
+  const clamp = (n) => {
+    let v = n;
+    if (max != null && v > max) v = max;
+    if (v < 0) v = 0;
+    return v;
+  };
+  const fmtComma = (n) => {
+    if (n === 0 || n === "0") return "0";
+    if (n === "" || n == null) return "";
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+  const shown = focused
+    ? (editStr !== null ? editStr : (value === 0 ? "" : String(value)))
+    : `${prefix || ""}${fmtComma(value || 0)}`;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={shown}
+        onFocus={() => { setFocused(true); setEditStr(null); }}
+        onBlur={() => {
+          setFocused(false);
+          if (editStr !== null) {
+            const n = parseFloat(editStr.replace(/,/g, ""));
+            onChange(isNaN(n) ? 0 : clamp(n));
+            setEditStr(null);
+          }
+        }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^0-9.]/g, "");
+          if (/^\d*\.?\d*$/.test(raw)) {
+            setEditStr(raw);
+            const n = parseFloat(raw);
+            if (!isNaN(n)) onChange(clamp(n));
+          }
+        }}
+        style={{
+          background: focused ? T.inputBg : "transparent",
+          border: focused ? `1.5px solid ${T.blue}` : `1px dashed ${T.blue}55`,
+          borderRadius: 6, padding: "0 8px", height: 20, boxSizing: "border-box",
+          color: T.blue, fontSize: 13, fontWeight: 600, fontFamily: FONT,
+          textAlign: "right", width: 96, outline: "none", cursor: "text",
+        }}
+      />
+      {suffix && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{suffix}</span>}
+    </span>
+  );
+}
+
 // FeeRow — new lock-aware model. NO MORE "+" buttons.
 // - locked (default, from section LockCtx): renders label / value (read-only)
 // - unlocked (section is in edit mode): renders label / inline number input (or `inlineEditor` if provided)
@@ -385,9 +444,7 @@ function FeeRow({
         </div>
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 6 }}>
           {showInlineNumberInput ? (
-            <div style={{ width: 130 }}>
-              <Inp value={value} onChange={onChange} prefix={prefix} suffix={suffix} step={step} max={max} sm />
-            </div>
+            <DashedInline value={value} onChange={onChange} prefix={prefix} suffix={suffix} max={max} />
           ) : (
             <div style={{
               fontSize: 13,
