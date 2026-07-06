@@ -1508,6 +1508,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // using LO auth — the account button is hidden for them (isCloud check).
  const account = useAccount();
  const selfMode = !isBorrower && !isCloud && account.isSignedIn;
+ // "Get Pre-Approved" intent hook: a signed-in homebuyer clicking any
+ // pre-approval CTA is explicitly asking to work with the LO — surface them
+ // in Ops Pipeline Leads (server creates/links a blueprint-crm borrowers row
+ // + copies their latest scenario). Fire-and-forget; the 1003 link opens
+ // regardless. Anonymous, LO, and share-link sessions are all no-ops.
+ const notifyPreapprovalIntent = () => {
+  if (!selfMode) return;
+  try { account.requestPreapproval?.(); } catch { /* non-blocking */ }
+ };
  const [showAccountSheet, setShowAccountSheet] = useState(false);
  const selfSync = useSelfCloudSync({
   enabled: selfMode && account.syncEnabled,
@@ -4712,7 +4721,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      {/* Sidebar Footer */}
      {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
-       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
+       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 2px 10px ${T.green}30` }}>
         <Icon name="check-circle" size={14} />
         Get Pre-Approved
@@ -4721,7 +4730,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      )}
      {sidebarCollapsed && isDesktop && appMode === "blueprint" && (
       <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
-       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
+       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", cursor: "pointer", padding: "4px 0" }}>
         <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg, ${T.green}, #059669)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
          <Icon name="check-circle" size={14} color="#fff" />
@@ -5325,7 +5334,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  )}
  {loanOfficer && (
   <div style={{ marginBottom: 16 }}>
-   <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer"
+   <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
      Get Pre-Approved Now
    </a>

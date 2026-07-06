@@ -133,6 +133,25 @@ export default function useAccount() {
     return res.json();
   }, [session]);
 
+  // "Get Pre-Approved" intent: surface this homebuyer in the LO's Ops
+  // Pipeline Leads (creates/links a blueprint-crm borrowers row server-side
+  // and copies their latest scenario). Fire-and-forget — never blocks the
+  // click-through to the 1003 application.
+  const requestPreapproval = useCallback(async () => {
+    if (!session) return null;
+    try {
+      const res = await fetch(`${API_BASE}/api/collab?resource=account&action=request-preapproval`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch { return null; }
+  }, [session]);
+
   const deleteAccount = useCallback(async () => {
     if (!session) throw new Error('Not signed in');
     const res = await fetch(`${API_BASE}/api/collab?resource=account&action=delete`, {
@@ -161,6 +180,7 @@ export default function useAccount() {
     refreshAccount: loadAccount,
     recordConsent,
     claimShare,
+    requestPreapproval,
     deleteAccount,
   };
 }
