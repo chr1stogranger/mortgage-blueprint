@@ -225,7 +225,10 @@ export default function BlueprintAuth({ children }) {
     isAuthenticated: !!user && !!token,
     localMode,
     signOut: handleSignOut,
-    requestLogin: () => setShowLogin(true),
+    // Exiting local mode here matters: the login modal is gated on
+    // !localMode, and a stranded LO (expired token -> local mode) had no way
+    // back in (bug found 2026-07-05 — "did borrower switching go away?").
+    requestLogin: () => { setLocalMode(false); setShowLogin(true); },
     userPill,
   };
 

@@ -6684,6 +6684,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Sec title="Loan Officer Info">
   <Card>
    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once — applies to all scenarios.</div>
+   {!isBorrower && !isCloud && (
+    <button onClick={() => rawAuth?.requestLogin?.()}
+     style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 12, background: "linear-gradient(135deg, #6366F1, #3B82F6)", border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+     Sign in as Loan Officer (Google) — unlocks clients, live links & Gmail send
+    </button>
+   )}
    <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="LO Phone" value={loPhone} onChange={setLoPhone} prefix="" type="text" />
