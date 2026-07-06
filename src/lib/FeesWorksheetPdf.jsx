@@ -333,6 +333,9 @@ export function FeesWorksheetDoc(p) {
                     {p.lenderCredit >= 0.5 && <Row label="Lender Credit" value={-p.lenderCredit} color={GREEN} />}
                     {p.realtorCredit >= 0.5 && <Row label="Realtor Credit" value={-p.realtorCredit} color={GREEN} />}
                     {c.emdCredit >= 0.5 && <Row label="EMD (Deposit Already Paid)" value={-c.emdCredit} color={GREEN} />}
+                    {(p.customFees || []).filter((f) => f.section === "CR" && (f.amount || 0) >= 0.5).map((f, k) => (
+                      <Row key={"cr" + k} label={f.label} value={-f.amount} color={GREEN} />
+                    ))}
                   </>
                 )}
                 <Spacer />

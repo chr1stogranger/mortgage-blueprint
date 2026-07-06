@@ -392,6 +392,12 @@ const FEE_CATALOG = {
     { label: "Intangible Tax", amount: 0 },
     { label: "City Point-of-Sale Fee", amount: 300 },
   ],
+  CR: [
+    { label: "Builder Credit", amount: 0 },
+    { label: "Employer / Relocation Credit", amount: 0 },
+    { label: "Appraisal Credit", amount: 0 },
+    { label: "Seller-Paid Rate Buydown", amount: 0 },
+  ],
   H: [
     { label: "Home Inspection", amount: 500 },
     { label: "HOA Capital Contribution", amount: 0 },
@@ -402,12 +408,12 @@ const FEE_CATALOG = {
 
 // "+ Add fee" — searchable dropdown of catalog fees + deleted built-ins to
 // restore + free-text custom entry. Only shows while the section is unlocked.
-function AddFeeControl({ section, hiddenBuiltins, onAdd, onRestore }) {
+function AddFeeControl({ section, hiddenBuiltins, onAdd, onRestore, alwaysOn = false }) {
   const { T, ACCENT } = useContext(CostsCtx);
   const { unlocked } = useContext(LockCtx);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  if (!unlocked) return null;
+  if (!unlocked && !alwaysOn) return null;
   const q = query.trim().toLowerCase();
   const items = (FEE_CATALOG[section] || []).filter(f => !q || f.label.toLowerCase().includes(q));
   const restores = (hiddenBuiltins || []).filter(f => !q || f.label.toLowerCase().includes(q));
@@ -781,7 +787,7 @@ function EscrowCalendar({
 
 export default function CostsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "customFees", "setCustomFees", "hiddenFees", "setHiddenFees", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "customFees", "setCustomFees", "hiddenFees", "setHiddenFees", "emdLocked", "setEmdLocked", "emdFlat", "setEmdFlat", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2,
   isRefi, downPct,
@@ -820,6 +826,8 @@ export default function CostsContent(props) {
   closingYear, setClosingYear,
   customFees, setCustomFees,
   hiddenFees, setHiddenFees,
+  emdLocked, setEmdLocked,
+  emdFlat, setEmdFlat,
   propertyTaxesInstallment, setPropertyTaxesInstallment,
   sellersProratedTaxCredit, setSellersProratedTaxCredit,
   annualIns, setAnnualIns,
@@ -872,6 +880,11 @@ export default function CostsContent(props) {
       { key: "ownersTitleIns", label: "Owner's Title Insurance", set: setOwnersTitleIns, def: 3000 },
       { key: "homeWarranty", label: "Home Warranty", set: setHomeWarranty, def: 500 },
     ],
+    CR: [
+      { key: "sellerCredit", label: "Seller Credit", set: setSellerCredit, def: 0 },
+      { key: "realtorCredit", label: "Realtor Credit", set: setRealtorCredit, def: 0 },
+      { key: "lenderCredit", label: "Lender Credits", set: setLenderCredit, def: 0 },
+    ],
   };
   const findBuiltin = (key) => Object.values(BUILTIN_META).flat().find((m) => m.key === key);
   const isHidden = (key) => (hiddenFees || []).includes(key);
@@ -894,16 +907,18 @@ export default function CostsContent(props) {
   // Plain render function (NOT a component) so FeeRow/AddFeeControl keep
   // stable identity — inline component defs remount on every parent render
   // and would blur the amount input mid-typing.
-  const renderSectionExtras = (section) => (
+  const renderSectionExtras = (section, opts = {}) => (
     <>
       {(customFees || []).filter((f) => f.section === section).map((f) => (
         <FeeRow key={f.id} label={f.label} value={f.amount}
           onChange={(v) => updateCustomFee(f.id, v)}
           onDelete={() => removeCustomFee(f.id)}
-          explainer="Custom fee added by your LO" />
+          alwaysEdit={!!opts.alwaysEdit}
+          explainer={section === "CR" ? "Custom credit added by your LO — reduces cash to close" : "Custom fee added by your LO"} />
       ))}
       <AddFeeControl
         section={section}
+        alwaysOn={!!opts.alwaysOn}
         hiddenBuiltins={(BUILTIN_META[section] || []).filter((m) => isHidden(m.key))}
         onAdd={(label, amount) => addCustomFee(section, label, amount)}
         onRestore={restoreBuiltin}
@@ -1453,36 +1468,54 @@ export default function CostsContent(props) {
           readOnly
           alwaysEdit={!isRefi}
           color={!isRefi && !emdPaid ? T.muted : undefined}
-          calc={!isRefi && salesPrice > 0
-            ? `${emdPct}% × ${fmt(salesPrice)} = ${fmt2(calc.emdAmt)}${emdPaid ? "" : " — not yet paid ($0 credited)"}`
-            : undefined}
-          explainer="Deposit (3% standard in CA). Only credited toward cash to close once it's been paid to escrow."
-          inlineEditor={!isRefi
-            ? <CompactNumPill value={emdPct} onChange={setEmdPct} suffix="%" min={0} max={100} width={48} title="EMD as % of sales price (3% is standard in CA)." />
-            : null}
+          explainer={!isRefi && salesPrice > 0
+            ? `${emdLocked
+                ? `${emdPct}% × ${fmt(salesPrice)} = ${fmt2(calc.emdAmt)}`
+                : `Flat amount: ${fmt2(calc.emdAmt)}`}${emdPaid ? " — paid to escrow, credited" : " — not yet paid ($0 credited)"}. 3% is standard in CA; unlock to enter a flat dollar amount.`
+            : "Deposit — only credited toward cash to close once paid to escrow."}
+          inlineEditor={!isRefi ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <button type="button"
+                onClick={() => {
+                  if (emdLocked) { setEmdLocked(false); if (!emdFlat && calc.emdAmt > 0) setEmdFlat(Math.round(calc.emdAmt)); }
+                  else setEmdLocked(true);
+                }}
+                title={emdLocked ? "Unlock to enter a flat $ amount" : "Lock to % of price"}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" }}>
+                <Icon name={emdLocked ? "lock" : "unlock"} size={12} style={{ color: emdLocked ? T.textTertiary : ACCENT }} />
+              </button>
+              {emdLocked
+                ? <CompactNumPill value={emdPct} onChange={setEmdPct} suffix="%" min={0} max={100} width={48} title="EMD as % of sales price (3% is standard in CA)." />
+                : <CompactNumPill value={emdFlat} onChange={setEmdFlat} min={0} max={100000000} width={86} title="Flat EMD dollar amount" />}
+            </span>
+          ) : null}
         />
         {!isRefi && (
           <ToggleRow
             label="EMD Paid to Escrow"
-            hint="Toggle on once the deposit has been received by escrow — only then is it credited"
+            hint="ON = received by escrow & credited"
             on={emdPaid}
             onChange={setEmdPaid}
           />
         )}
         {!isRefi && (
           <FeeRow label="Seller Credit"   value={sellerCredit}  onChange={setSellerCredit}  alwaysEdit
+            hidden={isHidden("sellerCredit")} onDelete={() => deleteBuiltin("sellerCredit")}
             explainer="Negotiated credit from seller toward buyer's closing costs" />
         )}
         {!isRefi && (
           <FeeRow label="Realtor Credit"  value={realtorCredit} onChange={setRealtorCredit} alwaysEdit
+            hidden={isHidden("realtorCredit")} onDelete={() => deleteBuiltin("realtorCredit")}
             explainer="Credit from realtor (sometimes a portion of their commission)" />
         )}
         <FeeRow label="Lender Credits"    value={lenderCredit}  onChange={setLenderCredit}  alwaysEdit
+          hidden={isHidden("lenderCredit")} onDelete={() => deleteBuiltin("lenderCredit")}
           explainer="Credit from lender — often in exchange for a slightly higher rate" />
         <FeeRow label="Adjustments and Other Credits" value={0} readOnly autoBadge
           explainer="Other credits or adjustments at closing" />
         <FeeRow label="Subordinate Financing" value={0} readOnly
           explainer="Second mortgages or HELOCs financing part of the purchase" />
+        {renderSectionExtras('CR', { alwaysEdit: true, alwaysOn: true })}
       </CollapsibleBox>
 
 
