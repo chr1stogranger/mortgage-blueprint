@@ -921,6 +921,61 @@ export default function CostsContent(props) {
         {/* D. Total Loan Costs (A + B + C) — computed band */}
         <TotalBand letter="D" title="Total Loan Costs (A + B + C)" total={fmt2(totalLoanCosts)} />
 
+
+        {/* H. Other (purchase only) — lockable */}
+        {!isRefi && (
+          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
+            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} explainer="Optional — protects buyer's ownership rights from title defects" />
+            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   explainer="One-year coverage on major home systems" />
+            {hoa > 0 && (
+              <FeeRow
+                label="HOA Transfer Fee"
+                value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
+                onChange={setHoaTransferFee}
+                sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
+                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
+                explainer="HOA's fee to transfer ownership records"
+              />
+            )}
+            <ToggleRow
+              label="Buyer Pays Agent Commission"
+              hint="Toggle on if buyer is responsible for their agent's fee"
+              on={buyerPaysComm}
+              onChange={setBuyerPaysComm}
+            />
+            {buyerPaysComm && (
+              <FeeRow
+                label="Buyer Agent Commission"
+                value={liveBuyerComm}
+                readOnly
+                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
+                explainer="Commission paid to buyer's real estate agent"
+                alwaysEdit
+                inlineEditor={
+                  <CompactNumPill
+                    value={buyerCommPct}
+                    onChange={setBuyerCommPct}
+                    suffix="%"
+                    min={0}
+                    max={10}
+                    width={48}
+                    title="Buyer's agent commission as a % of sales price."
+                  />
+                }
+              />
+            )}
+          </LetterSection>
+        )}
+      </CollapsibleBox>
+
+      {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
+      </div>{/* end left column */}
+      <div style={{ minWidth: 0 }}>{/* right column */}
+      {/* ─── Section E moved to the TOP of the right column (Christo
+          2026-07-05) — still counts inside totalClosingCosts; rendered as
+          its own box like the classic IFW's "Taxes and Other Government
+          Fees" block. ─── */}
+      <CollapsibleBox title="Taxes & Government Fees" total={fmt2(calc.govCharges)} defaultOpen={!isGuided}>
         {/* E. Taxes and Other Government Charges — lockable */}
         <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)} lockable>
           <FeeRow label="Recording Fees" value={recordingFee} onChange={setRecordingFee} explainer="County fees to record the deed and mortgage" />
@@ -1009,56 +1064,8 @@ export default function CostsContent(props) {
             </>);
           })()}
         </LetterSection>
-
-        {/* H. Other (purchase only) — lockable */}
-        {!isRefi && (
-          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
-            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} explainer="Optional — protects buyer's ownership rights from title defects" />
-            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   explainer="One-year coverage on major home systems" />
-            {hoa > 0 && (
-              <FeeRow
-                label="HOA Transfer Fee"
-                value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
-                onChange={setHoaTransferFee}
-                sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
-                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
-                explainer="HOA's fee to transfer ownership records"
-              />
-            )}
-            <ToggleRow
-              label="Buyer Pays Agent Commission"
-              hint="Toggle on if buyer is responsible for their agent's fee"
-              on={buyerPaysComm}
-              onChange={setBuyerPaysComm}
-            />
-            {buyerPaysComm && (
-              <FeeRow
-                label="Buyer Agent Commission"
-                value={liveBuyerComm}
-                readOnly
-                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
-                explainer="Commission paid to buyer's real estate agent"
-                alwaysEdit
-                inlineEditor={
-                  <CompactNumPill
-                    value={buyerCommPct}
-                    onChange={setBuyerCommPct}
-                    suffix="%"
-                    min={0}
-                    max={10}
-                    width={48}
-                    title="Buyer's agent commission as a % of sales price."
-                  />
-                }
-              />
-            )}
-          </LetterSection>
-        )}
       </CollapsibleBox>
 
-      {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
-      </div>{/* end left column */}
-      <div style={{ minWidth: 0 }}>{/* right column */}
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
       <div data-field="prepaids" />
