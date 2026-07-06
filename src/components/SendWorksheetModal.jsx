@@ -287,7 +287,8 @@ export function BorrowerSendModal({
       const blob = await renderWorksheetBlob(buildWorksheetProps());
       const contentBase64 = await blobToBase64(blob);
       if (contentBase64.length > MAX_B64_CHARS) throw new Error("PDF too large — use Save PDF instead.");
-      const res = await fetch(`${API_BASE}/api/worksheet-send`, {
+      // Routed through collab.js (Vercel Hobby 12-function cap — no new api file)
+      const res = await fetch(`${API_BASE}/api/collab?resource=worksheet-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
