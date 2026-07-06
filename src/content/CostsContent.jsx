@@ -838,6 +838,11 @@ export default function CostsContent(props) {
         );
       })()}
 
+      {/* ─── Two-column layout on desktop (Christo 2026-07-05): Closing Costs
+          on the left; Prepaids + Credits on the right — mirrors the classic
+          IFW side-by-side sheet. Mobile stays stacked. ─── */}
+      <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "start" }}>
+      <div style={{ minWidth: 0 }}>
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}
@@ -1052,6 +1057,8 @@ export default function CostsContent(props) {
       </CollapsibleBox>
 
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
+      </div>{/* end left column */}
+      <div style={{ minWidth: 0 }}>{/* right column */}
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
       <div data-field="prepaids" />
@@ -1309,6 +1316,9 @@ export default function CostsContent(props) {
 
       {/* Guided "continue" — only renders while costs is the active step.
           Sets "costs-done", which advances the guided sequence to Assets. */}
+      </div>{/* end right column */}
+      </div>{/* end two-column grid */}
+
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="credits" />}
       <GuidedNextButton />
     </CostsCtx.Provider>
