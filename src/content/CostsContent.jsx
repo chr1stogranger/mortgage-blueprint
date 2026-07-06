@@ -900,10 +900,10 @@ export default function CostsContent(props) {
             <FeeRow label="Title / Escrow Flat Fee" value={escrowFee} onChange={setEscrowFee} explainer="Refinances use a flat title/escrow fee" note="Refinances use a flat title/escrow fee." />
           ) : (
             <>
+              {/* Title — Settlement Agent Fee + Title Search removed from
+                  defaults (Christo 2026-07-05). */}
               <FeeRow label="Lender's Title Insurance Policy" value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
               <FeeRow label="Escrow Fee"                      value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
-              <FeeRow label="Title — Settlement Agent Fee"    value={settlementFee}  onChange={setSettlementFee}  explainer="Settlement/closing agent fee" />
-              <FeeRow label="Title — Title Search"            value={titleSearch}    onChange={setTitleSearch}    explainer="Researches the property's title history" />
               <FeeRow label="Courier / FedEx"                 value={courierFee}     onChange={setCourierFee}     explainer="Document courier / overnight delivery" />
               <FeeRow label="Loan Tie-in Fee"                 value={loanTieInFee}   onChange={setLoanTieInFee}   explainer="Escrow's fee to coordinate with the lender" />
               <FeeRow label="Notary"                          value={notaryFee}      onChange={setNotaryFee}      explainer="Notarizes closing documents" />

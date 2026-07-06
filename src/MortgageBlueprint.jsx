@@ -1223,8 +1223,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [mersFee, setMersFee] = useState(25);
  const [taxServiceFee, setTaxServiceFee] = useState(85);
  const [titleInsurance, setTitleInsurance] = useState(2000);
- const [titleSearch, setTitleSearch] = useState(1261);
- const [settlementFee, setSettlementFee] = useState(502);
+ const [titleSearch, setTitleSearch] = useState(0);   // retired fee (2026-07-05) — kept for old scenario loads
+ const [settlementFee, setSettlementFee] = useState(0); // retired fee (2026-07-05) — kept for old scenario loads
  const [escrowFee, setEscrowFee] = useState(2400);
  // Section C — additional title/escrow line items (from the fee worksheet)
  const [courierFee, setCourierFee] = useState(150);
@@ -1284,6 +1284,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [creditScore, setCreditScore] = useState(0);
  const [pmiRateLocked, setPmiRateLocked] = useState(true);
  const [pmiRateOverride, setPmiRateOverride] = useState(0);
+ // LO-edited PMI chart: { [ltvBucket 97|95|90|85]: annual % }. Overrides the
+ // Radian matrix for that LTV bucket (Christo 2026-07-05, PMI advanced chart).
+ const [pmiChartOverrides, setPmiChartOverrides] = useState({});
  const [vaFundingFeeLocked, setVaFundingFeeLocked] = useState(true);
  const [vaFundingFeeOverride, setVaFundingFeeOverride] = useState(0);
  const [extraPayment, setExtraPayment] = useState(0);
@@ -1511,7 +1514,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
-  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
+  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
@@ -1621,6 +1624,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.creditScore !== undefined) setCreditScore(s.creditScore);
   if (s.pmiRateLocked !== undefined) setPmiRateLocked(s.pmiRateLocked);
   if (s.pmiRateOverride !== undefined) setPmiRateOverride(s.pmiRateOverride);
+  if (s.pmiChartOverrides !== undefined) setPmiChartOverrides(s.pmiChartOverrides || {});
   if (s.vaFundingFeeLocked !== undefined) setVaFundingFeeLocked(s.vaFundingFeeLocked);
   if (s.vaFundingFeeOverride !== undefined) setVaFundingFeeOverride(s.vaFundingFeeOverride);
   if (s.extraPayment !== undefined) setExtraPayment(s.extraPayment);
@@ -2307,7 +2311,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   salesPrice, downPct, loanType, term, rate, hoa, creditScore, includeEscrow,
   discountPts, originatorComp, underwritingFee, adminFee, lenderWireFee,
   appraisalFee, creditReportFee, processingFee, floodCertFee, mersFee, taxServiceFee,
-  titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee,
+  titleInsurance, escrowFee, courierFee, loanTieInFee,
   notaryFee, envProtectionLien, ownersTitleIns, homeWarranty, recordingFee,
   propertyTaxesInstallment, sellersProratedTaxCredit,
   sellerCredit, lenderCredit, realtorCredit,
@@ -3370,7 +3374,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const effectiveTaxRate = salesPrice > 0 ? yearlyTax / salesPrice : 0;
   const monthlyTax = yearlyTax / 12;
   const ins = annualIns / 12;
-  const autoPmiRate = ltv > 0.80 ? getPMIRate(ltv, creditScore) : 0;
+  // PMI chart overrides (LO-edited Radian matrix) take precedence over the
+  // built-in matrix for the current LTV bucket; the per-scenario rate
+  // override (pmiRateOverride) still wins over everything when unlocked.
+  const pmiLtvPct = ltv * 100;
+  const pmiBucket = pmiLtvPct > 95 ? 97 : pmiLtvPct > 90 ? 95 : pmiLtvPct > 85 ? 90 : 85;
+  const pmiChartRate = pmiChartOverrides && pmiChartOverrides[pmiBucket] > 0 ? pmiChartOverrides[pmiBucket] / 100 : 0;
+  const autoPmiRate = ltv > 0.80 ? (pmiChartRate || getPMIRate(ltv, creditScore)) : 0;
   const pmiRate = (!pmiRateLocked && pmiRateOverride > 0) ? pmiRateOverride / 100 : autoPmiRate;
   const monthlyPMI = loanType === "Conventional" ? (baseLoan * pmiRate) / 12 : 0;
   // FHA MIP: own HUD schedule (not the Radian PMI matrix). Rate by base
@@ -3519,7 +3529,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const origCharges = underwritingFee + adminFee + lenderWireFee + pointsCost + originatorComp;
   const hoaCert = (!isRefi && (propType === "Condo" || propType === "Townhouse")) ? 500 : 0;
   const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + processingFee + taxServiceFee;
-  const titleEscrowTotal = titleInsurance + titleSearch + settlementFee + escrowFee + courierFee + loanTieInFee + notaryFee + envProtectionLien;
+  // Title Search + Settlement Agent Fee removed from defaults (Christo
+  // 2026-07-05) — state vars remain for old saved scenarios but no longer
+  // count toward totals or render anywhere.
+  const titleEscrowTotal = titleInsurance + escrowFee + courierFee + loanTieInFee + notaryFee + envProtectionLien;
   const canShop = titleEscrowTotal + hoaCert;
   const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
   const buyerCommAmt = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
@@ -3824,7 +3837,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned,
-  incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, vaFundingFeeLocked, vaFundingFeeOverride,
+  incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
@@ -5057,7 +5070,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -5357,8 +5370,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    propTaxExpanded, setPropTaxExpanded,
    propTaxCustomize, setPropTaxCustomize,
    STATE_PROPERTY_TAX_RATES, CITY_TAX_RATES,
-   /* PMI pill */
+   /* PMI pill + advanced chart */
    pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride,
+   pmiChartOverrides, setPmiChartOverrides,
    /* VA Funding Fee */
    vaUsage, setVaUsage, VA_USAGE,
    vaFundingFeeLocked, setVaFundingFeeLocked,

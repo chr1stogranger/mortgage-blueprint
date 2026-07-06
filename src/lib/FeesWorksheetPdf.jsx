@@ -140,8 +140,6 @@ export function FeesWorksheetDoc(p) {
   ]);
   const canShopRows = rows([
     { label: "Title - Lender's Title Insurance", value: p.titleInsurance },
-    { label: "Title - Title Search", value: p.titleSearch },
-    { label: "Title - Settlement Agent Fee", value: p.settlementFee },
     { label: "Title - Escrow/Settlement Fee", value: p.escrowFee },
     { label: "Courier / Messenger Fee", value: p.courierFee },
     { label: "Loan Tie-In Fee", value: p.loanTieInFee },

@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
+import { getPMIRate } from "../lib/finance.js";
 
 const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
@@ -120,7 +121,7 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
 
 export default function CalculatorContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "annualIns", "setAnnualIns", "hoa", "setHoa", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "hoa", "setHoa", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -151,6 +152,9 @@ export default function CalculatorContent(props) {
   CITY_TAX_RATES,
   taxExemptionOverride, setTaxExemptionOverride,
   propTaxCustomize, setPropTaxCustomize,
+  pmiRateLocked, setPmiRateLocked,
+  pmiRateOverride, setPmiRateOverride,
+  pmiChartOverrides, setPmiChartOverrides,
   annualIns, setAnnualIns, hoa, setHoa,
   underwritingFee, processingFee,
   propertyZip, setPropertyZip, creditScore,
@@ -163,6 +167,8 @@ export default function CalculatorContent(props) {
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
+  // Advanced PMI rate chart (LO-editable Radian matrix for the current FICO band).
+  const [pmiChartOpen, setPmiChartOpen] = useState(false);
   // Live-rates popup — opens when user clicks the inline '✓ Live' pill in the Rate
   // card. Holds the 6 rate-type options without taking permanent UI space.
   const [ratesPopupOpen, setRatesPopupOpen] = useState(false);
@@ -674,29 +680,127 @@ export default function CalculatorContent(props) {
             {miZeroReason}
            </div>
           )}
-          {(loanType === "FHA" ? [
+          {loanType === "FHA" ? [
            ["Home Value",       fmt(salesPrice)],
            ["Base Loan Amount", fmt(calc.baseLoan)],
            ["LTV",              pct(calc.ltv, 1)],
            ["FHA MIP Rate",     `${((calc.fhaMipRate || 0) * 100).toFixed(3)}%`],
            ["Annual MIP",       fmt(monthlyMI * 12)],
-          ] : [
-           ["Home Value",    fmt(salesPrice)],
-           ["Loan Amount",   fmt(calc.baseLoan || calc.loan)],
-           ["LTV",           pct(calc.ltv, 1)],
-           ["Credit Score",  creditScore > 0 ? String(creditScore) : "—"],
-           ["PMI Rate (Radian matrix)", `${((calc.pmiRate || 0) * 100).toFixed(3)}%`],
-           ["Annual Premium", fmt(monthlyMI * 12)],
-          ]).map(([label, value], k) => (
+          ].map(([label, value], k) => (
            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
             <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
             <span style={{ fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text }}>{value}</span>
            </div>
-          ))}
+          )) : (() => {
+           // ── Conventional PMI: rate row edits inline behind a mini lock (same
+           //    pattern as the tax breakdown), plus an LO-editable rate chart. ──
+           const trStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${T.separator}`, minHeight: 22 };
+           const labStyle = { fontSize: 12, color: T.textSecondary, display: "inline-flex", alignItems: "center", gap: 5 };
+           const valStyle = { fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text };
+           const togglePmiLock = () => {
+            if (pmiRateLocked) {
+             setPmiRateLocked(false);
+             if (pmiRateOverride === 0) setPmiRateOverride(parseFloat(((calc.pmiRate || calc.autoPmiRate || 0) * 100).toFixed(3)));
+            } else {
+             setPmiRateLocked(true);
+             setPmiRateOverride(0); // snap back to the matrix/chart rate
+            }
+           };
+           return (
+            <>
+             {[["Home Value", fmt(salesPrice)],
+               ["Loan Amount", fmt(calc.baseLoan || calc.loan)],
+               ["LTV", pct(calc.ltv, 1)],
+               ["Credit Score", creditScore > 0 ? String(creditScore) : "—"],
+             ].map(([label, value], k) => (
+              <div key={k} style={trStyle}>
+               <span style={labStyle}>{label}</span>
+               <span style={valStyle}>{value}</span>
+              </div>
+             ))}
+             <div style={trStyle}>
+              <span style={labStyle}>
+               PMI Rate ({pmiRateLocked ? "Radian matrix" : "custom"})
+               <button onClick={togglePmiLock} title={pmiRateLocked ? "Unlock to edit" : "Lock to auto-sync"}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" }}>
+                <Icon name={pmiRateLocked ? "lock" : "unlock"} size={12} style={{ color: pmiRateLocked ? T.textTertiary : T.blue }} />
+               </button>
+              </span>
+              {pmiRateLocked
+               ? <span style={valStyle}>{((calc.pmiRate || 0) * 100).toFixed(3)}%</span>
+               : <MiniEdit value={pmiRateOverride} onChange={setPmiRateOverride} suffix="%" T={T} />}
+             </div>
+             <div style={trStyle}>
+              <span style={labStyle}>Annual Premium</span>
+              <span style={valStyle}>{fmt(monthlyMI * 12)}</span>
+             </div>
+            </>
+           );
+          })()}
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
            <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly Premium</span>
            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(monthlyMI)}</span>
           </div>
+          {/* ── Advanced: PMI rate chart for the current FICO band. Rows mirror
+              Christo's client spreadsheet (down-payment scenarios at this price).
+              Rates are LO-editable inline; an edited rate overrides the Radian
+              matrix for that LTV bucket scenario-wide. ── */}
+          {loanType !== "FHA" && (() => {
+           const score = creditScore || 700;
+           const ficoBand = score >= 760 ? "760+" : score >= 740 ? "740–759" : score >= 720 ? "720–739" : score >= 700 ? "700–719" : score >= 680 ? "680–699" : score >= 660 ? "660–679" : score >= 640 ? "640–659" : "620–639";
+           const buckets = [
+            { down: 3,  ltv: 0.97, key: 97 },
+            { down: 5,  ltv: 0.95, key: 95 },
+            { down: 10, ltv: 0.90, key: 90 },
+            { down: 15, ltv: 0.85, key: 85 },
+           ];
+           const curLtvPct = (calc.ltv || 0) * 100;
+           const curKey = curLtvPct > 95 ? 97 : curLtvPct > 90 ? 95 : curLtvPct > 85 ? 90 : 85;
+           const anyOverride = buckets.some(b => (pmiChartOverrides || {})[b.key] > 0);
+           const cellL = { fontSize: 11, color: T.textSecondary, fontFamily: FONT };
+           const cellV = { fontSize: 11, fontWeight: 600, fontFamily: FONT, color: T.text, textAlign: "right" };
+           return (
+            <div style={{ marginTop: 8 }}>
+             <div onClick={() => setPmiChartOpen(!pmiChartOpen)} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", userSelect: "none" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>Advanced: PMI rate chart (FICO {ficoBand})</span>
+              <span style={{ fontSize: 10, color: T.blue, transition: "transform 0.2s", transform: `rotate(${pmiChartOpen ? 180 : 0}deg)` }}>▾</span>
+             </div>
+             {pmiChartOpen && (
+              <div style={{ marginTop: 6, border: `1px solid ${T.separator}`, borderRadius: 10, padding: "6px 10px" }}>
+               <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1.4fr 1.2fr", gap: 6, padding: "3px 0", borderBottom: `1px solid ${T.separator}` }}>
+                {["Down", "PMI (%)", "Loan Amt", "PMI ($/mo)"].map((h, i) => (
+                 <span key={h} style={{ fontSize: 9.5, fontWeight: 700, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: FONT, textAlign: i === 0 ? "left" : "right" }}>{h}</span>
+                ))}
+               </div>
+               {buckets.map((b) => {
+                const override = (pmiChartOverrides || {})[b.key] || 0;
+                const basePct = parseFloat((getPMIRate(b.ltv, score) * 100).toFixed(3));
+                const pctVal = override > 0 ? override : basePct;
+                const loanAmt = salesPrice * (1 - b.down / 100);
+                const monthly = (loanAmt * (pctVal / 100)) / 12;
+                const isCur = b.key === curKey;
+                return (
+                 <div key={b.key} style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1.4fr 1.2fr", gap: 6, alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${T.separator}`, background: isCur ? `${T.blue}0A` : "transparent", borderRadius: 6 }}>
+                  <span style={{ ...cellL, fontWeight: isCur ? 700 : 500, color: isCur ? T.blue : T.textSecondary }}>{b.down}%{isCur ? " ◂" : ""}</span>
+                  <span style={{ display: "inline-flex", justifyContent: "flex-end" }}>
+                   <MiniEdit value={pctVal} onChange={(v) => setPmiChartOverrides({ ...(pmiChartOverrides || {}), [b.key]: v })} suffix="%" T={T} width={56} />
+                  </span>
+                  <span style={cellV}>{fmt(loanAmt)}</span>
+                  <span style={cellV}>{fmt(monthly)}</span>
+                 </div>
+                );
+               })}
+               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 5 }}>
+                <span style={{ fontSize: 9.5, color: T.textTertiary, fontFamily: FONT }}>Edited rates override the Radian matrix for that LTV bucket.</span>
+                {anyOverride && (
+                 <span onClick={() => setPmiChartOverrides({})} style={{ fontSize: 10, color: T.textTertiary, cursor: "pointer", textDecoration: "underline", fontFamily: FONT }}>Reset chart</span>
+                )}
+               </div>
+              </div>
+             )}
+            </div>
+           );
+          })()}
           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
            {loanType === "FHA"
             ? "FHA charges MIP on every loan regardless of down payment. The annual rate is set by base loan amount and LTV (HUD schedule, eff. 3/1/2023): base loan over $726,200 → 0.70–0.75%, at or below → 0.50–0.55%. MIP runs the life of the loan unless LTV is 90% or below at origination (then 11 years). A 1.75% upfront MIP also applies, financed into the loan."

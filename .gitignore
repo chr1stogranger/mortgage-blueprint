@@ -37,3 +37,6 @@ dist-*
 
 # FUSE-mount artifacts from sandbox sessions — never commit these
 .fuse_hidden*
+
+# Agent scratch worktrees — never commit
+.claude/worktrees/
