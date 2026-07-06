@@ -387,7 +387,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
         <div style={{
           marginBottom: 6, padding: "6px 10px",
           background: `${T.red}10`, color: T.red,
-          border: `0.5px solid ${T.red}40`,
+          border: `1px solid ${T.red}40`,
           borderRadius: 6, fontSize: 10, lineHeight: 1.4,
           fontFamily: FONT,
         }}>
@@ -401,7 +401,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
         gridTemplateColumns: `repeat(${availableMethodsFor(inc.payType, inc.frequency).length}, 1fr)`,
         gap: 6,
         padding: "5px 6px", background: T.card, borderRadius: 6,
-        border: `0.5px solid ${T.separator}`,
+        border: `1px solid ${T.separator}`,
       }}>
         {SELECTION_METHODS.filter(m => availableMethodsFor(inc.payType, inc.frequency).includes(m.value)).map(m => {
           const isActive = sel === m.value;
@@ -533,9 +533,9 @@ function ComponentRow({
     color: isDocVerified ? T.green : T.orange,
     background: isDocVerified ? `${T.green}10` : `${T.orange}08`,
     border: isDocVerified
-      ? `0.5px solid ${T.green}55`
+      ? `1px solid ${T.green}55`
       : (isVerbal
-          ? `0.5px solid ${T.orange}55`
+          ? `1px solid ${T.orange}55`
           : `0.5px dashed ${T.orange}50`),
   };
 
@@ -548,7 +548,7 @@ function ComponentRow({
           display: "grid",
           gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
           gap: 8, alignItems: "center", padding: "6px 14px",
-          borderTop: isFirst ? "none" : `0.5px solid ${T.separator}`,
+          borderTop: isFirst ? "none" : `1px solid ${T.separator}`,
           background: isVar && isExpanded ? `${T.orange}06` : "transparent",
         }}>
         {/* Chevron — variable rows only. Subtle: 22×22 tile with very
@@ -561,7 +561,7 @@ function ComponentRow({
             style={{
               width: 22, height: 22, borderRadius: 6, padding: 0,
               background: `${T.orange}10`,
-              border: `0.5px solid ${T.orange}33`,
+              border: `1px solid ${T.orange}33`,
               color: T.orange, fontSize: 11, fontWeight: 700,
               cursor: "pointer", display: "flex",
               alignItems: "center", justifyContent: "center",
@@ -584,7 +584,7 @@ function ComponentRow({
           <span style={{
             fontSize: 11, color: T.orange, fontFamily: FONT, fontWeight: 500,
             padding: "5px 10px", background: `${T.orange}08`,
-            border: `0.5px solid ${T.orange}33`, borderRadius: 9999,
+            border: `1px solid ${T.orange}33`, borderRadius: 9999,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             textAlign: "center",
           }}>{methodLabel}{yearSpan.replace(" · ", " · ").trim() || ""}</span>
@@ -718,7 +718,7 @@ function EmployerGroup({
   const subtitle = firstStart ? `Since ${firstStart}` : `${components.length} component${components.length === 1 ? "" : "s"}`;
 
   const borColor = borrowerNum === 1 ? ACCENT : T.cyan;
-  const borBg = `${borColor}18`;
+  const borBg = `${borColor}26`;
 
   return (
     <div style={{ background: isExpanded ? `${ACCENT}06` : T.card }}>
@@ -742,7 +742,7 @@ function EmployerGroup({
           width: 28, height: 28, borderRadius: 6,
           display: "flex", alignItems: "center", justifyContent: "center",
           background: isExpanded ? `${ACCENT}18` : `${ACCENT}08`,
-          border: `0.5px solid ${ACCENT}33`,
+          border: `1px solid ${ACCENT}33`,
           color: ACCENT, fontSize: 16, fontWeight: 700,
           transition: "transform 0.2s",
           transform: `rotate(${isExpanded ? 0 : -90}deg)`,
@@ -789,8 +789,8 @@ function EmployerGroup({
                 background: isPrevious ? `${T.textTertiary}14` : `${T.green}12`,
                 color: isPrevious ? T.textSecondary : T.green,
                 border: isPrevious
-                  ? `0.5px solid ${T.separator}`
-                  : `0.5px solid ${T.green}55`,
+                  ? `1px solid ${T.separator}`
+                  : `1px solid ${T.green}55`,
                 fontSize: 10, fontWeight: 600, fontFamily: FONT,
                 padding: "4px 10px", borderRadius: 9999,
                 cursor: "pointer", letterSpacing: 0.3,
@@ -826,11 +826,11 @@ function EmployerGroup({
             display: "grid",
             gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
             gap: 8, padding: "6px 14px",
-            fontSize: 9, color: T.textTertiary,
+            fontSize: 9.5, color: T.textSecondary,
             fontWeight: 600, letterSpacing: 0.6,
             textTransform: "uppercase", fontFamily: FONT,
-            borderBottom: `0.5px solid ${T.separator}`,
-            background: `${ACCENT}04`,
+            borderBottom: `1px solid ${T.separator}`,
+            background: `${ACCENT}0A`,
           }}>
             <div></div>
             <div>Pay type</div>
@@ -875,7 +875,7 @@ function EmployerGroup({
               row in the Assets section. */}
           <div style={{
             padding: "8px 14px",
-            borderTop: `0.5px solid ${T.separator}`,
+            borderTop: `1px solid ${T.separator}`,
             background: `${T.textTertiary}06`,
             display: "flex", justifyContent: "space-between", alignItems: "center",
             fontSize: 11, fontFamily: FONT,
@@ -1113,7 +1113,7 @@ export default function IncomeContent(props) {
         const otherMo = getOther(n);
         const totalForBorrower = subtotalMo + otherMo;
         const accent = borrowerAccent(n);
-        const subBg = `linear-gradient(135deg, ${accent}18, ${accent}0c)`;
+        const subBg = `linear-gradient(135deg, ${accent}24, ${accent}14)`;
         const isLast = n === numBorrowers;
         const canRemove = numBorrowers > 1;
         return (
@@ -1126,7 +1126,7 @@ export default function IncomeContent(props) {
                 spreadsheet), and the borrower's qualifying subtotal. */}
             <div style={{
               background: subBg, color: accent,
-              borderBottom: `1px solid ${accent}38`,
+              borderBottom: `1px solid ${accent}55`,
               padding: "10px 16px",
               fontFamily: FONT,
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
@@ -1136,7 +1136,7 @@ export default function IncomeContent(props) {
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
                   textTransform: "uppercase", padding: "3px 8px",
                   borderRadius: 6, background: `${accent}22`, color: accent,
-                  border: `0.5px solid ${accent}55`, whiteSpace: "nowrap",
+                  border: `1px solid ${accent}55`, whiteSpace: "nowrap",
                 }}>BOR {n}</span>
                 <input
                   type="text"
@@ -1176,7 +1176,7 @@ export default function IncomeContent(props) {
                       // to miss on touch / dense banner layout (Christo report
                       // 2026-05-12). type=button + preventDefault + stopProp
                       // belt-and-suspenders the event from being swallowed.
-                      background: `${T.red}10`, border: `0.5px solid ${T.red}55`,
+                      background: `${T.red}10`, border: `1px solid ${T.red}55`,
                       color: T.red, cursor: "pointer",
                       width: 36, height: 36, borderRadius: 8, padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -1202,8 +1202,8 @@ export default function IncomeContent(props) {
                 margin: "12px 12px 14px",
                 padding: "10px 12px",
                 borderRadius: 8,
-                background: `${accent}0c`,
-                border: `1px dashed ${accent}55`,
+                background: `${accent}14`,
+                border: `1px dashed ${accent}78`,
                 color: accent, fontSize: 13, fontWeight: 500,
                 cursor: "pointer", fontFamily: FONT,
                 textAlign: "center",
@@ -1238,8 +1238,8 @@ export default function IncomeContent(props) {
                   display: "block", width: "100%",
                   padding: "10px 12px",
                   borderRadius: 8,
-                  background: `${accent}0c`,
-                  border: `1px dashed ${accent}55`,
+                  background: `${accent}14`,
+                  border: `1px dashed ${accent}78`,
                   color: accent, fontSize: 13, fontWeight: 500,
                   cursor: "pointer", fontFamily: FONT,
                   textAlign: "center",
@@ -1250,7 +1250,7 @@ export default function IncomeContent(props) {
             {/* Other Monthly Income inline under each borrower's card */}
             <div style={{
               padding: "10px 14px 12px",
-              borderTop: `0.5px solid ${T.separator}`,
+              borderTop: `1px solid ${T.separator}`,
               display: "grid", gridTemplateColumns: isDesktop ? "1fr 200px" : "1fr",
               gap: 10, alignItems: "center",
             }}>
