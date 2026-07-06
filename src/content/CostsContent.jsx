@@ -668,7 +668,7 @@ function EscrowCalendar({
 
 export default function CostsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2,
   isRefi, downPct,
@@ -704,6 +704,7 @@ export default function CostsContent(props) {
   buyerCommPct, setBuyerCommPct,
   closingMonth, setClosingMonth,
   closingDay, setClosingDay,
+  closingYear, setClosingYear,
   propertyTaxesInstallment, setPropertyTaxesInstallment,
   sellersProratedTaxCredit, setSellersProratedTaxCredit,
   annualIns, setAnnualIns,
@@ -795,12 +796,10 @@ export default function CostsContent(props) {
   const monthlyTax = calc.monthlyTax || 0;
   const monthlyIns = calc.ins || 0;
 
+  // monthNames feeds the EscrowCalendar labels. The old month/day pill option
+  // arrays were removed 2026-07-05 — the Prepaid Interest row now uses a
+  // native date picker.
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const shortMonthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const monthOptions = monthNames.map((m, i) => ({ value: i + 1, label: m }));
-  // Compact options for the inline closing-date pill on the Prepaid Interest row.
-  const shortMonthOptions = shortMonthNames.map((m, i) => ({ value: i + 1, label: m }));
-  const dayOptions = Array.from({ length: new Date(new Date().getFullYear(), closingMonth, 0).getDate() }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
 
   return (
     <CostsCtx.Provider value={ctx}>
@@ -1067,64 +1066,53 @@ export default function CostsContent(props) {
               5) Mortgage Insurance Premium (FHA/USDA only)
               6) Include Escrow Impounds toggle (gates Section G) */}
         <LetterSection letter="F" title="Prepaids" lockable>
-          {/* 1. Prepaid Interest — closing date pills sit BEFORE the label as a prefixEditor.
-              Pills are tight (width 78 / 56) so the row stays single-line on desktop. */}
+          {/* 1. Prepaid Interest — "Closing Date" calendar picker sits BEFORE the
+              label as a prefixEditor (replaced the Jul/4 month+day pills,
+              Christo 2026-07-05). Native <input type="date"> = built-in calendar
+              dropdown; defaults to a 30-day close from today (set in
+              MortgageBlueprint state). Raw input styled tight (height 20) per
+              the FeeRow inline-editor rule. */}
           <FeeRow
             label="Prepaid Interest"
             value={calc.prepaidInt}
             readOnly
             autoBadge
-            prefixEditor={
-              // Raw compact <select>s instead of the Sel component — Sel wraps in
-              // a div with marginBottom + thicker padding, which doubled the row
-              // height. These pills are styled tight to match the row's text-only
-              // siblings (Homeowner's Insurance, Property Taxes etc.).
-              (() => {
-                const pillStyle = {
-                  background: T.inputBg,
-                  border: `1px solid ${T.inputBorder}`,
-                  borderRadius: 9999,
-                  padding: "0 8px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: T.text,
-                  fontFamily: FONT,
-                  height: 20,
-                  lineHeight: 1,
-                  cursor: "pointer",
-                  outline: "none",
-                  WebkitAppearance: "none",
-                  appearance: "none",
-                  // Native select on macOS Chrome enforces a minimum content height;
-                  // setting boxSizing + lineHeight 1 keeps the visible pill at 20px.
-                  boxSizing: "border-box",
-                };
-                return (
-                  <>
-                    <select
-                      value={closingMonth}
-                      onChange={e => setClosingMonth(parseInt(e.target.value))}
-                      style={{ ...pillStyle, paddingRight: 8 }}
-                    >
-                      {shortMonthOptions.map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={closingDay}
-                      onChange={e => setClosingDay(parseInt(e.target.value))}
-                      style={{ ...pillStyle, paddingRight: 8 }}
-                    >
-                      {dayOptions.map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </>
-                );
-              })()
-            }
+            prefixEditor={(() => {
+              const iso = `${closingYear || new Date().getFullYear()}-${String(closingMonth).padStart(2, "0")}-${String(closingDay).padStart(2, "0")}`;
+              return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Closing Date</span>
+                  <input
+                    type="date"
+                    value={iso}
+                    onChange={(e) => {
+                      const [y, m, d] = (e.target.value || "").split("-").map(Number);
+                      // Ignore intermediate/cleared states — only commit full dates.
+                      if (y && m && d) { setClosingYear(y); setClosingMonth(m); setClosingDay(d); }
+                    }}
+                    style={{
+                      background: T.inputBg,
+                      border: `1px solid ${T.inputBorder}`,
+                      borderRadius: 9999,
+                      padding: "0 8px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: T.text,
+                      fontFamily: FONT,
+                      height: 20,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                    }}
+                  />
+                </span>
+              );
+            })()}
             calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
-            explainer="Interest from closing day through end of month — the closing date pills on the left drive this calc"
+            explainer="Interest from your closing date through end of month — pick the closing date on the left and everything recalculates"
           />
 
           {/* 2. Homeowner's Insurance — First Year — read-only. Calculates from monthly
