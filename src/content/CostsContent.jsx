@@ -1079,6 +1079,12 @@ export default function CostsContent(props) {
             autoBadge
             prefixEditor={(() => {
               const iso = `${closingYear || new Date().getFullYear()}-${String(closingMonth).padStart(2, "0")}-${String(closingDay).padStart(2, "0")}`;
+              // First payment = 1st of the SECOND month after closing (prepaid
+              // interest covers the closing month; the next full month's
+              // interest is paid in arrears with that first payment).
+              // Aug 3 close → prepaids cover Aug → Sep accrues → due Oct 1.
+              const fpDate = new Date(closingYear || new Date().getFullYear(), (closingMonth - 1) + 2, 1);
+              const fpLabel = `${fpDate.toLocaleDateString("en-US", { month: "short" })} 1${fpDate.getFullYear() !== (closingYear || new Date().getFullYear()) ? `, ${fpDate.getFullYear()}` : ""}`;
               return (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Closing Date</span>
@@ -1108,11 +1114,27 @@ export default function CostsContent(props) {
                       appearance: "none",
                     }}
                   />
+                  <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 500, marginLeft: 4 }}>First Payment</span>
+                  <span style={{
+                    background: T.inputBg,
+                    border: `1px solid ${T.inputBorder}`,
+                    borderRadius: 9999,
+                    padding: "0 8px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: T.text,
+                    fontFamily: FONT,
+                    height: 20,
+                    lineHeight: "20px",
+                    boxSizing: "border-box",
+                    display: "inline-block",
+                    whiteSpace: "nowrap",
+                  }}>{fpLabel}</span>
                 </span>
               );
             })()}
-            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day = ${fmt2(calc.prepaidInt)}`}
-            explainer="Interest from your closing date through end of month — pick the closing date on the left and everything recalculates"
+            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day`}
+            explainer="Interest from your closing date through end of month — pick the closing date and everything recalculates. First payment is the 1st of the second month after closing: the prepaid interest covers your closing month, the next month's interest accrues, and it's paid in arrears with that first payment."
           />
 
           {/* 2. Homeowner's Insurance — First Year — read-only. Calculates from monthly
