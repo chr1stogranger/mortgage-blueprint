@@ -1455,7 +1455,7 @@ export default function CostsContent(props) {
         title="Credits to Buyer"
         total={`−${fmt2(calc.totalCredits)}`}
         totalColor={T.green}
-        defaultOpen={false}
+        defaultOpen={!isGuided}
       >
         <FeeRow
           label="Earnest Money Deposit (EMD)"

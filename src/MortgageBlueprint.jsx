@@ -679,6 +679,58 @@ function PayRing({ segments, total, size, hideLegend }) {
   </div>}
  </div>);
 }
+// ── Create New Client sheet (Christo 2026-07-05): replaces the old
+//    prompt(). Name + optional email + "Add to CRM" toggle. The toggle tags
+//    the borrower (source: blueprint-crm) so the upcoming Homebase CRM push
+//    knows which clients to sync.
+function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
+ const [name, setName] = useState(initialName || "");
+ const [email, setEmail] = useState("");
+ const [addToCrm, setAddToCrm] = useState(true);
+ const [busy, setBusy] = useState(false);
+ const [err, setErr] = useState(null);
+ React.useEffect(() => {
+  if (open) { setName(initialName || ""); setEmail(""); setAddToCrm(true); setBusy(false); setErr(null); }
+ }, [open, initialName]);
+ if (!open) return null;
+ const emailOk = !email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+ const canCreate = name.trim().length > 0 && emailOk && !busy;
+ const inputStyle = { width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT };
+ return (
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => !busy && onClose()}>
+   <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 460, width: "100%", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+     <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Create New Client</div>
+     <button onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
+    </div>
+    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Client Name</label>
+    <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Homebuyer" style={{ ...inputStyle, marginBottom: 12 }} />
+    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Email <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional — enables live links & worksheet sends)</span></label>
+    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@email.com" inputMode="email" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 14, borderColor: emailOk ? T.inputBorder : T.red }} />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 16px", gap: 10 }}>
+     <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Add to CRM</div>
+      <div style={{ fontSize: 11.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>Tag this client for your Homebase pipeline (CRM sync coming next)</div>
+     </div>
+     <button onClick={() => setAddToCrm(!addToCrm)} aria-label="Add to CRM" style={{ width: 40, height: 22, borderRadius: 9999, border: "none", background: addToCrm ? T.blue : T.separator, position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
+      <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: addToCrm ? 20 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+     </button>
+    </div>
+    {err && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10 }}>{err}</div>}
+    <button disabled={!canCreate}
+     onClick={async () => {
+      setBusy(true); setErr(null);
+      try { await onCreate({ name: name.trim(), email: email.trim(), addToCrm }); onClose(); }
+      catch (e) { setErr(e.message || "Could not create client"); setBusy(false); }
+     }}
+     style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: canCreate ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.pillBg, color: canCreate ? "#fff" : T.textTertiary, fontWeight: 700, fontSize: 15, cursor: canCreate ? "pointer" : "default", fontFamily: FONT, boxShadow: canCreate ? "0 0 20px rgba(99,102,241,0.3)" : "none" }}>
+     {busy ? "Creating…" : "Create Client"}
+    </button>
+   </div>
+  </div>
+ );
+}
+
 function Tab({ label, active, onClick, locked, completed, tabId }) {
  return (<button data-tab={tabId} onClick={locked ? undefined : onClick} style={{ background: active ? T.tabActiveBg : "transparent", backdropFilter: active ? "blur(8px)" : "none", border: "none", borderRadius: 20, padding: "8px 14px", color: locked ? `${T.textTertiary}60` : active ? T.tabActiveText : T.textTertiary, fontSize: 13, fontWeight: 600, cursor: locked ? "not-allowed" : "pointer", whiteSpace: "nowrap", transition: "all 0.2s", fontFamily: FONT, opacity: locked ? 0.5 : 1, position: "relative" }}>
   {locked && <span style={{ marginRight: 3, fontSize: 10 }}></span>}{label}
@@ -1333,6 +1385,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [showEmailModal, setShowEmailModal] = useState(false);
  const [showWorksheetModal, setShowWorksheetModal] = useState(false); // Fees Worksheet preview → Gmail send (LO)
  const [showBorrowerSend, setShowBorrowerSend] = useState(false); // "Email me this worksheet" (borrower/local via Resend)
+ const [createClientOpen, setCreateClientOpen] = useState(false);
+ const [createClientPrefill, setCreateClientPrefill] = useState("");
  // ── Share modal: live-link send state (ephemeral, modal-local) ──
  // liveLinkSending disables both new buttons during the create-borrower →
  // save-scenario chain (~500ms–1.5s). liveLinkError surfaces server / cloud
@@ -1969,12 +2023,26 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeClientEntry(borrower)); }
    } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
   },
-  onCreateNew: async (prefillName) => {
-   const name = prefillName || prompt("New client name:"); if (!name) return;
-   try { const result = await createBorrower({ name, status: 'active' }); const newB = result?.[0] || result;
-    if (newB?.id) { setBorrowerList(prev => [...prev, newB]); setActiveBorrower(newB); setActiveScenarioId(null); setBorrowerScenarios([]); }
-   } catch (err) { alert('Failed to create client: ' + err.message); }
+  onCreateNew: (prefillName) => {
+   setCreateClientPrefill(prefillName || "");
+   setCreateClientOpen(true);
   },
+ };
+
+ // Create a client from the Create New sheet: name + optional email +
+ // Add-to-CRM tag (source: blueprint-crm — the Homebase sync reads this).
+ const handleCreateClient = async ({ name, email, addToCrm }) => {
+  const payload = { name, status: 'active', source: addToCrm ? 'blueprint-crm' : 'blueprint' };
+  if (email) payload.email = email;
+  const result = await createBorrower(payload);
+  const newB = result?.[0] || result;
+  if (!newB?.id) throw new Error('Create failed — try again');
+  setBorrowerList(prev => [...prev, newB]);
+  setActiveBorrower(newB);
+  setActiveScenarioId(null);
+  setBorrowerScenarios([]);
+  // Start them with Scenario 1 right away so the LO lands in a working file.
+  try { await borrowerPickerCallbacks.onAutoCreateScenario(newB); } catch { /* non-fatal */ }
  };
 
  // Open a client from the sidebar switcher → load their FIRST blueprint (auto-create if none).
@@ -4706,11 +4774,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); }
       } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
      },
-     onCreateNew: async (prefillName) => {
-      const name = prefillName || prompt("New client name:"); if (!name) return;
-      try { const result = await createBorrower({ name, status: 'active' }); const newB = result?.[0] || result;
-       if (newB?.id) { setBorrowerList(prev => [...prev, newB]); setActiveBorrower(newB); setActiveScenarioId(null); setBorrowerScenarios([]); }
-      } catch (err) { alert('Failed to create client: ' + err.message); }
+     onCreateNew: (prefillName) => {
+      setCreateClientPrefill(prefillName || "");
+      setCreateClientOpen(true);
      },
     }}
     mobileTabBar={null /* horizontal scroll tab strip removed (2026-05-03)
@@ -4860,6 +4926,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    borrowerName={borrowerName}
    realtorPartner={realtorPartner}
    onFallbackMailto={handleEmailSummary}
+  />}
+  {/* ═══ CREATE NEW CLIENT ═══ */}
+  {createClientOpen && <CreateClientModal
+   open={createClientOpen}
+   onClose={() => setCreateClientOpen(false)}
+   onCreate={handleCreateClient}
+   initialName={createClientPrefill}
+   T={T}
   />}
   {/* ═══ BORROWER "EMAIL ME THIS WORKSHEET" (Resend via Ops) ═══ */}
   {showBorrowerSend && <BorrowerSendModal
