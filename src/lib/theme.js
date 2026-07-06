@@ -23,15 +23,18 @@ export const DARK = {
  ringTrack: "rgba(255,255,255,0.06)", pillBg: "rgba(255,255,255,0.06)",
 };
 export const LIGHT = {
- bg: "#FAFAFA", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(0,0,0,0.06)",
- cardShadow: "0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)", cardHover: "#F5F5F5",
+ // Contrast pass (Christo 2026-07-05): page bg a step darker so white cards
+ // pop, borders/separators/inputs darkened — the old 0.06 grays washed out
+ // (reference: the "Planning to sell a property?" card reads right).
+ bg: "#F1F2F4", bg2: "#FFFFFF", card: "#FFFFFF", cardBorder: "rgba(0,0,0,0.12)",
+ cardShadow: "0 1px 5px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.06)", cardHover: "#F0F0F0",
  accent: "#6366F1", blue: "#3B82F6", green: "#10B981", red: "#EF4444",
  purple: "#8B5CF6", orange: "#F59E0B", cyan: "#06B6D4", pink: "#EC4899", teal: "#06B6D4",
- text: "#171717", textSecondary: "#525252", textTertiary: "#737373",
- separator: "rgba(0,0,0,0.06)", inputBg: "#F0F0F0", inputBorder: "rgba(0,0,0,0.12)",
- headerBg: "rgba(250,250,250,0.85)", tabActiveBg: "rgba(0,0,0,0.06)", tabActiveText: "#171717",
+ text: "#171717", textSecondary: "#4B5563", textTertiary: "#6B7280",
+ separator: "rgba(0,0,0,0.12)", inputBg: "#E9EAEC", inputBorder: "rgba(0,0,0,0.18)",
+ headerBg: "rgba(241,242,244,0.85)", tabActiveBg: "rgba(0,0,0,0.08)", tabActiveText: "#171717",
  successBg: "rgba(16,185,129,0.08)", successBorder: "rgba(16,185,129,0.15)",
  errorBg: "rgba(239,68,68,0.08)", errorBorder: "rgba(239,68,68,0.15)",
  warningBg: "rgba(245,158,11,0.08)", warningBorder: "rgba(245,158,11,0.15)",
- ringTrack: "rgba(0,0,0,0.06)", pillBg: "rgba(0,0,0,0.04)",
+ ringTrack: "rgba(0,0,0,0.10)", pillBg: "rgba(0,0,0,0.06)",
 };

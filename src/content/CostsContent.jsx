@@ -1047,7 +1047,7 @@ export default function CostsContent(props) {
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill
-        headerExtra={masterLockPill(["A", "B", "C", "E"])}>
+        headerExtra={masterLockPill(isRefi ? ["A", "B", "C", "E"] : ["A", "B", "C", "E", "H"])}>
 
         {/* A. Origination Charges — lockable */}
         <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)} lockable>
@@ -1122,8 +1122,6 @@ export default function CostsContent(props) {
         {renderSectionExtras('C')}
         </LetterSection>
 
-        {/* D. Total Loan Costs (A + B + C) — computed band */}
-        <TotalBand letter="D" title="Total Loan Costs (A + B + C)" total={fmt2(totalLoanCosts)} />
 
 
 
@@ -1211,6 +1209,52 @@ export default function CostsContent(props) {
         {renderSectionExtras('E')}
         </LetterSection>
 
+
+        {/* H. Other — the very bottom of the left column (Christo 2026-07-05). */}
+        {!isRefi && (
+          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
+            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} hidden={isHidden("ownersTitleIns")} onDelete={() => deleteBuiltin("ownersTitleIns")} explainer="Optional — protects buyer's ownership rights from title defects" />
+            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   hidden={isHidden("homeWarranty")} onDelete={() => deleteBuiltin("homeWarranty")} explainer="One-year coverage on major home systems" />
+            {hoa > 0 && (
+              <FeeRow
+                label="HOA Transfer Fee"
+                value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
+                onChange={setHoaTransferFee}
+                sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
+                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
+                explainer="HOA's fee to transfer ownership records"
+              />
+            )}
+            <ToggleRow
+              label="Buyer Pays Agent Commission"
+              hint="Toggle on if buyer is responsible for their agent's fee"
+              on={buyerPaysComm}
+              onChange={setBuyerPaysComm}
+            />
+            {buyerPaysComm && (
+              <FeeRow
+                label="Buyer Agent Commission"
+                value={liveBuyerComm}
+                readOnly
+                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
+                explainer="Commission paid to buyer's real estate agent"
+                alwaysEdit
+                inlineEditor={
+                  <CompactNumPill
+                    value={buyerCommPct}
+                    onChange={setBuyerCommPct}
+                    suffix="%"
+                    min={0}
+                    max={10}
+                    width={48}
+                    title="Buyer's agent commission as a % of sales price."
+                  />
+                }
+              />
+            )}
+          {renderSectionExtras('H')}
+          </LetterSection>
+        )}
       </CollapsibleBox>
 
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
@@ -1403,55 +1447,6 @@ export default function CostsContent(props) {
 
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="prepaids" />}
 
-      {/* ─── Section H moved below G in the right column (Christo
-          2026-07-05) — matches the official Loan Estimate's Other Costs
-          stack: E, F, G, H. Purchase only, as before. ─── */}
-      {!isRefi && (
-        <CollapsibleBox title="Other" total={fmt2(otherCostsTotal)} defaultOpen={!isGuided}>
-          <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
-            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} hidden={isHidden("ownersTitleIns")} onDelete={() => deleteBuiltin("ownersTitleIns")} explainer="Optional — protects buyer's ownership rights from title defects" />
-            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   hidden={isHidden("homeWarranty")} onDelete={() => deleteBuiltin("homeWarranty")} explainer="One-year coverage on major home systems" />
-            {hoa > 0 && (
-              <FeeRow
-                label="HOA Transfer Fee"
-                value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
-                onChange={setHoaTransferFee}
-                sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
-                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
-                explainer="HOA's fee to transfer ownership records"
-              />
-            )}
-            <ToggleRow
-              label="Buyer Pays Agent Commission"
-              hint="Toggle on if buyer is responsible for their agent's fee"
-              on={buyerPaysComm}
-              onChange={setBuyerPaysComm}
-            />
-            {buyerPaysComm && (
-              <FeeRow
-                label="Buyer Agent Commission"
-                value={liveBuyerComm}
-                readOnly
-                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
-                explainer="Commission paid to buyer's real estate agent"
-                alwaysEdit
-                inlineEditor={
-                  <CompactNumPill
-                    value={buyerCommPct}
-                    onChange={setBuyerCommPct}
-                    suffix="%"
-                    min={0}
-                    max={10}
-                    width={48}
-                    title="Buyer's agent commission as a % of sales price."
-                  />
-                }
-              />
-            )}
-          {renderSectionExtras('H')}
-          </LetterSection>
-        </CollapsibleBox>
-      )}
 
 
       {/* ─── MASTER 3: Credits to Buyer (default COLLAPSED) ───── */}

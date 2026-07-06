@@ -1304,12 +1304,26 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [ownsProperties, setOwnsProperties] = useState(false);
  const [isRefi, setIsRefi] = useState(null);
  const [firstTimeBuyer, setFirstTimeBuyer] = useState(null);
- const [loanOfficer, setLoanOfficer] = useState("Chris Granger");
- const [loEmail, setLoEmail] = useState("cgranger@xperthomelending.com");
- const [loPhone, setLoPhone] = useState("(415) 987-8489");
- const [loNmls, setLoNmls] = useState("952015");
- const [companyName, setCompanyName] = useState("Chris Granger Mortgage");
- const [companyNmls, setCompanyNmls] = useState("2179191");
+ // LO identity — device-level, seeded from bp_lo_info (survives scenario
+ // switches and sync; "Set once — applies to all scenarios" for real now).
+ const loInfoSaved = (() => { try { return JSON.parse(localStorage.getItem("bp_lo_info") || "{}"); } catch { return {}; } })();
+ const [loanOfficer, setLoanOfficer] = useState(loInfoSaved.loanOfficer ?? "Chris Granger");
+ const [loEmail, setLoEmail] = useState(loInfoSaved.loEmail ?? "cgranger@xperthomelending.com");
+ const [loPhone, setLoPhone] = useState(loInfoSaved.loPhone ?? "(415) 987-8489");
+ const [loNmls, setLoNmls] = useState(loInfoSaved.loNmls ?? "952015");
+ // Email signature (Christo 2026-07-05) — used at the bottom of worksheet
+ // emails; device-persisted like Ops' signature (bp_email_signature).
+ const [loSignature, setLoSignature] = useState(() => {
+  try { return localStorage.getItem("bp_email_signature") || ""; } catch { return ""; }
+ });
+ useEffect(() => {
+  try { localStorage.setItem("bp_email_signature", loSignature); } catch { /* private mode */ }
+ }, [loSignature]);
+ useEffect(() => {
+  try { localStorage.setItem("bp_lo_info", JSON.stringify({ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls })); } catch { /* private mode */ }
+ }, [loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls]);
+ const [companyName, setCompanyName] = useState(loInfoSaved.companyName ?? "Chris Granger Mortgage");
+ const [companyNmls, setCompanyNmls] = useState(loInfoSaved.companyNmls ?? "2179191");
  const [borrowerName, setBorrowerName] = useState("");
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
  const [fredApiKey, setFredApiKey] = useState("");
@@ -1648,12 +1662,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.ownsProperties !== undefined) setOwnsProperties(s.ownsProperties);
   if (s.isRefi !== undefined) setIsRefi(s.isRefi);
   if (s.firstTimeBuyer !== undefined) setFirstTimeBuyer(s.firstTimeBuyer);
-  if (s.loanOfficer !== undefined) setLoanOfficer(s.loanOfficer);
-  if (s.loEmail !== undefined) setLoEmail(s.loEmail);
-  if (s.loPhone !== undefined) setLoPhone(s.loPhone);
-  if (s.loNmls !== undefined) setLoNmls(s.loNmls);
-  if (s.companyName !== undefined) setCompanyName(s.companyName);
-  if (s.companyNmls !== undefined) setCompanyNmls(s.companyNmls);
+  // LO identity (loanOfficer/loEmail/loPhone/loNmls/company*) is DEVICE-level
+  // (bp_lo_info) since 2026-07-05 — scenario loads and cloud-sync pulls must
+  // NOT overwrite it. (Bug: typing a new Company name kept reverting because
+  // the sync pull re-applied the scenario's stale copy mid-keystroke.)
   if (s.borrowerName !== undefined) setBorrowerName(s.borrowerName);
   if (s.realtorName !== undefined) setRealtorName(s.realtorName);
   if (s.propertyAddress !== undefined) setPropertyAddress(s.propertyAddress);
@@ -2390,9 +2402,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    "",
    "Look it over and reply with any questions — happy to walk through it together.",
    "",
-   loanOfficer || "Your Loan Officer",
-   [companyName, loNmls ? `NMLS #${loNmls}` : ""].filter(Boolean).join(" · "),
-   loPhone || "",
+   ...(loSignature.trim()
+    ? loSignature.trim().split("\n")
+    : [
+       loanOfficer || "Your Loan Officer",
+       [companyName, loNmls ? `NMLS #${loNmls}` : ""].filter(Boolean).join(" · "),
+       loPhone || "",
+      ]),
   ].filter((l) => l !== null && l !== undefined);
   return lines.join("\n");
  };
@@ -6676,6 +6692,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
     <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
    </div>
+   {/* ── Email Signature (Christo 2026-07-05): matches Homebase/Ops — used
+       at the bottom of worksheet emails sent from Blueprint. Device-level. ── */}
+   <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
+    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>Email Signature</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 8, fontFamily: FONT }}>
+     Appears at the bottom of worksheet emails. Leave blank to use your name, company, NMLS, and phone from above.
+    </div>
+    <textarea
+     value={loSignature}
+     onChange={(e) => setLoSignature(e.target.value)}
+     rows={4}
+     placeholder={"Chris Granger\nChris Granger Mortgage · NMLS #952015\n(415) 987-8489"}
+     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: 13, outline: "none", fontFamily: FONT, resize: "vertical", lineHeight: 1.5 }}
+    />
+   </div>
    {/* ── My Default Fees (Christo 2026-07-05): snapshot the current Costs
        fee sheet (values + added/removed fees) as this LO's template — every
        new scenario starts from it. Device-level (localStorage). ── */}
@@ -6793,12 +6824,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   </Card>
  </Sec>
- <Sec title="Loan Settings">
-  <Card>
-   <Inp label="COE Days" value={coeDays} onChange={setCoeDays} prefix="" suffix="days" />
-   <Inp label="Seller Tax Basis" value={sellerTaxBasis} onChange={setSellerTaxBasis} suffix="/6 mo" />
-  </Card>
- </Sec>
+ {/* Loan Settings section removed (Christo 2026-07-05) — coeDays/sellerTaxBasis
+     state remains for saved scenarios; the closing-date picker on the Costs tab
+     supersedes COE Days as the user-facing control. */}
  <Card style={{ background: T.pillBg, marginTop: 8 }}>
   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>RealStack Blueprint v5 — 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
  </Card>
