@@ -76,7 +76,7 @@ function InfoTipBubble({ explainer }) {
 // rendered in the header between the title and the total. Must be a
 // non-button element with its own stopPropagation: the whole header is a
 // <button> (nested buttons are invalid HTML and double-fire the collapse).
-function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerExtra = null, children }) {
+function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerExtra = null, fill = false, children }) {
   const { T, ACCENT, HEAD_BG, HEAD_BORDER, BODY_BORDER } = useContext(CostsCtx);
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -86,6 +86,8 @@ function CollapsibleBox({ title, total, totalColor, defaultOpen = true, headerEx
       borderRadius: 14,
       overflow: "hidden",
       marginBottom: 12,
+      // fill: stretch to match the sibling column's height (left Costs column)
+      ...(fill ? { flex: 1 } : {}),
     }}>
       <button
         type="button"
@@ -402,7 +404,7 @@ function FeeRow({
     <div style={{ borderBottom: `1px dashed ${T.separator}` }}>
       <div style={{
         display: "flex",
-        alignItems: "center",
+        alignItems: alwaysVisibleControl ? "flex-start" : "center",
         justifyContent: "space-between",
         padding: "8px 0",
         minHeight: 30,
@@ -436,7 +438,8 @@ function FeeRow({
             <InfoTipBubble explainer={explainer} />
           </div>
           {alwaysVisibleControl && (
-            <div style={{ display: "flex", alignItems: "center" }}>{alwaysVisibleControl}</div>
+            /* Full-width so split pills always drop to their own compact second line */
+            <div style={{ display: "flex", alignItems: "center", flexBasis: "100%" }}>{alwaysVisibleControl}</div>
           )}
           {showInlineEditor && (
             <div style={{ display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0 }}>{inlineEditor}</div>
@@ -841,11 +844,11 @@ export default function CostsContent(props) {
       {/* ─── Two-column layout on desktop (Christo 2026-07-05): Closing Costs
           on the left; Prepaids + Credits on the right — mirrors the classic
           IFW side-by-side sheet. Mobile stays stacked. ─── */}
-      <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "start" }}>
-      <div style={{ minWidth: 0 }}>
+      <div style={{ display: isDesktop ? "grid" : "block", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "stretch" }}>
+      <div style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
-      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}
+      <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill
         headerExtra={masterLockPill(["A", "B", "C"])}>
 
         {/* A. Origination Charges — lockable */}
@@ -991,9 +994,6 @@ export default function CostsContent(props) {
                 sub={cityRate > 0 ? `$${cityRate}/$1K` : null}
                 alwaysVisibleControl={renderToggle(transferTaxSplit, setTransferTaxSplit)}
                 inlineEditor={cityDropdown}
-                calc={!isRefi && cityRate > 0
-                  ? `$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt2(cityFullTax)} → buyer ${citySharePct}% = ${fmt2(calc.buyerCityTT)}`
-                  : undefined}
                 explainer={isRefi
                   ? "No transfer tax on refinances in California"
                   : (transferTaxCity === "San Francisco" && transferTaxSplit !== "seller"
@@ -1009,9 +1009,6 @@ export default function CostsContent(props) {
                   autoBadge
                   sub={`$${countyRate.toFixed(2)}/$1K`}
                   alwaysVisibleControl={renderToggle(transferTaxCountySplit, setTransferTaxCountySplit)}
-                  calc={!isRefi
-                    ? `$${countyRate.toFixed(2)}/$1K × ${fmt(salesPrice)} = ${fmt2(countyFullTax)} → buyer ${countySharePct}% = ${fmt2(calc.buyerCountyTT)}`
-                    : undefined}
                   explainer={isRefi
                     ? "No county transfer tax on refinances in California"
                     : "California Documentary Transfer Tax — $1.10/$1K statewide, set by state law"}
@@ -1110,11 +1107,10 @@ export default function CostsContent(props) {
           {/* 2. Homeowner's Insurance — First Year — read-only. Calculates from monthly
               insurance (annualIns / 12) set in Setup. No inline edit here. */}
           <FeeRow
-            label="Homeowner's Insurance — First Year"
+            label="Homeowner's Insurance Premium — First Year (12 mo)"
             value={annualIns}
             readOnly
             autoBadge
-            calc={`12 mo × ${fmt2(annualIns / 12)}/mo = ${fmt2(annualIns)}`}
             explainer="First-year homeowner's insurance, calculated from monthly insurance × 12. Edit the monthly amount in the Setup tab."
           />
 
@@ -1200,7 +1196,7 @@ export default function CostsContent(props) {
           {/* Toggle anchored at the bottom of Section G */}
           <ToggleRow
             label="Include Escrow Impounds"
-            hint="Toggle OFF to waive escrow — no property tax or insurance reserves collected at closing"
+            hint="OFF = waive escrow impounds"
             on={includeEscrow}
             onChange={setIncludeEscrow}
           />
@@ -1305,6 +1301,12 @@ export default function CostsContent(props) {
           explainer="Second mortgages or HELOCs financing part of the purchase" />
       </CollapsibleBox>
 
+
+      {/* Guided "continue" — only renders while costs is the active step.
+          Sets "costs-done", which advances the guided sequence to Assets. */}
+      </div>{/* end right column */}
+      </div>{/* end two-column grid */}
+
       {/* First-payment explainer */}
       {(() => {
         const cm = closingMonth - 1;
@@ -1326,11 +1328,6 @@ export default function CostsContent(props) {
           </Card>
         );
       })()}
-
-      {/* Guided "continue" — only renders while costs is the active step.
-          Sets "costs-done", which advances the guided sequence to Assets. */}
-      </div>{/* end right column */}
-      </div>{/* end two-column grid */}
 
       {typeof ClusterContinue === "function" && <ClusterContinue stepId="credits" />}
       <GuidedNextButton />
