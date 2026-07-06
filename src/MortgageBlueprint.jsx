@@ -1319,11 +1319,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   try { localStorage.setItem("bp_email_signature", loSignature); } catch { /* private mode */ }
  }, [loSignature]);
+ const [companyName, setCompanyName] = useState(loInfoSaved.companyName ?? "Chris Granger Mortgage");
+ const [companyNmls, setCompanyNmls] = useState(loInfoSaved.companyNmls ?? "2179191");
+ // (Effect must sit BELOW every const it references — TDZ in deps array
+ //  crashed the 2026-07-05 deploy when it lived above companyName.)
  useEffect(() => {
   try { localStorage.setItem("bp_lo_info", JSON.stringify({ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls })); } catch { /* private mode */ }
  }, [loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls]);
- const [companyName, setCompanyName] = useState(loInfoSaved.companyName ?? "Chris Granger Mortgage");
- const [companyNmls, setCompanyNmls] = useState(loInfoSaved.companyNmls ?? "2179191");
  const [borrowerName, setBorrowerName] = useState("");
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
  const [fredApiKey, setFredApiKey] = useState("");
