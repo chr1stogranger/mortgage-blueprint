@@ -149,6 +149,9 @@ export function FeesWorksheetDoc(p) {
   const locLine = `${p.city || ""}${p.propertyState ? ", " + p.propertyState : ""}${p.propertyZip ? " " + p.propertyZip : ""}`;
   const isRefi = !!p.isRefi;
 
+  // Custom LO-added fees, grouped into their sections.
+  const custom = (sec) => (p.customFees || []).filter((f) => f.section === sec).map((f) => ({ label: f.label, value: f.amount }));
+
   // ── Section data ──
   const lenderRows = rows([
     p.discountPts > 0 && { label: `${Number(p.discountPts).toFixed(3)}% of Loan Amount (Points)`, value: c.pointsCost },
@@ -156,6 +159,7 @@ export function FeesWorksheetDoc(p) {
     { label: "Underwriting Fee", value: p.underwritingFee },
     { label: "Admin Fee", value: p.adminFee },
     { label: "Lender Wire Fee", value: p.lenderWireFee },
+    ...custom("A"),
   ]);
   const cannotShopRows = rows([
     { label: "Appraisal Fee", value: p.appraisalFee },
@@ -164,6 +168,7 @@ export function FeesWorksheetDoc(p) {
     { label: "Flood Certificate Fee", value: p.floodCertFee },
     { label: "MERS Registration Fee", value: p.mersFee },
     { label: "Tax Service Fee", value: p.taxServiceFee },
+    ...custom("B"),
   ]);
   const canShopRows = rows([
     { label: "Title - Lender's Title Insurance", value: p.titleInsurance },
@@ -173,17 +178,20 @@ export function FeesWorksheetDoc(p) {
     { label: "Notary Fee", value: p.notaryFee },
     { label: "Environmental Protection Lien", value: p.envProtectionLien },
     { label: "HOA Certification", value: c.hoaCert },
+    ...custom("C"),
   ]);
   const otherRows = isRefi ? [] : rows([
     { label: "Owner's Title Insurance", value: p.ownersTitleIns },
     { label: "Home Warranty", value: p.homeWarranty },
     { label: "HOA Transfer Fee", value: c.hoaTransferActual },
     { label: "Buyer-Paid Commission", value: c.buyerCommAmt },
+    ...custom("H"),
   ]);
   const govRows = rows([
     { label: "Recording Fees - Mortgage", value: p.recordingFee },
     { label: "City Transfer Tax (buyer share)", value: c.buyerCityTT },
     { label: "County Transfer Tax (buyer share)", value: c.buyerCountyTT },
+    ...custom("E"),
   ]);
   const prepaidRows = rows([
     { label: `Prepaid Interest (${c.autoPrepaidDays || 0} days @ ${usd2(c.dailyInt)}/day)`, value: c.prepaidInt, cents: true },

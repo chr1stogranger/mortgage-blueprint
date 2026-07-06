@@ -1232,6 +1232,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [notaryFee, setNotaryFee] = useState(175);
  const [envProtectionLien, setEnvProtectionLien] = useState(100);
  const [recordingFee, setRecordingFee] = useState(200);
+ // LO-managed fee customization (Christo 2026-07-05): extra fees added per
+ // section + built-in fees the LO deleted (their values are zeroed too).
+ const [customFees, setCustomFees] = useState([]);   // [{ id, section: 'A'|'B'|'C'|'E'|'H', label, amount }]
+ const [hiddenFees, setHiddenFees] = useState([]);   // built-in fee keys removed by the LO
  const [lenderCredit, setLenderCredit] = useState(0);
  const [sellerCredit, setSellerCredit] = useState(0);
  const [realtorCredit, setRealtorCredit] = useState(0);
@@ -1456,6 +1460,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [account.isSignedIn]);
  const [newScenarioName, setNewScenarioName] = useState("");
+ const [feeDefaultsSavedAt, setFeeDefaultsSavedAt] = useState(() => {
+  try { return JSON.parse(localStorage.getItem("bp_lo_default_fees") || "null")?.savedAt || null; } catch { return null; }
+ });
  const [compareData, setCompareData] = useState([]);
  const [compareLoading, setCompareLoading] = useState(false);
  const [showCompareHint, setShowCompareHint] = useState(false);
@@ -1576,6 +1583,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.notaryFee !== undefined) setNotaryFee(s.notaryFee);
   if (s.envProtectionLien !== undefined) setEnvProtectionLien(s.envProtectionLien);
   if (s.recordingFee !== undefined) setRecordingFee(s.recordingFee);
+  if (s.customFees !== undefined) setCustomFees(Array.isArray(s.customFees) ? s.customFees : []);
+  if (s.hiddenFees !== undefined) setHiddenFees(Array.isArray(s.hiddenFees) ? s.hiddenFees : []);
   if (s.lenderCredit !== undefined) setLenderCredit(s.lenderCredit);
   if (s.sellerCredit !== undefined) setSellerCredit(s.sellerCredit);
   if (s.realtorCredit !== undefined) setRealtorCredit(s.realtorCredit);
@@ -1991,6 +2000,44 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
  };
+ // ── LO default fees (Christo 2026-07-05): the LO snapshots their preferred
+ //    fee sheet in Settings; every NEW scenario starts from it. Stored per
+ //    device in localStorage (cloud sync is a future enhancement).
+ const collectFeeDefaults = () => ({
+  savedAt: new Date().toISOString(),
+  fees: {
+   underwritingFee, adminFee, lenderWireFee, originatorComp, processingFee,
+   appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee,
+   titleInsurance, escrowFee, courierFee, loanTieInFee, notaryFee,
+   envProtectionLien, recordingFee, ownersTitleIns, homeWarranty,
+  },
+  customFees, hiddenFees,
+ });
+ const FEE_SETTERS = {
+  underwritingFee: setUnderwritingFee, adminFee: setAdminFee, lenderWireFee: setLenderWireFee,
+  originatorComp: setOriginatorComp, processingFee: setProcessingFee, appraisalFee: setAppraisalFee,
+  creditReportFee: setCreditReportFee, floodCertFee: setFloodCertFee, mersFee: setMersFee,
+  taxServiceFee: setTaxServiceFee, titleInsurance: setTitleInsurance, escrowFee: setEscrowFee,
+  courierFee: setCourierFee, loanTieInFee: setLoanTieInFee, notaryFee: setNotaryFee,
+  envProtectionLien: setEnvProtectionLien, recordingFee: setRecordingFee,
+  ownersTitleIns: setOwnersTitleIns, homeWarranty: setHomeWarranty,
+ };
+ const saveMyFeeDefaults = () => {
+  try { localStorage.setItem("bp_lo_default_fees", JSON.stringify(collectFeeDefaults())); setFeeDefaultsSavedAt(new Date().toISOString()); } catch (e) { console.error(e); }
+ };
+ const clearMyFeeDefaults = () => {
+  try { localStorage.removeItem("bp_lo_default_fees"); setFeeDefaultsSavedAt(null); } catch (e) { console.error(e); }
+ };
+ const applyMyFeeDefaults = () => {
+  try {
+   const raw = localStorage.getItem("bp_lo_default_fees");
+   if (!raw) return;
+   const d = JSON.parse(raw);
+   Object.entries(d.fees || {}).forEach(([k, v]) => { if (FEE_SETTERS[k] && typeof v === "number") FEE_SETTERS[k](v); });
+   if (Array.isArray(d.customFees)) setCustomFees(d.customFees);
+   if (Array.isArray(d.hiddenFees)) setHiddenFees(d.hiddenFees);
+  } catch (e) { console.error("apply fee defaults failed:", e); }
+ };
  const createScenario = async (name) => {
   if (!name || scenarioList.includes(name)) return;
   try { selfSync.clearTombstone?.(name); } catch(e) {}
@@ -2007,6 +2054,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Reset Prop 19
   setShowProp19(false); setProp19Eligibility("age55"); setProp19OldTaxableValue(0); setProp19OldSalePrice(0);
   setProp19TransfersUsed(0); setProp19SaleDate(""); setProp19PurchaseDate(""); setProp19RateOverride(0);
+  // New scenarios reset the fee-management state, then apply the LO's saved
+  // default fee sheet (if any) on top.
+  setCustomFees([]); setHiddenFees([]);
+  applyMyFeeDefaults();
   // Reset completed tabs so new scenario starts fresh (fixes checkbox bug)
   saveCompletedTabs({});
   // Save the new scenario defaults immediately so Compare can read them
@@ -2316,7 +2367,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   titleInsurance, escrowFee, courierFee, loanTieInFee,
   notaryFee, envProtectionLien, ownersTitleIns, homeWarranty, recordingFee,
   propertyTaxesInstallment, sellersProratedTaxCredit,
-  sellerCredit, lenderCredit, realtorCredit,
+  sellerCredit, lenderCredit, realtorCredit, customFees,
  });
  // Short note in Christo's voice + headline figures; the PDF carries the detail.
  const buildWorksheetEmailBody = () => {
@@ -3586,19 +3637,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const countyTTRate = propertyState === "California" ? 1.10 : 0;
   const buyerCityTT = isRefi ? 0 : (salesPrice / 1000 * ttEntry.rate) * cityBuyerShare;
   const buyerCountyTT = isRefi ? 0 : (salesPrice / 1000 * countyTTRate) * countyBuyerShare;
+  // Custom LO fees roll into their section subtotals.
+  const customFeeSum = (sec) => (customFees || []).reduce((t, f) => t + (f.section === sec ? (f.amount || 0) : 0), 0);
   const pointsCost = feeLoanBasis * (discountPts / 100);
-  const origCharges = underwritingFee + adminFee + lenderWireFee + pointsCost + originatorComp;
+  const origCharges = underwritingFee + adminFee + lenderWireFee + pointsCost + originatorComp + customFeeSum('A');
   const hoaCert = (!isRefi && (propType === "Condo" || propType === "Townhouse")) ? 500 : 0;
-  const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + processingFee + taxServiceFee;
+  const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + processingFee + taxServiceFee + customFeeSum('B');
   // Title Search + Settlement Agent Fee removed from defaults (Christo
   // 2026-07-05) — state vars remain for old saved scenarios but no longer
   // count toward totals or render anywhere.
   const titleEscrowTotal = titleInsurance + escrowFee + courierFee + loanTieInFee + notaryFee + envProtectionLien;
-  const canShop = titleEscrowTotal + hoaCert;
-  const govCharges = buyerCityTT + buyerCountyTT + recordingFee;
+  const canShop = titleEscrowTotal + hoaCert + customFeeSum('C');
+  const govCharges = buyerCityTT + buyerCountyTT + recordingFee + customFeeSum('E');
   const buyerCommAmt = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
   const hoaTransferActual = hoa > 0 ? (hoaTransferFee > 0 ? hoaTransferFee : hoa) : 0;
-  const sectionH = (isRefi ? 0 : ownersTitleIns) + (isRefi ? 0 : homeWarranty) + (isRefi ? 0 : hoaTransferActual) + buyerCommAmt;
+  const sectionH = (isRefi ? 0 : ownersTitleIns) + (isRefi ? 0 : homeWarranty) + (isRefi ? 0 : hoaTransferActual) + buyerCommAmt + customFeeSum('H');
   const totalClosingCosts = origCharges + cannotShop + canShop + govCharges + sectionH;
   const closeYear = closingYear || new Date().getFullYear();
   const closeDate = new Date(closeYear, closingMonth - 1, closingDay);
@@ -3848,6 +3901,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid,
+  customFees, hiddenFees,
   sellerTaxBasis, prepaidDays, coeDays, closingMonth, closingDay, closingYear, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
@@ -5102,7 +5156,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
-{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
+{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ ASSETS ═══ */}
@@ -5319,6 +5373,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    includeEscrow, setIncludeEscrow,
    closingMonth, setClosingMonth, closingDay, setClosingDay,
    closingYear, setClosingYear,
+   customFees, setCustomFees, hiddenFees, setHiddenFees,
    propertyTaxesInstallment, setPropertyTaxesInstallment,
    sellersProratedTaxCredit, setSellersProratedTaxCredit,
    closingMonths: [1,2,3,4,5,6,7,8,9,10,11,12],
@@ -6616,6 +6671,31 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
     <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
+   </div>
+   {/* ── My Default Fees (Christo 2026-07-05): snapshot the current Costs
+       fee sheet (values + added/removed fees) as this LO's template — every
+       new scenario starts from it. Device-level (localStorage). ── */}
+   <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
+    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>My Default Fees</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 10, fontFamily: FONT }}>
+     Set up the Costs tab the way you quote (edit amounts, add or remove fees), then save it as your default fee sheet. Every new scenario will start from it.
+    </div>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+     <button onClick={saveMyFeeDefaults} style={{ padding: "9px 16px", background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>
+      Save current fees as my defaults
+     </button>
+     <button onClick={applyMyFeeDefaults} disabled={!feeDefaultsSavedAt} style={{ padding: "9px 16px", background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 9999, color: feeDefaultsSavedAt ? T.text : T.textTertiary, fontWeight: 600, fontSize: 13, cursor: feeDefaultsSavedAt ? "pointer" : "default", fontFamily: FONT }}>
+      Apply to this scenario
+     </button>
+     {feeDefaultsSavedAt && (
+      <span onClick={clearMyFeeDefaults} style={{ fontSize: 11, color: T.textTertiary, cursor: "pointer", textDecoration: "underline", fontFamily: FONT }}>Clear</span>
+     )}
+    </div>
+    {feeDefaultsSavedAt && (
+     <div style={{ fontSize: 11, color: T.green, marginTop: 8, fontFamily: FONT }}>
+      ✓ Defaults saved {new Date(feeDefaultsSavedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} — applied to every new scenario on this device
+     </div>
+    )}
    </div>
   </Card>
  </Sec>

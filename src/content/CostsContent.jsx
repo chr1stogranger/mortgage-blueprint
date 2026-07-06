@@ -363,6 +363,107 @@ function DashedInline({ value, onChange, prefix = "$", suffix = null, max }) {
   );
 }
 
+
+// ── Fee catalog for the per-section "+ Add fee" menu (Christo 2026-07-05).
+//    Typical CA amounts; the LO edits after adding. ──
+const FEE_CATALOG = {
+  A: [
+    { label: "Application Fee", amount: 500 },
+    { label: "Rate Lock Extension Fee", amount: 500 },
+    { label: "Commitment Fee", amount: 0 },
+  ],
+  B: [
+    { label: "VOE / Verification Fee", amount: 100 },
+    { label: "Condo Questionnaire Fee", amount: 300 },
+    { label: "Subordination Fee", amount: 250 },
+    { label: "Final Inspection Fee", amount: 150 },
+    { label: "Desk/Field Review Fee", amount: 200 },
+  ],
+  C: [
+    { label: "Survey Fee", amount: 400 },
+    { label: "Pest Inspection", amount: 150 },
+    { label: "Attorney Fee", amount: 750 },
+    { label: "Title — Endorsement Fee", amount: 100 },
+    { label: "Title — Mobile Notary Fee", amount: 175 },
+    { label: "Title — Recording Service Fee", amount: 17 },
+  ],
+  E: [
+    { label: "State Tax / Stamps", amount: 0 },
+    { label: "Intangible Tax", amount: 0 },
+    { label: "City Point-of-Sale Fee", amount: 300 },
+  ],
+  H: [
+    { label: "Home Inspection", amount: 500 },
+    { label: "HOA Capital Contribution", amount: 0 },
+    { label: "Sewer Lateral / Point-of-Sale", amount: 250 },
+    { label: "Home Warranty Upgrade", amount: 150 },
+  ],
+};
+
+// "+ Add fee" — searchable dropdown of catalog fees + deleted built-ins to
+// restore + free-text custom entry. Only shows while the section is unlocked.
+function AddFeeControl({ section, hiddenBuiltins, onAdd, onRestore }) {
+  const { T, ACCENT } = useContext(CostsCtx);
+  const { unlocked } = useContext(LockCtx);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  if (!unlocked) return null;
+  const q = query.trim().toLowerCase();
+  const items = (FEE_CATALOG[section] || []).filter(f => !q || f.label.toLowerCase().includes(q));
+  const restores = (hiddenBuiltins || []).filter(f => !q || f.label.toLowerCase().includes(q));
+  const pick = (label, amount) => { onAdd(label, amount); setOpen(false); setQuery(""); };
+  return (
+    <div style={{ padding: "6px 0 2px", position: "relative" }}>
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)}
+          style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ACCENT, background: "transparent", border: `1px dashed ${ACCENT}55`, borderRadius: 9999, padding: "5px 14px", cursor: "pointer" }}>
+          + Add fee
+        </button>
+      ) : (
+        <div style={{ border: `1px solid ${T.separator}`, borderRadius: 12, padding: 8, background: T.card, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}>
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); setQuery(""); } }}
+            placeholder="Search fees or type a custom name…"
+            style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: FONT, color: T.text, outline: "none", marginBottom: 6 }}
+          />
+          <div style={{ maxHeight: 180, overflowY: "auto" }}>
+            {restores.map((f) => (
+              <div key={"r-" + f.key} onClick={() => { onRestore(f.key); setOpen(false); setQuery(""); }}
+                style={{ padding: "7px 8px", fontSize: 13, fontFamily: FONT, color: T.text, cursor: "pointer", borderRadius: 8, display: "flex", justifyContent: "space-between" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = T.pillBg} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                <span>{f.label} <span style={{ color: T.textTertiary, fontSize: 11 }}>· restore</span></span>
+                <span style={{ color: T.textTertiary }}>{"$" + f.def.toLocaleString()}</span>
+              </div>
+            ))}
+            {items.map((f) => (
+              <div key={f.label} onClick={() => pick(f.label, f.amount)}
+                style={{ padding: "7px 8px", fontSize: 13, fontFamily: FONT, color: T.text, cursor: "pointer", borderRadius: 8, display: "flex", justifyContent: "space-between" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = T.pillBg} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                <span>{f.label}</span>
+                <span style={{ color: T.textTertiary }}>{"$" + f.amount.toLocaleString()}</span>
+              </div>
+            ))}
+            {q && (
+              <div onClick={() => pick(query.trim(), 0)}
+                style={{ padding: "7px 8px", fontSize: 13, fontFamily: FONT, color: ACCENT, fontWeight: 600, cursor: "pointer", borderRadius: 8 }}
+                onMouseEnter={(e) => e.currentTarget.style.background = T.pillBg} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                + Add “{query.trim()}” as a custom fee
+              </div>
+            )}
+            {!q && items.length === 0 && restores.length === 0 && (
+              <div style={{ padding: "7px 8px", fontSize: 12, color: T.textTertiary, fontFamily: FONT }}>Type to add a custom fee</div>
+            )}
+          </div>
+          <div onClick={() => { setOpen(false); setQuery(""); }} style={{ textAlign: "center", fontSize: 11, color: T.textTertiary, cursor: "pointer", paddingTop: 6, fontFamily: FONT }}>Cancel</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // FeeRow — new lock-aware model. NO MORE "+" buttons.
 // - locked (default, from section LockCtx): renders label / value (read-only)
 // - unlocked (section is in edit mode): renders label / inline number input (or `inlineEditor` if provided)
@@ -375,6 +476,7 @@ function FeeRow({
   prefix = "$", suffix = null, step = 1, max,
   isDollar = true, bold = false, color, note,
   readOnly = false, autoBadge = false, alwaysEdit = false,
+  hidden = false, onDelete = null,
   inlineEditor = null, alwaysVisibleControl = null,
   prefixEditor = null,           // NEW: always-visible editor rendered BEFORE the label
   hideWhenLockedAndZero = false, // NEW: row collapses entirely when section is locked AND value is 0
@@ -389,6 +491,8 @@ function FeeRow({
   if (hideWhenLockedAndZero && !sectionUnlocked && (value === 0 || value === null || value === undefined || value === "")) {
     return null;
   }
+  // LO deleted this built-in fee — gone from the sheet (restore via "+ Add fee").
+  if (hidden) return null;
 
   // Determine effective edit mode for this row.
   // - editable (value): row's main value can be edited via inline number input.
@@ -458,6 +562,12 @@ function FeeRow({
             }}>{displayVal}</div>
           )}
           {autoBadge && <AutoBadge />}
+          {onDelete && (alwaysEdit || sectionUnlocked) && (
+            <button type="button" onClick={onDelete} title="Remove this fee"
+              style={{ background: "transparent", border: "none", cursor: "pointer", color: T.textTertiary, fontSize: 13, lineHeight: 1, padding: "2px 2px" }}>
+              ✕
+            </button>
+          )}
         </div>
       </div>
       {note && (editable || readOnly) && (
@@ -671,7 +781,7 @@ function EscrowCalendar({
 
 export default function CostsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "customFees", "setCustomFees", "hiddenFees", "setHiddenFees", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2,
   isRefi, downPct,
@@ -708,6 +818,8 @@ export default function CostsContent(props) {
   closingMonth, setClosingMonth,
   closingDay, setClosingDay,
   closingYear, setClosingYear,
+  customFees, setCustomFees,
+  hiddenFees, setHiddenFees,
   propertyTaxesInstallment, setPropertyTaxesInstallment,
   sellersProratedTaxCredit, setSellersProratedTaxCredit,
   annualIns, setAnnualIns,
@@ -727,6 +839,77 @@ export default function CostsContent(props) {
   const [sectionLocks, setSectionLocks] = useState({ A: true, B: true, C: true, E: true, F: true, H: true });
   const [escrowCalendarOpen, setEscrowCalendarOpen] = useState(false);
   const toggleLock = (k) => setSectionLocks(s => ({ ...s, [k]: !s[k] }));
+
+  // ── LO fee management (Christo 2026-07-05): built-in fees can be deleted
+  //    (zeroed + hidden), custom fees added per section via the catalog. ──
+  const BUILTIN_META = {
+    A: [
+      { key: "originatorComp", label: "Originator Compensation", set: setOriginatorComp, def: 0 },
+      { key: "adminFee", label: "Administration Fee", set: setAdminFee, def: 795 },
+      { key: "lenderWireFee", label: "Lender Wire Fee", set: setLenderWireFee, def: 295 },
+      { key: "underwritingFee", label: "Underwriting Fee", set: setUnderwritingFee, def: 1250 },
+    ],
+    B: [
+      { key: "appraisalFee", label: "Appraisal Fee", set: setAppraisalFee, def: 850 },
+      { key: "creditReportFee", label: "Credit Report Fee", set: setCreditReportFee, def: 134 },
+      { key: "floodCertFee", label: "Flood Certificate Fee", set: setFloodCertFee, def: 8 },
+      { key: "mersFee", label: "MERS Registration Fee", set: setMersFee, def: 25 },
+      { key: "processingFee", label: "Processing Fee", set: setProcessingFee, def: 695 },
+      { key: "taxServiceFee", label: "Tax Service Fee", set: setTaxServiceFee, def: 85 },
+    ],
+    C: [
+      { key: "titleInsurance", label: "Lender's Title Insurance Policy", set: setTitleInsurance, def: 2000 },
+      { key: "escrowFee", label: "Escrow Fee", set: setEscrowFee, def: 2400 },
+      { key: "courierFee", label: "Courier / FedEx", set: setCourierFee, def: 150 },
+      { key: "loanTieInFee", label: "Loan Tie-in Fee", set: setLoanTieInFee, def: 150 },
+      { key: "notaryFee", label: "Notary", set: setNotaryFee, def: 175 },
+      { key: "envProtectionLien", label: "Environmental Protection Lien", set: setEnvProtectionLien, def: 100 },
+    ],
+    E: [
+      { key: "recordingFee", label: "Recording Fees", set: setRecordingFee, def: 200 },
+    ],
+    H: [
+      { key: "ownersTitleIns", label: "Owner's Title Insurance", set: setOwnersTitleIns, def: 3000 },
+      { key: "homeWarranty", label: "Home Warranty", set: setHomeWarranty, def: 500 },
+    ],
+  };
+  const findBuiltin = (key) => Object.values(BUILTIN_META).flat().find((m) => m.key === key);
+  const isHidden = (key) => (hiddenFees || []).includes(key);
+  const deleteBuiltin = (key) => {
+    const m = findBuiltin(key);
+    if (!m) return;
+    m.set(0); // remove from totals
+    setHiddenFees((h) => (h.includes(key) ? h : [...h, key]));
+  };
+  const restoreBuiltin = (key) => {
+    const m = findBuiltin(key);
+    if (!m) return;
+    m.set(m.def);
+    setHiddenFees((h) => h.filter((k) => k !== key));
+  };
+  const addCustomFee = (section, label, amount) =>
+    setCustomFees((c) => [...(c || []), { id: Date.now(), section, label: String(label).slice(0, 60), amount: amount || 0 }]);
+  const updateCustomFee = (id, amount) => setCustomFees((c) => (c || []).map((f) => (f.id === id ? { ...f, amount } : f)));
+  const removeCustomFee = (id) => setCustomFees((c) => (c || []).filter((f) => f.id !== id));
+  // Plain render function (NOT a component) so FeeRow/AddFeeControl keep
+  // stable identity — inline component defs remount on every parent render
+  // and would blur the amount input mid-typing.
+  const renderSectionExtras = (section) => (
+    <>
+      {(customFees || []).filter((f) => f.section === section).map((f) => (
+        <FeeRow key={f.id} label={f.label} value={f.amount}
+          onChange={(v) => updateCustomFee(f.id, v)}
+          onDelete={() => removeCustomFee(f.id)}
+          explainer="Custom fee added by your LO" />
+      ))}
+      <AddFeeControl
+        section={section}
+        hiddenBuiltins={(BUILTIN_META[section] || []).filter((m) => isHidden(m.key))}
+        onAdd={(label, amount) => addCustomFee(section, label, amount)}
+        onRestore={restoreBuiltin}
+      />
+    </>
+  );
 
   // Master "Edit All" lock pill for a CollapsibleBox header — one click
   // unlocks (or re-locks) every lockable subsection under that master box
@@ -849,7 +1032,7 @@ export default function CostsContent(props) {
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided} fill
-        headerExtra={masterLockPill(["A", "B", "C"])}>
+        headerExtra={masterLockPill(["A", "B", "C", "E"])}>
 
         {/* A. Origination Charges — lockable */}
         <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)} lockable>
@@ -886,20 +1069,22 @@ export default function CostsContent(props) {
               />
             }
           />
-          <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  explainer="Paid to the loan officer/originator" />
-          <FeeRow label="Administration Fee"       value={adminFee}        onChange={setAdminFee}        explainer="Lender administration fee" />
-          <FeeRow label="Lender Wire Fee"          value={lenderWireFee}   onChange={setLenderWireFee}   explainer="Fee to wire loan funds at closing" />
-          <FeeRow label="Underwriting Fee"        value={underwritingFee} onChange={setUnderwritingFee} explainer="Lender's fee for evaluating the loan" />
+          <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  hidden={isHidden("originatorComp")} onDelete={() => deleteBuiltin("originatorComp")} explainer="Paid to the loan officer/originator" />
+          <FeeRow label="Administration Fee"       value={adminFee}        onChange={setAdminFee}        hidden={isHidden("adminFee")} onDelete={() => deleteBuiltin("adminFee")} explainer="Lender administration fee" />
+          <FeeRow label="Lender Wire Fee"          value={lenderWireFee}   onChange={setLenderWireFee}   hidden={isHidden("lenderWireFee")} onDelete={() => deleteBuiltin("lenderWireFee")} explainer="Fee to wire loan funds at closing" />
+          <FeeRow label="Underwriting Fee"        value={underwritingFee} onChange={setUnderwritingFee} hidden={isHidden("underwritingFee")} onDelete={() => deleteBuiltin("underwritingFee")} explainer="Lender's fee for evaluating the loan" />
+          {renderSectionExtras('A')}
         </LetterSection>
 
         {/* B. Services You Cannot Shop For — lockable */}
         <LetterSection letter="B" title="Services You Cannot Shop For" total={fmt2(calc.cannotShop)} lockable>
-          <FeeRow label="Appraisal Fee"          value={appraisalFee}    onChange={setAppraisalFee}    explainer="Independent appraiser values the property" />
-          <FeeRow label="Credit Report Fee"      value={creditReportFee} onChange={setCreditReportFee} explainer="Pull tri-merge credit report" />
-          <FeeRow label="Flood Certificate Fee"  value={floodCertFee}    onChange={setFloodCertFee}    explainer="Determines if property is in a flood zone" />
-          <FeeRow label="MERS Registration Fee"  value={mersFee}         onChange={setMersFee}         explainer="Mortgage Electronic Registration System" />
-          <FeeRow label="Processing Fee"         value={processingFee}   onChange={setProcessingFee}   explainer="Fee for processing loan documents" />
-          <FeeRow label="Tax Service Fee"        value={taxServiceFee}   onChange={setTaxServiceFee}   explainer="Lender's tax-monitoring service" />
+          <FeeRow label="Appraisal Fee"          value={appraisalFee}    onChange={setAppraisalFee}    hidden={isHidden("appraisalFee")} onDelete={() => deleteBuiltin("appraisalFee")} explainer="Independent appraiser values the property" />
+          <FeeRow label="Credit Report Fee"      value={creditReportFee} onChange={setCreditReportFee} hidden={isHidden("creditReportFee")} onDelete={() => deleteBuiltin("creditReportFee")} explainer="Pull tri-merge credit report" />
+          <FeeRow label="Flood Certificate Fee"  value={floodCertFee}    onChange={setFloodCertFee}    hidden={isHidden("floodCertFee")} onDelete={() => deleteBuiltin("floodCertFee")} explainer="Determines if property is in a flood zone" />
+          <FeeRow label="MERS Registration Fee"  value={mersFee}         onChange={setMersFee}         hidden={isHidden("mersFee")} onDelete={() => deleteBuiltin("mersFee")} explainer="Mortgage Electronic Registration System" />
+          <FeeRow label="Processing Fee"         value={processingFee}   onChange={setProcessingFee}   hidden={isHidden("processingFee")} onDelete={() => deleteBuiltin("processingFee")} explainer="Fee for processing loan documents" />
+          <FeeRow label="Tax Service Fee"        value={taxServiceFee}   onChange={setTaxServiceFee}   hidden={isHidden("taxServiceFee")} onDelete={() => deleteBuiltin("taxServiceFee")} explainer="Lender's tax-monitoring service" />
+          {renderSectionExtras('B')}
         </LetterSection>
 
         {/* C. Services You Can Shop For — lockable */}
@@ -910,34 +1095,28 @@ export default function CostsContent(props) {
             <>
               {/* Title — Settlement Agent Fee + Title Search removed from
                   defaults (Christo 2026-07-05). */}
-              <FeeRow label="Lender's Title Insurance Policy" value={titleInsurance} onChange={setTitleInsurance} explainer="Lender's title insurance policy" />
-              <FeeRow label="Escrow Fee"                      value={escrowFee}      onChange={setEscrowFee}      explainer="Escrow company's closing fee" />
-              <FeeRow label="Courier / FedEx"                 value={courierFee}     onChange={setCourierFee}     explainer="Document courier / overnight delivery" />
-              <FeeRow label="Loan Tie-in Fee"                 value={loanTieInFee}   onChange={setLoanTieInFee}   explainer="Escrow's fee to coordinate with the lender" />
-              <FeeRow label="Notary"                          value={notaryFee}      onChange={setNotaryFee}      explainer="Notarizes closing documents" />
-              <FeeRow label="Environmental Protection Lien"   value={envProtectionLien} onChange={setEnvProtectionLien} explainer="Endorsement protecting against environmental liens" />
+              <FeeRow label="Lender's Title Insurance Policy" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Lender's title insurance policy" />
+              <FeeRow label="Escrow Fee"                      value={escrowFee}      onChange={setEscrowFee}      hidden={isHidden("escrowFee")} onDelete={() => deleteBuiltin("escrowFee")} explainer="Escrow company's closing fee" />
+              <FeeRow label="Courier / FedEx"                 value={courierFee}     onChange={setCourierFee}     hidden={isHidden("courierFee")} onDelete={() => deleteBuiltin("courierFee")} explainer="Document courier / overnight delivery" />
+              <FeeRow label="Loan Tie-in Fee"                 value={loanTieInFee}   onChange={setLoanTieInFee}   hidden={isHidden("loanTieInFee")} onDelete={() => deleteBuiltin("loanTieInFee")} explainer="Escrow's fee to coordinate with the lender" />
+              <FeeRow label="Notary"                          value={notaryFee}      onChange={setNotaryFee}      hidden={isHidden("notaryFee")} onDelete={() => deleteBuiltin("notaryFee")} explainer="Notarizes closing documents" />
+              <FeeRow label="Environmental Protection Lien"   value={envProtectionLien} onChange={setEnvProtectionLien} hidden={isHidden("envProtectionLien")} onDelete={() => deleteBuiltin("envProtectionLien")} explainer="Endorsement protecting against environmental liens" />
               {calc.hoaCert > 0 && <FeeRow label="HOA Certification" value={calc.hoaCert} sub="Condo/TH" readOnly autoBadge explainer="Required for condos & townhomes" />}
             </>
           )}
+        {renderSectionExtras('C')}
         </LetterSection>
 
         {/* D. Total Loan Costs (A + B + C) — computed band */}
         <TotalBand letter="D" title="Total Loan Costs (A + B + C)" total={fmt2(totalLoanCosts)} />
 
 
-      </CollapsibleBox>
 
-      {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
-      </div>{/* end left column */}
-      <div style={{ minWidth: 0 }}>{/* right column */}
-      {/* ─── Section E moved to the TOP of the right column (Christo
-          2026-07-05) — still counts inside totalClosingCosts; rendered as
-          its own box like the classic IFW's "Taxes and Other Government
-          Fees" block. ─── */}
-      <CollapsibleBox title="Taxes & Government Fees" total={fmt2(calc.govCharges)} defaultOpen={!isGuided}>
+        {/* E back at the bottom of the left column (Christo 2026-07-05):
+            these ARE closing costs — keep them in the box, below the D total. */}
         {/* E. Taxes and Other Government Charges — lockable */}
         <LetterSection letter="E" title="Taxes and Other Government Charges" total={fmt2(calc.govCharges)} lockable>
-          <FeeRow label="Recording Fees" value={recordingFee} onChange={setRecordingFee} explainer="County fees to record the deed and mortgage" />
+          <FeeRow label="Recording Fees" value={recordingFee} onChange={setRecordingFee} hidden={isHidden("recordingFee")} onDelete={() => deleteBuiltin("recordingFee")} explainer="County fees to record the deed and mortgage" />
           {(() => {
             // 3-way Seller / Split / Buyer toggle — ALWAYS visible. Shared by both rows but each
             // row reads its own split state (independent per Christo's spec).
@@ -996,9 +1175,7 @@ export default function CostsContent(props) {
                 inlineEditor={cityDropdown}
                 explainer={isRefi
                   ? "No transfer tax on refinances in California"
-                  : (transferTaxCity === "San Francisco" && transferTaxSplit !== "seller"
-                      ? "SF: Seller customarily pays 100% — toggle Seller above"
-                      : "City transfer tax — split varies by city/agreement")}
+                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100% — toggle Seller above. " : ""}$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt2(cityFullTax)} → buyer ${citySharePct}% = ${fmt2(calc.buyerCityTT)}`}
               />
               {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
               {countyRate > 0 && (
@@ -1011,13 +1188,19 @@ export default function CostsContent(props) {
                   alwaysVisibleControl={renderToggle(transferTaxCountySplit, setTransferTaxCountySplit)}
                   explainer={isRefi
                     ? "No county transfer tax on refinances in California"
-                    : "California Documentary Transfer Tax — $1.10/$1K statewide, set by state law"}
+                    : `CA Documentary Transfer Tax ($1.10/$1K statewide): $${countyRate.toFixed(2)}/$1K × ${fmt(salesPrice)} = ${fmt2(countyFullTax)} → buyer ${countySharePct}% = ${fmt2(calc.buyerCountyTT)}`}
                 />
               )}
             </>);
           })()}
+        {renderSectionExtras('E')}
         </LetterSection>
+
       </CollapsibleBox>
+
+      {typeof ClusterContinue === "function" && <ClusterContinue stepId="closing-costs" />}
+      </div>{/* end left column */}
+      <div style={{ minWidth: 0 }}>{/* right column */}
 
 
       {/* ─── MASTER 2: Prepaids and Initial Escrow (default OPEN) ── */}
@@ -1211,8 +1394,8 @@ export default function CostsContent(props) {
       {!isRefi && (
         <CollapsibleBox title="Other" total={fmt2(otherCostsTotal)} defaultOpen={!isGuided}>
           <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
-            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} explainer="Optional — protects buyer's ownership rights from title defects" />
-            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   explainer="One-year coverage on major home systems" />
+            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} hidden={isHidden("ownersTitleIns")} onDelete={() => deleteBuiltin("ownersTitleIns")} explainer="Optional — protects buyer's ownership rights from title defects" />
+            <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   hidden={isHidden("homeWarranty")} onDelete={() => deleteBuiltin("homeWarranty")} explainer="One-year coverage on major home systems" />
             {hoa > 0 && (
               <FeeRow
                 label="HOA Transfer Fee"
@@ -1250,6 +1433,7 @@ export default function CostsContent(props) {
                 }
               />
             )}
+          {renderSectionExtras('H')}
           </LetterSection>
         </CollapsibleBox>
       )}
@@ -1304,6 +1488,19 @@ export default function CostsContent(props) {
 
       {/* Guided "continue" — only renders while costs is the active step.
           Sets "costs-done", which advances the guided sequence to Assets. */}
+      {/* Cash to Close — anchors the bottom-right corner, balancing the
+          columns (Christo 2026-07-05). Same component as the Calculator tab. */}
+      <CashToCloseSummary
+        T={T}
+        ACCENT={T.blue}
+        fmt={fmt}
+        downPayment={calc.dp || 0}
+        closingCosts={calc.totalClosingCosts || 0}
+        prepaids={calc.totalPrepaidExp || 0}
+        payoffs={calc.payoffAtClosing || 0}
+        credits={calc.totalCredits || 0}
+        isRefi={isRefi}
+      />
       </div>{/* end right column */}
       </div>{/* end two-column grid */}
 
