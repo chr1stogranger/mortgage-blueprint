@@ -341,6 +341,7 @@ export default function UnifiedHeader({
               </button>
             )
           )}
+          {auth?.userPill}
           <button
             onClick={cycleTheme}
             title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -404,7 +405,8 @@ export default function UnifiedHeader({
           display: "flex", alignItems: "center", gap: 8,
           padding: isDesktop ? "0 32px 6px" : "0 14px 6px", flexWrap: "wrap",
         }}>
-          {auth?.userPill}
+          {/* LO identity pill moved to the top controls next to the theme
+              toggle (Christo 2026-07-05). */}
           {/* Borrower/blueprint switcher moved to the left sidebar (SidebarSwitcher). */}
           {activeBorrower?.share_token && (
             <button

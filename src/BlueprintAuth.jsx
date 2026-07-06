@@ -80,16 +80,20 @@ const styles = {
     background: "rgba(248,81,73,0.1)", border: "1px solid rgba(248,81,73,0.3)",
     borderRadius: "8px", color: "#f85149", fontSize: "12px",
   },
+  // Indigo-tinted pill — reads on light AND dark themes (was hardcoded
+  // GitHub-dark #161b22, which looked like a black blob in light mode).
   userPill: {
     display: "inline-flex", alignItems: "center", gap: "6px",
-    padding: "4px 10px", background: "#161b22", border: "1px solid #30363d",
-    borderRadius: "20px", fontSize: "11px", color: "#8b949e",
+    padding: "3px 8px", background: "rgba(99,102,241,0.10)",
+    border: "1px solid rgba(99,102,241,0.35)",
+    borderRadius: "9999px", fontSize: "11px", fontWeight: 600, color: "#6366F1",
+    fontFamily: "'Inter', system-ui, sans-serif", whiteSpace: "nowrap",
   },
-  avatar: { width: "20px", height: "20px", borderRadius: "50%", border: "1px solid #30363d" },
+  avatar: { width: "18px", height: "18px", borderRadius: "50%", border: "1px solid rgba(99,102,241,0.35)" },
   signOutBtn: {
-    fontSize: "11px", color: "#8b949e", background: "none",
-    border: "1px solid #30363d", borderRadius: "6px", padding: "2px 6px",
-    cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif", marginLeft: "4px",
+    fontSize: "10px", color: "#6366F1", background: "none",
+    border: "1px solid rgba(99,102,241,0.35)", borderRadius: "9999px", padding: "2px 8px",
+    cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif", marginLeft: "2px",
   },
 };
 
