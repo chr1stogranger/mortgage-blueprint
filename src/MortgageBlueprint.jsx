@@ -2069,6 +2069,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setBorrowerScenariosLoading(false);
  };
 
+ // ── Deep link: ?client=<borrower_id> (from Ops BP column) opens that client ──
+ // Signed-in LOs only. Waits for borrowerList to load; if the id matches one of
+ // the LO's borrowers, open it and strip the param. Unknown id = silent no-op.
+ const deepLinkClientConsumedRef = useRef(false);
+ useEffect(() => {
+  if (deepLinkClientConsumedRef.current) return;
+  if (!isCloud || isBorrower || !borrowerList.length) return;
+  let clientId = null;
+  try { clientId = new URLSearchParams(window.location.search).get('client'); } catch { /* ignore */ }
+  if (!clientId) { deepLinkClientConsumedRef.current = true; return; }
+  const b = borrowerList.find(x => String(x.id) === String(clientId));
+  if (!b) return; // not in this LO's list — no-op (re-checks if the list grows)
+  deepLinkClientConsumedRef.current = true;
+  try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
+  openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isCloud, isBorrower, borrowerList]);
+
  const switchScenario = async (name, opts = {}) => {
   // skipSave: set when the outgoing scenario was just DELETED — the old
   // unconditional save re-wrote the deleted "scenario:<name>" key, which
