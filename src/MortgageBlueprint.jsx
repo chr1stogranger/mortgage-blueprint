@@ -9,7 +9,7 @@ import {
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
 import { generateEstimateHtml } from "./lib/estimatePdf.js";
-import SendWorksheetModal, { downloadWorksheetPdf } from "./components/SendWorksheetModal.jsx";
+import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT } from "./lib/theme.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
@@ -1309,7 +1309,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [fredApiKey, setFredApiKey] = useState("");
  const [borrowerEmail, setBorrowerEmail] = useState("");
  const [showEmailModal, setShowEmailModal] = useState(false);
- const [showWorksheetModal, setShowWorksheetModal] = useState(false); // Fees Worksheet preview → Gmail send
+ const [showWorksheetModal, setShowWorksheetModal] = useState(false); // Fees Worksheet preview → Gmail send (LO)
+ const [showBorrowerSend, setShowBorrowerSend] = useState(false); // "Email me this worksheet" (borrower/local via Resend)
  // ── Share modal: live-link send state (ephemeral, modal-local) ──
  // liveLinkSending disables both new buttons during the create-borrower →
  // save-scenario chain (~500ms–1.5s). liveLinkError surfaces server / cloud
@@ -2309,6 +2310,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyTBD, propertyAddress, city, propertyState, propertyZip,
   loNmls, loPhone, loEmail, isRefi, refiSkipMonths, refiPurpose, refiHomeValue, refiCashOut,
   salesPrice, downPct, loanType, term, rate, hoa, creditScore, includeEscrow,
+  closingMonth, closingDay, closingYear,
   discountPts, originatorComp, underwritingFee, adminFee, lenderWireFee,
   appraisalFee, creditReportFee, processingFee, floodCertFee, mersFee, taxServiceFee,
   titleInsurance, escrowFee, courierFee, loanTieInFee,
@@ -2339,13 +2341,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ].filter((l) => l !== null && l !== undefined);
   return lines.join("\n");
  };
- // Primary email action: Gmail preview→send when available, mailto otherwise.
+ // Primary email action, by audience:
+ // - Signed-in LO on web → Gmail preview→send modal (their own Gmail).
+ // - Borrower (live link) or local-mode/App Store user → "Email me this
+ //   worksheet" via the Ops Resend endpoint (LO auto-BCC'd = lead signal).
+ // - Anything else (no client ID at all) → legacy mailto.
+ const isSignedInLO = !isBorrower && isCloud && gmailSendAvailable();
  const handleEmailWorksheet = () => {
-  if (gmailSendAvailable()) setShowWorksheetModal(true);
+  if (isSignedInLO) setShowWorksheetModal(true);
+  else if (isBorrower || !isCloud) setShowBorrowerSend(true);
   else handleEmailSummary();
  };
  const handleDownloadWorksheet = () => {
-  downloadWorksheetPdf(buildWorksheetProps(), scenarioName).catch((e) => {
+  downloadWorksheetPdf(buildWorksheetProps(), scenarioName, borrowerName).catch((e) => {
    console.error("Worksheet download failed:", e);
    alert("Could not generate the PDF — please try again.");
   });
@@ -4766,7 +4774,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    loEmail={loEmail}
    loanOfficer={loanOfficer}
    scenarioName={scenarioName}
+   borrowerName={borrowerName}
+   realtorPartner={realtorPartner}
    onFallbackMailto={handleEmailSummary}
+  />}
+  {/* ═══ BORROWER "EMAIL ME THIS WORKSHEET" (Resend via Ops) ═══ */}
+  {showBorrowerSend && <BorrowerSendModal
+   open={showBorrowerSend}
+   onClose={() => setShowBorrowerSend(false)}
+   T={T}
+   buildWorksheetProps={buildWorksheetProps}
+   scenarioName={scenarioName}
+   borrowerName={borrowerName}
+   defaultTo={borrowerEmail}
+   loanOfficer={loanOfficer}
+   loEmail={loEmail}
   />}
   {/* ═══ SHARE MODAL ═══ */}
   {showEmailModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowEmailModal(false)}>

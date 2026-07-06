@@ -10,13 +10,40 @@
 // only ever loaded through renderWorksheetBlob()'s dynamic import, so the
 // main bundle does not grow.
 //
-// Fonts: react-pdf's built-in Helvetica (labels) + Courier (figures). Brand
-// fonts (Inter / JetBrains Mono) need bundled TTFs — drop them in
-// src/assets/fonts and Font.register here as a follow-up; everything else
-// about the layout already matches the Brand Kit.
+// Fonts: brand fonts per the Brand Kit — Inter (labels) + JetBrains Mono
+// (figures), bundled as TTFs in src/assets/fonts and registered below.
 
 import React from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
+import interRegular from "../assets/fonts/Inter_400Regular.ttf";
+import interBold from "../assets/fonts/Inter_700Bold.ttf";
+import jbmRegular from "../assets/fonts/JetBrainsMono_400Regular.ttf";
+import jbmBold from "../assets/fonts/JetBrainsMono_700Bold.ttf";
+
+// Brand fonts (Inter labels, JetBrains Mono figures — Brand Kit). Bundled
+// TTFs ride in the lazy PDF chunk. `new URL`-style asset paths come back as
+// file:// URLs under vitest/node — normalize so fontkit can read them there.
+const fontSrc = (u) => {
+  const s = String(u);
+  if (s.startsWith("file://")) return decodeURIComponent(s.slice(7));
+  // Under vitest/node, Vite returns root-relative "/src/..." asset paths —
+  // resolve them against this module's real disk location for fontkit.
+  if (s.startsWith("/src/") && typeof window === "undefined" && typeof process !== "undefined" && process.versions?.node) {
+    try { return decodeURIComponent(new URL("../" + s.slice(5), import.meta.url).pathname); } catch { /* fall through */ }
+  }
+  return s;
+};
+try {
+  Font.register({ family: "Inter", src: fontSrc(interRegular) });
+  Font.register({ family: "Inter-Bold", src: fontSrc(interBold) });
+  Font.register({ family: "JetBrains Mono", src: fontSrc(jbmRegular) });
+  Font.register({ family: "JetBrains Mono Bold", src: fontSrc(jbmBold) });
+  // Money strings shouldn't hyphenate/wrap mid-figure.
+  Font.registerHyphenationCallback((word) => [word]);
+} catch (e) {
+  // If registration fails we render with react-pdf defaults rather than break sends.
+  console.error("Worksheet font registration failed:", e);
+}
 
 // ── Formatters (PDF always shows real numbers; in-app PRIVACY mode is a
 //    display concern and must never redact a borrower-facing document) ──
@@ -38,45 +65,45 @@ const GREEN = "#10B981";
 const TINT = "#EEF0FE"; // indigo @ ~8% on white
 
 const s = StyleSheet.create({
-  page: { paddingTop: 20, paddingBottom: 16, paddingHorizontal: 34, fontFamily: "Helvetica", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
+  page: { paddingTop: 18, paddingBottom: 14, paddingHorizontal: 34, fontFamily: "Inter", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
   // Header
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  loName: { fontFamily: "Helvetica-Bold", fontSize: 15 },
+  loName: { fontFamily: "Inter-Bold", fontSize: 15 },
   loMeta: { fontSize: 8.5, color: SUB, marginTop: 2 },
-  hTitle: { fontFamily: "Helvetica-Bold", fontSize: 19, color: INDIGO, textAlign: "right" },
+  hTitle: { fontFamily: "Inter-Bold", fontSize: 19, color: INDIGO, textAlign: "right" },
   hSub: { fontSize: 8.5, color: SUB, textAlign: "right", marginTop: 2 },
   rule: { height: 2, backgroundColor: INDIGO, marginTop: 7, marginBottom: 6 },
   advisory: { fontSize: 8.5, color: SUB, textAlign: "center", marginBottom: 4 },
   metaRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED, marginBottom: 6 },
   // Loan summary grid
   grid: { flexDirection: "row", flexWrap: "wrap", borderWidth: 1, borderColor: HAIR, backgroundColor: "#FAFAFA", borderRadius: 4, padding: 5, marginBottom: 8 },
-  cell: { width: "33.33%", paddingVertical: 2.5, paddingHorizontal: 6 },
-  cellLabel: { fontSize: 7, color: MUTED, textTransform: "uppercase", letterSpacing: 0.5 },
-  cellValue: { fontFamily: "Courier-Bold", fontSize: 9.5, marginTop: 1.5 },
+  cell: { width: "33.33%", paddingVertical: 2, paddingHorizontal: 6 },
+  cellLabel: { fontSize: 7, color: MUTED, textTransform: "uppercase", letterSpacing: 0.5, lineHeight: 1.15 },
+  cellValue: { fontFamily: "JetBrains Mono Bold", fontSize: 9.5, marginTop: 1, lineHeight: 1.15 },
   // Columns of fee boxes
   cols: { flexDirection: "row", gap: 10 },
   col: { flex: 1 },
-  box: { borderWidth: 1, borderColor: HAIR, borderRadius: 4, marginBottom: 8, overflow: "hidden" },
+  box: { borderWidth: 1, borderColor: HAIR, borderRadius: 4, marginBottom: 7, overflow: "hidden" },
   secHead: { flexDirection: "row", justifyContent: "space-between", backgroundColor: TINT, paddingVertical: 4, paddingHorizontal: 8 },
-  secTitle: { fontFamily: "Helvetica-Bold", fontSize: 8.5, color: INDIGO, textTransform: "uppercase", letterSpacing: 0.8 },
-  secTotal: { fontFamily: "Courier-Bold", fontSize: 9, color: INDIGO },
-  subHead: { fontFamily: "Helvetica-Bold", fontSize: 7.5, color: SUB, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 8, paddingTop: 4, paddingBottom: 2 },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.1, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: HAIR },
-  rowLabel: { fontSize: 8.5, color: SUB, flexShrink: 1, paddingRight: 6 },
-  rowValue: { fontFamily: "Courier", fontSize: 8.5, color: INK },
+  secTitle: { fontFamily: "Inter-Bold", fontSize: 8.5, color: INDIGO, textTransform: "uppercase", letterSpacing: 0.8 },
+  secTotal: { fontFamily: "JetBrains Mono Bold", fontSize: 9, color: INDIGO },
+  subHead: { fontFamily: "Inter-Bold", fontSize: 7.5, color: SUB, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 8, paddingTop: 3, paddingBottom: 2, lineHeight: 1.2 },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 1.8, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: HAIR },
+  rowLabel: { fontSize: 8.5, color: SUB, flexShrink: 1, paddingRight: 6, lineHeight: 1.2 },
+  rowValue: { fontFamily: "JetBrains Mono", fontSize: 8.5, color: INK, lineHeight: 1.2 },
   totalBar: { flexDirection: "row", justifyContent: "space-between", backgroundColor: INDIGO, paddingVertical: 5, paddingHorizontal: 8 },
-  totalLabel: { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#FFFFFF", textTransform: "uppercase", letterSpacing: 0.6 },
-  totalValue: { fontFamily: "Courier-Bold", fontSize: 10, color: "#FFFFFF" },
+  totalLabel: { fontFamily: "Inter-Bold", fontSize: 9, color: "#FFFFFF", textTransform: "uppercase", letterSpacing: 0.6 },
+  totalValue: { fontFamily: "JetBrains Mono Bold", fontSize: 10, color: "#FFFFFF" },
   // Footer
-  disclaimer: { fontSize: 6.8, color: MUTED, lineHeight: 1.45, marginTop: 2 },
-  footBrand: { fontSize: 8, fontFamily: "Helvetica-Bold", color: INK, marginTop: 6 },
+  disclaimer: { fontSize: 6.6, color: MUTED, lineHeight: 1.35, marginTop: 2 },
+  footBrand: { fontSize: 8, fontFamily: "Inter-Bold", color: INK, marginTop: 6 },
   footGen: { fontSize: 7, color: MUTED, marginTop: 2 },
 });
 
 const Row = ({ label, value, color, bold, cents }) => (
   <View style={s.row}>
-    <Text style={[s.rowLabel, bold ? { fontFamily: "Helvetica-Bold", color: INK } : null]}>{label}</Text>
-    <Text style={[s.rowValue, bold ? { fontFamily: "Courier-Bold" } : null, color ? { color } : null]}>
+    <Text style={[s.rowLabel, bold ? { fontFamily: "Inter-Bold", color: INK } : null]}>{label}</Text>
+    <Text style={[s.rowValue, bold ? { fontFamily: "JetBrains Mono Bold" } : null, color ? { color } : null]}>
       {typeof value === "number" ? (cents ? usd2(value) : usd(value)) : value}
     </Text>
   </View>
@@ -180,8 +207,8 @@ export function FeesWorksheetDoc(p) {
           <View>
             <Text style={s.hTitle}>FEES WORKSHEET</Text>
             <Text style={s.hSub}>
-              <Text style={{ color: INK, fontFamily: "Helvetica-Bold" }}>Real</Text>
-              <Text style={{ color: INDIGO, fontFamily: "Helvetica-Bold" }}>Stack</Text>
+              <Text style={{ color: INK, fontFamily: "Inter-Bold" }}>Real</Text>
+              <Text style={{ color: INDIGO, fontFamily: "Inter-Bold" }}>Stack</Text>
               {"  Blueprint"}
             </Text>
             {!!p.borrowerName && <Text style={s.hSub}>Prepared for {p.borrowerName}</Text>}
@@ -209,6 +236,22 @@ export function FeesWorksheetDoc(p) {
           <Cell label="Property" value={propLine !== "—" ? propLine : locLine} />
           <Cell label="Escrow (Impounds)" value={p.includeEscrow ? "Yes" : "Waived"} />
           <Cell label="Credit Score" value={p.creditScore > 0 ? String(p.creditScore) : "Not verified"} />
+          {p.closingMonth > 0 && (() => {
+            // Closing date from state; first payment = 1st of the second month
+            // after closing (prepaids cover the closing month, the next full
+            // month's interest is paid in arrears with that first payment).
+            const cy = p.closingYear || new Date().getFullYear();
+            const closeStr = new Date(cy, p.closingMonth - 1, p.closingDay || 1)
+              .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const fp = new Date(cy, (p.closingMonth - 1) + 2, 1);
+            const fpStr = fp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            return (
+              <>
+                <Cell label="Closing Date" value={closeStr} />
+                <Cell label="First Payment" value={fpStr} />
+              </>
+            );
+          })()}
         </View>
 
         {/* Fee sections — two columns */}

@@ -30,6 +30,16 @@ async function renderWorksheetBlob(worksheetProps) {
   return pdf(React.createElement(FeesWorksheetDoc, worksheetProps)).toBlob();
 }
 
+// Smart filename: FeesWorksheet-{BorrowerLastName|Scenario}-{MonDD}.pdf so
+// inboxes and Downloads folders sort cleanly (Christo 2026-07-05).
+export function worksheetFileName(borrowerName, scenarioName) {
+  const last = (borrowerName || "").trim().split(/\s+/).pop() || "";
+  const base = (last || scenarioName || "Scenario").replace(/[^A-Za-z0-9-_ ]/g, "").trim().replace(/\s+/g, "-");
+  const d = new Date();
+  const datePart = `${d.toLocaleDateString("en-US", { month: "short" })}${d.getDate()}`;
+  return `FeesWorksheet-${base}-${datePart}.pdf`;
+}
+
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -57,7 +67,9 @@ export default function SendWorksheetModal({
   open, onClose, T,
   buildWorksheetProps,       // () => props object for FeesWorksheetDoc
   defaultTo, defaultSubject, defaultBody,
-  loEmail, loanOfficer, scenarioName,
+  loEmail, loanOfficer, scenarioName, borrowerName,
+  realtorPartner,            // optional { name, email } — enables the CC chip
+  logMeta,                   // optional { scenarioName, borrowerName } for the send log
   onFallbackMailto,          // () => void — old mailto path
 }) {
   const [to, setTo] = useState(defaultTo || "");
@@ -65,6 +77,7 @@ export default function SendWorksheetModal({
   const [body, setBody] = useState(defaultBody || "");
   const [phase, setPhase] = useState("idle"); // idle | sending | sent | error
   const [error, setError] = useState(null);
+  const [ccRealtor, setCcRealtor] = useState(false); // off by default — LO opts in per send
   const linked = !!getStoredGmailToken();
 
   // Re-seed fields each time the modal opens (scenario may have changed).
@@ -75,11 +88,12 @@ export default function SendWorksheetModal({
       setBody(defaultBody || "");
       setPhase("idle");
       setError(null);
+      setCcRealtor(false);
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const emailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()), [to]);
-  const fileName = `FeesWorksheet-${(scenarioName || "Scenario").replace(/[^A-Za-z0-9-_ ]/g, "").trim().replace(/\s+/g, "-")}.pdf`;
+  const fileName = worksheetFileName(borrowerName, scenarioName);
 
   if (!open) return null;
 
@@ -104,8 +118,18 @@ export default function SendWorksheetModal({
         subject: subject.trim() || "Your Fees Worksheet",
         htmlBody: bodyToHtml(body),
         fromName: loanOfficer || undefined,
+        cc: (ccRealtor && realtorPartner?.email) ? realtorPartner.email : undefined,
         bcc: loEmail || undefined,
         attachments: [{ filename: fileName, mimeType: "application/pdf", contentBase64 }],
+        // Best-effort send log (written server-side to Supabase; see Ops gmail.js)
+        log: {
+          borrowerEmail: to.trim(),
+          borrowerName: logMeta?.borrowerName || borrowerName || "",
+          scenarioName: logMeta?.scenarioName || scenarioName || "",
+          loEmail: loEmail || "",
+          sentVia: "gmail",
+          ccRealtor: !!(ccRealtor && realtorPartner?.email),
+        },
       };
       let token = await ensureGmailToken();
       let res = await postSend(token, payload);
@@ -175,6 +199,18 @@ export default function SendWorksheetModal({
               BCC: {loEmail}
             </div>
           )}
+          {realtorPartner?.email && (
+            <button onClick={() => setCcRealtor(!ccRealtor)} title={ccRealtor ? "Remove realtor from CC" : "CC the realtor on this email"}
+              style={{
+                fontSize: 11.5, fontFamily: MONO, cursor: "pointer",
+                color: ccRealtor ? T.blue : T.textTertiary,
+                background: ccRealtor ? `${T.blue}14` : "transparent",
+                border: `1px ${ccRealtor ? "solid" : "dashed"} ${ccRealtor ? `${T.blue}50` : T.separator}`,
+                borderRadius: 9999, padding: "5px 12px",
+              }}>
+              {ccRealtor ? "✓ " : "+ "}CC {realtorPartner.name || realtorPartner.email}
+            </button>
+          )}
         </div>
 
         {phase === "error" && (
@@ -214,14 +250,92 @@ export default function SendWorksheetModal({
 }
 
 // Shared helper so callers can offer "Download PDF" from the same renderer.
-export async function downloadWorksheetPdf(worksheetProps, scenarioName) {
+export async function downloadWorksheetPdf(worksheetProps, scenarioName, borrowerName) {
   const blob = await renderWorksheetBlob(worksheetProps);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `FeesWorksheet-${(scenarioName || "Scenario").replace(/[^A-Za-z0-9-_ ]/g, "").trim().replace(/\s+/g, "-")}.pdf`;
+  a.download = worksheetFileName(borrowerName, scenarioName);
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+// ── Borrower self-send: "Email me this worksheet" via the Ops Resend
+//    endpoint (no Google auth — works for local-mode/App Store users and
+//    live-link borrowers). The LO is BCC'd server-side on every send, which
+//    doubles as a lead-intent signal. ──
+export function BorrowerSendModal({
+  open, onClose, T,
+  buildWorksheetProps, scenarioName, borrowerName,
+  defaultTo, loanOfficer, loEmail,
+}) {
+  const [to, setTo] = useState(defaultTo || "");
+  const [phase, setPhase] = useState("idle");
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    if (open) { setTo(defaultTo || ""); setPhase("idle"); setError(null); }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const emailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()), [to]);
+  if (!open) return null;
+
+  const handleSend = async () => {
+    setPhase("sending");
+    setError(null);
+    try {
+      const blob = await renderWorksheetBlob(buildWorksheetProps());
+      const contentBase64 = await blobToBase64(blob);
+      if (contentBase64.length > MAX_B64_CHARS) throw new Error("PDF too large — use Save PDF instead.");
+      const res = await fetch(`${API_BASE}/api/worksheet-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: to.trim(),
+          borrowerName: borrowerName || "",
+          scenarioName: scenarioName || "",
+          loName: loanOfficer || "",
+          loEmail: loEmail || "",
+          filename: worksheetFileName(borrowerName, scenarioName),
+          contentBase64,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `Send failed (${res.status})`);
+      }
+      setPhase("sent");
+      setTimeout(() => onClose(true), 1600);
+    } catch (e) {
+      setPhase("error");
+      setError(e.message || "Something went wrong.");
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+      onClick={() => phase !== "sending" && onClose(false)}>
+      <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 460, width: "100%", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Email Me This Worksheet</div>
+          <button onClick={() => phase !== "sending" && onClose(false)}
+            style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
+        </div>
+        <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14, fontFamily: FONT }}>
+          Get the full fees worksheet PDF for this scenario in your inbox{loanOfficer ? ` — prepared by ${loanOfficer}` : ""}.
+        </div>
+        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="you@email.com" inputMode="email" autoCapitalize="none"
+          style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, marginBottom: 12 }} />
+        {phase === "error" && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10 }}>{error}</div>}
+        {phase === "sent" ? (
+          <div style={{ textAlign: "center", padding: "12px 0", fontSize: 15, fontWeight: 700, color: T.green || "#10B981", fontFamily: FONT }}>✓ Sent — check your inbox</div>
+        ) : (
+          <button onClick={handleSend} disabled={!emailValid || phase === "sending"}
+            style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: !emailValid ? T.pillBg : "linear-gradient(135deg, #6366F1, #3B82F6)", color: !emailValid ? T.textTertiary : "#fff", fontWeight: 700, fontSize: 15, cursor: !emailValid || phase === "sending" ? "default" : "pointer", fontFamily: FONT, boxShadow: emailValid ? "0 0 20px rgba(99,102,241,0.3)" : "none" }}>
+            {phase === "sending" ? "Sending…" : "Send to my email"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
