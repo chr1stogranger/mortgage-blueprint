@@ -3320,6 +3320,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   d.setDate(d.getDate() + 30);
   setClosingMonth(d.getMonth() + 1);
   setClosingDay(d.getDate());
+  setClosingYear(d.getFullYear());
  }, [isRefi]);
  // Auto-set Section C defaults for refi: flat escrow fee, zero title/search/settlement
  useEffect(() => {
@@ -3336,8 +3337,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setEnvProtectionLien(0);
   } else {
    setTitleInsurance(2000);
-   setTitleSearch(1261);
-   setSettlementFee(502);
+   setTitleSearch(0);   // retired fee (2026-07-05)
+   setSettlementFee(0); // retired fee (2026-07-05)
    setEscrowFee(2400);
    setAppraisalFee(850);
    setCourierFee(150);
@@ -3524,6 +3525,58 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const loanCategory = baseLoan <= confLimit ? "Conforming" : baseLoan <= highBalLimit ? "High Balance" : "Jumbo";
   const maxDTI = MAX_DTI[loanType] || 0.50;
   const yourDTI = computeDTI(totalPayment, qualifyingIncome); // fraction (0.43 = 43%) or null
+  // ── Refi current-loan math — moved ABOVE the fee section (2026-07-05) so
+  //    refiNewLoanAmt exists when points + prepaid interest are computed.
+  //    Previously those used the purchase `loan` even in refi mode. ──
+  const refiOrigNp = refiOriginalTerm * 12;
+  const refiOrigMr = (refiCurrentRate / 100) / 12;
+  const refiCalcPI = calcPI(refiOriginalAmount, refiCurrentRate, refiOriginalTerm);
+  const refiMonthsElapsed = (() => {
+   if (!refiClosedDate) return 0;
+   const cd = new Date(refiClosedDate + "T00:00:00");
+   if (isNaN(cd)) return 0;
+   const now = new Date();
+   return Math.max(0, (now.getFullYear() - cd.getFullYear()) * 12 + (now.getMonth() - cd.getMonth()));
+  })();
+  const refiCalcRemainingMonths = Math.max(0, refiOrigNp - refiMonthsElapsed);
+  const refiCalcBalance = (() => {
+   if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return 0;
+   let bal = refiOriginalAmount;
+   const pmtWithExtra = refiCalcPI + (refiExtraPaid || 0);
+   for (let m = 0; m < refiMonthsElapsed && bal > 0; m++) {
+    const intPmt = bal * refiOrigMr;
+    bal -= (pmtWithExtra - intPmt);
+   }
+   return Math.max(0, bal);
+  })();
+  const refiMinBalance = (() => {
+   if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return 0;
+   let bal = refiOriginalAmount;
+   for (let m = 0; m < refiMonthsElapsed && bal > 0; m++) {
+    const intPmt = bal * refiOrigMr;
+    bal -= (refiCalcPI - intPmt);
+   }
+   return Math.max(0, bal);
+  })();
+  const refiEffPI = refiOriginalAmount > 0 ? refiCalcPI : refiCurrentPayment;
+  const refiEffBalance = refiOriginalAmount > 0 && refiClosedDate ? refiCalcBalance : refiCurrentBalance;
+  const refiEffRemaining = refiClosedDate ? refiCalcRemainingMonths : refiRemainingMonths;
+  const refiCurMr = (refiCurrentRate / 100) / 12;
+  const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : refiCurrentEscrow;
+  const refiCurMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.6 : 0);
+  const refiCurMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.4 : 0);
+  const refiCurTotalPmt = refiEffPI + (refiHasEscrow ? refiCurEscrowEffective : 0) + refiCurrentMI;
+  const refiCurIntThisMonth = refiEffBalance * refiCurMr;
+  const refiCurPrinThisMonth = refiEffPI - refiCurIntThisMonth;
+  const refiCurRemainingInt = (() => { if (!isRefi || refiEffPI <= 0) return 0; let bal = refiEffBalance, total = 0; for (let m = 0; m < refiEffRemaining && bal > 0; m++) { const intPmt = bal * refiCurMr; total += intPmt; bal -= (refiEffPI - intPmt); } return total; })();
+  const refiCurTotalRemaining = refiCurRemainingInt + refiEffBalance;
+  const refiCurTotalCostRemaining = refiEffPI * refiEffRemaining;
+  const refiCurLTV = refiHomeValue > 0 ? refiEffBalance / refiHomeValue : 0;
+  const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
+  const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
+  // Loan basis for $-fees that scale with the loan: refi uses the NEW refi
+  // loan amount; purchase uses the purchase loan.
+  const feeLoanBasis = isRefi ? (refiNewLoanAmt || loan) : loan;
   const ttEntry = getTTForCity(transferTaxCity, salesPrice);
   const isSF = ttEntry.sfSeller === true;
   // Two independent splits — buyer's share of city vs county.
@@ -3533,7 +3586,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const countyTTRate = propertyState === "California" ? 1.10 : 0;
   const buyerCityTT = isRefi ? 0 : (salesPrice / 1000 * ttEntry.rate) * cityBuyerShare;
   const buyerCountyTT = isRefi ? 0 : (salesPrice / 1000 * countyTTRate) * countyBuyerShare;
-  const pointsCost = loan * (discountPts / 100);
+  const pointsCost = feeLoanBasis * (discountPts / 100);
   const origCharges = underwritingFee + adminFee + lenderWireFee + pointsCost + originatorComp;
   const hoaCert = (!isRefi && (propType === "Condo" || propType === "Townhouse")) ? 500 : 0;
   const cannotShop = appraisalFee + creditReportFee + floodCertFee + mersFee + processingFee + taxServiceFee;
@@ -3552,7 +3605,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const daysInCloseMonth = new Date(closeYear, closingMonth, 0).getDate();
   const daysToMonthEnd = daysInCloseMonth - closingDay;
   const autoPrepaidDays = daysToMonthEnd + 1;
-  const dailyInt = (loan * rate / 100) / 365;
+  const dailyInt = (feeLoanBasis * rate / 100) / 365;
   const prepaidInt = dailyInt * autoPrepaidDays;
   const prepaidIns = annualIns;
   const daysToYearEnd = Math.ceil((new Date(closeDate.getFullYear(), 11, 31) - closeDate) / (1000 * 60 * 60 * 24));
@@ -3609,52 +3662,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const schedENetIncome = schedEGrossIncome - schedETotalExpenses;
   const schedECashFlow = schedEGrossIncome - schedECashExpenses - (pi * 12);
   const netPostSaleExpense = afterTaxPayment - monthlyPrinReduction - monthlyAppreciation;
-  const refiOrigNp = refiOriginalTerm * 12;
-  const refiOrigMr = (refiCurrentRate / 100) / 12;
-  const refiCalcPI = calcPI(refiOriginalAmount, refiCurrentRate, refiOriginalTerm);
-  const refiMonthsElapsed = (() => {
-   if (!refiClosedDate) return 0;
-   const cd = new Date(refiClosedDate + "T00:00:00");
-   if (isNaN(cd)) return 0;
-   const now = new Date();
-   return Math.max(0, (now.getFullYear() - cd.getFullYear()) * 12 + (now.getMonth() - cd.getMonth()));
-  })();
-  const refiCalcRemainingMonths = Math.max(0, refiOrigNp - refiMonthsElapsed);
-  const refiCalcBalance = (() => {
-   if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return 0;
-   let bal = refiOriginalAmount;
-   const pmtWithExtra = refiCalcPI + (refiExtraPaid || 0);
-   for (let m = 0; m < refiMonthsElapsed && bal > 0; m++) {
-    const intPmt = bal * refiOrigMr;
-    bal -= (pmtWithExtra - intPmt);
-   }
-   return Math.max(0, bal);
-  })();
-  const refiMinBalance = (() => {
-   if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return 0;
-   let bal = refiOriginalAmount;
-   for (let m = 0; m < refiMonthsElapsed && bal > 0; m++) {
-    const intPmt = bal * refiOrigMr;
-    bal -= (refiCalcPI - intPmt);
-   }
-   return Math.max(0, bal);
-  })();
-  const refiEffPI = refiOriginalAmount > 0 ? refiCalcPI : refiCurrentPayment;
-  const refiEffBalance = refiOriginalAmount > 0 && refiClosedDate ? refiCalcBalance : refiCurrentBalance;
-  const refiEffRemaining = refiClosedDate ? refiCalcRemainingMonths : refiRemainingMonths;
-  const refiCurMr = (refiCurrentRate / 100) / 12;
-  const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : refiCurrentEscrow;
-  const refiCurMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.6 : 0);
-  const refiCurMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.4 : 0);
-  const refiCurTotalPmt = refiEffPI + (refiHasEscrow ? refiCurEscrowEffective : 0) + refiCurrentMI;
-  const refiCurIntThisMonth = refiEffBalance * refiCurMr;
-  const refiCurPrinThisMonth = refiEffPI - refiCurIntThisMonth;
-  const refiCurRemainingInt = (() => { if (!isRefi || refiEffPI <= 0) return 0; let bal = refiEffBalance, total = 0; for (let m = 0; m < refiEffRemaining && bal > 0; m++) { const intPmt = bal * refiCurMr; total += intPmt; bal -= (refiEffPI - intPmt); } return total; })();
-  const refiCurTotalRemaining = refiCurRemainingInt + refiEffBalance;
-  const refiCurTotalCostRemaining = refiEffPI * refiEffRemaining;
-  const refiCurLTV = refiHomeValue > 0 ? refiEffBalance / refiHomeValue : 0;
-  const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
-  const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   const refiNewMr = mr;
   const refiNewPi = calcPI(refiNewLoanAmt, rate, term);
   const refiNewMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : yearlyTax / 12;
