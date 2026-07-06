@@ -846,7 +846,7 @@ export default function CostsContent(props) {
       {/* ─── MASTER 1: Closing Costs (collapsed in guided, open otherwise) ─── */}
       <div data-field="closing-costs" />
       <CollapsibleBox title="Closing Costs" total={fmt2(totalClosingCosts)} defaultOpen={!isGuided}
-        headerExtra={masterLockPill(isRefi ? ["A", "B", "C", "E"] : ["A", "B", "C", "E", "H"])}>
+        headerExtra={masterLockPill(isRefi ? ["A", "B", "C"] : ["A", "B", "C", "H"])}>
 
         {/* A. Origination Charges — lockable */}
         <LetterSection letter="A" title="Origination Charges" total={fmt2(calc.origCharges)} lockable>
