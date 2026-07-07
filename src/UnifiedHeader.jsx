@@ -203,20 +203,32 @@ export default function UnifiedHeader({
               }} title={`Blueprint for ${borrowerName}`}>{borrowerName}</span>
             </>
           )}
-          {tab && tab !== "overview" && tabLabel && (
-            <>
-              <span style={{
-                fontSize: isDesktop ? 14 : 12, color: T.textTertiary,
-                fontWeight: 500, marginLeft: 2, marginRight: 2,
-                userSelect: "none",
-              }}>·</span>
-              <span style={{
-                fontSize: isDesktop ? 14 : 12, fontWeight: 600,
-                color: T.textSecondary, fontFamily: FONT,
-                whiteSpace: "nowrap", letterSpacing: "-0.01em",
-                minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
-              }}>{tabLabel}</span>
-            </>
+          {/* Tab-name breadcrumb removed (Christo 2026-07-07) — the sidebar
+              already shows where you are. Its slot now holds the Share Link
+              button, which used to live on its own header row; folding it in
+              here makes the fixed header one row shorter. */}
+          {isCloud && !isBorrower && activeBorrower?.share_token && (
+            <button
+              onClick={() => {
+                const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  const btn = document.getElementById('bp-copy-share-btn');
+                  if (btn) { const t = btn.querySelector('span'); if (t) { t.textContent = 'Copied!'; setTimeout(() => { t.textContent = 'Share Link'; }, 2000); } }
+                }).catch(() => { prompt('Copy this share link:', url); });
+              }}
+              id="bp-copy-share-btn"
+              style={{
+                fontSize: 10, fontWeight: 600, color: '#6366F1',
+                background: 'rgba(99,102,241,0.08)',
+                border: '1px solid rgba(99,102,241,0.2)',
+                borderRadius: 9999, padding: '3px 9px',
+                cursor: 'pointer', fontFamily: FONT, marginLeft: 6,
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+              }}
+            >
+              <Icon name="link" size={11} />
+              <span>Share Link</span>
+            </button>
           )}
           {/* Sync indicators — hidden on mobile to avoid visual overlap with centered badge */}
           {isDesktop && (
@@ -399,40 +411,9 @@ export default function UnifiedHeader({
         </div>
       )}
 
-      {/* ── LO mode row: Borrower picker + Share link ── */}
-      {isCloud && !isBorrower && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: isDesktop ? "0 32px 6px" : "0 14px 6px", flexWrap: "wrap",
-        }}>
-          {/* LO identity pill moved to the top controls next to the theme
-              toggle (Christo 2026-07-05). */}
-          {/* Borrower/blueprint switcher moved to the left sidebar (SidebarSwitcher). */}
-          {activeBorrower?.share_token && (
-            <button
-              onClick={() => {
-                const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  const btn = document.getElementById('bp-copy-share-btn');
-                  if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Share Link'; }, 2000); }
-                }).catch(() => { prompt('Copy this share link:', url); });
-              }}
-              id="bp-copy-share-btn"
-              style={{
-                fontSize: 10, fontWeight: 600, color: '#6366F1',
-                background: 'rgba(99,102,241,0.08)',
-                border: '1px solid rgba(99,102,241,0.2)',
-                borderRadius: 8, padding: '4px 8px',
-                cursor: 'pointer', fontFamily: FONT,
-                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
-              }}
-            >
-              <Icon name="link" size={11} />
-              Share Link
-            </button>
-          )}
-        </div>
-      )}
+      {/* The LO-mode Share Link row was folded into Row 1 (breadcrumb slot)
+          on 2026-07-07 — it made the fixed header taller than the content
+          spacer, so the first element of every tab slid underneath it. */}
 
       {/* The mobile-only Blueprint↔PricePoint segmented toggle pill row was
           removed (2026-05-03) per Christo. Cross-product navigation is a

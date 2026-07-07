@@ -5371,7 +5371,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        Mobile header: Row 1 (48) + stats (~46) = 94px + safe-area.
        Cloud mode adds the LO picker row (+24) = 118px + safe-area.
        Desktop: Row 1 (44) + stats (48) + border = 96, no safe-area. */}
-   <div style={{ paddingTop: isDesktop ? 96 : `calc(${isCloud && !isBorrower ? 116 : 92}px + env(safe-area-inset-top, 0px))` }} />
+   {/* Header spacer — the Share Link row folded into header Row 1 (2026-07-07),
+       so LO mode no longer needs the taller 116px variant. */}
+   <div style={{ paddingTop: isDesktop ? 96 : `calc(92px + env(safe-area-inset-top, 0px))` }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ═══ CALCULATOR ═══ */}

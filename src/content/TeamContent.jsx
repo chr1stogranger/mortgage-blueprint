@@ -360,7 +360,7 @@ export default function TeamContent({
     const order = ["lo", "loa", "processor", "buyers_agent", "buyers_agent_tc", "listing_agent", "listing_agent_tc", "escrow", "title", "insurance", "other"];
     const visible = order.map(r => ({ role: r, entry: getEntry(r) })).filter(x => x.entry);
     return (
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
         <Hero value="Your Deal Team" label="The people working on your home loan — one tap to reach any of them" />
         {visible.length === 0 ? (
           <Card>
@@ -381,7 +381,7 @@ export default function TeamContent({
   // ════════ LO MODE ════════
   if (!isCloud || !borrowerId) {
     return (
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
         <Hero value="Deal Team" label="Who's working this deal — borrowers, agents, escrow, title, insurance" />
         <Note>Open a cloud client (sign in and pick a client) to build their deal team.</Note>
       </div>
@@ -391,7 +391,7 @@ export default function TeamContent({
   const statusText = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed — retrying on next change" : "";
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto" }}>
+    <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
       <Hero value="Deal Team" label={`Everyone working ${activeBorrower?.name ? `${activeBorrower.name}'s` : "this"} deal — shared with Ops and visible in the client's blueprint`} />
 
       {/* Arive auto-fill + save status row */}
