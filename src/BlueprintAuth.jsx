@@ -8,6 +8,9 @@
  * backward compatibility for the public calculator.
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { getSession, onAuthStateChange } from "./lib/supabaseClient";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 
 // ─── Context ────────────────────────────────────────────────────────────────
 const BlueprintAuthContext = createContext(null);
@@ -140,17 +143,30 @@ export default function BlueprintAuth({ children }) {
     document.head.appendChild(script);
   }, [localMode, user]);
 
-  const handleCredentialResponse = useCallback((response) => {
+  const handleCredentialResponse = useCallback(async (response) => {
     try {
       const payload = decodeJwtPayload(response.credential);
       if (!payload) throw new Error("Invalid token");
       const { email, name, picture } = payload;
       if (ALLOWED_EMAILS.includes(email)) {
         const userData = { email, name, picture };
+        // Exchange the 1-hour Google ID token for a 12-hour Ops session token
+        // (same upgrade Ops itself got). Falls back to the raw Google token.
+        let sessionToken = response.credential;
+        try {
+          const res = await fetch(`${API_BASE}/api/collab?resource=session`, {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + response.credential },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.token) sessionToken = data.token;
+          }
+        } catch { /* 1h fallback */ }
         localStorage.setItem("bp_user", JSON.stringify(userData));
-        localStorage.setItem("bp_token", response.credential);
+        localStorage.setItem("bp_token", sessionToken);
         setUser(userData);
-        setToken(response.credential);
+        setToken(sessionToken);
         setError("");
         setShowLogin(false);
       } else {
@@ -160,6 +176,42 @@ export default function BlueprintAuth({ children }) {
       setError("Sign-in failed. Please try again.");
     }
   }, []);
+
+  // ── Auto-elevate to LO mode ────────────────────────────────────────────────
+  // If the person is already signed into the calculator's account system with
+  // an LO-allowlist email (e.g. cgranger@xperthomelending.com), silently
+  // exchange that Supabase session for a 12h LO session — no separate
+  // "Sign in as Loan Officer" click in Settings. Re-runs on every auth-state
+  // change and whenever the LO session lapses (user becomes null).
+  useEffect(() => {
+    if (user) return;
+    let cancelled = false;
+    const tryElevate = async (session) => {
+      try {
+        const s = session || await getSession();
+        const email = (s?.user?.email || "").toLowerCase();
+        if (!email || !ALLOWED_EMAILS.some(e => e.toLowerCase() === email)) return;
+        const res = await fetch(`${API_BASE}/api/collab?resource=lo-session`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + s.access_token },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!data?.token || !data?.user) return;
+        localStorage.setItem("bp_user", JSON.stringify(data.user));
+        localStorage.setItem("bp_token", data.token);
+        setUser(data.user);
+        setToken(data.token);
+        setLocalMode(false);
+        setShowLogin(false);
+        setError("");
+      } catch { /* silent — the Settings button remains the fallback */ }
+    };
+    tryElevate();
+    const sub = onAuthStateChange((newSession) => { if (newSession && !cancelled) tryElevate(newSession); });
+    return () => { cancelled = true; sub?.unsubscribe?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   useEffect(() => {
     if (!scriptLoaded || !window.google || user) return;
