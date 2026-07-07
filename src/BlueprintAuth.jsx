@@ -8,7 +8,7 @@
  * backward compatibility for the public calculator.
  */
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
-import { getSession, onAuthStateChange } from "./lib/supabaseClient";
+import { getSession, onAuthStateChange, signOut as supabaseSignOut } from "./lib/supabaseClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 
@@ -247,7 +247,13 @@ export default function BlueprintAuth({ children }) {
     });
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    // End the Supabase session FIRST and await it — the auto-elevate effect
+    // re-exchanges any live session for a fresh LO token the moment `user`
+    // goes null, which made Sign out loop straight back to signed-in
+    // (Christo hit this 2026-07-07). With the session gone, tryElevate's
+    // getSession() returns null and the sign-out sticks.
+    try { await supabaseSignOut(); } catch { /* still clear local state below */ }
     localStorage.removeItem("bp_user");
     localStorage.removeItem("bp_token");
     setUser(null);
