@@ -40,6 +40,7 @@ import CalculatorContent from "./content/CalculatorContent";
 import QualifyContent from "./content/QualifyContent";
 import TaxContent from "./content/TaxContent";
 import Prop19Content from "./content/Prop19Content";
+import TeamContent from "./content/TeamContent";
 import UnifiedHeader from "./UnifiedHeader";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
@@ -4301,6 +4302,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ...((firstTimeBuyer || showRentVsBuy) && !isRefi ? [["rentvbuy","Rent vs Buy"]] : []),
   ["learn","Learn"],
   ...(showProp19 ? [["prop19","Prop 19"]] : []),
+  // Deal Team — per-client contact roster (borrowers, loan team, agents,
+  // escrow/title/insurance). Shared with Ops; borrowers get a read-only
+  // tap-to-call view. (2026-07-06)
+  ["team","Team"],
   ["summary","Share"],
   // Settings is now visible to borrowers too (2026-05-12, per Christo: "i want
   // them all to have the same view"). Multi-client BorrowerPicker remains
@@ -4331,7 +4336,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  ];
  // Core destinations that stay PINNED above the section index. These are real
  // tab switches (not in-page scrolls), in the order Christo specified.
- const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "summary", "settings"];
+ const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "summary", "settings"];
  // Jump to an Overview section: make sure we're on the Overview tab, then scroll
  // the section into view. Polls briefly because OverviewTab is lazy-loaded and
  // may not be mounted on the same frame we switch tabs. scroll-margin-top (CSS,
@@ -4620,7 +4625,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        // sidebarCollapsed state leaked into mobile, forcing the icon to width:100%
        // and squeezing every label to zero width (icons-only, broken). (2026-06-02)
        const navCollapsed = sidebarCollapsed && isDesktop;
-       const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
+       const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        // Renders one core/destination nav item (real tab switch). Unchanged markup.
        const renderTabItem = ([k, l]) => {
         const locked = !isTabUnlocked(k);
@@ -5305,6 +5310,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "prop19" && <Prop19Content {...{T, isDesktop, fmt, prop19, prop19Eligibility, setProp19Eligibility, prop19OldTaxableValue, setProp19OldTaxableValue, prop19OldSalePrice, setProp19OldSalePrice, prop19SaleDate, setProp19SaleDate, prop19PurchaseDate, setProp19PurchaseDate, prop19TransfersUsed, setProp19TransfersUsed, city, propertyCounty, prop19RateOverride, setProp19RateOverride, fixedAssessments, setFixedAssessments, Hero, Card, Sec, Inp, Note, MRow}} />}
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && <SellContent {...{T, isDesktop, calc, fmt, reos, debts, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
+{/* ═══ DEAL TEAM ═══ */}
+{tab === "team" && <TeamContent {...{T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth, Hero, Card, Sec, Note, TextInp}} />}
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
  {/* ── CTA Buttons (top of summary) ── */}

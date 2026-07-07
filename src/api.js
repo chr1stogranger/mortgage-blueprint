@@ -233,6 +233,33 @@ export async function fetchBorrowerProfile(sessionToken) {
   return res.json();
 }
 
+// ─── Deal Team (LO only) ────────────────────────────────────────────────────
+
+// Roster + directory in one call. directory = { partners (Ops Partners rows),
+// team (active team_members) } — omitted unless includeDirectory.
+export async function fetchDealTeam(borrowerId, includeDirectory = true) {
+  const dir = includeDirectory ? '&directory=1' : '';
+  return authFetch(`/api/collab?resource=deal-team&borrower_id=${borrowerId}${dir}`);
+}
+
+export async function saveDealTeam(borrowerId, dealTeam, coborrowerEmail = null) {
+  const body = { borrower_id: borrowerId, deal_team: dealTeam };
+  if (coborrowerEmail !== null) body.coborrower_email = coborrowerEmail;
+  return authFetch('/api/collab?resource=deal-team', { method: 'PATCH', body });
+}
+
+// Arive auto-fill: match the client's email to an Arive loan and pull that
+// loan's classified businessContacts as role-keyed suggestions.
+export async function fetchAriveDealTeam(email) {
+  return authFetch(`/api/arive?action=dealteam&email=${encodeURIComponent(email)}`, { method: 'POST' });
+}
+
+// Manual adds write back to the shared Ops Partners directory (server dedupes
+// by email, so repeat saves return the existing row instead of duplicating).
+export async function addPartnerToDirectory(partner) {
+  return authFetch('/api/realtors', { method: 'POST', body: partner });
+}
+
 // ─── Auth helpers ───────────────────────────────────────────────────────────
 
 export function isAuthenticated() {
