@@ -70,6 +70,7 @@ export default function SendWorksheetModal({
   loEmail, loanOfficer, scenarioName, borrowerName,
   realtorPartner,            // optional { name, email } — enables the CC chip
   logMeta,                   // optional { scenarioName, borrowerName } for the send log
+  signatureHtml,             // optional raw-HTML signature appended below the body at send
   onFallbackMailto,          // () => void — old mailto path
 }) {
   const [to, setTo] = useState(defaultTo || "");
@@ -116,7 +117,7 @@ export default function SendWorksheetModal({
       const payload = {
         to: to.trim(),
         subject: subject.trim() || "Your Fees Worksheet",
-        htmlBody: bodyToHtml(body),
+        htmlBody: bodyToHtml(body) + (signatureHtml ? `<div style="height:16px"></div>${signatureHtml}` : ""),
         fromName: loanOfficer || undefined,
         cc: (ccRealtor && realtorPartner?.email) ? realtorPartner.email : undefined,
         bcc: loEmail || undefined,
@@ -187,6 +188,11 @@ export default function SendWorksheetModal({
           <label style={labelStyle}>Message</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={9}
             style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, minHeight: 150 }} />
+          {signatureHtml ? (
+            <div style={{ fontSize: 11.5, color: T?.textTertiary || "#888", marginTop: 6 }}>
+              ✓ Your HTML signature (Settings) is added below this message automatically
+            </div>
+          ) : null}
         </div>
 
         {/* Attachment + BCC chips */}

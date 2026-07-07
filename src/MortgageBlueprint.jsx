@@ -1371,6 +1371,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   try { localStorage.setItem("bp_email_signature", loSignature); } catch { /* private mode */ }
  }, [loSignature]);
+ // HTML signature support (matches Ops): paste real HTML (e.g. from Gmail →
+ // Settings → Signature) and it's appended to worksheet emails as rendered
+ // HTML instead of being escaped into the plain-text body.
+ const loSigIsHtml = /<[a-z][\s\S]*>/i.test(loSignature);
  const [companyName, setCompanyName] = useState(loInfoSaved.companyName ?? "Chris Granger Mortgage");
  const [companyNmls, setCompanyNmls] = useState(loInfoSaved.companyNmls ?? "2179191");
  // (Effect must sit BELOW every const it references — TDZ in deps array
@@ -2499,7 +2503,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    "",
    "Look it over and reply with any questions — happy to walk through it together.",
    "",
-   ...(loSignature.trim()
+   // HTML signatures are appended as rendered HTML at send time (see
+   // SendWorksheetModal signatureHtml) — keep them out of the text body.
+   ...(loSigIsHtml
+    ? []
+    : loSignature.trim()
     ? loSignature.trim().split("\n")
     : [
        loanOfficer || "Your Loan Officer",
@@ -4952,6 +4960,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    scenarioName={scenarioName}
    borrowerName={borrowerName}
    realtorPartner={realtorPartner}
+   signatureHtml={loSigIsHtml ? loSignature : ""}
    onFallbackMailto={handleEmailSummary}
   />}
   {/* ═══ CREATE NEW CLIENT ═══ */}
@@ -6806,15 +6815,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
     <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>Email Signature</div>
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 8, fontFamily: FONT }}>
-     Appears at the bottom of worksheet emails. Leave blank to use your name, company, NMLS, and phone from above.
+     Appears at the bottom of worksheet emails. Plain text works, or paste your <strong>HTML signature</strong> (Gmail → Settings → copy your signature's HTML) for full formatting — same as Ops. Leave blank to use your name, company, NMLS, and phone from above.
     </div>
     <textarea
      value={loSignature}
      onChange={(e) => setLoSignature(e.target.value)}
-     rows={4}
-     placeholder={"Chris Granger\nChris Granger Mortgage · NMLS #952015\n(415) 987-8489"}
-     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: 13, outline: "none", fontFamily: FONT, resize: "vertical", lineHeight: 1.5 }}
+     rows={loSigIsHtml ? 6 : 4}
+     placeholder={"Chris Granger\nChris Granger Mortgage · NMLS #952015\n(415) 987-8489\n\n…or paste HTML, e.g.\n<div style=\"font-family:Arial;font-size:13px\"><strong>Chris Granger</strong><br/>Xpert Home Lending · NMLS #952015</div>"}
+     spellCheck={false}
+     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: loSigIsHtml ? 12 : 13, outline: "none", fontFamily: loSigIsHtml ? "'JetBrains Mono', 'SF Mono', monospace" : FONT, resize: "vertical", lineHeight: 1.5 }}
     />
+    {loSigIsHtml && (
+     <div style={{ marginTop: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: T.textTertiary, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>Preview — how it renders in emails</div>
+      <div style={{ background: "#fff", border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "12px 14px", color: "#171717", overflowX: "auto" }}
+       dangerouslySetInnerHTML={{ __html: loSignature }} />
+     </div>
+    )}
    </div>
    {/* ── My Default Fees (Christo 2026-07-05): snapshot the current Costs
        fee sheet (values + added/removed fees) as this LO's template — every
