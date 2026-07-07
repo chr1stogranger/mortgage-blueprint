@@ -260,6 +260,17 @@ export async function addPartnerToDirectory(partner) {
   return authFetch('/api/realtors', { method: 'POST', body: partner });
 }
 
+// ─── Arive import (LO only) — create a Blueprint client from an Arive file ──
+
+export async function searchAriveLoans(q) {
+  return authFetch(`/api/arive?action=blueprint-import&q=${encodeURIComponent(q)}`, { method: 'POST' });
+}
+
+// Full import payload for one loan: { borrower, coborrower, prefill, deal_team, loan }
+export async function fetchAriveImport(loanId) {
+  return authFetch(`/api/arive?action=blueprint-import&id=${encodeURIComponent(loanId)}`, { method: 'POST' });
+}
+
 // ─── Auth helpers ───────────────────────────────────────────────────────────
 
 export function isAuthenticated() {

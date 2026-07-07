@@ -45,6 +45,7 @@ export default function BorrowerPicker({
   activeBorrower = null,
   onSelect,
   onCreateNew,
+  onImportArive,
   onSelectScenario,
   onAutoCreateScenario,
   scenarios = [],
@@ -290,6 +291,31 @@ export default function BorrowerPicker({
               </div>
             </div>
           </div>
+
+          {/* Import from Arive — build the client from an existing Arive file,
+              prepopulated (numbers, property, FICO, deal team). */}
+          {onImportArive && (
+            <div
+              onClick={() => { const q = search.trim(); closePicker(); onImportArive(q); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '12px',
+                cursor: 'pointer', borderTop: `1px solid ${border}`, transition: 'background 0.1s',
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%', background: `${accent}10`,
+                border: `2px dashed ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon name="download" size={14} color={accent} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: accent, fontFamily: FONT }}>Import from Arive</div>
+                <div style={{ fontSize: 10, color: textTer, fontFamily: FONT }}>
+                  Build from an existing Arive file — prepopulated
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 

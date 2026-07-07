@@ -48,6 +48,7 @@ import {
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
+  searchAriveLoans, fetchAriveImport, fetchDealTeam, saveDealTeam,
 } from "./api";
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
@@ -55,6 +56,7 @@ import LockControls from "./components/LockControls";
 import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
 import BorrowerPicker from "./components/BorrowerPicker";
+import ImportAriveModal from "./components/ImportAriveModal";
 import SidebarSwitcher from "./components/SidebarSwitcher";
 import useBlueprintShelf from "./hooks/useBlueprintShelf";
 import useAccount from "./hooks/useAccount";
@@ -1392,6 +1394,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [showBorrowerSend, setShowBorrowerSend] = useState(false); // "Email me this worksheet" (borrower/local via Resend)
  const [createClientOpen, setCreateClientOpen] = useState(false);
  const [createClientPrefill, setCreateClientPrefill] = useState("");
+ const [importAriveOpen, setImportAriveOpen] = useState(false);
+ const [importArivePrefill, setImportArivePrefill] = useState("");
  // ── Share modal: live-link send state (ephemeral, modal-local) ──
  // liveLinkSending disables both new buttons during the create-borrower →
  // save-scenario chain (~500ms–1.5s). liveLinkError surfaces server / cloud
@@ -2041,6 +2045,77 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setCreateClientPrefill(prefillName || "");
    setCreateClientOpen(true);
   },
+  onImportArive: (prefillQuery) => {
+   setImportArivePrefill(prefillQuery || "");
+   setImportAriveOpen(true);
+  },
+ };
+
+ // ── Import a client from an existing Arive file ──
+ // Creates (or dedupes onto) the borrower, merges the file's deal team
+ // (existing roster entries win), links the co-borrower email, and adds a
+ // fresh scenario prefilled from the loan. Re-importing the same file later
+ // just adds another scenario with current numbers — nothing is overwritten.
+ const handleImportAriveLoan = async (searchRow) => {
+  const payload = await fetchAriveImport(searchRow.id);
+  if (!payload?.borrower) throw new Error('Arive returned no borrower data');
+
+  // 1. Client record (POST dedupes by email and returns the existing row)
+  const createBody = {
+   name: payload.borrower.name, status: 'active', source: 'blueprint-arive',
+  };
+  if (payload.borrower.email) createBody.email = payload.borrower.email;
+  if (payload.borrower.phone) createBody.phone = payload.borrower.phone;
+  if (payload.borrower.credit_score) createBody.credit_score = payload.borrower.credit_score;
+  if (payload.borrower.first_time_buyer != null) createBody.first_time_buyer = payload.borrower.first_time_buyer;
+  const created = await createBorrower(createBody);
+  const b = Array.isArray(created) ? created[0] : created;
+  if (!b?.id) throw new Error('Could not create the client');
+
+  // Existing client: backfill FICO/phone only where empty (never clobber)
+  if (b._deduplicated) {
+   const patch = { id: b.id };
+   if (!b.credit_score && payload.borrower.credit_score) patch.credit_score = payload.borrower.credit_score;
+   if (!b.phone && payload.borrower.phone) patch.phone = payload.borrower.phone;
+   if (Object.keys(patch).length > 1) { try { await updateBorrower(patch); } catch { /* non-fatal */ } }
+  }
+
+  // 2. Deal team — merge, existing entries win; co-borrower email links spouse
+  try {
+   let existing = [], existingCo = '';
+   if (b._deduplicated) {
+    try { const cur = await fetchDealTeam(b.id, false); existing = cur.deal_team || []; existingCo = cur.coborrower_email || ''; } catch { /* fresh */ }
+   }
+   const merged = [...existing];
+   for (const e of (payload.deal_team || [])) {
+    if (!merged.some(x => x.role === e.role)) merged.push(e);
+   }
+   const coEmail = existingCo || payload.coborrower?.email || '';
+   if (merged.length || coEmail) await saveDealTeam(b.id, merged, coEmail);
+  } catch { /* deal team is best-effort — the client + scenario still land */ }
+
+  // 3. Scenario prefilled from the file
+  const label = `Arive Import${b._deduplicated ? ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
+  const newScenario = await apiCreateScenario({
+   borrower_id: b.id, name: label,
+   type: payload.prefill?.isRefi ? 'refi' : 'purchase',
+   state_data: payload.prefill || {}, calc_summary: {},
+  });
+  const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
+
+  // 4. Open it
+  setBorrowerList(prev => prev.some(x => x.id === b.id) ? prev : [...prev, b]);
+  setActiveBorrower(b);
+  setBorrowerScenarios(prev => (s?.id ? [s, ...(b._deduplicated ? prev : [])] : prev));
+  if (s?.id) {
+   loadState(payload.prefill || {});
+   setActiveScenarioId(s.id);
+   setScenarioName(s.name || label);
+   sync.initSync(payload.prefill || {}, null);
+  }
+  recordRecentBlueprint(makeClientEntry(b));
+  setImportAriveOpen(false);
+  setTab('overview');
  };
 
  // Create a client from the Create New sheet: name + optional email +
@@ -4704,6 +4779,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          onSelectScenario: borrowerPickerCallbacks.onSelectScenario,
          onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
          onCreateNew: borrowerPickerCallbacks.onCreateNew,
+         onImportArive: borrowerPickerCallbacks.onImportArive,
         }}
        />
       )}
@@ -4974,6 +5050,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    onClose={() => setCreateClientOpen(false)}
    onCreate={handleCreateClient}
    initialName={createClientPrefill}
+   T={T}
+  />}
+  {/* ═══ IMPORT CLIENT FROM ARIVE ═══ */}
+  {importAriveOpen && <ImportAriveModal
+   open={importAriveOpen}
+   onClose={() => setImportAriveOpen(false)}
+   onImport={handleImportAriveLoan}
+   searchArive={searchAriveLoans}
+   initialQuery={importArivePrefill}
    T={T}
   />}
   {/* ═══ BORROWER "EMAIL ME THIS WORKSHEET" (Resend via Ops) ═══ */}
