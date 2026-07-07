@@ -529,7 +529,10 @@ function FeeRow({
                 its siblings (per Christo's spec). Used by the closing-date pills on the
                 Prepaid Interest row. */}
             {prefixEditor && (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+              /* flexShrink 1 + wrap (was flexShrink 0): at narrow widths the
+                 pill group wraps to its own line instead of colliding with
+                 the amount column (Prepaid Interest overlap bug, 2026-07-06) */
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 1, minWidth: 0, flexWrap: "wrap", rowGap: 4, marginLeft: 8 }}>
                 {prefixEditor}
               </span>
             )}
@@ -1295,7 +1298,11 @@ export default function CostsContent(props) {
               const fpDate = new Date(closingYear || new Date().getFullYear(), (closingMonth - 1) + 2, 1);
               const fpLabel = `${fpDate.toLocaleDateString("en-US", { month: "short" })} 1${fpDate.getFullYear() !== (closingYear || new Date().getFullYear()) ? `, ${fpDate.getFullYear()}` : ""}`;
               return (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                /* Two nowrap pairs inside a wrappable group — "Closing Date [picker]"
+                   and "First Payment [pill]" each stay intact but can drop to a
+                   second line when the panel is narrow (overlap fix 2026-07-06) */
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flexWrap: "wrap", rowGap: 4, minWidth: 0 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
                   <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 500 }}>Closing Date</span>
                   <input
                     type="date"
@@ -1323,6 +1330,8 @@ export default function CostsContent(props) {
                       appearance: "none",
                     }}
                   />
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
                   <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, fontWeight: 500, marginLeft: 4 }}>First Payment</span>
                   <span style={{
                     background: T.inputBg,
@@ -1339,6 +1348,7 @@ export default function CostsContent(props) {
                     display: "inline-block",
                     whiteSpace: "nowrap",
                   }}>{fpLabel}</span>
+                  </span>
                 </span>
               );
             })()}
