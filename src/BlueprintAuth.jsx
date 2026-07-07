@@ -115,7 +115,8 @@ export default function BlueprintAuth({ children }) {
     if (savedUser && savedToken) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (ALLOWED_EMAILS.includes(parsed.email) && !isTokenExpired(savedToken)) {
+        // Membership is server-enforced on every API call (team_members table)
+        if (!isTokenExpired(savedToken)) {
           setUser(parsed);
           setToken(savedToken);
           return;
@@ -148,30 +149,40 @@ export default function BlueprintAuth({ children }) {
       const payload = decodeJwtPayload(response.credential);
       if (!payload) throw new Error("Invalid token");
       const { email, name, picture } = payload;
-      if (ALLOWED_EMAILS.includes(email)) {
-        const userData = { email, name, picture };
-        // Exchange the 1-hour Google ID token for a 12-hour Ops session token
-        // (same upgrade Ops itself got). Falls back to the raw Google token.
-        let sessionToken = response.credential;
-        try {
-          const res = await fetch(`${API_BASE}/api/collab?resource=session`, {
-            method: "POST",
-            headers: { "Authorization": "Bearer " + response.credential },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.token) sessionToken = data.token;
+      // The SERVER decides membership (shared team_members table) — exchange
+      // for a 12h session token with role. Legacy hardcoded list only as a
+      // network-failure fallback.
+      let userData = { email, name, picture };
+      let sessionToken = null;
+      try {
+        const res = await fetch(`${API_BASE}/api/collab?resource=session`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + response.credential },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            sessionToken = data.token;
+            if (data.user) userData = { ...userData, ...data.user };
           }
-        } catch { /* 1h fallback */ }
-        localStorage.setItem("bp_user", JSON.stringify(userData));
-        localStorage.setItem("bp_token", sessionToken);
-        setUser(userData);
-        setToken(sessionToken);
-        setError("");
-        setShowLogin(false);
-      } else {
-        setError("Access denied. Contact Christo to get added.");
+        } else if (res.status === 403 || res.status === 401) {
+          setError("Access denied. This account is not on the team — contact Christo to get added.");
+          return;
+        }
+      } catch { /* network trouble — legacy fallback below */ }
+      if (!sessionToken) {
+        if (!ALLOWED_EMAILS.includes(email)) {
+          setError("Access denied. Contact Christo to get added.");
+          return;
+        }
+        sessionToken = response.credential;
       }
+      localStorage.setItem("bp_user", JSON.stringify(userData));
+      localStorage.setItem("bp_token", sessionToken);
+      setUser(userData);
+      setToken(sessionToken);
+      setError("");
+      setShowLogin(false);
     } catch {
       setError("Sign-in failed. Please try again.");
     }
@@ -189,8 +200,9 @@ export default function BlueprintAuth({ children }) {
     const tryElevate = async (session) => {
       try {
         const s = session || await getSession();
-        const email = (s?.user?.email || "").toLowerCase();
-        if (!email || !ALLOWED_EMAILS.some(e => e.toLowerCase() === email)) return;
+        if (!s?.user?.email) return;
+        // No client-side allowlist — the server checks the team_members table
+        // (a non-team borrower session just gets a fast 403 and stays put).
         const res = await fetch(`${API_BASE}/api/collab?resource=lo-session`, {
           method: "POST",
           headers: { "Authorization": "Bearer " + s.access_token },
