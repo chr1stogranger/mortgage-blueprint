@@ -4693,6 +4693,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
      {/* Mode-specific nav items */}
      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+      {/* Scenarios switcher — quick toggle between saved scenarios, docked
+          right below the Blueprint/PricePoint/Markets switcher and above the
+          Overview nav so brokers can click between scenarios fast. (2026-07-07) */}
+      {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && scenarioList.length > 0 && (
+       <>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 18px 6px" }}>
+         <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, letterSpacing: 0.2, color: T.textTertiary }}>Scenarios</span>
+         <span style={{ marginLeft: "auto", fontFamily: FONT, fontSize: 11, fontWeight: 500, color: T.textTertiary }}>{scenarioList.length}</span>
+        </div>
+        {scenarioList.map((name) => {
+         const active = name === scenarioName;
+         return (
+          <div key={name} className="bp-sidebar-item" onClick={() => { if (name !== scenarioName) switchScenario(name); if (!isDesktop) setMobileMenuOpen(false); }}
+           style={{
+            padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
+            background: active ? T.tabActiveBg : "transparent",
+            borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
+           }}>
+           <span style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : T.textSecondary }}><Icon name="copy" size={15} /></span>
+           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+          </div>
+         );
+        })}
+        <div style={{ height: 1, background: T.separator, margin: "8px 12px 2px" }} />
+       </>
+      )}
       {/* Blueprint nav */}
       {appMode === "blueprint" && (() => {
        // Collapsed (icon-only) styling is a DESKTOP affordance only. The mobile
