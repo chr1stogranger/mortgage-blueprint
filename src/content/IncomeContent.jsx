@@ -721,7 +721,7 @@ function EmployerGroup({
   const borBg = `${borColor}26`;
 
   return (
-    <div style={{ background: isExpanded ? `${ACCENT}06` : T.card }}>
+    <div style={{ background: T.card }}>
       {/* Top employer row — click to expand. Grid: chevron, name +
           subtitle (flex), Current/Previous status pill, $/mo, spacer.
           The status pill is the only addition since the redundancy
