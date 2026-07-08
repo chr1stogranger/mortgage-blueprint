@@ -87,15 +87,15 @@ const styles = {
   // GitHub-dark #161b22, which looked like a black blob in light mode).
   userPill: {
     display: "inline-flex", alignItems: "center", gap: "6px",
-    padding: "3px 8px", background: "rgba(99,102,241,0.10)",
-    border: "1px solid rgba(99,102,241,0.35)",
-    borderRadius: "9999px", fontSize: "11px", fontWeight: 600, color: "#6366F1",
+    padding: "3px 8px", background: "rgba(59,130,246,0.10)",
+    border: "1px solid rgba(59,130,246,0.35)",
+    borderRadius: "9999px", fontSize: "11px", fontWeight: 600, color: "#3B82F6",
     fontFamily: "'Inter', system-ui, sans-serif", whiteSpace: "nowrap",
   },
-  avatar: { width: "18px", height: "18px", borderRadius: "50%", border: "1px solid rgba(99,102,241,0.35)" },
+  avatar: { width: "18px", height: "18px", borderRadius: "50%", border: "1px solid rgba(59,130,246,0.35)" },
   signOutBtn: {
-    fontSize: "10px", color: "#6366F1", background: "none",
-    border: "1px solid rgba(99,102,241,0.35)", borderRadius: "9999px", padding: "2px 8px",
+    fontSize: "10px", color: "#3B82F6", background: "none",
+    border: "1px solid rgba(59,130,246,0.35)", borderRadius: "9999px", padding: "2px 8px",
     cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif", marginLeft: "2px",
   },
 };

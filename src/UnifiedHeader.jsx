@@ -224,9 +224,10 @@ export default function UnifiedHeader({
           )}
           {loanNumber && (
             <span title="Blueprint loan number" style={{
-              fontSize: isDesktop ? 11 : 10, fontFamily: MONO, fontWeight: 600,
-              color: T.textTertiary, letterSpacing: "0.02em", flexShrink: 0,
-              background: T.pillBg, borderRadius: 6, padding: "2px 7px", marginLeft: 2, whiteSpace: "nowrap",
+              fontSize: isDesktop ? 10.5 : 9.5, fontFamily: MONO, fontWeight: 500,
+              color: T.textSecondary, letterSpacing: "0.09em", flexShrink: 0,
+              background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 5,
+              padding: "1px 7px", marginLeft: 3, whiteSpace: "nowrap",
             }}>{loanNumber}</span>
           )}
           {/* Tab-name breadcrumb removed (Christo 2026-07-07) — the sidebar
@@ -322,6 +323,7 @@ export default function UnifiedHeader({
             )
           )}
           {auth?.userPill}
+          {!isDesktop && (
           <button
             onClick={cycleTheme}
             title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -337,6 +339,7 @@ export default function UnifiedHeader({
           >
             {themeMode === 'dark' ? '☽' : '○'}
           </button>
+          )}
         </div>
       </div>
 

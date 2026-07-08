@@ -4711,9 +4711,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         </div>
         {/* Collapse is a desktop-only affordance; on mobile the drawer just closes. */}
         {isDesktop && (
-         <button onClick={() => setSidebarCollapsed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-         </button>
+         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <button onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+           <Icon name={themeMode === 'dark' ? "sun" : "moon"} size={16} />
+          </button>
+          <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar" style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          </button>
+         </div>
         )}
        </div>
        {/* Mode Toggle with Split affordance */}
