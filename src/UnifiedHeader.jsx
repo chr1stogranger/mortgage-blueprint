@@ -12,7 +12,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
  *
  * Desktop: 2-row layout
  *   Row 1 — Brand + qualification badge + pillar dots + controls
- *   Row 2 — Stats dashboard (Price, Payment, Cash Close, LTV, DTI)
+ *   Row 2 — Stats dashboard (Price, Down, Cash Close, Payment, DTI, Qual badge)
  *
  * Mobile: unchanged (compact single row + stats strip below)
  */
@@ -103,6 +103,25 @@ export default function UnifiedHeader({
   const pillars = isRefi ? refiPillars : purchasePillars;
 
   const sidebarW = isDesktop ? (sidebarCollapsed ? 56 : 270) : 0;
+
+  // Qualification status pill — moved out of Row 1 into the stats row (far
+  // right, after DTI) per Christo 2026-07-07. Single state-driven badge
+  // (Pre-Qualified / Almost There / N/5 / Action Needed); taps to Qualify.
+  const qualBadge = (
+    <div
+      onClick={() => setTab("qualify")}
+      title="View qualification"
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        background: `${badgeColor}18`, borderRadius: 9999,
+        padding: isDesktop ? "5px 12px" : "4px 9px",
+        cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap",
+      }}
+    >
+      <div style={{ width: 7, height: 7, borderRadius: "50%", background: badgeColor, flexShrink: 0 }} />
+      <span style={{ fontSize: isDesktop ? 12 : 10, fontWeight: 700, color: badgeColor, fontFamily: FONT }}>{badgeLabel}</span>
+    </div>
+  );
 
   // ── Stat cell (responsive sizing) ──
   const Stat = ({ label, value, color }) => (
@@ -251,66 +270,6 @@ export default function UnifiedHeader({
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Absolutely centered Qualification status. Per Christo's 2026-05-03
-            rule: when ALL pillars pass (allGood), show the "Pre-Qualified"
-            BADGE only — clean, declarative, borrower-friendly. When any
-            pillar is failing or incomplete, show the 5 PILLAR DOTS only —
-            the non-green dot becomes the alert and the broker can tap it
-            to jump straight to the failing pillar. Never both at once.
-
-            paddingTop on mobile honors the iOS safe-area-inset so the
-            badge isn't hidden behind the status bar / Dynamic Island. */}
-        <div style={{
-          ...(isDesktop
-            ? { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, pointerEvents: "none" }
-            : { position: "static", flexShrink: 0 }),
-          paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: isDesktop ? 10 : 6,
-        }}>
-          {allGood ? (
-            // ── ALL GREEN → show the Pre-Qualified badge only ──
-            <div
-              onClick={() => setTab("qualify")}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                background: `${badgeColor}18`,
-                borderRadius: 9999, padding: isDesktop ? "5px 12px" : "4px 8px",
-                cursor: "pointer", transition: "all 0.2s",
-                pointerEvents: "auto",
-              }}
-            >
-              <Icon name="check" size={isDesktop ? 14 : 12} style={{ color: T.green, flexShrink: 0 }} />
-              <span style={{
-                fontSize: isDesktop ? 11 : 9, fontWeight: 700,
-                color: badgeColor, fontFamily: FONT, whiteSpace: "nowrap",
-              }}>{badgeLabel}</span>
-            </div>
-          ) : (
-            // ── Anything red or gray → show the 5 dots only ──
-            <div
-              onClick={() => setTab("qualify")}
-              style={{ display: "flex", alignItems: "center", gap: isDesktop ? 6 : 4, cursor: "pointer", pointerEvents: "auto" }}
-            >
-              {pillars.map((p, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <div style={{
-                    width: isDesktop ? 8 : 7, height: isDesktop ? 8 : 7, borderRadius: "50%",
-                    background: p.color, transition: "all 0.3s",
-                    boxShadow: p.color === T.green ? `0 0 4px ${T.green}50` : p.color === T.red ? `0 0 4px ${T.red}50` : "none",
-                  }} />
-                  {isDesktop && (
-                    <span style={{
-                      fontSize: 9, fontWeight: 600, color: p.color,
-                      fontFamily: FONT, letterSpacing: 0.3, opacity: 0.9,
-                    }}>{p.label}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Divider before controls */}
         <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
 
@@ -388,12 +347,13 @@ export default function UnifiedHeader({
           borderTop: `1px solid ${T.separator}`,
         }}>
           <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
           <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} />
+          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
+          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
           {calc.qualifyingIncome > 0 && (
             <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
           )}
+          {qualBadge}
         </div>
       ) : (
         <div style={{
@@ -404,12 +364,13 @@ export default function UnifiedHeader({
           gap: 2,
         }}>
           <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
           <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} />
+          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
+          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
           {calc.qualifyingIncome > 0 && (
             <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
           )}
+          {qualBadge}
         </div>
       )}
 
