@@ -4670,6 +4670,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      overflow: "hidden", zIndex: !isDesktop ? 1000 : 60, flexShrink: 0,
      paddingTop: !isDesktop ? "max(0px, env(safe-area-inset-top))" : 0,
     }}>
+     {/* Mobile-only dark/light toggle — sits to the left of the close X,
+         matching the desktop sidebar's monochrome sun/moon icon. */}
+     {!isDesktop && (
+      <button onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+       style={{
+        position: "absolute", top: 12, right: 48, zIndex: 1,
+        background: "transparent", border: "none", cursor: "pointer",
+        width: 32, height: 32, padding: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: T.textSecondary, borderRadius: 8,
+       }}>
+       <Icon name={themeMode === 'dark' ? "sun" : "moon"} size={18} />
+      </button>
+     )}
      {/* Mobile-only close button — top-right corner of the drawer */}
      {!isDesktop && (
       <button onClick={() => setMobileMenuOpen(false)}

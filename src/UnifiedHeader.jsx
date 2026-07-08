@@ -393,23 +393,6 @@ export default function UnifiedHeader({
             )
           )}
           {auth?.userPill}
-          {!isDesktop && (
-          <button
-            onClick={cycleTheme}
-            title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              background: T.pillBg,
-              border: `1px solid ${T.separator}`,
-              borderRadius: 8, width: 28, height: 28,
-              fontSize: 13, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.2s", flexShrink: 0,
-              color: themeMode === 'dark' ? T.blue : T.orange,
-            }}
-          >
-            {themeMode === 'dark' ? '☽' : '○'}
-          </button>
-          )}
         </div>
       </div>
 
