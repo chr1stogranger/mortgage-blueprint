@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
 
@@ -18,7 +18,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
  */
 export default function UnifiedHeader({
   /* Financials */
-  salesPrice, calc, creditScore, downPct,
+  salesPrice, calc, creditScore, downPct, hoa, includeEscrow,
   loanType, isRefi, refiPurpose, firstTimeBuyer,
   /* Qualification */
   allGood, someGood,
@@ -62,6 +62,67 @@ export default function UnifiedHeader({
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
   };
   const pct = (v, d = 1) => ((v || 0) * 100).toFixed(d) + "%";
+
+  // ── Clickable stat dropdowns (Arive-style summary popovers) ──
+  const [statPop, setStatPop] = useState(null); // { key, x, y }
+  const statContent = (key) => {
+    if (key === "price") {
+      const dp = Math.max(0, salesPrice - (calc.baseLoan || 0));
+      return { title: isRefi ? "Loan Info" : "Loan Info", tab: "calc", rows: [
+        [isRefi ? "Home Value" : "Purchase Price", fmt(salesPrice)],
+        ["Loan Amount", fmt(calc.loan)],
+        ...(!isRefi ? [["Down Payment", `${fmt(dp)} (${(downPct || 0).toFixed(0)}%)`]] : []),
+        ...(calc.fhaUp > 0 ? [["Financed UFMIP", fmt(calc.fhaUp)]] : []),
+        ...(calc.vaFundingFee > 0 ? [["Financed VA Fee", fmt(calc.vaFundingFee)]] : []),
+        ["__t", "LTV", pct(calc.ltv, 1)],
+      ] };
+    }
+    if (key === "down") {
+      const dp = salesPrice * (downPct || 0) / 100;
+      return { title: "Down Payment", tab: "calc", rows: [
+        ["Down %", `${(downPct || 0).toFixed(0)}%`],
+        ["Down Amount", fmt(dp)],
+        ["Loan Amount", fmt(calc.loan)],
+        ["__t", "LTV", pct(calc.ltv, 1)],
+      ] };
+    }
+    if (key === "cashclose") {
+      if (isRefi) return { title: "Refi Costs", tab: "costs", rows: [
+        ["Closing Costs", fmt(calc.totalClosingCosts)],
+        ["Prepaids & Escrow", fmt(calc.totalPrepaidExp)],
+        ["__t", "Total", fmt((calc.totalClosingCosts || 0) + (calc.totalPrepaidExp || 0))],
+      ] };
+      const dp = Math.max(0, salesPrice - (calc.baseLoan || 0));
+      return { title: "Funds to Close", tab: "costs", rows: [
+        ["Down Payment", fmt(dp)],
+        ["Closing Costs", fmt(calc.totalClosingCosts)],
+        ["Prepaids & Escrow", fmt(calc.totalPrepaidExp)],
+        ["__t", "Cash to Close", fmt(calc.cashToClose)],
+      ] };
+    }
+    if (key === "payment") {
+      const rows = [["Principal & Interest", fmt(calc.pi)]];
+      if (includeEscrow) { rows.push(["Property Tax", fmt(calc.monthlyTax)]); rows.push(["Insurance", fmt(calc.ins)]); }
+      if ((calc.monthlyMI || 0) > 0) rows.push([loanType === "FHA" ? "MIP" : "PMI", fmt(calc.monthlyMI)]);
+      if ((hoa || 0) > 0) rows.push(["HOA", fmt(hoa)]);
+      rows.push(["__t", "Total Payment", fmt(calc.displayPayment)]);
+      return { title: "Monthly Payment", tab: "calc", rows };
+    }
+    if (key === "dti") {
+      const income = calc.qualifyingIncome || 0;
+      const housing = calc.housingPayment || calc.displayPayment || 0;
+      const otherDebt = calc.monthlyDebts || calc.totalMonthlyDebts || 0;
+      const front = income > 0 ? housing / income : 0;
+      return { title: "DTI Ratio", tab: "qualify", rows: [
+        ["Monthly Income", fmt(income)],
+        ["Housing Payment", fmt(housing)],
+        ["Other Debts", fmt(otherDebt)],
+        ["Front-End DTI", pct(front, 1)],
+        ["__t", "Back-End DTI", `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)} max`],
+      ] };
+    }
+    return null;
+  };
 
   // ── Qualification badge ──
   const totalPillars = isRefi ? 3 : 5;
@@ -124,13 +185,17 @@ export default function UnifiedHeader({
   );
 
   // ── Stat cell (responsive sizing) ──
-  const Stat = ({ label, value, color }) => (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1 }}>
+  const Stat = ({ label, value, color, statKey }) => (
+    <div
+      onClick={statKey ? (e) => { const r = e.currentTarget.getBoundingClientRect(); setStatPop(pv => pv && pv.key === statKey ? null : { key: statKey, x: r.left + r.width / 2, y: r.bottom }); } : undefined}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1, cursor: statKey ? "pointer" : "default", borderRadius: 8, padding: "2px 0", background: (statPop && statPop.key === statKey) ? T.pillBg : "transparent", transition: "background 0.15s" }}
+    >
       <div style={{
         fontSize: isDesktop ? 10 : 9, color: T.textTertiary, fontWeight: 600,
         letterSpacing: 1.2, fontFamily: FONT, textTransform: "uppercase",
         marginBottom: isDesktop ? 3 : 2, whiteSpace: "nowrap", textAlign: "center",
-      }}>{label}</div>
+        display: "flex", alignItems: "center", gap: 3,
+      }}>{label}{statKey && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
       <div style={{
         fontSize: isDesktop ? 17 : 13, fontWeight: 700,
         color: color || T.text, fontFamily: FONT,
@@ -356,12 +421,12 @@ export default function UnifiedHeader({
           height: 48,
           borderTop: `1px solid ${T.separator}`,
         }}>
-          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} statKey="price" />
+          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
+          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} statKey="cashclose" />
+          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
           {calc.qualifyingIncome > 0 && (
-            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
+            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
           )}
           {qualBadge}
         </div>
@@ -373,16 +438,45 @@ export default function UnifiedHeader({
           borderTop: `1px solid ${T.separator}`,
           gap: 2,
         }}>
-          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} statKey="price" />
+          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
+          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} statKey="cashclose" />
+          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
           {calc.qualifyingIncome > 0 && (
-            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
+            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
           )}
           {qualBadge}
         </div>
       )}
+
+      {/* Stat dropdown popover — Arive-style summary for the clicked stat. */}
+      {statPop && (() => {
+        const c = statContent(statPop.key);
+        if (!c) return null;
+        const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
+        const W = 264;
+        const left = Math.max(10, Math.min(statPop.x - W / 2, vw - W - 10));
+        return (
+          <>
+            <div onClick={() => setStatPop(null)} onWheel={() => setStatPop(null)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
+            <div style={{ position: "fixed", left, top: statPop.y + 6, width: W, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, boxShadow: "0 14px 40px rgba(0,0,0,0.4)", zIndex: 9999, padding: "12px 14px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT, marginBottom: 8 }}>{c.title}</div>
+              {c.rows.map((r, i) => {
+                const isT = r[0] === "__t";
+                const label = isT ? r[1] : r[0];
+                const val = isT ? r[2] : r[1];
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderTop: isT ? `1px solid ${T.separator}` : "none", marginTop: isT ? 4 : 0 }}>
+                    <span style={{ fontSize: 12.5, color: isT ? T.text : T.textSecondary, fontWeight: isT ? 700 : 500, fontFamily: FONT }}>{label}</span>
+                    <span style={{ fontSize: 12.5, color: T.text, fontWeight: isT ? 700 : 600, fontFamily: FONT }}>{val}</span>
+                  </div>
+                );
+              })}
+              <div onClick={() => { const t = c.tab; setStatPop(null); if (setTab && t) setTab(t); }} style={{ marginTop: 8, fontSize: 11, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}>View details →</div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* The LO-mode Share Link row was folded into Row 1 (breadcrumb slot)
           on 2026-07-07 — it made the fixed header taller than the content

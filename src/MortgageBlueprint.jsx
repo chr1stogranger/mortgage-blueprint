@@ -5007,6 +5007,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <UnifiedHeader
     salesPrice={salesPrice} calc={calc} creditScore={creditScore}
     downPct={downPct} loanType={loanType} isRefi={isRefi}
+    hoa={hoa} includeEscrow={includeEscrow}
     refiPurpose={refiPurpose} firstTimeBuyer={firstTimeBuyer}
     allGood={allGood} someGood={someGood}
     purchPillarCount={purchPillarCount} refiPillarCount={refiPillarCount}
