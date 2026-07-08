@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
 
@@ -19,6 +20,7 @@ const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 export default function UnifiedHeader({
   /* Financials */
   salesPrice, calc, creditScore, downPct, hoa, includeEscrow,
+  subjectRentalIncome, otherIncome, otherIncome2,
   loanType, isRefi, refiPurpose, firstTimeBuyer,
   /* Qualification */
   allGood, someGood,
@@ -35,7 +37,7 @@ export default function UnifiedHeader({
   /* Layout */
   isDesktop, sidebarCollapsed, T,
   /* Navigation */
-  setTab, onCompare,
+  setTab, onCompare, onJumpToSection,
   /* Auth */
   isCloud, isBorrower, auth,
   /* Borrower account (self-serve sign-in on the public calculator) */
@@ -68,7 +70,7 @@ export default function UnifiedHeader({
   const statContent = (key) => {
     if (key === "price") {
       const dp = Math.max(0, salesPrice - (calc.baseLoan || 0));
-      return { title: isRefi ? "Loan Info" : "Loan Info", tab: "calc", rows: [
+      return { title: "Loan Info", section: "overview-payment", rows: [
         [isRefi ? "Home Value" : "Purchase Price", fmt(salesPrice)],
         ["Loan Amount", fmt(calc.loan)],
         ...(!isRefi ? [["Down Payment", `${fmt(dp)} (${(downPct || 0).toFixed(0)}%)`]] : []),
@@ -79,7 +81,7 @@ export default function UnifiedHeader({
     }
     if (key === "down") {
       const dp = salesPrice * (downPct || 0) / 100;
-      return { title: "Down Payment", tab: "calc", rows: [
+      return { title: "Down Payment", section: "overview-payment", rows: [
         ["Down %", `${(downPct || 0).toFixed(0)}%`],
         ["Down Amount", fmt(dp)],
         ["Loan Amount", fmt(calc.loan)],
@@ -87,13 +89,13 @@ export default function UnifiedHeader({
       ] };
     }
     if (key === "cashclose") {
-      if (isRefi) return { title: "Refi Costs", tab: "costs", rows: [
+      if (isRefi) return { title: "Refi Costs", section: "overview-costs", rows: [
         ["Closing Costs", fmt(calc.totalClosingCosts)],
         ["Prepaids & Escrow", fmt(calc.totalPrepaidExp)],
         ["__t", "Total", fmt((calc.totalClosingCosts || 0) + (calc.totalPrepaidExp || 0))],
       ] };
       const dp = Math.max(0, salesPrice - (calc.baseLoan || 0));
-      return { title: "Funds to Close", tab: "costs", rows: [
+      return { title: "Funds to Close", section: "overview-costs", rows: [
         ["Down Payment", fmt(dp)],
         ["Closing Costs", fmt(calc.totalClosingCosts)],
         ["Prepaids & Escrow", fmt(calc.totalPrepaidExp)],
@@ -106,20 +108,50 @@ export default function UnifiedHeader({
       if ((calc.monthlyMI || 0) > 0) rows.push([loanType === "FHA" ? "MIP" : "PMI", fmt(calc.monthlyMI)]);
       if ((hoa || 0) > 0) rows.push(["HOA", fmt(hoa)]);
       rows.push(["__t", "Total Payment", fmt(calc.displayPayment)]);
-      return { title: "Monthly Payment", tab: "calc", rows };
+      return { title: "Monthly Payment", section: "overview-payment", rows };
     }
     if (key === "dti") {
       const income = calc.qualifyingIncome || 0;
       const housing = calc.housingPayment || calc.displayPayment || 0;
       const otherDebt = calc.monthlyDebts || calc.totalMonthlyDebts || 0;
       const front = income > 0 ? housing / income : 0;
-      return { title: "DTI Ratio", tab: "qualify", rows: [
+      return { title: "DTI Ratio", section: "overview-qualification", rows: [
         ["Monthly Income", fmt(income)],
         ["Housing Payment", fmt(housing)],
         ["Other Debts", fmt(otherDebt)],
         ["Front-End DTI", pct(front, 1)],
         ["__t", "Back-End DTI", `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)} max`],
       ] };
+    }
+    if (key === "qualbadge") {
+      const emp = calc.employmentMonthlyIncome || 0;
+      const subj = subjectRentalIncome || 0;
+      const inv = calc.reoPositiveIncome || 0;
+      const oth = (otherIncome || 0) + (otherIncome2 || 0);
+      const totInc = emp + subj + inv + oth;
+      const housing = calc.totalPayment || calc.housingPayment || calc.displayPayment || 0;
+      const liab = calc.monthlyDebts || 0;
+      const primsec = calc.reoPrimaryDebt || 0;
+      const invnet = calc.reoNegativeDebt || 0;
+      const totDebt = housing + liab + primsec + invnet;
+      const mdti = calc.maxDTI || 0.5;
+      const hti = totInc > 0 ? housing / totInc : 0;
+      const dti = totInc > 0 ? totDebt / totInc : 0;
+      const rows = [["__h", "Income"], ["Employment", fmt(emp)]];
+      if (subj > 0) rows.push(["Subject Property", fmt(subj)]);
+      if (inv > 0) rows.push(["Investment Property", fmt(inv)]);
+      if (oth > 0) rows.push(["Other Income", fmt(oth)]);
+      rows.push(["__t", "Total Income", fmt(totInc)]);
+      rows.push(["__h", "Debts"]);
+      rows.push(["New Housing (PITI)", fmt(housing)]);
+      rows.push(["Monthly Liabilities", fmt(liab)]);
+      if (primsec > 0) rows.push(["Primary & Secondary", fmt(primsec)]);
+      if (invnet !== 0) rows.push(["Investment RE Net", fmt(invnet)]);
+      rows.push(["__t", "Total Debts", fmt(totDebt)]);
+      rows.push(["__h", "Qualifying Ratios"]);
+      rows.push(["Front-End (HTI)", pct(hti, 1)]);
+      rows.push(["__t", "Back-End (DTI)", `${pct(dti, 1)} / ${pct(mdti, 0)} max`]);
+      return { title: "Debt to Income Summary", section: "overview-qualification", rows };
     }
     return null;
   };
@@ -170,7 +202,7 @@ export default function UnifiedHeader({
   // (Pre-Qualified / Almost There / N/5 / Action Needed); taps to Qualify.
   const qualBadge = (
     <div
-      onClick={() => setTab("qualify")}
+      onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setStatPop(pv => pv && pv.key === "qualbadge" ? null : { key: "qualbadge", x: r.left + r.width / 2, y: r.bottom }); }}
       title="View qualification"
       style={{
         display: "flex", alignItems: "center", gap: 5,
@@ -289,10 +321,10 @@ export default function UnifiedHeader({
           )}
           {loanNumber && (
             <span title="Blueprint loan number" style={{
-              fontSize: isDesktop ? 10.5 : 9.5, fontFamily: MONO, fontWeight: 500,
-              color: T.textSecondary, letterSpacing: "0.09em", flexShrink: 0,
-              background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 5,
-              padding: "1px 7px", marginLeft: 3, whiteSpace: "nowrap",
+              fontSize: isDesktop ? 11 : 10, fontFamily: FONT, fontWeight: 600,
+              color: T.textSecondary, letterSpacing: "0.02em", flexShrink: 0,
+              background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 6,
+              padding: "1px 8px", marginLeft: 3, whiteSpace: "nowrap",
             }}>{loanNumber}</span>
           )}
           {/* Tab-name breadcrumb removed (Christo 2026-07-07) — the sidebar
@@ -450,18 +482,19 @@ export default function UnifiedHeader({
       )}
 
       {/* Stat dropdown popover — Arive-style summary for the clicked stat. */}
-      {statPop && (() => {
+      {statPop && typeof document !== "undefined" && (() => {
         const c = statContent(statPop.key);
         if (!c) return null;
         const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
         const W = 264;
         const left = Math.max(10, Math.min(statPop.x - W / 2, vw - W - 10));
-        return (
+        return createPortal(
           <>
-            <div onClick={() => setStatPop(null)} onWheel={() => setStatPop(null)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
-            <div style={{ position: "fixed", left, top: statPop.y + 6, width: W, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, boxShadow: "0 14px 40px rgba(0,0,0,0.4)", zIndex: 9999, padding: "12px 14px" }}>
+            <div onClick={() => setStatPop(null)} onWheel={() => setStatPop(null)} style={{ position: "fixed", inset: 0, zIndex: 99998 }} />
+            <div style={{ position: "fixed", left, top: statPop.y + 6, width: W, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, boxShadow: "0 14px 40px rgba(0,0,0,0.4)", zIndex: 99999, padding: "12px 14px" }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT, marginBottom: 8 }}>{c.title}</div>
               {c.rows.map((r, i) => {
+                if (r[0] === "__h") return (<div key={i} style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.blue, fontFamily: FONT, margin: i > 0 ? "9px 0 3px" : "0 0 3px" }}>{r[1]}</div>);
                 const isT = r[0] === "__t";
                 const label = isT ? r[1] : r[0];
                 const val = isT ? r[2] : r[1];
@@ -472,9 +505,10 @@ export default function UnifiedHeader({
                   </div>
                 );
               })}
-              <div onClick={() => { const t = c.tab; setStatPop(null); if (setTab && t) setTab(t); }} style={{ marginTop: 8, fontSize: 11, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}>View details →</div>
+              <div onClick={() => { const sec = c.section; setStatPop(null); if (onJumpToSection && sec) onJumpToSection(sec); else if (setTab) setTab("overview"); }} style={{ marginTop: 8, fontSize: 11, fontWeight: 600, color: T.blue, cursor: "pointer", fontFamily: FONT }}>View details →</div>
             </div>
-          </>
+          </>,
+          document.body
         );
       })()}
 
