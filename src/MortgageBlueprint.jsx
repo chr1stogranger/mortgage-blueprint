@@ -1844,6 +1844,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      for (const n of junk) { try { await LS.delete("scenario:" + n); } catch(e) {} }
      names = names.filter(n => !tombs.has(n));
     } catch(e) {}
+    // Honor a saved manual order (sidebar drag-to-reorder). Listed names keep
+    // their saved order; any new/unlisted names append at the end.
+    try {
+     const savedOrder = JSON.parse((await LS.get("scenario-list"))?.value || "null");
+     if (Array.isArray(savedOrder) && savedOrder.length) {
+      const inSaved = savedOrder.filter(n => names.includes(n));
+      const extras = names.filter(n => !savedOrder.includes(n));
+      names = [...inSaved, ...extras];
+     }
+    } catch(e) {}
     setScenarioList(names);
     setScenarioName(activeName);
     try {
@@ -2289,6 +2299,35 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { await LS.set("active-scenario", newName); } catch(e) {}
   setShowCompareHint(true);
  };
+ // Duplicate a specific (possibly non-active) scenario without switching to it.
+ const duplicateScenarioByName = async (name) => {
+  let newName = name + " Copy";
+  let i = 2;
+  while (scenarioList.includes(newName)) { newName = name + " Copy " + i; i++; }
+  try { selfSync.clearTombstone?.(newName); } catch(e) {}
+  let stateData;
+  if (name === scenarioName) { stateData = getState(); }
+  else { try { const s = await LS.get("scenario:" + name); stateData = s?.value ? JSON.parse(s.value) : getState(); } catch(e) { stateData = getState(); } }
+  const idx = scenarioList.indexOf(name);
+  const newList = [...scenarioList];
+  newList.splice(idx < 0 ? newList.length : idx + 1, 0, newName);
+  setScenarioList(newList);
+  try { await LS.set("scenario:" + newName, JSON.stringify(stateData)); } catch(e) {}
+  try { await LS.set("scenario-list", JSON.stringify(newList)); } catch(e) {}
+  setShowCompareHint(true);
+ };
+ // Move `fromName` to occupy `toName`'s slot; persist the new order.
+ const reorderScenarios = async (fromName, toName) => {
+  if (!fromName || fromName === toName) return;
+  const from = scenarioList.indexOf(fromName);
+  const to = scenarioList.indexOf(toName);
+  if (from < 0 || to < 0) return;
+  const newList = [...scenarioList];
+  newList.splice(from, 1);
+  newList.splice(to, 0, fromName);
+  setScenarioList(newList);
+  try { await LS.set("scenario-list", JSON.stringify(newList)); } catch(e) {}
+ };
  const renameScenario = async (oldName, newName) => {
   if (!newName || newName === oldName || scenarioList.includes(newName)) return;
   try {
@@ -2308,6 +2347,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const [editingScenarioName, setEditingScenarioName] = useState(null);
  const [editScenarioValue, setEditScenarioValue] = useState("");
+ const [scnMenu, setScnMenu] = useState(null); // sidebar scenario kebab menu: {name,x,y}
+ const [dragScenario, setDragScenario] = useState(null);
+ const [dragOverScenario, setDragOverScenario] = useState(null);
  // Quick metrics calculator for compare view
  const calcQuickMetrics = (s) => {
   if (!s) return null;
@@ -4535,6 +4577,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     .bp-sidebar::-webkit-scrollbar-thumb { background: ${T.separator}; border-radius: 2px; }
     .bp-sidebar-item { transition: all 0.15s ease; }
     .bp-sidebar-item:hover { background: ${T.tabActiveBg}; }
+    .scn-menu-btn { opacity: 0; transition: opacity 0.15s; }
+    .bp-sidebar-item:hover .scn-menu-btn { opacity: 0.75; }
+    .scn-menu-btn:hover { opacity: 1 !important; }
+    .scn-menu-btn.open { opacity: 1; }
+    .scn-txt { display: inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* Sidebar "On this page" jump-links land below the fixed header, not under it. */
     [id^="overview-"] { scroll-margin-top: calc(92px + env(safe-area-inset-top, 0px)); }
     /* Split button appears on hover */
@@ -4704,18 +4751,69 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         </div>
         {scenarioList.map((name) => {
          const active = name === scenarioName;
+         const editing = editingScenarioName === name;
+         const isDragOver = dragOverScenario === name && dragScenario && dragScenario !== name;
          return (
-          <div key={name} className="bp-sidebar-item" onClick={() => { if (name !== scenarioName) switchScenario(name); if (!isDesktop) setMobileMenuOpen(false); }}
+          <div key={name} className="bp-sidebar-item"
+           draggable={!editing && isDesktop}
+           onDragStart={(e) => { setDragScenario(name); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", name); } catch(err){} }}
+           onDragOver={(e) => { if (dragScenario) { e.preventDefault(); if (dragOverScenario !== name) setDragOverScenario(name); } }}
+           onDrop={(e) => { e.preventDefault(); if (dragScenario && dragScenario !== name) reorderScenarios(dragScenario, name); setDragScenario(null); setDragOverScenario(null); }}
+           onDragEnd={() => { setDragScenario(null); setDragOverScenario(null); }}
+           onClick={() => { if (!editing && name !== scenarioName) switchScenario(name); if (!isDesktop && !editing) setMobileMenuOpen(false); }}
+           onMouseEnter={(e) => { const c = e.currentTarget.querySelector(".scn-clip"); const t = e.currentTarget.querySelector(".scn-txt"); if (!c || !t) return; const over = t.scrollWidth - c.clientWidth; if (over > 2) { t.style.maxWidth = "none"; t.style.textOverflow = "clip"; t.style.transition = `transform ${Math.max(1.4, over / 40)}s linear`; t.style.transform = `translateX(-${over}px)`; } }}
+           onMouseLeave={(e) => { const t = e.currentTarget.querySelector(".scn-txt"); if (!t) return; t.style.transition = "transform 0.25s ease"; t.style.transform = "translateX(0)"; setTimeout(() => { if (t) { t.style.maxWidth = "100%"; t.style.textOverflow = "ellipsis"; } }, 250); }}
            style={{
-            padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
+            padding: "7px 8px 7px 12px", cursor: editing ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8, position: "relative",
             background: active ? T.tabActiveBg : "transparent",
             borderLeft: active ? `3px solid ${T.blue}` : "3px solid transparent",
+            boxShadow: isDragOver ? `inset 0 2px 0 ${T.blue}` : "none",
+            opacity: dragScenario === name ? 0.4 : 1,
            }}>
            <span style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: active ? T.blue : T.textSecondary }}><Icon name="copy" size={15} /></span>
-           <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : T.text, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+           {editing ? (
+            <input value={editScenarioValue} autoFocus
+             onClick={(e) => e.stopPropagation()}
+             onChange={(e) => setEditScenarioValue(e.target.value)}
+             onKeyDown={(e) => { if (e.key === "Enter") { renameScenario(name, editScenarioValue.trim()); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
+             onBlur={() => { const v = editScenarioValue.trim(); if (v) renameScenario(name, v); setEditingScenarioName(null); }}
+             style={{ flex: 1, minWidth: 0, background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 6, padding: "3px 6px", fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none" }} />
+           ) : (
+            <span className="scn-clip" style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+             <span className="scn-txt" style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : T.text }}>{name}</span>
+            </span>
+           )}
+           {!editing && (
+            <button
+             className={"scn-menu-btn" + (scnMenu?.name === name ? " open" : "")}
+             title="Options"
+             onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setScnMenu(scnMenu?.name === name ? null : { name, x: r.right, y: r.bottom }); }}
+             style={{ flexShrink: 0, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", color: T.textSecondary, padding: 0, opacity: isDesktop ? undefined : 0.7 }}>
+             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+            </button>
+           )}
           </div>
          );
         })}
+        {scnMenu && (
+         <>
+          <div onClick={() => setScnMenu(null)} onWheel={() => setScnMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
+          <div style={{ position: "fixed", left: Math.max(8, scnMenu.x - 158), top: scnMenu.y + 4, width: 158, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.38)", zIndex: 9999, overflow: "hidden", padding: 4 }}>
+           {[
+            ["Rename", "edit", () => { setEditingScenarioName(scnMenu.name); setEditScenarioValue(scnMenu.name); }],
+            ["Duplicate", "copy", () => duplicateScenarioByName(scnMenu.name)],
+            ...(scenarioList.length > 1 ? [["Delete", "trash", () => deleteScenario(scnMenu.name)]] : []),
+           ].map(([label, ico, fn]) => (
+            <button key={label} onClick={() => { fn(); setScnMenu(null); }}
+             onMouseEnter={(e) => { e.currentTarget.style.background = T.tabActiveBg; }}
+             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+             style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", boxSizing: "border-box", padding: "8px 10px", background: "transparent", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: FONT, color: label === "Delete" ? T.red : T.text, textAlign: "left" }}>
+             <Icon name={ico} size={14} color={label === "Delete" ? T.red : T.textSecondary} /> {label}
+            </button>
+           ))}
+          </div>
+         </>
+        )}
         <div style={{ height: 1, background: T.separator, margin: "8px 12px 2px" }} />
        </>
       )}
