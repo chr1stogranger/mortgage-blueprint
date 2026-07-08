@@ -492,7 +492,7 @@ export default function CalculatorContent(props) {
      { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
      { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
     ]).map((m, i) => (
-     <Card key={i} pad={14}>
+     <Card key={i} pad={14} style={{ minHeight: 92, display: "flex", flexDirection: "column", justifyContent: "center" }}>
       <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
       {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
@@ -978,7 +978,7 @@ export default function CalculatorContent(props) {
        summary cards: Payment Breakdown on the left, CTC on the right). */}
    <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
    {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term */}
-   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 16, boxShadow: T.cardShadow }}>
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 12, boxShadow: T.cardShadow }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -1029,7 +1029,7 @@ export default function CalculatorContent(props) {
          title={`${c.label}: ${c.sub} — click for details`}
          style={{
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "12px 4px", minHeight: 84, background: bg, borderRadius: 12,
+          padding: "12px 4px", minHeight: 92, background: bg, borderRadius: 12,
           cursor: "pointer", transition: "all 0.2s",
          }}
         >

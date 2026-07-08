@@ -124,34 +124,15 @@ export default function UnifiedHeader({
       ] };
     }
     if (key === "qualbadge") {
-      const emp = calc.employmentMonthlyIncome || 0;
-      const subj = subjectRentalIncome || 0;
-      const inv = calc.reoPositiveIncome || 0;
-      const oth = (otherIncome || 0) + (otherIncome2 || 0);
-      const totInc = emp + subj + inv + oth;
-      const housing = calc.totalPayment || calc.housingPayment || calc.displayPayment || 0;
-      const liab = calc.monthlyDebts || 0;
-      const primsec = calc.reoPrimaryDebt || 0;
-      const invnet = calc.reoNegativeDebt || 0;
-      const totDebt = housing + liab + primsec + invnet;
-      const mdti = calc.maxDTI || 0.5;
-      const hti = totInc > 0 ? housing / totInc : 0;
-      const dti = totInc > 0 ? totDebt / totInc : 0;
-      const rows = [["__h", "Income"], ["Employment", fmt(emp)]];
-      if (subj > 0) rows.push(["Subject Property", fmt(subj)]);
-      if (inv > 0) rows.push(["Investment Property", fmt(inv)]);
-      if (oth > 0) rows.push(["Other Income", fmt(oth)]);
-      rows.push(["__t", "Total Income", fmt(totInc)]);
-      rows.push(["__h", "Debts"]);
-      rows.push(["New Housing (PITI)", fmt(housing)]);
-      rows.push(["Monthly Liabilities", fmt(liab)]);
-      if (primsec > 0) rows.push(["Primary & Secondary", fmt(primsec)]);
-      if (invnet !== 0) rows.push(["Investment RE Net", fmt(invnet)]);
-      rows.push(["__t", "Total Debts", fmt(totDebt)]);
-      rows.push(["__h", "Qualifying Ratios"]);
-      rows.push(["Front-End (HTI)", pct(hti, 1)]);
-      rows.push(["__t", "Back-End (DTI)", `${pct(dti, 1)} / ${pct(mdti, 0)} max`]);
-      return { title: "Debt to Income Summary", section: "overview-qualification", rows };
+      const st = (chk) => chk === "Good!" ? true : chk === "—" ? null : false;
+      const pillars = [
+        { ok: st(calc.ficoCheck), label: "FICO", value: (creditScore > 0 ? `${creditScore} / ${calc.ficoMin || 620}+` : "—"), note: "Middle credit score vs the program minimum." },
+        { ok: (dpOk ? true : (calc.dpWarning == null ? null : false)), label: "Down", value: `${(downPct || 0).toFixed(0)}% / ${calc.minDPpct || 0}%+`, note: "Down payment vs the minimum required." },
+        { ok: st(calc.dtiCheck), label: "DTI", value: (calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)} / ${pct(calc.maxDTI, 0)}` : "—"), note: "Monthly debts ÷ income vs the max allowed." },
+        { ok: st(calc.cashCheck), label: "Cash", value: (calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—"), note: "Cash on hand vs cash needed to close." },
+        { ok: st(calc.resCheck), label: "Reserves", value: (calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—"), note: "Post-closing reserves vs required." },
+      ];
+      return { title: "Qualification", section: "overview-qualification", pillars };
     }
     return null;
   };
@@ -485,7 +466,22 @@ export default function UnifiedHeader({
             <div onClick={() => setStatPop(null)} onWheel={() => setStatPop(null)} style={{ position: "fixed", inset: 0, zIndex: 99998 }} />
             <div style={{ position: "fixed", left, top: statPop.y + 6, width: W, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, boxShadow: "0 14px 40px rgba(0,0,0,0.4)", zIndex: 99999, padding: "12px 14px" }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT, marginBottom: 8 }}>{c.title}</div>
-              {c.rows.map((r, i) => {
+              {c.pillars && c.pillars.map((pl, i) => {
+                const col = pl.ok === true ? T.green : pl.ok === null ? T.textTertiary : T.red;
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "7px 0", borderTop: i > 0 ? `1px solid ${T.separator}` : "none" }}>
+                    <div style={{ width: 18, height: 18, borderRadius: "50%", background: col, color: "#fff", fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{pl.ok === true ? "✓" : pl.ok === null ? "?" : "✕"}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>{pl.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: col, fontFamily: FONT, whiteSpace: "nowrap" }}>{pl.value}</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: 1, lineHeight: 1.3 }}>{pl.note}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {!c.pillars && c.rows.map((r, i) => {
                 if (r[0] === "__h") return (<div key={i} style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: T.blue, fontFamily: FONT, margin: i > 0 ? "9px 0 3px" : "0 0 3px" }}>{r[1]}</div>);
                 const isT = r[0] === "__t";
                 const label = isT ? r[1] : r[0];

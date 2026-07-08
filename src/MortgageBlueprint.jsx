@@ -2240,6 +2240,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (saved?.value) loadState(JSON.parse(saved.value));
   } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
+  // Switching a scenario always lands you on that scenario's Overview.
+  setTab("overview");
  };
  // ── LO default fees (Christo 2026-07-05): the LO snapshots their preferred
  //    fee sheet in Settings; every NEW scenario starts from it. Stored per
@@ -7056,7 +7058,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   </Card>
  </Sec>
- <Sec title="Loan Officer Info">
+ {!isBorrower && <Sec title="Loan Officer Info">
   <Card>
    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once — applies to all scenarios.</div>
    {!isBorrower && !isCloud && (
@@ -7124,7 +7126,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     )}
    </div>
   </Card>
- </Sec>
+ </Sec>}
  {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
      Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
      showInvestor/showRentVsBuy state). Quick Start is the single source of truth. */}

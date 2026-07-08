@@ -107,6 +107,7 @@ export default function BlueprintAuth({ children }) {
   const [showLogin, setShowLogin] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [localMode, setLocalMode] = useState(false); // No auth, localStorage only
+  const [pillOpen, setPillOpen] = useState(false);
 
   // Check for existing session
   useEffect(() => {
@@ -284,11 +285,27 @@ export default function BlueprintAuth({ children }) {
   ) : null;
 
   // ─── User pill (shown when signed in) ────────────────────────────────────
+  const _pillDark = (() => { try { return localStorage.getItem('bp_theme_mode') === 'dark'; } catch { return false; } })();
+  const _menuBg = _pillDark ? "#1A1A1A" : "#FFFFFF";
+  const _menuBorder = _pillDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)";
+  const _menuText = _pillDark ? "#EDEDED" : "#171717";
+  const _menuMuted = _pillDark ? "#8A8F98" : "#737373";
   const userPill = user ? (
-    <span style={styles.userPill}>
-      {user.picture && <img src={user.picture} alt="" style={styles.avatar} referrerPolicy="no-referrer" />}
-      <span>{user.name?.split(" ")[0]}</span>
-      <button style={styles.signOutBtn} onClick={handleSignOut}>Sign out</button>
+    <span style={{ position: "relative", display: "inline-flex" }}>
+      <button onClick={() => setPillOpen(o => !o)} title="Account" style={{ ...styles.userPill, cursor: "pointer" }}>
+        {user.picture && <img src={user.picture} alt="" style={styles.avatar} referrerPolicy="no-referrer" />}
+        <span>{user.name?.split(" ")[0]}</span>
+        <span style={{ fontSize: 8, opacity: 0.6, marginLeft: 1 }}>▾</span>
+      </button>
+      {pillOpen && (
+        <>
+          <div onClick={() => setPillOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 998 }} />
+          <div style={{ position: "absolute", top: "calc(100% + 5px)", right: 0, minWidth: 160, background: _menuBg, border: `1px solid ${_menuBorder}`, borderRadius: 10, boxShadow: "0 8px 26px rgba(0,0,0,0.28)", zIndex: 999, padding: 5, fontFamily: "'Inter', system-ui, sans-serif" }}>
+            <div style={{ padding: "5px 9px 7px", fontSize: 11, color: _menuMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 210 }}>{user.email || user.name}</div>
+            <button onClick={() => { setPillOpen(false); handleSignOut(); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 9px", fontSize: 13, fontWeight: 500, color: _menuText, background: "transparent", border: "none", borderRadius: 6, cursor: "pointer" }}>Sign out</button>
+          </div>
+        </>
+      )}
     </span>
   ) : null;
 
