@@ -167,6 +167,7 @@ export default function CalculatorContent(props) {
   // pmiExpanded is kept for API compatibility, but the calculation toggle is driven by propTaxExpanded
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
+  const [piExpanded, setPiExpanded] = useState(false); // Principal & Interest split disclosure
   // Advanced PMI rate chart (LO-editable Radian matrix for the current FICO band).
   const [pmiChartOpen, setPmiChartOpen] = useState(false);
   // Live-rates popup — opens when user clicks the inline '✓ Live' pill in the Rate
@@ -178,6 +179,7 @@ export default function CalculatorContent(props) {
   // Reuses the existing propTaxExpanded / pmiExpanded state from the parent.
   const toggleTaxInline = () => setPropTaxExpanded(!propTaxExpanded);
   const togglePmiInline = () => setPmiExpanded(!pmiExpanded);
+  const togglePiInline = () => setPiExpanded(!piExpanded);
   // Guided step 9: expanding the carets IS the advance gesture. Declarative
   // effect (not click handlers) so stale closures / pre-expanded carets can
   // never soft-lock the step — whenever the required carets are open, mark it.
@@ -531,8 +533,10 @@ export default function CalculatorContent(props) {
     {/* Body — keeps existing row styling per Christo */}
     <div style={{ padding: "12px 18px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
      {[
-      { label: "Principal", value: calc.monthlyPrinReduction || 0, color: T.cyan || T.blue },
-      { label: "Interest",  value: (calc.pi || 0) - (calc.monthlyPrinReduction || 0), color: T.blue },
+      // Principal & Interest merged into one PITI-style line; the volatile
+      // month-1 P-vs-I split lives behind the "Split" chevron below. Donut
+      // keeps its two separate segments (Christo, 2026-07-07).
+      { label: "Principal & Interest", value: calc.pi || 0, color: T.blue, pi: true },
       ...(includeEscrow ? [
        { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange, jumpTo: "tax" },
        { label: "Insurance", value: calc.ins || 0,        color: T.green,  editable: true, onChange: (v) => setAnnualIns(Math.max(0, v) * 12) },
@@ -543,13 +547,13 @@ export default function CalculatorContent(props) {
       // HOA: always render so it's discoverable as editable (was previously hidden when 0)
       { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa },
      ].map((row, i) => {
-      const isExpanded = (row.jumpTo === "tax" && propTaxExpanded) || (row.jumpTo === "pmi" && pmiExpanded);
-      const onToggle = row.jumpTo === "tax" ? toggleTaxInline : row.jumpTo === "pmi" ? togglePmiInline : null;
+      const isExpanded = (row.jumpTo === "tax" && propTaxExpanded) || (row.jumpTo === "pmi" && pmiExpanded) || (row.pi && piExpanded);
+      const onToggle = row.jumpTo === "tax" ? toggleTaxInline : row.jumpTo === "pmi" ? togglePmiInline : row.pi ? togglePiInline : null;
       return (
       <React.Fragment key={i}>
        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-         <span style={{ width: 8, height: 8, borderRadius: 4, background: row.color, flexShrink: 0 }} />
+         <span style={{ width: 8, height: 8, borderRadius: 4, background: row.pi ? `linear-gradient(90deg, ${T.cyan || T.blue} 50%, ${T.blue} 50%)` : row.color, flexShrink: 0 }} />
          <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{row.label}</span>
          {onToggle && (
           <span
@@ -564,7 +568,7 @@ export default function CalculatorContent(props) {
             marginLeft: 2,
            }}
           >
-           <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>How it's calculated</span>
+           <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>{row.pi ? "Split" : "How it's calculated"}</span>
            <span style={{
             fontSize: 10,
             color: T.blue,
@@ -585,6 +589,34 @@ export default function CalculatorContent(props) {
          )
         }
        </div>
+
+       {/* Inline Principal & Interest split — month-1 snapshot. The split
+           shifts toward principal every payment, so it's labeled as the
+           first payment and points at the full amortization schedule. */}
+       {row.pi && piExpanded && (() => {
+        const prin = calc.monthlyPrinReduction || 0;
+        const intr = (calc.pi || 0) - prin;
+        const subRow = (dot, label, val) => (
+         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", minHeight: 22 }}>
+          <span style={{ fontSize: 12, color: T.textSecondary, display: "inline-flex", alignItems: "center", gap: 6 }}>
+           <span style={{ width: 8, height: 8, borderRadius: 4, background: dot, flexShrink: 0 }} />{label}
+          </span>
+          <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
+           <span style={{ fontSize: 12, fontWeight: 600, fontFamily: FONT, color: T.text }}>{fmt(val)}</span>
+           <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
+          </div>
+         </div>
+        );
+        return (
+         <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
+          <div style={{ background: T.bg, borderRadius: 12, padding: "8px 12px 10px" }}>
+           {subRow(T.cyan || T.blue, "Principal", prin)}
+           {subRow(T.blue, "Interest", intr)}
+           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 6, lineHeight: 1.4 }}>First payment. Each month a little more goes to principal and less to interest — see the full amortization schedule for the trend.</div>
+          </div>
+         </div>
+        );
+       })()}
 
        {/* Inline Tax breakdown — numbers edit right in the table behind mini
            locks (customize pills removed 2026-07-05, Christo). Base Rate and
