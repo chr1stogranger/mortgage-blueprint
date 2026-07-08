@@ -1117,6 +1117,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  useEffect(() => {
   setDarkMode(themeMode === 'dark');
+  // Persist on EVERY themeMode change (not just the header toggle) so a hard
+  // refresh always restores the last-used mode. Default stays 'light'.
+  try { localStorage.setItem('bp_theme_mode', themeMode); } catch {}
  }, [themeMode]);
  const cycleTheme = () => {
   const next = themeMode === 'dark' ? 'light' : 'dark';

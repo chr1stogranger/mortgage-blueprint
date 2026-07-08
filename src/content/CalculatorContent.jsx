@@ -430,7 +430,7 @@ export default function CalculatorContent(props) {
 
    {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
-   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note>}
+   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ marginBottom: 14 }}><Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note></div>}
 
    {/* Refi Current → New comparison */}
    {isRefi && calc.refiEffPI > 0 && (
@@ -978,7 +978,7 @@ export default function CalculatorContent(props) {
        summary cards: Payment Breakdown on the left, CTC on the right). */}
    <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
    {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term */}
-   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s" }}>
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 16, boxShadow: T.cardShadow }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -1028,8 +1028,8 @@ export default function CalculatorContent(props) {
          onClick={() => handlePillarClick && handlePillarClick(c.label)}
          title={`${c.label}: ${c.sub} — click for details`}
          style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          padding: "10px 4px 8px", background: bg, borderRadius: 12,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "12px 4px", minHeight: 84, background: bg, borderRadius: 12,
           cursor: "pointer", transition: "all 0.2s",
          }}
         >

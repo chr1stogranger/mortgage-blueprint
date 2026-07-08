@@ -97,6 +97,10 @@ export default function OverviewTab(props) {
       {/* ═══════════════════════════════════════
           HEADER: scenario pills + sign-in (title removed — sticky bar provides context)
           ═══════════════════════════════════════ */}
+      {/* Redundant on desktop — scenarios live in the left sidebar and the
+          ZIP/city live in Quick Start. Kept on mobile for quick scenario
+          switching + borrower sign-in (drawer isn't always visible there). */}
+      {!isDesktop && (
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {(city || propertyZip) && (
@@ -134,6 +138,7 @@ export default function OverviewTab(props) {
           )}
         </div>
       </div>
+      )}
 
       {/* Guided progress strip — slim, non-floating "Step X of N" indicator.
           Driven by guidedStep computed in MortgageBlueprint (mirrors guideField). */}
