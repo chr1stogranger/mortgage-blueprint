@@ -319,14 +319,6 @@ export default function UnifiedHeader({
               }} title={`Blueprint for ${borrowerName}`}>{borrowerName}</span>
             </>
           )}
-          {loanNumber && (
-            <span title="Blueprint loan number" style={{
-              fontSize: isDesktop ? 11 : 10, fontFamily: FONT, fontWeight: 600,
-              color: T.textSecondary, letterSpacing: "0.02em", flexShrink: 0,
-              background: T.pillBg, border: `1px solid ${T.separator}`, borderRadius: 6,
-              padding: "1px 8px", marginLeft: 3, whiteSpace: "nowrap",
-            }}>{loanNumber}</span>
-          )}
           {/* Tab-name breadcrumb removed (Christo 2026-07-07) — the sidebar
               already shows where you are. Its slot now holds the Share Link
               button, which used to live on its own header row; folding it in

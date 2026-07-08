@@ -94,6 +94,13 @@ export default function OverviewTab(props) {
   // (Christo 2026-05-27.)
   return (
     <div style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
+      {/* Blueprint reference eyebrow — quiet overline at the very top of the
+          page, like the loan number printed atop a loan file. */}
+      {props.loanNumber && (
+        <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "1.5px", color: T.textTertiary, textTransform: "uppercase", fontFamily: FONT, marginBottom: 12 }}>
+          Blueprint <span style={{ opacity: 0.5, margin: "0 5px" }}>·</span> {props.loanNumber}
+        </div>
+      )}
       {/* ═══════════════════════════════════════
           HEADER: scenario pills + sign-in (title removed — sticky bar provides context)
           ═══════════════════════════════════════ */}

@@ -5745,7 +5745,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
   <OverviewTab {...{
    /* Core */
-   T, isDesktop, darkMode, calc, fmt, fmt2, pct, paySegs, changedFields,
+   T, isDesktop, darkMode, calc, fmt, fmt2, pct, paySegs, changedFields, loanNumber,
    setTab, isCloud, auth, isBorrower,
    /* Scenario */
    scenarioName, scenarioList, switchScenario, onCompare: () => setTab("compare"),
