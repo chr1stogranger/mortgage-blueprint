@@ -27,7 +27,7 @@ function AutoBadge() {
     <span style={{
       fontSize: 9, fontWeight: 700, color: T.textTertiary, fontFamily: FONT,
       letterSpacing: 1, padding: "2px 5px", border: `1px solid ${T.separator}`,
-      borderRadius: 4, marginLeft: 8, lineHeight: 1, whiteSpace: "nowrap",
+      borderRadius: 4, lineHeight: 1, whiteSpace: "nowrap",
       display: "inline-flex", alignItems: "center",
     }}>AUTO</span>
   );
@@ -559,6 +559,7 @@ function FeeRow({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 6 }}>
+          {autoBadge && <AutoBadge />}
           {showInlineNumberInput ? (
             <DashedInline value={value} onChange={onChange} prefix={prefix} suffix={suffix} max={max} />
           ) : (
@@ -570,7 +571,6 @@ function FeeRow({
               whiteSpace: "nowrap",
             }}>{displayVal}</div>
           )}
-          {autoBadge && <AutoBadge />}
           {onDelete && (alwaysEdit || sectionUnlocked) && (
             <button type="button" onClick={onDelete} title="Remove this fee"
               style={{ background: "transparent", border: "none", cursor: "pointer", color: T.textTertiary, fontSize: 13, lineHeight: 1, padding: "2px 2px" }}>
@@ -1182,7 +1182,7 @@ export default function CostsContent(props) {
             return (<>
               {/* City Transfer Tax — has city dropdown inline when section unlocked */}
               <FeeRow
-                label="Transfer Tax — City (Buyer's Share)"
+                label="Transfer Tax — City"
                 value={calc.buyerCityTT}
                 readOnly
                 autoBadge
@@ -1196,7 +1196,7 @@ export default function CostsContent(props) {
               {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
               {countyRate > 0 && (
                 <FeeRow
-                  label="Transfer Tax — County (Buyer's Share)"
+                  label="Transfer Tax — County"
                   value={calc.buyerCountyTT}
                   readOnly
                   autoBadge
