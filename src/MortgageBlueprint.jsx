@@ -1373,17 +1373,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // scenarios — not per scenario. Keyed by borrower id in the cloud, or a
  // single "local" bucket when signed out. Minted once, then reused so you can
  // reference which blueprint you're working from across its loan options.
- const resolveBlueprintLoanNumber = () => {
-  const key = (isCloud && activeBorrower?.id) ? `bp_loan_number:${activeBorrower.id}` : 'bp_loan_number:local';
+ // Local blueprint (signed out) or safety fallback: device-local mint.
+ const resolveLocalLoanNumber = (key) => {
   try {
    let v = localStorage.getItem(key);
    if (!v) { v = genLoanNumber(); localStorage.setItem(key, v); }
    return v;
   } catch { return genLoanNumber(); }
  };
+ // Cloud blueprints carry a DB-assigned, globally-unique loan_number on the
+ // borrower row (sequence-backed default — see migration). Prefer it so the
+ // same blueprint shows the same number on every device/teammate. Signed-out
+ // work stays device-local.
  useEffect(() => {
-  setLoanNumber(resolveBlueprintLoanNumber());
- }, [activeBorrower?.id, isCloud]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (isCloud && activeBorrower?.id) {
+   setLoanNumber(activeBorrower.loan_number || resolveLocalLoanNumber(`bp_loan_number:${activeBorrower.id}`));
+  } else {
+   setLoanNumber(resolveLocalLoanNumber('bp_loan_number:local'));
+  }
+ }, [activeBorrower?.id, activeBorrower?.loan_number, isCloud]); // eslint-disable-line react-hooks/exhaustive-deps
  const [scenarioList, setScenarioList] = useState([]);
  const [hasSellProperty, setHasSellProperty] = useState(false);
  const [ownsProperties, setOwnsProperties] = useState(false);
