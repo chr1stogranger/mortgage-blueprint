@@ -1357,6 +1357,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [payExtra, setPayExtra] = useState(false);
  const [amortView, setAmortView] = useState("monthly");
  const [scenarioName, setScenarioName] = useState("Scenario 1");
+ // Blueprint loan number — sequential per device (BP-<year>-<0001>). The
+ // counter lives in localStorage; a number is assigned once per scenario and
+ // then persisted inside that scenario's saved state (getState/loadState).
+ const [loanNumber, setLoanNumber] = useState("");
+ const genLoanNumber = () => {
+  try {
+   const yr = new Date().getFullYear();
+   const n = (parseInt(localStorage.getItem('bp_loan_seq') || '0', 10) || 0) + 1;
+   localStorage.setItem('bp_loan_seq', String(n));
+   return `BP-${yr}-${String(n).padStart(4, '0')}`;
+  } catch { return `BP-${new Date().getFullYear()}-0001`; }
+ };
  const [scenarioList, setScenarioList] = useState([]);
  const [hasSellProperty, setHasSellProperty] = useState(false);
  const [ownsProperties, setOwnsProperties] = useState(false);
@@ -1607,6 +1619,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const tabBarRef = useRef(null);
  const scrollSentinelRef = useRef(null);
  const getState = () => ({
+  loanNumber,
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
@@ -1628,6 +1641,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  const loadState = (s) => {
   if (!s) return;
+  setLoanNumber(s.loanNumber || genLoanNumber());
   if (s.salesPrice !== undefined) setSalesPrice(s.salesPrice);
   if (s.downPct !== undefined) setDownPct(s.downPct);
   if (s.rate !== undefined) setRate(s.rate);
@@ -2251,6 +2265,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const newList = [...scenarioList, name];
   setScenarioList(newList);
   setScenarioName(name);
+  setLoanNumber(genLoanNumber());
   setSalesPrice(1000000); setDownPct(20); setRate(6.5); setTerm(30);
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
   setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
@@ -4974,6 +4989,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     scenarioName={scenarioName} scenarioList={scenarioList} switchScenario={switchScenario}
     saving={saving} loaded={loaded} cloudSyncStatus={cloudSyncStatus} sync={sync}
     borrowerName={borrowerName}
+    loanNumber={loanNumber}
     darkMode={darkMode} themeMode={themeMode} cycleTheme={cycleTheme}
     privacyMode={privacyMode} setPrivacyMode={setPrivacyMode}
     isDesktop={isDesktop} sidebarCollapsed={sidebarCollapsed} T={T}

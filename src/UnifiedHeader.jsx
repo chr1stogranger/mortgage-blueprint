@@ -28,7 +28,7 @@ export default function UnifiedHeader({
   scenarioName, scenarioList, switchScenario,
   saving, loaded, cloudSyncStatus, sync,
   /* Whose blueprint this is */
-  borrowerName,
+  borrowerName, loanNumber,
   /* Controls */
   darkMode, themeMode, cycleTheme,
   privacyMode, setPrivacyMode,
@@ -221,6 +221,13 @@ export default function UnifiedHeader({
                 maxWidth: isDesktop ? 260 : 130,
               }} title={`Blueprint for ${borrowerName}`}>{borrowerName}</span>
             </>
+          )}
+          {loanNumber && (
+            <span title="Blueprint loan number" style={{
+              fontSize: isDesktop ? 11 : 10, fontFamily: MONO, fontWeight: 600,
+              color: T.textTertiary, letterSpacing: "0.02em", flexShrink: 0,
+              background: T.pillBg, borderRadius: 6, padding: "2px 7px", marginLeft: 2, whiteSpace: "nowrap",
+            }}>{loanNumber}</span>
           )}
           {/* Tab-name breadcrumb removed (Christo 2026-07-07) — the sidebar
               already shows where you are. Its slot now holds the Share Link
