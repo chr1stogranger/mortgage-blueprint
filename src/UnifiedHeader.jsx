@@ -154,7 +154,7 @@ export default function UnifiedHeader({
         position: "relative",
       }}>
         {/* Left: Hamburger (mobile) + Logo + Sync */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: isDesktop ? 0 : 1, minWidth: 0, zIndex: 1 }}>
           {/* Mobile hamburger — opens the RealStack shell drawer with
               product switcher (Blueprint / PricePoint / Markets), tab nav,
               scenarios, and settings. Desktop uses the persistent sidebar
@@ -261,10 +261,12 @@ export default function UnifiedHeader({
             paddingTop on mobile honors the iOS safe-area-inset so the
             badge isn't hidden behind the status bar / Dynamic Island. */}
         <div style={{
-          position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
+          ...(isDesktop
+            ? { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, pointerEvents: "none" }
+            : { position: "static", flexShrink: 0 }),
           paddingTop: isDesktop ? 0 : "max(0px, env(safe-area-inset-top))",
           display: "flex", alignItems: "center", justifyContent: "center",
-          gap: isDesktop ? 10 : 6, pointerEvents: "none",
+          gap: isDesktop ? 10 : 6,
         }}>
           {allGood ? (
             // ── ALL GREEN → show the Pre-Qualified badge only ──
