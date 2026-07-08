@@ -844,6 +844,10 @@ export default function CalculatorContent(props) {
       </React.Fragment>
       );
      })}
+     {/* Pad to a fixed 5 rows so the Payment Breakdown card is always the same
+         height as the Cash-to-Close Summary (empty slots where Tax/Ins/PMI
+         would be), keeping the two cards + their footers on the same line. */}
+     {(() => { const n = 1 + (includeEscrow ? 2 : 0) + ((calc.monthlyMI || 0) > 0 ? 1 : 0) + 1; return Array.from({ length: Math.max(0, 5 - n) }).map((_, i) => <div key={"pbpad" + i} aria-hidden="true" style={{ minHeight: 28 }} />); })()}
      {!includeEscrow && (
       <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>
        Escrow excluded — full PITI would be {fmt(calc.housingPayment)}/mo
