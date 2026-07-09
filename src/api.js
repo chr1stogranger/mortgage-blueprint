@@ -70,6 +70,12 @@ export async function updateBorrower(data) {
   return authFetch('/api/borrowers', { method: 'PATCH', body: data });
 }
 
+// Permanently delete a borrower. The Ops endpoint CASCADES to the borrower's
+// scenarios, so this removes the client and every blueprint under them.
+export async function deleteBorrower(id) {
+  return authFetch('/api/borrowers', { method: 'DELETE', body: { id } });
+}
+
 // ─── Scenarios ──────────────────────────────────────────────────────────────
 
 export async function fetchScenarios(borrowerId) {

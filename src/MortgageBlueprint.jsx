@@ -44,7 +44,7 @@ import TeamContent from "./content/TeamContent";
 import UnifiedHeader from "./UnifiedHeader";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
-  fetchBorrowers, fetchBorrowerById, createBorrower, updateBorrower,
+  fetchBorrowers, fetchBorrowerById, createBorrower, updateBorrower, deleteBorrower,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
@@ -1025,6 +1025,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
  const [borrowerScenarios, setBorrowerScenarios] = useState([]); // Scenarios for selected borrower (step 2)
  const [borrowerScenariosLoading, setBorrowerScenariosLoading] = useState(false);
+ const [deleteClientStep, setDeleteClientStep] = useState(0); // Settings "Delete client": 0 idle, 1 confirming
+ const [deletingClient, setDeletingClient] = useState(false);
  // ── Cloud scenarios as the source of truth (LO viewing a real client) ──
  // For a signed-in LO with a client open, the sidebar Scenarios list mirrors
  // the client's cloud rows (Supabase, keyed by borrower_id). Each sidebar entry
@@ -1061,6 +1063,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   isPinned: isBlueprintPinned,
   recordRecent: recordRecentBlueprint,
   togglePin: toggleBlueprintPin,
+  removeEntry: removeBlueprintEntry,
  } = useBlueprintShelf();
  // Format a client's name as "Last, First" for the switcher rows.
  const formatLastFirst = (borrower) => {
@@ -2184,6 +2187,31 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setBorrowerList(prev => prev.map(b => b.id === activeBorrower.id ? { ...b, name: prevName } : b));
    setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000);
   }
+ };
+
+ // Permanently delete the active client (borrower) and ALL their blueprints. The
+ // Ops DELETE endpoint cascades to scenarios, so one call removes everything.
+ // Two-step confirm lives in Settings → Danger Zone. Irreversible. (2026-07-08)
+ const handleDeleteClient = async () => {
+  if (!scenariosAreCloud || !activeBorrower?.id) return;
+  const id = activeBorrower.id;
+  setDeletingClient(true);
+  try {
+   await deleteBorrower(id);
+   // Local cleanup: drop from the list + recent shelf, clear the open file.
+   setBorrowerList(prev => prev.filter(b => b.id !== id));
+   try { removeBlueprintEntry?.(id); } catch(e) {}
+   setActiveBorrower(null);
+   setActiveScenarioId(null);
+   setBorrowerScenarios([]);
+   setScenarioList([]);
+   setDeleteClientStep(0);
+   setTab('overview');
+  } catch (e) {
+   console.warn('[Blueprint] Delete client failed:', e.message);
+   setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000);
+  }
+  setDeletingClient(false);
  };
 
  // ── Import a client from an existing Arive file ──
@@ -7462,8 +7490,26 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <button onClick={() => { setWelcomeStep(0); setShowWelcome(true); }} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Replay Tutorial</button>
    </div>
    <div style={{ padding: "12px 0" }}>
-    <div style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 4 }}>Danger Zone</div>
-    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Permanently delete all scenarios, borrower data, and preferences</div>
+    <div style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 10 }}>Danger Zone</div>
+    {/* Delete this client — cloud LO view only. Cascades to all the client's
+        blueprints on the server. Two-step confirm; irreversible. (2026-07-08) */}
+    {scenariosAreCloud && activeBorrower && (
+     <div style={{ marginBottom: 12, padding: 12, background: `${T.red}0a`, border: `1px solid ${T.red}22`, borderRadius: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 2 }}>Delete this client</div>
+      <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10, lineHeight: 1.5, fontFamily: FONT }}>
+       Permanently delete <strong style={{ color: T.text }}>{activeBorrower.name}</strong> and all {borrowerScenarios.length} blueprint{borrowerScenarios.length === 1 ? "" : "s"}. This can't be undone.
+      </div>
+      {deleteClientStep === 0 ? (
+       <button onClick={() => setDeleteClientStep(1)} style={{ width: "100%", padding: 12, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 10, color: T.red, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Delete Client</button>
+      ) : (
+       <div style={{ display: "flex", gap: 8 }}>
+        <button disabled={deletingClient} onClick={() => setDeleteClientStep(0)} style={{ flex: 1, padding: 12, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 10, color: T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+        <button disabled={deletingClient} onClick={handleDeleteClient} style={{ flex: 2, padding: 12, background: T.red, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 13, cursor: deletingClient ? "default" : "pointer", opacity: deletingClient ? 0.6 : 1, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{deletingClient ? "Deleting…" : `Yes, delete ${activeBorrower.name}`}</button>
+       </div>
+      )}
+     </div>
+    )}
+    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Wipe this device's local scenarios, borrower data, and preferences</div>
     <button onClick={() => { setShowClearConfirm(true); setClearStep(0); }} style={{ width: "100%", padding: 14, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 12, color: T.red, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Clear All Data</button>
    </div>
   </Card>
