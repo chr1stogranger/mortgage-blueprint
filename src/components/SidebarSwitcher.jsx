@@ -45,6 +45,7 @@ export default function SidebarSwitcher({
   borrowerProps = {},
   T = {},
 }) {
+  const [recentsOpen, setRecentsOpen] = React.useState(true);
   const accent = '#6366F1';
   const text = T.text || '#EDEDED';
   const textTer = T.textTertiary || '#666666';
@@ -131,8 +132,29 @@ export default function SidebarSwitcher({
 
       {recents.length > 0 && (
         <>
-          {sectionLabel('clock', 'Recent', recents.length)}
-          {recents.map(row)}
+          {/* Recent header doubles as a collapse toggle — the caret (where the
+              count used to be) folds the recents up/down. (2026-07-08) */}
+          <div
+            onClick={() => setRecentsOpen((v) => !v)}
+            title={recentsOpen ? 'Hide recents' : 'Show recents'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '4px 14px',
+              fontSize: 10, fontWeight: 600, color: textTer, fontFamily: FONT,
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+              cursor: 'pointer', userSelect: 'none',
+            }}
+          >
+            <Icon name="clock" size={11} color={textTer} />
+            Recent
+            <span style={{
+              marginLeft: 'auto', display: 'flex', alignItems: 'center',
+              transition: 'transform 0.18s ease',
+              transform: recentsOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+            }}>
+              <Icon name="chevron-down" size={13} color={textTer} />
+            </span>
+          </div>
+          {recentsOpen && recents.map(row)}
         </>
       )}
 
