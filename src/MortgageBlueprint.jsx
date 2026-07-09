@@ -2164,6 +2164,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   },
  };
 
+ // Rename the active client (borrower) record. Optimistic local update, then the
+ // Ops API write; on failure we roll back. The header, Borrower Name field, and
+ // downstream PDFs/emails follow activeBorrower via the name-sync effect, and we
+ // refresh the recent-shelf entry so its label updates too. (2026-07-08)
+ const handleRenameClient = async (newName) => {
+  const name = (newName || '').trim();
+  if (!isCloud || isBorrower || !activeBorrower?.id || !name || name === activeBorrower.name) return;
+  const prevName = activeBorrower.name;
+  const updated = { ...activeBorrower, name };
+  setActiveBorrower(updated);
+  setBorrowerList(prev => prev.map(b => b.id === activeBorrower.id ? { ...b, name } : b));
+  try {
+   await updateBorrower({ id: activeBorrower.id, name });
+   try { recordRecentBlueprint(makeClientEntry(updated)); } catch(e) {}
+  } catch (e) {
+   console.warn('[Blueprint] Rename client failed:', e.message);
+   setActiveBorrower(prev => prev ? { ...prev, name: prevName } : prev);
+   setBorrowerList(prev => prev.map(b => b.id === activeBorrower.id ? { ...b, name: prevName } : b));
+   setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000);
+  }
+ };
+
  // ── Import a client from an existing Arive file ──
  // Creates (or dedupes onto) the borrower, merges the file's deal team
  // (existing roster entries win), links the co-borrower email, and adds a
@@ -5028,6 +5050,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
          onCreateNew: borrowerPickerCallbacks.onCreateNew,
          onImportArive: borrowerPickerCallbacks.onImportArive,
+         onRenameClient: handleRenameClient,
         }}
        />
       )}

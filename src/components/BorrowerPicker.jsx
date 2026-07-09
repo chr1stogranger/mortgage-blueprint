@@ -48,6 +48,7 @@ export default function BorrowerPicker({
   onImportArive,
   onSelectScenario,
   onAutoCreateScenario,
+  onRenameClient,
   scenarios = [],
   scenariosLoading = false,
   loading = false,
@@ -55,6 +56,8 @@ export default function BorrowerPicker({
   T = {},
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);   // inline-edit the active client's name
+  const [nameDraft, setNameDraft] = useState('');
   const [step, setStep] = useState(1); // 1 = pick client, 2 = pick scenario
   const [search, setSearch] = useState('');
   const [highlightIdx, setHighlightIdx] = useState(0);
@@ -484,24 +487,54 @@ export default function BorrowerPicker({
             </span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {activeBorrower.name}
-            </div>
-            {activeBorrower.email && (
+            {renaming ? (
+              <input
+                value={nameDraft}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { const v = nameDraft.trim(); if (v && v !== activeBorrower.name && onRenameClient) onRenameClient(v); setRenaming(false); }
+                  if (e.key === 'Escape') setRenaming(false);
+                }}
+                onBlur={() => { const v = nameDraft.trim(); if (v && v !== activeBorrower.name && onRenameClient) onRenameClient(v); setRenaming(false); }}
+                style={{ width: '100%', boxSizing: 'border-box', background: bg, border: `1px solid ${accent}`, borderRadius: 6, padding: '2px 6px', fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT, outline: 'none' }}
+              />
+            ) : (
+              <div style={{ fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {activeBorrower.name}
+              </div>
+            )}
+            {!renaming && activeBorrower.email && (
               <div style={{ fontSize: 10, color: textTer, fontFamily: FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {activeBorrower.email}
               </div>
             )}
           </div>
-          <Icon name="chevron-down" size={14} color={textTer} />
-          <div
-            onClick={handleClear}
-            style={{
-              width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', flexShrink: 0, fontSize: 12, color: textTer,
-            }}
-          >&times;</div>
+          {onRenameClient && !renaming && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setNameDraft(activeBorrower.name || ''); setRenaming(true); }}
+              title="Rename client"
+              style={{
+                width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'transparent', border: 'none', borderRadius: 5, cursor: 'pointer',
+                color: textTer, flexShrink: 0, padding: 0,
+              }}
+            >
+              <Icon name="edit" size={13} color={textTer} />
+            </button>
+          )}
+          {!renaming && <Icon name="chevron-down" size={14} color={textTer} />}
+          {!renaming && (
+            <div
+              onClick={handleClear}
+              style={{
+                width: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.06)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0, fontSize: 12, color: textTer,
+              }}
+            >&times;</div>
+          )}
         </>
       ) : (
         <>
