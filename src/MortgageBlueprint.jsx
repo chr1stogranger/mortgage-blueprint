@@ -4799,6 +4799,37 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
      {/* Mode-specific nav items */}
      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+      {/* Client switcher — picker + selected-client card + recents. Docked at the
+          TOP of the nav (below the Blueprint/PricePoint/Markets toggle, above the
+          Scenarios list) so brokers see which client/file they're in first. Moved
+          up from the bottom of the nav on 2026-07-08. */}
+      {appMode === "blueprint" && isCloud && !isBorrower && (!sidebarCollapsed || !isDesktop) && (
+       <SidebarSwitcher
+        pinned={pinnedBlueprints}
+        recents={recentBlueprints}
+        activeBorrowerId={activeBorrower?.id}
+        onOpen={openClient}
+        onTogglePin={toggleBlueprintPin}
+        isPinned={isBlueprintPinned}
+        T={T}
+        borrowerProps={{
+         borrowers: borrowerList,
+         activeBorrower,
+         loading: borrowerLoading,
+         scenarios: borrowerScenarios,
+         scenariosLoading: borrowerScenariosLoading,
+         onSelect: borrowerPickerCallbacks.onSelect,
+         onSelectScenario: borrowerPickerCallbacks.onSelectScenario,
+         onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
+         onCreateNew: borrowerPickerCallbacks.onCreateNew,
+         onImportArive: borrowerPickerCallbacks.onImportArive,
+        }}
+       />
+      )}
+      {/* Divider between the client switcher and the Scenarios list. */}
+      {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && scenarioList.length > 0 && (
+       <div style={{ height: 1, background: T.separator, margin: "6px 12px 8px" }} />
+      )}
       {/* Scenarios switcher — quick toggle between saved scenarios, docked
           right below the Blueprint/PricePoint/Markets switcher and above the
           Overview nav so brokers can click between scenarios fast. (2026-07-07) */}
@@ -4942,30 +4973,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         </>
        );
       })()}
-      {/* Blueprint switcher — pinned + recent blueprints (LO view only) */}
-      {appMode === "blueprint" && isCloud && !isBorrower && (!sidebarCollapsed || !isDesktop) && (
-       <SidebarSwitcher
-        pinned={pinnedBlueprints}
-        recents={recentBlueprints}
-        activeBorrowerId={activeBorrower?.id}
-        onOpen={openClient}
-        onTogglePin={toggleBlueprintPin}
-        isPinned={isBlueprintPinned}
-        T={T}
-        borrowerProps={{
-         borrowers: borrowerList,
-         activeBorrower,
-         loading: borrowerLoading,
-         scenarios: borrowerScenarios,
-         scenariosLoading: borrowerScenariosLoading,
-         onSelect: borrowerPickerCallbacks.onSelect,
-         onSelectScenario: borrowerPickerCallbacks.onSelectScenario,
-         onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
-         onCreateNew: borrowerPickerCallbacks.onCreateNew,
-         onImportArive: borrowerPickerCallbacks.onImportArive,
-        }}
-       />
-      )}
+      {/* Blueprint switcher moved to the top of the nav (below Markets, above Scenarios). (2026-07-08) */}
       {/* PricePoint nav (when PP is primary) */}
       {appMode === "pricepoint" && (!sidebarCollapsed || !isDesktop) && [["daily","target","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
        const active = ppCurrentTab === k;

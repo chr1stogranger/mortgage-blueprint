@@ -116,7 +116,7 @@ export default function SidebarSwitcher({
   const hasShelf = pinned.length > 0 || recents.length > 0;
 
   return (
-    <div style={{ borderTop: `1px solid ${separator}`, marginTop: 8, paddingTop: 8 }}>
+    <div style={{ paddingTop: 2 }}>
       {/* Find / add client */}
       <div style={{ padding: '0 12px 8px' }}>
         <BorrowerPicker {...borrowerProps} isDesktop={false} T={T} />
