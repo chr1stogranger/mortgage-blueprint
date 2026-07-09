@@ -6845,9 +6845,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </>)}
 </>)}
 {tab === "compare" && (<>
- <div style={{ marginTop: 20 }}>
-  <Hero value={<Icon name="bar-chart" size={34} />} label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
- </div>
  {/* ── Scenario Manager ── */}
  <Sec title="Your Loan Options" action="+ New" onAction={() => setNewScenarioName("New Option")}>
   {newScenarioName !== "" && (
@@ -6894,6 +6891,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ))}
   <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: 4 }}>Tap any option to switch, then go to Setup or Calculator to edit its details. Come back here to see them side-by-side.</div>
  </Sec>
+
+ <div style={{ marginTop: 20 }}>
+  <Hero value={<Icon name="bar-chart" size={34} />} label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
+ </div>
  {/* ── Comparison Data ── */}
  {compareLoading ? (
   <Card><div style={{ textAlign: "center", padding: 20, color: T.textSecondary }}>Loading comparison...</div></Card>
