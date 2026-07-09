@@ -2206,6 +2206,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setBorrowerScenariosLoading(false);
  };
 
+ // Keep the free-text borrowerName in sync with the active client record for a
+ // signed-in LO. loadState() sets borrowerName from each scenario's saved
+ // state, and that value can drift between a client's scenarios (one scenario
+ // may still carry an old name). Re-keying on the client + scenario forces it
+ // back to the client's real name so the header, the Borrower Name field, and
+ // downstream PDFs/emails all agree with the sidebar picker. Local mode
+ // (no cloud) and the borrower-facing share view are left untouched. (2026-07-08)
+ useEffect(() => {
+  if (!isCloud || isBorrower) return;
+  const clientName = (activeBorrower?.name || "").trim();
+  if (!clientName) return;
+  setBorrowerName(prev => (prev === clientName ? prev : clientName));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isCloud, isBorrower, activeBorrower?.id, activeBorrower?.name, activeScenarioId, scenarioName]);
+
  // ── Deep link: ?client=<borrower_id> (from Ops BP column) opens that client ──
  // Signed-in LOs only. Waits for borrowerList to load; if the id matches one of
  // the LO's borrowers, open it and strip the param. Unknown id = silent no-op.

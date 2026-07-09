@@ -65,6 +65,16 @@ export default function UnifiedHeader({
   };
   const pct = (v, d = 1) => ((v || 0) * 100).toFixed(d) + "%";
 
+  // "Whose file am I in?" — for a signed-in LO with a client open, the active
+  // client RECORD is the source of truth. The per-scenario free-text
+  // borrowerName can drift between scenarios (e.g. one scenario still holds an
+  // old client's name), which made the breadcrumb show the wrong person until a
+  // scenario switch reloaded it. Trust activeBorrower whenever it's present so
+  // the breadcrumb always matches the sidebar client picker. (2026-07-08)
+  const clientLabel = (!isBorrower && activeBorrower && (activeBorrower.name || "").trim())
+    ? activeBorrower.name.trim()
+    : borrowerName;
+
   // ── Clickable stat dropdowns (Arive-style summary popovers) ──
   const [statPop, setStatPop] = useState(null); // { key, x, y }
   const statContent = (key) => {
@@ -284,7 +294,7 @@ export default function UnifiedHeader({
             letterSpacing: "-0.03em", color: T.text,
             whiteSpace: "nowrap",
           }}>Blueprint</span>
-          {borrowerName && borrowerName.trim() && (
+          {clientLabel && clientLabel.trim() && (
             <>
               <span style={{
                 fontSize: isDesktop ? 14 : 12, color: T.textTertiary,
@@ -297,7 +307,7 @@ export default function UnifiedHeader({
                 whiteSpace: "nowrap", letterSpacing: "-0.01em",
                 minWidth: 0, overflow: "hidden", textOverflow: "ellipsis",
                 maxWidth: isDesktop ? 260 : 130,
-              }} title={`Blueprint for ${borrowerName}`}>{borrowerName}</span>
+              }} title={`Blueprint for ${clientLabel}`}>{clientLabel}</span>
             </>
           )}
           {/* Tab-name breadcrumb removed (Christo 2026-07-07) — the sidebar
