@@ -1234,7 +1234,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [salesPrice, setSalesPrice] = useState(0);
  const [downPct, setDownPct] = useState(0);
  const [downMode, setDownMode] = useState("pct"); // "pct" or "dollar"
- const [rate, setRate] = useState(6.5);
+ const [rate, _setRateRaw] = useState(6.5);
+ // Manual-rate lock. Any user edit to the rate (through setRate below) flips this
+ // to true so the live-rate auto-apply effect stops overwriting it — the rate
+ // "sticks" across loan-type/term changes, tab switches (Compare), and scenario
+ // reloads. Only an explicit "Get Today's Rates" fetch clears the lock. Internal
+ // code that should NOT lock the rate (the auto-apply effect, a fresh fetch)
+ // uses _setRateRaw directly. (2026-07-08)
+ const rateIsManualRef = useRef(false);
+ const setRate = (v) => { rateIsManualRef.current = true; _setRateRaw(v); };
  const [term, setTerm] = useState(30);
  const [loanType, setLoanType] = useState("Conventional");
  const [autoJumboSwitch, setAutoJumboSwitch] = useState(false);
@@ -1665,7 +1673,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!s) return;
   if (s.salesPrice !== undefined) setSalesPrice(s.salesPrice);
   if (s.downPct !== undefined) setDownPct(s.downPct);
-  if (s.rate !== undefined) setRate(s.rate);
+  // A scenario's saved rate is treated as locked so the live-rate auto-apply
+  // effect can't overwrite it when this scenario loads. A scenario with no saved
+  // rate leaves the lock off so live rates can populate it.
+  if (s.rate !== undefined) { _setRateRaw(s.rate); rateIsManualRef.current = true; }
+  else { rateIsManualRef.current = false; }
   if (s.term !== undefined) setTerm(s.term);
   if (s.loanType) setLoanType(s.loanType.startsWith("VA") ? "VA" : s.loanType);
   if (s.vaUsage) setVaUsage(s.vaUsage);
@@ -2303,7 +2315,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const newList = [...scenarioList, name];
   setScenarioList(newList);
   setScenarioName(name);
-  setSalesPrice(1000000); setDownPct(20); setRate(6.5); setTerm(30);
+  setSalesPrice(1000000); setDownPct(20); _setRateRaw(6.5); rateIsManualRef.current = false; setTerm(30);
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
   setCity("Alameda"); setPropertyState("California"); setHoa(0); setAnnualIns(1500); setDiscountPts(0);
   setSellerCredit(0); setRealtorCredit(0); setEmd(0); setEmdPct(3); setEmdPaid(false); setDebts([]); setIncomes([]);
@@ -2857,7 +2869,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const rateMap = { "Conventional": term === 15 ? parsed["15yr_fixed"] : parsed["30yr_fixed"],
     "FHA": parsed["30yr_fha"], "VA": parsed["30yr_va"], "Jumbo": parsed["30yr_jumbo"], "USDA": parsed["30yr_fixed"] };
    const matched = rateMap[loanType];
-   if (matched && !isNaN(matched)) setRate(matched);
+   // Explicit "Get Today's Rates" — clear the manual lock so the fetched rate
+   // wins and the auto-apply effect can track loan-type/term until the next edit.
+   rateIsManualRef.current = false;
+   if (matched && !isNaN(matched)) _setRateRaw(matched);
   };
   // Normalize the RealStack Ops market-rates payload → Blueprint's flat shape.
   // Ops returns { provider, asOf, rates: { "30yr_fixed": { rate, change, ... }, ... } }
@@ -2919,6 +2934,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
  useEffect(() => {
   if (!liveRates) return;
+  // Respect a manually-entered (or scenario-saved) rate — the auto-apply only
+  // runs while the rate is "live-tracking". This is what stopped a hand-typed
+  // rate from reverting on loan-type/term changes, Compare-tab visits, and
+  // scenario reloads. Clear the lock with "Get Today's Rates". (2026-07-08)
+  if (rateIsManualRef.current) return;
   const rateMap = {
    "Conventional": term === 15 ? liveRates["15yr_fixed"] : liveRates["30yr_fixed"],
    "FHA": liveRates["30yr_fha"],
@@ -2927,7 +2947,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    "USDA": liveRates["30yr_fixed"],
   };
   const matched = rateMap[loanType];
-  if (matched && !isNaN(matched)) setRate(matched);
+  if (matched && !isNaN(matched)) _setRateRaw(matched);
  }, [loanType, liveRates, term]);
  // addIncome accepts an optional `source` so the "+ Add component"
  // button inside an employer group can pre-fill the employer name. New
