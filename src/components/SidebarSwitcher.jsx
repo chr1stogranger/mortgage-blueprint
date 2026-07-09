@@ -154,7 +154,9 @@ export default function SidebarSwitcher({
               <Icon name="chevron-down" size={13} color={textTer} />
             </span>
           </div>
-          {recentsOpen && recents.map(row)}
+          {/* Cap the visible recents at 5 so a long history can't push the
+              "Overview: Jump to" index down the sidebar. (2026-07-08) */}
+          {recentsOpen && recents.slice(0, 5).map(row)}
         </>
       )}
 
