@@ -1025,6 +1025,34 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
  const [borrowerScenarios, setBorrowerScenarios] = useState([]); // Scenarios for selected borrower (step 2)
  const [borrowerScenariosLoading, setBorrowerScenariosLoading] = useState(false);
+ // ── Cloud scenarios as the source of truth (LO viewing a real client) ──
+ // For a signed-in LO with a client open, the sidebar Scenarios list mirrors
+ // the client's cloud rows (Supabase, keyed by borrower_id). Each sidebar entry
+ // maps 1:1 to a cloud row id, so create/switch/rename/delete hit the Ops API
+ // and autosave always targets the right row — no more localStorage-vs-cloud
+ // drift or single-row clobbering. Signed-out and borrower-share modes are left
+ // on their existing localStorage behavior. (2026-07-08)
+ const scenariosAreCloud = isCloud && !isBorrower && !!activeBorrower;
+ // Deterministic display-name ↔ cloud-id index for the open client's rows.
+ // Legacy duplicate names (e.g. several "Conv - 5%") get a "(2)", "(3)" DISPLAY
+ // suffix so every sidebar row is uniquely addressable; the stored cloud name
+ // is never changed by this.
+ const cloudScenarioIndex = React.useMemo(() => {
+  const byName = {}; const names = [];
+  for (const s of borrowerScenarios) {
+   const base = s.name || 'Scenario 1';
+   let disp = base, n = 2;
+   while (Object.prototype.hasOwnProperty.call(byName, disp)) { disp = `${base} (${n})`; n++; }
+   byName[disp] = s.id; names.push(disp);
+  }
+  const byId = {}; for (const [nm, id] of Object.entries(byName)) byId[id] = nm;
+  return { names, byName, byId };
+ }, [borrowerScenarios]);
+ // Resolve a sidebar display-name to its cloud row (or null in local mode).
+ const cloudRowForName = (name) => {
+  const id = cloudScenarioIndex.byName[name];
+  return id ? (borrowerScenarios.find(s => s.id === id) || null) : null;
+ };
  const supabaseSaveTimer = useRef(null);
  // ── Blueprint switcher shelf (left panel): pinned + recent blueprints ──
  const {
@@ -1871,6 +1899,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     return;
    }
 
+   // Cloud LO mode: the sidebar list is hydrated from the client's cloud rows
+   // (see the lockstep effect above), NOT this device's localStorage. Skip local
+   // hydration so a stale per-browser list can't seed the sidebar.
+   if (scenariosAreCloud) {
+    setLoaded(true);
+    try { if (window.__FRED_API_KEY__) { setFredApiKey(window.__FRED_API_KEY__); } } catch(e) {}
+    return;
+   }
+
    try {
     const listResult = await LS.list("scenario:");
     let names = listResult?.keys?.map(k => k.replace("scenario:", "")) || [];
@@ -1921,6 +1958,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    try { if (window.__FRED_API_KEY__) { setFredApiKey(window.__FRED_API_KEY__); } } catch(e) {}
   })();
  }, []);
+
+ // ── Cloud mode: keep the sidebar Scenarios list in lockstep with the open
+ //    client's cloud rows. This is what makes scenarios consistent across tabs
+ //    and devices — the list is derived from the DB, not this browser's LS. ──
+ useEffect(() => {
+  if (!scenariosAreCloud) return;
+  setScenarioList(cloudScenarioIndex.names);
+  if (activeScenarioId && cloudScenarioIndex.byId[activeScenarioId]) {
+   setScenarioName(cloudScenarioIndex.byId[activeScenarioId]);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [scenariosAreCloud, cloudScenarioIndex, activeScenarioId]);
 
  // ── Load borrower list from Supabase when authenticated ──
  useEffect(() => {
@@ -1989,20 +2038,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try {
    const summary = buildCalcSummary();
    if (scenarioId) {
-    // Update existing
-    await apiUpdateScenario({ id: scenarioId, state_data: stateData, calc_summary: summary, name: scenarioName });
+    // Update the active row's STATE only. Never write `name` here: the sidebar
+    // display name may carry a "(2)" de-dupe suffix, and renames are explicit
+    // (renameScenario). Writing it back would corrupt the stored name.
+    await apiUpdateScenario({ id: scenarioId, state_data: stateData, calc_summary: summary });
+    // Keep the in-memory cloud row's state fresh so Compare + switch-back are
+    // accurate without a refetch.
+    setBorrowerScenarios(prev => prev.map(s => s.id === scenarioId ? { ...s, state_data: stateData, calc_summary: summary } : s));
    } else {
-    // Create new
-    const result = await apiCreateScenario({
-     borrower_id: activeBorrower.id,
-     name: scenarioName,
-     type: isRefi ? 'refi' : 'purchase',
-     status: 'draft',
-     created_by: 'lo',
-     state_data: stateData,
-     calc_summary: summary,
-    });
-    if (result?.[0]?.id) setActiveScenarioId(result[0].id);
+    // No active cloud row → do NOT auto-create. Auto-creation on save is exactly
+    // what spawned the duplicate/clobbered rows. Scenarios are created
+    // explicitly (openClient / onAutoCreateScenario / createScenario). Skip.
+    setCloudSyncStatus('');
+    return;
    }
    setCloudSyncStatus('saved');
    setTimeout(() => setCloudSyncStatus(''), 2000);
@@ -2040,10 +2088,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const stateData = getState();
    // ── Borrower mode: skip localStorage, only sync via Realtime ──
    if (!isBorrower) {
-    try {
-     await LS.set("scenario:" + scenarioName, JSON.stringify(stateData));
-     await LS.set("active-scenario", scenarioName);
-    } catch(e) {}
+    // Cloud mode persists through Supabase (below); writing a "scenario:<name>"
+    // localStorage copy here is what re-forked the local and cloud lists, so
+    // skip it. Local (signed-out) mode still snapshots to localStorage.
+    if (!scenariosAreCloud) {
+     try {
+      await LS.set("scenario:" + scenarioName, JSON.stringify(stateData));
+      await LS.set("active-scenario", scenarioName);
+     } catch(e) {}
+    }
     // ── Write-through to Supabase when authenticated + borrower selected ──
     if (isCloud && activeBorrower) {
      if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
@@ -2252,6 +2305,29 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [isCloud, isBorrower, borrowerList]);
 
  const switchScenario = async (name, opts = {}) => {
+  // ── Cloud mode: switch between the client's cloud rows by id. ──
+  if (scenariosAreCloud) {
+   const row = cloudRowForName(name);
+   if (!row) return;
+   // Persist the outgoing scenario's edits to its OWN cloud row BEFORE loading
+   // the next one — otherwise a still-pending debounced save would fire after
+   // the switch and write the incoming scenario's state onto the wrong row (or
+   // the edits would be lost). Also snapshot into the in-memory row so Compare
+   // and a switch-back are accurate without a refetch.
+   if (!opts.skipSave && activeScenarioId && activeScenarioId !== row.id) {
+    const outgoing = getState();
+    const outgoingSummary = buildCalcSummary();
+    setBorrowerScenarios(prev => prev.map(s => s.id === activeScenarioId ? { ...s, state_data: outgoing, calc_summary: outgoingSummary } : s));
+    try { await apiUpdateScenario({ id: activeScenarioId, state_data: outgoing, calc_summary: outgoingSummary }); }
+    catch (e) { console.warn('[Blueprint] save-on-switch failed:', e.message); }
+   }
+   if (row.state_data) loadState(row.state_data);
+   setActiveScenarioId(row.id);
+   setScenarioName(name);
+   sync.initSync(row.state_data, row.locked_fields);
+   setTab("overview");
+   return;
+  }
   // skipSave: set when the outgoing scenario was just DELETED — the old
   // unconditional save re-wrote the deleted "scenario:<name>" key, which
   // resurrected it in the list on the next refresh (the "Scenario 1 zombie").
@@ -2311,9 +2387,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const createScenario = async (name) => {
   if (!name || scenarioList.includes(name)) return;
   try { selfSync.clearTombstone?.(name); } catch(e) {}
-  try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
-  const newList = [...scenarioList, name];
-  setScenarioList(newList);
+  if (scenariosAreCloud) {
+   // Persist the OUTGOING scenario to its own row and cancel pending debounced
+   // saves BEFORE we reset live state to defaults — otherwise a pending save
+   // (still pointed at the previous row) would write blank defaults over it.
+   if (activeScenarioId) {
+    const outgoing = getState(); const outSummary = buildCalcSummary();
+    setBorrowerScenarios(prev => prev.map(s => s.id === activeScenarioId ? { ...s, state_data: outgoing, calc_summary: outSummary } : s));
+    try { await apiUpdateScenario({ id: activeScenarioId, state_data: outgoing, calc_summary: outSummary }); } catch(e) { console.warn('[Blueprint] save-outgoing-before-create failed:', e.message); }
+   }
+   if (saveTimer.current) clearTimeout(saveTimer.current);
+   if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+   setActiveScenarioId(null); // suppress autosave (saveToCloud skips a null id) while we build the new row
+  } else {
+   // Local mode snapshots the outgoing scenario + grows the local list.
+   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
+   setScenarioList([...scenarioList, name]);
+  }
   setScenarioName(name);
   setSalesPrice(1000000); setDownPct(20); _setRateRaw(6.5); rateIsManualRef.current = false; setTerm(30);
   setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); setPropType("Single Family"); setLoanPurpose("Purchase Primary");
@@ -2336,13 +2426,51 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    includeEscrow: true, discountPts: 0, sellerCredit: 0, realtorCredit: 0, emd: 0, debts: [], incomes: [],
    otherIncome: 0, otherIncome2: 0, assets: [], creditScore: 0, extraPayment: 0, payExtra: false,
    hasSellProperty: false, ownsProperties: false, isRefi: null, showInvestor: false, showProp19: false, darkMode, themeMode };
-  try { await LS.set("scenario:" + name, JSON.stringify(defaults)); } catch(e) {}
-  try { await LS.set("active-scenario", name); } catch(e) {}
+  if (scenariosAreCloud) {
+   // Create a real cloud row so this scenario is its own saved blueprint (not an
+   // overwrite of the active row). The lockstep effect adds it to the sidebar.
+   try {
+    const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: 'purchase', status: 'draft', created_by: 'lo', state_data: defaults, calc_summary: {} });
+    const s = Array.isArray(created) ? created[0] : created;
+    if (s?.id) {
+     const newId = s.id;
+     setBorrowerScenarios(prev => [...prev, s]);
+     setActiveScenarioId(newId);
+     sync.initSync(defaults, null);
+     // The reset applied the LO's default fee sheet to live state; persist that
+     // full fresh state (defaults + fees) to the new row using the latest state.
+     if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+     supabaseSaveTimer.current = setTimeout(() => { try { saveToCloud(getStateRef.current ? getStateRef.current() : defaults, newId); } catch(e) {} }, 400);
+    }
+   } catch (e) { console.warn('[Blueprint] Cloud create scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
+  } else {
+   try { await LS.set("scenario:" + name, JSON.stringify(defaults)); } catch(e) {}
+   try { await LS.set("active-scenario", name); } catch(e) {}
+  }
   setNewScenarioName("");
   setShowCompareHint(true);
  };
  const deleteScenario = async (name) => {
   if (scenarioList.length <= 1) return;
+  // ── Cloud mode: delete the cloud row; the lockstep effect prunes the sidebar. ──
+  if (scenariosAreCloud) {
+   const row = cloudRowForName(name);
+   if (!row) return;
+   try { await deleteScenarioAPI(row.id); }
+   catch (e) { console.warn('[Blueprint] Cloud delete scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); return; }
+   const remaining = borrowerScenarios.filter(s => s.id !== row.id);
+   setBorrowerScenarios(remaining);
+   if (row.id === activeScenarioId) {
+    const next = remaining[0];
+    if (next) {
+     if (next.state_data) loadState(next.state_data);
+     setActiveScenarioId(next.id);
+     setScenarioName(next.name || 'Scenario 1');
+     sync.initSync(next.state_data, next.locked_fields);
+    }
+   }
+   return;
+  }
   const newList = scenarioList.filter(n => n !== name);
   setScenarioList(newList);
   // deleteByName FIRST: it tombstones AND removes the local key in the same
@@ -2354,7 +2482,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { await LS.delete("scenario:" + name); } catch(e) {}
   if (name === scenarioName) await switchScenario(newList[0], { skipSave: true });
  };
+ // Cloud-mode helper: create a copy of `stateData` as a new cloud row for the
+ // active client, with a name unique among the client's existing scenarios.
+ const cloudDuplicate = async (baseName, stateData, srcType) => {
+  const existing = new Set(borrowerScenarios.map(s => s.name || 'Scenario 1'));
+  let newName = baseName + " Copy", i = 2;
+  while (existing.has(newName)) { newName = baseName + " Copy " + i; i++; }
+  try {
+   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name: newName, type: srcType || 'purchase', status: 'draft', created_by: 'lo', state_data: stateData || {}, calc_summary: {} });
+   const s = Array.isArray(created) ? created[0] : created;
+   if (s?.id) setBorrowerScenarios(prev => [...prev, s]);
+  } catch (e) { console.warn('[Blueprint] Cloud duplicate scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
+ };
  const duplicateScenario = async () => {
+  if (scenariosAreCloud) { await cloudDuplicate(scenarioName, getState(), isRefi ? 'refi' : 'purchase'); setShowCompareHint(true); return; }
   let newName = scenarioName + " Copy";
   let i = 2;
   while (scenarioList.includes(newName)) { newName = scenarioName + " Copy " + i; i++; }
@@ -2368,6 +2509,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Duplicate a specific (possibly non-active) scenario without switching to it.
  const duplicateScenarioByName = async (name) => {
+  if (scenariosAreCloud) {
+   const row = cloudRowForName(name);
+   if (!row) return;
+   const stateData = (row.id === activeScenarioId) ? getState() : (row.state_data || {});
+   await cloudDuplicate(row.name || name, stateData, row.type);
+   setShowCompareHint(true);
+   return;
+  }
   let newName = name + " Copy";
   let i = 2;
   while (scenarioList.includes(newName)) { newName = name + " Copy " + i; i++; }
@@ -2385,6 +2534,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Move `fromName` to occupy `toName`'s slot; persist the new order.
  const reorderScenarios = async (fromName, toName) => {
+  // Cloud mode has no per-client order column yet — order follows the DB fetch.
+  // No-op here rather than desyncing the sidebar from the cloud list.
+  if (scenariosAreCloud) return;
   if (!fromName || fromName === toName) return;
   const from = scenarioList.indexOf(fromName);
   const to = scenarioList.indexOf(toName);
@@ -2397,6 +2549,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  const renameScenario = async (oldName, newName) => {
   if (!newName || newName === oldName || scenarioList.includes(newName)) return;
+  // ── Cloud mode: rename the cloud row; the lockstep effect relabels the sidebar. ──
+  if (scenariosAreCloud) {
+   const row = cloudRowForName(oldName);
+   if (!row) return;
+   try { await apiUpdateScenario({ id: row.id, name: newName }); }
+   catch (e) { console.warn('[Blueprint] Cloud rename scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); return; }
+   setBorrowerScenarios(prev => prev.map(s => s.id === row.id ? { ...s, name: newName } : s));
+   if (row.id === activeScenarioId) setScenarioName(newName);
+   return;
+  }
   try {
    const old = await LS.get("scenario:" + oldName);
    if (old) await LS.set("scenario:" + newName, old.value);
@@ -2482,22 +2644,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const loadCompareData = async () => {
   setCompareLoading(true);
   try {
-   // Force-save current scenario so storage is up-to-date
-   try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {}
+   // Force-save current scenario so storage is up-to-date (local mode only —
+   // cloud mode reads non-active states from the in-memory cloud rows).
+   if (!scenariosAreCloud) { try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {} }
    const results = [];
    const liveMetrics = { salesPrice, downPct, rate, term, loanType, loan: calc.loan, pi: calc.pi, monthlyPayment: calc.displayPayment, cashToClose: calc.cashToClose, dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome, monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, hoaM: hoa, ltv: calc.ltv };
    // Build STRICTLY from the current scenario list so a just-deleted scenario
    // can't ghost into the cards. The active scenario (scenarioName) uses live
-   // calc values; the rest load from storage. If scenarioName isn't in the list
-   // yet (mid-switch after a delete), it simply isn't shown until things settle.
+   // calc values; the rest load from storage (local) or the cloud row (cloud).
+   // If scenarioName isn't in the list yet (mid-switch after a delete), it
+   // simply isn't shown until things settle.
    for (const name of scenarioList) {
     if (name === scenarioName) {
      results.push({ name, metrics: liveMetrics, isCurrent: true });
     } else {
      try {
-      const res = await LS.get("scenario:" + name);
-      if (res && res.value) {
-       const s = JSON.parse(res.value);
+      let s = null;
+      if (scenariosAreCloud) {
+       const row = cloudRowForName(name);
+       s = row?.state_data || null;
+      } else {
+       const res = await LS.get("scenario:" + name);
+       s = (res && res.value) ? JSON.parse(res.value) : null;
+      }
+      if (s) {
        const m = calcQuickMetrics(s);
        if (m) results.push({ name, metrics: m, isCurrent: false });
       }
@@ -2512,7 +2682,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // scenario list or active scenario changes (so deleting/renaming/switching a
  // scenario refreshes the side-by-side cards instead of showing stale data).
  // eslint-disable-next-line react-hooks/exhaustive-deps
- React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab, scenarioName, scenarioList]);
+ React.useEffect(() => { if (tab === "compare") loadCompareData(); }, [tab, scenarioName, scenarioList, borrowerScenarios]);
  React.useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0; }, [tab]);
  React.useEffect(() => { if (loanType === "FHA" || loanType === "VA") setIncludeEscrow(true); }, [loanType]);
  // Sync escrow toggles between purchase flow (includeEscrow) and refi flow (refiHasEscrow)
