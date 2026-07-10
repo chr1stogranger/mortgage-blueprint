@@ -4,7 +4,7 @@ import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
-  submitGuess, submitPrediction, syncPlayerXP,
+  submitGuess, flushPendingGuesses,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
@@ -860,6 +860,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     try { return localStorage.getItem('pp-player-id') || null; } catch { return null; }
   });
   const [supabaseDaily, setSupabaseDaily] = useState(null); // server-side daily challenge
+  const [dailySubmitting, setDailySubmitting] = useState(false); // awaiting server daily score
+  const [serverXp, setServerXp] = useState(null); // authoritative XP from pp-guess responses
+  const [syncToast, setSyncToast] = useState(null); // "saved offline / will sync" banner
 
   // ── Property Details (lazy-fetched for Live mode: photos + description) ──
   const [propertyDetails, setPropertyDetails] = useState({}); // keyed by zpid
@@ -997,8 +1000,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Derived ──
   const dailyNumber = getDailyNumber();
-  const dailyProperty = useMemo(() => getDailyProperty(soldListings, market?.label || ""), [soldListings, market]);
-  const xp = useMemo(() => calcXP(allResults), [allResults]);
+  // Canonical daily: prefer the server's challenge (same property for every device
+  // in this market) and fall back to the client-hash pick only if the API failed.
+  // The server response already uses the client listing shape (yearBuilt, listPrice,
+  // propertyType, photo…), so no card fork is needed. soldPrice is intentionally
+  // absent until reveal — handleDailyGuess gets it from the /api/pp-guess response.
+  const dailyPropertyServer = useMemo(() => {
+    if (!supabaseDaily || !supabaseDaily.address) return null;
+    return { ...supabaseDaily, _source: 'server' };
+  }, [supabaseDaily]);
+  const dailyPropertyLocal = useMemo(() => getDailyProperty(soldListings, market?.label || ""), [soldListings, market]);
+  const dailyProperty = dailyPropertyServer || dailyPropertyLocal;
+  const dailyIsServer = !!dailyPropertyServer;
+  // Local XP is instant feedback; when a pp-guess response reports a higher
+  // server total (XP earned on other devices), show the authoritative number.
+  const localXp = useMemo(() => calcXP(allResults), [allResults]);
+  const xp = serverXp != null ? Math.max(localXp, serverXp) : localXp;
   const currentLevel = useMemo(() => getLevel(xp), [xp]);
   const nextLevel = useMemo(() => LEVELS.find(l => l.req > xp), [xp]);
 
@@ -1134,13 +1151,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         const daily = await fetchDaily(marketId);
         if (daily) {
           setSupabaseDaily(daily);
-          // Check if we already guessed (e.g. returning user)
-          if (pid && daily.id) {
+          // Already guessed today? Reconstruct the result from the server row and
+          // lock the daily to post-daily state. This makes the server the source of
+          // truth — clearing localStorage no longer lets you replay the daily.
+          if (pid && daily.id && !dailyResult) {
             const existing = await getExistingDailyGuess(pid, daily.id);
-            if (existing && !dailyResult) {
-              // Player already guessed today — reconstruct result from DB
-              // (The sold_price reveal comes via separate API call)
-              console.log('[PricePoint] Existing daily guess found in Supabase');
+            if (existing && existing.sold_price) {
+              const sp = existing.sold_price;
+              const pctOffRound = existing.pct_off != null
+                ? existing.pct_off
+                : parseFloat((Math.abs((existing.guess - sp) / sp) * 100).toFixed(1));
+              const fb = getFeedback(pctOffRound);
+              const restored = {
+                guess: existing.guess, soldPrice: sp, listPrice: existing.list_price ?? daily.listPrice,
+                address: existing.address || daily.address,
+                neighborhood: existing.neighborhood || daily.neighborhood,
+                city: existing.city || daily.city, state: daily.state, zip: existing.zip || daily.zip,
+                beds: existing.beds ?? daily.beds, baths: existing.baths ?? daily.baths,
+                sqft: existing.sqft ?? daily.sqft, photo: existing.photo || daily.photo,
+                pctOff: pctOffRound, feedback: fb, feedbackMessage: getRandomMessage(fb),
+                insight: getInsight({ ...daily, soldPrice: sp, listPrice: existing.list_price ?? daily.listPrice }, pctOffRound, existing.guess > sp),
+                dailyNumber, timestamp: Date.now(), revealed: true, isDaily: true,
+                guessId: existing.id,
+              };
+              setDailyResult(restored);
+              setAllResults(prev => prev.some(r => r.guessId === existing.id) ? prev : [...prev, restored]);
             }
           }
         }
@@ -1151,29 +1186,38 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     if (market) initSupabase();
   }, [market?.id]);
 
-  // ── Fetch leaderboard from Supabase when mode/tab/market changes ──
+  // ── Drain any offline-queued guesses on mount and when the network returns ──
   useEffect(() => {
-    const fetchLB = async () => {
-      if (!market?.id) return;
-      setLbLoading(true);
-      try {
-        const periodMap = { today: 'today', weekly: 'week', alltime: 'all' };
-        const modeMap = { daily: 'daily', free: 'freeplay', live: 'live' };
-        const rows = await getLeaderboard(
-          market.id,
-          modeMap[leaderboardMode] || 'daily',
-          periodMap[leaderboardTab] || 'all',
-          20
-        );
-        setLbData(rows || []);
-      } catch (err) {
-        console.warn('[PricePoint] Leaderboard fetch failed:', err.message);
-        setLbData([]);
-      }
-      setLbLoading(false);
-    };
-    fetchLB();
-  }, [market?.id, leaderboardMode, leaderboardTab]);
+    flushPendingGuesses().then(() => refetchLeaderboard());
+    const onOnline = () => flushPendingGuesses().then(() => refetchLeaderboard());
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [refetchLeaderboard]);
+
+  // ── Fetch leaderboard (pp_leaderboard_v2 with own-row/rank) ──
+  const refetchLeaderboard = useCallback(async () => {
+    if (!market?.id) return;
+    setLbLoading(true);
+    try {
+      const periodMap = { today: 'today', weekly: 'week', alltime: 'all' };
+      const modeMap = { daily: 'daily', free: 'freeplay', live: 'live' };
+      const rows = await getLeaderboard(
+        market.id,
+        modeMap[leaderboardMode] || 'daily',
+        periodMap[leaderboardTab] || 'all',
+        20,
+        playerId,
+      );
+      setLbData(rows || []);
+    } catch (err) {
+      console.warn('[PricePoint] Leaderboard fetch failed:', err.message);
+      setLbData([]);
+    }
+    setLbLoading(false);
+  }, [market?.id, leaderboardMode, leaderboardTab, playerId]);
+
+  // Refetch when market/mode/tab/player changes.
+  useEffect(() => { refetchLeaderboard(); }, [refetchLeaderboard]);
 
   // ── Countdown timer — only run when visible (prevents input-killing re-renders) ──
   const countdownRef = useRef(null);
@@ -1408,6 +1452,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     });
     setView("challenge"); // stay in challenge view to show result
     setAllResults(prev => [...prev, { guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)), revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now() }]);
+
+    // ── Persist the challenge guess (mode 'challenge') so recipients' guesses
+    // land in pp_guesses too. The sold price comes from the shared listing. ──
+    submitGuess({
+      marketId: market?.id || 'sf', mode: 'challenge',
+      zpid: listing.zpid || null,
+      address: listing.address, neighborhood: listing.neighborhood,
+      city: listing.city, zip: listing.zip,
+      propertyType: listing.propertyType || '',
+      beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+      listPrice: listing.listPrice, photo: listing.photo,
+      guess: val, clientSoldPrice: listing.soldPrice,
+    }).then(resp => {
+      if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
+      refetchLeaderboard();
+    }).catch(e => console.warn('[PricePoint] challenge guess failed:', e));
   };
 
   // ── Share as Challenge (Web Share API + clipboard fallback) ──
@@ -1447,48 +1507,72 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Submit Daily Guess ──
-  const handleDailyGuess = () => {
-    const val = parseInt(guessInput.replace(/[^0-9]/g, ""));
-    if (!val || !dailyProperty) return;
-    const pctOff = Math.abs((val - dailyProperty.soldPrice) / dailyProperty.soldPrice) * 100;
-    const feedback = getFeedback(pctOff);
-    const guessedHigher = val > dailyProperty.soldPrice;
-    const insight = getInsight(dailyProperty, pctOff, guessedHigher);
+  // Build the reveal result once we know the sold price (from the server for the
+  // canonical daily, or locally for the hash-fallback daily) and record + refetch.
+  const finishDaily = (val, soldPrice, pctOffRound, serverResp) => {
+    const feedback = getFeedback(pctOffRound);
+    const propForInsight = { ...dailyProperty, soldPrice };
+    const insight = getInsight(propForInsight, pctOffRound, val > soldPrice);
     const result = {
-      guess: val, soldPrice: dailyProperty.soldPrice, listPrice: dailyProperty.listPrice,
+      guess: val, soldPrice, listPrice: dailyProperty.listPrice,
       address: dailyProperty.address, neighborhood: dailyProperty.neighborhood,
       city: dailyProperty.city, state: dailyProperty.state, zip: dailyProperty.zip,
       beds: dailyProperty.beds, baths: dailyProperty.baths, sqft: dailyProperty.sqft,
-      photo: dailyProperty.photo, pctOff: parseFloat(pctOff.toFixed(1)),
+      photo: dailyProperty.photo, pctOff: pctOffRound,
       feedback, feedbackMessage: getRandomMessage(feedback), insight,
-      dailyNumber, timestamp: Date.now(), revealed: true, isDaily: true,
+      dailyNumber, timestamp: Date.now(), // client day counter — postDaily routing keys on this
+      revealed: true, isDaily: true,
+      guessId: serverResp?.guessId || null,
     };
     setDailyResult(result);
-    setAllResults(prev => [...prev, result]);
+    // Guard against double-count if a queued retry already recorded this guessId.
+    setAllResults(prev =>
+      (serverResp?.guessId && prev.some(r => r.guessId === serverResp.guessId))
+        ? prev : [...prev, result]);
     startReveal();
+    if (serverResp?.totalXp != null) setServerXp(serverResp.totalXp);
+    refetchLeaderboard();
+  };
 
-    // ── Supabase: persist daily guess (fire-and-forget) ──
-    if (playerId) {
-      const pctOffRound = parseFloat(pctOff.toFixed(1));
-      const band = getAccuracyBand(pctOffRound);
-      const xpEarned = getXpForGuess(pctOffRound);
-      const newTotalXp = calcXP([...allResults, result]);
-      const newLevel = getLevel(newTotalXp);
-      submitGuess({
-        playerId, marketId: market?.id || 'sf', mode: 'daily',
-        dailyId: supabaseDaily?.id || null,
-        zpid: dailyProperty.zpid || null,
-        address: dailyProperty.address, neighborhood: dailyProperty.neighborhood,
-        city: dailyProperty.city, zip: dailyProperty.zip,
-        propertyType: dailyProperty.propertyType || '',
-        beds: dailyProperty.beds, baths: dailyProperty.baths, sqft: dailyProperty.sqft,
-        listPrice: dailyProperty.listPrice, photo: dailyProperty.photo,
-        guess: val, soldPrice: dailyProperty.soldPrice,
-        pctOff: pctOffRound, accuracyBand: band, xpEarned,
-      }).catch(e => console.warn('[PricePoint] Supabase daily guess failed:', e));
-      syncPlayerXP(playerId, newTotalXp, newLevel.level)
-        .catch(e => console.warn('[PricePoint] XP sync failed:', e));
+  const handleDailyGuess = async () => {
+    const val = parseInt(guessInput.replace(/[^0-9]/g, ""));
+    if (!val || !dailyProperty || dailySubmitting) return;
+
+    const payload = {
+      marketId: market?.id || 'sf', mode: 'daily',
+      dailyId: dailyIsServer ? supabaseDaily.id : null,
+      zpid: dailyProperty.zpid || null,
+      address: dailyProperty.address, neighborhood: dailyProperty.neighborhood,
+      city: dailyProperty.city, zip: dailyProperty.zip,
+      propertyType: dailyProperty.propertyType || '',
+      beds: dailyProperty.beds, baths: dailyProperty.baths, sqft: dailyProperty.sqft,
+      listPrice: dailyProperty.listPrice, photo: dailyProperty.photo,
+      guess: val,
+    };
+
+    if (dailyIsServer) {
+      // The server holds the sold price for the canonical daily — await the score.
+      setDailySubmitting(true);
+      let resp = null;
+      try { resp = await submitGuess({ ...payload, clientSoldPrice: null }); }
+      catch (e) { console.warn('[PricePoint] daily submit failed:', e); }
+      setDailySubmitting(false);
+      if (resp && resp.ok && resp.soldPrice) {
+        finishDaily(val, resp.soldPrice, resp.pctOff ?? parseFloat((Math.abs((val - resp.soldPrice) / resp.soldPrice) * 100).toFixed(1)), resp);
+      } else {
+        // Offline (queued) or unscored — we can't reveal a price the server holds.
+        setSyncToast('Saved — reconnect to see today’s result');
+        setTimeout(() => setSyncToast(null), 3500);
+      }
+      return;
     }
+
+    // Fallback (client-hash daily): score locally, still persist via the endpoint
+    // (server routes it as freeplay-style scoring with clientSoldPrice).
+    const pctOff = Math.abs((val - dailyProperty.soldPrice) / dailyProperty.soldPrice) * 100;
+    const resp = await submitGuess({ ...payload, soldPrice: dailyProperty.soldPrice })
+      .catch(e => { console.warn('[PricePoint] daily persist failed:', e); return null; });
+    finishDaily(val, dailyProperty.soldPrice, parseFloat(pctOff.toFixed(1)), resp && resp.ok ? resp : null);
   };
 
   // ── Reveal Animation ──
@@ -1563,26 +1647,27 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     };
     setAllResults(prev => [...prev, newResult]);
 
-    // ── Supabase: persist free play guess (fire-and-forget) ──
-    if (playerId) {
-      const band = getAccuracyBand(pctOffRound);
-      const xpEarned = getXpForGuess(pctOffRound);
-      const newTotalXp = calcXP([...allResults, newResult]);
-      const newLevel = getLevel(newTotalXp);
-      submitGuess({
-        playerId, marketId: market?.id || 'sf', mode: 'freeplay',
-        zpid: listing.zpid || null,
-        address: listing.address, neighborhood: listing.neighborhood,
-        city: listing.city, zip: listing.zip,
-        propertyType: listing.propertyType || '',
-        beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
-        listPrice: listing.listPrice, photo: listing.photo,
-        guess: val, soldPrice: listing.soldPrice,
-        pctOff: pctOffRound, accuracyBand: band, xpEarned,
-      }).catch(e => console.warn('[PricePoint] Supabase freeplay guess failed:', e));
-      syncPlayerXP(playerId, newTotalXp, newLevel.level)
-        .catch(e => console.warn('[PricePoint] XP sync failed:', e));
-    }
+    // ── Persist via the server-scored endpoint (guaranteed insert + retry queue) ──
+    // Free Play knows the sold price client-side, so the reveal above is instant;
+    // the server re-scores and increments XP. No playerId gate — the endpoint
+    // resolves the player from the device id, so even unregistered clients land.
+    submitGuess({
+      marketId: market?.id || 'sf', mode: 'freeplay',
+      zpid: listing.zpid || null,
+      address: listing.address, neighborhood: listing.neighborhood,
+      city: listing.city, zip: listing.zip,
+      propertyType: listing.propertyType || '',
+      beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+      listPrice: listing.listPrice, photo: listing.photo,
+      guess: val, soldPrice: listing.soldPrice,
+    }).then(resp => {
+      if (resp && resp.queued) {
+        setSyncToast('Saved on this device — will sync when you’re online');
+        setTimeout(() => setSyncToast(null), 3500);
+      }
+      if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
+      refetchLeaderboard();
+    }).catch(e => console.warn('[PricePoint] freeplay guess failed:', e));
   };
   const fpNextProperty = () => {
     setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
@@ -1837,36 +1922,26 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     };
     setAllResults(prev => [...prev, newResult]);
 
-    // ── Supabase: persist live guess + prediction (fire-and-forget) ──
-    if (playerId) {
-      const xpEarned = 10; // base XP for live prediction (no accuracy yet)
-      const newTotalXp = calcXP([...allResults, newResult]);
-      const newLevel = getLevel(newTotalXp);
-      submitGuess({
-        playerId, marketId: market?.id || 'sf', mode: 'live',
-        zpid: listing.zpid || null,
-        address: listing.address, neighborhood: listing.neighborhood,
-        city: listing.city, zip: listing.zip,
-        propertyType: listing.propertyType || '',
-        beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
-        listPrice: listing.listPrice, photo: listing.photo,
-        guess: val, soldPrice: null, pctOff: null, accuracyBand: null,
-        xpEarned,
-      }).then(guessRow => {
-        // Also create prediction record for future resolution
-        if (guessRow) {
-          submitPrediction({
-            playerId, marketId: market?.id || 'sf',
-            guessId: guessRow.id,
-            zpid: listing.zpid || '',
-            address: listing.address, neighborhood: listing.neighborhood,
-            listPrice: listing.listPrice, predictedPrice: val,
-          }).catch(e => console.warn('[PricePoint] Supabase prediction failed:', e));
-        }
-      }).catch(e => console.warn('[PricePoint] Supabase live guess failed:', e));
-      syncPlayerXP(playerId, newTotalXp, newLevel.level)
-        .catch(e => console.warn('[PricePoint] XP sync failed:', e));
-    }
+    // ── Persist via the server-scored endpoint. For mode 'live' the endpoint
+    // ALSO inserts the pp_predictions row (moved server-side), so no separate
+    // submitPrediction call. Live earns a flat 10 XP; accuracy resolves later. ──
+    submitGuess({
+      marketId: market?.id || 'sf', mode: 'live',
+      zpid: listing.zpid || null,
+      address: listing.address, neighborhood: listing.neighborhood,
+      city: listing.city, zip: listing.zip,
+      propertyType: listing.propertyType || '',
+      beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+      listPrice: listing.listPrice, photo: listing.photo,
+      guess: val,
+    }).then(resp => {
+      if (resp && resp.queued) {
+        setSyncToast('Saved on this device — will sync when you’re online');
+        setTimeout(() => setSyncToast(null), 3500);
+      }
+      if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
+      refetchLeaderboard();
+    }).catch(e => console.warn('[PricePoint] live guess failed:', e));
   };
 
   const liveNextProperty = () => {
@@ -2362,6 +2437,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {shareToast && (
         <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, padding: "12px 24px", borderRadius: 12, background: T.accent, color: "#fff", fontSize: 14, fontWeight: 600, animation: "ppSlideUp 0.3s ease", boxShadow: "0 8px 32px rgba(99,102,241,0.3)", fontFamily: FONT }}>
           Copied to clipboard
+        </div>
+      )}
+
+      {/* Quiet "saved offline / will sync" banner — gameplay never blocks on network */}
+      {syncToast && (
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, maxWidth: "90%", textAlign: "center", padding: "12px 20px", borderRadius: 12, background: T.inputBg, color: T.textSecondary, fontSize: 13, fontWeight: 500, animation: "ppSlideUp 0.3s ease", boxShadow: "0 8px 32px rgba(0,0,0,0.3)", border: `1px solid ${T.cardBorder}`, fontFamily: FONT }}>
+          {syncToast}
         </div>
       )}
 
@@ -3428,24 +3510,30 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               : leaderboardMode === "free" ? userFreeResults.length
               : userLiveResults.length;
 
-            // Build leaderboard from Supabase data + current user
-            const supabaseEntries = (lbData || []).map(row => ({
-              name: row.display_name || `Player ${(row.player_id || '').slice(0, 4)}`,
+            // Build from pp_leaderboard_v2 rows, which carry a true `rank` and
+            // already include our own row (via p_player_id) even outside the top 20.
+            const serverEntries = (lbData || []).map(row => ({
+              rank: row.rank != null ? Number(row.rank) : null,
+              name: row.player_id === playerId ? "You" : (row.display_name || `Player ${(row.player_id || '').slice(0, 4)}`),
               role: "",
               accuracy: row.avg_pct_off != null ? parseFloat((100 - row.avg_pct_off).toFixed(1)) : 0,
               count: row.guess_count || 0,
               isYou: row.player_id === playerId,
             }));
+            const youInServer = serverEntries.some(e => e.isYou);
 
-            // Check if "You" already in Supabase results
-            const youInResults = supabaseEntries.some(e => e.isYou);
-
-            // Build final list: Supabase rows + user row if not already included
-            const entries = [
-              ...supabaseEntries.map(e => e.isYou ? { ...e, name: "You", accuracy: Math.max(e.accuracy, userAccuracy), count: Math.max(e.count, userCount) } : e),
-              ...(!youInResults && userCount > 0 ? [{ name: "You", role: "", accuracy: userAccuracy, count: userCount, isYou: true }] : []),
-            ];
-            const sorted = [...entries].sort((a, b) => b.accuracy - a.accuracy);
+            // Local "You" fallback: we've guessed but haven't hit the period minimum
+            // to rank yet — show ourselves (rankless) so the board is never just empty.
+            const entries = [...serverEntries];
+            if (!youInServer && userCount > 0) {
+              entries.push({ rank: null, name: "You", role: "", accuracy: userAccuracy, count: userCount, isYou: true });
+            }
+            const sorted = [...entries].sort((a, b) => {
+              if (a.rank != null && b.rank != null) return a.rank - b.rank;
+              if (a.rank != null) return -1;
+              if (b.rank != null) return 1;
+              return b.accuracy - a.accuracy;
+            });
 
             if (lbLoading) {
               return (
@@ -3455,35 +3543,46 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               );
             }
 
+            // Empty-state CTA — never show a bare "nobody here" board (CMO).
             if (sorted.length === 0) {
+              const cta = leaderboardMode === "free" ? { label: "Play Free Play", view: "fpPicker" }
+                : leaderboardMode === "live" ? { label: "Make a prediction", view: "livePicker" }
+                : { label: "Play today’s daily", view: "daily" };
               return (
-                <div style={{ textAlign: "center", padding: 40, color: T.textTertiary, fontFamily: FONT }}>
-                  <div style={{ fontSize: 32, marginBottom: 12 }}>
-                    <Icon name="award" size={32} />
+                <div style={{ textAlign: "center", padding: "36px 24px", color: T.textTertiary, fontFamily: FONT, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16 }}>
+                  <div style={{ marginBottom: 12, color: modeColor }}><Icon name="award" size={32} /></div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 6 }}>
+                    No rankings yet{leaderboardTab === "today" ? " today" : ""}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>No rankings yet</div>
-                  <div style={{ fontSize: 12 }}>Play at least 3 rounds to appear on the board.</div>
+                  <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 18 }}>Make a guess to claim the top spot.</div>
+                  <button onClick={() => setView(cta.view)} style={{ padding: "12px 24px", borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: "pointer", boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+                    {cta.label}
+                  </button>
                 </div>
               );
             }
 
             return (
               <>
-                {sorted.map((entry, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${modeColor}12` : T.card, border: `1px solid ${entry.isYou ? `${modeColor}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: FONT,
-                      background: i === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : i === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : i === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
-                      color: i < 3 ? "#fff" : T.textSecondary }}>{i + 1}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? modeColor : T.text, fontFamily: FONT }}>{entry.name}</div>
-                      {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
+                {sorted.map((entry, i) => {
+                  const displayRank = entry.rank != null ? entry.rank : i + 1;
+                  const medalIdx = (entry.rank != null ? entry.rank : i + 1) - 1; // 0-based, for medals
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${modeColor}12` : T.card, border: `1px solid ${entry.isYou ? `${modeColor}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: FONT,
+                        background: medalIdx === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : medalIdx === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : medalIdx === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
+                        color: medalIdx < 3 ? "#fff" : T.textSecondary }}>{displayRank}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? modeColor : T.text, fontFamily: FONT }}>{entry.name}</div>
+                        {entry.role && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{entry.role}</div>}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: entry.isYou ? modeColor : T.green }}>{entry.accuracy}%</div>
+                        <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary }}>{entry.count} {modeLabel}</div>
+                      </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: entry.isYou ? modeColor : T.green }}>{entry.accuracy}%</div>
-                      <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary }}>{entry.count} {modeLabel}</div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             );
           })()}

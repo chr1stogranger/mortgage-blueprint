@@ -57,11 +57,27 @@ const SOLD_DATE_MONTHS_PREFERRED = 6;
 // ─── Map city name → market_id used as pool key ───
 function cityToMarketId(city) {
   const key = String(city || '').toLowerCase().trim();
+  // Must map every shipped market to the SAME short id used by pp_markets
+  // (migration 010), the client's LAUNCH_MARKETS, and pp-daily. Multi-word
+  // cities that fell through to the raw spaced string ('los angeles', 'san diego')
+  // is what split the pool from the Daily (audit 2026-07-09). Re-keyed by
+  // migration 012.
   const map = {
     'san francisco': 'sf',
     'alameda': 'alameda',
     'oakland': 'oakland',
     'berkeley': 'berkeley',
+    'los angeles': 'la',
+    'san diego': 'sd',
+    'seattle': 'seattle',
+    'miami': 'miami',
+    'new york city': 'nyc',
+    'new york': 'nyc',
+    'chicago': 'chicago',
+    'denver': 'denver',
+    'portland': 'portland',
+    'boston': 'boston',
+    'phoenix': 'phoenix',
   };
   return map[key] || key;
 }
