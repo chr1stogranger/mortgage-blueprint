@@ -1186,14 +1186,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     if (market) initSupabase();
   }, [market?.id]);
 
-  // ── Drain any offline-queued guesses on mount and when the network returns ──
-  useEffect(() => {
-    flushPendingGuesses().then(() => refetchLeaderboard());
-    const onOnline = () => flushPendingGuesses().then(() => refetchLeaderboard());
-    window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
-  }, [refetchLeaderboard]);
-
   // ── Fetch leaderboard (pp_leaderboard_v2 with own-row/rank) ──
   const refetchLeaderboard = useCallback(async () => {
     if (!market?.id) return;
@@ -1218,6 +1210,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // Refetch when market/mode/tab/player changes.
   useEffect(() => { refetchLeaderboard(); }, [refetchLeaderboard]);
+
+  // ── Drain any offline-queued guesses on mount and when the network returns ──
+  // (Declared after refetchLeaderboard so it's initialized before this deps array.)
+  useEffect(() => {
+    flushPendingGuesses().then(() => refetchLeaderboard());
+    const onOnline = () => flushPendingGuesses().then(() => refetchLeaderboard());
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [refetchLeaderboard]);
 
   // ── Countdown timer — only run when visible (prevents input-killing re-renders) ──
   const countdownRef = useRef(null);
