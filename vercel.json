@@ -50,6 +50,10 @@
       "schedule": "0 6 * * 1"
     },
     {
+      "path": "/api/cron-enrich",
+      "schedule": "0 7 * * *"
+    },
+    {
       "path": "/api/cron-resolve",
       "schedule": "0 8 * * *"
     },
