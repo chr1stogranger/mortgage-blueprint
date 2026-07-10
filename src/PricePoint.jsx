@@ -1245,49 +1245,63 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       let params = isZip ? `zip=${searchValue.trim()}` : `city=${encodeURIComponent(searchValue.trim())}&state=CA`;
       if (bypassCache) params += "&fresh=1";
 
-      // Fetch active/sold search AND real sold comps in parallel
+      // ── DECOUPLED fetches: apply each result the moment it lands ──
+      // sold-comps (Supabase pool) answers in ~1s and is all the Daily card
+      // needs. pricepoint (full inventory) can take 20s+ on a cold cache miss.
+      // The old Promise.allSettled applied BOTH only after BOTH finished, so
+      // fast sold data sat unused while the slow call ran. Now each .then()
+      // applies its own state update independently.
       const cityName = isZip ? null : searchValue.trim();
-      const [ppResp, compsResp] = await Promise.allSettled([
-        fetch(apiUrl(`/api/pricepoint?${params}`)).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-        cityName ? Promise.race([
-          fetch(apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`)).then(r => r.ok ? r.json() : null).catch(() => null),
-          new Promise(resolve => setTimeout(() => resolve(null), 5000)), // 5s timeout (was 8s)
-        ]) : Promise.resolve(null),
-      ]);
+      let gotRealSold = false; // set by sold-comps; blocks the less-trusted fallback
+
+      const compsPromise = cityName ? Promise.race([
+        fetch(apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}${bypassCache ? "&fresh=1" : ""}`)).then(r => r.ok ? r.json() : null).catch(() => null),
+        new Promise(resolve => setTimeout(() => resolve(null), 5000)), // 5s timeout
+      ]).then(compsData => {
+        // ── Sold listings: real sold-comps are ALWAYS preferred ──
+        // (the search API's recentlySold returns active listings relabeled as sold)
+        if (compsData?.soldListings?.length > 0) {
+          gotRealSold = true;
+          const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_comps" }));
+          console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
+          setSoldListings(realSold); // applied immediately → Daily card renders now
+        }
+        return compsData;
+      }) : Promise.resolve(null);
+
+      const ppPromise = fetch(apiUrl(`/api/pricepoint?${params}`))
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(data => {
+          if (data?.error) throw new Error(data.error);
+          // Active listings (_source: "active_api") → Live mode pool
+          if (data?.activeListings?.length > 0) {
+            setActiveListings(data.activeListings);
+            // Persist immediately so Live mode works on next page load
+            try { localStorage.setItem("pp-active-listings", JSON.stringify(data.activeListings)); } catch {}
+            console.log(`[PricePoint] Cached ${data.activeListings.length} active listings`);
+          }
+          // Fallback sold data — ONLY if sold-comps hasn't already delivered.
+          // Tag as "sold_search" (less trusted than sold_comps). Validation:
+          // require soldDate AND soldPrice differing from listPrice (filters
+          // active listings relabeled as "sold" by RapidAPI).
+          if (!gotRealSold && data?.soldListings?.length > 0) {
+            const validated = data.soldListings
+              .filter(l => l.soldDate && l.soldPrice && (l.soldPrice !== l.listPrice || !l.listPrice))
+              .map(l => ({ ...l, _source: "sold_search" }));
+            if (validated.length > 0) {
+              console.log(`[PricePoint] Using ${validated.length} validated search-API sold (of ${data.soldListings.length} raw)`);
+              setSoldListings(validated);
+            }
+          }
+          return data;
+        });
+
+      const [ppResp, compsResp] = await Promise.allSettled([ppPromise, compsPromise]);
 
       const data = ppResp.status === "fulfilled" ? ppResp.value : null;
       const compsData = compsResp.status === "fulfilled" ? compsResp.value : null;
 
-      if (data?.error) throw new Error(data.error);
       if (!data && !compsData) throw new Error("Both APIs failed");
-
-      // Active listings (_source: "active_api") → Live mode pool
-      if (data?.activeListings?.length > 0) {
-        setActiveListings(data.activeListings);
-        // Persist immediately so Live mode works on next page load
-        try { localStorage.setItem("pp-active-listings", JSON.stringify(data.activeListings)); } catch {}
-        console.log(`[PricePoint] Cached ${data.activeListings.length} active listings`);
-      }
-
-      // ── Sold listings: use real sold-comps ONLY, ignore fake search API sold data ──
-      // The search API's recentlySold returns fake data (active listings relabeled as sold).
-      // Real sold-comps come from property-details priceHistory — these are ALWAYS preferred.
-      if (compsData?.soldListings?.length > 0) {
-        const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_comps" }));
-        console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
-        setSoldListings(realSold);
-      } else if (data?.soldListings?.length > 0) {
-        // Fallback: search API sold data — tag as "sold_search" (less trusted than sold_comps).
-        // These may include active listings relabeled as "sold" by RapidAPI.
-        // Additional validation: require soldDate AND soldPrice differs from listPrice.
-        const validated = data.soldListings
-          .filter(l => l.soldDate && l.soldPrice && (l.soldPrice !== l.listPrice || !l.listPrice))
-          .map(l => ({ ...l, _source: "sold_search" }));
-        if (validated.length > 0) {
-          console.log(`[PricePoint] Using ${validated.length} validated search-API sold (of ${data.soldListings.length} raw)`);
-          setSoldListings(validated);
-        }
-      }
 
       const label = data?.location || searchValue;
       setLocationLabel(label);

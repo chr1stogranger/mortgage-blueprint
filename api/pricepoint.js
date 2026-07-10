@@ -310,15 +310,19 @@ export default async function handler(req, res) {
       if (cached) {
         return res.status(200).json({ ...cached, cached: true });
       }
-      // L2: Supabase — survives cold starts and is shared across instances
+      // L2: Supabase — survives cold starts and is shared across instances.
+      // NOTE: supabase-js does NOT throw on errors — it returns { error }.
+      // Always inspect the error field or failures are silent.
       if (supabase) {
         try {
-          const { data: row } = await supabase
+          const { data: row, error: readErr } = await supabase
             .from("pp_city_cache")
             .select("data, updated_at")
             .eq("cache_key", cacheKey)
             .maybeSingle();
-          if (row?.data && Date.now() - new Date(row.updated_at).getTime() < CACHE_TTL) {
+          if (readErr) {
+            console.error(`[PricePoint] Supabase cache read error (continuing): ${readErr.message}`);
+          } else if (row?.data && Date.now() - new Date(row.updated_at).getTime() < CACHE_TTL) {
             setCache(cacheKey, row.data); // re-warm L1 for this instance
             res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
             return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
@@ -420,12 +424,17 @@ export default async function handler(req, res) {
       setCache(cacheKey, result);
       if (supabase) {
         try {
-          await supabase
+          const { error: upsertErr } = await supabase
             .from("pp_city_cache")
             .upsert(
               { cache_key: cacheKey, data: result, updated_at: new Date().toISOString() },
               { onConflict: "cache_key" }
             );
+          if (upsertErr) {
+            console.error(`[PricePoint] Supabase cache write error (non-fatal): ${upsertErr.message}`);
+          } else {
+            console.error(`[PricePoint] Supabase cache updated: ${cacheKey} (${active.length} active, ${sold.length} sold)`);
+          }
         } catch (e) {
           console.error(`[PricePoint] Supabase cache write failed (non-fatal): ${e.message}`);
         }
