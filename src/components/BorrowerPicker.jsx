@@ -135,6 +135,15 @@ export default function BorrowerPicker({
   }, [step, pendingBorrower, scenarios, scenariosLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectBorrower = (borrower) => {
+    // Clicking a client opens their most-recent loan directly — no intermediate
+    // scenario-picker step. (The client's other scenarios stay reachable from the
+    // sidebar's Scenarios list / scenario switcher.)
+    if (onOpenClient) {
+      onOpenClient(borrower);
+      closePicker();
+      return;
+    }
+    // Fallback: legacy two-step flow if no direct-open handler is wired.
     setPendingBorrower(borrower);
     setStep(2);
     setHighlightIdx(0);

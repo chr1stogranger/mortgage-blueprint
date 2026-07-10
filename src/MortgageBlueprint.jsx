@@ -2165,6 +2165,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setImportArivePrefill(prefillQuery || "");
    setImportAriveOpen(true);
   },
+  // Search-result click → open the client's most-recent loan directly (same
+  // path the sidebar recents use), skipping the scenario-picker step.
+  onOpenClient: (b) => { if (b) openClient(makeClientEntry(b)); },
  };
 
  // Rename the active client (borrower) record. Optimistic local update, then the
@@ -5074,6 +5077,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          scenarios: borrowerScenarios,
          scenariosLoading: borrowerScenariosLoading,
          onSelect: borrowerPickerCallbacks.onSelect,
+         onOpenClient: borrowerPickerCallbacks.onOpenClient,
          onSelectScenario: borrowerPickerCallbacks.onSelectScenario,
          onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
          onCreateNew: borrowerPickerCallbacks.onCreateNew,
