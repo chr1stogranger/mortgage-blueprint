@@ -295,11 +295,26 @@ function pickDailyProperty(listings, dailyNumber) {
 }
 
 // ââ Market metadata ââ
+// Must stay in sync with the client's LAUNCH_MARKETS (src/PricePoint.jsx) and the
+// pp_markets table (migrations/010_new_markets.sql). Markets without curated seed
+// zpids (everything but SF) use the dynamic discovery path in fetchSoldListingsDirect,
+// which resolves the city by MARKETS[marketId].name. Keeping this list stale is what
+// caused LA/San Diego dailies to 400 in prod (audit 2026-07-09).
 const MARKETS = {
   sf: { name: 'San Francisco', state: 'CA' },
   oakland: { name: 'Oakland', state: 'CA' },
   berkeley: { name: 'Berkeley', state: 'CA' },
   alameda: { name: 'Alameda', state: 'CA' },
+  la: { name: 'Los Angeles', state: 'CA' },
+  sd: { name: 'San Diego', state: 'CA' },
+  seattle: { name: 'Seattle', state: 'WA' },
+  miami: { name: 'Miami', state: 'FL' },
+  nyc: { name: 'New York City', state: 'NY' },
+  chicago: { name: 'Chicago', state: 'IL' },
+  denver: { name: 'Denver', state: 'CO' },
+  portland: { name: 'Portland', state: 'OR' },
+  boston: { name: 'Boston', state: 'MA' },
+  phoenix: { name: 'Phoenix', state: 'AZ' },
 };
 
 // ââ In-memory cache for seeded dailies (survives warm starts) ââ
@@ -318,7 +333,7 @@ export default async function handler(req, res) {
   const dailyNumber = getDailyNumber(marketId);
 
   if (!MARKETS[marketId]) {
-    return res.status(400).json({ error: 'Invalid market. Valid: sf, oakland, berkeley, alameda' });
+    return res.status(400).json({ error: `Invalid market. Valid: ${Object.keys(MARKETS).join(', ')}` });
   }
 
   const supabase = getSupabaseAdmin();
