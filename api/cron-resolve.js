@@ -1,4 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import { enrichPoolRow } from './_enrich.js';
+
+// Raise the function budget: this cron now resolves predictions AND runs the
+// nightly Free Play photo backfill (folded in here to stay under the Hobby plan's
+// 12-serverless-function limit — a standalone cron-enrich would be a 13th function).
+export const config = { maxDuration: 60 };
 
 // CORS configuration
 const ALLOWED_ORIGINS = [
@@ -6,6 +12,43 @@ const ALLOWED_ORIGINS = [
   'https://mortgage-blueprint.vercel.app',
   'http://localhost:5173',
 ];
+
+// ── Free Play pool photo backfill ────────────────────────────────────────────
+// County (RentCast) rows ship with photo=null, so Free Play cards look empty until
+// a user opens one. This proactively enriches the freshest photo-less rows per
+// market. Sized small so it shares the 60s budget with prediction resolution.
+const ENRICH_MARKETS = ['sf', 'oakland', 'berkeley', 'alameda', 'la', 'sd'];
+const ENRICH_ROWS_PER_MARKET = 4;
+const ENRICH_MAX_CALLS = 24;   // hard cap per run — protects the RapidAPI quota
+const ENRICH_MAX_ATTEMPTS = 3; // skip rows that keep failing to resolve
+const enrichSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function runEnrichPass(supabase) {
+  const apiKey = process.env.RAPIDAPI_KEY;
+  if (!apiKey) return { enriched: 0, attempted: 0, skipped: 'no_api_key' };
+  const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
+  let calls = 0, enriched = 0, attempted = 0;
+  for (const market of ENRICH_MARKETS) {
+    if (calls >= ENRICH_MAX_CALLS) break;
+    const { data: rows } = await supabase
+      .from('pp_property_pool')
+      .select('id, zpid, address, city, state, zip, sold_price, year_built, enrich_attempts, photo')
+      .eq('market_id', market)
+      .or('photo.is.null,photo.eq.')
+      .lt('enrich_attempts', ENRICH_MAX_ATTEMPTS)
+      .order('sold_date', { ascending: false })
+      .limit(ENRICH_ROWS_PER_MARKET);
+    for (const row of (rows || [])) {
+      if (calls >= ENRICH_MAX_CALLS) break;
+      attempted++; calls++;
+      const r = await enrichPoolRow(supabase, row, { apiKey, apiHost });
+      if (r.enriched) enriched++;
+      await enrichSleep(250);
+    }
+  }
+  console.error(`[CronResolve] enrich pass: attempted=${attempted} enriched=${enriched} calls=${calls}`);
+  return { enriched, attempted };
+}
 
 // Get Supabase admin client
 function getSupabaseAdmin() {
@@ -310,10 +353,15 @@ export default async function handler(req, res) {
 
     if (uniqueZpids.length === 0) {
       console.error('[CronResolve] No unresolved predictions found');
+      // Still run the Free Play photo backfill even when there's nothing to resolve.
+      let enrich = null;
+      try { enrich = await runEnrichPass(supabase); }
+      catch (e) { console.error(`[CronResolve] enrich pass failed: ${e.message}`); }
       return res.status(200).json({
         resolved: 0,
         checked: 0,
         errors: [],
+        enrich,
         timestamp: new Date().toISOString(),
       });
     }
@@ -348,11 +396,17 @@ export default async function handler(req, res) {
       `[CronResolve] Checked ${allResults.checked} zpids, resolved ${allResults.resolved} predictions for ${allResults.resolvedPredictions.length} properties`
     );
 
+    // Free Play photo backfill (folded in — see runEnrichPass). Non-fatal.
+    let enrich = null;
+    try { enrich = await runEnrichPass(supabase); }
+    catch (e) { console.error(`[CronResolve] enrich pass failed: ${e.message}`); }
+
     return res.status(200).json({
       resolved: allResults.resolved,
       checked: allResults.checked,
       errors: allResults.errors,
       resolvedPredictions: allResults.resolvedPredictions,
+      enrich,
       timestamp: new Date().toISOString(),
     });
 
