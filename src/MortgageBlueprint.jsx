@@ -5853,7 +5853,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && <SellContent {...{T, isDesktop, calc, fmt, reos, debts, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ DEAL TEAM ═══ */}
-{tab === "team" && <TeamContent {...{T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth, Hero, Card, Sec, Note, TextInp}} />}
+{tab === "team" && <TeamContent {...{T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth, Hero, Card, Sec, Note, TextInp, onRenameClient: handleRenameClient}} />}
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
  {/* ── CTA Buttons (top of summary) ── */}

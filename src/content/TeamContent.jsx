@@ -160,7 +160,7 @@ function EmptySlot({ T, role, candidates, onPick, onManual }) {
 // ─── Main tab ────────────────────────────────────────────────────────────────
 export default function TeamContent({
   T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth,
-  Hero, Card, Sec, Note, TextInp,
+  Hero, Card, Sec, Note, TextInp, onRenameClient,
 }) {
   const borrowerId = isBorrower ? borrowerMode?.borrower?.id : activeBorrower?.id;
 
@@ -174,6 +174,8 @@ export default function TeamContent({
   const [ariveState, setAriveState] = useState("");      // '', 'loading', 'done', 'none', 'error'
   const [ariveMsg, setAriveMsg] = useState("");
   const [editingRole, setEditingRole] = useState(null);
+  const [editingName, setEditingName] = useState(false);   // inline-edit the client's name
+  const [nameDraft, setNameDraft] = useState("");
   const saveTimer = useRef(null);
   const loadedRef = useRef(false);
 
@@ -421,7 +423,32 @@ export default function TeamContent({
           <Sec title="Borrowers">
             <Card>
               <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>Borrower</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{activeBorrower?.name || "—"}</div>
+              {editingName ? (
+                <input
+                  value={nameDraft}
+                  autoFocus
+                  onChange={e => setNameDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") { const v = nameDraft.trim(); if (v && v !== activeBorrower?.name && onRenameClient) onRenameClient(v); setEditingName(false); }
+                    if (e.key === "Escape") setEditingName(false);
+                  }}
+                  onBlur={() => { const v = nameDraft.trim(); if (v && v !== activeBorrower?.name && onRenameClient) onRenameClient(v); setEditingName(false); }}
+                  style={{ width: "100%", maxWidth: 320, boxSizing: "border-box", background: T.inputBg || T.card, border: `1px solid ${T.blue}`, borderRadius: 8, padding: "6px 10px", fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT, outline: "none" }}
+                />
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{activeBorrower?.name || "—"}</div>
+                  {onRenameClient && !isBorrower && activeBorrower?.id && (
+                    <button
+                      onClick={() => { setNameDraft(activeBorrower?.name || ""); setEditingName(true); }}
+                      title="Rename client"
+                      style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 8, cursor: "pointer", color: T.blue, flexShrink: 0, padding: 0 }}
+                    >
+                      <Icon name="edit" size={14} color={T.blue} />
+                    </button>
+                  )}
+                </div>
+              )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
                 {activeBorrower?.phone && <ContactPill T={T} icon="phone" href={`tel:${String(activeBorrower.phone).replace(/[^\d+]/g, "")}`} label={fmtPhone(activeBorrower.phone)} />}
                 {activeBorrower?.email && <ContactPill T={T} icon="mail" href={`mailto:${activeBorrower.email}`} label={activeBorrower.email} />}
