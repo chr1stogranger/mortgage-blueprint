@@ -191,10 +191,110 @@ function getZpidsForZip(city, zip) {
 // ─── Discovered zpids cache — persists across warm invocations ───
 const discoveredZpids = new Map(); // zip → Set of discovered zpids
 
+// ─── TEMP: candidate sold-data host evaluation probe ───
+// GET /api/sold-comps?hosttest=usre|redfin&hzip=94116
+// Makes ONE call to the candidate RapidAPI host and returns aggregate
+// freshness/volume/photo stats + a truncated raw sample for field mapping.
+// No user data; 10-min in-memory result cache limits upstream burn.
+// REMOVE after the source decision (see PricePoint provider research doc).
+const hostTestCache = new Map(); // key → { at, body }
+const HOSTTEST_PATHS = {
+  usre: {
+    host: 'us-real-estate.p.rapidapi.com',
+    paths: (zip) => [
+      `/v2/sold-homes-by-zipcode?zipcode=${zip}&offset=0&limit=50&sort=sold_date&max_sold_days=90`,
+      `/sold-homes?city=San%20Francisco&state_code=CA&limit=50&sort=sold_date`,
+    ],
+  },
+  redfin: {
+    host: 'redfin-com-data.p.rapidapi.com',
+    paths: (zip) => [
+      `/properties/search-sold?location=${zip}&limit=50&soldWithin=90`,
+      `/property/search-sold?location=${zip}`,
+    ],
+  },
+};
+
+function hostTestExtractList(data) {
+  const cands = [
+    data?.data?.home_search?.results, data?.data?.results, data?.results,
+    data?.data?.homes, data?.homes, data?.data, data?.properties,
+  ];
+  for (const c of cands) if (Array.isArray(c) && c.length) return c;
+  return Array.isArray(data) ? data : [];
+}
+
+function hostTestNormalize(item) {
+  const soldDate = item?.description?.sold_date || item?.last_sold_date || item?.soldDate
+    || item?.sold_date || item?.lastSoldDate || item?.soldDateTime || null;
+  const soldPrice = item?.description?.sold_price || item?.last_sold_price || item?.soldPrice
+    || item?.sold_price || item?.price?.value || item?.price || null;
+  const addr = item?.location?.address?.line || item?.address?.line || item?.streetLine?.value
+    || item?.streetLine || item?.address || null;
+  const photo = item?.primary_photo?.href || item?.photos?.[0]?.href || item?.imgSrc
+    || item?.photos?.[0] || item?.primaryPhotoDisplayLevel || null;
+  return { soldDate, soldPrice, addr: typeof addr === 'string' ? addr : JSON.stringify(addr || '').slice(0, 60), hasPhoto: !!photo };
+}
+
+async function handleHostTest(req, res) {
+  const which = String(req.query.hosttest);
+  const zip = String(req.query.hzip || '94116').replace(/[^0-9]/g, '').slice(0, 5) || '94116';
+  const cfg = HOSTTEST_PATHS[which];
+  if (!cfg) return res.status(400).json({ error: 'hosttest must be usre or redfin' });
+  const cacheKey = `${which}:${zip}`;
+  const hit = hostTestCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return res.status(200).json(hit.body);
+  const apiKey = process.env.RAPIDAPI_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'no RAPIDAPI_KEY' });
+
+  const attempts = [];
+  for (const path of cfg.paths(zip)) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      let r, text;
+      try {
+        r = await fetch(`https://${cfg.host}${path}`, {
+          headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': cfg.host },
+          signal: controller.signal,
+        });
+        text = await r.text();
+      } finally { clearTimeout(timer); }
+      if (!r.ok) { attempts.push({ path, status: r.status, body: text.slice(0, 200) }); continue; }
+      let data; try { data = JSON.parse(text); } catch { attempts.push({ path, status: r.status, body: 'non-JSON' }); continue; }
+      const list = hostTestExtractList(data);
+      const norm = list.map(hostTestNormalize);
+      const dated = norm.filter(n => n.soldDate && n.soldPrice);
+      const daysAgo = (ds) => Math.round((Date.now() - new Date(ds)) / 86400000);
+      const body = {
+        host: cfg.host, path, status: r.status, zip,
+        rawCount: list.length,
+        usable: dated.length,
+        withPhoto: norm.filter(n => n.hasPhoto).length,
+        newestDaysAgo: dated.length ? Math.min(...dated.map(n => daysAgo(n.soldDate))) : null,
+        oldestDaysAgo: dated.length ? Math.max(...dated.map(n => daysAgo(n.soldDate))) : null,
+        sample: dated.slice(0, 5).map(n => ({ addr: n.addr, soldDate: String(n.soldDate).slice(0, 10), soldPrice: n.soldPrice, hasPhoto: n.hasPhoto })),
+        rawFirstItemKeys: list[0] ? Object.keys(list[0]).slice(0, 25) : [],
+        rawFirstItem: list[0] ? JSON.stringify(list[0]).slice(0, 700) : null,
+        attempts,
+      };
+      hostTestCache.set(cacheKey, { at: Date.now(), body });
+      return res.status(200).json(body);
+    } catch (e) {
+      attempts.push({ path, error: String(e.message || e).slice(0, 160) });
+    }
+  }
+  const body = { host: cfg.host, zip, error: 'all paths failed', attempts };
+  hostTestCache.set(cacheKey, { at: Date.now(), body });
+  return res.status(200).json(body);
+}
+
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
   if (rateLimited(req, res, { limit: 20 })) return;
+
+  if (req.query.hosttest) return handleHostTest(req, res);
 
   try {
     const { city, zip, fresh, exclude } = req.query;
