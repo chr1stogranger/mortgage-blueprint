@@ -732,20 +732,33 @@ async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCuto
 
   const rows = [];
   const seen = new Set();
-  let rejRelabeled = 0, rejNoSoldData = 0, rejTooOld = 0;
+  let rejRelabeled = 0, rejNoSoldData = 0, rejTooOld = 0, keptProven = 0;
   for (const d of soldItems) {
     const zpid = String(d?.zpid || '');
     if (!zpid || seen.has(zpid)) continue;
-    if (activeZpids.has(zpid)) { rejRelabeled++; continue; }   // relabeled-active garbage
     if (excludeSet.has(zpid) || poolZpidSet.has(zpid)) continue;
     const soldPrice = d.price || d.lastSoldPrice || null;
     const soldDate = normalizeSoldDateStr(d.dateSold || d.lastSoldDate || null);
+    if (activeZpids.has(zpid)) {
+      // A zpid in BOTH feeds is usually relabeled-active garbage (a fake
+      // "sold" whose price is just the list price). BUT the freshest REAL
+      // sales also overlap the stale forSale cache — a home that sold
+      // yesterday was for sale until yesterday. Blanket-rejecting these was
+      // silently discarding every brand-new sale (SF: relabeled=164, kept=0).
+      // Keep the listing only when it can PROVE the sale: a real sold date
+      // plus a sold price that differs from its list price (garbage rows
+      // carry soldPrice === listPrice, or no date at all).
+      const listPrice = d.listPrice || d.originalListPrice || null;
+      const provenSale = soldDate && soldPrice && (!listPrice || soldPrice !== listPrice);
+      if (!provenSale) { rejRelabeled++; continue; }
+      keptProven++;
+    }
     if (!soldPrice || !soldDate) { rejNoSoldData++; continue; }
     if (new Date(soldDate) < ingestCutoff) { rejTooOld++; continue; }
     seen.add(zpid);
     rows.push(searchItemToPoolRow(d, marketId, soldPrice, soldDate));
   }
-  console.error(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, kept=${rows.length}`);
+  console.error(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, provenOverlap=${keptProven}, noSoldData=${rejNoSoldData}, tooOld=${rejTooOld}, kept=${rows.length}`);
   return rows;
 }
 
