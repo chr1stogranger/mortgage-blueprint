@@ -72,6 +72,16 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,ico,png,svg,woff,woff2}'],
         // Ensure index.html is always fetched from network
         navigateFallback: null,
+        // Purge precaches left behind by OLD service-worker versions.
+        // Early SW builds precached index.html (with its response headers,
+        // including CSP) — borrowers who installed those builds were served a
+        // stale CSP that blocked the share flow. cleanupOutdatedCaches deletes
+        // those old precache buckets the moment the new SW activates.
+        cleanupOutdatedCaches: true,
+        // Take control immediately on update — don't leave a stale SW driving
+        // open tabs until every tab is closed.
+        skipWaiting: true,
+        clientsClaim: true,
         // Runtime caching for API calls and external resources
         runtimeCaching: [
           {
@@ -95,8 +105,11 @@ export default defineConfig({
           },
           {
             // Cache read-only API endpoints (rates, listings, pricepoint)
-            // Exclude collab/auth endpoints — those must never be cached
-            urlPattern: /^\/api\/(rates|listings|pricepoint|propertydetails)/i,
+            // Exclude collab/auth/share endpoints — those must never be cached.
+            // NOTE: workbox tests urlPattern against the FULL URL (with origin),
+            // so the old /^\/api\/.../ anchor never matched — this rule was dead
+            // code. Unanchored pathname match fixes it.
+            urlPattern: /\/api\/(rates|listings|pricepoint|propertydetails)/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
