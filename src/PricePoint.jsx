@@ -1764,10 +1764,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // exclusion zeroed it out — that's solved at the server now. The new
     // bottleneck was the opposite: aggressive exclusion shrinking a 31-pool
     // down to 6. Proportional scaling fixes both extremes.
-    const exclusionDays = Math.min(30, Math.max(0, Math.floor(trueSold.length / 5)));
-    const excludedIndices = getDailyIndices(trueSold, market?.label || "", exclusionDays);
+    // Exclude only TODAY's daily (canonical server pick + today's legacy-hash
+    // fallback) — not 30 days of future hash indices. The pool is served
+    // newest-first now, so index-based future exclusion was permanently hiding
+    // the newest sales: index 0 IS the newest comp, exactly the card Free
+    // Play should lead with. The canonical daily is server-side (pp-daily);
+    // future legacy-fallback picks aren't worth burying fresh comps for.
+    const excludedIndices = getDailyIndices(trueSold, market?.label || "", 0);
+    const dailyZpid = dailyProperty?.zpid ? String(dailyProperty.zpid) : null;
     const guessedZpids = fpGuessedZpidsRef.current;
-    let pool = trueSold.filter((l, i) => !excludedIndices.has(i) && (!l.zpid || !guessedZpids.has(l.zpid)));
+    let pool = trueSold.filter((l, i) =>
+      !excludedIndices.has(i) &&
+      (!l.zpid || (!guessedZpids.has(l.zpid) && String(l.zpid) !== dailyZpid))
+    );
 
     // Step 3: Filter to zip GROUP (e.g., Sunset = 94122 + 94116, not just 94122)
     // STRICT: Never mix neighborhoods. If Sunset is selected, only show Sunset zips.
