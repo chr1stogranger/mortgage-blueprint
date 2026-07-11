@@ -328,7 +328,10 @@ export default async function handler(req, res) {
     //    seeded markets — but search-only and cooldown-guarded, so a market
     //    with genuinely few recent sales doesn't re-search on every visit.
     const bulkHealthy = fresh6Size >= POOL_THRESHOLD || alreadyRentcasted;
-    const cooledDown = (Date.now() - (freshAttemptAt[marketId] || 0)) > FRESH_COOLDOWN_MS;
+    // Cooldown key includes the zip: a Sunset top-up shouldn't freeze
+    // freshness discovery for Richmond/Noe/citywide for 6 hours.
+    const freshKey = zip ? `${marketId}:${zip}` : marketId;
+    const cooledDown = (Date.now() - (freshAttemptAt[freshKey] || 0)) > FRESH_COOLDOWN_MS;
     const primeThin = pool.prime.length < PRIME_DISCOVERY_MIN;
     const needDiscovery = forceDiscover || forceFreshSearch || !bulkHealthy || (primeThin && cooledDown);
 
@@ -373,7 +376,7 @@ export default async function handler(req, res) {
     }
 
     console.error(`[SoldComps] Discovery for ${marketId} (prime=${pool.prime.length}, fresh6=${fresh6Size}, all=${pool.all.length}, forced=${forceDiscover || forceFreshSearch})...`);
-    freshAttemptAt[marketId] = Date.now();
+    freshAttemptAt[freshKey] = Date.now();
 
     const poolZpidSet = new Set(pool.all.map(r => String(r.zpid)));
 
