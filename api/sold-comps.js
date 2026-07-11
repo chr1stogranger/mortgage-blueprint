@@ -221,8 +221,11 @@ const HOSTTEST_PATHS = {
             headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': host },
           });
           const j = await r.json().catch(() => null);
-          const rows = j?.data?.rows || j?.rows || [];
-          const hit = rows.find(x => x?.id) || null;
+          // Shape: { data: [ { name:"Places", rows:[{ id:"2_39022", ... }] }, ... ] }
+          const sections = Array.isArray(j?.data) ? j.data : [];
+          const rows = sections.flatMap(sec => (Array.isArray(sec?.rows) ? sec.rows : []));
+          const hit = rows.find(x => x?.id && String(x.subName || '').includes('CA'))
+            || rows.find(x => x?.id) || null;
           if (hit?.id) {
             return [`/properties/search-sold?regionId=${encodeURIComponent(hit.id)}&soldWithin=90&limit=100`];
           }
