@@ -45,6 +45,10 @@ const RESPONSE_SHUFFLE_CAP = 250;          // default shuffled slice size (was 5
 const SOLD_SEARCH_PAGES = 6;               // recentlySold pages to page through (~40 each)
 const ACTIVE_DEDUP_PAGES = 4;              // forSale pages used only to strip relabeled-active
 const MIN_SEARCH_YIELD = 12;               // below this, fall back to the next discovery tier
+const PRIME_DISCOVERY_MIN = 8;             // if 0-3mo bucket has fewer than this, run a
+                                           // search-only freshness top-up on organic visits
+const FRESH_COOLDOWN_MS = 6 * 60 * 60 * 1000; // per-warm-instance cooldown between
+                                           // freshness-triggered discoveries per market
 const RENTCAST_SALE_DAYS = 365;            // "sold within the last N days" window for RentCast discovery
 const RENTCAST_PAGE_LIMIT = 500;           // RentCast max records per call — one call seeds a whole city
 // TIERED sold-date window:
@@ -54,6 +58,10 @@ const RENTCAST_PAGE_LIMIT = 500;           // RentCast max records per call — 
 const SOLD_DATE_MONTHS_INGEST = 12;
 const SOLD_DATE_MONTHS_PREFERRED = 6;
 const SOLD_DATE_MONTHS_PRIME = 3;     // 0-3mo = prime tier, always served first
+
+// Freshness-discovery cooldown, per warm serverless instance. Ephemeral by
+// design: cold starts reset it, which just means an occasional extra search.
+const freshAttemptAt = {};
 
 // ─── Map city name → market_id used as pool key ───
 function cityToMarketId(city) {
@@ -202,6 +210,10 @@ export default async function handler(req, res) {
     // the request is served from the pool as normal — discovery still runs
     // automatically whenever the pool is genuinely thin.
     const forceDiscover = fresh === "1" && isPrivileged(req);
+    // freshsearch=1 (privileged): force a search-ONLY discovery — Zillow
+    // recentlySold, no RentCast. Used by the DAILY cron so fresh sales flow in
+    // without burning RentCast's monthly quota (county records lag anyway).
+    const forceFreshSearch = req.query.freshsearch === "1" && isPrivileged(req);
     const ingestCutoff = monthsAgoDate(SOLD_DATE_MONTHS_INGEST);
     const ingestCutoffStr = monthsAgoDateStr(SOLD_DATE_MONTHS_INGEST);
     const preferredCutoff = monthsAgoDate(SOLD_DATE_MONTHS_PREFERRED);
@@ -308,7 +320,19 @@ export default async function handler(req, res) {
     // RentCast request on EVERY visit. Only the weekly cron (fresh=1) refreshes.
     const alreadyRentcasted = pool.all.some(r => String(r.zpid).startsWith('rc_'));
 
-    if (!forceDiscover && (fresh6Size >= POOL_THRESHOLD || alreadyRentcasted)) {
+    // Discovery triggers:
+    //  - forceDiscover / forceFreshSearch (privileged cron)
+    //  - bulk-thin: fewer than POOL_THRESHOLD 0-6mo rows AND market not yet
+    //    RentCast-seeded (the quota guard)
+    //  - prime-thin: fewer than PRIME_DISCOVERY_MIN 0-3mo rows — even for
+    //    seeded markets — but search-only and cooldown-guarded, so a market
+    //    with genuinely few recent sales doesn't re-search on every visit.
+    const bulkHealthy = fresh6Size >= POOL_THRESHOLD || alreadyRentcasted;
+    const cooledDown = (Date.now() - (freshAttemptAt[marketId] || 0)) > FRESH_COOLDOWN_MS;
+    const primeThin = pool.prime.length < PRIME_DISCOVERY_MIN;
+    const needDiscovery = forceDiscover || forceFreshSearch || !bulkHealthy || (primeThin && cooledDown);
+
+    if (!needDiscovery) {
       const { rows: shuffled, tier } = pickShuffledSlice(pool);
       res.setHeader("Cache-Control", "no-store");
       return res.status(200).json({
@@ -348,49 +372,51 @@ export default async function handler(req, res) {
       });
     }
 
-    console.error(`[SoldComps] Pool thin for ${marketId} (prime=${pool.prime.length}, fresh6=${fresh6Size}, all=${pool.all.length}). Discovering via search pagination...`);
+    console.error(`[SoldComps] Discovery for ${marketId} (prime=${pool.prime.length}, fresh6=${fresh6Size}, all=${pool.all.length}, forced=${forceDiscover || forceFreshSearch})...`);
+    freshAttemptAt[marketId] = Date.now();
 
     const poolZpidSet = new Set(pool.all.map(r => String(r.zpid)));
 
-    // ─── PRIMARY discovery: page the recentlySold search endpoint ───
-    // Returns ~40 sold listings per page directly (price + dateSold in the
-    // payload), so there are NO per-zpid property-details calls. Relabeled-
-    // active garbage is stripped by deduping against the forSale results.
-    // This is the high-yield, low-cost path that fills a whole city in one pass.
-    // PRIMARY: RentCast /v1/properties — licensed county-record sales at volume
-    // (up to 500 sold-within-a-year records per call) for any CA city, no
-    // curated zpid list needed. This is what fills Alameda/Berkeley/etc.
-    const rc = await discoverSoldViaRentCast(
-      city, marketId, ingestCutoff, excludeSet, poolZpidSet
+    // ─── PRIMARY: Zillow recentlySold search — the FRESHNESS source ───
+    // Zillow shows sales within days of closing; RentCast county records lag
+    // 2-4 months. Search always runs first so yesterday's sales enter the
+    // pool. ~40 sold listings per page, no per-zpid detail calls.
+    let newRows = await discoverSoldViaSearch(
+      city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet
     );
-    let newRows = rc.rows;
-    let discoverySource = 'rentcast';
-    let funnelDbg = { rcRows: newRows.length, rcDiag: rc.diag };
+    let discoverySource = 'search';
+    let funnelDbg = { searchRows: newRows.length };
 
-    // SECONDARY: legacy recentlySold search (only if us-real-estate came back thin).
-    if (newRows.length < MIN_SEARCH_YIELD) {
+    // ─── SECONDARY: RentCast /v1/properties — the VOLUME seeder ───
+    // Licensed county-record sales (up to 500/call) — fills whole cities like
+    // Alameda/Berkeley. Monthly-quota-limited, so: never for freshsearch (the
+    // daily cron), and otherwise same policy as before — weekly forceDiscover,
+    // or a not-yet-seeded market.
+    if (!forceFreshSearch && (forceDiscover || !alreadyRentcasted)) {
       const haveSet = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
-      const searchRows = await discoverSoldViaSearch(
-        city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet
+      const rc = await discoverSoldViaRentCast(
+        city, marketId, ingestCutoff, excludeSet, haveSet
       );
-      if (searchRows.length > 0) {
-        newRows = [...newRows, ...searchRows];
-        discoverySource = newRows.length > searchRows.length ? 'rentcast+search' : 'search';
+      if (rc.rows.length > 0) {
+        newRows = [...newRows, ...rc.rows];
+        discoverySource += '+rentcast';
       }
-      funnelDbg.searchRows = searchRows.length;
+      funnelDbg.rcRows = rc.rows.length;
+      funnelDbg.rcDiag = rc.diag;
+    }
 
-      // TERTIARY: curated-zpid + nearbyHomes property-details funnel (reliable for SF).
-      if (newRows.length < MIN_SEARCH_YIELD) {
-        const haveSet2 = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
-        const fb = await discoverViaPropertyDetails(
-          city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2
-        );
-        if (fb.rows.length > 0) {
-          newRows = [...newRows, ...fb.rows];
-          discoverySource += '+details';
-        }
-        funnelDbg = { ...funnelDbg, ...fb.funnel };
+    // ─── TERTIARY: curated-zpid + nearbyHomes property-details funnel ───
+    // Quota-heavy per-zpid calls; only when the cheap paths came back thin.
+    if (newRows.length < MIN_SEARCH_YIELD && !forceFreshSearch) {
+      const haveSet2 = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
+      const fb = await discoverViaPropertyDetails(
+        city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2
+      );
+      if (fb.rows.length > 0) {
+        newRows = [...newRows, ...fb.rows];
+        discoverySource += '+details';
       }
+      funnelDbg = { ...funnelDbg, ...fb.funnel };
     }
 
     // ─── Upsert into pool (dedup by market_id + zpid) ───

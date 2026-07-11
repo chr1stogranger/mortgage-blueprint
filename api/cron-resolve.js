@@ -50,6 +50,45 @@ async function runEnrichPass(supabase) {
   return { enriched, attempted };
 }
 
+// ─── Daily fresh-search pump (folded in — Hobby 12-fn limit) ───
+// Pumps /api/sold-comps?freshsearch=1 for each launch market: a search-ONLY
+// discovery (Zillow recentlySold, no RentCast) so sales from the last few days
+// flow into pp_property_pool every day, not just on the Monday pool-seed.
+// County-record (RentCast) data lags 2-4 months — this is what keeps Free Play
+// comps current.
+const PUMP_MARKETS = [
+  'San Francisco', 'Alameda', 'Oakland', 'Berkeley',
+  'Los Angeles', 'San Diego',
+];
+
+async function runFreshSearchPump() {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return { skipped: 'no_cron_secret' };
+  const host = process.env.VERCEL_URL || 'blueprint.realstack.app';
+  const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+  const results = await Promise.all(PUMP_MARKETS.map(async (market) => {
+    const t0 = Date.now();
+    try {
+      const r = await fetch(
+        `${baseUrl}/api/sold-comps?city=${encodeURIComponent(market)}&freshsearch=1`,
+        { headers: { Authorization: `Bearer ${secret}` } }
+      );
+      const j = await r.json();
+      return {
+        market,
+        status: r.status,
+        newlyAdded: j.newlyAdded ?? 0,
+        poolPrimeSize: j.poolPrimeSize,
+        latencyMs: Date.now() - t0,
+      };
+    } catch (err) {
+      return { market, error: err.message, latencyMs: Date.now() - t0 };
+    }
+  }));
+  console.error(`[CronResolve] fresh-search pump: ${JSON.stringify(results)}`);
+  return results;
+}
+
 // Get Supabase admin client
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -353,15 +392,24 @@ export default async function handler(req, res) {
 
     if (uniqueZpids.length === 0) {
       console.error('[CronResolve] No unresolved predictions found');
-      // Still run the Free Play photo backfill even when there's nothing to resolve.
-      let enrich = null;
-      try { enrich = await runEnrichPass(supabase); }
-      catch (e) { console.error(`[CronResolve] enrich pass failed: ${e.message}`); }
+      // Still run the Free Play photo backfill + fresh-search pump even when
+      // there's nothing to resolve. Parallel — they hit different APIs and
+      // must share the 60s budget.
+      let enrich = null, freshSearch = null;
+      const [enrichR, pumpR] = await Promise.allSettled([
+        runEnrichPass(supabase),
+        runFreshSearchPump(),
+      ]);
+      if (enrichR.status === 'fulfilled') enrich = enrichR.value;
+      else console.error(`[CronResolve] enrich pass failed: ${enrichR.reason?.message}`);
+      if (pumpR.status === 'fulfilled') freshSearch = pumpR.value;
+      else console.error(`[CronResolve] fresh-search pump failed: ${pumpR.reason?.message}`);
       return res.status(200).json({
         resolved: 0,
         checked: 0,
         errors: [],
         enrich,
+        freshSearch,
         timestamp: new Date().toISOString(),
       });
     }
@@ -396,10 +444,17 @@ export default async function handler(req, res) {
       `[CronResolve] Checked ${allResults.checked} zpids, resolved ${allResults.resolved} predictions for ${allResults.resolvedPredictions.length} properties`
     );
 
-    // Free Play photo backfill (folded in — see runEnrichPass). Non-fatal.
-    let enrich = null;
-    try { enrich = await runEnrichPass(supabase); }
-    catch (e) { console.error(`[CronResolve] enrich pass failed: ${e.message}`); }
+    // Free Play photo backfill + fresh-search pump (folded in). Non-fatal,
+    // parallel to share the 60s budget.
+    let enrich = null, freshSearch = null;
+    const [enrichR, pumpR] = await Promise.allSettled([
+      runEnrichPass(supabase),
+      runFreshSearchPump(),
+    ]);
+    if (enrichR.status === 'fulfilled') enrich = enrichR.value;
+    else console.error(`[CronResolve] enrich pass failed: ${enrichR.reason?.message}`);
+    if (pumpR.status === 'fulfilled') freshSearch = pumpR.value;
+    else console.error(`[CronResolve] fresh-search pump failed: ${pumpR.reason?.message}`);
 
     return res.status(200).json({
       resolved: allResults.resolved,
@@ -407,6 +462,7 @@ export default async function handler(req, res) {
       errors: allResults.errors,
       resolvedPredictions: allResults.resolvedPredictions,
       enrich,
+      freshSearch,
       timestamp: new Date().toISOString(),
     });
 
