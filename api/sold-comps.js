@@ -382,7 +382,7 @@ export default async function handler(req, res) {
     // 2-4 months. Search always runs first so yesterday's sales enter the
     // pool. ~40 sold listings per page, no per-zpid detail calls.
     const sr = await discoverSoldViaSearch(
-      city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet
+      city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet, zip
     );
     let newRows = sr.rows;
     let discoverySource = 'search';
@@ -415,7 +415,7 @@ export default async function handler(req, res) {
     if (newRows.length < MIN_SEARCH_YIELD) {
       const haveSet2 = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
       const fb = await discoverViaPropertyDetails(
-        city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2, sr.retryZpids
+        city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2, sr.retryZpids, supabase
       );
       if (fb.rows.length > 0) {
         newRows = [...newRows, ...fb.rows];
@@ -727,8 +727,11 @@ function rentcastRecordToPoolRow(d, marketId, ingestCutoff) {
 
 // ─── SECONDARY discovery: paginate recentlySold, dedup against active ───
 // Works for ANY city with no curated zpid lists. Returns pool-ready rows.
-async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet) {
-  const location = `${city}, CA`;
+async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet, zip = null) {
+  // Zip-scoped when the caller asked for a specific neighborhood — a zip
+  // search surfaces that zip's newest sales instead of burying them in a
+  // ~250-item citywide feed.
+  const location = zip ? String(zip) : `${city}, CA`;
   const [activeItems, soldItems] = await Promise.all([
     searchPages(location, 'forSale', apiKey, apiHost, ACTIVE_DEDUP_PAGES),
     searchPages(location, 'recentlySold', apiKey, apiHost, SOLD_SEARCH_PAGES),
@@ -769,18 +772,42 @@ async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCuto
     rows.push(searchItemToPoolRow(d, marketId, soldPrice, soldDate));
   }
   console.error(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, provenOverlap=${keptProven}, noSoldData=${rejNoSoldData}, tooOld=${rejTooOld}, kept=${rows.length}, retry=${retryZpids.length}`);
-  return { rows, retryZpids: retryZpids.slice(0, 50) };
+  return { rows, retryZpids: retryZpids.slice(0, 150) };
 }
 
 // ─── FALLBACK discovery: legacy curated-zpid + nearbyHomes property-details ───
 // Per-zpid property-details calls (slower, quota-heavier). Only runs when the
 // search path yields too few. Returns { rows, funnel } for the debug payload.
-async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet, priorityZpids = []) {
+const JUNK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // relabeled-junk zpids retry after 7 days
+const JUNK_CAP = 800;
+
+async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet, priorityZpids = [], supabase = null) {
   const DISCOVERY_BATCH_CAP = 25;
-  // Priority candidates (search-feed recentlySold rejects) keep FEED ORDER —
-  // newest first — and are validated before any curated/seed candidate.
+
+  // Junk memory: zpids that already failed priceHistory validation (relabeled
+  // actives with no sale). Without it every run re-burns its 25 detail calls
+  // on the same fakes and the queue never advances. Stored in pp_city_cache
+  // (service-role only, no migration). 7-day TTL so a home that genuinely
+  // sells after being junk-validated is picked up within a week.
+  const junkKey = `sc-failed:${marketId}`;
+  let junk = {}; // { zpid: attemptedAtMs }
+  if (supabase) {
+    try {
+      const { data: row } = await supabase
+        .from('pp_city_cache').select('data').eq('cache_key', junkKey).maybeSingle();
+      const now = Date.now();
+      for (const [z, t] of Object.entries(row?.data?.zpids || {})) {
+        if (now - t < JUNK_TTL_MS) junk[z] = t;
+      }
+    } catch (e) {
+      console.error(`[SoldComps] junk-memory read failed (continuing): ${e.message}`);
+    }
+  }
+
+  // Priority candidates (search-feed recentlySold rejects) keep FEED ORDER
+  // and are validated before any curated/seed candidate.
   const priority = [...new Set(priorityZpids.map(String))]
-    .filter(z => !excludeSet.has(z) && !haveSet.has(z));
+    .filter(z => !excludeSet.has(z) && !haveSet.has(z) && !junk[z]);
 
   // Seed/curated discovery costs ~9 extra API calls — skip it entirely when
   // the priority list already fills the batch.
@@ -793,7 +820,7 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
   const prioritySet = new Set(priority);
   const others = [...new Set([...curatedZpids, ...discovered])]
     .map(String)
-    .filter(z => !excludeSet.has(z) && !haveSet.has(z) && !prioritySet.has(z))
+    .filter(z => !excludeSet.has(z) && !haveSet.has(z) && !prioritySet.has(z) && !junk[z])
     .sort(() => Math.random() - 0.5);
   const candidateZpids = [...priority, ...others];
 
@@ -808,6 +835,7 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
   );
 
   const rows = [];
+  const newJunk = [];
   let fetchedCount = 0, soldCount = 0, rejNoSoldData = 0, rejTooOld = 0;
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
@@ -818,8 +846,8 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
     const soldEvent = extractSoldEvent(d.priceHistory || []);
     const soldPrice = soldEvent?.price || d.lastSoldPrice || d.lastSale?.price || null;
     const soldDate = soldEvent?.date || d.lastSoldDate || d.lastSale?.date || null;
-    if (!soldPrice || !soldDate) { rejNoSoldData++; continue; }
-    if (new Date(soldDate) < ingestCutoff) { rejTooOld++; continue; }
+    if (!soldPrice || !soldDate) { rejNoSoldData++; newJunk.push(zpid); continue; }
+    if (new Date(soldDate) < ingestCutoff) { rejTooOld++; newJunk.push(zpid); continue; }
     soldCount++;
     const photos = extractPhotos(d);
     const mainPhoto = photos[0] || d.imgSrc || d.hiResImageLink || null;
@@ -850,6 +878,25 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
       detail_url: d.hdpUrl ? `https://www.zillow.com${d.hdpUrl}` : null,
     });
   }
+  // Persist junk memory (merge + prune oldest beyond cap). Non-fatal.
+  if (supabase && newJunk.length > 0) {
+    try {
+      const now = Date.now();
+      for (const z of newJunk) junk[z] = now;
+      let entries = Object.entries(junk);
+      if (entries.length > JUNK_CAP) {
+        entries = entries.sort((a, b) => b[1] - a[1]).slice(0, JUNK_CAP);
+      }
+      await supabase.from('pp_city_cache').upsert(
+        { cache_key: junkKey, data: { zpids: Object.fromEntries(entries) }, updated_at: new Date().toISOString() },
+        { onConflict: 'cache_key' }
+      );
+      console.error(`[SoldComps] junk-memory ${marketId}: +${newJunk.length} (total ${entries.length})`);
+    } catch (e) {
+      console.error(`[SoldComps] junk-memory write failed (continuing): ${e.message}`);
+    }
+  }
+
   return {
     rows,
     funnel: {
