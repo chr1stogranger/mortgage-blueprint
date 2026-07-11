@@ -202,8 +202,11 @@ const HOSTTEST_PATHS = {
   usre: {
     host: 'us-real-estate.p.rapidapi.com',
     paths: (zip) => [
-      `/v2/sold-homes-by-zipcode?zipcode=${zip}&offset=0&limit=50&sort=sold_date&max_sold_days=90`,
-      `/sold-homes?city=San%20Francisco&state_code=CA&limit=50&sort=sold_date`,
+      `/v2/sold-homes-by-zipcode?zip_code=${zip}&offset=0&limit=50&sort=sold_date&max_sold_days=90`,
+      `/v2/sold-homes-by-zipcode?zipcode=${zip}&offset=0&limit=50`,
+      `/v2/sold-homes-by-zipcode?postal_code=${zip}&offset=0&limit=50&sort=sold_date`,
+      `/sold-homes?city=San%20Francisco&state_code=CA&offset=0&limit=50&sort=sold_date&max_sold_days=90`,
+      `/v2/sold-homes?city=San%20Francisco&state_code=CA&offset=0&limit=50&sort=sold_date`,
     ],
   },
   redfin: {
