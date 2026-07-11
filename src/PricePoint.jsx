@@ -261,7 +261,11 @@ const orderByRecency = (listings) => {
     else older.push(l);
   }
   const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
-  return [...shuffle(prime), ...shuffle(fresh), ...shuffle(older)];
+  // Prime is strictly newest-first — a home that sold yesterday IS the first
+  // card. Session variety comes from guessed-card exclusion and the pool
+  // refreshing daily, not from shuffling the freshest sales out of order.
+  const newestFirst = (a) => [...a].sort((x, y) => new Date(y.soldDate) - new Date(x.soldDate));
+  return [...newestFirst(prime), ...shuffle(fresh), ...shuffle(older)];
 };
 
 // Format a sold date (ISO "2025-12-15") → "SOLD DEC '25" for the photo pill.

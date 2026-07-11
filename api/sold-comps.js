@@ -191,139 +191,11 @@ function getZpidsForZip(city, zip) {
 // ─── Discovered zpids cache — persists across warm invocations ───
 const discoveredZpids = new Map(); // zip → Set of discovered zpids
 
-// ─── TEMP: candidate sold-data host evaluation probe ───
-// GET /api/sold-comps?hosttest=usre|redfin&hzip=94116
-// Makes ONE call to the candidate RapidAPI host and returns aggregate
-// freshness/volume/photo stats + a truncated raw sample for field mapping.
-// No user data; 10-min in-memory result cache limits upstream burn.
-// REMOVE after the source decision (see PricePoint provider research doc).
-const hostTestCache = new Map(); // key → { at, body }
-const HOSTTEST_PATHS = {
-  usre: {
-    host: 'us-real-estate.p.rapidapi.com',
-    // Paths from the live RapidAPI docs (note the /api prefix):
-    //   GET /api/sold-homes  city* state_code* location(zip) limit sort=sold_date max_sold_days
-    //   GET /api/v2/sold-homes-by-zipcode  zipcode* limit max_sold_days
-    paths: (zip) => [
-      `/api/sold-homes?city=San%20Francisco&state_code=CA&location=${zip}&limit=42&sort=sold_date&max_sold_days=90`,
-      `/api/v2/sold-homes-by-zipcode?zipcode=${zip}&limit=42&max_sold_days=90`,
-    ],
-  },
-  redfin: {
-    host: 'redfin-com-data.p.rapidapi.com',
-    // Two-step per docs: /properties/auto-complete -> data.rows[].id
-    // (e.g. "2_94116" for a zip), then /properties/search-sold?regionId=...
-    resolve: async (zip, apiKey) => {
-      const host = 'redfin-com-data.p.rapidapi.com';
-      for (const acPath of [`/properties/auto-complete?location=${zip}`, `/properties/auto-complete?query=${zip}`]) {
-        try {
-          const r = await fetch(`https://${host}${acPath}`, {
-            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': host },
-          });
-          const j = await r.json().catch(() => null);
-          // Shape: { data: [ { name:"Places", rows:[{ id:"2_39022", ... }] }, ... ] }
-          const sections = Array.isArray(j?.data) ? j.data : [];
-          const rows = sections.flatMap(sec => (Array.isArray(sec?.rows) ? sec.rows : []));
-          const hit = rows.find(x => x?.id && String(x.subName || '').includes('CA'))
-            || rows.find(x => x?.id) || null;
-          if (hit?.id) {
-            return [`/properties/search-sold?regionId=${encodeURIComponent(hit.id)}&soldWithin=90&limit=100`];
-          }
-        } catch { /* try next */ }
-      }
-      return [];
-    },
-  },
-};
-
-function hostTestExtractList(data) {
-  const cands = [
-    data?.data?.home_search?.results, data?.data?.results, data?.results,
-    data?.data?.homes, data?.homes, data?.data, data?.properties,
-  ];
-  for (const c of cands) if (Array.isArray(c) && c.length) return c;
-  return Array.isArray(data) ? data : [];
-}
-
-function hostTestNormalize(item) {
-  const soldDate = item?.description?.sold_date || item?.last_sold_date || item?.soldDate
-    || item?.sold_date || item?.lastSoldDate || item?.soldDateTime || null;
-  const soldPrice = item?.description?.sold_price || item?.last_sold_price || item?.soldPrice
-    || item?.sold_price || item?.price?.value || item?.price || null;
-  const addr = item?.location?.address?.line || item?.address?.line || item?.streetLine?.value
-    || item?.streetLine || item?.address || null;
-  const photo = item?.primary_photo?.href || item?.photos?.[0]?.href || item?.imgSrc
-    || item?.photos?.[0] || item?.primaryPhotoDisplayLevel || null;
-  return { soldDate, soldPrice, addr: typeof addr === 'string' ? addr : JSON.stringify(addr || '').slice(0, 60), hasPhoto: !!photo };
-}
-
-async function handleHostTest(req, res) {
-  const which = String(req.query.hosttest);
-  const zip = String(req.query.hzip || '94116').replace(/[^0-9]/g, '').slice(0, 5) || '94116';
-  const cfg = HOSTTEST_PATHS[which];
-  if (!cfg) return res.status(400).json({ error: 'hosttest must be usre or redfin' });
-  const cacheKey = `${which}:${zip}`;
-  const hit = hostTestCache.get(cacheKey);
-  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return res.status(200).json(hit.body);
-  const apiKey = process.env.RAPIDAPI_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'no RAPIDAPI_KEY' });
-
-  const attempts = [];
-  const paths = cfg.resolve ? await cfg.resolve(zip, apiKey) : cfg.paths(zip);
-  if (paths.length === 0) {
-    return res.status(200).json({ host: cfg.host, zip, error: 'regionId resolve failed', attempts: [] });
-  }
-  for (const path of paths) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 12000);
-      let r, text;
-      try {
-        r = await fetch(`https://${cfg.host}${path}`, {
-          headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': cfg.host },
-          signal: controller.signal,
-        });
-        text = await r.text();
-      } finally { clearTimeout(timer); }
-      if (!r.ok) { attempts.push({ path, status: r.status, body: text.slice(0, 200) }); continue; }
-      let data; try { data = JSON.parse(text); } catch { attempts.push({ path, status: r.status, body: 'non-JSON' }); continue; }
-      const list = hostTestExtractList(data);
-      if (list.length === 0) {
-        attempts.push({ path, status: r.status, empty: true, rawTopLevel: text.slice(0, 900) });
-        continue;
-      }
-      const norm = list.map(hostTestNormalize);
-      const dated = norm.filter(n => n.soldDate && n.soldPrice);
-      const daysAgo = (ds) => Math.round((Date.now() - new Date(ds)) / 86400000);
-      const body = {
-        host: cfg.host, path, status: r.status, zip,
-        rawCount: list.length,
-        usable: dated.length,
-        withPhoto: norm.filter(n => n.hasPhoto).length,
-        newestDaysAgo: dated.length ? Math.min(...dated.map(n => daysAgo(n.soldDate))) : null,
-        oldestDaysAgo: dated.length ? Math.max(...dated.map(n => daysAgo(n.soldDate))) : null,
-        sample: dated.slice(0, 5).map(n => ({ addr: n.addr, soldDate: String(n.soldDate).slice(0, 10), soldPrice: n.soldPrice, hasPhoto: n.hasPhoto })),
-        rawFirstItemKeys: list[0] ? Object.keys(list[0]).slice(0, 25) : [],
-        rawFirstItem: list[0] ? JSON.stringify(list[0]).slice(0, 4500) : null,
-        attempts,
-      };
-      hostTestCache.set(cacheKey, { at: Date.now(), body });
-      return res.status(200).json(body);
-    } catch (e) {
-      attempts.push({ path, error: String(e.message || e).slice(0, 160) });
-    }
-  }
-  const body = { host: cfg.host, zip, error: 'all paths failed', attempts };
-  hostTestCache.set(cacheKey, { at: Date.now(), body });
-  return res.status(200).json(body);
-}
-
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
   if (rateLimited(req, res, { limit: 20 })) return;
 
-  if (req.query.hosttest) return handleHostTest(req, res);
 
   try {
     const { city, zip, fresh, exclude } = req.query;
@@ -427,8 +299,10 @@ export default async function handler(req, res) {
     // front, so the OLDEST rows are always the first to be cut.
     function pickShuffledSlice(p) {
       const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
+      // Prime newest-first so a response cap never cuts the freshest sales.
+      const primeSorted = [...p.prime].sort((a, b) => new Date(b.sold_date) - new Date(a.sold_date));
       const fresh6 = p.prime.length + p.fresh.length; // 0-6mo count
-      const combined = [...shuffle(p.prime), ...shuffle(p.fresh), ...shuffle(p.older)];
+      const combined = [...primeSorted, ...shuffle(p.fresh), ...shuffle(p.older)];
       const rows = combined.slice(0, responseCap);
       const tier =
         fresh6 >= POOL_THRESHOLD ? 'fresh' :
