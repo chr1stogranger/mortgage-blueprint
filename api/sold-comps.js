@@ -304,7 +304,7 @@ async function handleHostTest(req, res) {
         oldestDaysAgo: dated.length ? Math.max(...dated.map(n => daysAgo(n.soldDate))) : null,
         sample: dated.slice(0, 5).map(n => ({ addr: n.addr, soldDate: String(n.soldDate).slice(0, 10), soldPrice: n.soldPrice, hasPhoto: n.hasPhoto })),
         rawFirstItemKeys: list[0] ? Object.keys(list[0]).slice(0, 25) : [],
-        rawFirstItem: list[0] ? JSON.stringify(list[0]).slice(0, 700) : null,
+        rawFirstItem: list[0] ? JSON.stringify(list[0]).slice(0, 4500) : null,
         attempts,
       };
       hostTestCache.set(cacheKey, { at: Date.now(), body });
