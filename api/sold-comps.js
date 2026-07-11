@@ -509,52 +509,59 @@ export default async function handler(req, res) {
 
     const poolZpidSet = new Set(pool.all.map(r => String(r.zpid)));
 
-    // ─── PRIMARY: Zillow recentlySold search — the FRESHNESS source ───
-    // Zillow shows sales within days of closing; RentCast county records lag
-    // 2-4 months. Search always runs first so yesterday's sales enter the
-    // pool. ~40 sold listings per page, no per-zpid detail calls.
-    const sr = await discoverSoldViaSearch(
-      city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet, zip
+    // ─── PRIMARY: Redfin search-sold — real MLS-grade closed sales ───
+    const rfd = await discoverSoldViaRedfin(
+      city, zip || null, apiKey, marketId, ingestCutoff, excludeSet, pool.all
     );
-    let newRows = sr.rows;
-    let discoverySource = 'search';
-    let funnelDbg = { searchRows: newRows.length, searchRetry: sr.retryZpids.length };
+    let newRows = rfd.rows;
+    let discoverySource = 'redfin';
+    let funnelDbg = { redfinRows: rfd.rows.length, redfinDiag: rfd.diag };
 
-    // ─── SECONDARY: RentCast /v1/properties — the VOLUME seeder ───
-    // Licensed county-record sales (up to 500/call) — fills whole cities like
-    // Alameda/Berkeley. Monthly-quota-limited, so: never for freshsearch (the
-    // daily cron), and otherwise same policy as before — weekly forceDiscover,
-    // or a not-yet-seeded market.
-    if (!forceFreshSearch && (forceDiscover || !alreadyRentcasted)) {
-      const haveSet = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
-      const rc = await discoverSoldViaRentCast(
-        city, marketId, ingestCutoff, excludeSet, haveSet
-      );
-      if (rc.rows.length > 0) {
-        newRows = [...newRows, ...rc.rows];
-        discoverySource += '+rentcast';
-      }
-      funnelDbg.rcRows = rc.rows.length;
-      funnelDbg.rcDiag = rc.diag;
-    }
-
-    // ─── TERTIARY: property-details funnel — the TRUSTED validator ───
-    // Per-zpid detail calls read Zillow priceHistory (real sold date + price).
-    // The search feed's unvalidated recentlySold zpids go in as PRIORITY
-    // candidates: that's where the newest genuine sales are (this host's
-    // search payload rarely carries usable dateSold, so search alone can't
-    // ingest them). Runs for freshsearch too — search-only would yield ~0.
+    // ─── LEGACY funnel — only when Redfin comes back thin ───
+    // (host outage, unsubscribed key, or a region Redfin doesn't cover)
     if (newRows.length < MIN_SEARCH_YIELD) {
-      const haveSet2 = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
-      const fb = await discoverViaPropertyDetails(
-        city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2, sr.retryZpids, supabase
+      // Zillow recentlySold search — old freshness path (feed is mostly
+      // relabeled actives; kept for redundancy only).
+      const sr = await discoverSoldViaSearch(
+        city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet, zip
       );
-      if (fb.rows.length > 0) {
-        newRows = [...newRows, ...fb.rows];
-        discoverySource += '+details';
+      if (sr.rows.length > 0) {
+        newRows = [...newRows, ...sr.rows];
+        discoverySource += '+search';
       }
-      funnelDbg = { ...funnelDbg, ...fb.funnel };
-    }
+      funnelDbg.searchRows = sr.rows.length;
+      funnelDbg.searchRetry = sr.retryZpids.length;
+
+      // RentCast — licensed county-record VOLUME seeder (quota-limited):
+      // weekly forceDiscover or a not-yet-seeded market; never for the
+      // daily freshsearch pump.
+      if (!forceFreshSearch && (forceDiscover || !alreadyRentcasted)) {
+        const haveSet = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
+        const rc = await discoverSoldViaRentCast(
+          city, marketId, ingestCutoff, excludeSet, haveSet
+        );
+        if (rc.rows.length > 0) {
+          newRows = [...newRows, ...rc.rows];
+          discoverySource += '+rentcast';
+        }
+        funnelDbg.rcRows = rc.rows.length;
+        funnelDbg.rcDiag = rc.diag;
+      }
+
+      // Property-details funnel — per-zpid priceHistory validation of the
+      // search feed's unvalidated candidates. Junk-memory-guarded.
+      if (newRows.length < MIN_SEARCH_YIELD) {
+        const haveSet2 = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
+        const fb = await discoverViaPropertyDetails(
+          city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2, sr.retryZpids, supabase
+        );
+        if (fb.rows.length > 0) {
+          newRows = [...newRows, ...fb.rows];
+          discoverySource += '+details';
+        }
+        funnelDbg = { ...funnelDbg, ...fb.funnel };
+      }
+    } // end legacy funnel
 
     // ─── Upsert into pool (dedup by market_id + zpid) ───
     if (newRows.length > 0) {
@@ -859,6 +866,119 @@ function rentcastRecordToPoolRow(d, marketId, ingestCutoff) {
 
 // ─── SECONDARY discovery: paginate recentlySold, dedup against active ───
 // Works for ANY city with no curated zpid lists. Returns pool-ready rows.
+// ═══ Redfin discovery (redfin-com-data RapidAPI host) — PRIMARY sold source ═══
+// One search-sold call returns up to 1000 REAL closed sales (MLS-grade sold
+// date + price + photos) for a region, sold within N days. Replaces the old
+// garbage-feed + per-zpid-validation funnel as the first line. Host chosen in
+// the 2026-07-11 head-to-head (94122: 91 genuine sold/90d in one call vs 0).
+const REDFIN_HOST = 'redfin-com-data.p.rapidapi.com';
+const redfinRegionCache = new Map(); // "zip:94116" / "city:san francisco" → regionId
+
+// Redfin response propertyType → pool property_type (response coding differs
+// from the request homeType coding; 6 = SFR confirmed live).
+const REDFIN_PROPERTY_TYPES = { 6: 'Single Family', 3: 'Townhouse', 13: 'Condo', 4: 'Condo', 5: 'Multi-Family' };
+
+async function redfinRegionId(query, cacheKey, apiKey) {
+  if (redfinRegionCache.has(cacheKey)) return redfinRegionCache.get(cacheKey);
+  try {
+    const r = await fetch(`https://${REDFIN_HOST}/properties/auto-complete?query=${encodeURIComponent(query)}`, {
+      headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST },
+    });
+    const j = await r.json().catch(() => null);
+    const sections = Array.isArray(j?.data) ? j.data : [];
+    const rows = sections.flatMap(sec => (Array.isArray(sec?.rows) ? sec.rows : []));
+    // Prefer region rows (Places: zip type "4" ids "2_xxxxx", city ids "6_xxxxx") in CA.
+    const hit = rows.find(x => x?.id && String(x.subName || '').includes('CA'))
+      || rows.find(x => x?.id) || null;
+    if (hit?.id) { redfinRegionCache.set(cacheKey, hit.id); return hit.id; }
+  } catch (e) {
+    console.error(`[SoldComps] redfin auto-complete failed for ${query}: ${e.message}`);
+  }
+  return null;
+}
+
+function redfinItemToPoolRow(item, marketId, ingestCutoff) {
+  const h = item?.homeData;
+  if (!h) return null;
+  const soldDateRaw = h.lastSaleData?.lastSoldDate || null;
+  const soldPrice = Number(h.priceInfo?.amount || h.priceInfo?.homePrice?.int64Value || 0) || null;
+  if (!soldDateRaw || !soldPrice) return null;
+  const soldDate = new Date(soldDateRaw);
+  if (isNaN(soldDate) || soldDate < ingestCutoff) return null;
+  const a = h.addressInfo || {};
+  const big = h.photos?.bigPhotos || [];
+  const small = h.photos?.smallPhotos || [];
+  const photos = [...big, ...small].filter(isUsablePhoto);
+  return {
+    market_id: marketId,
+    zpid: `rf_${h.propertyId}`,
+    address: a.formattedStreetLine || null,
+    city: a.city || null,
+    state: a.state || 'CA',
+    zip: a.zip || null,
+    neighborhood: a.location || null,
+    beds: h.beds ?? null,
+    baths: h.baths ?? h.fullBaths ?? null,
+    sqft: Number(h.sqftInfo?.amount) || null,
+    lot_sqft: Number(h.lotSize?.amount) || null,
+    year_built: h.yearBuilt?.yearBuilt || null,
+    property_type: REDFIN_PROPERTY_TYPES[h.propertyType] || 'Single Family',
+    list_price: soldPrice, // list not in payload; read-guard falls back to sold
+    sold_price: soldPrice,
+    sold_date: soldDate.toISOString().split('T')[0],
+    photo: photos[0] || null,
+    photos: photos.slice(0, 6),
+    description: null,
+    latitude: a.centroid?.centroid?.latitude ?? null,
+    longitude: a.centroid?.centroid?.longitude ?? null,
+    detail_url: h.url ? `https://www.redfin.com${h.url}` : null,
+  };
+}
+
+// Normalized "streetline|zip" — used to skip Redfin rows for homes already
+// pooled under a Zillow zpid (rf_/zpid ids can't collide but addresses can).
+const addrKey = (addr, zip) =>
+  `${String(addr || '').toLowerCase().replace(/[^a-z0-9]/g, '')}|${zip || ''}`;
+
+async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, excludeSet, poolRows) {
+  const regionId = zip
+    ? await redfinRegionId(zip, `zip:${zip}`, apiKey)
+    : await redfinRegionId(city, `city:${String(city).toLowerCase()}`, apiKey);
+  if (!regionId) return { rows: [], diag: 'regionId resolve failed' };
+  let items = [];
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let r, j;
+    try {
+      r = await fetch(
+        `https://${REDFIN_HOST}/properties/search-sold?regionId=${encodeURIComponent(regionId)}&soldWithin=90&limit=350`,
+        { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST }, signal: controller.signal }
+      );
+      j = await r.json().catch(() => null);
+    } finally { clearTimeout(timer); }
+    items = j?.data || [];
+    if (!Array.isArray(items)) items = [];
+  } catch (e) {
+    console.error(`[SoldComps] redfin search-sold failed for ${marketId}: ${e.message}`);
+    return { rows: [], diag: e.message };
+  }
+  const poolZpids = new Set(poolRows.map(r => String(r.zpid)));
+  const poolAddrs = new Set(poolRows.map(r => addrKey(r.address, r.zip)));
+  const rows = [];
+  const seen = new Set();
+  for (const item of items) {
+    const row = redfinItemToPoolRow(item, marketId, ingestCutoff);
+    if (!row) continue;
+    if (seen.has(row.zpid) || excludeSet.has(row.zpid) || poolZpids.has(row.zpid)) continue;
+    if (poolAddrs.has(addrKey(row.address, row.zip))) continue; // same home under a Zillow zpid
+    seen.add(row.zpid);
+    rows.push(row);
+  }
+  console.error(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: region=${regionId} raw=${items.length} kept=${rows.length}`);
+  return { rows, diag: null };
+}
+
 async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet, zip = null) {
   // Zip-scoped when the caller asked for a specific neighborhood — a zip
   // search surfaces that zip's newest sales instead of burying them in a
