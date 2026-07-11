@@ -381,11 +381,12 @@ export default async function handler(req, res) {
     // Zillow shows sales within days of closing; RentCast county records lag
     // 2-4 months. Search always runs first so yesterday's sales enter the
     // pool. ~40 sold listings per page, no per-zpid detail calls.
-    let newRows = await discoverSoldViaSearch(
+    const sr = await discoverSoldViaSearch(
       city, apiKey, apiHost, marketId, ingestCutoff, excludeSet, poolZpidSet
     );
+    let newRows = sr.rows;
     let discoverySource = 'search';
-    let funnelDbg = { searchRows: newRows.length };
+    let funnelDbg = { searchRows: newRows.length, searchRetry: sr.retryZpids.length };
 
     // ─── SECONDARY: RentCast /v1/properties — the VOLUME seeder ───
     // Licensed county-record sales (up to 500/call) — fills whole cities like
@@ -405,12 +406,16 @@ export default async function handler(req, res) {
       funnelDbg.rcDiag = rc.diag;
     }
 
-    // ─── TERTIARY: curated-zpid + nearbyHomes property-details funnel ───
-    // Quota-heavy per-zpid calls; only when the cheap paths came back thin.
-    if (newRows.length < MIN_SEARCH_YIELD && !forceFreshSearch) {
+    // ─── TERTIARY: property-details funnel — the TRUSTED validator ───
+    // Per-zpid detail calls read Zillow priceHistory (real sold date + price).
+    // The search feed's unvalidated recentlySold zpids go in as PRIORITY
+    // candidates: that's where the newest genuine sales are (this host's
+    // search payload rarely carries usable dateSold, so search alone can't
+    // ingest them). Runs for freshsearch too — search-only would yield ~0.
+    if (newRows.length < MIN_SEARCH_YIELD) {
       const haveSet2 = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
       const fb = await discoverViaPropertyDetails(
-        city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2
+        city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet2, sr.retryZpids
       );
       if (fb.rows.length > 0) {
         newRows = [...newRows, ...fb.rows];
@@ -732,6 +737,11 @@ async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCuto
 
   const rows = [];
   const seen = new Set();
+  // zpids the feed CLAIMS sold but couldn't be validated from the search
+  // payload alone (missing date, or unproven active-overlap). These are the
+  // best candidates for per-zpid property-details validation — the newest
+  // genuine sales live here, in feed order (newest first).
+  const retryZpids = [];
   let rejRelabeled = 0, rejNoSoldData = 0, rejTooOld = 0, keptProven = 0;
   for (const d of soldItems) {
     const zpid = String(d?.zpid || '');
@@ -750,34 +760,48 @@ async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCuto
       // carry soldPrice === listPrice, or no date at all).
       const listPrice = d.listPrice || d.originalListPrice || null;
       const provenSale = soldDate && soldPrice && (!listPrice || soldPrice !== listPrice);
-      if (!provenSale) { rejRelabeled++; continue; }
+      if (!provenSale) { rejRelabeled++; retryZpids.push(zpid); continue; }
       keptProven++;
     }
-    if (!soldPrice || !soldDate) { rejNoSoldData++; continue; }
+    if (!soldPrice || !soldDate) { rejNoSoldData++; retryZpids.push(zpid); continue; }
     if (new Date(soldDate) < ingestCutoff) { rejTooOld++; continue; }
     seen.add(zpid);
     rows.push(searchItemToPoolRow(d, marketId, soldPrice, soldDate));
   }
-  console.error(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, provenOverlap=${keptProven}, noSoldData=${rejNoSoldData}, tooOld=${rejTooOld}, kept=${rows.length}`);
-  return rows;
+  console.error(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, provenOverlap=${keptProven}, noSoldData=${rejNoSoldData}, tooOld=${rejTooOld}, kept=${rows.length}, retry=${retryZpids.length}`);
+  return { rows, retryZpids: retryZpids.slice(0, 50) };
 }
 
 // ─── FALLBACK discovery: legacy curated-zpid + nearbyHomes property-details ───
 // Per-zpid property-details calls (slower, quota-heavier). Only runs when the
 // search path yields too few. Returns { rows, funnel } for the debug payload.
-async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet) {
-  const zpidData = zip ? getZpidsForZip(city, zip) : getZpidsForCity(city);
-  const curatedZpids = [...zpidData.verified, ...zpidData.extras];
-  const discovered = await discoverSoldZpidsForCity(city, apiKey, apiHost);
-  const candidateZpids = [...new Set([...curatedZpids, ...discovered])]
-    .filter(z => !excludeSet.has(z) && !haveSet.has(String(z)));
+async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, ingestCutoff, excludeSet, haveSet, priorityZpids = []) {
+  const DISCOVERY_BATCH_CAP = 25;
+  // Priority candidates (search-feed recentlySold rejects) keep FEED ORDER —
+  // newest first — and are validated before any curated/seed candidate.
+  const priority = [...new Set(priorityZpids.map(String))]
+    .filter(z => !excludeSet.has(z) && !haveSet.has(z));
+
+  // Seed/curated discovery costs ~9 extra API calls — skip it entirely when
+  // the priority list already fills the batch.
+  let curatedZpids = [], discovered = [];
+  if (priority.length < DISCOVERY_BATCH_CAP) {
+    const zpidData = zip ? getZpidsForZip(city, zip) : getZpidsForCity(city);
+    curatedZpids = [...zpidData.verified, ...zpidData.extras];
+    discovered = await discoverSoldZpidsForCity(city, apiKey, apiHost);
+  }
+  const prioritySet = new Set(priority);
+  const others = [...new Set([...curatedZpids, ...discovered])]
+    .map(String)
+    .filter(z => !excludeSet.has(z) && !haveSet.has(z) && !prioritySet.has(z))
+    .sort(() => Math.random() - 0.5);
+  const candidateZpids = [...priority, ...others];
 
   if (candidateZpids.length === 0) {
-    return { rows: [], funnel: { fbCurated: curatedZpids.length, fbDiscovered: discovered.length, fbCandidate: 0 } };
+    return { rows: [], funnel: { fbPriority: priority.length, fbCurated: curatedZpids.length, fbDiscovered: discovered.length, fbCandidate: 0 } };
   }
 
-  const DISCOVERY_BATCH_CAP = 25;
-  const zpidsToFetch = [...candidateZpids].sort(() => Math.random() - 0.5).slice(0, DISCOVERY_BATCH_CAP);
+  const zpidsToFetch = candidateZpids.slice(0, DISCOVERY_BATCH_CAP);
   const TIMEOUT_MS = 5000;
   const results = await Promise.allSettled(
     zpidsToFetch.map(zpid => fetchPropertyDetails(zpid, apiKey, apiHost, TIMEOUT_MS))
@@ -829,6 +853,7 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
   return {
     rows,
     funnel: {
+      fbPriority: priority.length,
       fbCurated: curatedZpids.length,
       fbDiscovered: discovered.length,
       fbCandidate: candidateZpids.length,
