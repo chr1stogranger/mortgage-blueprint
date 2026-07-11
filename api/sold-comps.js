@@ -201,12 +201,12 @@ const hostTestCache = new Map(); // key → { at, body }
 const HOSTTEST_PATHS = {
   usre: {
     host: 'us-real-estate.p.rapidapi.com',
+    // Paths from the live RapidAPI docs (note the /api prefix):
+    //   GET /api/sold-homes  city* state_code* location(zip) limit sort=sold_date max_sold_days
+    //   GET /api/v2/sold-homes-by-zipcode  zipcode* limit max_sold_days
     paths: (zip) => [
-      `/v2/sold-homes-by-zipcode?zip_code=${zip}&offset=0&limit=50&sort=sold_date&max_sold_days=90`,
-      `/v2/sold-homes-by-zipcode?zipcode=${zip}&offset=0&limit=50`,
-      `/v2/sold-homes-by-zipcode?postal_code=${zip}&offset=0&limit=50&sort=sold_date`,
-      `/sold-homes?city=San%20Francisco&state_code=CA&offset=0&limit=50&sort=sold_date&max_sold_days=90`,
-      `/v2/sold-homes?city=San%20Francisco&state_code=CA&offset=0&limit=50&sort=sold_date`,
+      `/api/sold-homes?city=San%20Francisco&state_code=CA&location=${zip}&limit=42&sort=sold_date&max_sold_days=90`,
+      `/api/v2/sold-homes-by-zipcode?zipcode=${zip}&limit=42&max_sold_days=90`,
     ],
   },
   redfin: {
