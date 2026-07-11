@@ -241,6 +241,29 @@ const isRecentSale = (l) => {
   return saleDate >= cutoff;
 };
 
+// Order listings recent-first: bucket by sold-date age, shuffle within each
+// bucket so repeat sessions still vary, then concatenate.
+//   prime: sold within 3 months          -> always first
+//   fresh: 3-6 months                    -> next
+//   older: 6-12 months OR no soldDate    -> last-resort filler
+// Note: unlike isRecentSale ("no date = assume recent", which KEEPS a listing
+// in the pool), ordering sends unknown dates to the back — never lead with a
+// sale we can't date.
+const orderByRecency = (listings) => {
+  const now = new Date();
+  const cut3 = new Date(now); cut3.setMonth(cut3.getMonth() - 3);
+  const cut6 = new Date(now); cut6.setMonth(cut6.getMonth() - 6);
+  const prime = [], fresh = [], older = [];
+  for (const l of listings) {
+    const d = l.soldDate ? new Date(l.soldDate) : null;
+    if (d && !isNaN(d) && d >= cut3) prime.push(l);
+    else if (d && !isNaN(d) && d >= cut6) fresh.push(l);
+    else older.push(l);
+  }
+  const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
+  return [...shuffle(prime), ...shuffle(fresh), ...shuffle(older)];
+};
+
 // Format a sold date (ISO "2025-12-15") → "SOLD DEC '25" for the photo pill.
 // Uses UTC getters so a date-only string isn't shifted a day by local tz.
 const fmtSoldPill = (iso) => {
@@ -933,7 +956,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           .map(l => ({ ...l, _source: l._source || "sold_comps" }));
         if (newListings.length > 0) {
           // Shuffle new listings and append after current position
-          const shuffled = newListings.sort(() => Math.random() - 0.5);
+          const shuffled = orderByRecency(newListings);
           setFpListings(prev => [...prev, ...shuffled]);
           // Also merge into main soldListings so enterFreePlay can see them later
           setSoldListings(prev => {
@@ -1776,7 +1799,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // Step 7: If still empty — no fake data. Show empty state and trigger background fetch.
     // NEVER fall back to SAMPLE_SOLD or other neighborhoods.
 
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    // Recency-first: prime (0-3mo) leads, then fresh (3-6mo), older (6-12mo) last.
+    const shuffled = orderByRecency(pool);
     setFpListings(shuffled);
     setFpSelectedNeighborhood(hoodName || null);
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
@@ -1800,10 +1824,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         .then(data => {
           if (data?.soldListings?.length > 0) {
             const existingSet = new Set(existingZpids);
-            const newOnes = data.soldListings
-              .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
-              .map(l => ({ ...l, _source: l._source || "sold_comps" }))
-              .sort(() => Math.random() - 0.5);
+            const newOnes = orderByRecency(
+              data.soldListings
+                .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
+                .map(l => ({ ...l, _source: l._source || "sold_comps" }))
+            );
             if (newOnes.length > 0) {
               setFpListings(prev => [...prev, ...newOnes]);
               setSoldListings(prev => {

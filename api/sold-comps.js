@@ -53,6 +53,7 @@ const RENTCAST_PAGE_LIMIT = 500;           // RentCast max records per call — 
 //     the 0-6mo bucket is below POOL_THRESHOLD
 const SOLD_DATE_MONTHS_INGEST = 12;
 const SOLD_DATE_MONTHS_PREFERRED = 6;
+const SOLD_DATE_MONTHS_PRIME = 3;     // 0-3mo = prime tier, always served first
 
 // ─── Map city name → market_id used as pool key ───
 function cityToMarketId(city) {
@@ -204,6 +205,7 @@ export default async function handler(req, res) {
     const ingestCutoff = monthsAgoDate(SOLD_DATE_MONTHS_INGEST);
     const ingestCutoffStr = monthsAgoDateStr(SOLD_DATE_MONTHS_INGEST);
     const preferredCutoff = monthsAgoDate(SOLD_DATE_MONTHS_PREFERRED);
+    const primeCutoff = monthsAgoDate(SOLD_DATE_MONTHS_PRIME);
 
     const excludeSet = new Set();
     if (exclude) exclude.split(",").forEach(z => excludeSet.add(z.trim()));
@@ -263,37 +265,42 @@ export default async function handler(req, res) {
       const { data, error } = await q;
       if (error) {
         console.error('[SoldComps] Pool read error:', error.message);
-        return { fresh: [], older: [], all: [] };
+        return { prime: [], fresh: [], older: [], all: [] };
       }
       // Cull non-playable cards (0-bed/non-residential) on read too, so junk
       // already persisted in the pool never reaches a player — no migration.
       const rows = (data || []).filter(r => !excludeSet.has(String(r.zpid)) && isPlayableRow(r));
-      const fresh = rows.filter(r => new Date(r.sold_date) >= preferredCutoff);
+      // Three-way recency partition: prime (0-3mo) > fresh (3-6mo) > older (6-12mo)
+      const prime = rows.filter(r => new Date(r.sold_date) >= primeCutoff);
+      const fresh = rows.filter(r => {
+        const d = new Date(r.sold_date);
+        return d >= preferredCutoff && d < primeCutoff;
+      });
       const older = rows.filter(r => new Date(r.sold_date) < preferredCutoff);
-      return { fresh, older, all: rows };
+      return { prime, fresh, older, all: rows };
     }
 
-    // Pick the best shuffled slice given a {fresh, older} pool.
-    // Returns 'fresh-only' when fresh >= POOL_THRESHOLD, else fills with older.
+    // Pick the best slice given a {prime, fresh, older} pool.
+    // Recency-tiered: shuffled prime (0-3mo) first, then shuffled fresh
+    // (3-6mo), then shuffled older (6-12mo). responseCap slices from the
+    // front, so the OLDEST rows are always the first to be cut.
     function pickShuffledSlice(p) {
-      if (p.fresh.length >= POOL_THRESHOLD) {
-        return {
-          rows: [...p.fresh].sort(() => Math.random() - 0.5).slice(0, responseCap),
-          tier: 'fresh',
-        };
-      }
-      // Mix: all fresh first, then fill with shuffled older
-      const combined = [...p.fresh, ...[...p.older].sort(() => Math.random() - 0.5)];
-      return {
-        rows: combined.slice(0, responseCap),
-        tier: p.fresh.length === 0 ? 'older-only' : 'mixed',
-      };
+      const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
+      const fresh6 = p.prime.length + p.fresh.length; // 0-6mo count
+      const combined = [...shuffle(p.prime), ...shuffle(p.fresh), ...shuffle(p.older)];
+      const rows = combined.slice(0, responseCap);
+      const tier =
+        fresh6 >= POOL_THRESHOLD ? 'fresh' :
+        fresh6 === 0 ? 'older-only' : 'mixed';
+      return { rows, tier };
     }
 
     let pool = await readPool();
-    // 'Healthy' = enough across the whole 12-month window to skip another
-    // discovery pass. The slice still prefers fresh.
+    // 'Healthy' = enough entries in the 0-6mo window. A pool stuffed with
+    // stale 6-12mo sales is NOT healthy — it must trigger discovery so
+    // recent comps keep flowing. (Was: total 12-month count.)
     const totalSize = pool.all.length;
+    const fresh6Size = pool.prime.length + pool.fresh.length;
 
     // RentCast quota guard: if this market already has RentCast rows, a repeat
     // discovery won't find more — RentCast already gave us everything it had.
@@ -301,7 +308,7 @@ export default async function handler(req, res) {
     // RentCast request on EVERY visit. Only the weekly cron (fresh=1) refreshes.
     const alreadyRentcasted = pool.all.some(r => String(r.zpid).startsWith('rc_'));
 
-    if (!forceDiscover && (totalSize >= POOL_THRESHOLD || alreadyRentcasted)) {
+    if (!forceDiscover && (fresh6Size >= POOL_THRESHOLD || alreadyRentcasted)) {
       const { rows: shuffled, tier } = pickShuffledSlice(pool);
       res.setHeader("Cache-Control", "no-store");
       return res.status(200).json({
@@ -310,7 +317,8 @@ export default async function handler(req, res) {
         city,
         zip: zip || null,
         poolSize: totalSize,
-        poolFreshSize: pool.fresh.length,
+        poolPrimeSize: pool.prime.length,
+        poolFreshSize: pool.prime.length + pool.fresh.length,
         poolOlderSize: pool.older.length,
         servedTier: tier,
         source: 'pool',
@@ -331,7 +339,8 @@ export default async function handler(req, res) {
         city,
         zip: zip || null,
         poolSize: pool.all.length,
-        poolFreshSize: pool.fresh.length,
+        poolPrimeSize: pool.prime.length,
+        poolFreshSize: pool.prime.length + pool.fresh.length,
         poolOlderSize: pool.older.length,
         servedTier: tier,
         source: 'pool-only-no-apikey',
@@ -339,7 +348,7 @@ export default async function handler(req, res) {
       });
     }
 
-    console.error(`[SoldComps] Pool thin for ${marketId} (fresh=${pool.fresh.length}, all=${pool.all.length}). Discovering via search pagination...`);
+    console.error(`[SoldComps] Pool thin for ${marketId} (prime=${pool.prime.length}, fresh6=${fresh6Size}, all=${pool.all.length}). Discovering via search pagination...`);
 
     const poolZpidSet = new Set(pool.all.map(r => String(r.zpid)));
 
@@ -400,7 +409,7 @@ export default async function handler(req, res) {
     pool = await readPool();
     const { rows: shuffled, tier } = pickShuffledSlice(pool);
 
-    console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: added ${newRows.length} via ${discoverySource}, pool now fresh=${pool.fresh.length} older=${pool.older.length}`);
+    console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: added ${newRows.length} via ${discoverySource}, pool now prime=${pool.prime.length} fresh=${pool.fresh.length} older=${pool.older.length}`);
 
     res.setHeader("Cache-Control", "no-store");
     const responseBody = {
@@ -409,7 +418,8 @@ export default async function handler(req, res) {
       city,
       zip: zip || null,
       poolSize: pool.all.length,
-      poolFreshSize: pool.fresh.length,
+      poolPrimeSize: pool.prime.length,
+      poolFreshSize: pool.prime.length + pool.fresh.length,
       poolOlderSize: pool.older.length,
       servedTier: tier,
       newlyAdded: newRows.length,
