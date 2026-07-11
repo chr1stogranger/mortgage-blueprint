@@ -91,7 +91,7 @@ async function deliverEmail(notification, email) {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || "PricePoint <onboarding@resend.dev>",
+        from: process.env.RESEND_FROM || "PricePoint <blueprint@realstack.app>",
         to: email,
         subject: notification.title,
         html: buildEmailHtml(notification),
