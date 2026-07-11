@@ -211,10 +211,25 @@ const HOSTTEST_PATHS = {
   },
   redfin: {
     host: 'redfin-com-data.p.rapidapi.com',
-    paths: (zip) => [
-      `/properties/search-sold?location=${zip}&limit=50&soldWithin=90`,
-      `/property/search-sold?location=${zip}`,
-    ],
+    // Two-step per docs: /properties/auto-complete -> data.rows[].id
+    // (e.g. "2_94116" for a zip), then /properties/search-sold?regionId=...
+    resolve: async (zip, apiKey) => {
+      const host = 'redfin-com-data.p.rapidapi.com';
+      for (const acPath of [`/properties/auto-complete?location=${zip}`, `/properties/auto-complete?query=${zip}`]) {
+        try {
+          const r = await fetch(`https://${host}${acPath}`, {
+            headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': host },
+          });
+          const j = await r.json().catch(() => null);
+          const rows = j?.data?.rows || j?.rows || [];
+          const hit = rows.find(x => x?.id) || null;
+          if (hit?.id) {
+            return [`/properties/search-sold?regionId=${encodeURIComponent(hit.id)}&soldWithin=90&limit=100`];
+          }
+        } catch { /* try next */ }
+      }
+      return [];
+    },
   },
 };
 
@@ -251,7 +266,11 @@ async function handleHostTest(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'no RAPIDAPI_KEY' });
 
   const attempts = [];
-  for (const path of cfg.paths(zip)) {
+  const paths = cfg.resolve ? await cfg.resolve(zip, apiKey) : cfg.paths(zip);
+  if (paths.length === 0) {
+    return res.status(200).json({ host: cfg.host, zip, error: 'regionId resolve failed', attempts: [] });
+  }
+  for (const path of paths) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 12000);
