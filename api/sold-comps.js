@@ -263,6 +263,10 @@ async function handleHostTest(req, res) {
       if (!r.ok) { attempts.push({ path, status: r.status, body: text.slice(0, 200) }); continue; }
       let data; try { data = JSON.parse(text); } catch { attempts.push({ path, status: r.status, body: 'non-JSON' }); continue; }
       const list = hostTestExtractList(data);
+      if (list.length === 0) {
+        attempts.push({ path, status: r.status, empty: true, rawTopLevel: text.slice(0, 900) });
+        continue;
+      }
       const norm = list.map(hostTestNormalize);
       const dated = norm.filter(n => n.soldDate && n.soldPrice);
       const daysAgo = (ds) => Math.round((Date.now() - new Date(ds)) / 86400000);
