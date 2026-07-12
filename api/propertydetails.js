@@ -178,6 +178,17 @@ export default async function handler(req, res) {
               .sort((a, b) => b.date - a.date);
             listedPrice = saneListPrice(subjListed[0]?.price || null, row?.sold_price);
             console.error(`[PropertyDetails] redfin ${rcid}: remarks=${collected.remarks.length}/${subjRemarks.length} listed=${collected.listed.length}/${subjListed.length} price=${listedPrice || "none"} descLen=${description.length}`);
+            if (subjRemarks.length === 0 && collected.remarks.length > 0) {
+              // TEMP diagnostic: surface where remarks actually live
+              const seen = new Set();
+              for (const c of collected.remarks) {
+                const key = c.path.replace(/\/\d+/g, "/N");
+                if (seen.has(key)) continue;
+                seen.add(key);
+                console.error(`[PropertyDetails] remark-path pid=${c.pid || "-"} len=${c.text.length} path=${key.slice(-120)} :: ${c.text.slice(0, 40)}`);
+                if (seen.size >= 8) break;
+              }
+            }
           } catch (e) {
             console.error(`[PropertyDetails] redfin detail failed for ${rcid}: ${e.message}`);
           }
