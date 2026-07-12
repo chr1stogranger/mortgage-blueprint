@@ -45,16 +45,29 @@ function saneListPrice(lp, soldPrice) {
   return lp;
 }
 
-// Collect every non-empty string value for `key` anywhere in a nested object
-// and return the LONGEST — Redfin's detail payload carries listingRemarks in
-// multiple sections, some truncated previews (~700 chars, cut mid-word) and
-// one full text. First-match returned the preview; longest wins.
-function findKeyDeep(obj, key, out = [], depth = 0) {
-  if (!obj || typeof obj !== "object" || depth > 12) return null;
+// Collect every non-empty string value for `key` in traversal (document)
+// order. Redfin's detail payload carries listingRemarks in multiple places:
+// the SUBJECT home's ~700-char truncated preview comes FIRST, its full text
+// may appear later — but so do OTHER homes' remarks (similar-listings
+// sections). So: take the first copy as the subject anchor, and upgrade to a
+// longer copy ONLY if it starts with the same text (a longer version of the
+// same remarks, never another home's).
+function collectKeyDeep(obj, key, out = [], depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 12) return out;
   if (typeof obj[key] === "string" && obj[key].trim().length > 0) out.push(obj[key]);
-  for (const v of Object.values(obj)) findKeyDeep(v, key, out, depth + 1);
-  if (depth > 0) return null;
-  return out.length ? out.reduce((a, b) => (b.length > a.length ? b : a)) : null;
+  for (const v of Object.values(obj)) collectKeyDeep(v, key, out, depth + 1);
+  return out;
+}
+function findKeyDeep(obj, key) {
+  const all = collectKeyDeep(obj, key);
+  if (all.length === 0) return null;
+  const anchor = all[0];
+  const prefix = anchor.slice(0, 200);
+  let best = anchor;
+  for (const c of all) {
+    if (c.length > best.length && c.slice(0, 200) === prefix) best = c;
+  }
+  return best;
 }
 
 // Scan Redfin's detail payload for price-history "Listed" events and return
@@ -130,7 +143,7 @@ export default async function handler(req, res) {
         // description.length === 700 is the Redfin preview-cut signature —
         // rows persisted before the longest-copy fix are stuck mid-word;
         // let them fall through and re-enrich once.
-        if (row?.description && row.description.length !== 700 && row.list_price !== row.sold_price) {
+        if (!skipCache && row?.description && row.description.length !== 700 && row.list_price !== row.sold_price) {
           const out = {
             zpid: rcid,
             photos: (row.photos || []).filter(isUsablePhoto),
@@ -156,7 +169,7 @@ export default async function handler(req, res) {
             const dj = await dResp.json().catch(() => null);
             const extracted = findKeyDeep(dj, "listingRemarks")
               || findKeyDeep(dj, "marketingRemarks") || "";
-            if (extracted.length > description.length) description = extracted;
+            if (extracted) description = extracted;
             if (isRentalText(description)) description = "";
             // Original list price from the price history's "Listed" events —
             // most recent one (the sale cycle that just closed).
