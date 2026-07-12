@@ -45,6 +45,19 @@ function saneListPrice(lp, soldPrice) {
   return lp;
 }
 
+// Find the first non-empty string value for `key` anywhere in a nested
+// object — Redfin's detail payload buries listingRemarks several levels deep
+// and the exact path varies by listing type.
+function findKeyDeep(obj, key, depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 12) return null;
+  if (typeof obj[key] === "string" && obj[key].trim().length > 0) return obj[key];
+  for (const v of Object.values(obj)) {
+    const r = findKeyDeep(v, key, depth + 1);
+    if (r) return r;
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
@@ -89,11 +102,67 @@ export default async function handler(req, res) {
     if (supabase) {
       const { data: rows } = await supabase
         .from("pp_property_pool")
-        .select("photo, photos, description, list_price, sold_price")
+        .select("photo, photos, description, list_price, sold_price, detail_url")
         .eq("zpid", rcid)
         .limit(1);
       const row = rows && rows[0];
       if (row) rcSoldPrice = row.sold_price || null;
+
+      // ─── Redfin row (rf_): description via Redfin's own detail endpoint ───
+      // Photos already came from search-sold; only the MLS listing remarks
+      // are missing. One detail-by-url call, persisted, so each comp is
+      // enriched at most once ever.
+      if (rcid.startsWith("rf_")) {
+        if (row?.description) {
+          const out = {
+            zpid: rcid,
+            photos: (row.photos || []).filter(isUsablePhoto),
+            description: row.description,
+            listPrice: saneListPrice(row.list_price, row.sold_price),
+            photoCount: (row.photos || []).length,
+            cached: true,
+            source: "pool",
+          };
+          res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+          return res.status(200).json(out);
+        }
+        let description = "";
+        if (row?.detail_url) {
+          const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
+          try {
+            const dResp = await fetch(
+              `https://${REDFIN_HOST}/properties/detail-by-url?url=${encodeURIComponent(row.detail_url)}`,
+              { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": REDFIN_HOST } }
+            );
+            console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
+            const dj = await dResp.json().catch(() => null);
+            description = findKeyDeep(dj, "listingRemarks")
+              || findKeyDeep(dj, "marketingRemarks") || "";
+            if (isRentalText(description)) description = "";
+          } catch (e) {
+            console.error(`[PropertyDetails] redfin detail failed for ${rcid}: ${e.message}`);
+          }
+          if (description) {
+            try {
+              await supabase.from("pp_property_pool").update({ description }).eq("zpid", rcid);
+            } catch (e) {
+              console.error(`[PropertyDetails] persist failed for ${rcid}: ${e.message}`);
+            }
+          }
+        }
+        const out = {
+          zpid: rcid,
+          photos: (row?.photos || []).filter(isUsablePhoto),
+          description,
+          listPrice: saneListPrice(row?.list_price, row?.sold_price),
+          photoCount: (row?.photos || []).length,
+          source: "redfin-detail",
+        };
+        if (out.photos.length > 0) cache.set(cacheKey, { timestamp: Date.now(), data: out });
+        res.setHeader("Cache-Control", description ? "s-maxage=86400, stale-while-revalidate=3600" : "no-store");
+        return res.status(200).json(out);
+      }
+
       if (row && ((Array.isArray(row.photos) && row.photos.length > 0) || row.description)) {
         // Already enriched on a previous view — zero RapidAPI calls.
         const out = {

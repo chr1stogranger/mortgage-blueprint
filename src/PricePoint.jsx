@@ -904,7 +904,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const lst = listingOrZpid && typeof listingOrZpid === "object" ? listingOrZpid : null;
     const zpid = lst ? lst.zpid : listingOrZpid;
     if (!zpid) return;
-    const isRc = String(zpid).startsWith('rc_');
+    // rc_ (RentCast) and rf_ (Redfin) rows both enrich via the rcid route —
+    // the server branches on the prefix (rf_ uses Redfin detail-by-url).
+    const isRc = String(zpid).startsWith('rc_') || String(zpid).startsWith('rf_');
     if (isRc && (!lst || !lst.address || !lst.city)) return; // can't resolve without an address
     // Already have it cached WITH content — just ensure state is synced
     const cached = detailsCacheRef.current[zpid];
