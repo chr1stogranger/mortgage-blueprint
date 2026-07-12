@@ -206,7 +206,7 @@ export default async function handler(req, res) {
             try {
               // list_price: real listed price, or NULL as the "attempted, none
               // found" sentinel (ingest placeholder was list=sold).
-              const patch = { description: description || null, list_price: listedPrice || null };
+              const patch = { description: description || " ", list_price: listedPrice || null };
               if (fixedType) patch.property_type = fixedType;
               await supabase.from("pp_property_pool").update(patch).eq("zpid", rcid);
             } catch (e) {

@@ -221,7 +221,7 @@ const decodeEntities = (str) => String(str || "")
   .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
   .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ")
   .replace(/&mdash;/g, "\u2014").replace(/&ndash;/g, "\u2013").replace(/&hellip;/g, "\u2026")
-  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).trim();
 
 const getDailyNumber = () => {
   const now = new Date();
