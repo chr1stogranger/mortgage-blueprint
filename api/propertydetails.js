@@ -146,7 +146,7 @@ export default async function handler(req, res) {
     if (supabase) {
       const { data: rows } = await supabase
         .from("pp_property_pool")
-        .select("photo, photos, description, list_price, sold_price, detail_url, address, zip")
+        .select("photo, photos, description, list_price, sold_price, detail_url, address, zip, listing_id")
         .eq("zpid", rcid)
         .limit(1);
       const row = rows && rows[0];
@@ -174,13 +174,17 @@ export default async function handler(req, res) {
           return res.status(200).json(out);
         }
         let description = row?.description || "";
-        let listedPrice; // undefined = no attempt made (no detail_url)
+        let listedPrice; // undefined = no attempt made
         let fixedType = null;
-        if (row?.detail_url) {
+        // properties/details is the SUBJECT-specific endpoint (verified: it
+        // carries the home's own listingRemarks). detail-by-url returned a
+        // similar-homes payload with only OTHER homes' remarks — abandoned.
+        // Requires listingId (stored at ingest since the listing_id column).
+        if (row?.listing_id) {
           const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
           try {
             const dResp = await fetch(
-              `https://${REDFIN_HOST}/properties/detail-by-url?url=${encodeURIComponent(row.detail_url)}`,
+              `https://${REDFIN_HOST}/properties/details?propertyId=${encodeURIComponent(rcid.slice(3))}&listingId=${encodeURIComponent(row.listing_id)}`,
               { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": REDFIN_HOST } }
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
@@ -188,7 +192,13 @@ export default async function handler(req, res) {
             const subjectPid = rcid.slice(3); // rf_<propertyId>
             const subjectAddr = addrNorm(row?.address);
             const collected = collectRedfin(dj, { remarks: [], listed: [], types: [] });
-            const subjRemarks = subjectFilter(collected.remarks, subjectPid, subjectAddr);
+            let subjRemarks = subjectFilter(collected.remarks, subjectPid, subjectAddr);
+            // properties/details is subject-scoped: if no candidate carries an
+            // ownership signal, the payload's remarks ARE the subject's.
+            if (subjRemarks.length === 0 && collected.remarks.length > 0) {
+              const unowned = collected.remarks.filter(c => !c.homeId && !c.addr && !c.pid);
+              if (unowned.length === collected.remarks.length) subjRemarks = collected.remarks;
+            }
             // Longest subject-owned copy (short copies are truncated previews)
             description = subjRemarks.length
               ? subjRemarks.reduce((a, b) => (b.text.length > a.text.length ? b : a)).text

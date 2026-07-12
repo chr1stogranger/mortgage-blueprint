@@ -788,6 +788,7 @@ function redfinItemToPoolRow(item, marketId, ingestCutoff) {
   return {
     market_id: marketId,
     zpid: `rf_${h.propertyId}`,
+    listing_id: h.listingId != null ? String(h.listingId) : null,
     address: a.formattedStreetLine || null,
     city: a.city || null,
     state: a.state || 'CA',
