@@ -185,8 +185,11 @@ export default async function handler(req, res) {
         if (row?.detail_url) {
           const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
           try {
+            // The endpoint expects the redfin PATH (example: "/WA/Camas/...
+            // /home/18426094"), not a full https URL.
+            const rfPath = String(row.detail_url).replace(/^https?:\/\/(www\.)?redfin\.com/, "");
             const dResp = await fetch(
-              `https://${REDFIN_HOST}/properties/details?url=${encodeURIComponent(row.detail_url)}`,
+              `https://${REDFIN_HOST}/properties/details?url=${encodeURIComponent(rfPath)}`,
               { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": REDFIN_HOST } }
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
