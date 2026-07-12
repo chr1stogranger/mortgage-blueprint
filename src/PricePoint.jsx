@@ -219,7 +219,9 @@ const IS_MOBILE = typeof window !== "undefined" && window.innerWidth <= 480;
 // MLS remarks arrive with HTML entities from some feeds ("Elegant &amp; Welcoming!")
 const decodeEntities = (str) => String(str || "")
   .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-  .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ");
+  .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ")
+  .replace(/&mdash;/g, "\u2014").replace(/&ndash;/g, "\u2013").replace(/&hellip;/g, "\u2026")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 
 const getDailyNumber = () => {
   const now = new Date();
@@ -2282,7 +2284,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 16px", marginBottom: 14, borderRadius: 10, border: `1px solid ${T.cardBorder}`, background: T.inputBg, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, transition: "all 0.2s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.color = T.text; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.color = T.textSecondary; }}>
-              <Icon name="external-link" size={13} /> View Full Listing on Zillow
+              <Icon name="external-link" size={13} /> View Full Listing on {String(listing.detailUrl).includes("redfin.com") ? "Redfin" : "Zillow"}
             </a>
           )}
           {/* Guess label — desktop only; on mobile the question lives in the
@@ -2319,7 +2321,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               );
             })()}
             <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
-              style={{ flex: 1.35, minWidth: 0, position: "relative", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: IS_MOBILE ? "10px 12px" : "16px 20px", cursor: "text", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.2s" }}>
+              style={{ flex: 1.35, minWidth: 0, position: "relative", background: T.inputBg, border: `2px solid ${guess ? T.cardBorder : accent}`, boxShadow: guess ? "none" : `0 0 12px ${accent}33`, borderRadius: 14, padding: IS_MOBILE ? "10px 12px" : "16px 20px", cursor: "text", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.2s" }}>
               <div style={{ fontSize: guess ? (IS_MOBILE ? 20 : 28) : (IS_MOBILE ? 14 : 18), fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: FONT, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s", whiteSpace: "nowrap" }}>
                 {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : (IS_MOBILE ? "Sold for?" : "Tap to enter price")}
               </div>

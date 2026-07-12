@@ -750,7 +750,9 @@ const redfinRegionCache = new Map(); // "zip:94116" / "city:san francisco" → r
 
 // Redfin response propertyType → pool property_type (response coding differs
 // from the request homeType coding; 6 = SFR confirmed live).
-const REDFIN_PROPERTY_TYPES = { 6: 'Single Family', 3: 'Townhouse', 13: 'Condo', 4: 'Condo', 5: 'Multi-Family' };
+// Verified against live listings (3241 Briggs Ave = 4 = Multi-family on
+// redfin.com; 6 = SFR confirmed). 3=Condo/Co-op, 13=Townhouse, 5=Land.
+const REDFIN_PROPERTY_TYPES = { 6: 'Single Family', 3: 'Condo', 13: 'Townhouse', 4: 'Multi-Family', 20: 'Multi-Family', 7: 'Manufactured', 8: 'Manufactured' };
 
 async function redfinRegionId(query, cacheKey, apiKey) {
   if (redfinRegionCache.has(cacheKey)) return redfinRegionCache.get(cacheKey);

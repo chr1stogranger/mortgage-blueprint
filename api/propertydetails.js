@@ -52,39 +52,37 @@ function saneListPrice(lp, soldPrice) {
 // sections). So: take the first copy as the subject anchor, and upgrade to a
 // longer copy ONLY if it starts with the same text (a longer version of the
 // same remarks, never another home's).
-function collectKeyDeep(obj, key, out = [], depth = 0) {
+// ─── Subject-verified extraction ───
+// The payload embeds OTHER homes (similar-listings sections) carrying their
+// own listingRemarks/price events, and traversal order is NOT a reliable
+// "subject first" signal (3241 Briggs Ave briefly showed an Oakland 4-plex's
+// remarks). Candidates are collected with the nearest ancestor propertyId +
+// path; we only accept ones provably owned by the subject — else nothing.
+function collectRedfin(obj, out, ctxPid = null, path = "", depth = 0) {
   if (!obj || typeof obj !== "object" || depth > 12) return out;
-  if (typeof obj[key] === "string" && obj[key].trim().length > 0) out.push(obj[key]);
-  for (const v of Object.values(obj)) collectKeyDeep(v, key, out, depth + 1);
-  return out;
-}
-function findKeyDeep(obj, key) {
-  const all = collectKeyDeep(obj, key);
-  if (all.length === 0) return null;
-  const anchor = all[0];
-  const prefix = anchor.slice(0, 200);
-  let best = anchor;
-  for (const c of all) {
-    if (c.length > best.length && c.slice(0, 200) === prefix) best = c;
+  const pid = obj.propertyId != null ? String(obj.propertyId) : ctxPid;
+  for (const k of ["listingRemarks", "marketingRemarks"]) {
+    if (typeof obj[k] === "string" && obj[k].trim().length > 0) {
+      out.remarks.push({ text: obj[k], pid, path });
+    }
   }
-  return best;
-}
-
-// Scan Redfin's detail payload for price-history "Listed" events and return
-// the most recent listed price. Field names vary (eventDescription / event,
-// price as number or {value}), so match generically.
-function findListedPrice(obj, out = [], depth = 0) {
-  if (!obj || typeof obj !== "object" || depth > 12) return out;
   const evt = obj.eventDescription || obj.event || obj.eventDescriptionFull || null;
   if (evt && /listed/i.test(String(evt))) {
     const price = Number(obj.price?.value ?? obj.price ?? 0);
     const date = Number(obj.eventDate ?? obj.date ?? 0);
-    if (price > 0) out.push({ price, date });
+    if (price > 0) out.listed.push({ price, date, pid, path });
   }
-  for (const v of Object.values(obj)) findListedPrice(v, out, depth + 1);
+  for (const [k, v] of Object.entries(obj)) {
+    collectRedfin(v, out, pid, path + "/" + k, depth + 1);
+  }
   return out;
 }
-
+const SUBJECT_PATHS = /mainhouseinfo|abovethefold|propertyhistoryinfo|amphouseinfo/i;
+function subjectFilter(cands, subjectPid) {
+  const byPid = cands.filter(c => c.pid && subjectPid && c.pid === subjectPid);
+  if (byPid.length) return byPid;
+  return cands.filter(c => SUBJECT_PATHS.test(c.path));
+}
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
@@ -167,16 +165,19 @@ export default async function handler(req, res) {
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
-            const extracted = findKeyDeep(dj, "listingRemarks")
-              || findKeyDeep(dj, "marketingRemarks") || "";
-            if (extracted) description = extracted;
+            const subjectPid = rcid.slice(3); // rf_<propertyId>
+            const collected = collectRedfin(dj, { remarks: [], listed: [] });
+            const subjRemarks = subjectFilter(collected.remarks, subjectPid);
+            // Longest subject-owned copy (short copies are truncated previews)
+            description = subjRemarks.length
+              ? subjRemarks.reduce((a, b) => (b.text.length > a.text.length ? b : a)).text
+              : ""; // never keep an unverifiable description
             if (isRentalText(description)) description = "";
-            // Original list price from the price history's "Listed" events —
-            // most recent one (the sale cycle that just closed).
-            const listedEvents = findListedPrice(dj);
-            listedEvents.sort((a, b) => b.date - a.date);
-            listedPrice = saneListPrice(listedEvents[0]?.price || null, row?.sold_price);
-            console.error(`[PropertyDetails] redfin listed-price ${rcid}: events=${listedEvents.length} picked=${listedPrice || "none"}`);
+            // Most recent subject-owned "Listed" event = this sale cycle's list price
+            const subjListed = subjectFilter(collected.listed, subjectPid)
+              .sort((a, b) => b.date - a.date);
+            listedPrice = saneListPrice(subjListed[0]?.price || null, row?.sold_price);
+            console.error(`[PropertyDetails] redfin ${rcid}: remarks=${collected.remarks.length}/${subjRemarks.length} listed=${collected.listed.length}/${subjListed.length} price=${listedPrice || "none"} descLen=${description.length}`);
           } catch (e) {
             console.error(`[PropertyDetails] redfin detail failed for ${rcid}: ${e.message}`);
           }
