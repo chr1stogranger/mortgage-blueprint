@@ -2127,7 +2127,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           touchStartX.current = null;
           if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
         }}>
-        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 560px), 400px)" : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
           onError={onPhotoError} />
         {/* Map slide "Location" label — top left on map, replaces badges */}
         {isMapSlide ? (
@@ -2329,7 +2329,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           </div>
           {/* Live feedback — always render to keep DOM stable */}
-          <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: IS_MOBILE ? 2 : 6, fontFamily: FONT, minHeight: IS_MOBILE ? 16 : 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
+          {(!IS_MOBILE || guess) && <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: IS_MOBILE ? 2 : 6, fontFamily: FONT, minHeight: IS_MOBILE ? 16 : 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
             const v = parseInt(guess);
             if (!v) return "\u00A0";
             // rc_/rf_ rows: raw listPrice falls back to the SOLD price — comparing
@@ -2342,9 +2342,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             if (anchor) { const d = ((v - anchor) / anchor * 100).toFixed(1); parts.push(`${d > 0 ? "+" : ""}${d}% vs list`); }
             if (listing.sqft) parts.push(`$${Math.round(v / listing.sqft)}/sf`);
             return parts.length ? parts.join(" · ") : "\u00A0";
-          })()}</div>
-          <div style={{ marginTop: IS_MOBILE ? 8 : 14 }}>
-            <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan}>{labelOverrides?.buttonLabel || "Final Answer"}</PillButton>
+          })()}</div>}
+          <div style={{ marginTop: IS_MOBILE ? 4 : 14 }}>
+            <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan} style={IS_MOBILE ? { padding: "9px", fontSize: 14 } : undefined}>{labelOverrides?.buttonLabel || "Final Answer"}</PillButton>
           </div>
         </div>
       </div>
