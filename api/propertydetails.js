@@ -58,6 +58,21 @@ function findKeyDeep(obj, key, depth = 0) {
   return null;
 }
 
+// Scan Redfin's detail payload for price-history "Listed" events and return
+// the most recent listed price. Field names vary (eventDescription / event,
+// price as number or {value}), so match generically.
+function findListedPrice(obj, out = [], depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 12) return out;
+  const evt = obj.eventDescription || obj.event || obj.eventDescriptionFull || null;
+  if (evt && /listed/i.test(String(evt))) {
+    const price = Number(obj.price?.value ?? obj.price ?? 0);
+    const date = Number(obj.eventDate ?? obj.date ?? 0);
+    if (price > 0) out.push({ price, date });
+  }
+  for (const v of Object.values(obj)) findListedPrice(v, out, depth + 1);
+  return out;
+}
+
 export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
@@ -113,7 +128,7 @@ export default async function handler(req, res) {
       // are missing. One detail-by-url call, persisted, so each comp is
       // enriched at most once ever.
       if (rcid.startsWith("rf_")) {
-        if (row?.description) {
+        if (row?.description && row.list_price !== row.sold_price) {
           const out = {
             zpid: rcid,
             photos: (row.photos || []).filter(isUsablePhoto),
@@ -126,7 +141,8 @@ export default async function handler(req, res) {
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
           return res.status(200).json(out);
         }
-        let description = "";
+        let description = row?.description || "";
+        let listedPrice; // undefined = no attempt made (no detail_url)
         if (row?.detail_url) {
           const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
           try {
@@ -136,15 +152,25 @@ export default async function handler(req, res) {
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
-            description = findKeyDeep(dj, "listingRemarks")
+            description = description || findKeyDeep(dj, "listingRemarks")
               || findKeyDeep(dj, "marketingRemarks") || "";
             if (isRentalText(description)) description = "";
+            // Original list price from the price history's "Listed" events —
+            // most recent one (the sale cycle that just closed).
+            const listedEvents = findListedPrice(dj);
+            listedEvents.sort((a, b) => b.date - a.date);
+            listedPrice = saneListPrice(listedEvents[0]?.price || null, row?.sold_price);
+            console.error(`[PropertyDetails] redfin listed-price ${rcid}: events=${listedEvents.length} picked=${listedPrice || "none"}`);
           } catch (e) {
             console.error(`[PropertyDetails] redfin detail failed for ${rcid}: ${e.message}`);
           }
-          if (description) {
+          if (description || listedPrice !== undefined) {
             try {
-              await supabase.from("pp_property_pool").update({ description }).eq("zpid", rcid);
+              // list_price: real listed price, or NULL as the "attempted, none
+              // found" sentinel (ingest placeholder was list=sold).
+              await supabase.from("pp_property_pool")
+                .update({ description: description || row?.description || null, list_price: listedPrice || null })
+                .eq("zpid", rcid);
             } catch (e) {
               console.error(`[PropertyDetails] persist failed for ${rcid}: ${e.message}`);
             }
@@ -154,7 +180,7 @@ export default async function handler(req, res) {
           zpid: rcid,
           photos: (row?.photos || []).filter(isUsablePhoto),
           description,
-          listPrice: saneListPrice(row?.list_price, row?.sold_price),
+          listPrice: listedPrice || null,
           photoCount: (row?.photos || []).length,
           source: "redfin-detail",
         };
