@@ -72,7 +72,9 @@ function collectRedfin(obj, out, ctxPid = null, ctxAddr = null, path = "", depth
   // the strongest ownership signal (payload propertyId fields do not).
   const urlId = typeof obj.url === "string" ? (obj.url.match(/\/home\/(\d+)/) || [])[1] : null;
   const homeId = urlId || ctxHomeId;
-  for (const k of ["listingRemarks", "marketingRemarks"]) {
+  // marketingRemark (SINGULAR) is where properties/details keeps the
+  // subject's own remarks: mainHouseInfo.marketingRemarks[].marketingRemark
+  for (const k of ["listingRemarks", "marketingRemarks", "marketingRemark"]) {
     if (typeof obj[k] === "string" && obj[k].trim().length > 0) {
       out.remarks.push({ text: obj[k], pid, addr, homeId, path });
     }
