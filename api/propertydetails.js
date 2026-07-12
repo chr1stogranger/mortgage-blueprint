@@ -127,7 +127,10 @@ export default async function handler(req, res) {
       // are missing. One detail-by-url call, persisted, so each comp is
       // enriched at most once ever.
       if (rcid.startsWith("rf_")) {
-        if (row?.description && row.list_price !== row.sold_price) {
+        // description.length === 700 is the Redfin preview-cut signature —
+        // rows persisted before the longest-copy fix are stuck mid-word;
+        // let them fall through and re-enrich once.
+        if (row?.description && row.description.length !== 700 && row.list_price !== row.sold_price) {
           const out = {
             zpid: rcid,
             photos: (row.photos || []).filter(isUsablePhoto),
@@ -151,8 +154,9 @@ export default async function handler(req, res) {
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
-            description = description || findKeyDeep(dj, "listingRemarks")
+            const extracted = findKeyDeep(dj, "listingRemarks")
               || findKeyDeep(dj, "marketingRemarks") || "";
+            if (extracted.length > description.length) description = extracted;
             if (isRentalText(description)) description = "";
             // Original list price from the price history's "Listed" events —
             // most recent one (the sale cycle that just closed).
