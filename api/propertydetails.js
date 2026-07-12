@@ -176,6 +176,7 @@ export default async function handler(req, res) {
         let description = row?.description || "";
         let listedPrice; // undefined = no attempt made
         let fixedType = null;
+        let upstreamOk = false;
         // properties/details is the SUBJECT-specific endpoint (verified: it
         // carries the home's own listingRemarks). It takes the canonical
         // url — NOT propertyId+listingId (that's main-info's signature; the
@@ -190,6 +191,10 @@ export default async function handler(req, res) {
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
+            // Upstream failures ({status:false, "Service Temporarily
+            // Unavailable"}) must NOT persist the attempted-sentinel — the
+            // row keeps retrying on later views until a real payload lands.
+            upstreamOk = !!(dj && dj.status !== false && dj.data);
             if (dj && JSON.stringify(dj).indexOf("listingRemarks") === -1) {
               console.error(`[PropertyDetails] details raw head ${rcid}: ${JSON.stringify(dj).slice(0, 400)}`);
             }
@@ -231,7 +236,7 @@ export default async function handler(req, res) {
           } catch (e) {
             console.error(`[PropertyDetails] redfin detail failed for ${rcid}: ${e.message}`);
           }
-          if (description || listedPrice !== undefined) {
+          if (upstreamOk) {
             try {
               // list_price: real listed price, or NULL as the "attempted, none
               // found" sentinel (ingest placeholder was list=sold).
