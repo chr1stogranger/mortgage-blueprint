@@ -225,6 +225,20 @@ export default async function handler(req, res) {
             const subjType = collected.types.find(t => (t.homeId && t.homeId === subjectPid) || (t.addr && t.addr === subjectAddr) || t.pid === subjectPid);
             if (subjType && RF_TYPES[subjType.type]) fixedType = RF_TYPES[subjType.type];
             console.error(`[PropertyDetails] redfin ${rcid}: remarks=${collected.remarks.length}/${subjRemarks.length} listed=${collected.listed.length}/${subjListed.length} price=${listedPrice || "none"} descLen=${description.length}`);
+            if (subjRemarks.length === 0 && dj) {
+              // TEMP diagnostic 2: enumerate remark/description-like keys anywhere
+              const found = [];
+              (function scan(o, path, depth) {
+                if (!o || typeof o !== "object" || depth > 12 || found.length >= 10) return;
+                for (const [k, v] of Object.entries(o)) {
+                  if (/remark|story|description|abouthome|aboutthishome/i.test(k) && typeof v === "string" && v.trim().length > 60) {
+                    found.push(`${k}@${(path + "/" + k).replace(/\/\d+/g, "/N").slice(-90)} len=${v.length} :: ${v.slice(0, 50)}`);
+                  }
+                  scan(v, path + "/" + k, depth + 1);
+                }
+              })(dj, "", 0);
+              for (const f of found) console.error(`[PropertyDetails] desc-key ${f}`);
+            }
             if (subjRemarks.length === 0 && collected.remarks.length > 0) {
               // TEMP diagnostic: surface where remarks actually live
               const seen = new Set();
