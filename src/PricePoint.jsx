@@ -223,6 +223,15 @@ const decodeEntities = (str) => String(str || "")
   .replace(/&mdash;/g, "\u2014").replace(/&ndash;/g, "\u2013").replace(/&hellip;/g, "\u2026")
   .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).trim();
 
+// Free Play property-type filter options. Empty selection = all types.
+// 'Manufactured' plays under Single Family.
+const FP_TYPE_OPTIONS = ["Single Family", "Condo", "Townhouse", "Multi-Family"];
+const fpTypeMatch = (sel, pt) => {
+  if (!sel || sel.length === 0) return true;
+  const t = pt === "Manufactured" ? "Single Family" : (pt || "Single Family");
+  return sel.includes(t);
+};
+
 const getDailyNumber = () => {
   const now = new Date();
   const start = new Date("2026-01-01");
@@ -843,7 +852,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpSelectedNeighborhood, setFpSelectedNeighborhood] = useState(null);
   const [fpLoadingMore, setFpLoadingMore] = useState(false);
   const [fpHasMore, setFpHasMore] = useState(true); // assume more available until proven otherwise
-  const fpZipRef = useRef(null); // track current free play zip for Load More
+  const fpZipRef = useRef(null); // ARRAY of selected zips (or null = all) for Load More
+  // Multi-select filters (picker screen). Types persist; hoods are per-visit.
+  const [fpHoodSel, setFpHoodSel] = useState([]); // hood names; [] = all
+  const [fpTypeSel, setFpTypeSel] = useState(() => {
+    try { const v = JSON.parse(localStorage.getItem("pp-fp-types") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+  });
+  const toggleFpType = (t) => setFpTypeSel(prev => {
+    const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t];
+    try { localStorage.setItem("pp-fp-types", JSON.stringify(next)); } catch { /* ignore */ }
+    return next;
+  });
 
   // ── Challenge Mode State ──
   const [challengeData, setChallengeData] = useState(null);
@@ -952,24 +971,36 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   }, []);
 
   // ── Fetch MORE sold comps for current Free Play zip (Load More button) ──
-  const fetchMoreSoldComps = useCallback(async (zip) => {
-    if (!zip || fpLoadingMore) return;
+  const fetchMoreSoldComps = useCallback(async (zipOrZips) => {
+    const zips = (Array.isArray(zipOrZips) ? zipOrZips : [zipOrZips]).filter(Boolean);
+    if (zips.length === 0 || fpLoadingMore) return;
     setFpLoadingMore(true);
     try {
       const cityName = market?.city || market?.label?.split(",")[0] || "San Francisco";
       // Collect all zpids we already have
       const existingZpids = fpListings.map(l => l.zpid).filter(Boolean);
       const excludeParam = existingZpids.length > 0 ? `&exclude=${existingZpids.join(",")}` : "";
-      const url = apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${zip}&more=1${excludeParam}`);
-      console.log(`[PricePoint] Load More: fetching ${url}`);
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`API returned ${resp.status}`);
-      const data = await resp.json();
+      // Multi-neighborhood: fetch every selected zip in parallel and merge.
+      const results = await Promise.allSettled(zips.map(z =>
+        fetch(apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}&zip=${z}&more=1${excludeParam}`))
+          .then(r => (r.ok ? r.json() : null))
+      ));
+      const merged = [];
+      let anyMore = false;
+      for (const r of results) {
+        if (r.status !== "fulfilled" || !r.value) continue;
+        if (Array.isArray(r.value.soldListings)) merged.push(...r.value.soldListings);
+        if (r.value.hasMore !== false) anyMore = true;
+      }
+      const data = { soldListings: merged, hasMore: anyMore };
       if (data.soldListings?.length > 0) {
-        // Filter out any duplicates by zpid
+        // Filter out any duplicates by zpid (and to the selected types)
         const existingSet = new Set(existingZpids);
+        const seenNew = new Set();
         const newListings = data.soldListings
           .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
+          .filter(l => { if (seenNew.has(l.zpid)) return false; seenNew.add(l.zpid); return true; })
+          .filter(l => fpTypeMatch(fpTypeSel, l.propertyType))
           .map(l => ({ ...l, _source: l._source || "sold_comps" }));
         if (newListings.length > 0) {
           // Shuffle new listings and append after current position
@@ -999,7 +1030,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     } finally {
       setFpLoadingMore(false);
     }
-  }, [fpListings, fpLoadingMore, market, fetchPropertyDetails]);
+  }, [fpListings, fpLoadingMore, market, fetchPropertyDetails, fpTypeSel]);
 
   // Auto-fetch details when live listing changes — prefetch current + next 3 in PARALLEL
   useEffect(() => {
@@ -1753,7 +1784,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // Lazy init
   if (typeof fpGuessedZpidsRef.current === "function") fpGuessedZpidsRef.current = fpGuessedZpidsRef.current();
 
-  const enterFreePlay = (zip, hoodName) => {
+  const enterFreePlay = (hoods) => { // hoods: array of {zip, name}; empty/null = all of the city
     // Step 1: Filter to trusted sold listings only, AND only listings whose
     // city matches the current market. The city guard is a defensive belt-and-
     // suspenders against any code path (cache hydration, race condition, stale
@@ -1791,18 +1822,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       (!l.zpid || (!guessedZpids.has(l.zpid) && String(l.zpid) !== dailyZpid))
     );
 
-    // Step 3: Filter to zip GROUP (e.g., Sunset = 94122 + 94116, not just 94122)
-    // STRICT: Never mix neighborhoods. If Sunset is selected, only show Sunset zips.
+    // Step 3: Filter to the UNION of the selected neighborhoods' zip groups
+    // (multi-select — e.g. Sunset + Richmond). Empty selection = the whole
+    // city. STRICT: never mix in unselected neighborhoods.
+    const selHoods = (hoods || []).filter(h => h && h.zip);
     let zipGroup = null;
-    if (zip) {
-      const resolvedHood = hoodName || ZIP_TO_HOOD[zip];
-      if (resolvedHood) {
-        zipGroup = HOOD_ZIP_GROUPS[resolvedHood.toLowerCase()] || new Set([zip]);
-      } else {
-        zipGroup = new Set([zip]);
+    if (selHoods.length > 0) {
+      zipGroup = new Set();
+      for (const h of selHoods) {
+        const grp = HOOD_ZIP_GROUPS[(h.name || ZIP_TO_HOOD[h.zip] || "").toLowerCase()];
+        if (grp) { for (const z of grp) zipGroup.add(z); } else { zipGroup.add(h.zip); }
       }
       pool = pool.filter(l => zipGroup.has(l.zip));
     }
+
+    // Step 3b: Property-type filter (multi-select; empty = all types)
+    pool = pool.filter(l => fpTypeMatch(fpTypeSel, l.propertyType));
 
     // Step 4: If pool is too small after the daily-spoiler cull, relax the daily exclusion.
     // Runs for both the zip-filtered case AND the no-zip "All of <city>" case — without
@@ -1812,6 +1847,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       pool = trueSold.filter(l => {
         if (zipGroup && !zipGroup.has(l.zip)) return false;
         if (l.zpid && guessedZpids.has(l.zpid)) return false;
+        if (!fpTypeMatch(fpTypeSel, l.propertyType)) return false;
         return true;
       });
     }
@@ -1828,9 +1864,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // Recency-first: prime (0-3mo) leads, then fresh (3-6mo), older (6-12mo) last.
     const shuffled = orderByRecency(pool);
     setFpListings(shuffled);
-    setFpSelectedNeighborhood(hoodName || null);
+    setFpSelectedNeighborhood(
+      selHoods.length === 0 ? null
+        : selHoods.length === 1 ? selHoods[0].name
+        : `${selHoods[0].name} +${selHoods.length - 1}`
+    );
+    setFpHoodSel(selHoods.map(h => h.name)); // sync selection to what applied
     setFpIdx(0); setFpGuessInput(""); setFpResult(null); setView("freeplay");
-    fpZipRef.current = zip || null;
+    fpZipRef.current = selHoods.length > 0 ? selHoods.map(h => h.zip) : null;
     setFpHasMore(true); // reset — assume more available until proven otherwise
     setFpLoadingMore(false);
 
@@ -1841,6 +1882,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, 100);
 
     // Background: fetch zip-specific sold comps to top up the pool if we're light
+    const zip = selHoods.length > 0 ? selHoods[0].zip : null;
     if (zip && pool.length < 15) {
       const cityName = market?.city || market?.label?.split(",")[0] || "San Francisco";
       const existingZpids = pool.map(l => l.zpid).filter(Boolean);
@@ -1853,6 +1895,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const newOnes = orderByRecency(
               data.soldListings
                 .filter(l => l.zpid && !existingSet.has(l.zpid) && l.soldPrice)
+                .filter(l => fpTypeMatch(fpTypeSel, l.propertyType))
                 .map(l => ({ ...l, _source: l._source || "sold_comps" }))
             );
             if (newOnes.length > 0) {
@@ -3398,34 +3441,62 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <Icon name="map-pin" size={14} /> {market?.label || "Select City"} <Icon name="chevron-down" size={12} />
             </button>
           </div>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: IS_MOBILE ? 14 : 24 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan, marginBottom: 2 }}>FREE PLAY</div>
-            <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
-            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Select where you want to guess property prices</div>
+            <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick Your Comps</div>
+            <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Select one or more neighborhoods and property types, then hit Play</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => (
-              <button
-                key={idx}
-                onClick={() => { enterFreePlay(hood.zip, hood.name); }}
-                style={{
-                  padding: "16px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card,
-                  fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
-                  cursor: "pointer", transition: "all 0.2s",
-                  display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center",
-                  // Uniform height for every card (no aspectRatio — that made the
-                  // short-named cards square/tall and dragged their grid row-mates up).
-                  minHeight: 56,
-                  // "All of <city>" (zip === null) spans the full width across both columns.
-                  gridColumn: hood.zip === null ? "1 / -1" : "auto",
-                }}
-                onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.accent; }}
-                onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}
-              >
-                {hood.name}
-              </button>
-            ))}
+          {/* Property type multi-select (empty = all types) */}
+          <div style={{ marginBottom: IS_MOBILE ? 14 : 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Property Type</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {FP_TYPE_OPTIONS.map((t) => {
+                const on = fpTypeSel.includes(t);
+                return (
+                  <button key={t} onClick={() => toggleFpType(t)}
+                    style={{ padding: "8px 14px", borderRadius: 9999, border: `1px solid ${on ? T.cyan : T.cardBorder}`, background: on ? "rgba(6,182,212,0.12)" : T.card, color: on ? T.cyan : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s" }}>
+                    {on ? "\u2713 " : ""}{t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Neighborhoods</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: IS_MOBILE ? 8 : 12 }}>
+            {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => {
+              // "All of <city>" clears the selection and plays immediately.
+              if (hood.zip === null) return (
+                <button key={idx} onClick={() => { setFpHoodSel([]); enterFreePlay([]); }}
+                  style={{ padding: IS_MOBILE ? "12px" : "16px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card, fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: IS_MOBILE ? 46 : 56, gridColumn: "1 / -1" }}
+                  onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.accent; }}
+                  onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}>
+                  {hood.name}
+                </button>
+              );
+              const on = fpHoodSel.includes(hood.name);
+              return (
+                <button key={idx}
+                  onClick={() => setFpHoodSel(prev => on ? prev.filter(n => n !== hood.name) : [...prev, hood.name])}
+                  style={{ padding: IS_MOBILE ? "12px" : "16px", borderRadius: 12, border: `1px solid ${on ? T.cyan : T.cardBorder}`, background: on ? "rgba(6,182,212,0.12)" : T.card, fontSize: 14, fontWeight: 600, color: on ? T.cyan : T.text, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", minHeight: IS_MOBILE ? 46 : 56 }}>
+                  {on ? "\u2713 " : ""}{hood.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Play with the current selection */}
+          <div style={{ marginTop: 16 }}>
+            <PillButton tealAccent onClick={() => {
+              const list = LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS;
+              const hoods = list.filter(h => h.zip !== null && fpHoodSel.includes(h.name));
+              enterFreePlay(hoods);
+            }}>
+              {fpHoodSel.length === 0 ? `Play All of ${market?.city || "the City"}`
+                : fpHoodSel.length === 1 ? `Play ${fpHoodSel[0]}`
+                : `Play ${fpHoodSel.length} Neighborhoods`}
+            </PillButton>
           </div>
 
           <div style={{ marginTop: 24, textAlign: "center" }}>
