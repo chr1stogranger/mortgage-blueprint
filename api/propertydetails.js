@@ -177,14 +177,15 @@ export default async function handler(req, res) {
         let listedPrice; // undefined = no attempt made
         let fixedType = null;
         // properties/details is the SUBJECT-specific endpoint (verified: it
-        // carries the home's own listingRemarks). detail-by-url returned a
-        // similar-homes payload with only OTHER homes' remarks — abandoned.
-        // Requires listingId (stored at ingest since the listing_id column).
-        if (row?.listing_id) {
+        // carries the home's own listingRemarks). It takes the canonical
+        // url — NOT propertyId+listingId (that's main-info's signature; the
+        // error body says "url is required"). detail-by-url (similar-homes
+        // payload, only OTHER homes' remarks) remains abandoned.
+        if (row?.detail_url) {
           const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
           try {
             const dResp = await fetch(
-              `https://${REDFIN_HOST}/properties/details?propertyId=${encodeURIComponent(rcid.slice(3))}&listingId=${encodeURIComponent(row.listing_id)}`,
+              `https://${REDFIN_HOST}/properties/details?url=${encodeURIComponent(row.detail_url)}`,
               { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": REDFIN_HOST } }
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
