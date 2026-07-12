@@ -2127,7 +2127,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           touchStartX.current = null;
           if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
         }}>
-        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: IS_MOBILE ? 170 : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 560px), 400px)" : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
           onError={onPhotoError} />
         {/* Map slide "Location" label — top left on map, replaces badges */}
         {isMapSlide ? (
@@ -2777,7 +2777,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ DAILY CHALLENGE — loading skeleton (listings still fetching) ═══ */}
       {view === "daily" && !dailyProperty && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppFadeIn 0.3s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.3s ease" }}>
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label || "Your Market"}</div>
@@ -2803,7 +2803,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ DAILY CHALLENGE ═══ */}
       {view === "daily" && dailyProperty && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
@@ -2830,7 +2830,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ POST-DAILY — Funnel into Free Play ═══ */}
       {view === "postDaily" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
           {dailyResult && (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 20 }}>
               <OverlineLabel>TODAY'S RESULT</OverlineLabel>
@@ -2879,7 +2879,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ STATS (with Daily / Free Play tabs) ═══ */}
       {view === "tomorrow" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>YOUR STATS</div>
@@ -3189,7 +3189,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ LIVE MODE ═══ */}
       {view === "live" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red }}>LIVE</div>
@@ -3304,7 +3304,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ LIVE NEIGHBORHOOD PICKER ═══ */}
       {view === "livePicker" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
           {/* Market switcher pill */}
           <div style={{ marginBottom: 16 }}>
             <button onClick={() => setShowMarketSwitcher(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, cursor: "pointer" }}>
@@ -3349,7 +3349,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ CHALLENGE MODE — Incoming ═══ */}
       {view === "challenge" && challengeData && !challengeResult && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8B5CF6" }}>CHALLENGE</div>
@@ -3389,7 +3389,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ FREE PLAY NEIGHBORHOOD PICKER ═══ */}
       {view === "fpPicker" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.4s ease" }}>
           {/* Market switcher pill */}
           <div style={{ marginBottom: 16 }}>
             <button onClick={() => setShowMarketSwitcher(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, cursor: "pointer" }}>
@@ -3436,7 +3436,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ FREE PLAY ═══ */}
       {view === "freeplay" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan }}>FREE PLAY</div>
@@ -3510,7 +3510,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ LEADERBOARD (with mode + time tabs) ═══ */}
       {view === "leaderboard" && (
-        <div style={{ padding: (IS_MOBILE ? "8px 12px 90px" : "16px 16px 100px"), animation: "ppFadeIn 0.3s ease" }}>
+        <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.3s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>LEADERBOARD</div>
