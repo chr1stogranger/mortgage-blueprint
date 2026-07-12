@@ -59,7 +59,7 @@ function saneListPrice(lp, soldPrice) {
 // remarks). Candidates are collected with the nearest ancestor propertyId +
 // path; we only accept ones provably owned by the subject — else nothing.
 const addrNorm = (a) => String(a || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-function collectRedfin(obj, out, ctxPid = null, ctxAddr = null, path = "", depth = 0) {
+function collectRedfin(obj, out, ctxPid = null, ctxAddr = null, path = "", depth = 0, ctxHomeId = null) {
   if (!obj || typeof obj !== "object" || depth > 12) return out;
   const pid = obj.propertyId != null ? String(obj.propertyId) : ctxPid;
   // Nearest-ancestor street address is the ownership signal that holds
@@ -68,22 +68,26 @@ function collectRedfin(obj, out, ctxPid = null, ctxAddr = null, path = "", depth
   const ownAddr = obj.addressInfo?.formattedStreetLine
     || obj.streetLine?.value || (typeof obj.streetLine === "string" ? obj.streetLine : null);
   const addr = ownAddr ? addrNorm(ownAddr) : ctxAddr;
+  // Canonical url ".../home/<id>" uses the SAME id space as our rf_ rows —
+  // the strongest ownership signal (payload propertyId fields do not).
+  const urlId = typeof obj.url === "string" ? (obj.url.match(/\/home\/(\d+)/) || [])[1] : null;
+  const homeId = urlId || ctxHomeId;
   for (const k of ["listingRemarks", "marketingRemarks"]) {
     if (typeof obj[k] === "string" && obj[k].trim().length > 0) {
-      out.remarks.push({ text: obj[k], pid, addr, path });
+      out.remarks.push({ text: obj[k], pid, addr, homeId, path });
     }
   }
   const evt = obj.eventDescription || obj.event || obj.eventDescriptionFull || null;
   if (evt && /listed/i.test(String(evt))) {
     const price = Number(obj.price?.value ?? obj.price ?? 0);
     const date = Number(obj.eventDate ?? obj.date ?? 0);
-    if (price > 0) out.listed.push({ price, date, pid, addr, path });
+    if (price > 0) out.listed.push({ price, date, pid, addr, homeId, path });
   }
   if (typeof obj.propertyType === "number" && (obj.propertyId != null || ownAddr)) {
-    out.types.push({ type: obj.propertyType, pid: obj.propertyId != null ? String(obj.propertyId) : pid, addr, path });
+    out.types.push({ type: obj.propertyType, pid: obj.propertyId != null ? String(obj.propertyId) : pid, addr, homeId, path });
   }
   for (const [k, v] of Object.entries(obj)) {
-    collectRedfin(v, out, pid, addr, path + "/" + k, depth + 1);
+    collectRedfin(v, out, pid, addr, path + "/" + k, depth + 1, homeId);
   }
   return out;
 }
@@ -92,6 +96,7 @@ const RF_TYPES = { 6: "Single Family", 3: "Condo", 13: "Townhouse", 4: "Multi-Fa
 const SUBJECT_PATHS = /mainhouseinfo|abovethefold|propertyhistoryinfo|amphouseinfo/i;
 function subjectFilter(cands, subjectPid, subjectAddr) {
   const own = cands.filter(c =>
+    (c.homeId && subjectPid && c.homeId === subjectPid) ||
     (c.addr && subjectAddr && c.addr === subjectAddr) ||
     (c.pid && subjectPid && c.pid === subjectPid));
   if (own.length) return own;
@@ -195,7 +200,7 @@ export default async function handler(req, res) {
             listedPrice = saneListPrice(subjListed[0]?.price || null, row?.sold_price);
             // Subject-verified property type — heals rows ingested under the
             // old (wrong) code mapping.
-            const subjType = collected.types.find(t => t.pid === subjectPid || (t.addr && t.addr === subjectAddr));
+            const subjType = collected.types.find(t => (t.homeId && t.homeId === subjectPid) || (t.addr && t.addr === subjectAddr) || t.pid === subjectPid);
             if (subjType && RF_TYPES[subjType.type]) fixedType = RF_TYPES[subjType.type];
             console.error(`[PropertyDetails] redfin ${rcid}: remarks=${collected.remarks.length}/${subjRemarks.length} listed=${collected.listed.length}/${subjListed.length} price=${listedPrice || "none"} descLen=${description.length}`);
             if (subjRemarks.length === 0 && collected.remarks.length > 0) {
@@ -205,7 +210,7 @@ export default async function handler(req, res) {
                 const key = c.path.replace(/\/\d+/g, "/N");
                 if (seen.has(key)) continue;
                 seen.add(key);
-                console.error(`[PropertyDetails] remark-path pid=${c.pid || "-"} len=${c.text.length} path=${key.slice(-120)} :: ${c.text.slice(0, 40)}`);
+                console.error(`[PropertyDetails] remark-path pid=${c.pid || "-"} homeId=${c.homeId || "-"} addr=${c.addr || "-"} len=${c.text.length} path=${key.slice(-120)} :: ${c.text.slice(0, 40)}`);
                 if (seen.size >= 8) break;
               }
             }
