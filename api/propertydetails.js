@@ -45,17 +45,16 @@ function saneListPrice(lp, soldPrice) {
   return lp;
 }
 
-// Find the first non-empty string value for `key` anywhere in a nested
-// object — Redfin's detail payload buries listingRemarks several levels deep
-// and the exact path varies by listing type.
-function findKeyDeep(obj, key, depth = 0) {
+// Collect every non-empty string value for `key` anywhere in a nested object
+// and return the LONGEST — Redfin's detail payload carries listingRemarks in
+// multiple sections, some truncated previews (~700 chars, cut mid-word) and
+// one full text. First-match returned the preview; longest wins.
+function findKeyDeep(obj, key, out = [], depth = 0) {
   if (!obj || typeof obj !== "object" || depth > 12) return null;
-  if (typeof obj[key] === "string" && obj[key].trim().length > 0) return obj[key];
-  for (const v of Object.values(obj)) {
-    const r = findKeyDeep(v, key, depth + 1);
-    if (r) return r;
-  }
-  return null;
+  if (typeof obj[key] === "string" && obj[key].trim().length > 0) out.push(obj[key]);
+  for (const v of Object.values(obj)) findKeyDeep(v, key, out, depth + 1);
+  if (depth > 0) return null;
+  return out.length ? out.reduce((a, b) => (b.length > a.length ? b : a)) : null;
 }
 
 // Scan Redfin's detail payload for price-history "Listed" events and return
