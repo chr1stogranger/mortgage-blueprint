@@ -2265,12 +2265,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             ))}
           </div>
-          {/* List Price. RentCast county records carry no list price — their
-              listPrice is set equal to soldPrice, which would GIVE AWAY the
-              answer. For those rows, show the enriched original list price
-              from Zillow's priceHistory when available; otherwise hide. */}
+          {/* List Price. RentCast county records (rc_) and Redfin sold rows
+              (rf_) carry no list price — their listPrice is set equal to
+              soldPrice, which would GIVE AWAY the answer. For those rows,
+              show the enriched original list price from Zillow's
+              priceHistory when available; otherwise hide. */}
           {(() => {
-            const isRcRow = String(listing.zpid || "").startsWith("rc_");
+            const zid = String(listing.zpid || "");
+            const isRcRow = zid.startsWith("rc_") || zid.startsWith("rf_");
             const enriched = details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null;
             const displayLp = isRcRow ? enriched : listing.listPrice;
             if (!displayLp) return null;
