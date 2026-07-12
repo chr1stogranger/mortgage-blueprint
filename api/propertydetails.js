@@ -58,34 +58,43 @@ function saneListPrice(lp, soldPrice) {
 // "subject first" signal (3241 Briggs Ave briefly showed an Oakland 4-plex's
 // remarks). Candidates are collected with the nearest ancestor propertyId +
 // path; we only accept ones provably owned by the subject — else nothing.
-function collectRedfin(obj, out, ctxPid = null, path = "", depth = 0) {
+const addrNorm = (a) => String(a || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+function collectRedfin(obj, out, ctxPid = null, ctxAddr = null, path = "", depth = 0) {
   if (!obj || typeof obj !== "object" || depth > 12) return out;
   const pid = obj.propertyId != null ? String(obj.propertyId) : ctxPid;
+  // Nearest-ancestor street address is the ownership signal that holds
+  // across Redfin's id spaces (search-sold propertyId != detail propertyId:
+  // rf_1790168's own remarks appeared under pid 2008181).
+  const ownAddr = obj.addressInfo?.formattedStreetLine
+    || obj.streetLine?.value || (typeof obj.streetLine === "string" ? obj.streetLine : null);
+  const addr = ownAddr ? addrNorm(ownAddr) : ctxAddr;
   for (const k of ["listingRemarks", "marketingRemarks"]) {
     if (typeof obj[k] === "string" && obj[k].trim().length > 0) {
-      out.remarks.push({ text: obj[k], pid, path });
+      out.remarks.push({ text: obj[k], pid, addr, path });
     }
   }
   const evt = obj.eventDescription || obj.event || obj.eventDescriptionFull || null;
   if (evt && /listed/i.test(String(evt))) {
     const price = Number(obj.price?.value ?? obj.price ?? 0);
     const date = Number(obj.eventDate ?? obj.date ?? 0);
-    if (price > 0) out.listed.push({ price, date, pid, path });
+    if (price > 0) out.listed.push({ price, date, pid, addr, path });
   }
-  if (typeof obj.propertyType === "number" && obj.propertyId != null) {
-    out.types.push({ type: obj.propertyType, pid: String(obj.propertyId), path });
+  if (typeof obj.propertyType === "number" && (obj.propertyId != null || ownAddr)) {
+    out.types.push({ type: obj.propertyType, pid: obj.propertyId != null ? String(obj.propertyId) : pid, addr, path });
   }
   for (const [k, v] of Object.entries(obj)) {
-    collectRedfin(v, out, pid, path + "/" + k, depth + 1);
+    collectRedfin(v, out, pid, addr, path + "/" + k, depth + 1);
   }
   return out;
 }
 // Same coding as sold-comps ingest (4 = Multi-family verified live)
 const RF_TYPES = { 6: "Single Family", 3: "Condo", 13: "Townhouse", 4: "Multi-Family", 20: "Multi-Family", 7: "Manufactured", 8: "Manufactured" };
 const SUBJECT_PATHS = /mainhouseinfo|abovethefold|propertyhistoryinfo|amphouseinfo/i;
-function subjectFilter(cands, subjectPid) {
-  const byPid = cands.filter(c => c.pid && subjectPid && c.pid === subjectPid);
-  if (byPid.length) return byPid;
+function subjectFilter(cands, subjectPid, subjectAddr) {
+  const own = cands.filter(c =>
+    (c.addr && subjectAddr && c.addr === subjectAddr) ||
+    (c.pid && subjectPid && c.pid === subjectPid));
+  if (own.length) return own;
   return cands.filter(c => SUBJECT_PATHS.test(c.path));
 }
 export default async function handler(req, res) {
@@ -132,7 +141,7 @@ export default async function handler(req, res) {
     if (supabase) {
       const { data: rows } = await supabase
         .from("pp_property_pool")
-        .select("photo, photos, description, list_price, sold_price, detail_url")
+        .select("photo, photos, description, list_price, sold_price, detail_url, address, zip")
         .eq("zpid", rcid)
         .limit(1);
       const row = rows && rows[0];
@@ -172,20 +181,21 @@ export default async function handler(req, res) {
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
             const subjectPid = rcid.slice(3); // rf_<propertyId>
+            const subjectAddr = addrNorm(row?.address);
             const collected = collectRedfin(dj, { remarks: [], listed: [], types: [] });
-            const subjRemarks = subjectFilter(collected.remarks, subjectPid);
+            const subjRemarks = subjectFilter(collected.remarks, subjectPid, subjectAddr);
             // Longest subject-owned copy (short copies are truncated previews)
             description = subjRemarks.length
               ? subjRemarks.reduce((a, b) => (b.text.length > a.text.length ? b : a)).text
               : ""; // never keep an unverifiable description
             if (isRentalText(description)) description = "";
             // Most recent subject-owned "Listed" event = this sale cycle's list price
-            const subjListed = subjectFilter(collected.listed, subjectPid)
+            const subjListed = subjectFilter(collected.listed, subjectPid, subjectAddr)
               .sort((a, b) => b.date - a.date);
             listedPrice = saneListPrice(subjListed[0]?.price || null, row?.sold_price);
             // Subject-verified property type — heals rows ingested under the
             // old (wrong) code mapping.
-            const subjType = collected.types.find(t => t.pid === subjectPid);
+            const subjType = collected.types.find(t => t.pid === subjectPid || (t.addr && t.addr === subjectAddr));
             if (subjType && RF_TYPES[subjType.type]) fixedType = RF_TYPES[subjType.type];
             console.error(`[PropertyDetails] redfin ${rcid}: remarks=${collected.remarks.length}/${subjRemarks.length} listed=${collected.listed.length}/${subjListed.length} price=${listedPrice || "none"} descLen=${description.length}`);
             if (subjRemarks.length === 0 && collected.remarks.length > 0) {
