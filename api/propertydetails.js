@@ -189,6 +189,9 @@ export default async function handler(req, res) {
             );
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
+            if (dj && JSON.stringify(dj).indexOf("listingRemarks") === -1) {
+              console.error(`[PropertyDetails] details raw head ${rcid}: ${JSON.stringify(dj).slice(0, 400)}`);
+            }
             const subjectPid = rcid.slice(3); // rf_<propertyId>
             const subjectAddr = addrNorm(row?.address);
             const collected = collectRedfin(dj, { remarks: [], listed: [], types: [] });
