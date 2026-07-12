@@ -72,11 +72,16 @@ function collectRedfin(obj, out, ctxPid = null, path = "", depth = 0) {
     const date = Number(obj.eventDate ?? obj.date ?? 0);
     if (price > 0) out.listed.push({ price, date, pid, path });
   }
+  if (typeof obj.propertyType === "number" && obj.propertyId != null) {
+    out.types.push({ type: obj.propertyType, pid: String(obj.propertyId), path });
+  }
   for (const [k, v] of Object.entries(obj)) {
     collectRedfin(v, out, pid, path + "/" + k, depth + 1);
   }
   return out;
 }
+// Same coding as sold-comps ingest (4 = Multi-family verified live)
+const RF_TYPES = { 6: "Single Family", 3: "Condo", 13: "Townhouse", 4: "Multi-Family", 20: "Multi-Family", 7: "Manufactured", 8: "Manufactured" };
 const SUBJECT_PATHS = /mainhouseinfo|abovethefold|propertyhistoryinfo|amphouseinfo/i;
 function subjectFilter(cands, subjectPid) {
   const byPid = cands.filter(c => c.pid && subjectPid && c.pid === subjectPid);
@@ -156,6 +161,7 @@ export default async function handler(req, res) {
         }
         let description = row?.description || "";
         let listedPrice; // undefined = no attempt made (no detail_url)
+        let fixedType = null;
         if (row?.detail_url) {
           const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
           try {
@@ -166,7 +172,7 @@ export default async function handler(req, res) {
             console.error(`[PropertyDetails] redfin detail ${rcid}: status=${dResp.status} quota-left=${dResp.headers.get("x-ratelimit-requests-remaining") || "?"}`);
             const dj = await dResp.json().catch(() => null);
             const subjectPid = rcid.slice(3); // rf_<propertyId>
-            const collected = collectRedfin(dj, { remarks: [], listed: [] });
+            const collected = collectRedfin(dj, { remarks: [], listed: [], types: [] });
             const subjRemarks = subjectFilter(collected.remarks, subjectPid);
             // Longest subject-owned copy (short copies are truncated previews)
             description = subjRemarks.length
@@ -177,6 +183,10 @@ export default async function handler(req, res) {
             const subjListed = subjectFilter(collected.listed, subjectPid)
               .sort((a, b) => b.date - a.date);
             listedPrice = saneListPrice(subjListed[0]?.price || null, row?.sold_price);
+            // Subject-verified property type — heals rows ingested under the
+            // old (wrong) code mapping.
+            const subjType = collected.types.find(t => t.pid === subjectPid);
+            if (subjType && RF_TYPES[subjType.type]) fixedType = RF_TYPES[subjType.type];
             console.error(`[PropertyDetails] redfin ${rcid}: remarks=${collected.remarks.length}/${subjRemarks.length} listed=${collected.listed.length}/${subjListed.length} price=${listedPrice || "none"} descLen=${description.length}`);
             if (subjRemarks.length === 0 && collected.remarks.length > 0) {
               // TEMP diagnostic: surface where remarks actually live
@@ -196,9 +206,9 @@ export default async function handler(req, res) {
             try {
               // list_price: real listed price, or NULL as the "attempted, none
               // found" sentinel (ingest placeholder was list=sold).
-              await supabase.from("pp_property_pool")
-                .update({ description: description || row?.description || null, list_price: listedPrice || null })
-                .eq("zpid", rcid);
+              const patch = { description: description || null, list_price: listedPrice || null };
+              if (fixedType) patch.property_type = fixedType;
+              await supabase.from("pp_property_pool").update(patch).eq("zpid", rcid);
             } catch (e) {
               console.error(`[PropertyDetails] persist failed for ${rcid}: ${e.message}`);
             }
