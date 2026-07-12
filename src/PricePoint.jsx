@@ -216,6 +216,11 @@ const getLevel = (xp) => [...LEVELS].reverse().find(l => xp >= l.req) || LEVELS[
 // scrolling (photo -> description -> specs -> price entry -> Final Answer).
 const IS_MOBILE = typeof window !== "undefined" && window.innerWidth <= 480;
 
+// MLS remarks arrive with HTML entities from some feeds ("Elegant &amp; Welcoming!")
+const decodeEntities = (str) => String(str || "")
+  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+  .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ");
+
 const getDailyNumber = () => {
   const now = new Date();
   const start = new Date("2026-01-01");
@@ -2199,7 +2204,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const hasMultiplePhotos = mergedPhotos?.length > 1;
     const hasMap = !!(listing.latitude && listing.longitude);
     const useCarousel = hasMultiplePhotos || hasMap; // map slide gives every geolocated listing a carousel
-    const desc = details?.description || listing.description;
+    const desc = decodeEntities(details?.description || listing.description);
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
@@ -2271,32 +2276,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             ))}
           </div>
-          {/* List Price. RentCast county records (rc_) and Redfin sold rows
-              (rf_) carry no list price — their listPrice is set equal to
-              soldPrice, which would GIVE AWAY the answer. For those rows,
-              show the enriched original list price from Zillow's
-              priceHistory when available; otherwise hide. */}
-          {(() => {
-            const zid = String(listing.zpid || "");
-            const isRcRow = zid.startsWith("rc_") || zid.startsWith("rf_");
-            const enriched = details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null;
-            const displayLp = isRcRow ? enriched : listing.listPrice;
-            if (!displayLp) return null;
-            return (
-              <div style={{ background: T.inputBg, borderRadius: 12, padding: IS_MOBILE ? "8px 14px" : "14px 18px", border: `1px solid ${T.cardBorder}`, marginBottom: IS_MOBILE ? 8 : 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <OverlineLabel>LIST PRICE</OverlineLabel>
-                  <div style={{ fontSize: IS_MOBILE ? 20 : 26, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 2 }}>{fmt(displayLp)}</div>
-                </div>
-                {listing.daysOnMarket && (
-                  <div style={{ textAlign: "right" }}>
-                    <OverlineLabel>DAYS ON MKT</OverlineLabel>
-                    <div style={{ fontSize: IS_MOBILE ? 17 : 22, fontWeight: 700, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{listing.daysOnMarket}</div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
           {/* View on Zillow link — Live mode only, shown before guess to enable informed predictions */}
           {showZillowLink && listing.detailUrl && (
             <a href={listing.detailUrl.startsWith("http") ? listing.detailUrl : `https://www.zillow.com${listing.detailUrl}`} target="_blank" rel="noopener noreferrer"
@@ -2306,23 +2285,63 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <Icon name="external-link" size={13} /> View Full Listing on Zillow
             </a>
           )}
-          {/* Guess — Cash App style: tap the display to type, hidden input captures keys */}
-          <div style={{ fontSize: IS_MOBILE ? 11 : 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 4, fontFamily: FONT }}>{labelOverrides?.guessLabel || "What do you think it sold for?"}</div>
-          <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
-            style={{ position: "relative", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: IS_MOBILE ? "10px 16px" : "16px 20px", cursor: "text", textAlign: "center", marginBottom: 4, transition: "border-color 0.2s" }}>
-            <div style={{ fontSize: guess ? (IS_MOBILE ? 24 : 28) : (IS_MOBILE ? 15 : 18), fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: FONT, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s" }}>
-              {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : "Tap to enter price"}
+          {/* Guess label — desktop only; on mobile the question lives in the
+              input placeholder to save a row */}
+          {!IS_MOBILE && (
+            <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, textAlign: "center", marginBottom: 4, fontFamily: FONT }}>{labelOverrides?.guessLabel || "What do you think it sold for?"}</div>
+          )}
+          {/* Price row: LIST PRICE pill + guess input side by side — kills the
+              stacked row + label that pushed Final Answer below the fold.
+              When there's no list price the input takes the full row. */}
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch", marginBottom: 4 }}>
+            {(() => {
+              {/* rc_/rf_ rows carry no list price (listPrice === soldPrice would
+                  GIVE AWAY the answer) — show the enriched original list price
+                  when available; otherwise hide. */}
+              const zid = String(listing.zpid || "");
+              const isRcRow = zid.startsWith("rc_") || zid.startsWith("rf_");
+              const enriched = details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null;
+              const displayLp = isRcRow ? enriched : listing.listPrice;
+              if (!displayLp) return null;
+              return (
+                <div style={{ flex: 1, minWidth: 0, background: T.inputBg, borderRadius: 12, padding: IS_MOBILE ? "8px 12px" : "14px 18px", border: `1px solid ${T.cardBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <OverlineLabel>LIST PRICE</OverlineLabel>
+                    <div style={{ fontSize: IS_MOBILE ? 18 : 26, fontWeight: 800, color: T.text, fontFamily: FONT, marginTop: 2, whiteSpace: "nowrap" }}>{fmt(displayLp)}</div>
+                  </div>
+                  {listing.daysOnMarket > 0 && !IS_MOBILE && (
+                    <div style={{ textAlign: "right" }}>
+                      <OverlineLabel>DAYS ON MKT</OverlineLabel>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: T.textSecondary, fontFamily: FONT, marginTop: 2 }}>{listing.daysOnMarket}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
+              style={{ flex: 1.35, minWidth: 0, position: "relative", background: T.inputBg, border: `2px solid ${T.cardBorder}`, borderRadius: 14, padding: IS_MOBILE ? "10px 12px" : "16px 20px", cursor: "text", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.2s" }}>
+              <div style={{ fontSize: guess ? (IS_MOBILE ? 20 : 28) : (IS_MOBILE ? 14 : 18), fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: FONT, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : (IS_MOBILE ? "Sold for?" : "Tap to enter price")}
+              </div>
+              <input id={`pp-guess-${badge || "d"}`} value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} inputMode="numeric" autoComplete="off"
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, fontSize: 18, border: "none", outline: "none", background: "none", boxSizing: "border-box" }}
+                onFocus={e => e.target.parentElement.style.borderColor = accent} onBlur={e => e.target.parentElement.style.borderColor = T.cardBorder} />
             </div>
-            <input id={`pp-guess-${badge || "d"}`} value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} inputMode="numeric" autoComplete="off"
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, fontSize: 18, border: "none", outline: "none", background: "none", boxSizing: "border-box" }}
-              onFocus={e => e.target.parentElement.style.borderColor = accent} onBlur={e => e.target.parentElement.style.borderColor = T.cardBorder} />
           </div>
           {/* Live feedback — always render to keep DOM stable */}
           <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: IS_MOBILE ? 2 : 6, fontFamily: FONT, minHeight: IS_MOBILE ? 16 : 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
             const v = parseInt(guess);
-            if (!v || !listing.listPrice) return "\u00A0";
-            const d = ((v - listing.listPrice) / listing.listPrice * 100).toFixed(1);
-            return `${d > 0 ? "+" : ""}${d}% vs list${listing.sqft ? ` · $${Math.round(v / listing.sqft)}/sf` : ""}`;
+            if (!v) return "\u00A0";
+            // rc_/rf_ rows: raw listPrice falls back to the SOLD price — comparing
+            // against it would leak the answer. Only use the enriched real list.
+            const zid = String(listing.zpid || "");
+            const anchor = (zid.startsWith("rc_") || zid.startsWith("rf_"))
+              ? (details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null)
+              : listing.listPrice;
+            const parts = [];
+            if (anchor) { const d = ((v - anchor) / anchor * 100).toFixed(1); parts.push(`${d > 0 ? "+" : ""}${d}% vs list`); }
+            if (listing.sqft) parts.push(`$${Math.round(v / listing.sqft)}/sf`);
+            return parts.length ? parts.join(" · ") : "\u00A0";
           })()}</div>
           <div style={{ marginTop: IS_MOBILE ? 8 : 14 }}>
             <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan}>{labelOverrides?.buttonLabel || "Final Answer"}</PillButton>
