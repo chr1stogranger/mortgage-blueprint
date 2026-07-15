@@ -1,9 +1,13 @@
 # Mortgage Blueprint — App Store Update Guide (Dummy-Proof)
 
-Last updated: 2026-06-06. Reusable every release — just bump the version numbers.
+Last updated: 2026-07-14. Reusable every release — just bump the version numbers.
 
-**Current live version:** 1.1 (build 3)
-**This release:** **1.2 (build 4)**  ← use these two numbers in Step 6
+**Current live version:** 1.2 (build 4)
+**This release:** **1.3 (build 5)**  ← use these two numbers in Step 6
+
+> ✅ For the 1.3 release, Phase 1 (npm build + cap sync) is ALREADY DONE, and the
+> version is ALREADY SET to 1.3 / build 5 in the Xcode project. You only need to
+> run `npx cap open ios` (Phase 1, last step) and then do Phases 2–4.
 
 > Why a new binary at all? The iOS app ships the web code *bundled inside it*
 > (Capacitor `webDir: "dist"`, no live-server URL). So even though
@@ -56,8 +60,8 @@ npx cap open ios
 2. In the middle panel, under **TARGETS**, click **App**.
 3. Click the **General** tab.
 4. Find the **Identity** section:
-   - **Version** → type `1.2`
-   - **Build** → type `4`
+   - **Version** → should already say `1.3` (I set it for you — just confirm)
+   - **Build** → should already say `5` (I set it for you — just confirm)
 
 > Rule for next time: **Version** is what users see (1.2, 1.3, 2.0…).
 > **Build** must ALWAYS be a higher number than last time (3 → 4 → 5…),
@@ -88,12 +92,17 @@ npx cap open ios
 
 1. Go to https://appstoreconnect.apple.com → **My Apps** → **Mortgage Blueprint**.
 2. Top-left, click the blue **(+) Version or Platform** → choose **iOS** →
-   type version `1.2` → **Create**.
+   type version `1.3` → **Create**.
 3. Scroll to **"What's New in This Version"** and write a short note, e.g.:
-   > PricePoint is back and better — daily challenges and free play now load
-   > reliably with live sold-price scoring. Plus performance fixes.
+   > • PricePoint: faster, more reliable daily challenges and free play, now with
+   >   live server-scored guesses and a revamped leaderboard across all markets.
+   > • Clients: rename or delete a client, and tap a client to jump straight to
+   >   their most recent loan.
+   > • Calculator: inline-editable closing costs & fees, PMI rate lock, updated
+   >   2025–26 property tax rates, and a one-click emailable Fees Worksheet PDF.
+   > • Performance and polish fixes throughout.
 4. Scroll to the **Build** section → click **(+)** (or "Add Build") and select
-   **build 4**.
+   **build 5**.
    - If no build appears yet, it's still processing — wait a few minutes and refresh.
 5. (Screenshots, description, keywords carry over from 1.1 — no need to redo them.)
 6. Top-right: **Save**, then **Add for Review** → **Submit for Review**.
