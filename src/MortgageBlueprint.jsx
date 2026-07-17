@@ -1,4 +1,4 @@
-import { FONT } from "./lib/fonts.js";
+import { FONT, MONO } from "./lib/fonts.js";
 import AppBackground from "./components/AppBackground.jsx";
 import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
@@ -5567,7 +5567,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     {/* ── Divider: "OR SEND A LIVE LINK" ── */}
     <div style={{
      display: "flex", alignItems: "center", gap: 10, margin: "14px 0 12px",
-     fontSize: 11, fontFamily: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace",
+     fontSize: 11, fontFamily: MONO,
      letterSpacing: 2, textTransform: "uppercase",
      color: T.textTertiary, fontWeight: 600,
     }}>
@@ -7385,11 +7385,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      rows={loSigIsHtml ? 6 : 4}
      placeholder={"Chris Granger\nChris Granger Mortgage · NMLS #952015\n(415) 987-8489\n\n…or paste HTML, e.g.\n<div style=\"font-family:Arial;font-size:13px\"><strong>Chris Granger</strong><br/>Xpert Home Lending · NMLS #952015</div>"}
      spellCheck={false}
-     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: loSigIsHtml ? 12 : 13, outline: "none", fontFamily: loSigIsHtml ? "'JetBrains Mono', 'SF Mono', monospace" : FONT, resize: "vertical", lineHeight: 1.5 }}
+     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: loSigIsHtml ? 12 : 13, outline: "none", fontFamily: loSigIsHtml ? MONO : FONT, resize: "vertical", lineHeight: 1.5 }}
     />
     {loSigIsHtml && (
      <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: T.textTertiary, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>Preview — how it renders in emails</div>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 6 }}>Preview — how it renders in emails</div>
       <div style={{ background: "#fff", border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "12px 14px", color: "#171717", overflowX: "auto" }}
        dangerouslySetInnerHTML={{ __html: loSignature }} />
      </div>

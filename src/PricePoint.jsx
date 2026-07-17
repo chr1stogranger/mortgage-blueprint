@@ -1,4 +1,4 @@
-import { FONT, MONO } from "./lib/fonts.js";
+import { FONT } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
 import { apiUrl, API_BASE } from './apiBase';
@@ -2147,7 +2147,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Photo Carousel (for Live mode with property details) ──
-  const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, showSoldDate, listing, FONT, MONO }) => {
+  const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, showSoldDate, listing, FONT }) => {
     const [idx, setIdx] = useState(0);
     const touchStartX = useRef(null);
     const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
@@ -2254,7 +2254,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
         {useCarousel ? (
-          <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} showSoldDate={showSoldDate} listing={listing} FONT={FONT} MONO={MONO} />
+          <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} showSoldDate={showSoldDate} listing={listing} FONT={FONT} />
         ) : (
         <div style={{ position: "relative" }}>
           <img src={listing.photo || NO_PHOTO} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
@@ -2283,7 +2283,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {showSoldDate && fmtSoldPill(listing.soldDate) && (
                 <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <Icon name="calendar" size={12} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: MONO, letterSpacing: 0.5 }}>{fmtSoldPill(listing.soldDate)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT, letterSpacing: 0.5 }}>{fmtSoldPill(listing.soldDate)}</span>
                 </div>
               )}
             </div>

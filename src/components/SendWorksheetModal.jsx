@@ -1,4 +1,4 @@
-import { FONT, MONO } from "../lib/fonts.js";
+import { FONT } from "../lib/fonts.js";
 // src/components/SendWorksheetModal.jsx
 //
 // Preview → Send modal for the Fees Worksheet email. Renders the worksheet
@@ -53,9 +53,10 @@ function blobToBase64(blob) {
 function bodyToHtml(text) {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
   const lines = esc(text).split("\n").map((ln) => {
-    // Figure bullets ("• Label: $1,234") get mono treatment for the numbers.
+    // Figure bullets ("• Label: $1,234") — Inter with tabular figures per the
+    // Brand Kit (numerals never render in a monospaced face).
     if (/^\s*•/.test(ln)) {
-      return `<div style="font-family:${MONO};font-size:13.5px;padding:2px 0 2px 8px;">${ln}</div>`;
+      return `<div style="font-family:${FONT};font-variant-numeric:tabular-nums;font-size:13.5px;padding:2px 0 2px 8px;">${ln}</div>`;
     }
     return ln.trim() === "" ? '<div style="height:10px"></div>' : `<div>${ln}</div>`;
   }).join("");
@@ -196,18 +197,18 @@ export default function SendWorksheetModal({
 
         {/* Attachment + BCC chips */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          <div style={{ fontSize: 11.5, fontFamily: MONO, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "5px 12px" }}>
+          <div style={{ fontSize: 11.5, fontFamily: FONT, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "5px 12px" }}>
             {fileName}
           </div>
           {loEmail && (
-            <div style={{ fontSize: 11.5, fontFamily: MONO, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "5px 12px" }}>
+            <div style={{ fontSize: 11.5, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "5px 12px" }}>
               BCC: {loEmail}
             </div>
           )}
           {realtorPartner?.email && (
             <button onClick={() => setCcRealtor(!ccRealtor)} title={ccRealtor ? "Remove realtor from CC" : "CC the realtor on this email"}
               style={{
-                fontSize: 11.5, fontFamily: MONO, cursor: "pointer",
+                fontSize: 11.5, fontFamily: FONT, cursor: "pointer",
                 color: ccRealtor ? T.blue : T.textTertiary,
                 background: ccRealtor ? `${T.blue}14` : "transparent",
                 border: `1px ${ccRealtor ? "solid" : "dashed"} ${ccRealtor ? `${T.blue}50` : T.separator}`,

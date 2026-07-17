@@ -4,7 +4,7 @@ import { FONT } from "./lib/fonts.js";
  * Loaded via ?share=UUID token. No authentication required.
  *
  * Design: RealStack brand system — dark mode, indigo/blue gradients,
- * Inter + JetBrains Mono, glassmorphic cards, subtle animations.
+ * Inter (+ Geist Mono labels), glassmorphic cards, subtle animations.
  *
  * Access levels:
  *   view_only  → calc_summary only, read-only

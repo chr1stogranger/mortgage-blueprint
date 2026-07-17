@@ -407,7 +407,7 @@ export default function TeamContent({
           <Icon name="zap" size={14} />{ariveState === "loading" ? "Checking Arive…" : "Auto-fill from Arive"}
         </button>
         {statusText && (
-          <span style={{ fontSize: 12, fontFamily: MONO, color: saveState === "error" ? T.red : T.textTertiary }}>{statusText}</span>
+          <span style={{ fontSize: 12, fontFamily: FONT, color: saveState === "error" ? T.red : T.textTertiary }}>{statusText}</span>
         )}
       </div>
       {ariveMsg && (

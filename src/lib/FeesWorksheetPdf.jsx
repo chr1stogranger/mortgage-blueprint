@@ -2,25 +2,24 @@
 //
 // Initial Fees Worksheet — a real, vector PDF built with @react-pdf/renderer.
 // Layout mirrors the industry-standard Initial Fees Worksheet (IFW) that
-// pricing engines produce, skinned with RealStack branding (indigo accent,
-// mono figures). Handles BOTH purchase and refinance scenarios.
+// pricing engines produce, skinned with RealStack branding (Grange blue
+// accent, Inter tabular figures). Handles BOTH purchase and refinance scenarios.
 //
 // Contract mirrors lib/estimatePdf.js: a pure module — every input arrives
 // explicitly via props; nothing reads component state. The heavy library is
 // only ever loaded through renderWorksheetBlob()'s dynamic import, so the
 // main bundle does not grow.
 //
-// Fonts: brand fonts per the Brand Kit — Inter (labels) + JetBrains Mono
-// (figures), bundled as TTFs in src/assets/fonts and registered below.
+// Fonts: brand fonts per the Brand Kit — Inter for labels AND figures
+// (digit alignment via Inter's tabular figures; the Kit retired mono
+// numerals 2026-07-09), bundled as TTFs in src/assets/fonts.
 
 import React from "react";
 import { Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
 import interRegular from "../assets/fonts/Inter_400Regular.ttf";
 import interBold from "../assets/fonts/Inter_700Bold.ttf";
-import jbmRegular from "../assets/fonts/JetBrainsMono_400Regular.ttf";
-import jbmBold from "../assets/fonts/JetBrainsMono_700Bold.ttf";
 
-// Brand fonts (Inter labels, JetBrains Mono figures — Brand Kit). Bundled
+// Brand fonts (Inter throughout — Brand Kit). Bundled
 // TTFs ride in the lazy PDF chunk. `new URL`-style asset paths come back as
 // file:// URLs under vitest/node — normalize so fontkit can read them there.
 const fontSrc = (u) => {
@@ -36,8 +35,6 @@ const fontSrc = (u) => {
 try {
   Font.register({ family: "Inter", src: fontSrc(interRegular) });
   Font.register({ family: "Inter-Bold", src: fontSrc(interBold) });
-  Font.register({ family: "JetBrains Mono", src: fontSrc(jbmRegular) });
-  Font.register({ family: "JetBrains Mono Bold", src: fontSrc(jbmBold) });
   // Money strings shouldn't hyphenate/wrap mid-figure.
   Font.registerHyphenationCallback((word) => [word]);
 } catch (e) {
@@ -79,21 +76,21 @@ const s = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", borderWidth: 1, borderColor: HAIR, backgroundColor: "#FAFAFA", borderRadius: 4, padding: 5, marginBottom: 8 },
   cell: { width: "33.33%", paddingVertical: 2, paddingHorizontal: 6 },
   cellLabel: { fontSize: 7, color: MUTED, textTransform: "uppercase", letterSpacing: 0.5, lineHeight: 1.15 },
-  cellValue: { fontFamily: "JetBrains Mono Bold", fontSize: 9.5, marginTop: 1, lineHeight: 1.15 },
+  cellValue: { fontFamily: "Inter-Bold", fontSize: 9.5, marginTop: 1, lineHeight: 1.15 },
   // Columns of fee boxes
   cols: { flexDirection: "row", gap: 10 },
   col: { flex: 1 },
   box: { borderWidth: 1, borderColor: HAIR, borderRadius: 4, marginBottom: 7, overflow: "hidden" },
   secHead: { flexDirection: "row", justifyContent: "space-between", backgroundColor: TINT, paddingVertical: 4, paddingHorizontal: 8 },
   secTitle: { fontFamily: "Inter-Bold", fontSize: 8.5, color: INDIGO, textTransform: "uppercase", letterSpacing: 0.8 },
-  secTotal: { fontFamily: "JetBrains Mono Bold", fontSize: 9, color: INDIGO },
+  secTotal: { fontFamily: "Inter-Bold", fontSize: 9, color: INDIGO },
   subHead: { fontFamily: "Inter-Bold", fontSize: 7.5, color: SUB, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 8, paddingTop: 3, paddingBottom: 2, lineHeight: 1.2 },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 1.8, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: HAIR },
   rowLabel: { fontSize: 8.5, color: SUB, flexShrink: 1, paddingRight: 6, lineHeight: 1.2 },
-  rowValue: { fontFamily: "JetBrains Mono", fontSize: 8.5, color: INK, lineHeight: 1.2 },
+  rowValue: { fontFamily: "Inter", fontSize: 8.5, color: INK, lineHeight: 1.2 },
   totalBar: { flexDirection: "row", justifyContent: "space-between", backgroundColor: INDIGO, paddingVertical: 5, paddingHorizontal: 8 },
   totalLabel: { fontFamily: "Inter-Bold", fontSize: 9, color: "#FFFFFF", textTransform: "uppercase", letterSpacing: 0.6 },
-  totalValue: { fontFamily: "JetBrains Mono Bold", fontSize: 10, color: "#FFFFFF" },
+  totalValue: { fontFamily: "Inter-Bold", fontSize: 10, color: "#FFFFFF" },
   // Footer
   disclaimer: { fontSize: 6.6, color: MUTED, lineHeight: 1.35, marginTop: 2 },
   footBrand: { fontSize: 8, fontFamily: "Inter-Bold", color: INK, marginTop: 6 },
@@ -103,7 +100,7 @@ const s = StyleSheet.create({
 const Row = ({ label, value, color, bold, cents }) => (
   <View style={s.row}>
     <Text style={[s.rowLabel, bold ? { fontFamily: "Inter-Bold", color: INK } : null]}>{label}</Text>
-    <Text style={[s.rowValue, bold ? { fontFamily: "JetBrains Mono Bold" } : null, color ? { color } : null]}>
+    <Text style={[s.rowValue, bold ? { fontFamily: "Inter-Bold" } : null, color ? { color } : null]}>
       {typeof value === "number" ? (cents ? usd2(value) : usd(value)) : value}
     </Text>
   </View>

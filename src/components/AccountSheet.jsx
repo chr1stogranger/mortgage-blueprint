@@ -6,7 +6,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  * Signed IN  → profile: cloud-sync toggle, export data, sign out, delete account.
  *
  * Rendered as a full-screen overlay sheet (mobile-first, works on desktop).
- * Brand Kit: pill buttons, Inter labels, JetBrains Mono for the email,
+ * Brand Kit: pill buttons, Inter labels, Geist Mono for the email,
  * indigo #3B6BF5 accent, no emojis.
  */
 
@@ -205,7 +205,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
             <div style={{ fontSize: 14, color: secondary, lineHeight: 1.6 }}>
               We sent a sign-in link to
             </div>
-            <div style={{ fontFamily: MONO, fontSize: 14, color: accent, margin: '8px 0 16px' }}>{email}</div>
+            <div style={{ fontFamily: FONT, fontSize: 14, color: accent, margin: '8px 0 16px' }}>{email}</div>
             <div style={{ fontSize: 12, color: tertiary, lineHeight: 1.6 }}>
               The link brings you right back here, signed in. You can close this window.
             </div>
@@ -232,7 +232,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
                 <div style={{ fontSize: 15, fontWeight: 600, color: textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {account?.name || 'Homebuyer'}
                 </div>
-                <div style={{ fontFamily: MONO, fontSize: 12, color: tertiary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontFamily: FONT, fontSize: 12, color: tertiary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {account?.email || session?.user?.email}
                 </div>
               </div>
@@ -317,14 +317,14 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
             <div style={{ fontSize: 14, color: secondary, lineHeight: 1.6, marginBottom: 16 }}>
               This permanently deletes your account and every blueprint stored in the cloud. Local copies on this device are kept. This cannot be undone.
             </div>
-            <div style={{ fontSize: 12, color: tertiary, marginBottom: 8 }}>Type <span style={{ fontFamily: MONO, color: red, fontWeight: 700 }}>DELETE</span> to confirm:</div>
+            <div style={{ fontSize: 12, color: tertiary, marginBottom: 8 }}>Type <span style={{ fontFamily: FONT, color: red, fontWeight: 700 }}>DELETE</span> to confirm:</div>
             <input
               value={deleteText}
               onChange={(e) => setDeleteText(e.target.value)}
               placeholder="DELETE"
               style={{
                 width: '100%', padding: '12px 16px', boxSizing: 'border-box',
-                background: inputBg, color: textColor, fontFamily: MONO,
+                background: inputBg, color: textColor, fontFamily: FONT,
                 border: `1px solid rgba(229,72,77,0.3)`,
                 borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 12,
               }}
