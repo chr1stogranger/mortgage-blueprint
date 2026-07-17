@@ -1,7 +1,6 @@
+import { FONT } from "./lib/fonts.js";
 import React from "react";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 const ASSET_TYPES = ["Checking", "Saving", "Money Market", "Mutual Fund", "Stocks", "Bonds", "Retirement", "Gift", "Gift of Equity", "Trust", "Bridge Loan", "Other"];
 const RESERVE_FACTORS = { Checking: 1, Saving: 1, "Money Market": 1, "Mutual Fund": 1, Stocks: 0.7, Bonds: 0.7, Retirement: 0.6, Gift: null, "Gift of Equity": null, Trust: 1, "Bridge Loan": 1, Other: 1 };
 

@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * WorkspaceSelector — Mode picker UI for Workspace
  *
@@ -8,8 +9,6 @@ import React from "react";
 import { useWorkspace, MODE_CONFIGS, WORKSPACE_MODES } from "./WorkspaceContext";
 import Icon from "./Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // Visual pane layout diagrams per mode
 const PANE_LAYOUTS = {

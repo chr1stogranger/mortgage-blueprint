@@ -1,10 +1,9 @@
+import { FONT } from "./lib/fonts.js";
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 /**
  * UnifiedHeader

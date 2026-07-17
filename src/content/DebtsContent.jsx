@@ -1,8 +1,7 @@
+import { FONT } from "../lib/fonts.js";
 import React, { useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const BORROWER_OPTIONS = ["Joint", "Borrower 1", "Borrower 2"];
 

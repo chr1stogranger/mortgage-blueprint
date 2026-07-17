@@ -1,10 +1,9 @@
+import { FONT } from "../lib/fonts.js";
 import React, { useState, useContext, createContext, useMemo } from "react";
 import Icon from "../Icon";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // ──────────────────────────────────────────────────────────────
 // Context lets the Arive-style sub-components (CollapsibleBox,

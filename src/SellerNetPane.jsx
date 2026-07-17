@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * SellerNetPane — Standalone Seller Net Proceeds calculator for Workspace
  *
@@ -8,8 +9,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Icon from "./Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 let T = {};
 

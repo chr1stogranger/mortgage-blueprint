@@ -1,3 +1,4 @@
+import { FONT, MONO } from "../lib/fonts.js";
 /**
  * CloudMergeSheet — first-sign-in merge wizard.
  *
@@ -9,8 +10,6 @@
 
 import { useState } from 'react';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, darkMode }) {
   const [checked, setChecked] = useState(() => new Set(candidates));

@@ -1,3 +1,4 @@
+import { FONT, MONO } from "../lib/fonts.js";
 /**
  * ImportAriveModal — create a Blueprint client from an existing Arive file.
  *
@@ -11,8 +12,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Icon from "../Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const fmtMoney = (v) => (v > 0 ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v) : "");
 const prettyStatus = (s) => (s || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());

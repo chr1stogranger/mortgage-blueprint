@@ -1,11 +1,10 @@
+import { FONT } from "../lib/fonts.js";
 import React from "react";
 import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
 // AMI lookup retained in src/data/caAmi.js for future re-enabling, but no
 // longer rendered in the Debt to Income Summary card.
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Debt to Income Summary — mirrors Christo's client-walkthrough spreadsheet.

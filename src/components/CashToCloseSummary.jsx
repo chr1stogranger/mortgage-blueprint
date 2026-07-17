@@ -1,7 +1,6 @@
+import { FONT } from "../lib/fonts.js";
 import React from "react";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // Cash-to-Close summary card — used in both the Costs tab (top of fees) and the
 // Calculator tab (left column, below the donut). Brand-kit styled.

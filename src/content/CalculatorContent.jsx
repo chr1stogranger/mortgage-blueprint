@@ -1,11 +1,10 @@
+import { FONT } from "../lib/fonts.js";
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
 import { getPMIRate } from "../lib/finance.js";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // Inline-editable numeric value for Payment Breakdown rows (Insurance, HOA).
 // Renders as a subtle dashed indigo chip at rest; becomes a focused input on tap.

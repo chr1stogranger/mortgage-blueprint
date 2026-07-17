@@ -1,9 +1,8 @@
+import { FONT, MONO } from "../lib/fonts.js";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "../Icon";
 import { fetchDealTeam, saveDealTeam, fetchAriveDealTeam, addPartnerToDirectory } from "../api";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // ─── Role model ──────────────────────────────────────────────────────────────
 // One slot per role (the deal_team array is the storage; these define the UI).

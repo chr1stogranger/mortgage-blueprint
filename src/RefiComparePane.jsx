@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * RefiComparePane — Comparison summary for Refi workspace modes
  *
@@ -8,8 +9,6 @@ import React from "react";
 import { useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import Icon from "./Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const fmt = (v) => {
   if (v === null || v === undefined || isNaN(v)) return "—";

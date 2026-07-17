@@ -89,7 +89,9 @@ export default defineConfig({
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'google-fonts-cache',
+              // v2: bumped 2026-07-17 so installed clients drop the year-old JetBrains
+              // cache and fetch Geist Mono (CacheFirst would otherwise pin the old font).
+              cacheName: 'google-fonts-cache-v2',
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
             }
           },

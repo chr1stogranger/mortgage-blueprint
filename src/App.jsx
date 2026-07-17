@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 import { useState, useEffect, Component } from 'react'
 import * as Sentry from '@sentry/react'
 import MortgageBlueprint from './MortgageBlueprint'
@@ -116,8 +117,7 @@ class ShareFlowErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       const T = { bg: '#050505', accent: '#6366F1', text: '#EDEDED', textSecondary: '#A1A1A1', red: '#EF4444' };
-      const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-      return (
+            return (
         <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT }}>
           <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
             <div style={{ width: 56, height: 56, margin: '0 auto 16px', borderRadius: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -227,9 +227,7 @@ function ShareExpiredScreen() {
     text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#666666',
     red: '#EF4444',
   };
-  const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-  const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
-
+    
   return (
     <div style={{
       minHeight: '100vh', background: T.bg,

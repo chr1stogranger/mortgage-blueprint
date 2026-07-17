@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * PresenceBar — Shows who else is currently viewing/editing this Blueprint.
  *
@@ -9,8 +10,6 @@
 
 import React, { useState } from 'react';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // Color coding by user type
 const USER_COLORS = {

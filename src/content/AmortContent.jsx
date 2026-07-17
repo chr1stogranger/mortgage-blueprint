@@ -1,8 +1,7 @@
+import { FONT } from "../lib/fonts.js";
 import React, { useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // How many monthly rows to show by default before the user expands.
 // First 30 months covers the first ~2.5 years — enough to see the early

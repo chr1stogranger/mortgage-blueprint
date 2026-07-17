@@ -1,6 +1,6 @@
+import { FONT } from "./lib/fonts.js";
 import React, { useState, useRef, useEffect } from "react";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 
 export default function BottomSheet({ isOpen, onClose, title, T, children, height = "85vh" }) {
   const [isClosing, setIsClosing] = useState(false);

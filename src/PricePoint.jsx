@@ -1,3 +1,4 @@
+import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
 import { apiUrl, API_BASE } from './apiBase';
@@ -44,7 +45,6 @@ const isIOSWebVisitor = (() => {
 // Spoiler-free sharing. Emotional feedback (never "wrong").
 // ═══════════════════════════════════════════════════════════════
 
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // ── Challenge Token Encode/Decode (stateless, URL-safe) ──
 const encodeChallenge = ({ listing, result, mode, dailyNumber, locationLabel }) => {

@@ -1,7 +1,6 @@
+import { FONT } from "./lib/fonts.js";
 import React from "react";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 const DEBT_TYPES = ["Mortgage", "HELOC", "Auto Loan", "Auto Lease", "Student Loan", "Revolving", "Installment", "Collection", "Other"];
 const PAYOFF_OPTIONS = ["No", "Yes - at Escrow", "Yes - POC", "Omit"];
 

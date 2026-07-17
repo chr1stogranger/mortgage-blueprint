@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * BorrowerAuthGate — Handles the borrower authentication flow for share links.
  *
@@ -23,7 +24,6 @@ import {
   fetchMyAccount,
 } from '../lib/supabaseClient';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const T = {
   bg: '#050505', card: '#0A0A0A', surface: '#0F0F0F',

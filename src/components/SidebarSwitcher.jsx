@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * SidebarSwitcher — the broker's blueprint switcher, docked in the left nav
  * below the Settings tab (LO view only).
@@ -15,7 +16,6 @@ import React from 'react';
 import Icon from '../Icon';
 import BorrowerPicker from './BorrowerPicker';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const STATUS_COLORS = {
   lead: '#F59E0B',

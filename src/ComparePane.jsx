@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * ComparePane — Live comparison summary between workspace panes
  *
@@ -8,8 +9,6 @@ import React from "react";
 import { useWorkspace } from "./WorkspaceContext";
 import Icon from "./Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const fmt = (v) => {
   if (v === null || v === undefined || isNaN(v)) return "—";

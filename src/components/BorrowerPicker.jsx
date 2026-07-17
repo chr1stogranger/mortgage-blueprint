@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * BorrowerPicker — Two-step search to find/add a client and open a blueprint.
  *
@@ -15,7 +16,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../Icon';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 
 const STATUS_COLORS = {
   lead: '#F59E0B',

@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * SharePortal — Premium borrower-facing view of their Blueprint scenarios.
  * Loaded via ?share=UUID token. No authentication required.
@@ -13,8 +14,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchSharedData, saveSharedScenario } from "./api";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const T = {
   bg: "#050505", card: "#0A0A0A", surface: "#0F0F0F",

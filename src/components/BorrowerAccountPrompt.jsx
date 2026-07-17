@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * BorrowerAccountPrompt — Nudges borrowers to save their Blueprint to an account.
  *
@@ -12,8 +13,6 @@
 
 import React, { useState, useCallback } from 'react';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
 export default function BorrowerAccountPrompt({

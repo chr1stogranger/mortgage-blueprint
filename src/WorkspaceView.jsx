@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * WorkspaceView — Multi-pane layout engine for Workspace mode
  *
@@ -14,8 +15,6 @@ import DebtFreeSplash from "./DebtFreeSplash";
 import Icon from "./Icon";
 import { apiUrl } from "./apiBase";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 const fmtBar = (v) => "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
 
 /**

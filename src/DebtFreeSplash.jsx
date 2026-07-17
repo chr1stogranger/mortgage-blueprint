@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * DebtFreeSplash — Celebration + summary when sale proceeds
  * fully cover the mortgage payoff in Buy→Sell→Refi mode.
@@ -8,8 +9,6 @@
 import React from "react";
 import Icon from "./Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const fmt = (v) => "$" + Math.round(Math.abs(v || 0)).toLocaleString("en-US");
 

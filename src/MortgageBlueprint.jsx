@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
 // THE FINANCIAL ENGINE — all money formulas live in lib/finance.js (audit M-1).
@@ -350,8 +351,6 @@ let PRIVACY = false;
 function priv(str) { if (!PRIVACY) return str; if (typeof str !== "string") str = String(str); return str.replace(/\$[\d,]+\.?\d*/g, "$•••••").replace(/(?<!\w)\d{4,}(?!\w)/g, m => "•".repeat(m.length)); }
 // DARK/LIGHT theme tokens moved to lib/theme.js (audit L-4)
 let T = DARK;
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 function InfoTip({ text }) {
  const [open, setOpen] = useState(false);
  return (<span style={{ position: "relative", display: "inline-flex", marginLeft: 5, verticalAlign: "middle" }}

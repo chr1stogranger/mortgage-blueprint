@@ -1,3 +1,4 @@
+import { FONT, MONO } from "../lib/fonts.js";
 // src/components/SendWorksheetModal.jsx
 //
 // Preview → Send modal for the Fees Worksheet email. Renders the worksheet
@@ -16,8 +17,6 @@ import {
 } from "../lib/gmailAuth.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 // Ops caps attachments at ~700KB of base64 (fits its 1MB body limit).
 const MAX_B64_CHARS = 700_000;
 

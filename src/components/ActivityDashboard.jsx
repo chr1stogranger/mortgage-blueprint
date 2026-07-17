@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * ActivityDashboard — LO-facing view of borrower activity intelligence.
  *
@@ -9,8 +10,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
 const FIELD_LABELS = {

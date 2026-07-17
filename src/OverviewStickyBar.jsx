@@ -1,7 +1,6 @@
+import { FONT } from "./lib/fonts.js";
 import React, { useState, useEffect } from "react";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 /**
  * OverviewStickyBar

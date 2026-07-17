@@ -1,3 +1,4 @@
+import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState } from "react";
 import { STATE_ABBR } from "./citiesData.js";
 import SetupContent from "./content/SetupContent";
@@ -15,8 +16,6 @@ import QualifyContent from "./content/QualifyContent";
 import TaxContent from "./content/TaxContent";
 import Prop19Content from "./content/Prop19Content";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 /* ─── Collapsible section wrapper ─── */
 function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle }) {

@@ -1,3 +1,4 @@
+import { FONT, MONO } from "../lib/fonts.js";
 /**
  * AccountSheet — the borrower account surface on the public calculator.
  *
@@ -13,8 +14,6 @@ import { useState } from 'react';
 import { signInWithMagicLink, signInWithGoogle } from '../lib/supabaseClient';
 import { exportMyData } from '../lib/cloudScenarios';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const GoogleIcon = () => (
   <svg width="17" height="17" viewBox="0 0 48 48">

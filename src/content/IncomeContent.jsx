@@ -1,9 +1,8 @@
+import { FONT } from "../lib/fonts.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { toMonthly } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const FREQ_OPTIONS = [
   { value: "Annual",       label: "Annual" },

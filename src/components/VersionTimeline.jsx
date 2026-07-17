@@ -1,3 +1,4 @@
+import { FONT } from "../lib/fonts.js";
 /**
  * VersionTimeline — Visual history of all changes to a Blueprint scenario.
  *
@@ -11,8 +12,6 @@
 
 import React, { useState, useMemo } from 'react';
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 const USER_COLORS = { lo: '#6366F1', borrower: '#10B981' };
 

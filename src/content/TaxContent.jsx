@@ -1,8 +1,7 @@
+import { FONT } from "../lib/fonts.js";
 import React from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 export default function TaxContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).

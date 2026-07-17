@@ -1,3 +1,4 @@
+import { FONT } from "./lib/fonts.js";
 /**
  * BlueprintPane — Self-contained mortgage calculator for Workspace panes
  *
@@ -12,8 +13,6 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } fro
 import { calcPI, getPMIRate } from "./lib/finance.js"; // shared engine — was a drift-prone local copy
 import Icon from "./Icon";
 
-const FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-const MONO = "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace";
 
 // ── Theme (passed in as prop, but need a module-level ref for components) ──
 let T = {};
