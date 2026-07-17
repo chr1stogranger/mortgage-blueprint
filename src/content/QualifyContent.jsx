@@ -127,7 +127,9 @@ function DebtToIncomeSummary({
     // Income band's height. (Christo 2026-06-02.)
     minHeight: 48,
     boxSizing: "border-box",
-    background: `${T.green}15`,
+    // Soft blue to match the table's blue header system — totals are facts,
+    // not a pass/fail signal, so they don't get the qualification green.
+    background: `${T.blue}0d`,
     fontWeight: 700,
     color: T.text,
   };
@@ -378,10 +380,10 @@ export default function QualifyContent(props) {
  {/* Pre-Qualified vs Pre-Approved education box — always visible on purchase loans
      (was previously gated on allGood). Title/subtitle adapt to qualification state. */}
  {!isRefi && (
-  <Card style={{ marginTop: 12, background: `${T.green}15`, padding: 20, textAlign: "center" }}>
-   <div style={{ fontSize: 16, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "0.02em" }}>{allGood ? "PRE-QUALIFIED" : "PRE-QUALIFIED vs PRE-APPROVED"}</div>
+  <Card style={{ marginTop: 12, padding: 20, textAlign: "center" }}>
+   <div style={{ fontSize: 16, fontWeight: 800, color: T.text, fontFamily: FONT, letterSpacing: "0.02em" }}>{allGood ? "PRE-QUALIFIED" : "PRE-QUALIFIED vs PRE-APPROVED"}</div>
    <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4 }}>{allGood ? "All 5 pillars cleared — based on the information you provided." : "Understanding the difference between the two."}</div>
-   <div style={{ marginTop: 14, padding: "14px 16px", background: T.card, borderRadius: 12, textAlign: "left" }}>
+   <div style={{ marginTop: 14, padding: "14px 16px", background: T.pillBg, borderRadius: 12, textAlign: "left" }}>
     <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
      <span style={{ fontSize: 22, flexShrink: 0 }}></span>
      <div>
@@ -436,12 +438,11 @@ export default function QualifyContent(props) {
  {!isRefi && <>
  <div style={{ height: 2, background: `linear-gradient(90deg, transparent, ${T.blue}40, transparent)`, margin: "20px 0 8px" }} />
  <div style={{ marginTop: 12 }}>
-  <Hero value="target" label="What Can I Afford?" color={T.green} sub="Reverse-engineer your max purchase price" />
+  <Hero value="What Can I Afford?" label="Reverse-engineer your max purchase price" color={T.blue} />
  </div>
  {calc.qualifyingIncome > 0 && (
-  <div style={{ background: `${T.green}10`, border: `1px solid ${T.green}22`, borderRadius: 12, padding: "10px 14px", marginBottom: 12 }}>
-   <div style={{ fontSize: 12, color: T.green, fontWeight: 600 }}>✓ Auto-populated from your calculator data</div>
-   <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>Income, debts, rate, term & loan type pulled in. You can override any field below.</div>
+  <div style={{ fontSize: 12, color: T.textTertiary, padding: "0 2px", marginBottom: 12, fontFamily: FONT }}>
+   Auto-filled from your calculator — income, debts, rate, term & loan type. Override any field below.
   </div>
  )}
  {(() => {
@@ -525,10 +526,10 @@ export default function QualifyContent(props) {
   }
   return (<>
    <Sec title="Your Maximum Purchase Price">
-    <Card style={{ background: `linear-gradient(135deg, ${T.green}15, ${T.blue}10)`, border: `1px solid ${T.green}30` }}>
+    <Card style={{ background: `linear-gradient(135deg, ${T.blue}10, ${T.accent}08)`, border: `1px solid ${T.blue}25` }}>
      <div style={{ textAlign: "center", padding: "10px 0" }}>
       <div style={{ fontSize: 11, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1 }}>You Can Afford Up To</div>
-      <div style={{ fontSize: 36, fontWeight: 800, color: T.green, fontFamily: FONT, margin: "6px 0" }}>{fmt(maxPrice)}</div>
+      <div style={{ fontSize: 36, fontWeight: 800, color: T.blue, fontFamily: FONT, margin: "6px 0" }}>{fmt(maxPrice)}</div>
       <div style={{ fontSize: 13, color: T.textSecondary }}>with {fmt(actualDP)} down ({dpPct.toFixed(1)}%) · {fmt(loanAmt)} loan</div>
       {hitsJumbo && (
        <div style={{ marginTop: 8, padding: "8px 14px", background: `${T.orange}12`, borderRadius: 10, display: "inline-block" }}>
@@ -582,7 +583,7 @@ export default function QualifyContent(props) {
          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{sc.label}</div>
          <div style={{ fontSize: 11, color: T.textTertiary }}>Max housing: {fmt(mhp)}/mo · Pmt: {fmt(qResult.total)}/mo{isQJumbo ? " · Jumbo" : ""}</div>
         </div>
-        <div style={{ fontSize: 17, fontWeight: 700, color: sc.dti <= 43 ? T.green : sc.dti <= 50 ? T.orange : T.red, fontFamily: FONT }}>{fmt(qPrice)}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(qPrice)}</div>
        </div>
       );
      })}
