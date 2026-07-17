@@ -2072,11 +2072,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Set status bar / theme-color meta tag to match theme
  useEffect(() => {
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', darkMode ? '#000000' : '#FFFFFF');
+  if (meta) meta.setAttribute('content', darkMode ? '#0a1120' : '#f4f9fc');
   else {
    const newMeta = document.createElement('meta');
    newMeta.name = 'theme-color';
-   newMeta.content = darkMode ? '#000000' : '#FFFFFF';
+   newMeta.content = darkMode ? '#0a1120' : '#f4f9fc';
    document.head.appendChild(newMeta);
   }
  }, [darkMode]);
