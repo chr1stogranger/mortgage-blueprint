@@ -64,7 +64,7 @@ export function generateEstimateHtml({
    .footer-brand{font-size:13px;font-weight:600;color:#1e3a5f}
    .footer-legal{font-size:10px;color:#94a3b8;line-height:1.5;margin-top:8px}
    .footer-nmls{font-size:10px;color:#94a3b8;margin-top:4px}
-   .estimate-banner{background:#fef3c7;border-bottom:1px solid #f59e0b;padding:8px 32px;text-align:center;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px}
+   .estimate-banner{background:#fef3c7;border-bottom:1px solid #d98a0b;padding:8px 32px;text-align:center;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px}
    @media print{body{background:#fff}.wrapper{box-shadow:none}}
    @media(max-width:500px){.header{padding:20px 18px}.body-content{padding:18px}.hero-bar{padding:18px}.header-top{flex-direction:column}.lo-contact{text-align:left;margin-top:10px}}
   </style></head><body><div class="wrapper">`;

@@ -13,8 +13,8 @@ import React, { useState } from 'react';
 
 // Color coding by user type
 const USER_COLORS = {
-  lo: '#6366F1',       // Indigo for LO
-  borrower: '#10B981', // Green for borrower
+  lo: '#3B6BF5',       // Indigo for LO
+  borrower: '#12a150', // Green for borrower
 };
 
 const FIELD_LABELS = {
@@ -44,10 +44,10 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
       alignItems: 'center',
       gap: 8,
       padding: '8px 16px',
-      background: 'rgba(99, 102, 241, 0.06)',
+      background: 'rgba(59,107,245, 0.06)',
       borderRadius: 10,
       marginBottom: 12,
-      border: '1px solid rgba(99, 102, 241, 0.12)',
+      border: '1px solid rgba(59,107,245, 0.12)',
     }}>
       {/* Live indicator */}
       <div style={{
@@ -59,8 +59,8 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
         <div style={{
           width: 6, height: 6,
           borderRadius: '50%',
-          background: '#10B981',
-          boxShadow: '0 0 8px rgba(16, 185, 129, 0.5)',
+          background: '#12a150',
+          boxShadow: '0 0 8px rgba(18,161,80, 0.5)',
           animation: 'pulse 2s infinite',
         }} />
         <span style={{
@@ -76,7 +76,7 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
       {/* User avatars */}
       <div style={{ display: 'flex', gap: 4 }}>
         {onlineUsers.map((user, i) => {
-          const color = USER_COLORS[user.user_type] || '#6366F1';
+          const color = USER_COLORS[user.user_type] || '#3B6BF5';
           const initial = (user.name || user.email || '?')[0].toUpperCase();
           const isEditing = fieldFocus[user.email];
 
@@ -127,7 +127,7 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
                   height: 10,
                   borderRadius: '50%',
                   background: color,
-                  border: '2px solid #0F0F0F',
+                  border: '2px solid #121c30',
                   animation: 'pulse 1.5s infinite',
                 }} />
               )}
@@ -141,7 +141,7 @@ export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
                   transform: 'translateX(-50%)',
                   marginTop: 6,
                   padding: '6px 10px',
-                  background: '#1A1A1A',
+                  background: '#162034',
                   border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: 8,
                   whiteSpace: 'nowrap',

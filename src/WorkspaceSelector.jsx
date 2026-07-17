@@ -13,37 +13,37 @@ import Icon from "./Icon";
 // Visual pane layout diagrams per mode
 const PANE_LAYOUTS = {
   [WORKSPACE_MODES.COMPARE_2]: [
-    { label: "A", color: "#3B82F6" },
-    { label: "B", color: "#10B981" },
+    { label: "A", color: "#3B6BF5" },
+    { label: "B", color: "#12a150" },
   ],
   [WORKSPACE_MODES.COMPARE_3]: [
-    { label: "A", color: "#3B82F6" },
-    { label: "B", color: "#10B981" },
-    { label: "C", color: "#8B5CF6" },
+    { label: "A", color: "#3B6BF5" },
+    { label: "B", color: "#12a150" },
+    { label: "C", color: "#8b7bf0" },
   ],
   [WORKSPACE_MODES.COMPARE_2_SUMMARY]: [
-    { label: "A", color: "#3B82F6" },
-    { label: "B", color: "#10B981" },
-    { label: "VS", color: "#6366F1" },
+    { label: "A", color: "#3B6BF5" },
+    { label: "B", color: "#12a150" },
+    { label: "VS", color: "#3B6BF5" },
   ],
   [WORKSPACE_MODES.BUY_SELL_REFI]: [
-    { label: "Buy", color: "#3B82F6" },
-    { label: "Sell", color: "#F59E0B" },
-    { label: "Refi", color: "#10B981" },
+    { label: "Buy", color: "#3B6BF5" },
+    { label: "Sell", color: "#d98a0b" },
+    { label: "Refi", color: "#12a150" },
   ],
   [WORKSPACE_MODES.SELL_BUY]: [
-    { label: "Sell", color: "#F59E0B" },
-    { label: "Buy", color: "#3B82F6" },
+    { label: "Sell", color: "#d98a0b" },
+    { label: "Buy", color: "#3B6BF5" },
   ],
   [WORKSPACE_MODES.REFI_RATE_TERM]: [
-    { label: "Now", color: "#EF4444" },
-    { label: "Refi", color: "#10B981" },
-    { label: "VS", color: "#6366F1" },
+    { label: "Now", color: "#e5484d" },
+    { label: "Refi", color: "#12a150" },
+    { label: "VS", color: "#3B6BF5" },
   ],
   [WORKSPACE_MODES.REFI_CASH_OUT]: [
-    { label: "Now", color: "#EF4444" },
-    { label: "Cash", color: "#F59E0B" },
-    { label: "VS", color: "#6366F1" },
+    { label: "Now", color: "#e5484d" },
+    { label: "Cash", color: "#d98a0b" },
+    { label: "VS", color: "#3B6BF5" },
   ],
 };
 

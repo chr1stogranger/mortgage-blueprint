@@ -273,7 +273,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                   key={role.id}
                   onClick={() => setOnboardingRole(role.id)}
                   style={{
-                    ...pillBtn(onboardingRole === role.id, role.insiderRisk ? '#F59E0B' : '#6366F1'),
+                    ...pillBtn(onboardingRole === role.id, role.insiderRisk ? '#d98a0b' : '#3B6BF5'),
                     fontSize: 13,
                     padding: '8px 16px',
                   }}
@@ -296,10 +296,10 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               Do you have access to non-public information about real estate transactions or property valuations?
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setOnboardingInsider(true)} style={pillBtn(onboardingInsider === true, '#F59E0B')}>
+              <button onClick={() => setOnboardingInsider(true)} style={pillBtn(onboardingInsider === true, '#d98a0b')}>
                 Yes
               </button>
-              <button onClick={() => setOnboardingInsider(false)} style={pillBtn(onboardingInsider === false, '#10B981')}>
+              <button onClick={() => setOnboardingInsider(false)} style={pillBtn(onboardingInsider === false, '#12a150')}>
                 No
               </button>
             </div>
@@ -323,7 +323,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               padding: '14px 24px',
               borderRadius: 9999,
               border: 'none',
-              background: (!onboardingRole || onboardingInsider === null) ? T.cardBorder : 'linear-gradient(135deg, #6366F1, #3B82F6)',
+              background: (!onboardingRole || onboardingInsider === null) ? T.cardBorder : 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
               color: '#fff',
               fontSize: 15,
               fontWeight: 700,
@@ -353,7 +353,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
       }}>
         <div style={{ ...card, maxWidth: 420, margin: 0, boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            <Icon name="alert-triangle" size={28} style={{ color: '#F59E0B' }} />
+            <Icon name="alert-triangle" size={28} style={{ color: '#d98a0b' }} />
             <h3 style={{ fontSize: 18, fontWeight: 700, color: T.text, margin: '10px 0 4px' }}>
               Compliance Check
             </h3>
@@ -366,7 +366,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               onClick={() => handleBuyConfirm(true)}
               style={{
                 flex: 1, padding: '12px', borderRadius: 12, border: `1px solid ${T.cardBorder}`,
-                background: 'transparent', color: '#EF4444', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                background: 'transparent', color: '#e5484d', fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >
               Yes — I have insider info
@@ -375,7 +375,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               onClick={() => handleBuyConfirm(false)}
               style={{
                 flex: 1, padding: '12px', borderRadius: 9999, border: 'none',
-                background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+                background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', color: '#fff',
                 fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >
@@ -455,10 +455,10 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               <div style={{
                 padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600,
                 fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px',
-                background: market.status === MARKET_STATUS.OPEN ? '#10B98118' :
-                            market.status === MARKET_STATUS.PENDING ? '#F59E0B18' : '#EF444418',
-                color: market.status === MARKET_STATUS.OPEN ? '#10B981' :
-                       market.status === MARKET_STATUS.PENDING ? '#F59E0B' : '#EF4444',
+                background: market.status === MARKET_STATUS.OPEN ? '#12a15018' :
+                            market.status === MARKET_STATUS.PENDING ? '#d98a0b18' : '#e5484d18',
+                color: market.status === MARKET_STATUS.OPEN ? '#12a150' :
+                       market.status === MARKET_STATUS.PENDING ? '#d98a0b' : '#e5484d',
               }}>
                 {market.status}
               </div>
@@ -477,7 +477,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               {market.buckets.map((bucket) => (
                 <div key={bucket.id} style={{
                   flex: bucket.odds, height: 6, borderRadius: 3,
-                  background: bucket.id === 0 ? '#6366F1' : bucket.id === 1 ? '#3B82F6' : bucket.id === 2 ? '#06B6D4' : '#10B981',
+                  background: bucket.id === 0 ? '#3B6BF5' : bucket.id === 1 ? '#3B6BF5' : bucket.id === 2 ? '#38c6c6' : '#12a150',
                   opacity: 0.7, minWidth: 4,
                   transition: 'flex 0.3s ease',
                 }} />
@@ -492,7 +492,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               {hasPosition && (
                 <div style={{
                   fontSize: 10, fontWeight: 700, fontFamily: FONT, textTransform: 'uppercase',
-                  letterSpacing: '1.5px', color: '#6366F1',
+                  letterSpacing: '1.5px', color: '#3B6BF5',
                 }}>
                   Active Position
                 </div>
@@ -519,7 +519,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
         display: 'flex', alignItems: isDesktop ? 'center' : 'flex-end', justifyContent: 'center',
       }}>
         <div style={{
-          background: T.bg || '#050505', borderRadius: isDesktop ? 20 : '20px 20px 0 0',
+          background: T.bg || '#0a1120', borderRadius: isDesktop ? 20 : '20px 20px 0 0',
           width: isDesktop ? 520 : '100%', maxHeight: '90vh', overflow: 'auto',
           border: `1px solid ${T.cardBorder}`,
         }}>
@@ -557,7 +557,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
             {/* Odds Visualization — horizontal bar chart */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 16, height: 8, borderRadius: 4, overflow: 'hidden' }}>
               {activeMarket.buckets.map((bucket) => {
-                const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+                const bucketColors = ['#3B6BF5', '#3B6BF5', '#38c6c6', '#12a150'];
                 return (
                   <div key={bucket.id} style={{
                     flex: bucket.odds, background: bucketColors[bucket.id],
@@ -570,7 +570,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
 
             {activeMarket.buckets.map((bucket) => {
               const isSelected = selectedBucket === bucket.id;
-              const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+              const bucketColors = ['#3B6BF5', '#3B6BF5', '#38c6c6', '#12a150'];
               const color = bucketColors[bucket.id];
               const position = positions.find((p) => p.bucketId === bucket.id);
               // Share price = odds. If you buy at 0.25 odds and win, payout is $1/share
@@ -629,7 +629,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                       display: 'flex', justifyContent: 'space-between',
                     }}>
                       <span>{position.shares.toFixed(1)} shares @ ${position.avgCost?.toFixed(2) || '0.25'}</span>
-                      <span style={{ color: position.pnl >= 0 ? '#10B981' : '#EF4444', fontWeight: 600, fontFamily: FONT }}>
+                      <span style={{ color: position.pnl >= 0 ? '#12a150' : '#e5484d', fontWeight: 600, fontFamily: FONT }}>
                         {position.pnl >= 0 ? '+' : ''}{fmt(position.pnl)}
                       </span>
                     </div>
@@ -642,9 +642,9 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
             {selectedBucket !== null && (
               <div style={{ marginTop: 12 }}>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <button onClick={() => setSellMode(false)} style={pillBtn(!sellMode, '#6366F1')}>Buy</button>
+                  <button onClick={() => setSellMode(false)} style={pillBtn(!sellMode, '#3B6BF5')}>Buy</button>
                   {positions.find((p) => p.bucketId === selectedBucket) && (
-                    <button onClick={() => setSellMode(true)} style={pillBtn(sellMode, '#EF4444')}>Sell</button>
+                    <button onClick={() => setSellMode(true)} style={pillBtn(sellMode, '#e5484d')}>Sell</button>
                   )}
                 </div>
 
@@ -684,7 +684,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                         }}>
                           <div>
                             <div style={{ color: T.textTertiary, ...monoStyle, fontSize: 10, textTransform: 'uppercase', letterSpacing: '1px' }}>If you win</div>
-                            <div style={{ color: '#10B981', fontWeight: 700, fontFamily: FONT, fontSize: 16, marginTop: 2 }}>
+                            <div style={{ color: '#12a150', fontWeight: 700, fontFamily: FONT, fontSize: 16, marginTop: 2 }}>
                               +{fmt(estProfit)} profit
                             </div>
                           </div>
@@ -711,11 +711,11 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                         width: '100%', padding: '14px', borderRadius: 9999, border: 'none',
                         marginTop: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
                         background: Number(tradeAmount) >= MIN_BET
-                          ? 'linear-gradient(135deg, #6366F1, #3B82F6)'
+                          ? 'linear-gradient(135deg, #3B6BF5, #2B4FCE)'
                           : T.cardBorder,
                         color: '#fff',
                         opacity: Number(tradeAmount) >= MIN_BET ? 1 : 0.5,
-                        boxShadow: Number(tradeAmount) >= MIN_BET ? '0 0 20px rgba(99,102,241,0.3)' : 'none',
+                        boxShadow: Number(tradeAmount) >= MIN_BET ? '0 0 20px rgba(59,107,245,0.3)' : 'none',
                         transition: 'all 0.2s',
                       }}
                     >
@@ -746,7 +746,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                             style={{
                               width: '100%', padding: '14px', borderRadius: 9999, border: 'none',
                               marginTop: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                              background: '#EF4444', color: '#fff',
+                              background: '#e5484d', color: '#fff',
                             }}
                           >
                             Sell Shares
@@ -761,12 +761,12 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
 
             {/* Trade feedback */}
             {tradeError && (
-              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#EF444418', color: '#EF4444', fontSize: 13, fontWeight: 500 }}>
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#e5484d18', color: '#e5484d', fontSize: 13, fontWeight: 500 }}>
                 {tradeError}
               </div>
             )}
             {tradeSuccess && (
-              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#10B98118', color: '#10B981', fontSize: 13, fontWeight: 500 }}>
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#12a15018', color: '#12a150', fontSize: 13, fontWeight: 500 }}>
                 {tradeSuccess}
               </div>
             )}
@@ -825,7 +825,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
             />
             <button onClick={handleLoadComps} style={{
               padding: '10px 20px', borderRadius: 9999, border: 'none',
-              background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+              background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', color: '#fff',
               fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}>
               Load
@@ -845,9 +845,9 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
         {/* Stats bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {[
-            { label: 'Streak', value: practiceStats.currentStreak, color: practiceStats.currentStreak > 0 ? '#F59E0B' : T.text },
-            { label: 'Accuracy', value: `${practiceStats.accuracy}%`, color: practiceStats.accuracy >= 50 ? '#10B981' : T.text },
-            { label: 'Earned', value: fmt(practiceStats.practiceEarnings), color: '#6366F1' },
+            { label: 'Streak', value: practiceStats.currentStreak, color: practiceStats.currentStreak > 0 ? '#d98a0b' : T.text },
+            { label: 'Accuracy', value: `${practiceStats.accuracy}%`, color: practiceStats.accuracy >= 50 ? '#12a150' : T.text },
+            { label: 'Earned', value: fmt(practiceStats.practiceEarnings), color: '#3B6BF5' },
             { label: 'Remaining', value: practiceStats.compsRemaining, color: T.text },
           ].map((stat) => (
             <div key={stat.label} style={{
@@ -922,7 +922,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 {showResult ? 'Result' : 'What did this sell for?'}
               </div>
               {currentComp.buckets.map((bucket) => {
-                const bucketColors = ['#6366F1', '#3B82F6', '#06B6D4', '#10B981'];
+                const bucketColors = ['#3B6BF5', '#3B6BF5', '#38c6c6', '#12a150'];
                 const color = bucketColors[bucket.id];
                 const isWinner = showResult && lastPrediction.actualBucket === bucket.id;
                 const wasPick = showResult && lastPrediction.selectedBucket === bucket.id;
@@ -936,8 +936,8 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                     style={{
                       display: 'block', width: '100%', padding: '14px 16px', marginBottom: 8,
                       borderRadius: 12, textAlign: 'left', cursor: showResult ? 'default' : 'pointer',
-                      border: isWinner ? `2px solid ${color}` : wasPick && !isWinner ? '2px solid #EF4444' : `1px solid ${T.cardBorder}`,
-                      background: isWinner ? `${color}12` : wasPick && !isWinner ? '#EF444412' : T.card,
+                      border: isWinner ? `2px solid ${color}` : wasPick && !isWinner ? '2px solid #e5484d' : `1px solid ${T.cardBorder}`,
+                      background: isWinner ? `${color}12` : wasPick && !isWinner ? '#e5484d12' : T.card,
                       transition: 'all 0.3s ease',
                       transform: showResult && revealAnim && isWinner ? 'scale(1.02)' : 'scale(1)',
                     }}
@@ -949,7 +949,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                           {correctPick ? 'Correct' : ''} {fmtK(currentComp.soldPrice)}
                         </span>
                       )}
-                      {wasPick && !isWinner && <span style={{ fontSize: 12, fontWeight: 700, color: '#EF4444' }}>Your pick</span>}
+                      {wasPick && !isWinner && <span style={{ fontSize: 12, fontWeight: 700, color: '#e5484d' }}>Your pick</span>}
                     </div>
                   </button>
                 );
@@ -960,22 +960,22 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 <>
                   <div style={{
                     marginTop: 12, padding: '16px', borderRadius: 12, textAlign: 'center',
-                    background: lastPrediction.correct ? '#10B98118' : lastPrediction.close ? '#F59E0B18' : '#EF444418',
+                    background: lastPrediction.correct ? '#12a15018' : lastPrediction.close ? '#d98a0b18' : '#e5484d18',
                     transition: 'all 0.3s ease',
                     transform: revealAnim ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.95)',
                     opacity: revealAnim ? 1 : 0,
                   }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: lastPrediction.correct ? '#10B981' : lastPrediction.close ? '#F59E0B' : '#EF4444' }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: lastPrediction.correct ? '#12a150' : lastPrediction.close ? '#d98a0b' : '#e5484d' }}>
                       {lastPrediction.correct ? 'Nailed It!' : lastPrediction.close ? 'Close!' : 'Not Quite'}
                     </div>
                     <div style={{ fontSize: 14, color: T.textSecondary, marginTop: 4 }}>
                       Sold for <span style={{ fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmtK(lastPrediction.soldPrice)}</span>
                       {lastPrediction.reward > 0 && (
-                        <span style={{ fontWeight: 700, color: '#10B981' }}> — +{fmt(lastPrediction.reward)} earned</span>
+                        <span style={{ fontWeight: 700, color: '#12a150' }}> — +{fmt(lastPrediction.reward)} earned</span>
                       )}
                     </div>
                     {lastPrediction.correct && practiceStats.currentStreak > 1 && (
-                      <div style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600, marginTop: 6, fontFamily: FONT }}>
+                      <div style={{ fontSize: 12, color: '#d98a0b', fontWeight: 600, marginTop: 6, fontFamily: FONT }}>
                         {practiceStats.currentStreak} streak!
                       </div>
                     )}
@@ -995,8 +995,8 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                       style={{
                         width: '100%', padding: '14px', borderRadius: 9999, border: 'none',
                         marginTop: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                        background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
-                        boxShadow: '0 0 20px rgba(99,102,241,0.3)',
+                        background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', color: '#fff',
+                        boxShadow: '0 0 20px rgba(59,107,245,0.3)',
                         transition: 'all 0.2s',
                       }}
                     >
@@ -1055,7 +1055,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
             <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '1px' }}>P&L</div>
             <div style={{
               fontSize: 16, fontWeight: 700, fontFamily: FONT,
-              color: portfolio.totalUnrealizedPnL >= 0 ? '#10B981' : '#EF4444',
+              color: portfolio.totalUnrealizedPnL >= 0 ? '#12a150' : '#e5484d',
             }}>
               {portfolio.totalUnrealizedPnL >= 0 ? '+' : ''}{fmt(portfolio.totalUnrealizedPnL)}
             </div>
@@ -1084,8 +1084,8 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
               </div>
               <div style={{
                 padding: '3px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT,
-                background: pos.marketStatus === MARKET_STATUS.OPEN ? '#10B98118' : '#F59E0B18',
-                color: pos.marketStatus === MARKET_STATUS.OPEN ? '#10B981' : '#F59E0B',
+                background: pos.marketStatus === MARKET_STATUS.OPEN ? '#12a15018' : '#d98a0b18',
+                color: pos.marketStatus === MARKET_STATUS.OPEN ? '#12a150' : '#d98a0b',
                 textTransform: 'uppercase', letterSpacing: '1px',
               }}>
                 {pos.marketStatus}
@@ -1108,7 +1108,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 <div style={{ fontSize: 11, color: T.textTertiary }}>P&L</div>
                 <div style={{
                   fontSize: 14, fontWeight: 700, fontFamily: FONT,
-                  color: pos.pnl >= 0 ? '#10B981' : '#EF4444',
+                  color: pos.pnl >= 0 ? '#12a150' : '#e5484d',
                 }}>
                   {pos.pnl >= 0 ? '+' : ''}{fmt(pos.pnl)}
                 </div>
@@ -1133,7 +1133,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 </div>
                 <div style={{
                   fontSize: 15, fontWeight: 700, fontFamily: FONT,
-                  color: pos.won ? '#10B981' : '#EF4444',
+                  color: pos.won ? '#12a150' : '#e5484d',
                 }}>
                   {pos.won ? '+' : ''}{fmt(pos.pnl)}
                 </div>
@@ -1158,7 +1158,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
           <div style={{ padding: "8px 16px 16px", borderBottom: `1px solid ${T.cardBorder}` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
               <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
-                <defs><linearGradient id="mk-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+                <defs><linearGradient id="mk-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#3B6BF5"/></linearGradient></defs>
                 <rect width="100" height="100" fill="url(#mk-bg)"/>
                 <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
                 <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
@@ -1177,7 +1177,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
               </svg>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></div>
+                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#3B6BF5" }}>Stack</span></div>
               </div>
             </div>
             {/* Mode Toggle */}
@@ -1186,8 +1186,8 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 <button key={k} onClick={() => setAppMode(k)} style={{
                   display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8,
                   border: "none", fontSize: 13, fontWeight: k === appMode ? 700 : 500, fontFamily: FONT,
-                  background: k === appMode ? (k === "pricepoint" ? "rgba(56,189,126,0.12)" : k === "markets" ? "rgba(99,102,241,0.12)" : `${T.blue}15`) : "transparent",
-                  color: k === appMode ? (k === "pricepoint" ? "#38bd7e" : k === "markets" ? "#6366F1" : T.blue) : T.textTertiary,
+                  background: k === appMode ? (k === "pricepoint" ? "rgba(56,189,126,0.12)" : k === "markets" ? "rgba(59,107,245,0.12)" : `${T.blue}15`) : "transparent",
+                  color: k === appMode ? (k === "pricepoint" ? "#38bd7e" : k === "markets" ? "#3B6BF5" : T.blue) : T.textTertiary,
                   cursor: "pointer", transition: "all 0.2s", textAlign: "left",
                 }}><Icon name={ico} size={16} /> {l}</button>
               ))}
@@ -1242,7 +1242,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 <div style={{
                   position: 'absolute', top: -2, right: -2,
                   width: 18, height: 18, borderRadius: 9,
-                  background: '#EF4444', color: '#fff',
+                  background: '#e5484d', color: '#fff',
                   fontSize: 10, fontWeight: 700, fontFamily: FONT,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -1265,7 +1265,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Notifications</div>
                   {unreadCount > 0 && (
-                    <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, color: '#6366F1' }}>
+                    <div style={{ fontSize: 11, fontFamily: FONT, fontWeight: 600, color: '#3B6BF5' }}>
                       {unreadCount} new
                     </div>
                   )}
@@ -1294,12 +1294,12 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                         <div style={{
                           width: 28, height: 28, borderRadius: 14, flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: notif.type === 'market_won' ? '#10B98118' : notif.type === 'market_lost' ? '#EF444418' : `${T.blue}12`,
+                          background: notif.type === 'market_won' ? '#12a15018' : notif.type === 'market_lost' ? '#e5484d18' : `${T.blue}12`,
                         }}>
                           <Icon
                             name={notif.type === 'market_won' ? 'trending-up' : notif.type === 'market_lost' ? 'trending-down' : 'info'}
                             size={14}
-                            style={{ color: notif.type === 'market_won' ? '#10B981' : notif.type === 'market_lost' ? '#EF4444' : T.blue }}
+                            style={{ color: notif.type === 'market_won' ? '#12a150' : notif.type === 'market_lost' ? '#e5484d' : T.blue }}
                           />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1311,7 +1311,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                           </div>
                         </div>
                         {!notif.read && (
-                          <div style={{ width: 8, height: 8, borderRadius: 4, background: '#6366F1', flexShrink: 0, marginTop: 6 }} />
+                          <div style={{ width: 8, height: 8, borderRadius: 4, background: '#3B6BF5', flexShrink: 0, marginTop: 6 }} />
                         )}
                       </div>
                     </div>
@@ -1373,9 +1373,9 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 onClick={handleSearch}
                 style={{
                   padding: '10px 20px', borderRadius: 9999, border: 'none',
-                  background: 'linear-gradient(135deg, #6366F1, #3B82F6)', color: '#fff',
+                  background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', color: '#fff',
                   fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  boxShadow: '0 0 16px rgba(99,102,241,0.25)',
+                  boxShadow: '0 0 16px rgba(59,107,245,0.25)',
                 }}
               >
                 Search
@@ -1435,11 +1435,11 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
           {/* Error */}
           {ui.error && (
             <div style={{
-              ...card, background: '#EF444412', border: '1px solid #EF444430',
-              color: '#EF4444', fontSize: 13, textAlign: 'center',
+              ...card, background: '#e5484d12', border: '1px solid #e5484d30',
+              color: '#e5484d', fontSize: 13, textAlign: 'center',
             }}>
               {ui.error}
-              <button onClick={() => dispatch(clearError())} style={{ marginLeft: 10, border: 'none', background: 'transparent', color: '#EF4444', textDecoration: 'underline', cursor: 'pointer' }}>
+              <button onClick={() => dispatch(clearError())} style={{ marginLeft: 10, border: 'none', background: 'transparent', color: '#e5484d', textDecoration: 'underline', cursor: 'pointer' }}>
                 Dismiss
               </button>
             </div>

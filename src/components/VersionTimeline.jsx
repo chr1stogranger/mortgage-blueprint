@@ -13,7 +13,7 @@ import { FONT } from "../lib/fonts.js";
 import React, { useState, useMemo } from 'react';
 
 
-const USER_COLORS = { lo: '#6366F1', borrower: '#10B981' };
+const USER_COLORS = { lo: '#3B6BF5', borrower: '#12a150' };
 
 const FIELD_LABELS = {
   salesPrice: 'Purchase Price', purchasePrice: 'Purchase Price',
@@ -82,7 +82,7 @@ export default function VersionTimeline({
   if (history.length === 0) {
     return (
       <div style={{
-        background: '#0F0F0F',
+        background: '#121c30',
         border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: 12,
         padding: 20,
@@ -97,7 +97,7 @@ export default function VersionTimeline({
 
   return (
     <div style={{
-      background: '#0F0F0F',
+      background: '#121c30',
       border: '1px solid rgba(255,255,255,0.06)',
       borderRadius: 12,
       padding: 16,
@@ -144,10 +144,10 @@ export default function VersionTimeline({
               onClick={() => setShowBookmarkInput(!showBookmarkInput)}
               style={{
                 padding: '4px 10px',
-                background: 'rgba(99, 102, 241, 0.08)',
-                border: '1px solid rgba(99, 102, 241, 0.2)',
+                background: 'rgba(59,107,245, 0.08)',
+                border: '1px solid rgba(59,107,245, 0.2)',
                 borderRadius: 6,
-                color: '#6366F1',
+                color: '#3B6BF5',
                 fontSize: 11,
                 cursor: 'pointer',
                 fontFamily: FONT,
@@ -163,8 +163,8 @@ export default function VersionTimeline({
       {showBookmarkInput && (
         <div style={{
           display: 'flex', gap: 6, marginBottom: 12,
-          padding: 10, background: 'rgba(99, 102, 241, 0.04)',
-          borderRadius: 8, border: '1px solid rgba(99, 102, 241, 0.1)',
+          padding: 10, background: 'rgba(59,107,245, 0.04)',
+          borderRadius: 8, border: '1px solid rgba(59,107,245, 0.1)',
         }}>
           <input
             value={bookmarkLabel}
@@ -172,7 +172,7 @@ export default function VersionTimeline({
             placeholder="Version name (e.g. Pre-Approval Locked)"
             style={{
               flex: 1, padding: '6px 10px',
-              background: '#1A1A1A', border: '1px solid rgba(255,255,255,0.08)',
+              background: '#162034', border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: 6, color: '#EDEDED', fontSize: 12,
               fontFamily: FONT, outline: 'none',
             }}
@@ -187,7 +187,7 @@ export default function VersionTimeline({
             }}
             style={{
               padding: '6px 12px',
-              background: '#6366F1', border: 'none',
+              background: '#3B6BF5', border: 'none',
               borderRadius: 6, color: '#fff', fontSize: 12,
               fontWeight: 600, cursor: 'pointer', fontFamily: FONT,
             }}
@@ -223,7 +223,7 @@ export default function VersionTimeline({
                   cursor: 'pointer',
                   background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent',
                   transition: 'background 0.15s',
-                  borderLeft: isBookmark ? '3px solid #6366F1' : '3px solid transparent',
+                  borderLeft: isBookmark ? '3px solid #3B6BF5' : '3px solid transparent',
                   marginLeft: -3,
                 }}
               >
@@ -231,7 +231,7 @@ export default function VersionTimeline({
                 <div style={{
                   width: 8, height: 8,
                   borderRadius: '50%',
-                  background: isBookmark ? '#6366F1' : color,
+                  background: isBookmark ? '#3B6BF5' : color,
                   marginTop: 4,
                   flexShrink: 0,
                 }} />
@@ -241,7 +241,7 @@ export default function VersionTimeline({
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: 12, color: '#EDEDED', fontFamily: FONT }}>
                       {isBookmark && change.version_label ? (
-                        <span style={{ color: '#6366F1', fontWeight: 600 }}>
+                        <span style={{ color: '#3B6BF5', fontWeight: 600 }}>
                           {change.version_label}
                         </span>
                       ) : (
@@ -279,11 +279,11 @@ export default function VersionTimeline({
                           <span style={{ color: '#666666', minWidth: 80, fontFamily: FONT }}>
                             {FIELD_LABELS[field] || field}
                           </span>
-                          <span style={{ color: '#EF4444', fontFamily: FONT, textDecoration: 'line-through', opacity: 0.6 }}>
+                          <span style={{ color: '#e5484d', fontFamily: FONT, textDecoration: 'line-through', opacity: 0.6 }}>
                             {formatValue(diff.old)}
                           </span>
                           <span style={{ color: '#666666' }}>&#8594;</span>
-                          <span style={{ color: '#10B981', fontFamily: FONT, fontWeight: 600 }}>
+                          <span style={{ color: '#12a150', fontFamily: FONT, fontWeight: 600 }}>
                             {formatValue(diff.new)}
                           </span>
                         </div>
@@ -298,9 +298,9 @@ export default function VersionTimeline({
                           }}
                           style={{
                             marginTop: 8, padding: '4px 10px',
-                            background: 'rgba(245, 158, 11, 0.08)',
-                            border: '1px solid rgba(245, 158, 11, 0.2)',
-                            borderRadius: 5, color: '#F59E0B',
+                            background: 'rgba(217,138,11, 0.08)',
+                            border: '1px solid rgba(217,138,11, 0.2)',
+                            borderRadius: 5, color: '#d98a0b',
                             fontSize: 10, fontWeight: 600,
                             cursor: 'pointer', fontFamily: FONT,
                           }}
@@ -322,7 +322,7 @@ export default function VersionTimeline({
           style={{
             width: '100%', padding: 8,
             background: 'none', border: 'none',
-            color: '#6366F1', fontSize: 12,
+            color: '#3B6BF5', fontSize: 12,
             cursor: 'pointer', fontFamily: FONT,
           }}
         >Show all {history.length} changes</button>

@@ -19,7 +19,7 @@ export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, 
   const textColor = T?.text || (darkMode ? '#EDEDED' : '#171717');
   const secondary = T?.textSecondary || (darkMode ? '#A1A1A1' : '#525252');
   const tertiary = T?.textTertiary || (darkMode ? '#666666' : '#737373');
-  const accent = '#6366F1';
+  const accent = '#3B6BF5';
 
   const toggle = (name) => {
     setChecked(prev => {
@@ -49,7 +49,7 @@ export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, 
       padding: 20, fontFamily: FONT,
     }}>
       <div style={{
-        background: T?.card || (darkMode ? '#0F0F0F' : '#FFFFFF'),
+        background: T?.card || (darkMode ? '#121c30' : '#FFFFFF'),
         border: `1px solid ${T?.separator || 'rgba(255,255,255,0.06)'}`,
         borderRadius: 16, padding: 24, width: '100%', maxWidth: 420,
         maxHeight: '80vh', overflowY: 'auto',
@@ -68,8 +68,8 @@ export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, 
               style={{
                 display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
                 padding: '12px 14px', borderRadius: 12,
-                background: darkMode ? '#141414' : '#F5F5F5',
-                border: `1px solid ${checked.has(name) ? 'rgba(99,102,241,0.4)' : 'transparent'}`,
+                background: darkMode ? '#1a2740' : '#F5F5F5',
+                border: `1px solid ${checked.has(name) ? 'rgba(59,107,245,0.4)' : 'transparent'}`,
                 transition: 'border-color 0.15s',
               }}
             >
@@ -94,10 +94,10 @@ export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, 
           disabled={busy || checked.size === 0}
           style={{
             width: '100%', padding: '13px 20px', borderRadius: 9999, border: 'none',
-            background: checked.size > 0 && !busy ? 'linear-gradient(135deg, #6366F1, #3B82F6)' : 'rgba(99,102,241,0.2)',
+            background: checked.size > 0 && !busy ? 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' : 'rgba(59,107,245,0.2)',
             color: '#fff', fontSize: 14, fontWeight: 600, cursor: checked.size > 0 && !busy ? 'pointer' : 'default',
             fontFamily: FONT, marginBottom: 10,
-            boxShadow: checked.size > 0 && !busy ? '0 0 20px rgba(99,102,241,0.3)' : 'none',
+            boxShadow: checked.size > 0 && !busy ? '0 0 20px rgba(59,107,245,0.3)' : 'none',
           }}
         >
           {busy ? 'Uploading…' : `Upload ${checked.size} blueprint${checked.size === 1 ? '' : 's'}`}
@@ -118,8 +118,8 @@ export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, 
         {error && (
           <div style={{
             marginTop: 12, padding: '10px 14px', borderRadius: 10,
-            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-            color: '#EF4444', fontSize: 13, textAlign: 'center',
+            background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.2)',
+            color: '#e5484d', fontSize: 13, textAlign: 'center',
           }}>
             {error}
           </div>

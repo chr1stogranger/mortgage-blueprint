@@ -54,7 +54,7 @@ class ErrorBoundary extends Component {
           justifyContent: 'center',
           alignItems: 'center',
           height: '100vh',
-          backgroundColor: '#050505',
+          backgroundColor: '#0a1120',
           color: '#EDEDED',
           fontFamily: 'Inter, sans-serif',
           padding: '24px'
@@ -67,7 +67,7 @@ class ErrorBoundary extends Component {
             onClick={() => window.location.reload()}
             style={{
               padding: '12px 24px',
-              backgroundColor: '#6366F1',
+              backgroundColor: '#3B6BF5',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '9999px',

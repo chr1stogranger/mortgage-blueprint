@@ -56,13 +56,13 @@ const usd2 = (v) =>
     ? "$0.00"
     : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
-const INDIGO = "#6366F1";
+const INDIGO = "#3B6BF5";
 const INK = "#171717";
 const SUB = "#525252";
 const MUTED = "#737373";
 const HAIR = "#E8E8E8";
-const GREEN = "#10B981";
-const TINT = "#EEF0FE"; // indigo @ ~8% on white
+const GREEN = "#12a150";
+const TINT = "#EFF3FE"; // indigo @ ~8% on white
 
 const s = StyleSheet.create({
   page: { paddingTop: 18, paddingBottom: 14, paddingHorizontal: 34, fontFamily: "Inter", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },

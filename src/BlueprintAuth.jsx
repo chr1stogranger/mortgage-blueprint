@@ -87,15 +87,15 @@ const styles = {
   // GitHub-dark #161b22, which looked like a black blob in light mode).
   userPill: {
     display: "inline-flex", alignItems: "center", gap: "6px",
-    padding: "3px 8px", background: "rgba(59,130,246,0.10)",
-    border: "1px solid rgba(59,130,246,0.35)",
-    borderRadius: "9999px", fontSize: "11px", fontWeight: 600, color: "#3B82F6",
+    padding: "3px 8px", background: "rgba(59,107,245,0.10)",
+    border: "1px solid rgba(59,107,245,0.35)",
+    borderRadius: "9999px", fontSize: "11px", fontWeight: 600, color: "#3B6BF5",
     fontFamily: "'Inter', system-ui, sans-serif", whiteSpace: "nowrap",
   },
-  avatar: { width: "18px", height: "18px", borderRadius: "50%", border: "1px solid rgba(59,130,246,0.35)" },
+  avatar: { width: "18px", height: "18px", borderRadius: "50%", border: "1px solid rgba(59,107,245,0.35)" },
   signOutBtn: {
-    fontSize: "10px", color: "#3B82F6", background: "none",
-    border: "1px solid rgba(59,130,246,0.35)", borderRadius: "9999px", padding: "2px 8px",
+    fontSize: "10px", color: "#3B6BF5", background: "none",
+    border: "1px solid rgba(59,107,245,0.35)", borderRadius: "9999px", padding: "2px 8px",
     cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif", marginLeft: "2px",
   },
 };
@@ -271,7 +271,7 @@ export default function BlueprintAuth({ children }) {
   const loginModal = showLogin && !user && !localMode ? (
     <div style={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
       <div style={styles.card}>
-        <div style={styles.logo}><span>Real</span><span style={{ color: "#6366F1" }}>Stack</span> Blueprint</div>
+        <div style={styles.logo}><span>Real</span><span style={{ color: "#3B6BF5" }}>Stack</span> Blueprint</div>
         <div style={styles.subtitle}>Sign in to sync scenarios across devices</div>
         <button style={styles.googleBtn} onClick={handleGoogleClick}>
           <GoogleIcon /> Sign in with Google
@@ -286,7 +286,7 @@ export default function BlueprintAuth({ children }) {
 
   // ─── User pill (shown when signed in) ────────────────────────────────────
   const _pillDark = (() => { try { return localStorage.getItem('bp_theme_mode') === 'dark'; } catch { return false; } })();
-  const _menuBg = _pillDark ? "#1A1A1A" : "#FFFFFF";
+  const _menuBg = _pillDark ? "#162034" : "#FFFFFF";
   const _menuBorder = _pillDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)";
   const _menuText = _pillDark ? "#EDEDED" : "#171717";
   const _menuMuted = _pillDark ? "#8A8F98" : "#737373";

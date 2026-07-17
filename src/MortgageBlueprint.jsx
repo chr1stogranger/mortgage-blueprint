@@ -1,4 +1,5 @@
 import { FONT } from "./lib/fonts.js";
+import AppBackground from "./components/AppBackground.jsx";
 import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
 // THE FINANCIAL ENGINE — all money formulas live in lib/finance.js (audit M-1).
@@ -725,7 +726,7 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
       try { await onCreate({ name: name.trim(), email: email.trim(), addToCrm }); onClose(); }
       catch (e) { setErr(e.message || "Could not create client"); setBusy(false); }
      }}
-     style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: canCreate ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.pillBg, color: canCreate ? "#fff" : T.textTertiary, fontWeight: 700, fontSize: 15, cursor: canCreate ? "pointer" : "default", fontFamily: FONT, boxShadow: canCreate ? "0 0 20px rgba(99,102,241,0.3)" : "none" }}>
+     style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: canCreate ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : T.pillBg, color: canCreate ? "#fff" : T.textTertiary, fontWeight: 700, fontSize: 15, cursor: canCreate ? "pointer" : "default", fontFamily: FONT, boxShadow: canCreate ? "0 0 20px rgba(59,107,245,0.3)" : "none" }}>
      {busy ? "Creating…" : "Create Client"}
     </button>
    </div>
@@ -1144,6 +1145,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [darkMode, setDarkMode] = useState(() => {
   try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark') return true; } catch {}
   return false;
+ });
+ // Grange ribbon canvas — freeze control (Settings → Appearance). Persisted.
+ const [bgPaused, setBgPaused] = useState(() => {
+  try { return localStorage.getItem('bp_bg_paused') === '1'; } catch { return false; }
  });
  useEffect(() => {
   setDarkMode(themeMode === 'dark');
@@ -3423,10 +3428,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      onClick={() => { setTab(targetTab); window.scrollTo({ top: 0, behavior: "smooth" }); }}
      style={{
       width: "100%", padding: "16px 24px",
-      background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+      background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
       border: "none", borderRadius: 9999, color: "#fff",
       fontSize: 16, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-      boxShadow: "0 0 20px rgba(99,102,241,0.3)",
+      boxShadow: "0 0 20px rgba(59,107,245,0.3)",
       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
       transition: "transform 0.15s ease, box-shadow 0.15s ease",
       letterSpacing: "-0.01em",
@@ -4840,7 +4845,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
   <WorkspaceProvider>
-  <div style={{ minHeight: "100vh", background: T.bg, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
+  <AppBackground darkMode={darkMode} paused={bgPaused} />
+  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
     input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
@@ -4863,7 +4869,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     @keyframes sheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     @keyframes sheetSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
     .build-active { animation: buildGlow 2.5s ease-in-out infinite; border-radius: 20px; }
-    .pulse-next { box-shadow: 0 0 0 2px rgba(99,102,241,0.5), 0 0 8px rgba(99,102,241,0.15); border-radius: 14px; padding: 4px 5px; transition: box-shadow 0.3s ease; }
+    .pulse-next { box-shadow: 0 0 0 2px rgba(59,107,245,0.5), 0 0 8px rgba(59,107,245,0.15); border-radius: 14px; padding: 4px 5px; transition: box-shadow 0.3s ease; }
     .field-updated { animation: highlightPulse 1.5s ease-out; border-radius: 8px; }
     input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; margin-top: -7px; }
     input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer; border: none; }
@@ -4960,7 +4966,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
          <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden",flexShrink:0}}>
-          <defs><linearGradient id="bp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+          <defs><linearGradient id="bp-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#3B6BF5"/></linearGradient></defs>
           <rect width="100" height="100" fill="url(#bp-bg)"/>
           <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
           <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
@@ -4979,7 +4985,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <polygon points="50,85 92,80 92,83 50,88" fill="rgba(255,255,255,0.10)"/>
          </svg>
          <div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#6366F1" }}>Stack</span></div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1 }}><span style={{ color: T.text }}>Real</span><span style={{ color: "#3B6BF5" }}>Stack</span></div>
          </div>
         </div>
         {/* Collapse is a desktop-only affordance; on mobile the drawer just closes. */}
@@ -5038,7 +5044,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       {(sidebarCollapsed && isDesktop) && (
        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <svg viewBox="0 0 100 100" fill="none" style={{width:28,height:28,borderRadius:6,overflow:"hidden"}}>
-         <defs><linearGradient id="bp-bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#3B82F6"/></linearGradient></defs>
+         <defs><linearGradient id="bp-bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#3B6BF5"/><stop offset="100%" stopColor="#3B6BF5"/></linearGradient></defs>
          <rect width="100" height="100" fill="url(#bp-bg2)"/>
          <polygon points="50,12 8,30 50,25 92,30" fill="rgba(255,255,255,0.95)"/>
          <polygon points="50,25 92,30 92,34 50,29" fill="rgba(255,255,255,0.48)"/>
@@ -5372,7 +5378,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     T={T} darkMode={darkMode}
    />
   )}
-  {isOffline && <div style={{ background: '#F59E0B22', border: '1px solid #F59E0B44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
+  {isOffline && <div style={{ background: '#d98a0b22', border: '1px solid #d98a0b44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#d98a0b', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
   {/* ── Borrower mode header bar (removed 2026-05-12) ──
       Was a gradient pill reading "Your Blueprint · PREPARED FOR <name>"
       shown when isBorrower. UnifiedHeader now renders for borrowers too
@@ -5580,14 +5586,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       onClick={() => handleSendLiveLink('email')}
       style={{
        flex: 1, padding: 16,
-       background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+       background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
        border: 'none', borderRadius: 14, color: '#fff',
        fontWeight: 700, fontSize: 15,
        cursor: (liveLinkSending || !borrowerEmail || !isCloud) ? 'not-allowed' : 'pointer',
        fontFamily: FONT,
        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
        opacity: (liveLinkSending || !borrowerEmail || !isCloud) ? 0.5 : 1,
-       boxShadow: (liveLinkSending || !borrowerEmail || !isCloud) ? 'none' : '0 4px 14px rgba(99,102,241,0.3)',
+       boxShadow: (liveLinkSending || !borrowerEmail || !isCloud) ? 'none' : '0 4px 14px rgba(59,107,245,0.3)',
       }}
      >
       <Icon name="mail" size={14} />
@@ -5871,7 +5877,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      }).catch(() => { prompt('Copy this link:', url); });
     }}
     id="bp-share-link-summary"
-    style={{ flex: 1, padding: 16, background: 'linear-gradient(135deg, #6366F1, #3B82F6)', border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}
+    style={{ flex: 1, padding: 16, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: '0 4px 14px rgba(59,107,245,0.3)' }}
    >
     <Icon name="link" size={16} />
     <span>Copy Link</span>
@@ -5984,7 +5990,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  {isCloud && !isBorrower && activeScenarioId && (
   <div style={{ marginTop: 16 }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-    <div style={{ width: 4, height: 16, borderRadius: 2, background: 'linear-gradient(135deg, #6366F1, #3B82F6)' }} />
+    <div style={{ width: 4, height: 16, borderRadius: 2, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' }} />
     <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: FONT }}>COLLABORATION</span>
    </div>
    <LockControls
@@ -7338,6 +7344,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      ))}
     </div>
    </div>
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 12 }}>
+    <div>
+     <div style={{ fontSize: 15, fontWeight: 600 }}>Background motion</div>
+     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Flowing'} — the woven ribbon canvas</div>
+    </div>
+    <button onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} style={{ padding: "6px 14px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, background: bgPaused ? T.tabActiveBg : "transparent", color: T.text, cursor: "pointer" }}>{bgPaused ? 'Resume' : 'Pause'}</button>
+   </div>
   </Card>
  </Sec>
  {!isBorrower && <Sec title="Loan Officer Info">
@@ -7345,7 +7358,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once — applies to all scenarios.</div>
    {!isBorrower && !isCloud && (
     <button onClick={() => rawAuth?.requestLogin?.()}
-     style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 12, background: "linear-gradient(135deg, #6366F1, #3B82F6)", border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+     style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 12, background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
      Sign in as Loan Officer (Google) — unlocks clients, live links & Gmail send
     </button>
    )}

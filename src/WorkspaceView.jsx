@@ -79,7 +79,7 @@ function ProceedsBar({ T, workspaceMode, linkedValues, updateLinkedValue }) {
         animation: "proceedsGlow 2.5s ease-in-out infinite",
       } : {}),
     }}>
-      {glowing && <style>{`@keyframes proceedsGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(99,102,241,0.4), 0 0 16px rgba(99,102,241,0.15); } 50% { box-shadow: 0 0 0 3px rgba(99,102,241,0.7), 0 0 28px rgba(99,102,241,0.3); } }`}</style>}
+      {glowing && <style>{`@keyframes proceedsGlow { 0%, 100% { box-shadow: 0 0 0 2px rgba(59,107,245,0.4), 0 0 16px rgba(59,107,245,0.15); } 50% { box-shadow: 0 0 0 3px rgba(59,107,245,0.7), 0 0 28px rgba(59,107,245,0.3); } }`}</style>}
       {glowing && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
           <Icon name="arrow-right" size={12} />

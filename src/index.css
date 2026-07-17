@@ -5,7 +5,7 @@
 
   color-scheme: light dark;
   color: #EDEDED;
-  background-color: #050505;
+  background-color: #0a1120;
 
   /* Brand Kit: digits align via tabular figures (Inter tnum), not a mono face */
   font-variant-numeric: tabular-nums;
@@ -17,23 +17,23 @@
 
 a {
   font-weight: 500;
-  color: #818CF8;
+  color: #6E90FF;
   text-decoration: inherit;
 }
 a:hover {
-  color: #A5B4FC;
+  color: #6E90FF;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #050505;
+  background-color: #0a1120;
 }
 
 /* Prevent white overscroll flash on iOS PWA */
 html {
-  background-color: #050505;
+  background-color: #0a1120;
   overscroll-behavior-y: none;
 }
 
@@ -54,12 +54,12 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #162034;
   cursor: pointer;
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #6366F1;
+  border-color: #3B6BF5;
 }
 button:focus,
 button:focus-visible {
@@ -69,7 +69,7 @@ button:focus-visible {
 /* Google Places Autocomplete dropdown styling */
 .pac-container {
   border-radius: 12px;
-  border: 1px solid #333;
+  border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
@@ -83,7 +83,7 @@ button:focus-visible {
   line-height: 1.4;
 }
 .pac-item:hover {
-  background: rgba(59,130,246,0.1);
+  background: rgba(59,107,245,0.1);
 }
 .pac-item-query {
   font-weight: 600;
@@ -95,13 +95,13 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #171717;
-    background-color: #FAFAFA;
+    background-color: #f4f9fc;
   }
   html, body {
-    background-color: #FAFAFA;
+    background-color: #f4f9fc;
   }
   a:hover {
-    color: #6366F1;
+    color: #3B6BF5;
   }
   button {
     background-color: #F0F0F0;

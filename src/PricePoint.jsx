@@ -16,7 +16,7 @@ import {
 // when a photo URL fails to load. Inline SVG data-URI — never 404s, works in
 // both light/dark cards. (Replaces the old images.unsplash.com fallback, which
 // stopped loading and left blank image boxes on Free Play cards.)
-const NO_PHOTO = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='800'%20height='440'%20viewBox='0%200%20800%20440'%3E%3Crect%20width='800'%20height='440'%20fill='%23EEF0F4'/%3E%3Cg%20fill='none'%20stroke='%236366F1'%20stroke-width='12'%20stroke-linejoin='round'%20stroke-linecap='round'%20opacity='0.45'%3E%3Cpath%20d='M250%20232%20L400%20132%20L550%20232'/%3E%3Cpath%20d='M292%20216%20L292%20322%20L508%20322%20L508%20216'/%3E%3Crect%20x='372'%20y='262'%20width='56'%20height='60'/%3E%3C/g%3E%3Ctext%20x='400'%20y='388'%20font-family='Inter,Arial,sans-serif'%20font-size='25'%20fill='%23999999'%20text-anchor='middle'%3EPhoto%20unavailable%3C/text%3E%3C/svg%3E";
+const NO_PHOTO = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='800'%20height='440'%20viewBox='0%200%20800%20440'%3E%3Crect%20width='800'%20height='440'%20fill='%23EEF0F4'/%3E%3Cg%20fill='none'%20stroke='%233b6bf5'%20stroke-width='12'%20stroke-linejoin='round'%20stroke-linecap='round'%20opacity='0.45'%3E%3Cpath%20d='M250%20232%20L400%20132%20L550%20232'/%3E%3Cpath%20d='M292%20216%20L292%20322%20L508%20322%20L508%20216'/%3E%3Crect%20x='372'%20y='262'%20width='56'%20height='60'/%3E%3C/g%3E%3Ctext%20x='400'%20y='388'%20font-family='Inter,Arial,sans-serif'%20font-size='25'%20fill='%23999999'%20text-anchor='middle'%3EPhoto%20unavailable%3C/text%3E%3C/svg%3E";
 
 // onError handler: swap to the placeholder once, and clear the handler so a
 // failing placeholder can never loop.
@@ -2128,9 +2128,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         width: "100%", padding: "14px", borderRadius: 9999, fontSize: 15, fontWeight: 700,
         cursor: disabled ? "not-allowed" : "pointer", fontFamily: FONT, transition: "all 0.2s",
         border: secondary ? `1px solid ${T.cardBorder}` : "none",
-        background: disabled ? T.inputBg : tealAccent ? "linear-gradient(135deg, #06B6D4, #3B82F6)" : accent ? "linear-gradient(135deg, #6366F1, #3B82F6)" : secondary ? "transparent" : "linear-gradient(135deg, #6366F1, #3B82F6)",
+        background: disabled ? T.inputBg : tealAccent ? "linear-gradient(135deg, #38c6c6, #3B6BF5)" : accent ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : secondary ? "transparent" : "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
         color: disabled ? T.textTertiary : secondary ? T.textSecondary : "#fff",
-        boxShadow: disabled || secondary ? "none" : accent ? "0 0 20px rgba(99,102,241,0.3)" : tealAccent ? "0 0 20px rgba(6,182,212,0.3)" : "0 0 20px rgba(99,102,241,0.3)",
+        boxShadow: disabled || secondary ? "none" : accent ? "0 0 20px rgba(59,107,245,0.3)" : tealAccent ? "0 0 20px rgba(6,182,212,0.3)" : "0 0 20px rgba(59,107,245,0.3)",
         ...s,
       }}>{children}</button>;
     }, [T, FONT]
@@ -2142,7 +2142,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!token) return null;
     // Mapbox Static Images API — dark style, indigo marker, retina (@2x)
-    const marker = `pin-s+6366f1(${lng},${lat})`;
+    const marker = `pin-s+3b6bf5(${lng},${lat})`;
     return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${marker}/${lng},${lat},14.5,0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
   };
 
@@ -2211,7 +2211,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {allPhotos.map((_, i) => {
               const isMap = mapUrl && i === count - 1;
               return (
-                <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? (isMap ? 20 : 16) : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : isMap ? "rgba(99,102,241,0.6)" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
+                <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? (isMap ? 20 : 16) : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : isMap ? "rgba(59,107,245,0.6)" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
               );
             })}
           </div>
@@ -2460,7 +2460,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         {(!showPhases || revealPhase >= 2) && (
           <div style={{ animation: "ppSlideUp 0.3s ease" }}>
             {onChallenge && (
-              <button onClick={() => onChallenge(result)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(99,102,241,0.3)", transition: "all 0.2s" }}>
+              <button onClick={() => onChallenge(result)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)", transition: "all 0.2s" }}>
                 <Icon name="send" size={16} /> Challenge a Friend
               </button>
             )}
@@ -2469,7 +2469,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 recipient who just played on the mobile web. iOS web only. */}
             {comparison && isIOSWebVisitor && (
               <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 8, padding: 13, marginBottom: 10, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #06B6D4, #3B82F6)", textDecoration: "none", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT, boxShadow: "0 0 20px rgba(6,182,212,0.3)" }}>
+                style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 8, padding: 13, marginBottom: 10, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #38c6c6, #3B6BF5)", textDecoration: "none", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT, boxShadow: "0 0 20px rgba(6,182,212,0.3)" }}>
                 <Icon name="smartphone" size={15} /> Get the RealStack App
               </a>
             )}
@@ -2512,9 +2512,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           100% { transform: scale(1) }
         }
         @keyframes lvlGlow {
-          0% { box-shadow: 0 0 0 0 rgba(99,102,241,0.6) }
-          50% { box-shadow: 0 0 60px 30px rgba(99,102,241,0.3) }
-          100% { box-shadow: 0 0 80px 40px rgba(99,102,241,0) }
+          0% { box-shadow: 0 0 0 0 rgba(59,107,245,0.6) }
+          50% { box-shadow: 0 0 60px 30px rgba(59,107,245,0.3) }
+          100% { box-shadow: 0 0 80px 40px rgba(59,107,245,0) }
         }
         @keyframes lvlBarFill {
           0% { width: 70% }
@@ -2546,7 +2546,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       `}</style>
 
       {shareToast && (
-        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, padding: "12px 24px", borderRadius: 12, background: T.accent, color: "#fff", fontSize: 14, fontWeight: 600, animation: "ppSlideUp 0.3s ease", boxShadow: "0 8px 32px rgba(99,102,241,0.3)", fontFamily: FONT }}>
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, padding: "12px 24px", borderRadius: 12, background: T.accent, color: "#fff", fontSize: 14, fontWeight: 600, animation: "ppSlideUp 0.3s ease", boxShadow: "0 8px 32px rgba(59,107,245,0.3)", fontFamily: FONT }}>
           Copied to clipboard
         </div>
       )}
@@ -2563,7 +2563,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         const particles = Array.from({ length: 24 }, (_, i) => {
           const angle = (i / 24) * Math.PI * 2;
           const dist = 80 + Math.random() * 120;
-          const colors = ["#6366F1", "#3B82F6", "#06B6D4", "#10B981", "#F59E0B", "#EC4899", "#A5B4FC", "#818CF8"];
+          const colors = ["#3B6BF5", "#3B6BF5", "#38c6c6", "#12a150", "#d98a0b", "#EC4899", "#6E90FF", "#6E90FF"];
           return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, color: colors[i % colors.length], size: 4 + Math.random() * 6, delay: Math.random() * 0.3 };
         });
         return (
@@ -2579,12 +2579,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {/* Expanding ring */}
             <div style={{
               position: "absolute", width: 200, height: 200, borderRadius: "50%",
-              border: "3px solid #6366F1", animation: "lvlRing 1.2s ease-out forwards",
+              border: "3px solid #3B6BF5", animation: "lvlRing 1.2s ease-out forwards",
               animationDelay: "0.4s", opacity: 0,
             }} />
             <div style={{
               position: "absolute", width: 200, height: 200, borderRadius: "50%",
-              border: "3px solid #3B82F6", animation: "lvlRing 1.2s ease-out forwards",
+              border: "3px solid #3B6BF5", animation: "lvlRing 1.2s ease-out forwards",
               animationDelay: "0.6s", opacity: 0,
             }} />
 
@@ -2606,7 +2606,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ height: 8, background: "rgba(255,255,255,0.1)", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{
                   height: "100%", borderRadius: 4,
-                  background: "linear-gradient(90deg, #6366F1, #3B82F6, #06B6D4)",
+                  background: "linear-gradient(90deg, #3B6BF5, #2B4FCE, #38c6c6)",
                   animation: "lvlBarFill 1s ease-in-out forwards",
                 }} />
               </div>
@@ -2626,9 +2626,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {/* Icon circle */}
               <div style={{
                 width: 80, height: 80, borderRadius: "50%", margin: "0 auto 16px",
-                background: "linear-gradient(135deg, #6366F1, #3B82F6, #06B6D4)",
+                background: "linear-gradient(135deg, #3B6BF5, #2B4FCE, #38c6c6)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 0 40px rgba(99,102,241,0.4)",
+                boxShadow: "0 0 40px rgba(59,107,245,0.4)",
               }}>
                 <Icon name={levelUpData.newLevel.icon} size={36} style={{ color: "#fff" }} />
               </div>
@@ -2637,7 +2637,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{
                 fontSize: 11, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase",
                 fontFamily: FONT, marginBottom: 8,
-                background: "linear-gradient(90deg, #A5B4FC, #6366F1, #3B82F6, #06B6D4, #A5B4FC)",
+                background: "linear-gradient(90deg, #6E90FF, #3B6BF5, #2B4FCE, #38c6c6, #6E90FF)",
                 backgroundSize: "200% auto",
                 WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                 animation: "lvlShimmer 2s linear infinite",
@@ -2649,7 +2649,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
               <div style={{
                 fontSize: 20, fontWeight: 700, color: "#fff", fontFamily: FONT, marginTop: 8,
-                textShadow: "0 0 20px rgba(99,102,241,0.5)",
+                textShadow: "0 0 20px rgba(59,107,245,0.5)",
               }}>
                 {levelUpData.newLevel.name}
               </div>
@@ -2707,7 +2707,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{
                 width: 56, height: 56, borderRadius: "50%", margin: "0 auto 12px",
-                background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+                background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 <Icon name={currentLevel.icon} size={28} style={{ color: "#fff" }} />
@@ -2744,9 +2744,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               }
             }} style={{
               width: "100%", padding: "14px", borderRadius: 9999,
-              background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+              background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff",
               fontSize: 15, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT,
-              boxShadow: "0 0 20px rgba(99,102,241,0.3)", marginBottom: 8,
+              boxShadow: "0 0 20px rgba(59,107,245,0.3)", marginBottom: 8,
             }}>
               Share Achievement
             </button>
@@ -2773,7 +2773,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Lv.{currentLevel.level}</span>
           </div>
           <div style={{ flex: 1, height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #6366F1, #3B82F6)",
+            <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #3B6BF5, #2B4FCE)",
               width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%",
               transition: "width 0.5s ease" }} />
           </div>
@@ -2892,7 +2892,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
               </div>
               <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-                {dailyProperty && <button onClick={() => shareChallenge(dailyResult, dailyProperty, true)} style={{ flex: 1, padding: 12, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}><Icon name="send" size={14} /> Challenge</button>}
+                {dailyProperty && <button onClick={() => shareChallenge(dailyResult, dailyProperty, true)} style={{ flex: 1, padding: 12, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}><Icon name="send" size={14} /> Challenge</button>}
                 <PillButton onClick={() => shareResult(dailyResult)} accent style={{ flex: 1 }}>Share</PillButton>
               </div>
             </div>
@@ -2960,7 +2960,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {unreadCount > 0 && (
                 <div style={{
                   position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
-                  borderRadius: 8, background: T.red || "#EF4444", color: "#fff",
+                  borderRadius: 8, background: T.red || "#e5484d", color: "#fff",
                   fontSize: 9, fontWeight: 800, fontFamily: FONT,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   padding: "0 4px", border: `2px solid ${T.card}`,
@@ -3042,7 +3042,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <span style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary }}>{xp} XP{nextLevel ? ` / ${nextLevel.req}` : ""}</span>
                 </div>
                 <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #6366F1, #3B82F6)", width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%", transition: "width 0.5s ease" }} />
+                  <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #3B6BF5, #2B4FCE)", width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%", transition: "width 0.5s ease" }} />
                 </div>
               </div>
 
@@ -3259,7 +3259,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 {unreadCount > 0 && (
                   <div style={{
                     position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
-                    borderRadius: 8, background: T.red || "#EF4444", color: "#fff",
+                    borderRadius: 8, background: T.red || "#e5484d", color: "#fff",
                     fontSize: 9, fontWeight: 800, fontFamily: FONT,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     padding: "0 4px", border: `2px solid ${T.card}`,
@@ -3270,7 +3270,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#EF4444", accentColor: T.red || "#EF4444", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
@@ -3397,20 +3397,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8B5CF6" }}>CHALLENGE</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8b7bf0" }}>CHALLENGE</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
                 {challengeData.locationLabel || `${challengeData.listing.city}, ${challengeData.listing.state}`}
                 {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : ' · Free Play'}
               </div>
             </div>
           </div>
-          <div style={{ background: `linear-gradient(135deg, ${accent}12, ${T.purple || "#8B5CF6"}12)`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
+          <div style={{ background: `linear-gradient(135deg, ${accent}12, ${T.purple || "#8b7bf0"}12)`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
               Someone scored <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
             </div>
             <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
           </div>
-          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: "CHALLENGE", badgeColor: T.purple || "#8B5CF6", accentColor: T.purple || "#8B5CF6" })}
+          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: "CHALLENGE", badgeColor: T.purple || "#8b7bf0", accentColor: T.purple || "#8b7bf0" })}
         </div>
       )}
 
@@ -3694,7 +3694,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     No rankings yet{leaderboardTab === "today" ? " today" : ""}
                   </div>
                   <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 18 }}>Make a guess to claim the top spot.</div>
-                  <button onClick={() => setView(cta.view)} style={{ padding: "12px 24px", borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: "pointer", boxShadow: "0 0 20px rgba(99,102,241,0.3)" }}>
+                  <button onClick={() => setView(cta.view)} style={{ padding: "12px 24px", borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: "pointer", boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
                     {cta.label}
                   </button>
                 </div>
@@ -3709,7 +3709,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   return (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: entry.isYou ? `${modeColor}12` : T.card, border: `1px solid ${entry.isYou ? `${modeColor}30` : T.cardBorder}`, borderRadius: 14, marginBottom: 8 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, fontFamily: FONT,
-                        background: medalIdx === 0 ? "linear-gradient(135deg, #F59E0B, #D97706)" : medalIdx === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : medalIdx === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
+                        background: medalIdx === 0 ? "linear-gradient(135deg, #d98a0b, #D97706)" : medalIdx === 1 ? "linear-gradient(135deg, #A1A1A1, #737373)" : medalIdx === 2 ? "linear-gradient(135deg, #D97706, #92400E)" : T.inputBg,
                         color: medalIdx < 3 ? "#fff" : T.textSecondary }}>{displayRank}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: entry.isYou ? modeColor : T.text, fontFamily: FONT }}>{entry.name}</div>
@@ -3814,10 +3814,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               style={{
                 width: "100%", padding: "12px 0", marginTop: 16, fontSize: 15, fontWeight: 700,
                 fontFamily: FONT, borderRadius: 9999, border: "none", cursor: "pointer",
-                background: nicknameInput.trim().length >= 2 ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.inputBg,
+                background: nicknameInput.trim().length >= 2 ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : T.inputBg,
                 color: nicknameInput.trim().length >= 2 ? "#fff" : T.textTertiary,
                 opacity: nicknameSaving ? 0.6 : 1,
-                boxShadow: nicknameInput.trim().length >= 2 ? "0 0 20px rgba(99,102,241,0.3)" : "none",
+                boxShadow: nicknameInput.trim().length >= 2 ? "0 0 20px rgba(59,107,245,0.3)" : "none",
               }}
             >
               {nicknameSaving ? "Saving..." : "Join the Board"}
@@ -3941,7 +3941,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {/* Toggle: In-App (always on) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>In-App Alerts</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: T.green || "#10B981", fontFamily: FONT }}>ALWAYS ON</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.green || "#12a150", fontFamily: FONT }}>ALWAYS ON</div>
             </div>
 
             {/* Toggle: Email */}
@@ -3953,7 +3953,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 await updateNotificationPreferences(playerId, { email_enabled: newVal });
               }} style={{
                 width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                background: notifPrefs.email_enabled ? (T.green || "#10B981") : T.inputBg,
+                background: notifPrefs.email_enabled ? (T.green || "#12a150") : T.inputBg,
                 position: "relative", transition: "background 0.2s",
               }}>
                 <div style={{
@@ -3995,7 +3995,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 await updateNotificationPreferences(playerId, { sms_enabled: newVal });
               }} style={{
                 width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                background: notifPrefs.sms_enabled ? (T.green || "#10B981") : T.inputBg,
+                background: notifPrefs.sms_enabled ? (T.green || "#12a150") : T.inputBg,
                 position: "relative", transition: "background 0.2s",
               }}>
                 <div style={{
@@ -4041,7 +4041,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
             <button onClick={() => setShowNotifSettings(false)} style={{
               width: "100%", marginTop: 16, padding: "14px", borderRadius: 9999,
-              background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+              background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff",
               fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT,
             }}>Done</button>
           </div>
@@ -4079,7 +4079,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-                      background: isActive ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.inputBg,
+                      background: isActive ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : T.inputBg,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       color: isActive ? "#fff" : T.textTertiary,
                       border: isActive ? "none" : `1px solid ${T.cardBorder}`,
@@ -4132,7 +4132,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{
                     width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center",
                     justifyContent: "center",
-                    background: unlocked ? "linear-gradient(135deg, #6366F1, #3B82F6)" : T.inputBg,
+                    background: unlocked ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : T.inputBg,
                     color: unlocked ? "#fff" : T.textTertiary,
                   }}>
                     <Icon name={lvl.icon} size={18} />
@@ -4155,7 +4155,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             })}
             <button onClick={() => setShowLevelModal(false)} style={{
               width: "100%", marginTop: 16, padding: "14px", borderRadius: 9999,
-              background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+              background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff",
               fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: FONT,
             }}>Got It</button>
           </div>

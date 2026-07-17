@@ -222,17 +222,17 @@ export default function SendWorksheetModal({
           <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 12, lineHeight: 1.5 }}>{error}</div>
         )}
         {phase === "sent" ? (
-          <div style={{ textAlign: "center", padding: "14px 0", fontSize: 15, fontWeight: 700, color: T.green || "#10B981", fontFamily: FONT }}>
+          <div style={{ textAlign: "center", padding: "14px 0", fontSize: 15, fontWeight: 700, color: T.green || "#12a150", fontFamily: FONT }}>
             ✓ Sent from your Gmail
           </div>
         ) : (
           <button onClick={handleSend} disabled={!emailValid || phase === "sending"}
             style={{
               width: "100%", padding: 15, border: "none", borderRadius: 9999,
-              background: !emailValid ? T.pillBg : `linear-gradient(135deg, #6366F1, #3B82F6)`,
+              background: !emailValid ? T.pillBg : `linear-gradient(135deg, #3B6BF5, #2B4FCE)`,
               color: !emailValid ? T.textTertiary : "#fff", fontWeight: 700, fontSize: 15,
               cursor: !emailValid || phase === "sending" ? "default" : "pointer", fontFamily: FONT,
-              boxShadow: emailValid ? "0 0 20px rgba(99,102,241,0.3)" : "none",
+              boxShadow: emailValid ? "0 0 20px rgba(59,107,245,0.3)" : "none",
             }}>
             {phase === "sending" ? "Sending…" : linked ? "Send from my Gmail" : "Connect Gmail & Send"}
           </button>
@@ -334,10 +334,10 @@ export function BorrowerSendModal({
           style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, marginBottom: 12 }} />
         {phase === "error" && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10 }}>{error}</div>}
         {phase === "sent" ? (
-          <div style={{ textAlign: "center", padding: "12px 0", fontSize: 15, fontWeight: 700, color: T.green || "#10B981", fontFamily: FONT }}>✓ Sent — check your inbox</div>
+          <div style={{ textAlign: "center", padding: "12px 0", fontSize: 15, fontWeight: 700, color: T.green || "#12a150", fontFamily: FONT }}>✓ Sent — check your inbox</div>
         ) : (
           <button onClick={handleSend} disabled={!emailValid || phase === "sending"}
-            style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: !emailValid ? T.pillBg : "linear-gradient(135deg, #6366F1, #3B82F6)", color: !emailValid ? T.textTertiary : "#fff", fontWeight: 700, fontSize: 15, cursor: !emailValid || phase === "sending" ? "default" : "pointer", fontFamily: FONT, boxShadow: emailValid ? "0 0 20px rgba(99,102,241,0.3)" : "none" }}>
+            style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: !emailValid ? T.pillBg : "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: !emailValid ? T.textTertiary : "#fff", fontWeight: 700, fontSize: 15, cursor: !emailValid || phase === "sending" ? "default" : "pointer", fontFamily: FONT, boxShadow: emailValid ? "0 0 20px rgba(59,107,245,0.3)" : "none" }}>
             {phase === "sending" ? "Sending…" : "Send to my email"}
           </button>
         )}

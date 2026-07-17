@@ -26,13 +26,13 @@ import {
 
 
 const T = {
-  bg: '#050505', card: '#0A0A0A', surface: '#0F0F0F',
+  bg: '#0a1120', card: '#0d1524', surface: '#121c30',
   cardBorder: 'rgba(255,255,255,0.06)', cardBorderHover: 'rgba(255,255,255,0.12)',
-  accent: '#6366F1', accentLight: '#818CF8', accentBright: '#A5B4FC',
-  blue: '#3B82F6', teal: '#06B6D4', green: '#10B981', red: '#EF4444',
+  accent: '#3B6BF5', accentLight: '#6E90FF', accentBright: '#6E90FF',
+  blue: '#3B6BF5', teal: '#38c6c6', green: '#12a150', red: '#e5484d',
   text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#666666',
   separator: 'rgba(255,255,255,0.06)',
-  inputBg: '#1A1A1A', inputBorder: 'rgba(255,255,255,0.12)',
+  inputBg: '#162034', inputBorder: 'rgba(255,255,255,0.12)',
 };
 
 // ─── Google Icon ──────────────────────────────────────────────────────────────
@@ -51,22 +51,22 @@ const HomeIcon = () => (
     {/* Roof */}
     <polygon points="50,4 8,22 50,14 92,22" fill="#C7D2FE"/>
     <polygon points="50,14 92,22 92,26 50,18" fill="#4F46E5"/>
-    <polygon points="8,22 50,14 50,18 8,26" fill="#818CF8"/>
+    <polygon points="8,22 50,14 50,18 8,26" fill="#6E90FF"/>
     {/* Sheet 4 — Indigo (top) */}
-    <polygon points="8,32 50,24 92,32 50,40" fill="#A5B4FC"/>
-    <polygon points="50,40 92,32 92,35 50,43" fill="#6366F1"/>
-    <polygon points="8,32 50,40 50,43 8,35" fill="#818CF8"/>
+    <polygon points="8,32 50,24 92,32 50,40" fill="#6E90FF"/>
+    <polygon points="50,40 92,32 92,35 50,43" fill="#3B6BF5"/>
+    <polygon points="8,32 50,40 50,43 8,35" fill="#6E90FF"/>
     {/* Sheet 3 — Blue */}
     <polygon points="8,48 50,40 92,48 50,56" fill="#93C5FD"/>
-    <polygon points="50,56 92,48 92,51 50,59" fill="#3B82F6"/>
+    <polygon points="50,56 92,48 92,51 50,59" fill="#3B6BF5"/>
     <polygon points="8,48 50,56 50,59 8,51" fill="#60A5FA"/>
     {/* Sheet 2 — Teal */}
     <polygon points="8,64 50,56 92,64 50,72" fill="#67E8F9"/>
-    <polygon points="50,72 92,64 92,67 50,75" fill="#06B6D4"/>
+    <polygon points="50,72 92,64 92,67 50,75" fill="#38c6c6"/>
     <polygon points="8,64 50,72 50,75 8,67" fill="#22D3EE"/>
     {/* Sheet 1 — Green (bottom) */}
     <polygon points="8,80 50,72 92,80 50,88" fill="#6EE7B7"/>
-    <polygon points="50,88 92,80 92,83 50,91" fill="#10B981"/>
+    <polygon points="50,88 92,80 92,83 50,91" fill="#12a150"/>
     <polygon points="8,80 50,88 50,91 8,83" fill="#34D399"/>
   </svg>
 );
@@ -213,9 +213,9 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         <div style={{ textAlign: 'center' }}>
           <div style={{
             width: 72, height: 72, margin: '0 auto 24px',
-            borderRadius: 18, background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+            borderRadius: 18, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 60px rgba(99,102,241,0.35)',
+            boxShadow: '0 0 60px rgba(59,107,245,0.35)',
             animation: 'pulse-glow 2s ease-in-out infinite',
           }}>
             <HomeIcon />
@@ -237,7 +237,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           </div>
         </div>
         <style>{`
-          @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 80px rgba(99,102,241,0.5); } }
+          @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(59,107,245,0.3); } 50% { box-shadow: 0 0 80px rgba(59,107,245,0.5); } }
           @keyframes fade-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         `}</style>
       </div>
@@ -255,8 +255,8 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         <div style={{ textAlign: 'center', maxWidth: 400, padding: '0 24px' }}>
           <div style={{
             width: 64, height: 64, margin: '0 auto 20px',
-            borderRadius: 16, background: 'rgba(16,185,129,0.1)',
-            border: '1px solid rgba(16,185,129,0.2)',
+            borderRadius: 16, background: 'rgba(18,161,80,0.1)',
+            border: '1px solid rgba(18,161,80,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: T.green,
           }}>
@@ -302,9 +302,9 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         <div style={{ textAlign: 'center' }}>
           <div style={{
             width: 72, height: 72, margin: '0 auto 24px',
-            borderRadius: 18, background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+            borderRadius: 18, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 60px rgba(99,102,241,0.35)',
+            boxShadow: '0 0 60px rgba(59,107,245,0.35)',
             animation: 'pulse-glow 2s ease-in-out infinite',
           }}>
             <HomeIcon />
@@ -320,7 +320,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           </div>
         </div>
         <style>{`
-          @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 80px rgba(99,102,241,0.5); } }
+          @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(59,107,245,0.3); } 50% { box-shadow: 0 0 80px rgba(59,107,245,0.5); } }
           @keyframes fade-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         `}</style>
       </div>
@@ -349,9 +349,9 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{
             width: 64, height: 64, margin: '0 auto 20px',
-            borderRadius: 16, background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+            borderRadius: 16, background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 40px rgba(99,102,241,0.25)',
+            boxShadow: '0 0 40px rgba(59,107,245,0.25)',
           }}>
             <HomeIcon />
           </div>
@@ -453,11 +453,11 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
                 disabled={!email.trim() || sending}
                 style={{
                   width: '100%', padding: '13px 20px',
-                  background: email.trim() && !sending ? 'linear-gradient(135deg, #6366F1, #3B82F6)' : 'rgba(99,102,241,0.2)',
+                  background: email.trim() && !sending ? 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' : 'rgba(59,107,245,0.2)',
                   color: '#fff', border: 'none', borderRadius: 12,
                   fontSize: 15, fontWeight: 600, cursor: email.trim() && !sending ? 'pointer' : 'default',
                   fontFamily: FONT, transition: 'all 0.15s',
-                  boxShadow: email.trim() && !sending ? '0 4px 16px rgba(99,102,241,0.3)' : 'none',
+                  boxShadow: email.trim() && !sending ? '0 4px 16px rgba(59,107,245,0.3)' : 'none',
                 }}
               >
                 {sending ? 'Sending...' : 'Send magic link'}
@@ -469,7 +469,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
           {error && (
             <div style={{
               marginTop: 16, padding: '10px 14px',
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+              background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.2)',
               borderRadius: 10, color: T.red, fontSize: 13, textAlign: 'center',
             }}>
               {error}
@@ -498,7 +498,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
 
       <style>{`
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 80px rgba(99,102,241,0.5); } }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(59,107,245,0.3); } 50% { box-shadow: 0 0 80px rgba(59,107,245,0.5); } }
         @keyframes fade-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
     </div>

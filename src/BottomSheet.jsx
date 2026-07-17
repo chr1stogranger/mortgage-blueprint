@@ -54,7 +54,7 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
         ref={sheetRef}
         style={{
           width: "100%", maxWidth: 500, maxHeight: height,
-          background: T.elevated || "#0A0A0A",
+          background: T.elevated || "#0d1524",
           borderRadius: "20px 20px 0 0",
           display: "flex", flexDirection: "column",
           animation: isClosing ? "sheetSlideDown 0.25s ease forwards" : "sheetSlideUp 0.3s cubic-bezier(0.16,1,0.3,1)",

@@ -36,11 +36,11 @@ function buildEmailHtml(notification) {
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;margin:0;padding:20px}
   .c{max-width:560px;margin:0 auto;background:#fff;border-radius:16px;padding:40px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
-  .logo{font-size:13px;font-weight:700;letter-spacing:2px;color:#6366F1;text-transform:uppercase;margin-bottom:24px}
+  .logo{font-size:13px;font-weight:700;letter-spacing:2px;color:#3B6BF5;text-transform:uppercase;margin-bottom:24px}
   h1{font-size:22px;font-weight:700;color:#171717;margin:0 0 12px}
   .body{font-size:15px;line-height:1.6;color:#525252;margin:0 0 24px}
-  .stat{display:inline-block;background:#F0F0FF;color:#6366F1;font-weight:700;padding:4px 12px;border-radius:8px;font-size:14px;margin:0 0 20px}
-  .cta{display:inline-block;background:linear-gradient(135deg,#6366F1,#3B82F6);color:#fff;padding:14px 28px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:15px}
+  .stat{display:inline-block;background:#EFF3FE;color:#3B6BF5;font-weight:700;padding:4px 12px;border-radius:8px;font-size:14px;margin:0 0 20px}
+  .cta{display:inline-block;background:linear-gradient(135deg,#3B6BF5, #2B4FCE);color:#fff;padding:14px 28px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:15px}
   .foot{border-top:1px solid #e5e5e5;margin-top:32px;padding-top:16px;font-size:11px;color:#999}
 </style></head>
 <body><div class="c">

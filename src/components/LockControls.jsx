@@ -66,7 +66,7 @@ export default function LockControls({
 
   return (
     <div style={{
-      background: '#0F0F0F',
+      background: '#121c30',
       border: '1px solid rgba(255,255,255,0.06)',
       borderRadius: 12,
       padding: 16,
@@ -110,8 +110,8 @@ export default function LockControls({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 12px',
-                background: isLocked ? 'rgba(16, 185, 129, 0.06)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${isLocked ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.04)'}`,
+                background: isLocked ? 'rgba(18,161,80, 0.06)' : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isLocked ? 'rgba(18,161,80, 0.15)' : 'rgba(255,255,255,0.04)'}`,
                 borderRadius: 8,
                 transition: 'all 0.2s',
               }}
@@ -121,7 +121,7 @@ export default function LockControls({
                 <div style={{
                   width: 28, height: 28,
                   borderRadius: 7,
-                  background: isLocked ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.04)',
+                  background: isLocked ? 'rgba(18,161,80, 0.12)' : 'rgba(255,255,255,0.04)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -129,7 +129,7 @@ export default function LockControls({
                   transition: 'all 0.2s',
                 }}>
                   {isLocked ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#12a150" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
@@ -152,7 +152,7 @@ export default function LockControls({
                   </div>
                   <div style={{
                     fontSize: 11,
-                    color: isLocked ? '#10B981' : '#666666',
+                    color: isLocked ? '#12a150' : '#666666',
                     fontFamily: FONT,
                     marginTop: 1,
                   }}>
@@ -168,10 +168,10 @@ export default function LockControls({
                   disabled={isToggling}
                   style={{
                     padding: '6px 12px',
-                    background: isLocked ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
-                    border: `1px solid ${isLocked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
+                    background: isLocked ? 'rgba(229,72,77, 0.08)' : 'rgba(18,161,80, 0.08)',
+                    border: `1px solid ${isLocked ? 'rgba(229,72,77, 0.2)' : 'rgba(18,161,80, 0.2)'}`,
                     borderRadius: 6,
-                    color: isLocked ? '#EF4444' : '#10B981',
+                    color: isLocked ? '#e5484d' : '#12a150',
                     fontSize: 11,
                     fontWeight: 600,
                     cursor: isToggling ? 'default' : 'pointer',
@@ -189,8 +189,8 @@ export default function LockControls({
                 <span style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: '#10B981',
-                  background: 'rgba(16, 185, 129, 0.1)',
+                  color: '#12a150',
+                  background: 'rgba(18,161,80, 0.1)',
                   padding: '4px 8px',
                   borderRadius: 4,
                   fontFamily: FONT,
@@ -209,7 +209,7 @@ export default function LockControls({
         <div style={{
           marginTop: 8,
           fontSize: 11,
-          color: '#EF4444',
+          color: '#e5484d',
           fontFamily: FONT,
         }}>
           {error}

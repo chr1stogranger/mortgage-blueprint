@@ -324,9 +324,9 @@ export default function UnifiedHeader({
               }}
               id="bp-copy-share-btn"
               style={{
-                fontSize: 10, fontWeight: 600, color: '#6366F1',
-                background: 'rgba(99,102,241,0.08)',
-                border: '1px solid rgba(99,102,241,0.2)',
+                fontSize: 10, fontWeight: 600, color: '#3B6BF5',
+                background: 'rgba(59,107,245,0.08)',
+                border: '1px solid rgba(59,107,245,0.2)',
                 borderRadius: 9999, padding: '3px 9px',
                 cursor: 'pointer', fontFamily: FONT, marginLeft: 6,
                 whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
@@ -344,11 +344,11 @@ export default function UnifiedHeader({
               {cloudSyncStatus === 'saving' && <span style={{ fontSize: 9, color: T.blue, fontStyle: "italic" }}></span>}
               {cloudSyncStatus === 'saved' && <div style={{ width: 5, height: 5, borderRadius: "50%", background: T.green, flexShrink: 0 }} />}
               {cloudSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>✗</span>}
-              {sync?.status === 'saving' && <span style={{ fontSize: 9, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
-              {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#10B981' }}>live</span>}
-              {sync?.onlineUsers?.length > 0 && <span style={{ fontSize: 9, color: '#6366F1', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
-              {selfSyncStatus === 'saving' && <span style={{ fontSize: 9, color: '#6366F1', fontStyle: "italic" }}>syncing...</span>}
-              {selfSyncStatus === 'saved' && <span style={{ fontSize: 9, color: '#10B981' }}>synced</span>}
+              {sync?.status === 'saving' && <span style={{ fontSize: 9, color: '#3B6BF5', fontStyle: "italic" }}>syncing...</span>}
+              {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#12a150' }}>live</span>}
+              {sync?.onlineUsers?.length > 0 && <span style={{ fontSize: 9, color: '#3B6BF5', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
+              {selfSyncStatus === 'saving' && <span style={{ fontSize: 9, color: '#3B6BF5', fontStyle: "italic" }}>syncing...</span>}
+              {selfSyncStatus === 'saved' && <span style={{ fontSize: 9, color: '#12a150' }}>synced</span>}
               {selfSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>sync error</span>}
             </div>
           )}
@@ -375,7 +375,7 @@ export default function UnifiedHeader({
                 title={selfAccount.email || 'My account'}
                 style={{
                   width: 28, height: 28, borderRadius: "50%", border: "none",
-                  background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+                  background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
                   color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontFamily: FONT, flexShrink: 0, padding: 0,
@@ -390,9 +390,9 @@ export default function UnifiedHeader({
                 style={{
                   padding: isDesktop ? "4px 12px" : "4px 10px",
                   borderRadius: 9999,
-                  border: "1px solid rgba(99,102,241,0.35)",
-                  background: "rgba(99,102,241,0.08)",
-                  color: "#6366F1", fontSize: 11, fontWeight: 600,
+                  border: "1px solid rgba(59,107,245,0.35)",
+                  background: "rgba(59,107,245,0.08)",
+                  color: "#3B6BF5", fontSize: 11, fontWeight: 600,
                   cursor: "pointer", fontFamily: FONT,
                   whiteSpace: "nowrap", flexShrink: 0,
                 }}

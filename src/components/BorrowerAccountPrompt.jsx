@@ -64,8 +64,8 @@ export default function BorrowerAccountPrompt({
 
   return (
     <div style={{
-      background: '#0F0F0F',
-      border: '1px solid rgba(99, 102, 241, 0.15)',
+      background: '#121c30',
+      border: '1px solid rgba(59,107,245, 0.15)',
       borderRadius: 14,
       padding: 20,
       ...style,
@@ -114,7 +114,7 @@ export default function BorrowerAccountPrompt({
                 <span
                   style={{
                     fontSize: 14, width: 28, height: 28,
-                    background: 'rgba(99, 102, 241, 0.08)',
+                    background: 'rgba(59,107,245, 0.08)',
                     borderRadius: 7, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                   }}
@@ -131,11 +131,11 @@ export default function BorrowerAccountPrompt({
             onClick={() => setPhase('email')}
             style={{
               width: '100%', padding: '12px',
-              background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+              background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
               border: 'none', borderRadius: 9999,
               color: '#fff', fontSize: 14, fontWeight: 700,
               cursor: 'pointer', fontFamily: FONT,
-              boxShadow: '0 0 20px rgba(99, 102, 241, 0.3)',
+              boxShadow: '0 0 20px rgba(59,107,245, 0.3)',
             }}
           >
             Save my Blueprint
@@ -180,7 +180,7 @@ export default function BorrowerAccountPrompt({
             autoFocus
             style={{
               width: '100%', padding: '12px 14px',
-              background: '#1A1A1A',
+              background: '#162034',
               border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 10, color: '#EDEDED',
               fontSize: 14, fontFamily: FONT,
@@ -191,7 +191,7 @@ export default function BorrowerAccountPrompt({
 
           {error && (
             <div style={{
-              fontSize: 12, color: '#EF4444',
+              fontSize: 12, color: '#e5484d',
               marginBottom: 8, fontFamily: FONT,
             }}>{error}</div>
           )}
@@ -201,7 +201,7 @@ export default function BorrowerAccountPrompt({
             disabled={loading}
             style={{
               width: '100%', padding: '12px',
-              background: '#6366F1', border: 'none',
+              background: '#3B6BF5', border: 'none',
               borderRadius: 9999, color: '#fff',
               fontSize: 14, fontWeight: 700,
               cursor: loading ? 'default' : 'pointer',
@@ -231,12 +231,12 @@ export default function BorrowerAccountPrompt({
           <div style={{
             width: 48, height: 48,
             borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.1)',
+            background: 'rgba(18,161,80, 0.1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 12px',
             fontSize: 22,
           }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#12a150" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </div>
@@ -262,7 +262,7 @@ export default function BorrowerAccountPrompt({
             Didn't get it? Check spam or{' '}
             <span
               onClick={() => { setPhase('email'); setError(''); }}
-              style={{ color: '#6366F1', cursor: 'pointer' }}
+              style={{ color: '#3B6BF5', cursor: 'pointer' }}
             >try again</span>.
           </div>
         </div>

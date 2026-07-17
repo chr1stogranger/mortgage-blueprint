@@ -67,9 +67,9 @@ export default function handler(req, res) {
   <meta name="apple-mobile-web-app-title" content="PricePoint" />
 
   <style>
-    body { margin: 0; background: #050505; color: #EDEDED; font-family: Inter, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    body { margin: 0; background: #0a1120; color: #EDEDED; font-family: Inter, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
     .loader { text-align: center; }
-    .loader h2 { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #6366F1; margin-bottom: 8px; }
+    .loader h2 { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #3B6BF5; margin-bottom: 8px; }
     .loader p { color: #A1A1A1; font-size: 15px; }
   </style>
 </head>

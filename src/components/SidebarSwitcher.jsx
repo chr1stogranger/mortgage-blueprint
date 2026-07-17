@@ -18,11 +18,11 @@ import BorrowerPicker from './BorrowerPicker';
 
 
 const STATUS_COLORS = {
-  lead: '#F59E0B',
-  active: '#3B82F6',
-  pre_approved: '#6366F1',
-  in_escrow: '#8B5CF6',
-  closed: '#10B981',
+  lead: '#d98a0b',
+  active: '#3B6BF5',
+  pre_approved: '#3B6BF5',
+  in_escrow: '#8b7bf0',
+  closed: '#12a150',
   dead: '#666666',
 };
 
@@ -46,7 +46,7 @@ export default function SidebarSwitcher({
   T = {},
 }) {
   const [recentsOpen, setRecentsOpen] = React.useState(true);
-  const accent = '#6366F1';
+  const accent = '#3B6BF5';
   const text = T.text || '#EDEDED';
   const textTer = T.textTertiary || '#666666';
   const separator = T.separator || 'rgba(255,255,255,0.08)';

@@ -84,7 +84,7 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
 
   if (error) {
     return (
-      <div style={{ padding: 20, textAlign: 'center', color: '#EF4444', fontFamily: FONT, fontSize: 13 }}>
+      <div style={{ padding: 20, textAlign: 'center', color: '#e5484d', fontFamily: FONT, fontSize: 13 }}>
         {error}
       </div>
     );
@@ -92,7 +92,7 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
 
   return (
     <div style={{
-      background: '#0F0F0F',
+      background: '#121c30',
       border: '1px solid rgba(255,255,255,0.06)',
       borderRadius: 12,
       padding: compact ? 12 : 20,
@@ -112,9 +112,9 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
           onClick={computeDigest}
           style={{
             padding: '4px 10px',
-            background: 'rgba(99, 102, 241, 0.08)',
-            border: '1px solid rgba(99, 102, 241, 0.15)',
-            borderRadius: 6, color: '#6366F1',
+            background: 'rgba(59,107,245, 0.08)',
+            border: '1px solid rgba(59,107,245, 0.15)',
+            borderRadius: 6, color: '#3B6BF5',
             fontSize: 10, fontWeight: 600,
             cursor: 'pointer', fontFamily: FONT,
           }}
@@ -142,9 +142,9 @@ export default function ActivityDashboard({ days = 7, compact = false }) {
 function ActivityCard({ digest, compact }) {
   const [expanded, setExpanded] = useState(false);
 
-  const intensityColor = digest.total_edits > 10 ? '#EF4444'
-    : digest.total_edits > 5 ? '#F59E0B'
-    : '#10B981';
+  const intensityColor = digest.total_edits > 10 ? '#e5484d'
+    : digest.total_edits > 5 ? '#d98a0b'
+    : '#12a150';
 
   return (
     <div
@@ -214,7 +214,7 @@ function ActivityCard({ digest, compact }) {
       {expanded && (
         <div style={{
           marginTop: 12, padding: '12px',
-          background: '#050505', borderRadius: 8,
+          background: '#0a1120', borderRadius: 8,
         }}>
           {/* Price range explored */}
           {digest.price_range_explored && (
@@ -262,9 +262,9 @@ function ActivityCard({ digest, compact }) {
                 {digest.fields_changed.map(f => (
                   <span key={f} style={{
                     fontSize: 10, padding: '3px 7px',
-                    background: 'rgba(99, 102, 241, 0.08)',
-                    border: '1px solid rgba(99, 102, 241, 0.15)',
-                    borderRadius: 4, color: '#818CF8',
+                    background: 'rgba(59,107,245, 0.08)',
+                    border: '1px solid rgba(59,107,245, 0.15)',
+                    borderRadius: 4, color: '#6E90FF',
                     fontFamily: FONT,
                   }}>
                     {FIELD_LABELS[f] || f}
@@ -277,11 +277,11 @@ function ActivityCard({ digest, compact }) {
           {/* Agent tip */}
           <div style={{
             marginTop: 12, padding: '10px 12px',
-            background: 'rgba(99, 102, 241, 0.04)',
-            borderRadius: 6, borderLeft: '3px solid #6366F1',
+            background: 'rgba(59,107,245, 0.04)',
+            borderRadius: 6, borderLeft: '3px solid #3B6BF5',
           }}>
             <div style={{
-              fontSize: 10, color: '#6366F1',
+              fontSize: 10, color: '#3B6BF5',
               fontWeight: 600, textTransform: 'uppercase',
               marginBottom: 4, fontFamily: FONT,
             }}>AGENT TIP</div>

@@ -7,7 +7,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  *
  * Rendered as a full-screen overlay sheet (mobile-first, works on desktop).
  * Brand Kit: pill buttons, Inter labels, JetBrains Mono for the email,
- * indigo #6366F1 accent, no emojis.
+ * indigo #3B6BF5 accent, no emojis.
  */
 
 import { useState } from 'react';
@@ -42,16 +42,16 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
   if (!open) return null;
 
   const card = {
-    background: T?.card || (darkMode ? '#0F0F0F' : '#FFFFFF'),
+    background: T?.card || (darkMode ? '#121c30' : '#FFFFFF'),
     border: `1px solid ${T?.separator || 'rgba(255,255,255,0.06)'}`,
     borderRadius: 16, padding: 24,
   };
   const textColor = T?.text || (darkMode ? '#EDEDED' : '#171717');
   const secondary = T?.textSecondary || (darkMode ? '#A1A1A1' : '#525252');
   const tertiary = T?.textTertiary || (darkMode ? '#666666' : '#737373');
-  const inputBg = darkMode ? '#1A1A1A' : '#F0F0F0';
-  const accent = '#6366F1';
-  const red = '#EF4444';
+  const inputBg = darkMode ? '#162034' : '#F0F0F0';
+  const accent = '#3B6BF5';
+  const red = '#e5484d';
 
   const pill = (bg, color, extra = {}) => ({
     padding: '12px 20px', borderRadius: 9999, border: 'none',
@@ -171,7 +171,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
                 type="submit"
                 disabled={!email.trim() || busy}
                 style={pill(
-                  email.trim() && !busy ? 'linear-gradient(135deg, #6366F1, #3B82F6)' : 'rgba(99,102,241,0.2)',
+                  email.trim() && !busy ? 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' : 'rgba(59,107,245,0.2)',
                   '#fff'
                 )}
               >
@@ -222,7 +222,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{
                 width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-                background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+                background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontWeight: 700, fontSize: 17,
               }}>
@@ -242,7 +242,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '14px 16px', borderRadius: 12, marginBottom: 12,
-              background: darkMode ? '#141414' : '#F5F5F5',
+              background: darkMode ? '#1a2740' : '#F5F5F5',
             }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: textColor }}>Cloud sync</div>
@@ -301,7 +301,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
             </button>
 
             {/* Delete */}
-            <button onClick={() => setPhase('delete-confirm')} style={pill('transparent', red, { border: '1px solid rgba(239,68,68,0.25)' })}>
+            <button onClick={() => setPhase('delete-confirm')} style={pill('transparent', red, { border: '1px solid rgba(229,72,77,0.25)' })}>
               Delete my account
             </button>
 
@@ -325,14 +325,14 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
               style={{
                 width: '100%', padding: '12px 16px', boxSizing: 'border-box',
                 background: inputBg, color: textColor, fontFamily: MONO,
-                border: `1px solid rgba(239,68,68,0.3)`,
+                border: `1px solid rgba(229,72,77,0.3)`,
                 borderRadius: 12, fontSize: 14, outline: 'none', marginBottom: 12,
               }}
             />
             <button
               onClick={handleDelete}
               disabled={deleteText !== 'DELETE' || busy}
-              style={pill(deleteText === 'DELETE' && !busy ? red : 'rgba(239,68,68,0.2)', '#fff')}
+              style={pill(deleteText === 'DELETE' && !busy ? red : 'rgba(229,72,77,0.2)', '#fff')}
             >
               {busy ? 'Deleting…' : 'Permanently delete my account'}
             </button>
@@ -346,7 +346,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
         {error && (
           <div style={{
             marginTop: 14, padding: '10px 14px', borderRadius: 10,
-            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+            background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.2)',
             color: red, fontSize: 13, textAlign: 'center',
           }}>
             {error}

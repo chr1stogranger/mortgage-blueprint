@@ -400,9 +400,9 @@ export default function TeamContent({
         <button onClick={runAriveFill} disabled={ariveState === "loading"} style={{
           display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px",
           borderRadius: 9999, border: "none", cursor: ariveState === "loading" ? "wait" : "pointer",
-          background: "linear-gradient(135deg, #6366F1, #3B82F6)", color: "#fff",
+          background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff",
           fontSize: 13.5, fontWeight: 700, fontFamily: FONT, opacity: ariveState === "loading" ? 0.7 : 1,
-          boxShadow: "0 0 20px rgba(99,102,241,0.25)",
+          boxShadow: "0 0 20px rgba(59,107,245,0.25)",
         }}>
           <Icon name="zap" size={14} />{ariveState === "loading" ? "Checking Arive…" : "Auto-fill from Arive"}
         </button>

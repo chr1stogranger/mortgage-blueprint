@@ -16,14 +16,14 @@ import { fetchSharedData, saveSharedScenario } from "./api";
 
 
 const T = {
-  bg: "#050505", card: "#0A0A0A", surface: "#0F0F0F",
+  bg: "#0a1120", card: "#0d1524", surface: "#121c30",
   cardBorder: "rgba(255,255,255,0.06)", cardBorderHover: "rgba(255,255,255,0.12)",
-  accent: "#6366F1", accentLight: "#818CF8", accentBright: "#A5B4FC",
-  blue: "#3B82F6", teal: "#06B6D4", green: "#10B981", red: "#EF4444",
-  amber: "#F59E0B", purple: "#8B5CF6",
+  accent: "#3B6BF5", accentLight: "#6E90FF", accentBright: "#6E90FF",
+  blue: "#3B6BF5", teal: "#38c6c6", green: "#12a150", red: "#e5484d",
+  amber: "#d98a0b", purple: "#8b7bf0",
   text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#666666",
   separator: "rgba(255,255,255,0.06)",
-  inputBg: "#1A1A1A", inputBorder: "rgba(255,255,255,0.12)",
+  inputBg: "#162034", inputBorder: "rgba(255,255,255,0.12)",
 };
 
 function fmt(v) {
@@ -42,9 +42,9 @@ function LoadingSpinner() {
         <div style={{
           width: 64, height: 64, margin: "0 auto 20px",
           borderRadius: 16,
-          background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+          background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 0 40px rgba(99,102,241,0.3)",
+          boxShadow: "0 0 40px rgba(59,107,245,0.3)",
           animation: "pulse-glow 2s ease-in-out infinite",
         }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,7 +63,7 @@ function LoadingSpinner() {
         </div>
       </div>
       <style>{`
-        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 60px rgba(99,102,241,0.5); } }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(59,107,245,0.3); } 50% { box-shadow: 0 0 60px rgba(59,107,245,0.5); } }
         @keyframes fade-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
     </div>
@@ -77,11 +77,11 @@ function ErrorState({ error }) {
       <div style={{ textAlign: "center", maxWidth: 400, padding: 24 }}>
         <div style={{
           width: 56, height: 56, margin: "0 auto 16px",
-          borderRadius: 14, background: "rgba(239,68,68,0.1)",
-          border: "1px solid rgba(239,68,68,0.2)",
+          borderRadius: 14, background: "rgba(229,72,77,0.1)",
+          border: "1px solid rgba(229,72,77,0.2)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e5484d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
         </div>
@@ -112,11 +112,11 @@ function ScenarioCard({ scenario, isSelected, onSelect }) {
     <div
       onClick={onSelect}
       style={{
-        background: isSelected ? "rgba(99,102,241,0.06)" : T.surface,
-        border: `1px solid ${isSelected ? "rgba(99,102,241,0.25)" : T.cardBorder}`,
+        background: isSelected ? "rgba(59,107,245,0.06)" : T.surface,
+        border: `1px solid ${isSelected ? "rgba(59,107,245,0.25)" : T.cardBorder}`,
         borderRadius: 16, padding: "20px 22px", cursor: "pointer",
         transition: "all 0.2s ease",
-        boxShadow: isSelected ? "0 0 20px rgba(99,102,241,0.08)" : "none",
+        boxShadow: isSelected ? "0 0 20px rgba(59,107,245,0.08)" : "none",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -130,7 +130,7 @@ function ScenarioCard({ scenario, isSelected, onSelect }) {
         {isSelected && (
           <div style={{
             width: 24, height: 24, borderRadius: "50%",
-            background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+            background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -162,7 +162,7 @@ function ScenarioCard({ scenario, isSelected, onSelect }) {
         <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
           {cs.loanType && <span style={{ fontSize: 10, fontWeight: 600, color: T.accentLight, background: `${T.accent}12`, padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>{cs.loanType}</span>}
           {cs.term && <span style={{ fontSize: 10, fontWeight: 600, color: T.textSecondary, background: "rgba(255,255,255,0.04)", padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>{cs.term}yr</span>}
-          {cs.creditScore > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: T.green, background: "rgba(16,185,129,0.1)", padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>FICO {cs.creditScore}</span>}
+          {cs.creditScore > 0 && <span style={{ fontSize: 10, fontWeight: 600, color: T.green, background: "rgba(18,161,80,0.1)", padding: "3px 8px", borderRadius: 6, fontFamily: FONT }}>FICO {cs.creditScore}</span>}
         </div>
       )}
     </div>
@@ -283,10 +283,10 @@ function ScenarioDetail({ scenario, accessLevel, shareToken, onScenarioCreated }
       {adjusting && (
         <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
           <button onClick={handleSaveAdjustment} disabled={saving} style={{
-            flex: 1, padding: 14, background: "linear-gradient(135deg, #6366F1, #3B82F6)", border: "none",
+            flex: 1, padding: 14, background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", border: "none",
             borderRadius: 12, color: "#fff", fontSize: 15, fontWeight: 700,
             cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1,
-            fontFamily: FONT, boxShadow: "0 4px 16px rgba(99,102,241,0.3)",
+            fontFamily: FONT, boxShadow: "0 4px 16px rgba(59,107,245,0.3)",
           }}>{saving ? "Saving..." : "Save My Adjustment"}</button>
           <button onClick={() => setAdjusting(false)} style={{
             padding: "14px 20px", background: "rgba(255,255,255,0.04)", border: `1px solid ${T.separator}`,
@@ -354,9 +354,9 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
             {/* Logo mark */}
             <div style={{
               width: 32, height: 32, borderRadius: 8,
-              background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+              background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 0 12px rgba(99,102,241,0.25)",
+              boxShadow: "0 0 12px rgba(59,107,245,0.25)",
             }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -383,7 +383,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
       <div style={{
         position: "relative", overflow: "hidden",
         padding: "48px 20px 40px",
-        background: "linear-gradient(180deg, rgba(99,102,241,0.08) 0%, rgba(5,5,5,0) 100%)",
+        background: "linear-gradient(180deg, rgba(59,107,245,0.08) 0%, rgba(5,5,5,0) 100%)",
       }}>
         {/* Subtle grid pattern */}
         <div style={{
@@ -415,7 +415,7 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
           {/* Glow divider */}
           <div style={{
             width: 60, height: 2, marginTop: 24,
-            background: "linear-gradient(90deg, #6366F1, #3B82F6)",
+            background: "linear-gradient(90deg, #3B6BF5, #2B4FCE)",
             borderRadius: 2,
           }} />
         </div>
@@ -486,11 +486,11 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               width: "100%", marginTop: 18,
-              padding: 16, background: "linear-gradient(135deg, #6366F1, #3B82F6)",
+              padding: 16, background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)",
               border: "none", borderRadius: 12, color: "#fff",
               fontSize: 16, fontWeight: 700, cursor: "pointer",
               fontFamily: FONT, letterSpacing: "-0.02em",
-              boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
+              boxShadow: "0 4px 20px rgba(59,107,245,0.3)",
             }}
           >
             Open Full Calculator

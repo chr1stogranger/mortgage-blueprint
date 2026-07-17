@@ -18,11 +18,11 @@ import Icon from '../Icon';
 
 
 const STATUS_COLORS = {
-  lead: '#F59E0B',
-  active: '#3B82F6',
-  pre_approved: '#6366F1',
-  in_escrow: '#8B5CF6',
-  closed: '#10B981',
+  lead: '#d98a0b',
+  active: '#3B6BF5',
+  pre_approved: '#3B6BF5',
+  in_escrow: '#8b7bf0',
+  closed: '#12a150',
   dead: '#666666',
 };
 
@@ -65,13 +65,13 @@ export default function BorrowerPicker({
   const listRef = useRef(null);
 
   // ── Theme tokens ──
-  const bg = T.inputBg || '#1A1A1A';
+  const bg = T.inputBg || '#162034';
   const border = T.border || 'rgba(255,255,255,0.08)';
   const text = T.text || '#EDEDED';
   const textSec = T.textSecondary || '#A1A1A1';
   const textTer = T.textTertiary || '#666666';
-  const card = T.card || '#0F0F0F';
-  const accent = '#6366F1';
+  const card = T.card || '#121c30';
+  const accent = '#3B6BF5';
   const hoverBg = T.tabActiveBg || 'rgba(255,255,255,0.04)';
 
   const searching = !!search.trim();
@@ -336,7 +336,7 @@ export default function BorrowerPicker({
             textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT,
             borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#3B82F6', display: 'inline-block' }} />
+            <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#3B6BF5', display: 'inline-block' }} />
             SELECT BLUEPRINT
             {scenariosLoading && <span style={{ color: accent, fontStyle: 'italic', fontWeight: 400 }}>loading...</span>}
           </div>

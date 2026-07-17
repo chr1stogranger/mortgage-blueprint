@@ -56,13 +56,13 @@ function ClaimBanner({ sessionToken, shareToken }) {
       display: 'flex', alignItems: 'center', gap: 10,
       background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid rgba(99,102,241,0.3)', borderRadius: 9999,
+      border: '1px solid rgba(59,107,245,0.3)', borderRadius: 9999,
       padding: '8px 10px 8px 18px', maxWidth: 'calc(100vw - 32px)',
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
     }}>
       {state === 'done' ? (
-        <span style={{ fontSize: 13, color: '#10B981', fontWeight: 600, padding: '4px 8px' }}>
+        <span style={{ fontSize: 13, color: '#12a150', fontWeight: 600, padding: '4px 8px' }}>
           Saved to your account — it's yours now, on every device
         </span>
       ) : (
@@ -75,7 +75,7 @@ function ClaimBanner({ sessionToken, shareToken }) {
             disabled={state === 'claiming'}
             style={{
               padding: '7px 14px', borderRadius: 9999, border: 'none',
-              background: 'linear-gradient(135deg, #6366F1, #3B82F6)',
+              background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
               color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
               whiteSpace: 'nowrap', flexShrink: 0,
             }}
@@ -116,11 +116,11 @@ class ShareFlowErrorBoundary extends Component {
   }
   render() {
     if (this.state.hasError) {
-      const T = { bg: '#050505', accent: '#6366F1', text: '#EDEDED', textSecondary: '#A1A1A1', red: '#EF4444' };
+      const T = { bg: '#0a1120', accent: '#3B6BF5', text: '#EDEDED', textSecondary: '#A1A1A1', red: '#e5484d' };
             return (
         <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT }}>
           <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
-            <div style={{ width: 56, height: 56, margin: '0 auto 16px', borderRadius: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 56, height: 56, margin: '0 auto 16px', borderRadius: 14, background: 'rgba(229,72,77,0.1)', border: '1px solid rgba(229,72,77,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
@@ -223,9 +223,9 @@ function App() {
 // ── Share Expired Screen ──────────────────────────────────────────────────
 function ShareExpiredScreen() {
   const T = {
-    bg: '#050505', accent: '#6366F1',
+    bg: '#0a1120', accent: '#3B6BF5',
     text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#666666',
-    red: '#EF4444',
+    red: '#e5484d',
   };
     
   return (
@@ -237,8 +237,8 @@ function ShareExpiredScreen() {
       <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
         <div style={{
           width: 56, height: 56, margin: '0 auto 16px',
-          borderRadius: 14, background: 'rgba(239,68,68,0.1)',
-          border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 14, background: 'rgba(229,72,77,0.1)',
+          border: '1px solid rgba(229,72,77,0.2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.red} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -251,7 +251,7 @@ function ShareExpiredScreen() {
         <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6 }}>
           This share link may have expired or been deactivated.
         </div>
-        <div style={{ marginTop: 24, padding: '16px 20px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 12 }}>
+        <div style={{ marginTop: 24, padding: '16px 20px', background: 'rgba(59,107,245,0.06)', border: '1px solid rgba(59,107,245,0.15)', borderRadius: 12 }}>
           <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 8 }}>Need a new link? Contact your loan officer:</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 4 }}>Chris Granger</div>
           <div style={{ fontSize: 13, color: T.textSecondary }}>NMLS #952015</div>
