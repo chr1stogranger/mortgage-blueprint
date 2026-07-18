@@ -14,8 +14,10 @@
   bright-cool light ground, with a per-mode background canvas
   (`src/components/AppBackground.jsx`, decision by Christo 2026-07-17):
   Blueprint = blueprint-paper 3D wireframe-house canvas ("house" variant),
-  PricePoint = thin-line target canvas ("target"), Markets = the woven
-  ribbons ("ribbons", palette in `theme.js` `RIBBONS`). Glass chrome via
+  PricePoint = thin-line target canvas ("target"), Markets = ascending
+  stock-line canvas ("chart", Christo 2026-07-18). The woven ribbons
+  ("ribbons", palette in `theme.js` `RIBBONS`) are retired from all modes
+  but remain the code default — do not reintroduce them. Glass chrome via
   `T.glass`/`T.glassStrong`/`T.glassBorder`. Dense data
   surfaces stay solid (`T.card`) — glass is chrome + tiles. The Pause
   control lives in Settings → Appearance; the canvas honors

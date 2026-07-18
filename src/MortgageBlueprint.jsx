@@ -4879,7 +4879,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
   <WorkspaceProvider>
-  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "ribbons"} complete={appMode === "blueprint" && tab === "workspace"} />
+  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "chart"} complete={appMode === "blueprint" && tab === "workspace"} />
   <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }

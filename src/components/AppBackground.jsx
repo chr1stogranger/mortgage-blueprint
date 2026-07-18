@@ -480,6 +480,114 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons", c
       };
     }
 
+    // ── chart variant: Markets stock line over the standard Grange wash ────
+    // Full-viewport ascending price line with pullbacks (Christo's reference,
+    // 2026-07-18), faint chart grid, soft glow, arrowhead finish. Draws itself
+    // in over ~2s on mode entry; static complete frame under reduced motion.
+    if (variant === "chart") {
+      // normalized [0,1]² series, lower-left → upper-right, stair-step dips
+      const PTS = [
+        [0.00, 0.97], [0.06, 0.90], [0.10, 0.93], [0.17, 0.83], [0.22, 0.86],
+        [0.30, 0.72], [0.34, 0.76], [0.42, 0.62], [0.46, 0.68], [0.53, 0.52],
+        [0.58, 0.56], [0.66, 0.40], [0.70, 0.46], [0.78, 0.28], [0.82, 0.33],
+        [0.90, 0.16], [0.97, 0.04],
+      ];
+      let px = [], segs = [], total = 0;
+      let p = reduce ? 1 : 0; // draw-in progress
+
+      function layout() {
+        px = PTS.map(([x, y]) => [x * W, y * Hc]);
+        segs = []; total = 0;
+        for (let i = 1; i < px.length; i++) {
+          const d = Math.hypot(px[i][0] - px[i - 1][0], px[i][1] - px[i - 1][1]);
+          segs.push(d); total += d;
+        }
+      }
+
+      // partial stroke by walking segments; returns the tip + direction so the
+      // arrowhead can ride the line while it draws
+      function strokeLine(maxLen, offX, offY) {
+        ctx.beginPath();
+        ctx.moveTo(px[0][0] + offX, px[0][1] + offY);
+        let used = 0, tip = [px[0][0], px[0][1]], dir = [1, -1];
+        for (let i = 1; i < px.length; i++) {
+          const seg = segs[i - 1];
+          const [ax, ay] = px[i - 1], [bx, by] = px[i];
+          if (used + seg <= maxLen) {
+            ctx.lineTo(bx + offX, by + offY);
+            used += seg; tip = [bx, by]; dir = [bx - ax, by - ay];
+          } else {
+            const f = seg === 0 ? 0 : (maxLen - used) / seg;
+            const mx = ax + (bx - ax) * f, my = ay + (by - ay) * f;
+            ctx.lineTo(mx + offX, my + offY);
+            tip = [mx, my]; dir = [bx - ax, by - ay];
+            break;
+          }
+        }
+        ctx.stroke();
+        return { tip, dir };
+      }
+
+      function draw() {
+        const dark = S.dark;
+        paintWash();
+        // chart grid — kinship with the blueprint grid, reads as graph paper
+        const cell = 64 * dpr;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = dark ? "rgba(59,107,245,0.045)" : "rgba(43,79,206,0.035)";
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += cell) { ctx.moveTo(x, 0); ctx.lineTo(x, Hc); }
+        for (let y = 0; y <= Hc; y += cell) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+        ctx.stroke();
+        const maxLen = Math.min(1, Math.max(0, p)) * total;
+        // echo line — same path, offset, much fainter (depth without noise)
+        ctx.lineJoin = "round"; ctx.lineCap = "round";
+        ctx.strokeStyle = dark ? "rgba(59,107,245,0.055)" : "rgba(43,79,206,0.045)";
+        ctx.lineWidth = 1.5 * dpr;
+        strokeLine(maxLen, 40 * dpr, 56 * dpr);
+        // main line with a soft Grange glow
+        ctx.save();
+        ctx.shadowColor = dark ? "rgba(59,107,245,0.55)" : "rgba(59,107,245,0.35)";
+        ctx.shadowBlur = 12 * dpr;
+        ctx.strokeStyle = dark ? "rgba(140,178,255,0.22)" : "rgba(43,79,206,0.16)";
+        ctx.lineWidth = 2 * dpr;
+        const { tip, dir } = strokeLine(maxLen, 0, 0);
+        // arrowhead riding the tip
+        const mag = Math.hypot(dir[0], dir[1]) || 1;
+        const ux = dir[0] / mag, uy = dir[1] / mag;
+        const ah = 14 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(tip[0], tip[1]);
+        ctx.lineTo(tip[0] - ah * (ux * 0.87 - uy * 0.5), tip[1] - ah * (uy * 0.87 + ux * 0.5));
+        ctx.moveTo(tip[0], tip[1]);
+        ctx.lineTo(tip[0] - ah * (ux * 0.87 + uy * 0.5), tip[1] - ah * (uy * 0.87 - ux * 0.5));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function resize() { sizeCanvas(); layout(); draw(); }
+
+      function loop() {
+        if (!S.paused && p < 1) {
+          p = Math.min(1, p + (1 - p) * 0.045 + 0.002); // ease-out draw-in ≈ 2s
+          draw();
+        }
+        S.raf = window.requestAnimationFrame(loop); // idle frames do no canvas work
+      }
+
+      S.redraw = () => { sizeCanvas(); layout(); draw(); }; // theme-flip / paused repaint
+      sizeCanvas();
+      layout();
+      draw();
+      window.addEventListener("resize", resize);
+      if (!reduce) S.raf = window.requestAnimationFrame(loop);
+
+      return () => {
+        window.cancelAnimationFrame(S.raf);
+        window.removeEventListener("resize", resize);
+      };
+    }
+
     // ── ribbons variant (default) ──────────────────────────────────────────
     function resize() { sizeCanvas(); }
 
