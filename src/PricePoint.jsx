@@ -2166,7 +2166,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
 
-  // ── Live address search (A3): free-text address → /api/pp-address → card ──
+  // ── Live address search (A3): free-text address → propertydetails?address= → card ──
   const runLiveAddressSearch = async (addressText) => {
     const q = String(addressText || "").trim();
     if (q.length < 5 || liveSearchLoading) return;
@@ -2175,7 +2175,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveSearchGuessInput("");
     setLiveSearchLoading(true);
     try {
-      const resp = await fetch(apiUrl(`/api/pp-address?address=${encodeURIComponent(q)}&market=${encodeURIComponent(market?.id || "sf")}`));
+      const resp = await fetch(apiUrl(`/api/propertydetails?address=${encodeURIComponent(q)}&market=${encodeURIComponent(market?.id || "sf")}`));
       const data = await resp.json().catch(() => null);
       if (resp.ok && data?.listing) {
         setLiveSearchListing(data.listing);

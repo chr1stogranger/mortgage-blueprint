@@ -1,6 +1,10 @@
-// /api/pp-address.js — Vercel Serverless Function (A3: Live "search any address")
+// /api/_address.js — A3: Live "search any address" (helper, NOT a function)
 //
-// GET /api/pp-address?address=<full street address>[&market=<marketId>]
+// Invoked by /api/propertydetails.js when called with ONLY ?address= (no zpid,
+// no rcid): GET /api/propertydetails?address=<full street address>[&market=<id>]
+// Folded out of its own route (pp-address.js) because Vercel's Hobby plan caps
+// a deployment at 12 serverless functions and this was the 13th. CORS + rate
+// limiting are applied by the propertydetails handler before delegation.
 //
 // Resolves a free-text street address → Zillow zpid via the RapidAPI /search
 // pattern already proven in propertydetails.js and _enrich.js, then fetches
@@ -27,8 +31,6 @@
 // the L1 cache still dedupes repeats per warm instance.
 
 import { createClient } from "@supabase/supabase-js";
-import { applyCors } from "./_cors.js";
-import { rateLimited } from "./_ratelimit.js";
 import { extractPhotos, isUsablePhoto, isRentalText, saneListPrice } from "./_enrich.js";
 
 function getSupabaseAdmin() {
@@ -126,12 +128,7 @@ function poolRowToListing(r) {
   };
 }
 
-export const config = { maxDuration: 30 };
-
-export default async function handler(req, res) {
-  if (applyCors(req, res)) return;
-  if (rateLimited(req, res, { limit: 30 })) return;
-
+export async function handleAddressSearch(req, res) {
   try {
     const address = String(req.query.address || "").trim();
     if (address.length < 5) {

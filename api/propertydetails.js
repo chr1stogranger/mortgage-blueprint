@@ -10,6 +10,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
+import { handleAddressSearch } from "./_address.js";
 
 export const config = { maxDuration: 30 };
 
@@ -108,6 +109,13 @@ export default async function handler(req, res) {
   // Shared scoped CORS (now also covers the Capacitor native origins) + rate limit.
   if (applyCors(req, res)) return;
   if (rateLimited(req, res, { limit: 30 })) return;
+
+  // Address-only call = Live "search any address" (A3). zpid/rcid calls fall
+  // through to the normal detail flow below. Lives in _address.js — Hobby's
+  // 12-function deployment cap is why it isn't its own route.
+  if (req.query.address && !req.query.zpid && !req.query.rcid) {
+    return handleAddressSearch(req, res);
+  }
 
   const apiKey = process.env.RAPIDAPI_KEY;
   if (!apiKey) {
