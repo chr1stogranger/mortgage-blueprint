@@ -11,12 +11,12 @@
     "StatusBar": {
       "overlaysWebView": true,
       "style": "LIGHT",
-      "backgroundColor": "#050505"
+      "backgroundColor": "#0a1120"
     },
     "SplashScreen": {
       "launchAutoHide": true,
       "launchShowDuration": 1500,
-      "backgroundColor": "#050505",
+      "backgroundColor": "#0a1120",
       "showSpinner": false,
       "splashFullScreen": true,
       "splashImmersive": true
