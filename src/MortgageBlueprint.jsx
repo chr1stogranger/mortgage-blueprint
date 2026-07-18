@@ -12,6 +12,7 @@ import {
 } from "./lib/finance.js";
 import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
+import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT } from "./lib/theme.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
@@ -420,91 +421,17 @@ function TextInp({ label, value, onChange, placeholder, sm, tip, req, inputMode,
  </div>);
 }
 // ═══ ADDRESS AUTOCOMPLETE (Google Places) ═══
-// Provides address typeahead. When user selects a suggestion, fires onSelect
-// with { address, city, state, zip, county }. Falls back to plain text input
-// if the Google Maps script hasn't loaded yet.
+// Extracted to src/components/AddressAutocomplete.jsx (A3) so PricePoint's
+// Live "search any address" reuses the same component. This thin wrapper
+// preserves Blueprint's original API and rendering: FieldLabel header, the
+// active theme object T, and full state names ("CA" → "California").
 function AddressAutocomplete({ onSelect, value, onChange, placeholder }) {
- const inputRef = useRef(null);
- const autocompleteRef = useRef(null);
- const [ready, setReady] = useState(false);
-
- // Wait for Google Maps script, then attach Autocomplete
- useEffect(() => {
-  let attempts = 0;
-  const maxAttempts = 40; // 40 × 500ms = 20s
-  function tryInit() {
-   if (window.google && window.google.maps && window.google.maps.places) {
-    if (inputRef.current && !autocompleteRef.current) {
-     const ac = new window.google.maps.places.Autocomplete(inputRef.current, {
-      types: ["address"],
-      componentRestrictions: { country: "us" },
-      fields: ["address_components", "formatted_address"],
-     });
-     ac.addListener("place_changed", () => {
-      const place = ac.getPlace();
-      if (!place || !place.address_components) return;
-      const get = (type) => {
-       const comp = place.address_components.find(c => c.types.includes(type));
-       return comp ? comp.long_name : "";
-      };
-      const getShort = (type) => {
-       const comp = place.address_components.find(c => c.types.includes(type));
-       return comp ? comp.short_name : "";
-      };
-      // Build full street address from components
-      const streetNum = get("street_number");
-      const route = get("route");
-      const street = [streetNum, route].filter(Boolean).join(" ");
-      const result = {
-       address: street || place.formatted_address || "",
-       city: get("locality") || get("sublocality_level_1") || get("administrative_area_level_3") || "",
-       state: get("administrative_area_level_1") || "",
-       zip: get("postal_code") || "",
-       county: (get("administrative_area_level_2") || "").replace(/ County$/i, ""),
-      };
-      // Convert state abbreviation to full name if needed
-      const STATE_MAP = {"AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut","DE":"Delaware","DC":"District of Columbia","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa","KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan","MN":"Minnesota","MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire","NJ":"New Jersey","NM":"New Mexico","NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio","OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina","SD":"South Dakota","TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington","WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming"};
-      if (result.state.length === 2) result.state = STATE_MAP[result.state] || result.state;
-      onSelect(result);
-     });
-     autocompleteRef.current = ac;
-     setReady(true);
-    }
-    return;
-   }
-   attempts++;
-   if (attempts < maxAttempts) setTimeout(tryInit, 500);
-  }
-  tryInit();
-  return () => {
-   if (autocompleteRef.current) {
-    window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
-    autocompleteRef.current = null;
-   }
-  };
- }, []);
-
  return (
-  <div style={{ marginBottom: 14 }}>
-   <FieldLabel label="Property Address" req filled={value !== ""} />
-   <div style={{ position: "relative" }}>
-    <input
-     ref={inputRef}
-     type="text"
-     value={typeof value === "string" ? value : ""}
-     onChange={e => onChange(e.target.value)}
-     placeholder={placeholder || "Start typing an address..."}
-     autoComplete="off"
-     style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", paddingRight: 36, color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
-    />
-    <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16, opacity: 0.35, pointerEvents: "none" }}>
-     {ready ? "map-pin" : "search"}
-    </span>
-   </div>
-   {!ready && window.__GOOGLE_PLACES_KEY__ && (
-    <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Loading address suggestions...</div>
-   )}
-  </div>
+  <PlacesAddressInput
+   onSelect={onSelect} value={value} onChange={onChange} placeholder={placeholder}
+   T={T} stateFormat="full"
+   label={<FieldLabel label="Property Address" req filled={value !== ""} />}
+  />
  );
 }
 function SearchSelect({ label, value, onChange, options, tip, req }) {

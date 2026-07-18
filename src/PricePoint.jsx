@@ -1,6 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
+import AddressAutocomplete from './components/AddressAutocomplete.jsx';
 import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
@@ -993,6 +994,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveHoodFilter, setLiveHoodFilter] = useState(null); // null = all, or zip string
   const [liveHoodName, setLiveHoodName] = useState(null); // display name of selected neighborhood
   const [livePrediction, setLivePrediction] = useState(null);
+  // ── Live address search (A3) — guess ANY property, not just the pool ──
+  const [liveSearchAddr, setLiveSearchAddr] = useState("");        // input text
+  const [liveSearchLoading, setLiveSearchLoading] = useState(false);
+  const [liveSearchListing, setLiveSearchListing] = useState(null); // object|null
+  const [liveSearchError, setLiveSearchError] = useState(null);     // string|null
+  const [liveSearchGuessInput, setLiveSearchGuessInput] = useState("");
   const [allPredictions, setAllPredictions] = useState(() => {
     try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
   });
@@ -2132,10 +2139,115 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   const liveNextProperty = () => {
+    // A search-result prediction clears the search instead of burning a pool card.
+    const fromSearch = !!livePrediction?.fromSearch;
     setLivePrediction(null);
     setLiveGuessInput("");
     setMlsExpanded(false);
-    setLiveIdx(prev => prev + 1);
+    if (fromSearch) {
+      setLiveSearchListing(null);
+      setLiveSearchAddr("");
+      setLiveSearchGuessInput("");
+    } else {
+      setLiveIdx(prev => prev + 1);
+    }
+  };
+
+  // ── Live address search (A3): free-text address → /api/pp-address → card ──
+  const runLiveAddressSearch = async (addressText) => {
+    const q = String(addressText || "").trim();
+    if (q.length < 5 || liveSearchLoading) return;
+    setLiveSearchError(null);
+    setLiveSearchListing(null);
+    setLiveSearchGuessInput("");
+    setLiveSearchLoading(true);
+    try {
+      const resp = await fetch(apiUrl(`/api/pp-address?address=${encodeURIComponent(q)}&market=${encodeURIComponent(market?.id || "sf")}`));
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data?.listing) {
+        setLiveSearchListing(data.listing);
+      } else {
+        setLiveSearchError(data?.message || "Couldn't find that address — try adding city & zip");
+      }
+    } catch {
+      setLiveSearchError("Couldn't find that address — try adding city & zip");
+    } finally {
+      setLiveSearchLoading(false);
+    }
+  };
+
+  // Places suggestion picked (when the Maps script is present) — rebuild the
+  // full "street, city, ST zip" string and run the same search.
+  const handleLiveAddressSelect = (sel) => {
+    const full = [sel.address, sel.city, [sel.state, sel.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    setLiveSearchAddr(full);
+    runLiveAddressSearch(full);
+  };
+
+  const handleLiveSearchGuessInput = (e) => {
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    setLiveSearchGuessInput(raw.slice(0, 10));
+  };
+
+  // Same shape as handleLiveGuess — flat 10 XP prediction row via /api/pp-guess
+  // (mode 'live'); the server's duplicate handling governs repeat guesses.
+  const handleLiveSearchGuess = () => {
+    const val = parseInt(liveSearchGuessInput.replace(/[^0-9]/g, ""));
+    const listing = liveSearchListing;
+    if (!val || !listing) return;
+
+    const vsListPct = listing.listPrice ? ((val - listing.listPrice) / listing.listPrice * 100).toFixed(1) : null;
+
+    const prediction = {
+      guess: val,
+      listPrice: listing.listPrice,
+      address: listing.address,
+      neighborhood: listing.neighborhood,
+      city: listing.city,
+      state: listing.state,
+      zip: listing.zip,
+      beds: listing.beds,
+      baths: listing.baths,
+      sqft: listing.sqft,
+      photo: listing.photo,
+      propertyType: listing.propertyType,
+      status: listing.status || "active",
+      vsListPct: vsListPct ? parseFloat(vsListPct) : null,
+      timestamp: Date.now(),
+      resolved: false,
+      soldPrice: null,
+      fromSearch: true,
+    };
+
+    setLivePrediction(prediction);
+    setAllPredictions(prev => [...prev, prediction]);
+    const newResult = {
+      guess: val, soldPrice: listing.listPrice || val, pctOff: Math.abs(parseFloat(vsListPct || 0)),
+      revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now(),
+      propertyType: listing.propertyType || null,
+      neighborhood: listing.neighborhood || null,
+      city: listing.city || null,
+      isLive: true,
+    };
+    setAllResults(prev => [...prev, newResult]);
+
+    submitGuess({
+      marketId: market?.id || 'sf', mode: 'live',
+      zpid: listing.zpid || null,
+      address: listing.address, neighborhood: listing.neighborhood,
+      city: listing.city, zip: listing.zip,
+      propertyType: listing.propertyType || '',
+      beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+      listPrice: listing.listPrice, photo: listing.photo,
+      guess: val,
+    }).then(resp => {
+      if (resp && resp.queued) {
+        setSyncToast('Saved on this device — will sync when you’re online');
+        setTimeout(() => setSyncToast(null), 3500);
+      }
+      if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
+      refetchLeaderboard();
+    }).catch(e => console.warn('[PricePoint] live search guess failed:', e));
   };
 
   // ── Resolve feedback color from theme ──
@@ -3418,7 +3530,48 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </button>
             </div>
           </div>
-          {liveListings[liveIdx] && !livePrediction ? (
+          {/* ── Address search (A3): predict ANY property, not just the pool ── */}
+          {!livePrediction && (
+            <div style={{ marginBottom: 12 }}>
+              <AddressAutocomplete
+                T={T}
+                stateFormat="short"
+                value={liveSearchAddr}
+                onChange={(v) => { setLiveSearchAddr(v); if (liveSearchError) setLiveSearchError(null); }}
+                onSelect={handleLiveAddressSelect}
+                onSubmit={runLiveAddressSearch}
+                placeholder="Search any address…"
+                containerStyle={{ marginBottom: 0 }}
+                inputStyle={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, padding: "11px 18px", paddingRight: 40, color: T.text, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
+              />
+              {liveSearchLoading && (
+                <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginTop: 6, paddingLeft: 4, animation: "ppPulse 1.2s ease infinite" }}>Looking up that property…</div>
+              )}
+              {liveSearchError && !liveSearchLoading && (
+                <div style={{ fontSize: 12, color: T.red, fontFamily: FONT, marginTop: 6, paddingLeft: 4 }}>{liveSearchError}</div>
+              )}
+              {liveSearchListing && !liveSearchLoading && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, paddingLeft: 4 }}>
+                  <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Showing your search result</div>
+                  <button onClick={() => { setLiveSearchListing(null); setLiveSearchAddr(""); setLiveSearchGuessInput(""); setLiveSearchError(null); }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: T.textSecondary, fontFamily: FONT, cursor: "pointer" }}>
+                    <Icon name="x" size={12} /> Back to listings
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {liveSearchListing && !livePrediction ? (
+            <>
+              {liveSearchListing.status !== "active" && liveSearchListing.status !== "pending" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: `${T.orange}12`, border: `1px solid ${T.orange}30`, borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
+                  <Icon name="info" size={14} style={{ color: T.orange, flexShrink: 0 }} />
+                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market — prediction resolves if/when it sells</div>
+                </div>
+              )}
+              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: null, isLoadingDetails: false, valuePool: liveListings })}
+            </>
+          ) : liveListings[liveIdx] && !livePrediction ? (
             <>
               {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
