@@ -1195,6 +1195,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const dailyPropertyLocal = useMemo(() => getDailyProperty(soldListings, market?.label || ""), [soldListings, market]);
   const dailyProperty = dailyPropertyServer || dailyPropertyLocal;
   const dailyIsServer = !!dailyPropertyServer;
+  // Auto-fetch details for the Daily — same enrichment path as Free Play/Live,
+  // bringing in the MLS description (+ any extra photos). Puzzle-safe: the
+  // LIST PRICE pill and vs-list feedback read listing.listPrice (not details)
+  // for zpid rows, and value signals require a valuePool the daily never gets.
+  useEffect(() => {
+    if ((view === "daily" || view === "postDaily") && dailyProperty?.zpid) {
+      fetchPropertyDetails(dailyProperty);
+    }
+  }, [view, dailyProperty, fetchPropertyDetails]);
   // Local XP is instant feedback; when a pp-guess response reports a higher
   // server total (XP earned on other devices), show the authoritative number.
   const localXp = useMemo(() => calcXP(allResults), [allResults]);
@@ -3187,7 +3196,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
             </div>
           </div>
-          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent, showPropertyType: true })}
+          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent, showPropertyType: true, showExtras: true, details: propertyDetails[dailyProperty.zpid] || null, isLoadingDetails: detailsLoading === dailyProperty.zpid })}
         </div>
       )}
 
