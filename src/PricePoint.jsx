@@ -2172,7 +2172,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           touchStartX.current = null;
           if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
         }}>
-        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async" style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
           onError={onPhotoError} />
         {/* Map slide "Location" label — top left on map, replaces badges */}
         {isMapSlide ? (
@@ -2244,7 +2244,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
-    // Merge photo sources: prefer details API photos (up to 12), fall back to listing.photos from sold-comps (up to 6)
+    // Merge photo sources: prefer details API photos, fall back to listing.photos from sold-comps (both capped at 24)
     const mergedPhotos = (details?.photos?.length > 0 ? details.photos : null) || (listing.photos?.length > 0 ? listing.photos : null) || null;
     const hasMultiplePhotos = mergedPhotos?.length > 1;
     const hasMap = !!(listing.latitude && listing.longitude);

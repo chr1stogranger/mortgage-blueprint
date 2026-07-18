@@ -371,7 +371,7 @@ export default async function handler(req, res) {
       console.error(`[PropertyDetails] raw top keys: ${Object.keys(raw).slice(0, 10).join(", ")}`);
     }
 
-    // Extract photos (up to 12 for carousel)
+    // Extract photos (up to 24 for carousel)
     const photos = extractPhotos(d);
 
     // Extract description
@@ -432,7 +432,7 @@ export default async function handler(req, res) {
         const supabase = getSupabaseAdmin();
         if (supabase) {
           const upd = {
-            photos: usablePhotos.slice(0, 6),
+            photos: usablePhotos.slice(0, 24),
             photo: usablePhotos[0] || null,
             description: cleanDescription || null,
           };
@@ -474,7 +474,7 @@ function extractPhotos(d) {
   const urls = [];
   // Primary: photos array with mixedSources
   if (d.photos && Array.isArray(d.photos)) {
-    for (let i = 0; i < d.photos.length && urls.length < 12; i++) {
+    for (let i = 0; i < d.photos.length && urls.length < 24; i++) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
       // Pick the largest resolution available
       if (jpegs.length > 0) {
@@ -485,14 +485,14 @@ function extractPhotos(d) {
   }
   // Fallback: carouselPhotos
   if (d.carouselPhotos && Array.isArray(d.carouselPhotos)) {
-    for (let j = 0; j < d.carouselPhotos.length && urls.length < 12; j++) {
+    for (let j = 0; j < d.carouselPhotos.length && urls.length < 24; j++) {
       if (d.carouselPhotos[j].url) urls.push(d.carouselPhotos[j].url);
     }
     if (urls.length > 0) return urls;
   }
   // Fallback: responsivePhotos
   if (d.responsivePhotos && Array.isArray(d.responsivePhotos)) {
-    for (let k = 0; k < d.responsivePhotos.length && urls.length < 12; k++) {
+    for (let k = 0; k < d.responsivePhotos.length && urls.length < 24; k++) {
       const srcs = d.responsivePhotos[k]?.mixedSources?.jpeg || [];
       if (srcs.length > 0) urls.push(srcs[srcs.length - 1].url);
     }

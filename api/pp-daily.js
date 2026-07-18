@@ -107,16 +107,19 @@ function extractListPrice(history) {
 }
 
 // ââ Extract photos ââ
+// Returns the FULL photo array (capped at 24) — photos[0] is the primary
+// photo that keeps flowing into the legacy `photo` column.
 function extractPhotos(d) {
   const urls = [];
   if (d.photos && Array.isArray(d.photos)) {
-    for (let i = 0; i < d.photos.length && urls.length < 12; i++) {
+    for (let i = 0; i < d.photos.length && urls.length < 24; i++) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
       if (jpegs.length > 0) urls.push(jpegs[jpegs.length - 1].url);
     }
   }
-  if (urls.length > 0) return urls[0]; // primary photo (full array available via propertydetails)
-  return d.imgSrc || d.hiResImageLink || '';
+  if (urls.length > 0) return urls;
+  const single = d.imgSrc || d.hiResImageLink || '';
+  return single ? [single] : [];
 }
 
 function normalizeHomeType(type) {
@@ -242,7 +245,8 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
       if (saleDate < cutoff) continue;
     }
 
-    const photo = extractPhotos(d);
+    const photos = extractPhotos(d);
+    const photo = photos[0] || '';
     const beds = d.bedrooms || 0;
     if (!beds || !photo) continue;
 
@@ -254,6 +258,7 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
       zip: d.zipcode || d.address?.zipcode || '',
       neighborhood: d.neighborhoodRegion?.name || '',
       photo,
+      photos,
       beds,
       baths: d.bathrooms || null,
       sqft: d.livingArea || d.livingAreaValue || null,
@@ -283,6 +288,7 @@ function pickDailyProperty(listings, dailyNumber) {
     zip: l.zip,
     neighborhood: l.neighborhood,
     photo: l.photo,
+    photos: Array.isArray(l.photos) && l.photos.length > 0 ? l.photos : (l.photo ? [l.photo] : []),
     beds: l.beds,
     baths: l.baths,
     sqft: l.sqft,
@@ -397,6 +403,9 @@ export default async function handler(req, res) {
           zip: r.zip,
           neighborhood: r.neighborhood,
           photo: r.photo,
+          // Pool rows enriched before the 24-photo change may only carry `photo` —
+          // fall back to a one-element array so the daily always has photos[].
+          photos: Array.isArray(r.photos) && r.photos.length > 0 ? r.photos : (r.photo ? [r.photo] : []),
           beds: r.beds,
           baths: r.baths,
           sqft: r.sqft,
@@ -432,11 +441,25 @@ export default async function handler(req, res) {
         ...property,
       };
 
-      const { data: inserted, error: insertErr } = await supabase
+      let { data: inserted, error: insertErr } = await supabase
         .from('pp_daily_challenges')
         .insert(row)
         .select()
         .single();
+
+      // Pre-migration safety: if the `photos` column doesn't exist yet
+      // (migration 013 not pasted into Supabase), PostgREST rejects the insert
+      // with PGRST204 ("Could not find the 'photos' column"). Retry without it
+      // so the Daily still seeds — the response falls back to [photo].
+      if (insertErr && insertErr.code === 'PGRST204' && /photos/i.test(insertErr.message || '')) {
+        console.error('[pp-daily] photos column missing (migration 013 not applied) — inserting without it');
+        const { photos: _omitPhotos, ...rowWithoutPhotos } = row;
+        ({ data: inserted, error: insertErr } = await supabase
+          .from('pp_daily_challenges')
+          .insert(rowWithoutPhotos)
+          .select()
+          .single());
+      }
 
       if (insertErr) {
         // Race condition: another request seeded it first
@@ -492,6 +515,11 @@ export default async function handler(req, res) {
       zip: daily.zip,
       neighborhood: daily.neighborhood,
       photo: daily.photo,
+      // Full carousel array. Rows seeded before migration 013 (or before this
+      // change) have no photos value — fall back to the single legacy photo.
+      photos: Array.isArray(daily.photos) && daily.photos.length > 0
+        ? daily.photos
+        : (daily.photo ? [daily.photo] : []),
       beds: daily.beds,
       baths: daily.baths,
       sqft: daily.sqft,

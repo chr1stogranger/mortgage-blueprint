@@ -510,7 +510,7 @@ function poolRowToListing(r) {
     daysOnMarket: 0,
     status: 'sold',
     photo: isUsablePhoto(r.photo) ? r.photo : null,
-    photos: Array.isArray(r.photos) ? r.photos.filter(isUsablePhoto).slice(0, 6) : [],
+    photos: Array.isArray(r.photos) ? r.photos.filter(isUsablePhoto).slice(0, 24) : [],
     // cleanNeighborhood on READ too — scrubs the legal-parcel junk already
     // persisted in existing pool rows without needing a migration.
     neighborhood: cleanNeighborhood(r.neighborhood) || '',
@@ -804,7 +804,7 @@ function redfinItemToPoolRow(item, marketId, ingestCutoff) {
     sold_price: soldPrice,
     sold_date: soldDate.toISOString().split('T')[0],
     photo: photos[0] || null,
-    photos: photos.slice(0, 6),
+    photos: photos.slice(0, 24),
     description: null,
     latitude: a.centroid?.centroid?.latitude ?? null,
     longitude: a.centroid?.centroid?.longitude ?? null,
@@ -1000,7 +1000,7 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
       sold_price: soldPrice,
       sold_date: soldDate,
       photo: mainPhoto,
-      photos: photos.slice(0, 6),
+      photos: photos.slice(0, 24),
       description: d.description || null,
       latitude: d.latitude || null,
       longitude: d.longitude || null,
@@ -1195,14 +1195,14 @@ function isUsablePhoto(url) {
 function extractPhotos(d) {
   const urls = [];
   if (d.photos && Array.isArray(d.photos)) {
-    for (let i = 0; i < d.photos.length && urls.length < 12; i++) {
+    for (let i = 0; i < d.photos.length && urls.length < 24; i++) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
       if (jpegs.length > 0) urls.push(jpegs[jpegs.length - 1].url);
     }
     if (urls.length > 0) return urls.filter(isUsablePhoto);
   }
   if (d.responsivePhotos && Array.isArray(d.responsivePhotos)) {
-    for (let i = 0; i < d.responsivePhotos.length && urls.length < 12; i++) {
+    for (let i = 0; i < d.responsivePhotos.length && urls.length < 24; i++) {
       const srcs = d.responsivePhotos[i]?.mixedSources?.jpeg || [];
       if (srcs.length > 0) urls.push(srcs[srcs.length - 1].url);
     }

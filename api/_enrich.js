@@ -34,20 +34,20 @@ export function saneListPrice(lp, soldPrice) {
 export function extractPhotos(d) {
   const urls = [];
   if (d.photos && Array.isArray(d.photos)) {
-    for (let i = 0; i < d.photos.length && urls.length < 12; i++) {
+    for (let i = 0; i < d.photos.length && urls.length < 24; i++) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
       if (jpegs.length > 0) urls.push(jpegs[jpegs.length - 1].url);
     }
     if (urls.length > 0) return urls;
   }
   if (d.carouselPhotos && Array.isArray(d.carouselPhotos)) {
-    for (let j = 0; j < d.carouselPhotos.length && urls.length < 12; j++) {
+    for (let j = 0; j < d.carouselPhotos.length && urls.length < 24; j++) {
       if (d.carouselPhotos[j].url) urls.push(d.carouselPhotos[j].url);
     }
     if (urls.length > 0) return urls;
   }
   if (d.responsivePhotos && Array.isArray(d.responsivePhotos)) {
-    for (let k = 0; k < d.responsivePhotos.length && urls.length < 12; k++) {
+    for (let k = 0; k < d.responsivePhotos.length && urls.length < 24; k++) {
       const srcs = d.responsivePhotos[k]?.mixedSources?.jpeg || [];
       if (srcs.length > 0) urls.push(srcs[srcs.length - 1].url);
     }
@@ -123,7 +123,7 @@ export async function enrichPoolRow(supabase, row, opts = {}) {
     if (photos.length === 0 && !description) { await bump(); return { enriched: false, reason: 'no_content' }; }
 
     const upd = { enrich_attempts: attempts };
-    if (photos.length > 0) { upd.photos = photos.slice(0, 6); upd.photo = photos[0]; }
+    if (photos.length > 0) { upd.photos = photos.slice(0, 24); upd.photo = photos[0]; }
     if (description) upd.description = description;
     if (listPrice) upd.list_price = listPrice;
     if (d.yearBuilt && !row.year_built) upd.year_built = d.yearBuilt;
