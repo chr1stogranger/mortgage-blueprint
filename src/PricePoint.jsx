@@ -1,7 +1,8 @@
 import { FONT, MONO } from "./lib/fonts.js";
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import Icon from './Icon';
 import AddressAutocomplete from './components/AddressAutocomplete.jsx';
+import { DARK } from './lib/theme.js';
 import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
@@ -12,6 +13,12 @@ import {
   fetchNotifications, markNotificationsRead,
   getNotificationPreferences, updateNotificationPreferences,
 } from './lib/pricePointDB';
+
+// ── Map view (A4) — lazy-loaded so mapbox-gl (~1.5 MB) ships in its own
+// chunk, fetched only the first time a player opens the List | Map toggle.
+const PPMapView = lazy(() => import('./components/PPMapView.jsx'));
+// No token → no map toggle at all (guard, not a broken map).
+const MAP_ENABLED = !!import.meta.env.VITE_MAPBOX_TOKEN;
 
 // Self-contained placeholder shown when a property has no usable photo, or
 // when a photo URL fails to load. Inline SVG data-URI — never 404s, works in
@@ -934,6 +941,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [locationLabel, setLocationLabel] = useState(() => {
     try { return localStorage.getItem("pp-location-label") || ""; } catch { return ""; }
   });
+
+  // ── Map view (A4) — shared List | Map toggle for freeplay + live ──
+  const [showMap, setShowMap] = useState(false);
+  // Reset the toggle whenever the view changes (leaving freeplay/live must
+  // never leave a stale map open on return).
+  useEffect(() => { setShowMap(false); }, [view]);
 
   // ── Free Play State ──
   const [fpListings, setFpListings] = useState([]);
@@ -2340,6 +2353,43 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, [T, FONT]
   );
 
+  // ── A4: List | Map toggle + map-pin selection ──
+  // T is always the DARK or LIGHT constant from lib/theme.js (stable refs),
+  // so identity comparison is the reliable dark-mode signal here.
+  const darkMode = T === DARK;
+  const renderListMapToggle = (accent) => (
+    <div style={{ display: "inline-flex", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: 3, flexShrink: 0 }}>
+      {["List", "Map"].map(label => {
+        const isMapSeg = label === "Map";
+        const active = isMapSeg === showMap;
+        return (
+          <button key={label} onClick={() => setShowMap(isMapSeg)} style={{
+            border: "none", borderRadius: 9999, padding: "4px 12px", fontSize: 11, fontWeight: 700,
+            fontFamily: FONT, cursor: "pointer", background: active ? accent : "transparent",
+            color: active ? "#fff" : T.textSecondary, transition: "background 0.15s",
+          }}>{label}</button>
+        );
+      })}
+    </div>
+  );
+  // Pin → card: the map receives the SAME arrays the list views render
+  // (fpListings/liveListings are pre-filtered pools — hood zips + type filters
+  // are applied when the pool is built), so the pin's index IS fpIdx/liveIdx.
+  const handleFpMapSelect = (i) => {
+    setFpIdx(i); setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
+    setShowMap(false);
+  };
+  const handleLiveMapSelect = (i) => {
+    setLiveIdx(i); setLivePrediction(null); setLiveGuessInput(""); setMlsExpanded(false);
+    setLiveSearchListing(null); setLiveSearchAddr(""); setLiveSearchGuessInput(""); setLiveSearchError(null);
+    setShowMap(false);
+  };
+  const mapSuspenseFallback = (
+    <div style={{ height: "min(62vh, 520px)", minHeight: 320, borderRadius: 16, border: `1px solid ${T.cardBorder}`, background: T.card, display: "flex", alignItems: "center", justifyContent: "center", color: T.textSecondary, fontFamily: FONT, fontSize: 13, animation: "ppPulse 1.2s ease infinite" }}>
+      Loading map…
+    </div>
+  );
+
   // ── Static map URL builder (Mapbox) ──
   const getStaticMapUrl = (lat, lng) => {
     if (!lat || !lng) return null;
@@ -3507,6 +3557,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red)}
               <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
               <button onClick={async () => {
                 const result = await fetchNotifications(playerId, true);
@@ -3530,6 +3581,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </button>
             </div>
           </div>
+          {showMap && MAP_ENABLED ? (
+            /* ── A4: map of the live pool — pins only, spoiler-free ── */
+            <Suspense fallback={mapSuspenseFallback}>
+              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} />
+            </Suspense>
+          ) : (<>
           {/* ── Address search (A3): predict ANY property, not just the pool ── */}
           {!livePrediction && (
             <div style={{ marginBottom: 12 }}>
@@ -3647,6 +3704,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
           )}
+          </>)}
         </div>
       )}
 
@@ -3823,10 +3881,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan)}
               <StatPill value={`${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""}`} label="left" color={T.cyan} />
             </div>
           </div>
-          {fpListings[fpIdx] && !fpResult ? (
+          {showMap && MAP_ENABLED ? (
+            /* ── A4: map of the freeplay pool — pins only, soldPrice never rendered ── */
+            <Suspense fallback={mapSuspenseFallback}>
+              <PPMapView listings={fpListings} T={T} darkMode={darkMode} activeIdx={fpIdx} onSelect={handleFpMapSelect} onUnsupported={() => setShowMap(false)} />
+            </Suspense>
+          ) : fpListings[fpIdx] && !fpResult ? (
             <>
               {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showSoldDate: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid, valuePool: fpListings })}
             </>
