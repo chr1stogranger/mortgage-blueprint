@@ -4885,7 +4885,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
   <WorkspaceProvider>
-  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : "ribbons"} />
+  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "ribbons"} />
   <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
@@ -7379,7 +7379,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 12 }}>
     <div>
      <div style={{ fontSize: 15, fontWeight: 600 }}>Animated background</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'} — house blueprint here, ribbons in PricePoint &amp; Markets</div>
+     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'} — blueprint house here, target in PricePoint, ribbons in Markets</div>
     </div>
     <button onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} style={{ padding: "6px 14px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, background: bgPaused ? T.tabActiveBg : "transparent", color: T.text, cursor: "pointer" }}>{bgPaused ? 'Resume' : 'Pause'}</button>
    </div>

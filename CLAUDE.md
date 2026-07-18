@@ -11,9 +11,12 @@
   **JetBrains Mono is retired — never reintroduce it** (its name survives
   only as a last-resort fallback inside the MONO stack).
 - Visual language is "Grange" liquid-glass: navy `#0a1120` dark ground /
-  bright-cool light ground, the woven-ribbon canvas behind all content
-  (`src/components/AppBackground.jsx`, palette in `theme.js` `RIBBONS`),
-  glass chrome via `T.glass`/`T.glassStrong`/`T.glassBorder`. Dense data
+  bright-cool light ground, with a per-mode background canvas
+  (`src/components/AppBackground.jsx`, decision by Christo 2026-07-17):
+  Blueprint = blueprint-paper 3D wireframe-house canvas ("house" variant),
+  PricePoint = thin-line target canvas ("target"), Markets = the woven
+  ribbons ("ribbons", palette in `theme.js` `RIBBONS`). Glass chrome via
+  `T.glass`/`T.glassStrong`/`T.glassBorder`. Dense data
   surfaces stay solid (`T.card`) — glass is chrome + tiles. The Pause
   control lives in Settings → Appearance; the canvas honors
   `prefers-reduced-motion`.
