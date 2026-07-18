@@ -153,13 +153,16 @@ function projectModel() {
 }
 const HOUSE_PROJECTED = projectModel();
 
-export default function AppBackground({ darkMode, paused, variant = "ribbons" }) {
+export default function AppBackground({ darkMode, paused, variant = "ribbons", complete = false }) {
   const canvasRef = useRef(null);
   const stateRef = useRef({ t: 0, scrollPhase: 0, scrollTarget: 0, raf: 0, paused: false, dark: false, p: 0 });
 
   // keep latest props in the animation state without restarting the effect
   useEffect(() => { stateRef.current.dark = darkMode; }, [darkMode]);
   useEffect(() => { stateRef.current.paused = paused; }, [paused]);
+  // Views with their own inner scroll (Workspace split-pane) can't drive the
+  // scroll-draw — `complete` eases the house to fully drawn while they're open.
+  useEffect(() => { stateRef.current.forceComplete = complete; }, [complete]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -202,7 +205,7 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons" })
           if (y < minY) minY = y; if (y > maxY) maxY = y;
         }
         const bw = maxX - minX, bh = maxY - minY;
-        const scale = Math.min((Hc * 0.62) / bh, (W * 0.92) / bw);
+        const scale = Math.min((Hc * 0.78) / bh, (W * 0.95) / bw);  // zoomed in per Christo 2026-07-18 (was 0.62)
         const ox = W * 0.56 - (minX + bw / 2) * scale;   // optically centered: garage wing extends right, so the main block lands at screen center (Christo 2026-07-18)
         const oy = Hc * 0.58 - (minY + bh / 2) * scale;  // center-y → just below middle
         let total = 0;
@@ -369,10 +372,11 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons" })
 
       function loop() {
         if (!S.paused) {
-          const d = S.scrollTarget - S.p;
+          const d = (S.forceComplete ? 1 : S.scrollTarget) - S.p;
           if (Math.abs(d) > 0.0004) {
             S.p += d * 0.08; // eased — drawing trails the scroll
-            if (Math.abs(S.scrollTarget - S.p) < 0.0004) S.p = S.scrollTarget;
+            const tgt = S.forceComplete ? 1 : S.scrollTarget;
+            if (Math.abs(tgt - S.p) < 0.0004) S.p = tgt;
             draw();
           }
         }

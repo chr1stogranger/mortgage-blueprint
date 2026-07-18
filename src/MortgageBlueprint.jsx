@@ -957,7 +957,8 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
  const isSellBuy = workspaceMode === "sell-buy";
  return (
   <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: T.textSecondary, fontSize: 13 }}>Loading Workspace...</div>}>
-  <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: T.bg }}>
+  {/* transparent so the blueprint canvas shows through (Christo 2026-07-18) */}
+  <div style={{ position: "fixed", inset: 0, left: sidebarW, zIndex: 100, background: "transparent" }}>
    <WorkspaceView
     T={T}
     isDesktop={isDesktop}
@@ -4878,7 +4879,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const purchPillarCount = [calc.ficoCheck, calc.dtiCheck, calc.cashCheck, calc.resCheck].filter(c => c === "Good!").length + (dpOk ? 1 : 0);
  return (
   <WorkspaceProvider>
-  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "ribbons"} />
+  <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "ribbons"} complete={appMode === "blueprint" && tab === "workspace"} />
   <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
