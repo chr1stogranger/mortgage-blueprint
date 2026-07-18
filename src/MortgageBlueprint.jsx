@@ -6074,7 +6074,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    rate, setRate, term, setTerm, loanType, setLoanType,
    propType, setPropType, propTypes: PROP_TYPES, PROP_TYPES, UNIT_COUNT,
    loanPurpose, setLoanPurpose, loanTypes: LOAN_TYPES, LOAN_TYPES,
-   propertyState, setPropertyState, propertyCounty, city, setCity, propertyZip, setPropertyZip,
+   propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip,
    annualIns, setAnnualIns, hoa, setHoa,
    includeEscrow, setIncludeEscrow,
    closingMonth, setClosingMonth, closingDay, setClosingDay,
@@ -6110,9 +6110,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    showProp19, setShowProp19,
    hasSellProperty, setHasSellProperty,
    /* Income */
-   incomes, addIncome, updateIncome, removeIncome,
+   incomes, addIncome, updateIncome, removeIncome, removeBorrower,
    otherIncome, setOtherIncome,
    otherIncome2, setOtherIncome2,
+   numBorrowers, setNumBorrowers,
+   borrowerNames, setBorrowerNames,
+   otherIncomeByBorrower, setOtherIncomeByBorrower,
    VARIABLE_PAY_TYPES, PAY_TYPES,
    subjectRentalIncome, setSubjectRentalIncome,
    /* Assets */
@@ -6135,7 +6138,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    /* Fees for IFW-style costs */
    underwritingFee, setUnderwritingFee, processingFee, setProcessingFee,
    adminFee, setAdminFee, lenderWireFee, setLenderWireFee,
-   discountPts, setDiscountPts,
+   discountPts, setDiscountPts, originatorComp, setOriginatorComp,
    buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
    appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee,
    floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee,
