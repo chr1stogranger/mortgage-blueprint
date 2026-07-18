@@ -686,6 +686,97 @@ function Note({ children, color }) {
 function StatusPill({ ok, label }) {
  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ok ? T.successBg : ok === null ? T.pillBg : T.errorBg, borderRadius: 99, padding: "3px 10px", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ok ? T.green : ok === null ? T.textTertiary : T.red }}>{ok ? "✓" : ok === null ? "—" : "✗"} {label}</span>;
 }
+// ── CoBrandBar — dual-identity glass strip: LO always, referring realtor
+//    when present. One glass strip (chrome, so T.glass is correct), two
+//    identity cells split by a T.separator rule. Desktop: side-by-side with
+//    labeled call/email pills; mobile: cells stack and pills shrink to
+//    icon-only discs. Realtor with no photo falls back to a T.purple
+//    initials disc (LO disc is T.accent). MONO is used ONLY for the
+//    uppercase NMLS/DRE micro-labels — the sanctioned use.
+function CoBrandInitials({ name, color }) {
+ return (
+  <div style={{ width: 40, height: 40, borderRadius: 20, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color, fontFamily: FONT, flexShrink: 0 }}>
+   {(name || "").split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 3).toUpperCase()}
+  </div>
+ );
+}
+function CoBrandPill({ href, icon, label, color, iconOnly }) {
+ return (
+  <a href={href} title={label} style={{
+   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+   background: `${color}15`, color, textDecoration: "none",
+   borderRadius: 9999, fontFamily: FONT, fontSize: 12, fontWeight: 600,
+   flexShrink: 0,
+   ...(iconOnly ? { width: 32, height: 32 } : { padding: "7px 14px" }),
+  }}>
+   <Icon name={icon} size={14} />
+   {!iconOnly && label}
+  </a>
+ );
+}
+function CoBrandCell({ photo, name, discColor, micro, phone, email, iconOnly }) {
+ return (
+  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+   {photo ? (
+    <img src={photo} alt={name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover", flexShrink: 0 }} />
+   ) : (
+    <CoBrandInitials name={name} color={discColor} />
+   )}
+   <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
+    {micro && (
+     <div style={{ fontSize: 9.5, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{micro}</div>
+    )}
+   </div>
+   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+    {phone && <CoBrandPill href={`tel:${phone}`} icon="phone" label="Call" color={T.green} iconOnly={iconOnly} />}
+    {email && <CoBrandPill href={`mailto:${email}`} icon="mail" label="Email" color={T.blue} iconOnly={iconOnly} />}
+   </div>
+  </div>
+ );
+}
+function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
+ const lo = loInfo || {};
+ const stack = !isDesktop && !!realtorPartner; // two cells stack on mobile
+ const loMicro = [lo.loNmls ? `NMLS #${lo.loNmls}` : "", lo.companyName || ""].filter(Boolean).join(" · ");
+ const reMicro = realtorPartner
+  ? [realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
+  : "";
+ return (
+  <div style={{ padding: "0 16px 8px" }}>
+   <div style={{
+    display: "flex", flexDirection: stack ? "column" : "row",
+    alignItems: stack ? "stretch" : "center", gap: stack ? 10 : 14,
+    background: T.glass, border: `1px solid ${T.glassBorder}`,
+    backdropFilter: "blur(20px) saturate(1.5)", WebkitBackdropFilter: "blur(20px) saturate(1.5)",
+    borderRadius: 16, padding: "10px 14px", boxShadow: T.glassShadow,
+   }}>
+    <CoBrandCell
+     name={lo.loanOfficer}
+     discColor={T.accent}
+     micro={loMicro}
+     phone={lo.loPhone}
+     email={lo.loEmail}
+     iconOnly={!isDesktop}
+    />
+    {realtorPartner && (
+     <div style={{ flexShrink: 0, ...(stack ? { borderTop: `1px solid ${T.separator}` } : { borderLeft: `1px solid ${T.separator}`, alignSelf: "stretch", width: 1 }) }} />
+    )}
+    {realtorPartner && (
+     <CoBrandCell
+      photo={realtorPartner.photo}
+      name={realtorPartner.name}
+      discColor={T.purple}
+      micro={reMicro}
+      phone={realtorPartner.phone}
+      email={realtorPartner.email}
+      iconOnly={!isDesktop}
+     />
+    )}
+   </div>
+  </div>
+ );
+}
 function LearnSec({ cat, items }) {
  const [openItems, setOpenItems] = React.useState({});
  const toggle = (ii) => setOpenItems(p => ({...p, [ii]: !p[ii]}));
@@ -5634,31 +5725,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     </div>
    )}
-   {/* ── Realtor Partner Co-Brand Bar ── */}
-   {realtorPartner && (
-    <div style={{ padding: "0 16px 8px" }}>
-     <div style={{ display: "flex", alignItems: "center", gap: 12, background: T.card, borderRadius: 14, padding: "10px 14px", border: `1px solid ${T.cardBorder}`, boxShadow: T.cardShadow }}>
-      {realtorPartner.photo ? (
-       <img src={realtorPartner.photo} alt={realtorPartner.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover", flexShrink: 0 }} />
-      ) : (
-       <div style={{ width: 40, height: 40, borderRadius: 20, background: `${T.blue}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: T.blue, flexShrink: 0 }}>
-        {realtorPartner.name.split(" ").map(n => n[0]).join("")}
-       </div>
-      )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-       <div style={{ fontSize: 14, fontWeight: 700, color: T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{realtorPartner.name}</div>
-       <div style={{ fontSize: 11, color: T.textTertiary }}>{realtorPartner.title}{realtorPartner.brokerage ? ` · ${realtorPartner.brokerage}` : ""}{realtorPartner.dre ? ` · DRE #${realtorPartner.dre}` : ""}</div>
-      </div>
-      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-       {realtorPartner.phone && (
-        <a href={`tel:${realtorPartner.phone}`} style={{ background: `${T.green}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}></a>
-       )}
-       {realtorPartner.email && (
-        <a href={`mailto:${realtorPartner.email}`} style={{ background: `${T.blue}15`, borderRadius: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", fontSize: 16 }}></a>
-       )}
-      </div>
-     </div>
-    </div>
+   {/* ── LO / Realtor Co-Brand Bar — LO always paired with the referring
+        realtor when one is active. With no realtor it still shows (LO-only)
+        on borrower-facing surfaces (isBorrower), but NOT in the LO's own
+        working view — Christo doesn't need his own banner while working. ── */}
+   {(realtorPartner || isBorrower) && (
+    <CoBrandBar
+     isDesktop={isDesktop}
+     loInfo={{ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls }}
+     realtorPartner={realtorPartner}
+    />
    )}
    {/* ── Welcome Modal — shown only on first visit when no skill level set ── */}
    {appMode === "blueprint" && skillLevel === null && (

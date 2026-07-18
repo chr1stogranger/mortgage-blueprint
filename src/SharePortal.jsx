@@ -1,4 +1,4 @@
-import { FONT } from "./lib/fonts.js";
+import { FONT, MONO } from "./lib/fonts.js";
 /**
  * SharePortal — Premium borrower-facing view of their Blueprint scenarios.
  * Loaded via ?share=UUID token. No authentication required.
@@ -13,6 +13,7 @@ import { FONT } from "./lib/fonts.js";
  */
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchSharedData, saveSharedScenario } from "./api";
+import Icon from "./Icon";
 
 
 const T = {
@@ -298,8 +299,96 @@ function ScenarioDetail({ scenario, accessLevel, shareToken, onScenarioCreated }
   );
 }
 
+// ─── LO / Realtor Co-Brand Bar ──────────────────────────────────────────────
+// Borrower-facing glass strip: the loan officer always, plus the referring
+// realtor when one is attached. MONO is reserved for the uppercase NMLS/DRE
+// micro-labels (the sanctioned use); everything else is FONT (Inter).
+function CoBrandCell({ photo, name, discColor, micro, phone, email, iconOnly }) {
+  const pill = (href, icon, label, color) => (
+    <a href={href} title={label} style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+      background: `${color}15`, color, textDecoration: "none",
+      borderRadius: 9999, fontFamily: FONT, fontSize: 12, fontWeight: 600, flexShrink: 0,
+      ...(iconOnly ? { width: 32, height: 32 } : { padding: "7px 14px" }),
+    }}>
+      <Icon name={icon} size={14} />
+      {!iconOnly && label}
+    </a>
+  );
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+      {photo ? (
+        <img src={photo} alt={name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover", flexShrink: 0 }} />
+      ) : (
+        <div style={{ width: 40, height: 40, borderRadius: 20, background: `${discColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: discColor, fontFamily: FONT, flexShrink: 0 }}>
+          {(name || "").split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 3).toUpperCase()}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
+        {micro && (
+          <div style={{ fontSize: 9.5, color: T.textTertiary, fontFamily: MONO, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{micro}</div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        {phone && pill(`tel:${phone}`, "phone", "Call", T.green)}
+        {email && pill(`mailto:${email}`, "mail", "Email", T.blue)}
+      </div>
+    </div>
+  );
+}
+function CoBrandBar({ loInfo, realtorPartner }) {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth < 600);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 600);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const lo = loInfo || {};
+  if (!lo.loanOfficer && !realtorPartner) return null;
+  const stack = narrow && !!realtorPartner;
+  const loMicro = [lo.loNmls ? `NMLS #${lo.loNmls}` : "", lo.companyName || ""].filter(Boolean).join(" · ");
+  const reMicro = realtorPartner
+    ? [realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
+    : "";
+  return (
+    <div style={{
+      display: "flex", flexDirection: stack ? "column" : "row",
+      alignItems: stack ? "stretch" : "center", gap: stack ? 10 : 14,
+      background: "rgba(18,28,48,0.80)", border: `1px solid rgba(255,255,255,0.10)`,
+      backdropFilter: "blur(20px) saturate(1.5)", WebkitBackdropFilter: "blur(20px) saturate(1.5)",
+      borderRadius: 16, padding: "10px 14px", marginBottom: 18,
+    }}>
+      {lo.loanOfficer && (
+        <CoBrandCell
+          name={lo.loanOfficer}
+          discColor={T.accent}
+          micro={loMicro}
+          phone={lo.loPhone}
+          email={lo.loEmail}
+          iconOnly={narrow}
+        />
+      )}
+      {lo.loanOfficer && realtorPartner && (
+        <div style={{ flexShrink: 0, ...(stack ? { borderTop: `1px solid ${T.separator}` } : { borderLeft: `1px solid ${T.separator}`, alignSelf: "stretch", width: 1 }) }} />
+      )}
+      {realtorPartner && (
+        <CoBrandCell
+          photo={realtorPartner.photo}
+          name={realtorPartner.name}
+          discColor={T.purple}
+          micro={reMicro}
+          phone={realtorPartner.phone}
+          email={realtorPartner.email}
+          iconOnly={narrow}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Main SharePortal Component ─────────────────────────────────────────────
-export default function SharePortal({ shareToken, onEnterFullCalculator }) {
+export default function SharePortal({ shareToken, onEnterFullCalculator, loInfo, realtorPartner }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState(null);
@@ -423,6 +512,9 @@ export default function SharePortal({ shareToken, onEnterFullCalculator }) {
 
       {/* ── Content ── */}
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 20px 120px" }}>
+
+        {/* LO / Realtor co-brand bar — who prepared this blueprint */}
+        <CoBrandBar loInfo={loInfo || data.loInfo} realtorPartner={realtorPartner || data.realtorPartner} />
 
         {/* Scenario count */}
         <div style={{
