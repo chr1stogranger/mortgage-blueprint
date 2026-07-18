@@ -6,7 +6,7 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } fro
 // Pure, unit-tested (src/lib/finance.test.js). Change formulas THERE, not here.
 import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
- getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, progressiveTax,
+ getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, progressiveTax,
  computeTaxSavings, buildAmortization, computeProp19,
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
@@ -4030,10 +4030,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //   "Amount"  — Amount × Frequency (fixed pay; salary)
   //   "YTD"     — legacy annualized-YTD only (kept for back-compat with
   //               older scenarios; not exposed in the new UI)
-  //   "1Y+"    — 1-year average (last full year only)
-  //   "2Y+"    — 2-year average ((py1 + py2) / 2)
-  //   "1Y_YTD" — 1-year + YTD annualized blend ((py1 + ytdAnn) / 2)
-  //   "2Y_YTD" — 2-year + YTD annualized blend ((py1+py2+ytdAnn) / 3)
+  //   "1Y+" / "2Y+" / "1Y_YTD" / "2Y_YTD" — averaging methods, computed by
+  //   finance.js computeIncomeMethods (incl. the Fannie/Freddie declining-
+  //   income collapse when py2 > py1).
   //   default for variable is "2Y+", for fixed is "Amount".
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
   // Previous employers do NOT count toward qualifying income — that's
@@ -4058,23 +4057,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const yr2 = Number(i.py2) || 0;
    const fromAmount = toMonthly(Number(i.amount) || 0, i.frequency);
    const sel = i.selection || (isVariable ? "2Y+" : "Amount");
-   const ytdAnn = ytd > 0 ? (ytd * 12) / monthsElapsed : 0;
 
    if (sel === "Amount") return s + fromAmount;
    if (sel === "YTD") return s + (ytd > 0 ? (ytd * 12 / monthsElapsed) / 12 : 0);
-   if (sel === "1Y+") return s + (yr1 > 0 ? yr1 / 12 : 0);
-   if (sel === "2Y+") {
-    const months = (yr1 > 0 ? 12 : 0) + (yr2 > 0 ? 12 : 0);
-    if (months === 0) return s;
-    return s + (yr1 + yr2) / months;
-   }
-   if (sel === "1Y_YTD") {
-    // Average of last full year + annualized YTD, then /12 for monthly.
-    return s + ((yr1 + ytdAnn) / 2) / 12;
-   }
-   if (sel === "2Y_YTD") {
-    return s + ((yr1 + yr2 + ytdAnn) / 3) / 12;
-   }
+   // Averaging methods come from the SAME engine the Income tab displays
+   // (finance.js computeIncomeMethods), so qualifying income / DTI can never
+   // drift from the per-row $/mo figures — including the Fannie/Freddie
+   // declining-income collapse, which a hand-mirrored copy here used to miss.
+   const methods = computeIncomeMethods({
+    ytd: i.ytd, py1: i.py1, py2: i.py2, monthsElapsed,
+   });
+   if (sel in methods) return s + methods[sel] / 12;
    // Legacy fallback: conservative auto-pick for variable pay (lower of yr1 vs 2yr-avg)
    if (isVariable) {
     if (yr1 > 0 && yr2 > 0) {

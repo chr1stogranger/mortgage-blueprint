@@ -1,7 +1,7 @@
 import { FONT, MONO } from "../lib/fonts.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
-import { toMonthly } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
+import { toMonthly, computeIncomeMethods, isDecliningIncome } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
 
 
 const FREQ_OPTIONS = [
@@ -152,38 +152,9 @@ function defaultMethodFor(payType, frequency) {
   return "1Y_YTD";
 }
 
-// Declining income detection. Christo (2026-05-05): when income
-// drops from year-2 to year-1, Fannie/Freddie says you must use
-// only the most recent year's amount — averaging would inflate
-// the qualifying figure on a borrower whose income is shrinking.
-function isDeclining(py1, py2) {
-  const p1 = Number(py1) || 0;
-  const p2 = Number(py2) || 0;
-  return p1 > 0 && p2 > 0 && p2 > p1;
-}
-
-// Compute all 4 averaging methods at once so the UI can preview them
-// side-by-side. ytd / py1 / py2 are annual amounts; monthsElapsed is the
-// number of months represented by the YTD figure (defaults to current
-// month). Returns annual qualifying $/yr per method.
-//
-// Declining-income protection: when py2 > py1 the 2-year methods
-// collapse to the corresponding 1-year method (most recent year only)
-// per Fannie/Freddie underwriting. The 1-year methods are unaffected.
-function computeMethods({ ytd, py1, py2, monthsElapsed }) {
-  const y  = Number(ytd) || 0;
-  const p1 = Number(py1) || 0;
-  const p2 = Number(py2) || 0;
-  const m  = Math.max(1, Number(monthsElapsed) || 1);
-  const ytdAnn = y > 0 ? (y * 12) / m : 0;
-  const declining = isDeclining(p1, p2);
-  return {
-    "1Y+":    p1,
-    "2Y+":    declining ? p1 : (p1 + p2) / 2,
-    "1Y_YTD": (p1 + ytdAnn) / 2,
-    "2Y_YTD": declining ? (p1 + ytdAnn) / 2 : (p1 + p2 + ytdAnn) / 3,
-  };
-}
+// isDecliningIncome / computeIncomeMethods now imported from ../lib/finance.js —
+// they were hand-mirrored in MortgageBlueprint's qualifying-income aggregation
+// and drifted (declining-income protection was missing there, inflating DTI).
 
 // Mo. Income for one row, honoring the user-picked Selection.
 function computeMoIncome(inc, isVariable, monthsElapsed) {
@@ -197,7 +168,7 @@ function computeMoIncome(inc, isVariable, monthsElapsed) {
     const m = Math.max(1, Number(monthsElapsed) || 1);
     return y > 0 ? (y * 12 / m) / 12 : 0;
   }
-  const methods = computeMethods({
+  const methods = computeIncomeMethods({
     ytd: inc.ytd, py1: inc.py1, py2: inc.py2, monthsElapsed,
   });
   const annual = methods[sel] || 0;
@@ -232,7 +203,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
   const now = new Date();
   const currentYear = now.getFullYear();
   const monthLabel = now.toLocaleString("default", { month: "short" });
-  const methods = computeMethods({
+  const methods = computeIncomeMethods({
     ytd: inc.ytd, py1: inc.py1, py2: inc.py2, monthsElapsed,
   });
   const sel = inc.selection || "2Y+";
@@ -406,7 +377,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
       {/* Declining-income banner — surfaces the protection rule when
           py2 > py1. Without this banner the broker might not realize
           the 2-yr method silently collapsed to 1-yr. */}
-      {isDeclining(inc.py1, inc.py2) && (
+      {isDecliningIncome(inc.py1, inc.py2) && (
         <div style={{
           marginBottom: 6, padding: "6px 10px",
           background: `${T.red}10`, color: T.red,
@@ -475,7 +446,7 @@ function ComponentRow({
   const mo = computeMoIncome(inc, isVar, monthsElapsed);
   const sel = inc.selection || (isVar ? "2Y+" : "Amount");
   const methodLabel = (SELECTION_METHODS.find(m => m.value === sel) || {}).label;
-  const declining = isVar && isDeclining(inc.py1, inc.py2);
+  const declining = isVar && isDecliningIncome(inc.py1, inc.py2);
 
   // Auto-correct the averaging selection when pay type or frequency
   // changes invalidate the current pick. Self-employment never has
@@ -805,7 +776,7 @@ function EmployerGroup({
   // Declining-income flag for the summary row (orange dot + label —
   // full explanatory banner lives in the expanded VariableCalcPanel).
   const hasDeclining = components.some(c =>
-    payTypeLabel(c.payType).variable && isDeclining(c.py1, c.py2));
+    payTypeLabel(c.payType).variable && isDecliningIncome(c.py1, c.py2));
 
   const chevron = (
     <span style={{

@@ -11,6 +11,7 @@ import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
+  computeIncomeMethods, isDecliningIncome,
 } from "./finance.js";
 
 // ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
@@ -234,5 +235,59 @@ describe("calcTempBuydown", () => {
     const b = calcTempBuydown(0, 6.5, 30, "2-1");
     expect(b.notePI).toBe(0);
     expect(b.totalCost).toBe(0);
+  });
+});
+
+// ── Variable-income averaging — declining-income protection ─────────────────
+// Guards the drift that shipped: the Income tab applied the Fannie/Freddie
+// declining collapse but the qualifying-income aggregation didn't, so DTI ran
+// optimistic for declining-income borrowers (py1=40k, py2=50k showed
+// $3,333/mo on Income but fed $3,750/mo into DTI). Both now import this.
+describe("isDecliningIncome", () => {
+  it("true only when both years entered and year-2 exceeds year-1", () => {
+    expect(isDecliningIncome(40000, 50000)).toBe(true);
+    expect(isDecliningIncome(50000, 40000)).toBe(false);
+    expect(isDecliningIncome(50000, 50000)).toBe(false);
+  });
+  it("a missing year never counts as declining", () => {
+    expect(isDecliningIncome(0, 50000)).toBe(false);
+    expect(isDecliningIncome(40000, 0)).toBe(false);
+    expect(isDecliningIncome("", 50000)).toBe(false);
+  });
+});
+
+describe("computeIncomeMethods", () => {
+  // 6 months elapsed → ytdAnn = 24000 × 12 / 6 = 48000
+  const base = { ytd: 24000, py1: 40000, py2: 50000, monthsElapsed: 6 };
+
+  it("declining (py2 > py1): 2-year methods collapse to most recent year", () => {
+    const m = computeIncomeMethods(base);
+    expect(m["2Y+"]).toBe(40000);              // NOT (40k+50k)/2 = 45k
+    expect(m["2Y_YTD"]).toBe((40000 + 48000) / 2); // NOT (40k+50k+48k)/3
+    // the live repro: $40k declining "2Y+" must be $3,333/mo, not $3,750
+    expect(m["2Y+"] / 12).toBeCloseTo(3333.33, 1);
+  });
+
+  it("declining leaves the 1-year methods untouched", () => {
+    const m = computeIncomeMethods(base);
+    expect(m["1Y+"]).toBe(40000);
+    expect(m["1Y_YTD"]).toBe((40000 + 48000) / 2);
+  });
+
+  it("rising (py1 ≥ py2): true 2-year averages", () => {
+    const m = computeIncomeMethods({ ytd: 24000, py1: 50000, py2: 40000, monthsElapsed: 6 });
+    expect(m["2Y+"]).toBe(45000);
+    expect(m["2Y_YTD"]).toBe((50000 + 40000 + 48000) / 3);
+  });
+
+  it("string inputs and missing fields coerce safely", () => {
+    const m = computeIncomeMethods({ ytd: "", py1: "40000", py2: "50000", monthsElapsed: 6 });
+    expect(m["2Y+"]).toBe(40000);      // declining still detected from strings
+    expect(m["1Y_YTD"]).toBe(20000);   // no YTD → ytdAnn 0 → 40000/2
+  });
+
+  it("monthsElapsed floors at 1 (no divide-by-zero on January YTD)", () => {
+    const m = computeIncomeMethods({ ytd: 5000, py1: 60000, py2: 0, monthsElapsed: 0 });
+    expect(m["1Y_YTD"]).toBe((60000 + 60000) / 2); // ytdAnn = 5000×12/1
   });
 });

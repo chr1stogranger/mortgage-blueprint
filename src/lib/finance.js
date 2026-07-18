@@ -352,6 +352,55 @@ export function toMonthly(amount, frequency) {
 }
 
 /**
+ * Declining income detection. Christo (2026-05-05): when income drops from
+ * year-2 to year-1, Fannie/Freddie says you must use only the most recent
+ * year's amount — averaging would inflate the qualifying figure on a
+ * borrower whose income is shrinking.
+ * @param {number|string} py1 prior year 1 annual amount (most recent full year)
+ * @param {number|string} py2 prior year 2 annual amount
+ * @returns {boolean} true when both years are entered and py2 > py1
+ */
+export function isDecliningIncome(py1, py2) {
+ const p1 = Number(py1) || 0;
+ const p2 = Number(py2) || 0;
+ return p1 > 0 && p2 > 0 && p2 > p1;
+}
+
+/**
+ * Compute all 4 variable-income averaging methods at once so the UI can
+ * preview them side-by-side, and so the qualifying-income aggregation uses
+ * the SAME math the Income tab displays (they were hand-mirrored copies and
+ * drifted — same failure mode as the toMonthly dedup, audit M-1).
+ *
+ * ytd / py1 / py2 are annual amounts; monthsElapsed is the number of months
+ * represented by the YTD figure. Returns annual qualifying $/yr per method.
+ *
+ * Declining-income protection: when py2 > py1 the 2-year methods collapse to
+ * the corresponding 1-year method (most recent year only) per Fannie/Freddie
+ * underwriting. The 1-year methods are unaffected.
+ * @param {object} p
+ * @param {number|string} p.ytd  year-to-date amount ($)
+ * @param {number|string} p.py1  prior year 1 annual amount ($)
+ * @param {number|string} p.py2  prior year 2 annual amount ($)
+ * @param {number} p.monthsElapsed months represented by the YTD figure
+ * @returns {{"1Y+":number,"2Y+":number,"1Y_YTD":number,"2Y_YTD":number}} annual $/yr per method
+ */
+export function computeIncomeMethods({ ytd, py1, py2, monthsElapsed }) {
+ const y  = Number(ytd) || 0;
+ const p1 = Number(py1) || 0;
+ const p2 = Number(py2) || 0;
+ const m  = Math.max(1, Number(monthsElapsed) || 1);
+ const ytdAnn = y > 0 ? (y * 12) / m : 0;
+ const declining = isDecliningIncome(p1, p2);
+ return {
+  "1Y+":    p1,
+  "2Y+":    declining ? p1 : (p1 + p2) / 2,
+  "1Y_YTD": (p1 + ytdAnn) / 2,
+  "2Y_YTD": declining ? (p1 + ytdAnn) / 2 : (p1 + p2 + ytdAnn) / 3,
+ };
+}
+
+/**
  * Progressive tax on taxable income given a bracket table.
  * @param {number} taxableIncome
  * @param {{min:number,max:number,rate:number}[]} brackets
