@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly,
-  computeTaxSavings, buildAmortization, computeProp19,
+  computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
 } from "./finance.js";
 
 // ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
@@ -178,5 +178,61 @@ describe("balances and income frequency", () => {
     expect(toMonthly(4615.38, "Bi-Weekly")).toBeCloseTo(10000, 0);
     expect(toMonthly(50, "Hourly")).toBeCloseTo(8666.67, 1); // 50×2080/12
     expect(toMonthly(10000, "Monthly")).toBe(10000);
+  });
+});
+
+// ── 11. Temporary buydown (B2) — 2-1 / 1-0 / 3-2-1 escrow subsidy math ───────
+describe("calcTempBuydown", () => {
+  // $500k @ 6.5% / 30yr — hand-checked reference values (±$2 on the totals);
+  // internal consistency asserted against calcPI's own outputs so a rounding
+  // tweak in calcPI can't silently drift these tests.
+  const loan = 500000, note = 6.5, term = 30;
+  const notePI = calcPI(loan, note, term); // ≈ 3160.34
+
+  it("2-1: yr1 @ 4.5% ≈ $2,533.43, yr2 @ 5.5% ≈ $2,838.95, total ≈ $11,379.6", () => {
+    const b = calcTempBuydown(loan, note, term, "2-1");
+    expect(b.notePI).toBeCloseTo(notePI, 6);
+    expect(b.notePI).toBeCloseTo(3160.34, 1);
+    expect(b.years).toHaveLength(2);
+    expect(b.years[0].rate).toBe(4.5);
+    expect(b.years[0].pi).toBeCloseTo(2533.43, 1);
+    expect(b.years[0].monthlySavings).toBeCloseTo(626.91, 1);
+    expect(b.years[1].rate).toBe(5.5);
+    expect(b.years[1].pi).toBeCloseTo(2838.95, 1);
+    expect(b.years[1].monthlySavings).toBeCloseTo(321.39, 1);
+    expect(Math.abs(b.totalCost - 11379.6)).toBeLessThan(2);
+    // consistency: totalCost is exactly the sum of annual savings from calcPI
+    const expected = b.years.reduce((s, y) => s + (notePI - calcPI(loan, y.rate, term)) * 12, 0);
+    expect(b.totalCost).toBeCloseTo(expected, 6);
+  });
+
+  it("1-0: single year @ 5.5%, total ≈ $3,856.7", () => {
+    const b = calcTempBuydown(loan, note, term, "1-0");
+    expect(b.years).toHaveLength(1);
+    expect(b.years[0].rate).toBe(5.5);
+    expect(b.years[0].annualSavings).toBeCloseTo((notePI - calcPI(loan, 5.5, term)) * 12, 6);
+    expect(Math.abs(b.totalCost - 3856.7)).toBeLessThan(2);
+  });
+
+  it("3-2-1: three descending cuts, years numbered 1..3", () => {
+    const b = calcTempBuydown(loan, note, term, "3-2-1");
+    expect(b.years.map(y => y.rate)).toEqual([3.5, 4.5, 5.5]);
+    expect(b.years.map(y => y.year)).toEqual([1, 2, 3]);
+    // deeper cut in yr1 must save more than yr2, yr2 more than yr3
+    expect(b.years[0].monthlySavings).toBeGreaterThan(b.years[1].monthlySavings);
+    expect(b.years[1].monthlySavings).toBeGreaterThan(b.years[2].monthlySavings);
+  });
+
+  it("clamps at 0% when the cut exceeds the note rate (2.5% note, 3-2-1)", () => {
+    const b = calcTempBuydown(400000, 2.5, 30, "3-2-1");
+    expect(b.years[0].rate).toBe(0);
+    expect(b.years[0].pi).toBeCloseTo(400000 / 360, 6); // calcPI 0%-rate straight-line
+    expect(b.years[1].rate).toBeCloseTo(0.5, 10);
+  });
+
+  it("zero loan yields all-zero payments and zero cost", () => {
+    const b = calcTempBuydown(0, 6.5, 30, "2-1");
+    expect(b.notePI).toBe(0);
+    expect(b.totalCost).toBe(0);
   });
 });

@@ -120,7 +120,7 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
 
 export default function CalculatorContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "hoa", "setHoa", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -155,6 +155,7 @@ export default function CalculatorContent(props) {
   pmiRateOverride, setPmiRateOverride,
   pmiChartOverrides, setPmiChartOverrides,
   annualIns, setAnnualIns, hoa, setHoa,
+  buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
   underwritingFee, processingFee,
   propertyZip, setPropertyZip, creditScore,
   StopLight, handlePillarClick,
@@ -167,6 +168,7 @@ export default function CalculatorContent(props) {
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
   const [piExpanded, setPiExpanded] = useState(false); // Principal & Interest split disclosure
+  const [buydownExpanded, setBuydownExpanded] = useState(false); // Temporary buydown disclosure (B2)
   // Advanced PMI rate chart (LO-editable Radian matrix for the current FICO band).
   const [pmiChartOpen, setPmiChartOpen] = useState(false);
   // Live-rates popup — opens when user clicks the inline '✓ Live' pill in the Rate
@@ -198,6 +200,10 @@ export default function CalculatorContent(props) {
                 : loanType === "VA"  ? "VA Funding Fee"
                 : "Private Mortgage Insurance (PMI)";
   const monthlyMI = calc.monthlyMI || 0;
+
+  // Temporary buydown (B2): hide the row entirely when there's no loan/term
+  // to model (matches how sibling rows guard on their inputs).
+  const showBuydownRow = (calc.loan || 0) > 0 && (Number(term) || 0) > 0;
   const miZeroReason = monthlyMI === 0 ? (
     loanType === "VA" ? "No monthly MI on VA loans (one-time funding fee applies at close)."
     : loanType === "Jumbo" ? "Jumbo loans typically do not carry PMI."
@@ -843,10 +849,106 @@ export default function CalculatorContent(props) {
       </React.Fragment>
       );
      })}
+     {/* ── Temporary buydown (B2) — expandable row, same chevron pattern as
+         the P&I/Tax/PMI rows above. Cash-flow subsidy only: qualification
+         (DTI) stays at the NOTE rate, and the cost is a seller/lender-credit
+         data point — NOT deducted from cash-to-close here (noted in the
+         caption below so nothing moves silently). Hidden when loan/term are
+         empty, matching the sibling-row guards. */}
+     {showBuydownRow && (() => {
+      const bd = calc.buydown;
+      const noteYear = bd ? bd.years.length + 1 : 0;
+      const clamped = bd && bd.years.some(y => y.rate === 0);
+      const cellHead = { fontSize: 9.5, fontWeight: 700, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: FONT, textAlign: "right" };
+      const cellVal = { fontSize: 12, fontWeight: 600, fontFamily: FONT, color: T.text, textAlign: "right" };
+      return (
+      <React.Fragment>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+         <span style={{ width: 8, height: 8, borderRadius: 4, background: buydownType !== "none" ? T.accent : T.textTertiary, flexShrink: 0 }} />
+         <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>Temporary buydown</span>
+         <span
+          onClick={() => setBuydownExpanded(!buydownExpanded)}
+          title={buydownExpanded ? "Hide buydown" : "Set up a temporary buydown"}
+          style={{ display: "inline-flex", alignItems: "center", gap: 3, cursor: "pointer", userSelect: "none", marginLeft: 2 }}
+         >
+          <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>{buydownType === "none" ? "Set up" : "Details"}</span>
+          <span style={{
+           fontSize: 10,
+           color: T.blue,
+           lineHeight: 1,
+           transform: `translateY(-1px) rotate(${buydownExpanded ? 180 : 0}deg)`,
+           transition: "transform 0.2s",
+          }}>▾</span>
+         </span>
+        </div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: buydownType === "none" ? T.textTertiary : T.text, fontFamily: FONT }}>
+         {buydownType === "none" ? "None" : buydownType}
+        </span>
+       </div>
+       {buydownExpanded && (
+        <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
+         <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+           <Sel sm label="Buydown" value={buydownType} onChange={setBuydownType}
+            options={[{ value: "none", label: "None" }, { value: "1-0", label: "1-0" }, { value: "2-1", label: "2-1" }, { value: "3-2-1", label: "3-2-1" }]} />
+           <Sel sm label="Paid By" value={buydownPaidBy} onChange={setBuydownPaidBy}
+            options={[{ value: "seller", label: "Seller" }, { value: "lender", label: "Lender" }, { value: "borrower", label: "Borrower" }]} />
+          </div>
+          {bd && (
+           <>
+            {clamped && (
+             <div style={{ fontSize: 11, color: T.orange, background: `${T.orange}12`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, lineHeight: 1.4, fontFamily: FONT }}>
+              The note rate is lower than the buydown reduction — early-year rates are clamped at 0%. Double-check this structure with the lender.
+             </div>
+            )}
+            {/* Year table — dense data, solid card (not glass) */}
+            <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, padding: "8px 12px" }}>
+             <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 1fr 1.2fr", gap: 6, padding: "3px 0", borderBottom: `1px solid ${T.separator}` }}>
+              <span style={{ ...cellHead, textAlign: "left" }}>Year</span>
+              <span style={cellHead}>Rate</span>
+              <span style={cellHead}>P&amp;I</span>
+              <span style={cellHead}>Savings/mo</span>
+             </div>
+             {bd.years.map((y) => (
+              <div key={y.year} style={{ display: "grid", gridTemplateColumns: "56px 1fr 1fr 1.2fr", gap: 6, alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
+               <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>{y.year}</span>
+               <span style={cellVal}>{y.rate.toFixed(3)}%</span>
+               <span style={cellVal}>{fmt(y.pi)}</span>
+               <span style={{ ...cellVal, color: T.green }}>{fmt(y.monthlySavings)}</span>
+              </div>
+             ))}
+             {/* Note-rate row — the payment for the rest of the term */}
+             <div style={{ display: "grid", gridTemplateColumns: "56px 1fr 1fr 1.2fr", gap: 6, alignItems: "center", padding: "5px 0" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>{noteYear}+</span>
+              <span style={cellVal}>{Number(rate).toFixed(3)}%</span>
+              <span style={cellVal}>{fmt(bd.notePI)}</span>
+              <span style={{ ...cellVal, color: T.textTertiary, fontWeight: 500 }}>—</span>
+             </div>
+            </div>
+            {/* Total cost callout */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 2px 2px" }}>
+             <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>Total buydown cost</span>
+             <span style={{ fontSize: 16, fontWeight: 800, color: T.accent, fontFamily: FONT, letterSpacing: "-0.01em" }}>{fmt2(bd.totalCost)}</span>
+            </div>
+            <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 4, lineHeight: 1.5, fontFamily: FONT }}>
+             {buydownPaidBy === "borrower"
+              ? "Paid by the borrower at closing. Qualification uses the note rate."
+              : `Typically funded by a ${buydownPaidBy} credit at closing. Qualification uses the note rate.`}
+             {" "}Shown for planning — not deducted from cash to close here.
+            </div>
+           </>
+          )}
+         </div>
+        </div>
+       )}
+      </React.Fragment>
+      );
+     })()}
      {/* Pad to a fixed 5 rows so the Payment Breakdown card is always the same
          height as the Cash-to-Close Summary (empty slots where Tax/Ins/PMI
          would be), keeping the two cards + their footers on the same line. */}
-     {(() => { const n = 1 + (includeEscrow ? 2 : 0) + ((calc.monthlyMI || 0) > 0 ? 1 : 0) + 1; return Array.from({ length: Math.max(0, 5 - n) }).map((_, i) => <div key={"pbpad" + i} aria-hidden="true" style={{ minHeight: 28 }} />); })()}
+     {(() => { const n = 1 + (includeEscrow ? 2 : 0) + ((calc.monthlyMI || 0) > 0 ? 1 : 0) + 1 + (showBuydownRow ? 1 : 0); return Array.from({ length: Math.max(0, 5 - n) }).map((_, i) => <div key={"pbpad" + i} aria-hidden="true" style={{ minHeight: 28 }} />); })()}
      {!includeEscrow && (
       <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>
        Escrow excluded — full PITI would be {fmt(calc.housingPayment)}/mo

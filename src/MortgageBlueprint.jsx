@@ -5,7 +5,7 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } fro
 // THE FINANCIAL ENGINE — all money formulas live in lib/finance.js (audit M-1).
 // Pure, unit-tested (src/lib/finance.test.js). Change formulas THERE, not here.
 import {
- calcPI, calcBalance, balanceAfter, calcAPR, computeLTV, computeDTI,
+ calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, progressiveTax,
  computeTaxSavings, buildAmortization, computeProp19,
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
@@ -1329,6 +1329,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Buyer's share of COUNTY transfer tax — independent of city per Christo (different deals split these differently).
  const [transferTaxCountySplit, setTransferTaxCountySplit] = useState("split50");
  const [discountPts, setDiscountPts] = useState(0);
+ // Temporary rate buydown (B2): "none" | "1-0" | "2-1" | "3-2-1". Cash-flow
+ // subsidy only — qualification stays at the note rate. Cost is a data point
+ // (usually a seller/lender credit), NOT auto-applied to cash-to-close.
+ const [buydownType, setBuydownType] = useState("none");
+ const [buydownPaidBy, setBuydownPaidBy] = useState("seller"); // "seller" | "lender" | "borrower"
  const [originatorComp, setOriginatorComp] = useState(0);
  // Section A — lender/origination fees (defaults match Christo's fee worksheet)
  const [adminFee, setAdminFee] = useState(795);
@@ -1705,7 +1710,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const getState = () => ({
   salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
+  transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
   prepaidDays, coeDays, closingMonth, closingDay, closingYear, propertyTaxesInstallment, sellersProratedTaxCredit, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -1758,6 +1763,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setTransferTaxCity(match ? match.city : (TT_CITY_NAMES.includes(s.transferTaxCity) ? s.transferTaxCity : "Not listed"));
   }
   if (s.discountPts !== undefined) setDiscountPts(s.discountPts);
+  // Temporary buydown — default back to "none"/"seller" for older scenarios
+  // that predate B2 so a stale selection can't leak across scenario switches.
+  setBuydownType(s.buydownType !== undefined ? s.buydownType : "none");
+  setBuydownPaidBy(s.buydownPaidBy !== undefined ? s.buydownPaidBy : "seller");
   if (s.adminFee !== undefined) setAdminFee(s.adminFee);
   if (s.lenderWireFee !== undefined) setLenderWireFee(s.lenderWireFee);
   if (s.underwritingFee !== undefined) setUnderwritingFee(s.underwritingFee);
@@ -2142,7 +2151,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
+  transferTaxCity, discountPts, buydownType, buydownPaidBy, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   ownersTitleIns, homeWarranty, hoaTransferFee, buyerPaysComm, buyerCommPct, sellerTaxBasis,
   prepaidDays, coeDays, debts, married, taxState, appreciationRate, sellPrice, sellMortgagePayoff,
   sellCommission, sellTransferTaxCity, sellEscrow, sellTitle, sellOther, sellSellerCredit,
@@ -4418,6 +4427,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const finalDisplayPayment = (isRefi && refiNewLoanAmt > 0)
    ? (includeEscrow ? (refiNewPi + refiNewMonthlyTax + refiNewMonthlyIns + refiNewMI + hoa) : (refiNewPi + refiNewMI + hoa))
    : displayPayment;
+  // ── Temporary rate buydown (B2) ──
+  // Early-year cash-flow subsidy at the note rate's expense — qualification
+  // (DTI) stays at the note rate, so nothing above changes. totalCost is a
+  // seller/lender-concession data point; NOT folded into cash-to-close
+  // (kept explicit — the UI notes it next to the total).
+  const buydown = (buydownType !== "none" && loan > 0 && term > 0)
+   ? calcTempBuydown(loan, rate, term, buydownType)
+   : null;
   return {
    dp, baseLoan, loan, fhaUp, vaFundingFee, autoVAFF, vaFFRate, usdaFee, ltv, pi, ins, yearlyTax, monthlyTax, pmiRate, autoPmiRate, monthlyPMI, monthlyMIP, fhaMipRate, usdaMI, monthlyMI,
    taxRate, autoTaxRate, taxableValue, baseTax, yearlyFixedAssess, effectiveTaxRate, exemption,
@@ -4457,13 +4474,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    sellAdjBasis, sellGrossGain, sellExclusionLimit, sellTaxableGain, sellIsLongTerm,
    fedLTCGRate, sellNIIT, sellFedCapGainsTax, sellStateCapGainsRate, sellStateCapGainsTax,
    sellTotalCapGainsTax, sellNetAfterTax,
-   apr, aprFinanceCharges,
+   apr, aprFinanceCharges, buydown,
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
-  transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
+  transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   customFees, hiddenFees,
   sellerTaxBasis, prepaidDays, coeDays, closingMonth, closingDay, closingYear, debts, married, taxState, appreciationRate,
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
@@ -5840,7 +5857,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -6119,6 +6136,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    underwritingFee, setUnderwritingFee, processingFee, setProcessingFee,
    adminFee, setAdminFee, lenderWireFee, setLenderWireFee,
    discountPts, setDiscountPts,
+   buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
    appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee,
    floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee,
    titleInsurance, setTitleInsurance, titleSearch, setTitleSearch,
