@@ -23,6 +23,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FONT, MONO } from "../lib/fonts.js";
 import Icon from "../Icon.jsx";
 import { fetchMyPipeline } from "../api.js";
+import PipelineImportModal from "./PipelineImportModal.jsx";
 
 // Milestone group order — mirrors the server's MY_PIPELINE_MILESTONES labels.
 const MILESTONE_ORDER = [
@@ -95,7 +96,7 @@ function agoLabel(ts) {
   return `updated ${hrs}h ago`;
 }
 
-export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, onOpenClient }) {
+export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, onOpenClient, importCtx }) {
   const font = FONT_PROP || FONT;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -103,6 +104,11 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
   const [fetchedAt, setFetchedAt] = useState(null);
   const [filter, setFilter] = useState("all"); // 'all' | 'live' | 'leads'
   const [query, setQuery] = useState("");
+  // Import-from-Arive (2026-07-18): the row currently in the import modal, and
+  // rowId → Blueprint client id for rows imported this session (flips the
+  // Import pill to the normal Blueprint pill without waiting for a refetch).
+  const [importRow, setImportRow] = useState(null);
+  const [importedIds, setImportedIds] = useState({});
   const [, setTick] = useState(0); // re-render so "updated Xm ago" stays honest
   const mounted = useRef(true);
 
@@ -312,7 +318,11 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
             {list.map((l, i) => {
               const sc = statusColor(l.status, T);
               const isLead = rowClass(l) === "lead";
-              const canOpenBp = Boolean(l.bpClientId && onOpenClient);
+              // A row imported this session flips to the Blueprint pill via
+              // importedIds without waiting for the next server refetch.
+              const bpId = l.bpClientId || importedIds[l.id] || null;
+              const canOpenBp = Boolean(bpId && onOpenClient);
+              const canImport = Boolean(!bpId && importCtx);
               return (
                 <div key={l.id || `${milestone}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderBottom: i < list.length - 1 ? `1px solid ${T.separator}` : "none" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -324,9 +334,24 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
                       {l.lender ? <span style={{ color: T.textTertiary }}> · {l.lender}</span> : null}
                     </div>
                   </div>
+                  {canImport && (
+                    <button
+                      onClick={() => setImportRow(l)}
+                      title={`Import ${l.borrower || "this file"} from Arive into Blueprint`}
+                      style={{
+                        flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "3px 10px", borderRadius: 9999, cursor: "pointer",
+                        background: "transparent", border: `1px dashed ${T.accent}50`,
+                        color: T.accent, fontFamily: font, fontSize: 11, fontWeight: 700,
+                      }}
+                    >
+                      <Icon name="download" size={11} />
+                      {isDesktop ? "Import" : null}
+                    </button>
+                  )}
                   {canOpenBp && (
                     <button
-                      onClick={() => onOpenClient({ borrowerId: l.bpClientId, borrowerName: l.borrower || "" })}
+                      onClick={() => onOpenClient({ borrowerId: bpId, borrowerName: l.borrower || "" })}
                       title={`Open ${l.borrower || "this client"} in Blueprint`}
                       style={{
                         flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5,
@@ -354,6 +379,24 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
           </div>
         </div>
       ))}
+
+      {/* Import-from-Arive confirm + email flow */}
+      {importCtx && (
+        <PipelineImportModal
+          open={!!importRow}
+          row={importRow}
+          T={T}
+          fetchPayload={importCtx.fetchPayload}
+          createClient={importCtx.create}
+          loInfo={importCtx.loInfo}
+          onClose={(result) => {
+            if (result?.borrowerId && importRow) {
+              setImportedIds((prev) => ({ ...prev, [importRow.id]: result.borrowerId }));
+            }
+            setImportRow(null);
+          }}
+        />
+      )}
     </div>
   );
 }

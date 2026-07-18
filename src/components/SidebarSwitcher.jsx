@@ -1,4 +1,4 @@
-import { FONT } from "../lib/fonts.js";
+import { FONT, MONO } from "../lib/fonts.js";
 /**
  * SidebarSwitcher — the broker's blueprint switcher, docked in the left nav
  * below the Settings tab (LO view only).
@@ -18,7 +18,7 @@ import BorrowerPicker from './BorrowerPicker';
 
 
 const STATUS_COLORS = {
-  lead: '#d98a0b',
+  lead: '#8b7bf0', // purple — matches the Pipeline tab's lead convention (T.purple)
   active: '#3B6BF5',
   pre_approved: '#3B6BF5',
   in_escrow: '#8b7bf0',
@@ -82,22 +82,26 @@ export default function SidebarSwitcher({
         }}
       >
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 13, fontWeight: active ? 700 : 500, color: active ? accent : text,
-            fontFamily: FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {entry.borrowerName || 'Client'}
-          </div>
-          {statusLabel && (
-            <div style={{
-              fontSize: 10, color: textTer, fontFamily: FONT,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {statusLabel}
-            </div>
-          )}
+        {/* One-row layout (Christo 2026-07-18): name + status badge on a single
+            line — no stacked "Active" subtitle. Badge = MONO uppercase micro
+            pill tinted with the status color (ACTIVE accent, LEAD purple). */}
+        <div style={{
+          flex: 1, minWidth: 0, fontSize: 13, fontWeight: active ? 700 : 500,
+          color: active ? accent : text, fontFamily: FONT,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {entry.borrowerName || 'Client'}
         </div>
+        {statusLabel && (
+          <span style={{
+            flexShrink: 0, fontFamily: MONO, fontSize: 9, fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: 0.6,
+            color: statusColor, background: `${statusColor}16`,
+            borderRadius: 9999, padding: '2px 7px',
+          }}>
+            {statusLabel}
+          </span>
+        )}
         <div
           onClick={(e) => { e.stopPropagation(); onTogglePin && onTogglePin(entry); }}
           title={pinnedNow ? 'Unpin' : 'Pin to top'}

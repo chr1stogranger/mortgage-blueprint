@@ -2251,25 +2251,41 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
 
  // ── Import a client from an existing Arive file ──
- // Creates (or dedupes onto) the borrower, merges the file's deal team
- // (existing roster entries win), links the co-borrower email, and adds a
- // fresh scenario prefilled from the loan. Re-importing the same file later
- // just adds another scenario with current numbers — nothing is overwritten.
- const handleImportAriveLoan = async (searchRow) => {
-  const payload = await fetchAriveImport(searchRow.id);
+ // Shared creation core — used by BOTH the sidebar "Import from Arive" modal
+ // and the Pipeline tab's per-row Import (2026-07-18). Creates (or dedupes
+ // onto) the borrower, merges the file's deal team (existing roster entries
+ // win), links the co-borrower email, and adds a fresh scenario prefilled
+ // from the loan. Re-importing the same file later just adds another scenario
+ // with current numbers — nothing is overwritten. Returns
+ // { borrower, scenario, label } and does NOT navigate — callers decide.
+ const createClientFromArivePayload = async (payload) => {
   if (!payload?.borrower) throw new Error('Arive returned no borrower data');
 
-  // 1. Client record (POST dedupes by email and returns the existing row)
+  // 1. Client record (POST dedupes by email and returns the existing row).
+  //    Lead-stage Arive files (Application / Qualification / Pre-Approved)
+  //    land as status 'lead' so the sidebar badge matches the Pipeline tab.
+  const ARIVE_LEAD_STATUSES = new Set(['APPLICATION_INTAKE', 'QUALIFICATION', 'PREAPPROVED']);
   const createBody = {
-   name: payload.borrower.name, status: 'active', source: 'blueprint-arive',
+   name: payload.borrower.name,
+   status: ARIVE_LEAD_STATUSES.has(payload.loan?.status) ? 'lead' : 'active',
+   source: 'blueprint-arive',
   };
   if (payload.borrower.email) createBody.email = payload.borrower.email;
   if (payload.borrower.phone) createBody.phone = payload.borrower.phone;
   if (payload.borrower.credit_score) createBody.credit_score = payload.borrower.credit_score;
   if (payload.borrower.first_time_buyer != null) createBody.first_time_buyer = payload.borrower.first_time_buyer;
   const created = await createBorrower(createBody);
-  const b = Array.isArray(created) ? created[0] : created;
+  let b = Array.isArray(created) ? created[0] : created;
   if (!b?.id) throw new Error('Could not create the client');
+
+  // Guarantee share_token visibility (same defensive re-read as the live-link
+  // flow) — the Pipeline import's follow-up email links the client's share URL.
+  if (!b.share_token) {
+   try {
+    const fresh = await fetchBorrowerById(b.id);
+    if (fresh) b = { ...fresh, _deduplicated: b._deduplicated };
+   } catch { /* non-fatal — email falls back to the app origin */ }
+  }
 
   // Existing client: backfill FICO/phone only where empty (never clobber)
   if (b._deduplicated) {
@@ -2302,8 +2318,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   });
   const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
 
-  // 4. Open it
-  setBorrowerList(prev => prev.some(x => x.id === b.id) ? prev : [...prev, b]);
+  // 4. Surface the new client in the sidebar (list + recent shelf) without
+  //    navigating — the caller decides whether to open it.
+  setBorrowerList(prev => prev.some(x => x.id === b.id) ? prev.map(x => x.id === b.id ? b : x) : [...prev, b]);
+  recordRecentBlueprint(makeClientEntry(b));
+
+  return { borrower: b, scenario: s, label };
+ };
+
+ // Sidebar "Import from Arive" modal path: create via the shared core, then
+ // open the new client's fresh scenario immediately.
+ const handleImportAriveLoan = async (searchRow) => {
+  const payload = await fetchAriveImport(searchRow.id);
+  const { borrower: b, scenario: s, label } = await createClientFromArivePayload(payload);
   setActiveBorrower(b);
   setBorrowerScenarios(prev => (s?.id ? [s, ...(b._deduplicated ? prev : [])] : prev));
   if (s?.id) {
@@ -2312,7 +2339,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setScenarioName(s.name || label);
    sync.initSync(payload.prefill || {}, null);
   }
-  recordRecentBlueprint(makeClientEntry(b));
   setImportAriveOpen(false);
   setTab('overview');
  };
@@ -5881,7 +5907,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ MY PIPELINE (LO only — per-LO Ops/Arive loans, B5) ═══ */}
 {tab === "pipeline" && isCloud && !isBorrower && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary, fontFamily: FONT, fontSize: 13 }}>Loading Pipeline...</div>}>
-  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} onOpenClient={(entry) => { setTab("overview"); openClient(entry); }} />
+  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} onOpenClient={(entry) => { setTab("overview"); openClient(entry); }}
+   importCtx={{
+    // row.guid (sysGUID) is the Arive detail key; older deployed Ops rows
+    // lack it — row.id then degrades to a friendly in-modal error.
+    fetchPayload: (row) => fetchAriveImport(row.guid || row.id),
+    create: createClientFromArivePayload,
+    loInfo: { loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls },
+   }} />
  </Suspense>
 )}
 {/* ═══ SUMMARY ═══ */}
