@@ -26,6 +26,7 @@ const BlueprintPane = lazy(() => import("./BlueprintPane"));
 const SellerNetPane = lazy(() => import("./SellerNetPane"));
 const OverviewTab = lazy(() => import("./OverviewTab"));
 const BottomSheet = lazy(() => import("./BottomSheet"));
+const LoPipelinePanel = lazy(() => import("./components/LoPipelinePanel"));
 const IncomeSheet = lazy(() => import("./IncomeSheet"));
 const DebtsSheet = lazy(() => import("./DebtsSheet"));
 const AssetsSheet = lazy(() => import("./AssetsSheet"));
@@ -4760,6 +4761,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // escrow/title/insurance). Shared with Ops; borrowers get a read-only
   // tap-to-call view. (2026-07-06)
   ["team","Team"],
+  // My Pipeline — LO-only view of THEIR Ops/Arive loans (B5, 2026-07-17).
+  // Gated on a live LO session AND not borrower mode: borrowers must never
+  // see this tab (the render block re-checks the same gate).
+  ...(isCloud && !isBorrower ? [["pipeline","Pipeline"]] : []),
   ["summary","Share"],
   // Settings is now visible to borrowers too (2026-05-12, per Christo: "i want
   // them all to have the same view"). Multi-client BorrowerPicker remains
@@ -4790,7 +4795,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  ];
  // Core destinations that stay PINNED above the section index. These are real
  // tab switches (not in-page scrolls), in the order Christo specified.
- const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "summary", "settings"];
+ const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
  // Jump to an Overview section: make sure we're on the Overview tab, then scroll
  // the section into view. Polls briefly because OverviewTab is lazy-loaded and
  // may not be mounted on the same frame we switch tabs. scroll-margin-top (CSS,
@@ -5214,7 +5219,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        // sidebarCollapsed state leaked into mobile, forcing the icon to width:100%
        // and squeezing every label to zero width (icons-only, broken). (2026-06-02)
        const navCollapsed = sidebarCollapsed && isDesktop;
-       const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
+       const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
        // Renders one core/destination nav item (real tab switch). Unchanged markup.
        const renderTabItem = ([k, l]) => {
         const locked = !isTabUnlocked(k);
@@ -5879,6 +5884,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "sell" && <SellContent {...{T, isDesktop, calc, fmt, reos, debts, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ DEAL TEAM ═══ */}
 {tab === "team" && <TeamContent {...{T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth, Hero, Card, Sec, Note, TextInp, onRenameClient: handleRenameClient}} />}
+{/* ═══ MY PIPELINE (LO only — per-LO Ops/Arive loans, B5) ═══ */}
+{tab === "pipeline" && isCloud && !isBorrower && (
+ <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary, fontFamily: FONT, fontSize: 13 }}>Loading Pipeline...</div>}>
+  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} />
+ </Suspense>
+)}
 {/* ═══ SUMMARY ═══ */}
 {tab === "summary" && (<>
  {/* ── CTA Buttons (top of summary) ── */}

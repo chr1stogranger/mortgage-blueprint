@@ -183,6 +183,16 @@ export async function computeActivityDigest(date = null) {
   });
 }
 
+// ─── My Pipeline (LO only) ──────────────────────────────────────────────────
+// Per-LO pipeline from Ops: the server filters on the AUTHENTICATED email
+// (admins may pass loEmail to view another LO; non-admins' param is ignored
+// server-side). Returns { loans, closedYTD, fundedVolumeYTD, lo, asOf }.
+
+export async function fetchMyPipeline(loEmail = null) {
+  const qs = loEmail ? `&lo=${encodeURIComponent(loEmail)}` : '';
+  return authFetch(`/api/pipeline-data?_route=my-pipeline${qs}`);
+}
+
 // ─── Borrower Auth (public, no LO auth needed) ─────────────────────────────
 
 export async function requestBorrowerMagicLink(email, name = '', shareToken = null) {
