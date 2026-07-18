@@ -1,4 +1,4 @@
-import { FONT } from "../lib/fonts.js";
+import { FONT, MONO } from "../lib/fonts.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { toMonthly } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
@@ -204,6 +204,29 @@ function computeMoIncome(inc, isVariable, monthsElapsed) {
   return annual / 12;
 }
 
+// Does this employer group have any dollar figure entered yet? Drives the
+// B4 summary-first default: groups WITH a value collapse to a summary row,
+// groups WITHOUT one (e.g. a freshly added employer) auto-expand into edit
+// mode so the broker can start typing immediately.
+function groupHasValue(components) {
+  return components.some(c =>
+    (Number(c.amount) || 0) > 0 || (Number(c.py1) || 0) > 0 ||
+    (Number(c.py2) || 0) > 0 || (Number(c.ytd) || 0) > 0);
+}
+
+// MONO uppercase micro-chip — the sanctioned mono use (method chips like
+// "2-YR AVG", "PREV"). T.pillBg ground, pill radius.
+function MicroChip({ T, color, children }) {
+  return (
+    <span style={{
+      fontFamily: MONO, fontSize: 9, fontWeight: 600,
+      letterSpacing: "0.06em", textTransform: "uppercase",
+      color: color || T.textSecondary, background: T.pillBg,
+      borderRadius: 9999, padding: "2px 8px", whiteSpace: "nowrap",
+    }}>{children}</span>
+  );
+}
+
 // ─── Variable-pay averaging panel (the 2nd-level chevron expand) ─────
 function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT }) {
   const now = new Date();
@@ -259,7 +282,8 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
     }}>
       <div style={{
         fontSize: 9, color: T.orange, letterSpacing: "0.08em",
-        textTransform: "uppercase", fontWeight: 700, marginBottom: 6,
+        textTransform: "uppercase", fontWeight: 600, marginBottom: 6,
+        fontFamily: MONO,
       }}>Bonus / variable history &amp; averaging</div>
 
       {/* 3 history inputs — auto-labeled by year.
@@ -443,7 +467,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
 // ─── Component row inside an expanded employer block ────────────────
 function ComponentRow({
   inc, isExpanded, onToggleExpand, updateIncome, removeIncome,
-  monthsElapsed, T, fmt, ACCENT,
+  monthsElapsed, T, fmt, ACCENT, isDesktop = true,
   isFirst = true, isLast = true,
 }) {
   const meta = payTypeLabel(inc.payType);
@@ -538,123 +562,165 @@ function ComponentRow({
           : `0.5px dashed ${T.orange}50`),
   };
 
+  // ── Shared building blocks, composed into a desktop ledger grid or a
+  //    two-line mobile stack (B4: 375px must not overflow horizontally). ──
+
+  // Chevron — variable rows only. Subtle: 22×22 tile with very light
+  // orange tint, 11px glyph. Salary/Hourly rows have no chevron.
+  const chevronEl = isVar ? (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+      title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
+      style={{
+        width: 22, height: 22, borderRadius: 6, padding: 0, flexShrink: 0,
+        background: `${T.orange}10`,
+        border: `1px solid ${T.orange}33`,
+        color: T.orange, fontSize: 11, fontWeight: 700,
+        cursor: "pointer", display: "flex",
+        alignItems: "center", justifyContent: "center",
+        transform: `rotate(${isExpanded ? 0 : -90}deg)`,
+        transition: "transform 0.2s",
+      }}>▾</button>
+  ) : null;
+
+  const payTypeEl = (extra) => (
+    <select
+      value={inc.payType}
+      onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
+      style={pillSelect(extra)}>
+      <PayTypeOptions />
+    </select>
+  );
+
+  // Active method + year span as a compact amber chip (variable only).
+  const methodChipEl = (
+    <span style={{
+      fontSize: 11, color: T.orange, fontFamily: FONT, fontWeight: 500,
+      padding: "5px 10px", background: `${T.orange}08`,
+      border: `1px solid ${T.orange}33`, borderRadius: 9999,
+      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      textAlign: "center",
+    }}>{methodLabel}{yearSpan.replace(" · ", " · ").trim() || ""}</span>
+  );
+
+  // Amount — non-variable uses an editable pill; variable shows
+  // "computed" italic since amount comes from the averaging panel.
+  const amountEl = (extra) => (
+    <div style={{ ...pillInputWrap, ...extra }}>
+      <span style={{ color: T.textTertiary, fontSize: 12 }}>$</span>
+      <input type="text" inputMode="decimal"
+        value={inc.amount === 0 || inc.amount == null ? "" : Number(inc.amount).toLocaleString()}
+        onChange={(e) => {
+          const n = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
+          updateIncome(inc.id, "amount", isNaN(n) ? 0 : n);
+        }}
+        placeholder="0"
+        style={{
+          background: "transparent", border: "none", outline: "none",
+          flex: 1, fontSize: 12, color: T.text, fontFamily: FONT,
+          minWidth: 0, padding: 0,
+        }} />
+    </div>
+  );
+
+  // Frequency — important for both variable and non-variable. For
+  // variable rows it's metadata (annual vs. quarterly bonus changes the
+  // YTD eligibility per Fannie/Freddie); for non-variable rows it drives
+  // the toMonthly() conversion.
+  const freqEl = (extra) => (
+    <select value={inc.frequency || "Annual"}
+      onChange={(e) => updateIncome(inc.id, "frequency", e.target.value)}
+      style={pillSelect(extra)}>
+      {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+    </select>
+  );
+
+  const verifiedEl = (extra) => (
+    <select
+      value={inc.verifiedBy || ""}
+      onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
+      style={{ ...verifiedPillStyle, ...extra }}>
+      {VERIFIED_BY_OPTIONS.map(v =>
+        <option key={v.value} value={v.value} style={{ color: T.text, background: T.inputBg }}>{v.label || "not verified"}</option>
+      )}
+    </select>
+  );
+
+  const moEl = (
+    <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+      <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
+        {fmt(mo)}
+      </span>
+      <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+    </div>
+  );
+
+  // Remove — bare × glyph, matches Assets row pattern.
+  const removeEl = (
+    <button onClick={() => removeIncome(inc.id)}
+      aria-label="Remove this component"
+      title="Remove this component"
+      style={{
+        background: "transparent", border: "none",
+        color: T.textTertiary, cursor: "pointer",
+        fontSize: 16, padding: 0, lineHeight: 1,
+        width: 22, height: 22, flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>×</button>
+  );
+
+  const rowBg = isVar && isExpanded ? `${T.orange}06` : "transparent";
+  const rowBorder = isFirst ? "none" : `1px solid ${T.separator}`;
+
   return (
     <div>
-      {/* Tabular row — flat, no surrounding card border. Top divider
-          on every row except the first within the expanded employer. */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
-          gap: 8, alignItems: "center", padding: "6px 14px",
-          borderTop: isFirst ? "none" : `1px solid ${T.separator}`,
-          background: isVar && isExpanded ? `${T.orange}06` : "transparent",
-        }}>
-        {/* Chevron — variable rows only. Subtle: 22×22 tile with very
-            light orange tint, 11px glyph. Salary/Hourly leave this
-            column blank (per Christo's preference for v2). */}
-        {isVar ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-            title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
-            style={{
-              width: 22, height: 22, borderRadius: 6, padding: 0,
-              background: `${T.orange}10`,
-              border: `1px solid ${T.orange}33`,
-              color: T.orange, fontSize: 11, fontWeight: 700,
-              cursor: "pointer", display: "flex",
-              alignItems: "center", justifyContent: "center",
-              transform: `rotate(${isExpanded ? 0 : -90}deg)`,
-              transition: "transform 0.2s",
-            }}>▾</button>
-        ) : <div />}
-
-        {/* Pay type — pill select */}
-        <select
-          value={inc.payType}
-          onChange={(e) => updateIncome(inc.id, "payType", e.target.value)}
-          style={pillSelect()}>
-          <PayTypeOptions />
-        </select>
-
-        {/* Years — variable rows show the active method + year span as
-            a compact amber chip; non-variable shows an em-dash. */}
-        {isVar ? (
-          <span style={{
-            fontSize: 11, color: T.orange, fontFamily: FONT, fontWeight: 500,
-            padding: "5px 10px", background: `${T.orange}08`,
-            border: `1px solid ${T.orange}33`, borderRadius: 9999,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            textAlign: "center",
-          }}>{methodLabel}{yearSpan.replace(" · ", " · ").trim() || ""}</span>
-        ) : (
-          <span style={{ color: T.textTertiary, fontSize: 12, padding: "0 6px" }}>—</span>
-        )}
-
-        {/* Amount — non-variable uses an editable pill; variable shows
-            "computed" italic since amount comes from the averaging panel. */}
-        {isVar ? (
-          <span style={{ color: T.textTertiary, fontSize: 11, fontStyle: "italic", padding: "0 6px" }}>
-            computed
-          </span>
-        ) : (
-          <div style={pillInputWrap}>
-            <span style={{ color: T.textTertiary, fontSize: 12 }}>$</span>
-            <input type="text" inputMode="decimal"
-              value={inc.amount === 0 || inc.amount == null ? "" : Number(inc.amount).toLocaleString()}
-              onChange={(e) => {
-                const n = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
-                updateIncome(inc.id, "amount", isNaN(n) ? 0 : n);
-              }}
-              placeholder="0"
-              style={{
-                background: "transparent", border: "none", outline: "none",
-                flex: 1, fontSize: 12, color: T.text, fontFamily: FONT,
-                minWidth: 0, padding: 0,
-              }} />
-          </div>
-        )}
-
-        {/* Frequency — important for both variable and non-variable.
-            For variable rows it's metadata (annual bonus vs. quarterly
-            bonus changes the YTD eligibility per Fannie/Freddie). For
-            non-variable rows it drives the toMonthly() conversion. */}
-        <select value={inc.frequency || "Annual"}
-          onChange={(e) => updateIncome(inc.id, "frequency", e.target.value)}
-          style={pillSelect()}>
-          {FREQ_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-        </select>
-
-        {/* Verified — pill chip select */}
-        <select
-          value={inc.verifiedBy || ""}
-          onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
-          style={verifiedPillStyle}>
-          {VERIFIED_BY_OPTIONS.map(v =>
-            <option key={v.value} value={v.value} style={{ color: T.text, background: T.inputBg }}>{v.label || "not verified"}</option>
-          )}
-        </select>
-
-        {/* Mo. income */}
-        <div style={{ textAlign: "right" }}>
-          <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
-            {fmt(mo)}
-          </span>
-          <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
-        </div>
-
-        {/* Remove — bare × glyph, matches Assets row pattern. */}
-        <button onClick={() => removeIncome(inc.id)}
-          aria-label="Remove this component"
-          title="Remove this component"
+      {isDesktop ? (
+        /* Tabular row — flat, no surrounding card border. Top divider on
+           every row except the first within the expanded employer.
+           Columns: chevron · pay type · years · amount · freq · verified
+           · $/mo · remove */
+        <div
           style={{
-            background: "transparent", border: "none",
-            color: T.textTertiary, cursor: "pointer",
-            fontSize: 16, padding: 0, lineHeight: 1,
-            width: 22, height: 22,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>×</button>
-      </div>
+            display: "grid",
+            gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
+            gap: 8, alignItems: "center", padding: "6px 14px",
+            borderTop: rowBorder, background: rowBg,
+          }}>
+          {chevronEl || <div />}
+          {payTypeEl()}
+          {isVar ? methodChipEl : (
+            <span style={{ color: T.textTertiary, fontSize: 12, padding: "0 6px" }}>—</span>
+          )}
+          {isVar ? (
+            <span style={{ color: T.textTertiary, fontSize: 11, fontStyle: "italic", padding: "0 6px" }}>
+              computed
+            </span>
+          ) : amountEl()}
+          {freqEl()}
+          {verifiedEl()}
+          {moEl}
+          {removeEl}
+        </div>
+      ) : (
+        /* Mobile stack — line 1: chevron · pay type · $/mo · remove;
+           line 2: wrapped pills (method / amount · freq · verified). */
+        <div style={{ padding: "8px 14px 10px", borderTop: rowBorder, background: rowBg }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {chevronEl}
+            {payTypeEl({ flex: 1, width: "auto", minWidth: 0 })}
+            {moEl}
+            {removeEl}
+          </div>
+          <div style={{
+            display: "flex", flexWrap: "wrap", alignItems: "center",
+            gap: 6, marginTop: 8, paddingLeft: isVar ? 30 : 0,
+          }}>
+            {isVar ? methodChipEl : amountEl({ width: 110, boxSizing: "border-box" })}
+            {freqEl({ width: "auto" })}
+            {verifiedEl({ width: "auto" })}
+          </div>
+        </div>
+      )}
 
       {/* Inline averaging panel for variable pay (under the row). */}
       {isVar && isExpanded && (
@@ -672,8 +738,8 @@ function ComponentRow({
 function EmployerGroup({
   source, components, borrowerNum, isExpanded, onToggleExpand,
   componentExpandState, toggleComponentExpand,
-  updateIncome, addIncome, removeIncome,
-  monthsElapsed, T, fmt, ACCENT,
+  updateIncome, addIncome, removeIncome, onSourceRename,
+  monthsElapsed, T, fmt, ACCENT, isDesktop = true,
 }) {
   // Local edit state for the source field. Committing on every keystroke
   // would re-key the group (because grouping is by source), destroy the
@@ -683,6 +749,10 @@ function EmployerGroup({
   useEffect(() => { setDraftSource(source || ""); }, [source]);
   const commitSource = () => {
     if (draftSource !== (source || "")) {
+      // Renaming re-keys the group (`${borrower}::${source}`) — carry the
+      // expand state over to the new key first so the card doesn't
+      // collapse mid-edit.
+      if (onSourceRename) onSourceRename(draftSource);
       components.forEach(c => updateIncome(c.id, "source", draftSource));
     }
   };
@@ -716,37 +786,114 @@ function EmployerGroup({
   const firstStart = components.find(c => c.start)?.start || "";
   const subtitle = firstStart ? `Since ${firstStart}` : `${components.length} component${components.length === 1 ? "" : "s"}`;
 
-  const borColor = borrowerNum === 1 ? ACCENT : T.cyan;
-  const borBg = `${borColor}26`;
+  // ── B4 summary metadata (collapsed row) ─────────────────────────
+  // Pay-type chips: unique plain-English labels, capped at 3 + "+N".
+  const payLabels = [...new Set(components.map(c => payTypeLabel(c.payType).label))];
+  const chipLabels = payLabels.slice(0, 3);
+  const chipOverflow = payLabels.length - chipLabels.length;
+  // Method chip: the averaging method driving the variable income.
+  // One variable component → its method short ("2-YR AVG"); several
+  // with different methods → "MIXED"; all-fixed group → no chip.
+  const varSelections = [...new Set(
+    components
+      .filter(c => payTypeLabel(c.payType).variable)
+      .map(c => c.selection || "2Y+"),
+  )];
+  const methodShort = varSelections.length === 0 ? null
+    : varSelections.length > 1 ? "MIXED"
+    : (SELECTION_METHODS.find(m => m.value === varSelections[0]) || {}).short || varSelections[0];
+  // Declining-income flag for the summary row (orange dot + label —
+  // full explanatory banner lives in the expanded VariableCalcPanel).
+  const hasDeclining = components.some(c =>
+    payTypeLabel(c.payType).variable && isDeclining(c.py1, c.py2));
+
+  const chevron = (
+    <span style={{
+      color: T.textTertiary, fontSize: 12, flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      width: 22, height: 22,
+      transition: "transform 0.2s",
+      transform: `rotate(${isExpanded ? 0 : -90}deg)`,
+    }}>▾</span>
+  );
 
   return (
-    <div style={{ background: T.card }}>
-      {/* Top employer row — click to expand. Grid: chevron, name +
-          subtitle (flex), Current/Previous status pill, $/mo, spacer.
-          The status pill is the only addition since the redundancy
-          cleanup; it's information-bearing (current vs. prior job
-          changes how the income is treated for qualification). */}
+    <div style={{ background: T.card, opacity: isPrevious && !isExpanded ? 0.55 : 1 }}>
+      {!isExpanded ? (
+        /* ── Collapsed summary row (B4): name · pay-type chips ·
+              $/mo (tabular) · method chip · chevron. Tap to expand. ── */
+        <div onClick={onToggleExpand}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "12px 14px", cursor: "pointer",
+          }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <span style={{
+                fontSize: 14, fontWeight: 600, fontFamily: FONT,
+                color: source ? T.text : T.textTertiary,
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>{source || "Unnamed employer"}</span>
+              {isPrevious && <MicroChip T={T}>Prev</MicroChip>}
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              marginTop: 4, flexWrap: "wrap",
+            }}>
+              {chipLabels.map(label => (
+                <span key={label} style={{
+                  fontSize: 10, color: T.textSecondary, fontFamily: FONT,
+                  background: T.pillBg, borderRadius: 9999, padding: "2px 8px",
+                  whiteSpace: "nowrap",
+                }}>{label}</span>
+              ))}
+              {chipOverflow > 0 && (
+                <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>+{chipOverflow}</span>
+              )}
+              {components.length > 1 && (
+                <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>
+                  {components.length} components
+                </span>
+              )}
+              {hasDeclining && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: 9999,
+                    background: T.orange, display: "inline-block", flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: 10, color: T.orange, fontFamily: FONT, fontWeight: 500 }}>
+                    Declining income
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ whiteSpace: "nowrap" }}>
+              <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 14, color: T.text }}>
+                {fmt(totalMo)}
+              </span>
+              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+            </div>
+            {methodShort && (
+              <div style={{ marginTop: 3 }}>
+                <MicroChip T={T}>{methodShort}</MicroChip>
+              </div>
+            )}
+          </div>
+          {chevron}
+        </div>
+      ) : (
+      /* ── Expanded header — editable name, Current/Previous toggle,
+            subtitle, $/mo, chevron to collapse back to summary. ── */
       <div onClick={onToggleExpand}
         style={{
-          display: "grid",
-          gridTemplateColumns: "32px 1fr 120px 18px",
-          gap: 8, alignItems: "center", padding: "12px 14px",
-          cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "12px 14px", cursor: "pointer",
           borderBottom: `1px solid ${T.separator}`,
         }}>
-        {/* Chevron bumped from 12px text to a 28px filled tile so it's
-            tappable and visible at a glance. Christo (2026-05-05): the
-            previous size was hard to see. */}
-        <div style={{
-          width: 28, height: 28, borderRadius: 6,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: isExpanded ? `${ACCENT}18` : `${ACCENT}08`,
-          border: `1px solid ${ACCENT}33`,
-          color: ACCENT, fontSize: 16, fontWeight: 700,
-          transition: "transform 0.2s",
-          transform: `rotate(${isExpanded ? 0 : -90}deg)`,
-        }}>▾</div>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
           }}>
@@ -806,40 +953,42 @@ function EmployerGroup({
             )}
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: T.text }}>
+        <div style={{ textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 14, color: T.text }}>
             {fmt(totalMo)}
           </span>
           <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
         </div>
-        <div></div>
+        {chevron}
       </div>
+      )}
 
       {/* Expanded employer — Assets-style tabular layout. Column
-          header row prints once, components map into flat rows of
-          pill-style controls. */}
+          header row prints once (desktop only — mobile rows stack),
+          components map into flat rows of pill-style controls. */}
       {isExpanded && (
         <div>
           {/* Column headers — same 8-col grid as ComponentRow rows */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
-            gap: 8, padding: "6px 14px",
-            fontSize: 9.5, color: T.textSecondary,
-            fontWeight: 600, letterSpacing: 0.6,
-            textTransform: "uppercase", fontFamily: FONT,
-            borderBottom: `1px solid ${T.separator}`,
-            background: `${ACCENT}0A`,
-          }}>
-            <div></div>
-            <div>Pay type</div>
-            <div>Years</div>
-            <div>Amount</div>
-            <div>Freq</div>
-            <div>Verified</div>
-            <div style={{ textAlign: "right" }}>Mo. income</div>
-            <div></div>
-          </div>
+          {isDesktop && (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
+              gap: 8, padding: "6px 14px",
+              fontSize: 9, color: T.textSecondary,
+              fontWeight: 600, letterSpacing: "0.06em",
+              textTransform: "uppercase", fontFamily: MONO,
+              borderBottom: `1px solid ${T.separator}`,
+            }}>
+              <div></div>
+              <div>Pay type</div>
+              <div>Years</div>
+              <div>Amount</div>
+              <div>Freq</div>
+              <div>Verified</div>
+              <div style={{ textAlign: "right" }}>Mo. income</div>
+              <div></div>
+            </div>
+          )}
 
           {components.map((c, idx) => (
             <ComponentRow
@@ -850,7 +999,7 @@ function EmployerGroup({
               updateIncome={updateIncome}
               removeIncome={removeIncome}
               monthsElapsed={monthsElapsed}
-              T={T} fmt={fmt} ACCENT={ACCENT}
+              T={T} fmt={fmt} ACCENT={ACCENT} isDesktop={isDesktop}
               isFirst={idx === 0}
               isLast={idx === components.length - 1}
             />
@@ -908,50 +1057,48 @@ export default function IncomeContent(props) {
 } = props;
 
   const ACCENT = T.blue;
-  const SUB_BG = `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`;
   const monthsElapsed = Math.max(1, new Date().getMonth() + 1);
 
-  // Expand state. Christo (2026-05-06): default rules —
-  //   * CURRENT employers (no end date on any component) default to
-  //     EXPANDED so the table of components is immediately visible.
-  //   * PREVIOUS employers default to COLLAPSED.
+  // Expand state. B4 summary-first redesign (2026-07-17): default rules —
+  //   * Employers WITH a dollar figure entered default to COLLAPSED
+  //     (a clean summary row); the broker taps to edit.
+  //   * Employers WITHOUT any figure yet (e.g. a freshly added one)
+  //     default to EXPANDED so typing can start immediately.
   //   * Variable COMPONENTS default to COLLAPSED (the broker can
-  //     open them when needed). Was auto-expanded; that flooded the
-  //     screen with averaging panels the broker doesn't always need.
+  //     open them when needed).
   // Keys: employers by `${borrower}::${source}`, components by inc.id.
   const [expandedEmployers, setExpandedEmployers] = useState(() => {
     const initial = {};
-    // Group keys we've already decided about
-    const seen = new Set();
-    // Build a map of (borrower, source) → "is any component previous?"
-    const isPreviousMap = {};
+    const byKey = {};
     incomes.forEach(i => {
       const key = `${i.borrower || 1}::${i.source || ""}`;
-      if (i.end && i.end !== "") isPreviousMap[key] = true;
-      else if (isPreviousMap[key] == null) isPreviousMap[key] = false;
+      (byKey[key] = byKey[key] || []).push(i);
     });
-    Object.keys(isPreviousMap).forEach(key => {
-      if (!isPreviousMap[key]) initial[key] = true; // current → expand
+    Object.keys(byKey).forEach(key => {
+      if (!groupHasValue(byKey[key])) initial[key] = true; // empty → edit mode
     });
     return initial;
   });
   const [expandedComponents, setExpandedComponents] = useState({});
+  // Other-income rows follow the same summary-first rule: a row with a
+  // value collapses to "label · $/mo"; a zero row starts open (it IS
+  // the input — nothing to summarize yet). Keyed by borrower number.
+  const [expandedOther, setExpandedOther] = useState({});
 
-  // Keep current employers expanded as new ones are added/edited so a
-  // freshly-toggled-back-to-current employer auto-opens its table.
+  // Auto-expand NEW empty employer groups as they appear (a fresh "+ Add
+  // Employer" click lands in edit mode). Only touches keys we haven't
+  // decided about yet — user toggles are always preserved.
   useEffect(() => {
     setExpandedEmployers(prev => {
       const next = { ...prev };
       let changed = false;
-      const seen = {};
+      const byKey = {};
       incomes.forEach(i => {
         const key = `${i.borrower || 1}::${i.source || ""}`;
-        if (i.end && i.end !== "") seen[key] = "previous";
-        else if (seen[key] == null) seen[key] = "current";
+        (byKey[key] = byKey[key] || []).push(i);
       });
-      Object.keys(seen).forEach(key => {
-        // Only touch keys we haven't seen yet — preserve user toggles.
-        if (next[key] == null && seen[key] === "current") {
+      Object.keys(byKey).forEach(key => {
+        if (next[key] == null && !groupHasValue(byKey[key])) {
           next[key] = true;
           changed = true;
         }
@@ -1087,6 +1234,13 @@ export default function IncomeContent(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numBorrowers, incomes, borrowerNames, otherIncomeByBorrower, otherIncome2]);
 
+  // B4: slim borrower headers only make sense when MORE THAN ONE borrower
+  // card actually renders. Counting rendered cards (not numBorrowers)
+  // also covers the Overview embed, which doesn't pass numBorrowers and
+  // falls back to the default of 2 with an empty (hidden) BOR 2.
+  const renderedBorrowerCount = borrowerList.filter(n => !isBorrowerEmpty(n)).length;
+  const showBorrowerHeaders = renderedBorrowerCount > 1;
+
   return (<>
     {/* marginBottom gives the .pulse-next indigo glow room to breathe — the
         Total Monthly Income card below used to sit flush against this box and
@@ -1112,47 +1266,51 @@ export default function IncomeContent(props) {
         const otherMo = getOther(n);
         const totalForBorrower = subtotalMo + otherMo;
         const accent = borrowerAccent(n);
-        const subBg = `linear-gradient(135deg, ${accent}24, ${accent}14)`;
         const isLast = n === numBorrowers;
         const canRemove = numBorrowers > 1;
+        // Initials for the slim-header disc: first letters of up to two
+        // words of the borrower's name, else "B1"/"B2".
+        const initials = (borrowerNames[n] || "").trim()
+          .split(/\s+/).filter(Boolean).map(w => w[0]).join("")
+          .slice(0, 2).toUpperCase() || `B${n}`;
         return (
           <div key={n} style={{
             border: `1px solid ${T.cardBorder}`, borderRadius: 14,
             overflow: "hidden", background: T.card, marginBottom: 16,
           }}>
-            {/* Per-borrower banner header. Banner shows the BOR pill,
-                the editable name input ("John Doe" pattern from the
-                spreadsheet), and the borrower's qualifying subtotal. */}
+            {/* Slim per-borrower header (B4): initials disc in the
+                borrower accent, editable name, right-aligned subtotal.
+                No gradient fills — one separator line below. Hidden
+                entirely in 1-borrower scenarios (just rows). */}
+            {showBorrowerHeaders && (
             <div style={{
-              background: subBg, color: accent,
-              borderBottom: `1px solid ${accent}55`,
-              padding: "10px 16px",
+              borderBottom: `1px solid ${T.separator}`,
+              padding: "10px 14px",
               fontFamily: FONT,
-              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+              display: "flex", alignItems: "center", gap: 10,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
-                  textTransform: "uppercase", padding: "3px 8px",
-                  borderRadius: 6, background: `${accent}22`, color: accent,
-                  border: `1px solid ${accent}55`, whiteSpace: "nowrap",
-                }}>BOR {n}</span>
-                <input
-                  type="text"
-                  value={borrowerNames[n] || ""}
-                  placeholder={`Borrower ${n} name (optional)`}
-                  onChange={(e) => setBorrowerName(n, e.target.value)}
-                  style={{
-                    flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600,
-                    color: accent, background: "transparent",
-                    border: "none", outline: "none", padding: 0,
-                    fontFamily: FONT, letterSpacing: "-0.01em",
-                  }}
-                />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5 }}>
-                  {fmt(totalForBorrower)}/mo
+              <div style={{
+                width: 26, height: 26, borderRadius: 9999, flexShrink: 0,
+                background: `${accent}1c`, color: accent,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 11, fontWeight: 700, fontFamily: FONT,
+                letterSpacing: "0.02em",
+              }}>{initials}</div>
+              <input
+                type="text"
+                value={borrowerNames[n] || ""}
+                placeholder={`Borrower ${n} name (optional)`}
+                onChange={(e) => setBorrowerName(n, e.target.value)}
+                style={{
+                  flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600,
+                  color: T.text, background: "transparent",
+                  border: "none", outline: "none", padding: 0,
+                  fontFamily: FONT, letterSpacing: "-0.01em",
+                }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: T.text, whiteSpace: "nowrap" }}>
+                  {fmt(totalForBorrower)}<span style={{ fontSize: 11, fontWeight: 400, color: T.textTertiary }}>/mo</span>
                 </span>
                 {canRemove && (
                   <button
@@ -1171,13 +1329,14 @@ export default function IncomeContent(props) {
                     title={`Remove Borrower ${n}`}
                     aria-label={`Remove Borrower ${n}`}
                     style={{
-                      // Larger 36×36 click target — was 28×28 which was easy
-                      // to miss on touch / dense banner layout (Christo report
-                      // 2026-05-12). type=button + preventDefault + stopProp
-                      // belt-and-suspenders the event from being swallowed.
-                      background: `${T.red}10`, border: `1px solid ${T.red}55`,
-                      color: T.red, cursor: "pointer",
-                      width: 36, height: 36, borderRadius: 8, padding: 0,
+                      // 32×32 click target (still comfortably tappable —
+                      // Christo report 2026-05-12). type=button +
+                      // preventDefault + stopProp belt-and-suspenders the
+                      // event from being swallowed. Ghost style: no fill,
+                      // no border — the slim header stays quiet.
+                      background: "transparent", border: "none",
+                      color: T.textTertiary, cursor: "pointer",
+                      width: 32, height: 32, borderRadius: 8, padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontFamily: FONT, flexShrink: 0,
                     }}>
@@ -1192,6 +1351,7 @@ export default function IncomeContent(props) {
                 )}
               </div>
             </div>
+            )}
 
             {/* Empty state per borrower — full-width dashed bar
                 matching the '+ Add Debt' / '+ Add Property' pattern. */}
@@ -1209,23 +1369,33 @@ export default function IncomeContent(props) {
               }}>+ Add Employer</button>
             )}
 
-            {/* Employer groups for this borrower */}
-            {groups.map(g => (
-              <EmployerGroup
-                key={g.key}
-                source={g.source}
-                components={g.components}
-                borrowerNum={g.borrowerNum}
-                isExpanded={!!expandedEmployers[g.key]}
-                onToggleExpand={() => toggleEmployer(g.key)}
-                componentExpandState={expandedComponents}
-                toggleComponentExpand={toggleComponent}
-                updateIncome={updateIncome}
-                addIncome={addIncome}
-                removeIncome={removeIncome}
-                monthsElapsed={monthsElapsed}
-                T={T} fmt={fmt} ACCENT={accent}
-              />
+            {/* Employer groups for this borrower — separated by a
+                single T.separator line (B4 uniform card grammar). */}
+            {groups.map((g, gi) => (
+              <div key={g.key} style={{ borderTop: gi > 0 ? `1px solid ${T.separator}` : "none" }}>
+                <EmployerGroup
+                  source={g.source}
+                  components={g.components}
+                  borrowerNum={g.borrowerNum}
+                  isExpanded={!!expandedEmployers[g.key]}
+                  onToggleExpand={() => toggleEmployer(g.key)}
+                  componentExpandState={expandedComponents}
+                  toggleComponentExpand={toggleComponent}
+                  updateIncome={updateIncome}
+                  addIncome={addIncome}
+                  removeIncome={removeIncome}
+                  onSourceRename={(newSource) => {
+                    // Renaming re-keys the group — carry the expand state
+                    // to the new key so the card doesn't snap shut.
+                    setExpandedEmployers(prev => {
+                      if (prev[g.key] == null) return prev;
+                      return { ...prev, [`${g.borrowerNum}::${newSource}`]: prev[g.key] };
+                    });
+                  }}
+                  monthsElapsed={monthsElapsed}
+                  T={T} fmt={fmt} ACCENT={accent} isDesktop={isDesktop}
+                />
+              </div>
             ))}
 
             {/* + Add Employer — full-width light-blue dashed bar
@@ -1246,24 +1416,54 @@ export default function IncomeContent(props) {
               </div>
             )}
 
-            {/* Other Monthly Income inline under each borrower's card */}
-            <div style={{
-              padding: "10px 14px 12px",
-              borderTop: `1px solid ${T.separator}`,
-              display: "grid", gridTemplateColumns: isDesktop ? "1fr 200px" : "1fr",
-              gap: 10, alignItems: "center",
-            }}>
-              <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.3 }}>
-                Other Monthly Income
-                <span style={{ marginLeft: 6, fontSize: 10, color: T.textTertiary, fontWeight: 400 }}>
-                  (alimony, SSI, pension, disability, child support…)
-                </span>
-              </div>
-              <Inp
-                value={getOther(n)}
-                onChange={(v) => setOther(n, v)}
-              />
-            </div>
+            {/* Other Monthly Income — same summary-row grammar as the
+                employer rows (B4). Collapsed: label + $/mo + chevron;
+                tap to reveal the input. Zero rows start open. */}
+            {(() => {
+              const otherOpen = expandedOther[n] != null
+                ? expandedOther[n]
+                : !((getOther(n) || 0) > 0);
+              return (
+                <div style={{ borderTop: `1px solid ${T.separator}` }}>
+                  <div
+                    onClick={() => setExpandedOther(prev => ({ ...prev, [n]: !otherOpen }))}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "12px 14px", cursor: "pointer",
+                    }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT, color: T.text, letterSpacing: "-0.01em" }}>
+                        Other monthly income
+                      </div>
+                      <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>
+                        alimony, SSI, pension, disability, child support…
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>
+                      <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 14, color: T.text }}>
+                        {fmt(getOther(n) || 0)}
+                      </span>
+                      <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+                    </div>
+                    <span style={{
+                      color: T.textTertiary, fontSize: 12, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 22, height: 22,
+                      transition: "transform 0.2s",
+                      transform: `rotate(${otherOpen ? 0 : -90}deg)`,
+                    }}>▾</span>
+                  </div>
+                  {otherOpen && (
+                    <div style={{ padding: "0 14px 12px", maxWidth: isDesktop ? 220 : "none" }}>
+                      <Inp
+                        value={getOther(n)}
+                        onChange={(v) => setOther(n, v)}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         );
       })}
@@ -1283,14 +1483,22 @@ export default function IncomeContent(props) {
           textAlign: "center",
         }}>+ Add Borrower</button>
       )}
+      {/* ── Totals footer (B4): single "Total qualifying income" row
+             pinned at the bottom of the section. Same number the old
+             QUALIFYING TOTAL row showed (employment income across all
+             current employers, matching calc.employmentMonthlyIncome's
+             role) — presentation change only. */}
       <div style={{
-        display: "flex", justifyContent: "flex-end", alignItems: "center",
-        marginBottom: 16, padding: "0 4px", flexWrap: "wrap", gap: 8,
+        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        gap: 10, marginBottom: 16, padding: "12px 14px",
+        background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14,
       }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: 10, color: T.textTertiary, letterSpacing: 0.4, fontWeight: 600, fontFamily: FONT }}>QUALIFYING TOTAL</span>
-          <span style={{ fontFamily: FONT, fontWeight: 500, fontSize: 14, color: ACCENT }}>{fmt(totalEmploymentMo)}/mo</span>
-        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>
+          Total qualifying income
+        </span>
+        <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16, color: T.accent, whiteSpace: "nowrap" }}>
+          {fmt(totalEmploymentMo)}<span style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary }}>/mo</span>
+        </span>
       </div>
     </div>
 
