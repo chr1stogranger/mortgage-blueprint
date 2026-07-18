@@ -1151,7 +1151,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
   // ─────────────────────────────────────────
 
   return (
-    {/* Fluid column: cards expand/contract with the window (Christo 2026-07-18) — capped so ultra-wide stays readable */}
+    // Fluid column: cards expand/contract with the window (Christo 2026-07-18) — 1240 cap so ultra-wide stays readable
     <div style={{ padding: isDesktop ? '20px 40px' : '0 16px 80px', width: '100%', boxSizing: 'border-box', maxWidth: isDesktop ? 1240 : 700, margin: '0 auto', marginLeft: isDesktop && setAppMode ? 180 : 'auto' }}>
       {/* Desktop Sidebar */}
       {isDesktop && setAppMode && (
