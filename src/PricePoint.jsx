@@ -1,4 +1,4 @@
-import { FONT } from "./lib/fonts.js";
+import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Icon from './Icon';
 import { apiUrl, API_BASE } from './apiBase';
@@ -230,6 +230,97 @@ const fpTypeMatch = (sel, pt) => {
   if (!sel || sel.length === 0) return true;
   const t = pt === "Manufactured" ? "Single Family" : (pt || "Single Family");
   return sel.includes(t);
+};
+
+// ── Value signals (Free Play / Live only) ──
+// Keyword lexicon over the MLS description. Intentionally conservative —
+// agent-spam phrases that slip through a regex are acceptable noise; missing
+// a real pool is worse than flagging a fake one is not.
+const PREMIUM_SIGNALS = [
+  { key: "pool",      re: /\b(pool|spa|jacuzzi)\b/i,                    label: "Pool / Spa" },
+  { key: "view",      re: /\b(view|views|panoramic|city lights|ocean)\b/i, label: "View" },
+  { key: "remodel",   re: /\b(remodel(ed)?|renovated|updated kitchen|new (roof|hvac|windows))\b/i, label: "Updated" },
+  { key: "adu",       re: /\b(adu|guest house|in-law|casita)\b/i,       label: "ADU / Guest" },
+  { key: "lot",       re: /\b(corner lot|cul[- ]de[- ]sac|oversized lot|rv (parking|access))\b/i, label: "Lot premium" },
+  { key: "solar",     re: /\b(owned solar|paid[- ]off solar)\b/i,       label: "Owned solar" },
+];
+const DISCOUNT_SIGNALS = [
+  { key: "fixer",     re: /\b(fixer|tlc|as[- ]is|handyman|investor special|needs work)\b/i, label: "Needs work" },
+  { key: "busy",      re: /\b(busy (street|road)|main (street|road))\b/i, label: "Busy street" },
+  { key: "leasedsolar", re: /\b(leased solar|solar lease)\b/i,          label: "Leased solar" },
+  { key: "probate",   re: /\b(probate|trust sale|estate sale)\b/i,      label: "Estate/probate" },
+];
+
+// Match the lexicon against a (decoded) description. Matching only — the
+// description itself is never rendered here.
+const extractValueSignals = (desc) => {
+  const text = String(desc || "");
+  if (!text) return { premium: [], discount: [] };
+  return {
+    premium: PREMIUM_SIGNALS.filter(s => s.re.test(text)),
+    discount: DISCOUNT_SIGNALS.filter(s => s.re.test(text)),
+  };
+};
+
+// List price safe to show pre-guess. rc_/rf_ rows fall back to the SOLD
+// price in their raw listPrice — using it would leak the answer, so those
+// rows only count when an enriched real list price is supplied.
+const safeListPrice = (l) => {
+  const zid = String(l?.zpid || "");
+  if (zid.startsWith("rc_") || zid.startsWith("rf_")) return null;
+  const lp = Number(l?.listPrice);
+  return lp > 0 ? lp : null;
+};
+
+const ppMedian = (nums) => {
+  if (!nums.length) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+// Quantitative context vs. the current mode's pool (fpListings/liveListings).
+// LIST prices only — never sold. Every stat is guarded: missing/zero inputs
+// simply drop that stat, and median comparisons need >= 5 usable comps of the
+// same property type (fewer is too noisy to be a signal).
+// `enrichedListPrice` lets rc_/rf_ subjects use the details-API list price.
+const computeValueContext = (listing, pool, enrichedListPrice) => {
+  const out = { ppsf: null, medianPpsf: null, ppsfDeltaPct: null, domVsMedian: null, lotVsMedian: null };
+  if (!listing) return out;
+
+  const sqft = Number(listing.sqft) || 0;
+  const lp = Number(enrichedListPrice) > 0 ? Number(enrichedListPrice) : safeListPrice(listing);
+  if (lp && sqft > 0) out.ppsf = lp / sqft;
+
+  const subjectType = listing.propertyType === "Manufactured" ? "Single Family" : (listing.propertyType || "Single Family");
+  const comps = (Array.isArray(pool) ? pool : []).filter(l =>
+    l && l !== listing && l.zpid !== listing.zpid && fpTypeMatch([subjectType], l.propertyType)
+  );
+  const MIN_COMPS = 5;
+
+  if (out.ppsf) {
+    const compPpsf = comps
+      .map(l => { const clp = safeListPrice(l); const s = Number(l.sqft) || 0; return clp && s > 0 ? clp / s : null; })
+      .filter(v => v !== null);
+    if (compPpsf.length >= MIN_COMPS) {
+      out.medianPpsf = ppMedian(compPpsf);
+      out.ppsfDeltaPct = ((out.ppsf - out.medianPpsf) / out.medianPpsf) * 100;
+    }
+  }
+
+  const dom = Number(listing.daysOnMarket) || 0;
+  if (dom > 0) {
+    const compDom = comps.map(l => Number(l.daysOnMarket)).filter(v => v > 0);
+    if (compDom.length >= MIN_COMPS) out.domVsMedian = { value: dom, median: ppMedian(compDom) };
+  }
+
+  const lot = Number(listing.lotSqft) || 0;
+  if (lot > 0) {
+    const compLot = comps.map(l => Number(l.lotSqft)).filter(v => v > 0);
+    if (compLot.length >= MIN_COMPS) out.lotVsMedian = { value: lot, median: ppMedian(compLot) };
+  }
+
+  return out;
 };
 
 const getDailyNumber = () => {
@@ -849,6 +940,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpGuessInput, setFpGuessInput] = useState("");
   const [fpResult, setFpResult] = useState(null);
   const [mlsExpanded, setMlsExpanded] = useState(false);
+  const [valueSignalsOpen, setValueSignalsOpen] = useState(false); // "Value signals" section (freeplay/live PropertyCard)
   const [fpSelectedNeighborhood, setFpSelectedNeighborhood] = useState(null);
   const [fpLoadingMore, setFpLoadingMore] = useState(false);
   const [fpHasMore, setFpHasMore] = useState(true); // assume more available until proven otherwise
@@ -2240,7 +2332,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, labelOverrides, details, isLoadingDetails }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, labelOverrides, details, isLoadingDetails, valuePool }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
@@ -2312,6 +2404,64 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               )}
             </div>
           )}
+          {/* Value signals — Free Play / Live ONLY (never daily/challenge: no
+              valuePool prop there and the view gate double-locks it). Lexicon
+              chips over the MLS description + quant context vs. the current
+              pool. LIST prices only — sold price never renders or leaks. */}
+          {(view === "freeplay" || view === "live") && valuePool && (() => {
+            // rc_/rf_ subjects: only the enriched details list price is safe
+            // (raw listPrice falls back to the sold price — the answer).
+            const zid = String(listing.zpid || "");
+            const enrichedLp = (zid.startsWith("rc_") || zid.startsWith("rf_"))
+              ? (details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null)
+              : null;
+            const vc = computeValueContext(listing, valuePool, enrichedLp);
+            const sigs = extractValueSignals(desc); // no description (RentCast rows) -> quant stats only
+            const rows = [];
+            if (vc.ppsf) {
+              rows.push(vc.medianPpsf
+                ? `· $${Math.round(vc.ppsf)}/sqft vs $${Math.round(vc.medianPpsf)} area median (${vc.ppsfDeltaPct >= 0 ? "+" : ""}${Math.round(vc.ppsfDeltaPct)}%)`
+                : `· $${Math.round(vc.ppsf)}/sqft list price`);
+            }
+            if (vc.domVsMedian) rows.push(`· ${vc.domVsMedian.value} DOM vs ${Math.round(vc.domVsMedian.median)} median`);
+            if (vc.lotVsMedian) rows.push(`· ${Math.round(vc.lotVsMedian.value).toLocaleString("en-US")} sqft lot vs ${Math.round(vc.lotVsMedian.median).toLocaleString("en-US")} median`);
+            const chips = [
+              ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),
+              ...sigs.discount.map(s => ({ ...s, color: T.red, bg: T.errorBg, border: T.errorBorder })),
+            ];
+            if (chips.length === 0 && rows.length === 0) return null;
+            return (
+              <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
+                <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Value Signals</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textTertiary }}>
+                    {!valueSignalsOpen && (
+                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{chips.length + rows.length}</span>
+                    )}
+                    <Icon name="chevron-down" size={13} style={{ transform: valueSignalsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                  </span>
+                </button>
+                {valueSignalsOpen && (
+                  <>
+                    {chips.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                        {chips.map(c => (
+                          <span key={c.key} style={{ fontSize: 11, fontWeight: 600, fontFamily: FONT, color: c.color, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 9999, padding: "3px 10px" }}>{c.label}</span>
+                        ))}
+                      </div>
+                    )}
+                    {rows.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        {rows.map((r, i) => (
+                          <div key={i} style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.6 }}>{r}</div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
           {/* Specs */}
           <div style={{ display: "flex", gap: 6, margin: IS_MOBILE ? "8px 0" : "14px 0", flexWrap: "wrap" }}>
             {[[listing.beds, "Beds"], [listing.baths, "Baths"], [(listing.sqft || 0).toLocaleString(), "SqFt"], [yearBuilt, "Built"]].map(([v, l], i) => (
@@ -3270,7 +3420,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
@@ -3525,7 +3675,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {fpListings[fpIdx] && !fpResult ? (
             <>
-              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showSoldDate: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid })}
+              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showSoldDate: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid, valuePool: fpListings })}
             </>
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
