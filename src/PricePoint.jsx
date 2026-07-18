@@ -2385,7 +2385,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setShowMap(false);
   };
   const mapSuspenseFallback = (
-    <div style={{ height: "min(62vh, 520px)", minHeight: 320, borderRadius: 16, border: `1px solid ${T.cardBorder}`, background: T.card, display: "flex", alignItems: "center", justifyContent: "center", color: T.textSecondary, fontFamily: FONT, fontSize: 13, animation: "ppPulse 1.2s ease infinite" }}>
+    <div style={{ height: isDesktop ? "min(68vh, 640px)" : "min(62vh, 520px)", minHeight: 320, borderRadius: 16, border: `1px solid ${T.cardBorder}`, background: T.card, display: "flex", alignItems: "center", justifyContent: "center", color: T.textSecondary, fontFamily: FONT, fontSize: 13, animation: "ppPulse 1.2s ease infinite" }}>
       Loading map…
     </div>
   );
@@ -2416,7 +2416,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const isMapSlide = mapUrl && idx === count - 1;
     const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
     return (
-      <div style={{ position: "relative", touchAction: "pan-y" }}
+      <div style={{ position: "relative", touchAction: "pan-y", ...(isDesktop ? { height: "100%" } : {}) }}
         onTouchStart={e => { e.stopPropagation(); touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={e => {
           // Keep photo swipes local — don't let them bubble up and switch apps.
@@ -2426,7 +2426,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           touchStartX.current = null;
           if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
         }}>
-        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async" style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : 260, objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
+        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async" style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : (isDesktop ? "100%" : 260), objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
           onError={onPhotoError} />
         {/* Map slide "Location" label — top left on map, replaces badges */}
         {isMapSlide ? (
@@ -2506,12 +2506,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const desc = decodeEntities(details?.description || listing.description);
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
+      // Desktop (≥900): two-column card — big photo carousel left (the photos
+      // are the game), info/guess stack right. Mobile/tablet: unchanged stack.
+      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { display: "flex", alignItems: "stretch" } : {}) }}>
+        <div style={isDesktop ? { flex: "0 0 58%", minWidth: 0, position: "relative", minHeight: 520 } : undefined}>
+        {/* Desktop: absolute-fill so the photo always spans the full column
+            height regardless of how tall the info rail runs. */}
+        <div style={isDesktop ? { position: "absolute", inset: 0 } : undefined}>
         {useCarousel ? (
           <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} showSoldDate={showSoldDate} listing={listing} FONT={FONT} />
         ) : (
-        <div style={{ position: "relative" }}>
-          <img src={listing.photo || NO_PHOTO} alt="" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
+        <div style={{ position: "relative", ...(isDesktop ? { height: "100%" } : {}) }}>
+          <img src={listing.photo || NO_PHOTO} alt="" style={{ width: "100%", height: isDesktop ? "100%" : 220, objectFit: "cover", display: "block" }}
             onError={onPhotoError} />
           <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
             {badge && (
@@ -2544,7 +2550,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           )}
         </div>
         )}
-        <div style={{ padding: IS_MOBILE ? "10px 14px 12px" : "16px 18px 20px" }}>
+        </div>
+        </div>
+        <div style={{ padding: IS_MOBILE ? "10px 14px 12px" : (isDesktop ? "20px 24px" : "16px 18px 20px"), ...(isDesktop ? { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", borderLeft: `1px solid ${T.cardBorder}` } : {}) }}>
           {/* Address or Neighborhood heading */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
@@ -2650,7 +2658,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {/* Price row: LIST PRICE pill + guess input side by side — kills the
               stacked row + label that pushed Final Answer below the fold.
               When there's no list price the input takes the full row. */}
-          <div style={{ display: "flex", gap: 8, alignItems: "stretch", marginBottom: 4 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch", marginBottom: 4, ...(isDesktop ? { flexDirection: "column" } : {}) }}>
             {(() => {
               {/* rc_/rf_ rows carry no list price (listPrice === soldPrice would
                   GIVE AWAY the answer) — show the enriched original list price
@@ -2712,7 +2720,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison }) => {
     const color = fbColor(result.feedback);
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: 420, width: "100%", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
+      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: isDesktop ? 560 : 420, width: "100%", margin: isDesktop ? "0 auto" : undefined, animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <OverlineLabel>SOLD FOR</OverlineLabel>
           <div style={{ fontSize: 42, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: FONT, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
@@ -2808,8 +2816,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ═══════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════
+  // ── Desktop canvas width per view (isDesktop = shell's ≥900px breakpoint).
+  // Game views go wide for the two-column property card, pickers/stats get
+  // grid room, the rest just breathe. Below 900px nothing changes (480 col).
+  const DESKTOP_VIEW_WIDTH = {
+    daily: 1060, freeplay: 1060, live: 1060, challenge: 1060, reveal: 1060,
+    fpPicker: 900, livePicker: 900, tomorrow: 900, leaderboard: 800,
+    postDaily: 700, onboarding: 700,
+  };
   return (
-    <div style={{ maxWidth: isDesktop ? 520 : 480, margin: "0 auto", width: "100%", minHeight: "100vh", fontFamily: FONT, color: T.text, boxSizing: "border-box", position: "relative" }}>
+    <div style={{ maxWidth: isDesktop ? (DESKTOP_VIEW_WIDTH[view] || 520) : 480, margin: "0 auto", width: "100%", minHeight: "100vh", fontFamily: FONT, color: T.text, boxSizing: "border-box", position: "relative" }}>
       <style>{`
         @keyframes ppSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes ppFadeIn { from { opacity: 0 } to { opacity: 1 } }
@@ -3139,8 +3155,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label || "Your Market"}</div>
           </div>
-          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ height: 220, background: T.inputBg, animation: "ppPulse 1.4s ease infinite" }} />
+          <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 640, margin: "0 auto" } : {}) }}>
+            <div style={{ height: isDesktop ? 320 : 220, background: T.inputBg, animation: "ppPulse 1.4s ease infinite" }} />
             <div style={{ padding: 16 }}>
               <div style={{ height: 18, width: "70%", background: T.inputBg, borderRadius: 6, marginBottom: 10, animation: "ppPulse 1.4s ease infinite" }} />
               <div style={{ height: 13, width: "45%", background: T.inputBg, borderRadius: 6, marginBottom: 18, animation: "ppPulse 1.4s ease infinite" }} />
@@ -3299,23 +3315,27 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {/* ─── DAILY STATS TAB ─── */}
           {statsTab === "daily" && (
             <>
-              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, marginBottom: 16 }}>
-                <OverlineLabel>YOUR STREAK</OverlineLabel>
-                <div style={{ fontSize: 56, fontWeight: 900, fontFamily: FONT, color: T.accent, marginTop: 8, textAlign: "center", marginBottom: 6 }}>{streak}</div>
-                <div style={{ fontSize: 14, color: T.textSecondary, textAlign: "center", fontFamily: FONT }}>consecutive days</div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+              {/* Desktop: streak + tiles as one 3-up row. Mobile: streak spans
+                  the row (same full-width card as before), tiles 2-up below —
+                  rowGap 16 matches the old stacked margins exactly. */}
+              <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", columnGap: 12, rowGap: isDesktop ? 12 : 16, marginBottom: 16 }}>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 20, gridColumn: isDesktop ? "auto" : "1 / -1" }}>
+                  <OverlineLabel>YOUR STREAK</OverlineLabel>
+                  <div style={{ fontSize: 56, fontWeight: 900, fontFamily: FONT, color: T.accent, marginTop: 8, textAlign: "center", marginBottom: 6 }}>{streak}</div>
+                  <div style={{ fontSize: 14, color: T.textSecondary, textAlign: "center", fontFamily: FONT }}>consecutive days</div>
+                </div>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center", ...(isDesktop ? { display: "flex", flexDirection: "column", justifyContent: "center" } : {}) }}>
                   <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text }}>{allResults.filter(r => r.isDaily).length}</div>
                   <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Dailies Played</div>
                 </div>
-                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center", ...(isDesktop ? { display: "flex", flexDirection: "column", justifyContent: "center" } : {}) }}>
                   <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.green }}>{avgAccuracy != null ? (100 - avgAccuracy).toFixed(1) : "—"}%</div>
                   <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Avg Accuracy</div>
                 </div>
               </div>
 
+              {/* Desktop: distribution + level side by side */}
+              <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 12, alignItems: "start" } : undefined}>
               {/* Accuracy Distribution */}
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
                 <OverlineLabel>ACCURACY DISTRIBUTION</OverlineLabel>
@@ -3356,6 +3376,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #3B6BF5, #2B4FCE)", width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%", transition: "width 0.5s ease" }} />
                 </div>
+              </div>
               </div>
 
               {/* Next Daily Countdown */}
@@ -3584,12 +3605,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {showMap && MAP_ENABLED ? (
             /* ── A4: map of the live pool — pins only, spoiler-free ── */
             <Suspense fallback={mapSuspenseFallback}>
-              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} />
+              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} isDesktop={isDesktop} />
             </Suspense>
           ) : (<>
           {/* ── Address search (A3): predict ANY property, not just the pool ── */}
           {!livePrediction && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={isDesktop ? { maxWidth: 640, margin: "0 auto 12px" } : { marginBottom: 12 }}>
               <AddressAutocomplete
                 T={T}
                 stateFormat="short"
@@ -3633,8 +3654,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
-            <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden" }}>
-              <img src={livePrediction.photo || NO_PHOTO} alt="" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} onError={onPhotoError} />
+            <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 560, margin: "0 auto" } : {}) }}>
+              <img src={livePrediction.photo || NO_PHOTO} alt="" style={{ width: "100%", height: isDesktop ? 240 : 160, objectFit: "cover", display: "block" }} onError={onPhotoError} />
               <div style={{ padding: "20px" }}>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent, marginBottom: 8 }}>PREDICTION LOCKED</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: T.text, fontFamily: FONT, marginBottom: 12 }}>
@@ -3664,7 +3685,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           ) : loading ? (
             /* Fetching active listings — instant feedback so the tap never looks dead */
-            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+            <div style={{ textAlign: "center", padding: "48px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.red}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.red}20`, animation: "ppPulse 1.2s ease infinite" }}>
                 <Icon name="radio" size={24} style={{ color: T.red }} />
               </div>
@@ -3675,7 +3696,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           ) : liveListings.length === 0 ? (
             /* No active listings available from the API */
-            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+            <div style={{ textAlign: "center", padding: "48px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.red}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.red}20` }}>
                 <Icon name="radio" size={24} style={{ color: T.red }} />
               </div>
@@ -3691,7 +3712,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           ) : (
             /* Went through all available active listings */
-            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+            <div style={{ textAlign: "center", padding: "48px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.green}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.green}20` }}>
                 <Icon name="check" size={24} style={{ color: T.green }} />
               </div>
@@ -3723,7 +3744,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Predict sale prices on active listings</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: 12 }}>
             {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => (
               <button
                 key={idx}
@@ -3825,7 +3846,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
 
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Neighborhoods</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: IS_MOBILE ? 8 : 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: IS_MOBILE ? 8 : 12 }}>
             {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => {
               // "All of <city>" clears the selection and plays immediately.
               if (hood.zip === null) return (
@@ -3888,7 +3909,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {showMap && MAP_ENABLED ? (
             /* ── A4: map of the freeplay pool — pins only, soldPrice never rendered ── */
             <Suspense fallback={mapSuspenseFallback}>
-              <PPMapView listings={fpListings} T={T} darkMode={darkMode} activeIdx={fpIdx} onSelect={handleFpMapSelect} onUnsupported={() => setShowMap(false)} />
+              <PPMapView listings={fpListings} T={T} darkMode={darkMode} activeIdx={fpIdx} onSelect={handleFpMapSelect} onUnsupported={() => setShowMap(false)} isDesktop={isDesktop} />
             </Suspense>
           ) : fpListings[fpIdx] && !fpResult ? (
             <>
@@ -3899,7 +3920,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               onChallenge: (r) => shareChallenge(r, fpListings[fpIdx], false),
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
-            <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            <div style={{ textAlign: "center", padding: "60px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
               {fpHasMore && fpZipRef.current ? (
                 <>
                   <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.cyan}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.cyan}20` }}>

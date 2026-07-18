@@ -14,7 +14,7 @@ import { FONT } from "../lib/fonts.js";
 const DARK_STYLE = "mapbox://styles/mapbox/dark-v11";
 const LIGHT_STYLE = "mapbox://styles/mapbox/light-v11";
 
-export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported }) {
+export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -171,7 +171,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
         .pp-map-wrap .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: ${T.card}; }
         .pp-map-wrap .mapboxgl-popup-close-button { color: ${T.textSecondary}; font-size: 16px; right: 4px; top: 2px; }
       `}</style>
-      <div ref={containerRef} style={{ width: "100%", height: "min(62vh, 520px)", minHeight: 320 }} />
+      <div ref={containerRef} style={{ width: "100%", height: isDesktop ? "min(68vh, 640px)" : "min(62vh, 520px)", minHeight: 320 }} />
       {mappable.length === 0 && (
         <div style={{
           position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
