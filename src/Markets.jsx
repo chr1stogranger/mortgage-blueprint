@@ -1151,7 +1151,8 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
   // ─────────────────────────────────────────
 
   return (
-    <div style={{ padding: isDesktop ? '20px 40px' : '0 16px 80px', maxWidth: 700, margin: '0 auto', marginLeft: isDesktop && setAppMode ? 180 : 'auto' }}>
+    {/* Fluid column: cards expand/contract with the window (Christo 2026-07-18) — capped so ultra-wide stays readable */}
+    <div style={{ padding: isDesktop ? '20px 40px' : '0 16px 80px', width: '100%', boxSizing: 'border-box', maxWidth: isDesktop ? 1240 : 700, margin: '0 auto', marginLeft: isDesktop && setAppMode ? 180 : 'auto' }}>
       {/* Desktop Sidebar */}
       {isDesktop && setAppMode && (
         <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 180, background: T.bg2 || T.card, borderRight: `1px solid ${T.cardBorder}`, padding: "12px 0", display: "flex", flexDirection: "column", zIndex: 10 }}>
