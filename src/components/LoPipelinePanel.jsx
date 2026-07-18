@@ -5,7 +5,15 @@
  * (fetchMyPipeline in src/api.js). The Ops server filters to the
  * AUTHENTICATED LO's own loans — nothing another LO owns can appear here.
  *
- * Layout (Grange): glass stat tiles (chrome) up top — Active loans /
+ * v2 (2026-07-17): rows are classified Live vs Leads (server `class` field:
+ * "live" | "funded" | "lead"; leads arrive in a separate `leads` array).
+ * Segmented filter pills All | Live | Leads + borrower-name search. Rows
+ * whose borrower email matched a Blueprint client (`bpClientId`) get a
+ * "Blueprint" pill that opens that client in-app via onOpenClient.
+ * Backward-compatible: against an older Ops deploy (no `class`/`leads`)
+ * every loan is treated as live and no leads/links render.
+ *
+ * Layout (Grange): glass stat tiles (chrome) up top — Active loans / Leads /
  * Closed YTD / Funded volume YTD — then a SOLID T.card list (dense data
  * stays solid) grouped by milestone. FONT for names + figures (tabular-nums
  * is global), MONO only for the uppercase micro-labels. Pill radius 9999,
@@ -22,8 +30,14 @@ const MILESTONE_ORDER = [
   "Clear to Close", "Docs & Signing", "Funded", "In Process",
 ];
 
+// Lead-stage group order — mirrors MY_PIPELINE_LEAD_MILESTONES on the server.
+const LEAD_MILESTONE_ORDER = ["Application", "Qualification", "Pre-Approved", "Leads"];
+
+const LEAD_STATUSES = new Set(["APPLICATION_INTAKE", "QUALIFICATION", "PREAPPROVED"]);
+
 function statusColor(status, T) {
   const s = String(status || "").toUpperCase();
+  if (LEAD_STATUSES.has(s)) return T.purple; // leads — distinct from loan blues; green stays funded/CTC-only
   if (s.includes("FUNDED") || s.includes("COMMISSION") || s.includes("BROKER_CHECK") || s.includes("CLEAR_TO_CLOSE")) return T.green;
   if (s.includes("CONDITION")) return T.orange;
   if (s.includes("SUSPEND") || s.includes("ADVERSE") || s.includes("DENIED") || s.includes("WITHDRAWN")) return T.red;
@@ -38,6 +52,8 @@ function shortStatus(status) {
     DOCS_OUT: "Docs Out", DOCS_SIGNED: "Docs Signed",
     LOAN_FUNDED: "Funded", BROKER_CHECK_RECEIVED: "Funded",
     COMMISSION_PAID: "Funded",
+    APPLICATION_INTAKE: "Application", QUALIFICATION: "Qualifying",
+    PREAPPROVED: "Pre-Approved",
   };
   return MAP[status] || String(status || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || "—";
 }
@@ -79,12 +95,14 @@ function agoLabel(ts) {
   return `updated ${hrs}h ago`;
 }
 
-export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop }) {
+export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, onOpenClient }) {
   const font = FONT_PROP || FONT;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); // { kind: 'auth' | 'network', message }
   const [fetchedAt, setFetchedAt] = useState(null);
+  const [filter, setFilter] = useState("all"); // 'all' | 'live' | 'leads'
+  const [query, setQuery] = useState("");
   const [, setTick] = useState(0); // re-render so "updated Xm ago" stays honest
   const mounted = useRef(true);
 
@@ -116,11 +134,26 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
   }, [load]);
 
   const loans = data?.loans || [];
+  // Older deployed Ops has no `leads` array / `class` field — degrade to
+  // live-only (missing class counts as "live", leads simply absent).
+  const leads = Array.isArray(data?.leads) ? data.leads : [];
+  const rowClass = (l) => l.class || "live";
+  const activeCount = loans.filter((l) => rowClass(l) === "live").length;
 
-  // Group by milestone, in pipeline order.
-  const groups = MILESTONE_ORDER
-    .map((m) => [m, loans.filter((l) => (l.milestone || "In Process") === m)])
+  const q = query.trim().toLowerCase();
+  const matches = (l) => !q || String(l.borrower || "").toLowerCase().includes(q);
+  const visibleLoans = filter === "leads" ? [] : loans.filter(matches);
+  const visibleLeads = filter === "live" ? [] : leads.filter(matches);
+
+  // Group by milestone, in pipeline order — live groups first, lead groups after.
+  const loanGroups = MILESTONE_ORDER
+    .map((m) => [m, visibleLoans.filter((l) => (l.milestone || "In Process") === m)])
     .filter(([, list]) => list.length > 0);
+  const leadGroups = LEAD_MILESTONE_ORDER
+    .map((m) => [m, visibleLeads.filter((l) => (l.milestone || "Leads") === m)])
+    .filter(([, list]) => list.length > 0);
+  const groups = [...loanGroups, ...leadGroups];
+  const visibleCount = visibleLoans.length + visibleLeads.length;
 
   const microLabel = {
     fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: 1.2,
@@ -128,7 +161,7 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
   };
 
   const glassTile = {
-    flex: 1, minWidth: 120, padding: "14px 16px", borderRadius: 16,
+    flex: 1, minWidth: 108, padding: "14px 16px", borderRadius: 16,
     background: T.glass, border: `1px solid ${T.glassBorder}`,
     boxShadow: T.glassShadow, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
   };
@@ -155,6 +188,14 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
     );
   }
 
+  const emptyCard = (icon, title, sub) => (
+    <div style={{ padding: "40px 24px", textAlign: "center", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16 }}>
+      <Icon name={icon} size={22} style={{ color: T.textTertiary }} />
+      <div style={{ marginTop: 10, fontFamily: font, fontSize: 14, fontWeight: 600, color: T.text }}>{title}</div>
+      <div style={{ marginTop: 4, fontFamily: font, fontSize: 12.5, color: T.textSecondary }}>{sub}</div>
+    </div>
+  );
+
   return (
     <div style={{ marginTop: 8 }}>
       {/* Header: title + refresh pill + updated caption */}
@@ -172,9 +213,10 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
       </div>
 
       {/* Stat tiles — glass (chrome-level summary, not dense data) */}
-      <div style={{ display: "flex", gap: 10, flexWrap: isDesktop ? "nowrap" : "wrap", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: isDesktop ? "nowrap" : "wrap", marginBottom: 14 }}>
         {[
-          ["Active Loans", loading && !data ? "…" : String(loans.length)],
+          ["Active Loans", loading && !data ? "…" : String(activeCount)],
+          ["Leads", loading && !data ? "…" : (data && !Array.isArray(data.leads) ? "—" : String(leads.length))],
           ["Closed YTD", loading && !data ? "…" : String(data?.closedYTD ?? "—")],
           ["Funded Volume YTD", loading && !data ? "…" : fmtVolume(data?.fundedVolumeYTD)],
         ].map(([label, value]) => (
@@ -183,6 +225,48 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
             <div style={{ marginTop: 6, fontFamily: font, fontSize: 24, fontWeight: 700, color: T.text }}>{value}</div>
           </div>
         ))}
+      </div>
+
+      {/* Filter pills (All | Live | Leads) + borrower search */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        {[
+          ["all", "All", loans.length + leads.length],
+          ["live", "Live", loans.length],
+          ["leads", "Leads", leads.length],
+        ].map(([key, label, count]) => {
+          const active = filter === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              style={{
+                ...pillBtn,
+                background: active ? T.accent : T.glass,
+                border: active ? `1px solid ${T.accent}` : `1px solid ${T.glassBorder}`,
+                color: active ? "#fff" : T.text,
+              }}
+            >
+              {label}
+              <span style={{ ...microLabel, fontSize: 9.5, color: active ? "rgba(255,255,255,0.75)" : T.textTertiary }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+        <div style={{ flex: 1, minWidth: 160, maxWidth: 320, display: "flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 9999, background: T.inputBg, border: `1px solid ${T.inputBorder}` }}>
+          <Icon name="search" size={13} style={{ color: T.textTertiary, flexShrink: 0 }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search borrower…"
+            style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontFamily: font, fontSize: 12.5, color: T.text }}
+          />
+          {query ? (
+            <button onClick={() => setQuery("")} aria-label="Clear search" style={{ display: "inline-flex", padding: 0, background: "none", border: "none", cursor: "pointer", color: T.textTertiary }}>
+              <Icon name="x" size={13} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Error (network) */}
@@ -209,24 +293,26 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !error && data && loans.length === 0 && (
-        <div style={{ padding: "40px 24px", textAlign: "center", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16 }}>
-          <Icon name="clipboard" size={22} style={{ color: T.textTertiary }} />
-          <div style={{ marginTop: 10, fontFamily: font, fontSize: 14, fontWeight: 600, color: T.text }}>No active loans right now</div>
-          <div style={{ marginTop: 4, fontFamily: font, fontSize: 12.5, color: T.textSecondary }}>
-            New Arive files assigned to you will show up here automatically.
-          </div>
-        </div>
+      {/* Empty states */}
+      {!loading && !error && data && visibleCount === 0 && (
+        q
+          ? emptyCard("search", "No matches", `Nothing in ${filter === "all" ? "your pipeline" : filter === "live" ? "live loans" : "leads"} matches "${query.trim()}".`)
+          : filter === "leads"
+            ? emptyCard("user", "No leads right now", "Arive leads assigned to you (Application, Qualification, Pre-Approved) will show up here.")
+            : filter === "live"
+              ? emptyCard("clipboard", "No active loans right now", "New Arive files assigned to you will show up here automatically.")
+              : emptyCard("clipboard", "Nothing in your pipeline yet", "Arive loans and leads assigned to you will show up here automatically.")
       )}
 
-      {/* Milestone-grouped loan list — solid card (dense data stays solid) */}
-      {data && loans.length > 0 && groups.map(([milestone, list]) => (
+      {/* Milestone-grouped list — solid card (dense data stays solid) */}
+      {data && visibleCount > 0 && groups.map(([milestone, list]) => (
         <div key={milestone} style={{ marginBottom: 14 }}>
           <div style={{ ...microLabel, padding: "0 4px 6px" }}>{milestone} · {list.length}</div>
           <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden" }}>
             {list.map((l, i) => {
               const sc = statusColor(l.status, T);
+              const isLead = rowClass(l) === "lead";
+              const canOpenBp = Boolean(l.bpClientId && onOpenClient);
               return (
                 <div key={l.id || `${milestone}-${i}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderBottom: i < list.length - 1 ? `1px solid ${T.separator}` : "none" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -238,11 +324,29 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop })
                       {l.lender ? <span style={{ color: T.textTertiary }}> · {l.lender}</span> : null}
                     </div>
                   </div>
+                  {canOpenBp && (
+                    <button
+                      onClick={() => onOpenClient({ borrowerId: l.bpClientId, borrowerName: l.borrower || "" })}
+                      title={`Open ${l.borrower || "this client"} in Blueprint`}
+                      style={{
+                        flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "3px 10px", borderRadius: 9999, cursor: "pointer",
+                        background: `${T.accent}14`, border: `1px solid ${T.accent}40`,
+                        color: T.accent, fontFamily: font, fontSize: 11, fontWeight: 700,
+                      }}
+                    >
+                      <Icon name="external-link" size={11} />
+                      {isDesktop ? "Blueprint" : "BP"}
+                    </button>
+                  )}
                   <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", background: `${sc}18`, color: sc, borderRadius: 9999, padding: "3px 10px", fontFamily: font, fontSize: 11, fontWeight: 700 }}>
                     {shortStatus(l.status)}
                   </span>
-                  <span title="Estimated closing" style={{ flexShrink: 0, minWidth: 52, textAlign: "right", fontFamily: font, fontSize: 12, fontWeight: 500, color: l.estClosing ? T.textSecondary : T.textTertiary }}>
-                    {fmtDate(l.estClosing)}
+                  <span
+                    title={isLead ? "Lead received" : "Estimated closing"}
+                    style={{ flexShrink: 0, minWidth: 52, textAlign: "right", fontFamily: font, fontSize: 12, fontWeight: 500, color: (isLead ? l.created : l.estClosing) ? T.textSecondary : T.textTertiary }}
+                  >
+                    {fmtDate(isLead ? l.created : l.estClosing)}
                   </span>
                 </div>
               );

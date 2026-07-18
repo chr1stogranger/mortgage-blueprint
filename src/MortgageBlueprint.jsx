@@ -5887,7 +5887,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ MY PIPELINE (LO only — per-LO Ops/Arive loans, B5) ═══ */}
 {tab === "pipeline" && isCloud && !isBorrower && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary, fontFamily: FONT, fontSize: 13 }}>Loading Pipeline...</div>}>
-  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} />
+  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} onOpenClient={(entry) => { setTab("overview"); openClient(entry); }} />
  </Suspense>
 )}
 {/* ═══ SUMMARY ═══ */}
