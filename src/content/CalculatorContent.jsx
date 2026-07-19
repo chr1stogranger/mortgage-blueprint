@@ -435,7 +435,7 @@ export default function CalculatorContent(props) {
 
    {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
-   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ marginBottom: 14 }}><Note color={T.orange}>Escrow OFF — Tax + Insurance ({fmt(calc.escrowAmount)}/mo) not shown in payment. Still included in DTI qualification.</Note></div>}
+   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: `${T.orange}1C`, border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>Escrow OFF — Tax + Ins ({fmt(calc.escrowAmount)}/mo) paid separately · still counted in DTI</div>}
 
    {/* Refi Current → New comparison */}
    {isRefi && calc.refiEffPI > 0 && (
