@@ -5317,7 +5317,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       })()}
       {/* Blueprint switcher moved to the top of the nav (below Markets, above Scenarios). (2026-07-08) */}
       {/* PricePoint nav (when PP is primary) */}
-      {appMode === "pricepoint" && (!sidebarCollapsed || !isDesktop) && [["daily","target","Daily"],["free","play","Free Play"],["live","radio","Live"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
+      {appMode === "pricepoint" && (!sidebarCollapsed || !isDesktop) && [["daily","target","Daily"],["free","play","Sold"],["live","radio","For Sale"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
        const active = ppCurrentTab === k;
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { triggerPPTab(k); if (!isDesktop) setMobileMenuOpen(false); }} style={{

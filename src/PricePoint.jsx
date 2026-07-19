@@ -270,6 +270,84 @@ const extractValueSignals = (desc) => {
   };
 };
 
+// ── Inline value highlighting (Redfin-style) ──
+// The chips above say WHICH signals fired; this marks WHERE in the remarks they
+// fired, so the eye lands on the price movers instead of agent filler. Kept
+// deliberately sparse — highlighting everything highlights nothing. Ordered
+// longest-phrase-first: JS alternation is first-match-wins at a position, so
+// "fully remodeled" must precede "remodeled" or the qualifier is lost.
+const HIGHLIGHT_PREMIUM = new RegExp(
+  "\\b(" + [
+    "fully (?:remodeled|renovated|updated)", "newly (?:remodeled|renovated|built)",
+    "remodeled", "renovated", "updated",
+    "new (?:roof|hvac|furnace|windows|flooring|floors|kitchen|lighting|deck|siding|water heater|plumbing|electrical|foundation|island|cabinetry|garage|appliances)",
+    "renewed kitchen", "chef'?s kitchen",
+    "ev charger", "owned solar", "solar (?:panels )?owned",
+    "hardwood floors?", "primary suite", "en[- ]suite",
+    "(?:panoramic|ocean|bay|city|golden gate|water|unobstructed) views?", "views?",
+    "pool", "spa", "jacuzzi",
+    "adu", "guest house", "in[- ]law", "casita",
+    "corner lot", "cul[- ]de[- ]sac", "oversized lot", "rv (?:parking|access)",
+    "(?:two|2)[- ]car garage", "deeded parking",
+  ].join("|") + ")\\b",
+  "gi"
+);
+const HIGHLIGHT_DISCOUNT = new RegExp(
+  "\\b(" + [
+    "fixer(?:[- ]upper)?", "needs? (?:work|tlc|updating|repair)", "tlc",
+    "as[- ]is", "handyman special", "investor special",
+    "busy (?:street|road)", "leased solar", "solar lease",
+    "probate", "trust sale", "estate sale", "tenant occupied", "short sale",
+  ].join("|") + ")\\b",
+  "gi"
+);
+
+// Non-overlapping match list across both lexicons, in document order.
+const collectHighlights = (text) => {
+  const hits = [];
+  const scan = (re, kind) => {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      hits.push({ start: m.index, end: m.index + m[0].length, kind });
+      if (m.index === re.lastIndex) re.lastIndex++; // zero-width guard
+    }
+  };
+  scan(HIGHLIGHT_PREMIUM, "premium");
+  scan(HIGHLIGHT_DISCOUNT, "discount");
+  // Earliest start wins; on a tie the longer phrase wins.
+  hits.sort((a, b) => a.start - b.start || b.end - a.end);
+  const out = [];
+  let cursor = 0;
+  for (const h of hits) {
+    if (h.start >= cursor) { out.push(h); cursor = h.end; }
+  }
+  return out;
+};
+
+// desc string -> array of strings + <mark> nodes. Returns the raw string when
+// nothing matched so the common case allocates nothing.
+const renderHighlightedDesc = (text, T) => {
+  const hits = collectHighlights(text);
+  if (!hits.length) return text;
+  const nodes = [];
+  let i = 0;
+  hits.forEach((h, n) => {
+    if (h.start > i) nodes.push(text.slice(i, h.start));
+    const c = h.kind === "premium" ? (T.accent || "#3B6BF5") : (T.orange || "#e5942a");
+    nodes.push(
+      <mark key={n} style={{
+        background: `${c}30`, color: T.text, fontWeight: 700,
+        borderRadius: 3, padding: "0 3px",
+        boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone",
+      }}>{text.slice(h.start, h.end)}</mark>
+    );
+    i = h.end;
+  });
+  if (i < text.length) nodes.push(text.slice(i));
+  return nodes;
+};
+
 // List price safe to show pre-guess. rc_/rf_ rows fall back to the SOLD
 // price in their raw listPrice — using it would leak the answer, so those
 // rows only count when an enriched real list price is supplied.
@@ -2637,7 +2715,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   2,000+ chars, and an unbounded "none" stretched the desktop
                   card's photo column to match the rail (Christo 2026-07-18). */}
               <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.55, fontFamily: FONT, overflowY: mlsExpanded ? "auto" : "hidden", overflowX: "hidden", maxHeight: mlsExpanded ? (IS_MOBILE ? 180 : 240) : (IS_MOBILE ? 38 : 54), position: "relative", overscrollBehavior: "contain" }}>
-                {desc}
+                {renderHighlightedDesc(desc, T)}
                 {!mlsExpanded && desc.length > 120 && (
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 28, background: `linear-gradient(transparent, ${T.inputBg})` }} />
                 )}
@@ -3302,8 +3380,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ background: `linear-gradient(135deg, ${T.cyan}12, ${T.accent}12)`, border: `1px solid ${T.cyan}30`, borderRadius: 16, padding: "28px 20px", textAlign: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan, marginBottom: 10 }}>KEEP GOING?</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.text, fontFamily: FONT, lineHeight: 1.3, marginBottom: 6 }}>Your instincts are warmed up</div>
-            <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 20 }}>Jump into Free Play for unlimited rounds.<br />Same market, no spoilers for future dailies.</div>
-            <PillButton onClick={() => setView("fpPicker")} tealAccent>Start Free Play</PillButton>
+            <div style={{ fontSize: 14, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 20 }}>Jump into Sold homes for unlimited rounds.<br />Same market, no spoilers for future dailies.</div>
+            <PillButton onClick={() => setView("fpPicker")} tealAccent>Play Sold</PillButton>
           </div>
 
           <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px", textAlign: "center", marginBottom: 16 }}>
@@ -3372,7 +3450,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
           {/* Stats Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-            {[{ id: "daily", label: "Daily" }, { id: "freeplay", label: "Free Play" }, { id: "live", label: "Live" }].map(tab => (
+            {[{ id: "daily", label: "Daily" }, { id: "freeplay", label: "Sold" }, { id: "live", label: "For Sale" }].map(tab => (
               <button key={tab.id} onClick={() => setStatsTab(tab.id)} style={{
                 flex: 1, padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: FONT,
                 border: `1px solid ${statsTab === tab.id ? "transparent" : T.cardBorder}`,
@@ -3466,7 +3544,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.cyan }}>{allResults.filter(r => !r.isDaily).length}</div>
-                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Free Play Rounds</div>
+                  <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginTop: 4 }}>Sold Rounds</div>
                 </div>
                 <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.cyan }}>
@@ -3643,7 +3721,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red }}>LIVE</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red }}>FOR SALE</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
                 <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
@@ -3720,11 +3798,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market — prediction resolves if/when it sells</div>
                 </div>
               )}
-              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: null, isLoadingDetails: false, valuePool: liveListings })}
+              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: null, isLoadingDetails: false, valuePool: liveListings })}
             </>
           ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 560, margin: "0 auto" } : {}) }}>
@@ -3780,7 +3858,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
                 New listings drop daily — check back soon.
               </div>
-              <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Free Play Instead</PillButton>
+              <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Sold Instead</PillButton>
               <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
           ) : (
@@ -3794,7 +3872,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 You've locked in predictions on every active listing in {liveHoodName || locationLabel || "this area"}. We'll let you know when they close.
               </div>
               <PillButton onClick={() => setView("livePicker")} style={{ marginBottom: 10, background: T.red, color: "#fff" }}>Try Another Neighborhood</PillButton>
-              <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Free Play</PillButton>
+              <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Sold</PillButton>
               <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
           )}
@@ -3812,7 +3890,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </button>
           </div>
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red, marginBottom: 2 }}>LIVE PREDICTIONS</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red, marginBottom: 2 }}>FOR SALE</div>
             <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick a Neighborhood</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Predict sale prices on active listings</div>
           </div>
@@ -3855,7 +3933,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8b7bf0" }}>CHALLENGE</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
                 {challengeData.locationLabel || `${challengeData.listing.city}, ${challengeData.listing.state}`}
-                {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : ' · Free Play'}
+                {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : ' · Sold'}
               </div>
             </div>
           </div>
@@ -3897,7 +3975,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </button>
           </div>
           <div style={{ marginBottom: IS_MOBILE ? 14 : 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan, marginBottom: 2 }}>FREE PLAY</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan, marginBottom: 2 }}>SOLD</div>
             <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, lineHeight: 1.1 }}>Pick Your Comps</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Select one or more neighborhoods and property types, then hit Play</div>
           </div>
@@ -3967,7 +4045,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan }}>FREE PLAY</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan }}>SOLD</div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
                 <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
@@ -3986,7 +4064,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </Suspense>
           ) : fpListings[fpIdx] && !fpResult ? (
             <>
-              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "FREE PLAY", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showSoldDate: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid, valuePool: fpListings })}
+              {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "SOLD", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showSoldDate: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid, valuePool: fpListings })}
             </>
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
@@ -4056,8 +4134,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             {[
               { id: "daily", label: "Daily", color: T.accent },
-              { id: "free", label: "Free Play", color: T.cyan },
-              { id: "live", label: "Live", color: T.red },
+              { id: "free", label: "Sold", color: T.cyan },
+              { id: "live", label: "For Sale", color: T.red },
             ].map(mode => (
               <button key={mode.id} onClick={() => setLeaderboardMode(mode.id)} style={{
                 flex: 1, padding: "10px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: FONT,
@@ -4145,7 +4223,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
             // Empty-state CTA — never show a bare "nobody here" board (CMO).
             if (sorted.length === 0) {
-              const cta = leaderboardMode === "free" ? { label: "Play Free Play", view: "fpPicker" }
+              const cta = leaderboardMode === "free" ? { label: "Play Sold", view: "fpPicker" }
                 : leaderboardMode === "live" ? { label: "Make a prediction", view: "livePicker" }
                 : { label: "Play today’s daily", view: "daily" };
               return (
@@ -4189,7 +4267,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
           <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: T.textTertiary, padding: 16, background: T.card, borderRadius: 14, border: `1px solid ${T.cardBorder}`, fontFamily: FONT }}>
             {leaderboardMode === "daily" ? "Leaderboard updates daily at midnight. Play more dailies to climb."
-              : leaderboardMode === "free" ? "Free Play rankings based on accuracy across all rounds."
+              : leaderboardMode === "free" ? "Sold rankings based on accuracy across all rounds."
               : "Live rankings based on prediction accuracy once listings close."}
           </div>
         </div>
@@ -4206,8 +4284,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", maxWidth: isDesktop ? 520 : 480, margin: "0 auto", width: "100%" }}>
             {[
               { id: "daily", label: "Daily", icon: "target" },
-              { id: "free", label: "Free", icon: "play" },
-              { id: "live", label: "Live", icon: "radio" },
+              { id: "free", label: "Sold", icon: "play" },
+              { id: "live", label: "For Sale", icon: "radio" },
               { id: "stats", label: "Stats", icon: "bar-chart" },
               { id: "board", label: "Board", icon: "award" },
             ].map(tab => {
