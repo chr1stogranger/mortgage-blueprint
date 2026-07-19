@@ -14,7 +14,7 @@ import { FONT } from "../lib/fonts.js";
 const DARK_STYLE = "mapbox://styles/mapbox/dark-v11";
 const LIGHT_STYLE = "mapbox://styles/mapbox/light-v11";
 
-export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop }) {
+export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop, guessedZpids }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -84,21 +84,35 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
     markersRef.current = [];
     const accent = T.accent || "#3B6BF5";
     const ring = T.cyan || "#38c6c6";
+    const done = T.green || "#30a46c";
 
     mappable.forEach(({ l, i, lat, lng }) => {
       const active = i === activeIdx;
+      // Already predicted this session. Deliberately NOT a ring — the ring already
+      // means "this is the card you're on", so done pins get their own color +
+      // checkmark instead, readable at a glance without tapping.
+      const guessed = !!(guessedZpids && l?.zpid && guessedZpids.has(String(l.zpid)));
       const size = active ? 26 : 18;
       const el = document.createElement("div");
       el.style.cssText = [
         `width:${size}px`, `height:${size}px`, "border-radius:9999px",
-        `background:${accent}`, "border:2px solid #fff",
+        `background:${guessed ? done : accent}`, "border:2px solid #fff",
         `box-shadow:0 1px 6px rgba(0,0,0,0.35)${active ? `,0 0 0 4px ${ring}` : ""}`,
+        guessed ? "opacity:0.9" : "",
         "cursor:pointer", "display:flex", "align-items:center", "justify-content:center",
         "box-sizing:border-box",
-      ].join(";");
-      const dot = document.createElement("div");
-      dot.style.cssText = `width:${active ? 7 : 5}px;height:${active ? 7 : 5}px;border-radius:9999px;background:#fff;`;
-      el.appendChild(dot);
+      ].filter(Boolean).join(";");
+      if (guessed) {
+        // Inline check glyph — no icon font inside a Mapbox marker element.
+        el.innerHTML =
+          `<svg viewBox="0 0 24 24" width="${active ? 15 : 11}" height="${active ? 15 : 11}" fill="none" ` +
+          `stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">` +
+          `<polyline points="20 6 9 17 4 12"/></svg>`;
+      } else {
+        const dot = document.createElement("div");
+        dot.style.cssText = `width:${active ? 7 : 5}px;height:${active ? 7 : 5}px;border-radius:9999px;background:#fff;`;
+        el.appendChild(dot);
+      }
 
       // Popup — spoiler-free: address + specs + thumbnail. NO prices.
       const pop = document.createElement("div");
@@ -124,16 +138,27 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
       specs.textContent = bits.join(" · ");
       specs.style.cssText = `font-size:12px;color:${T.textSecondary};margin-bottom:9px;`;
       pop.appendChild(specs);
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = "Guess this one";
-      btn.style.cssText = [
-        "width:100%", "border:none", "border-radius:9999px", "padding:8px 14px",
-        `background:${accent}`, "color:#fff", "font-size:12px", "font-weight:700",
-        `font-family:${FONT}`, "cursor:pointer",
-      ].join(";");
-      btn.addEventListener("click", () => { if (onSelectRef.current) onSelectRef.current(i); });
-      pop.appendChild(btn);
+      if (guessed) {
+        const locked = document.createElement("div");
+        locked.textContent = "Prediction locked";
+        locked.style.cssText = [
+          "width:100%", "box-sizing:border-box", "border-radius:9999px", "padding:8px 14px",
+          `background:${done}1A`, `border:1px solid ${done}40`, `color:${done}`,
+          "font-size:12px", "font-weight:700", `font-family:${FONT}`, "text-align:center",
+        ].join(";");
+        pop.appendChild(locked);
+      } else {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Guess this one";
+        btn.style.cssText = [
+          "width:100%", "border:none", "border-radius:9999px", "padding:8px 14px",
+          `background:${accent}`, "color:#fff", "font-size:12px", "font-weight:700",
+          `font-family:${FONT}`, "cursor:pointer",
+        ].join(";");
+        btn.addEventListener("click", () => { if (onSelectRef.current) onSelectRef.current(i); });
+        pop.appendChild(btn);
+      }
 
       const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
         .setLngLat([lng, lat])
@@ -141,7 +166,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
         .addTo(map);
       markersRef.current.push(marker);
     });
-  }, [mappable, activeIdx, T, darkMode]);
+  }, [mappable, activeIdx, T, darkMode, guessedZpids]);
 
   // ── Frame the pool: fitBounds for many, flyTo for one ──
   useEffect(() => {

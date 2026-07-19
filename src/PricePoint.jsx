@@ -1011,6 +1011,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveHoodFilter, setLiveHoodFilter] = useState(null); // null = all, or zip string
   const [liveHoodName, setLiveHoodName] = useState(null); // display name of selected neighborhood
   const [livePrediction, setLivePrediction] = useState(null);
+  // Zpids predicted THIS session — the pool keeps them (so the map can show
+  // "already predicted" pins), but the card cursor skips them. Reset on every
+  // enterLiveMode; the durable exclusion lives in liveGuessedZpidsRef below.
+  const [liveGuessedZpids, setLiveGuessedZpids] = useState(() => new Set());
   // ── Live address search (A3) — guess ANY property, not just the pool ──
   const [liveSearchAddr, setLiveSearchAddr] = useState("");        // input text
   const [liveSearchLoading, setLiveSearchLoading] = useState(false);
@@ -1909,6 +1913,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // Lazy init
   if (typeof fpGuessedZpidsRef.current === "function") fpGuessedZpidsRef.current = fpGuessedZpidsRef.current();
 
+  // Same idea for Live: a prediction is a one-shot commitment, so a listing you
+  // already predicted must never come back into a future pool (across sessions,
+  // neighborhoods, and reloads).
+  const liveGuessedZpidsRef = useRef(null);
+  if (liveGuessedZpidsRef.current === null) {
+    try {
+      liveGuessedZpidsRef.current = new Set(JSON.parse(localStorage.getItem("pp-live-guessed-zpids") || "[]"));
+    } catch { liveGuessedZpidsRef.current = new Set(); }
+  }
+  const rememberLiveGuess = (zpid) => {
+    if (!zpid) return;
+    const id = String(zpid);
+    liveGuessedZpidsRef.current.add(id);
+    try { localStorage.setItem("pp-live-guessed-zpids", JSON.stringify([...liveGuessedZpidsRef.current])); } catch {}
+    setLiveGuessedZpids(prev => { const next = new Set(prev); next.add(id); return next; });
+  };
+
   const enterFreePlay = (hoods) => { // hoods: array of {zip, name}; empty/null = all of the city
     // Step 1: Filter to trusted sold listings only, AND only listings whose
     // city matches the current market. The city guard is a defensive belt-and-
@@ -2047,11 +2068,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveHoodFilter(zipFilter || null);
     setLiveHoodName(hoodName || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null);
+    setLiveGuessedZpids(new Set());
     setView("live");
 
+    // Neighborhoods span more zips than the single one the picker button carries
+    // (Sunset = 94122 + 94116, Richmond = 94118 + 94121, …). Filtering on that one
+    // zip is what was hiding most of the inventory — half the Sunset was in 94116
+    // and never reached the pool. Use the same zip-group union Free Play uses.
+    const zipGroup = (() => {
+      if (!zipFilter) return null;
+      const grp = HOOD_ZIP_GROUPS[(hoodName || ZIP_TO_HOOD[zipFilter] || "").toLowerCase()];
+      return grp && grp.size > 0 ? new Set(grp) : new Set([zipFilter]);
+    })();
+
     const buildPool = (src) => {
+      const alreadyGuessed = liveGuessedZpidsRef.current;
       let pool = src.filter(isTrueActive);
-      if (zipFilter) pool = pool.filter(l => l.zip === zipFilter || (l.zipcode && l.zipcode === zipFilter));
+      if (zipGroup) pool = pool.filter(l => zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)));
+      // A listing you've already predicted is done — never re-serve it.
+      pool = pool.filter(l => !l.zpid || !alreadyGuessed.has(String(l.zpid)));
       pool.sort(() => Math.random() - 0.5);
       return pool;
     };
@@ -2096,6 +2131,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     prefetchFirst3(pool);
   };
 
+  // ── Live cursor helpers — the pool keeps predicted listings (the map needs to
+  // draw them as "done"), so the card cursor walks past them instead. Wraps, so
+  // jumping ahead via a map pin doesn't strand the ones you skipped. ──
+  const isLiveGuessed = (l) => !!(l?.zpid && liveGuessedZpids.has(String(l.zpid)));
+  const liveRemaining = liveListings.filter(l => !isLiveGuessed(l)).length;
+  const nextUnguessedLiveIdx = (from) => {
+    const n = liveListings.length;
+    for (let step = 0; step < n; step++) {
+      const i = (from + step) % n;
+      if (!isLiveGuessed(liveListings[i])) return i;
+    }
+    return n; // nothing left → falls through to the "All caught up" state
+  };
+
   const handleLiveGuessInput = (e) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
     setLiveGuessInput(raw.slice(0, 10));
@@ -2131,6 +2180,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
     setLivePrediction(prediction);
     setAllPredictions(prev => [...prev, prediction]);
+    rememberLiveGuess(listing.zpid);
     // Award XP for making a prediction
     const newResult = {
       guess: val, soldPrice: listing.listPrice || val, pctOff: Math.abs(parseFloat(vsListPct || 0)),
@@ -2175,7 +2225,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setLiveSearchAddr("");
       setLiveSearchGuessInput("");
     } else {
-      setLiveIdx(prev => prev + 1);
+      setLiveIdx(prev => nextUnguessedLiveIdx(prev + 1));
     }
   };
 
@@ -2247,6 +2297,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
     setLivePrediction(prediction);
     setAllPredictions(prev => [...prev, prediction]);
+    rememberLiveGuess(listing.zpid);
     const newResult = {
       guess: val, soldPrice: listing.listPrice || val, pctOff: Math.abs(parseFloat(vsListPct || 0)),
       revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now(),
@@ -3601,7 +3652,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red)}
-              <StatPill value={`${liveListings.length - liveIdx - 1}`} label="left" color={T.red} />
+              <StatPill value={`${liveRemaining}`} label="left" color={T.red} />
               <button onClick={async () => {
                 const result = await fetchNotifications(playerId, true);
                 if (result) { setNotifications(result.notifications || []); setUnreadCount(result.unreadCount || 0); }
@@ -3627,7 +3678,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {showMap && MAP_ENABLED ? (
             /* ── A4: map of the live pool — pins only, spoiler-free ── */
             <Suspense fallback={mapSuspenseFallback}>
-              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} isDesktop={isDesktop} />
+              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} />
             </Suspense>
           ) : (<>
           {/* ── Address search (A3): predict ANY property, not just the pool ── */}
@@ -3671,7 +3722,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               )}
               {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: null, isLoadingDetails: false, valuePool: liveListings })}
             </>
-          ) : liveListings[liveIdx] && !livePrediction ? (
+          ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (
             <>
               {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
@@ -3740,7 +3791,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
               <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
-                You've locked in predictions on all {liveListings.length} active listing{liveListings.length !== 1 ? "s" : ""}. We'll let you know when they close.
+                You've locked in predictions on every active listing in {liveHoodName || locationLabel || "this area"}. We'll let you know when they close.
               </div>
               <PillButton onClick={() => setView("livePicker")} style={{ marginBottom: 10, background: T.red, color: "#fff" }}>Try Another Neighborhood</PillButton>
               <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Free Play</PillButton>
