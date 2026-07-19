@@ -14,7 +14,7 @@ import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
-import { DARK, LIGHT } from "./lib/theme.js";
+import { DARK, LIGHT, tintOver, isPlainColor } from "./lib/theme.js";
 import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
@@ -494,7 +494,12 @@ function Hero({ value, label, color, sub, small, light }) {
  </div>);
 }
 function Card({ children, style: s, onClick, pad }) {
- return (<div onClick={onClick} style={{ background: T.card, borderRadius: 16, padding: pad || 18, boxShadow: T.cardShadow, marginBottom: 12, cursor: onClick ? "pointer" : "default", ...s }}>{children}</div>);
+ // Callers tint a card with `background: `${T.blue}08``, which REPLACED the
+ // solid fill and let the blueprint canvas read through (Christo 2026-07-19).
+ // Composite any plain-color caller background over T.card instead — same hue,
+ // no bleed-through. Gradients/keywords pass through untouched.
+ const bg = s && isPlainColor(s.background) ? tintOver(s.background, T.card) : undefined;
+ return (<div onClick={onClick} style={{ background: T.card, borderRadius: 16, padding: pad || 18, boxShadow: T.cardShadow, marginBottom: 12, cursor: onClick ? "pointer" : "default", ...s, ...(bg ? { background: bg } : {}) }}>{children}</div>);
 }
 function Sec({ title, color, children, action, onAction }) {
  return (<>
@@ -520,7 +525,7 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   {/* Main status badge — hidden when hideBanner is set (e.g. in the Monthly Payment section) */}
   {!hideBanner && (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: allGreen ? "16px 24px 20px" : "12px 24px", borderRadius: 16, background: allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, marginBottom: 20, width: "100%" }}>
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: allGreen ? "16px 24px 20px" : "12px 24px", borderRadius: 16, background: tintOver(allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, T.card), marginBottom: 20, width: "100%" }}>
    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <span style={{ display: "flex", alignItems: "center", color: allGreen ? T.green : anyGreen ? T.orange : T.red }}><Icon name={allGreen ? "trophy" : anyGreen ? "unlock" : "lock"} size={28} /></span>
     <div>
@@ -543,7 +548,9 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
     const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
     const glow = c.ok === true ? `0 0 12px ${T.green}60` : "none";
     const isExp = expanded === i;
-    const bg = isExp ? `${T.blue}18` : c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
+    // Composited over T.card — as a bare tint these tiles were windows onto
+    // the wireframe canvas (Christo 2026-07-19).
+    const bg = tintOver(isExp ? `${T.blue}18` : c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`, T.card);
     return (<div key={i} onClick={() => { setExpanded(isExp ? null : i); Haptics.light(); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 8px 12px", background: bg, borderRadius: 16, transition: "all 0.4s", cursor: "pointer", border: isExp ? `1px solid ${T.blue}40` : "1px solid transparent" }}>
      {/* The light */}
      <div style={{ position: "relative", width: 44, height: 44, marginBottom: 10 }}>
@@ -598,7 +605,9 @@ function PayRing({ segments, total, size, hideLegend }) {
   <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={sw} />
    {segments.filter(s => s.v > 0).map((s, i) => { const p = total > 0 ? s.v / total : 0; const dash = p * c, gap = c - dash, off = -cum * c + c * 0.25; cum += p; return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${dash} ${gap}`} strokeDashoffset={off} style={{ transition: "all 0.6s ease" }} />; })}
-   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="600" fontFamily={FONT} letterSpacing="1.2" textTransform="uppercase">MONTHLY</text>
+   {/* text-transform is CSS, not an SVG attribute — as a prop React rejected it
+       and warned on every render (the label was already literal uppercase). */}
+   <text x={sz/2} y={sz/2 - sz*0.06} textAnchor="middle" fill={T.textTertiary} fontSize={Math.round(sz*0.06)} fontWeight="600" fontFamily={FONT} letterSpacing="1.2" style={{ textTransform: "uppercase" }}>MONTHLY</text>
    <text x={sz/2} y={sz/2 + sz*0.07} textAnchor="middle" fill={T.text} fontSize={Math.round(sz*0.14)} fontWeight="700" fontFamily={FONT} letterSpacing="-0.03em">{fmt(total)}</text>
   </svg>
   {!hideLegend && <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 14 }}>

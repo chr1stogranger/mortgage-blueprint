@@ -1,4 +1,5 @@
 import { FONT } from "../lib/fonts.js";
+import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import { devCheckProps } from "../lib/devPropCheck.js";
@@ -360,8 +361,10 @@ export default function CalculatorContent(props) {
     </div>
    </div>
 
-   {/* 2. Donut block: Escrow toggle row spans the top, donut centered below */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: 12 }}>
+   {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
+       On a solid card — the block used to sit bare on the blueprint canvas and
+       the wireframe read straight through the ring (Christo 2026-07-19). */}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: 12, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "10px 12px 14px" }}>
     {/* Escrow toggle header row — label upper-left, toggle upper-right */}
     {(() => {
      const escrowLocked = loanType === "FHA" || loanType === "VA";
@@ -1123,10 +1126,17 @@ export default function CalculatorContent(props) {
      { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
     ];
     return (
-     <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12 }}>
+     <div style={{ marginBottom: 12 }}>
+      {/* Overline — the row read as unlabeled colored tiles next to two titled
+          cards (Christo 2026-07-19). Matches the CashToCloseSummary band. */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
+       Qualification · {compactChecks.length} Pillars
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6 }}>
       {compactChecks.map((c, i) => {
        const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
-       const bg = c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`;
+       // Composited over T.card — bare tints let the wireframe canvas through.
+       const bg = tintOver(c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`, T.card);
        return (
         <div
          key={i}
@@ -1151,6 +1161,7 @@ export default function CalculatorContent(props) {
         </div>
        );
       })}
+      </div>
      </div>
     );
    })()}

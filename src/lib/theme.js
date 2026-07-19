@@ -22,15 +22,17 @@ export const DARK = {
  purple: "#8b7bf0", orange: "#d98a0b", cyan: "#38c6c6", pink: "#EC4899", teal: "#38c6c6",
  text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#666666",
  separator: "rgba(255,255,255,0.08)", inputBg: "#162034", inputBorder: "rgba(255,255,255,0.12)",
- headerBg: "rgba(16,24,42,0.75)", tabActiveBg: "rgba(255,255,255,0.08)", tabActiveText: "#EDEDED",
+ headerBg: "rgba(16,24,42,0.88)", tabActiveBg: "rgba(255,255,255,0.08)", tabActiveText: "#EDEDED",
  successBg: "rgba(18,161,80,0.12)", successBorder: "rgba(18,161,80,0.2)",
  errorBg: "rgba(229,72,77,0.12)", errorBorder: "rgba(229,72,77,0.2)",
  warningBg: "rgba(217,138,11,0.12)", warningBorder: "rgba(217,138,11,0.2)",
  ringTrack: "rgba(255,255,255,0.06)", pillBg: "rgba(255,255,255,0.06)",
  // Grange glass surfaces — translucent chrome over the ribbon canvas.
  // Dense data tables/cards stay solid (use `card`); glass is chrome + tiles.
- glass: "rgba(18,28,48,0.80)", glassStrong: "rgba(16,24,42,0.86)",
- glassBorder: "rgba(255,255,255,0.10)", sideBg: "rgba(16,24,42,0.75)",
+ // Alphas halved-toward-opaque 2026-07-19 (Christo: "50% less see-through") —
+ // the wireframe canvas was reading straight through the chrome.
+ glass: "rgba(18,28,48,0.90)", glassStrong: "rgba(16,24,42,0.93)",
+ glassBorder: "rgba(255,255,255,0.10)", sideBg: "rgba(16,24,42,0.88)",
  glassShadow: "0 1px 2px rgba(0,0,0,0.3), 0 18px 40px -14px rgba(0,0,0,0.55)",
 };
 export const LIGHT = {
@@ -43,15 +45,34 @@ export const LIGHT = {
  purple: "#8b7bf0", orange: "#d98a0b", cyan: "#38c6c6", pink: "#EC4899", teal: "#38c6c6",
  text: "#171717", textSecondary: "#4B5563", textTertiary: "#6B7280",
  separator: "rgba(16,27,46,0.12)", inputBg: "#eef3f9", inputBorder: "rgba(16,27,46,0.18)",
- headerBg: "rgba(255,255,255,0.80)", tabActiveBg: "rgba(16,27,46,0.08)", tabActiveText: "#171717",
+ headerBg: "rgba(255,255,255,0.90)", tabActiveBg: "rgba(16,27,46,0.08)", tabActiveText: "#171717",
  successBg: "rgba(18,161,80,0.08)", successBorder: "rgba(18,161,80,0.15)",
  errorBg: "rgba(229,72,77,0.08)", errorBorder: "rgba(229,72,77,0.15)",
  warningBg: "rgba(217,138,11,0.08)", warningBorder: "rgba(217,138,11,0.15)",
  ringTrack: "rgba(16,27,46,0.10)", pillBg: "rgba(16,27,46,0.06)",
- glass: "rgba(255,255,255,0.76)", glassStrong: "rgba(255,255,255,0.93)",
- glassBorder: "rgba(255,255,255,0.75)", sideBg: "rgba(255,255,255,0.75)",
+ // Alphas halved-toward-opaque 2026-07-19 — see the DARK note above.
+ glass: "rgba(255,255,255,0.88)", glassStrong: "rgba(255,255,255,0.97)",
+ glassBorder: "rgba(255,255,255,0.75)", sideBg: "rgba(255,255,255,0.88)",
  glassShadow: "0 1px 2px rgba(16,27,46,0.04), 0 12px 32px -12px rgba(16,27,46,0.16)",
 };
+
+// Composite a translucent tint over an opaque base.
+//
+// Tinted surfaces were written as `background: `${T.blue}08``, which REPLACES
+// the solid fill rather than tinting it — at 3% alpha the card became a window
+// onto the blueprint canvas and the wireframe read straight through (Christo
+// 2026-07-19: "distracting", "less see-through"). Layering the same tint over
+// an opaque base keeps the hue identical and stops the bleed-through.
+//
+// Returns a CSS `background` shorthand: the tint as a flat gradient layer on
+// top, the opaque base underneath.
+export const tintOver = (tint, base) => `linear-gradient(${tint}, ${tint}), ${base}`;
+
+// True when a CSS background value is a plain color we can safely composite
+// (hex or rgb/hsl) — as opposed to a gradient, image, keyword, or shorthand
+// that already carries its own layers.
+export const isPlainColor = (v) =>
+  typeof v === "string" && /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i.test(v.trim());
 
 // Woven-ribbon background palette (Grange / Plaid-inspired spectrum), same
 // values as loan-pipeline: teal → aqua → warm gold → blue → violet → pink.
