@@ -5,8 +5,9 @@ import { FONT, MONO } from "../lib/fonts.js";
  *
  * Flow (Christo 2026-07-18):
  *   1. loading  — pull the whitelisted import payload from Ops
- *                 (?action=blueprint-import — name/email/phone, property,
- *                 price, loan basics. NO SSNs, DOBs, or assets).
+ *                 (?action=blueprint-import — contact, property, loan terms,
+ *                 credit score, and the 1003 income / assets / debts.
+ *                 NEVER SSNs, birthdates, or account numbers).
  *   2. confirm  — show exactly what will be created; "Create Blueprint".
  *   3. creating — the parent's shared creation core runs (same path as the
  *                 sidebar Import from Arive: borrower deduped by email,
@@ -34,6 +35,7 @@ import {
   gmailSendAvailable, getStoredGmailToken, clearGmailToken,
   requestGmailToken, ensureGmailToken,
 } from "../lib/gmailAuth.js";
+import { normalizeArivePrefill, summarizePrefill } from "../lib/arivePrefill.js";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 
@@ -232,6 +234,10 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
   ) : null);
 
   const pf = payload?.prefill || {};
+  // Summarize the SAME normalized prefill the import will write, so the
+  // preview can't disagree with what lands in the Income/Assets/Debts tabs.
+  // An older Ops that sends no financials yields all-zero counts → no rows.
+  const fin = summarizePrefill(normalizeArivePrefill(pf));
   const price = pf.salesPrice || pf.refiHomeValue || null;
   const loanBits = [
     payload?.loan?.purpose || (pf.isRefi ? "Refinance" : "Purchase"),
@@ -271,7 +277,8 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
         {(phase === "confirm" || phase === "creating") && payload && (
           <>
             <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginBottom: 12, lineHeight: 1.5 }}>
-              This creates a Blueprint client with a scenario prefilled from the Arive file. Only the basics come over — no SSNs, birthdates, or asset details.
+              This creates a Blueprint client with a scenario prefilled from the Arive file — contact, property, loan terms, credit score, and whatever income, assets, and debts the file already has.{" "}
+              <span style={{ color: T.textSecondary, fontWeight: 600 }}>SSNs, birthdates, and account numbers never come over.</span>
             </div>
             <div style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "6px 14px 8px", marginBottom: 16 }}>
               {detailRow("Client", payload.borrower.name)}
@@ -280,6 +287,18 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
               {detailRow(pf.isRefi ? "Home value" : "Price", price ? fmtMoney(price) : null)}
               {detailRow("Loan", loanBits)}
               {detailRow("Property", place)}
+              {detailRow("Credit", pf.creditScore ? `${pf.creditScore} FICO` : null)}
+              {/* Financials — only render a row when the Arive file actually
+                  had that section, so an empty file stays visually quiet. */}
+              {detailRow("Income", fin.incomeCount
+                ? `${fmtMoney(fin.monthlyIncome)}/mo · ${fin.incomeCount} source${fin.incomeCount === 1 ? "" : "s"}${fin.borrowers > 1 ? ` · ${fin.borrowers} borrowers` : ""}`
+                : null)}
+              {detailRow("Assets", fin.assetsCount
+                ? `${fmtMoney(fin.assetsTotal)} · ${fin.assetsCount} account${fin.assetsCount === 1 ? "" : "s"}`
+                : null)}
+              {detailRow("Debts", fin.debtsCount
+                ? `${fmtMoney(fin.monthlyDebts)}/mo · ${fin.debtsCount} liabilit${fin.debtsCount === 1 ? "y" : "ies"}`
+                : null)}
               {row.class === "lead" ? detailRow("Status", "Lead") : null}
             </div>
             {error && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10, fontFamily: FONT }}>{error}</div>}

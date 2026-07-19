@@ -15,6 +15,7 @@ import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./c
 import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT } from "./lib/theme.js";
+import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
 import { apiUrl, WEB_ORIGIN } from "./apiBase";
@@ -1719,6 +1720,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
   incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
+  // Borrower roster travels with the scenario so a 2-borrower file (Arive
+  // import, or a manually added co-borrower) reopens with both cards.
+  numBorrowers, borrowerNames,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
@@ -1836,6 +1840,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.incomes) setIncomes(s.incomes);
   if (s.otherIncome !== undefined) setOtherIncome(s.otherIncome);
   if (s.otherIncome2 !== undefined) setOtherIncome2(s.otherIncome2);
+  // Roster before/with incomes — IncomeContent renders cards 1..numBorrowers
+  // and auto-compacts an empty trailing one, so a stale 2 is self-healing.
+  if (s.numBorrowers !== undefined) setNumBorrowers(Math.max(1, Number(s.numBorrowers) || 1));
+  if (s.borrowerNames) setBorrowerNames(s.borrowerNames);
   if (s.assets) setAssets(s.assets);
   if (s.creditScore !== undefined) setCreditScore(s.creditScore);
   if (s.pmiRateLocked !== undefined) setPmiRateLocked(s.pmiRateLocked);
@@ -2261,6 +2269,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const createClientFromArivePayload = async (payload) => {
   if (!payload?.borrower) throw new Error('Arive returned no borrower data');
 
+  // Normalize the financial rows before they become state_data. Ops is the
+  // source of truth, but this keeps us safe against an older deployed Ops
+  // (which sent income.borrower as the borrower's NAME — IncomeContent groups
+  // by borrower NUMBER, so a string row renders on no card at all) and against
+  // any account-number field sneaking into a future payload.
+  const prefill = normalizeArivePrefill(payload.prefill);
+
   // 1. Client record (POST dedupes by email and returns the existing row).
   //    Lead-stage Arive files (Application / Qualification / Pre-Approved)
   //    land as status 'lead' so the sidebar badge matches the Pipeline tab.
@@ -2313,8 +2328,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const label = `Arive Import${b._deduplicated ? ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
   const newScenario = await apiCreateScenario({
    borrower_id: b.id, name: label,
-   type: payload.prefill?.isRefi ? 'refi' : 'purchase',
-   state_data: payload.prefill || {}, calc_summary: {},
+   type: prefill.isRefi ? 'refi' : 'purchase',
+   state_data: prefill, calc_summary: {},
   });
   const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
 
@@ -2323,21 +2338,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setBorrowerList(prev => prev.some(x => x.id === b.id) ? prev.map(x => x.id === b.id ? b : x) : [...prev, b]);
   recordRecentBlueprint(makeClientEntry(b));
 
-  return { borrower: b, scenario: s, label };
+  return { borrower: b, scenario: s, label, prefill };
  };
 
  // Sidebar "Import from Arive" modal path: create via the shared core, then
  // open the new client's fresh scenario immediately.
  const handleImportAriveLoan = async (searchRow) => {
   const payload = await fetchAriveImport(searchRow.id);
-  const { borrower: b, scenario: s, label } = await createClientFromArivePayload(payload);
+  const { borrower: b, scenario: s, label, prefill } = await createClientFromArivePayload(payload);
   setActiveBorrower(b);
   setBorrowerScenarios(prev => (s?.id ? [s, ...(b._deduplicated ? prev : [])] : prev));
   if (s?.id) {
-   loadState(payload.prefill || {});
+   loadState(prefill);
    setActiveScenarioId(s.id);
    setScenarioName(s.name || label);
-   sync.initSync(payload.prefill || {}, null);
+   sync.initSync(prefill, null);
   }
   setImportAriveOpen(false);
   setTab('overview');
