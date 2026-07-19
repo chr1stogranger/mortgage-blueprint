@@ -266,6 +266,9 @@ async function fetchSoldListingsDirect(marketId, dailyNumber) {
       propertyType: normalizeHomeType(d.homeType),
       listPrice: extractListPrice(d.priceHistory || []) || soldPrice,
       daysOnMarket: d.daysOnZillow || null,
+      // Coordinates power the Daily's static-map carousel slide (migration 015).
+      latitude: d.latitude || null,
+      longitude: d.longitude || null,
       soldPrice,
       soldDate,
     });
@@ -296,6 +299,8 @@ function pickDailyProperty(listings, dailyNumber) {
     property_type: l.propertyType,
     list_price: l.listPrice,
     days_on_market: l.daysOnMarket,
+    latitude: l.latitude,
+    longitude: l.longitude,
     sold_price: l.soldPrice,
   };
 }
@@ -413,6 +418,8 @@ export default async function handler(req, res) {
           property_type: r.property_type,
           list_price: r.list_price,
           days_on_market: 0,
+          latitude: r.latitude ?? null,
+          longitude: r.longitude ?? null,
           sold_price: r.sold_price,
         };
         console.error(`[pp-daily] Picked from pool (${poolRows.length} entries) → ${r.address}`);
@@ -451,12 +458,22 @@ export default async function handler(req, res) {
       // (migration 013 not pasted into Supabase), PostgREST rejects the insert
       // with PGRST204 ("Could not find the 'photos' column"). Retry without it
       // so the Daily still seeds — the response falls back to [photo].
-      if (insertErr && insertErr.code === 'PGRST204' && /photos/i.test(insertErr.message || '')) {
-        console.error('[pp-daily] photos column missing (migration 013 not applied) — inserting without it');
-        const { photos: _omitPhotos, ...rowWithoutPhotos } = row;
+      // Pre-migration safety: optional columns (`photos` — migration 013;
+      // `latitude`/`longitude` — migration 015) may not exist yet. PostgREST
+      // rejects the whole insert with PGRST204 naming ONE missing column, so
+      // strip whichever it names and retry, cumulatively. The Daily always
+      // seeds; it just serves [photo] and/or no map slide until applied.
+      let attemptRow = row;
+      for (let attempt = 0; attempt < 3 && insertErr?.code === 'PGRST204'; attempt++) {
+        const missing = ['photos', 'latitude', 'longitude']
+          .find(col => new RegExp(`'${col}'|\\b${col}\\b`, 'i').test(insertErr.message || '') && col in attemptRow);
+        if (!missing) break;
+        console.error(`[pp-daily] '${missing}' column missing — retrying insert without it`);
+        const { [missing]: _omit, ...rest } = attemptRow;
+        attemptRow = rest;
         ({ data: inserted, error: insertErr } = await supabase
           .from('pp_daily_challenges')
-          .insert(rowWithoutPhotos)
+          .insert(attemptRow)
           .select()
           .single());
       }
@@ -527,6 +544,10 @@ export default async function handler(req, res) {
       propertyType: daily.property_type,
       listPrice: daily.list_price,
       daysOnMarket: daily.days_on_market,
+      // Present once migration 015 is applied; the carousel simply omits the
+      // map slide while these are null.
+      latitude: daily.latitude ?? null,
+      longitude: daily.longitude ?? null,
     };
 
     // Only include sold_price if player has already guessed

@@ -2582,7 +2582,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {/* MLS Description — from details API or listing */}
           {showExtras && desc && (
             <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
-              <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.55, fontFamily: FONT, overflow: "hidden", maxHeight: mlsExpanded ? "none" : (IS_MOBILE ? 38 : 54), position: "relative" }}>
+              {/* Expanded is CAPPED and scrolls internally — MLS remarks run
+                  2,000+ chars, and an unbounded "none" stretched the desktop
+                  card's photo column to match the rail (Christo 2026-07-18). */}
+              <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.55, fontFamily: FONT, overflowY: mlsExpanded ? "auto" : "hidden", overflowX: "hidden", maxHeight: mlsExpanded ? (IS_MOBILE ? 180 : 240) : (IS_MOBILE ? 38 : 54), position: "relative", overscrollBehavior: "contain" }}>
                 {desc}
                 {!mlsExpanded && desc.length > 120 && (
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 28, background: `linear-gradient(transparent, ${T.inputBg})` }} />
