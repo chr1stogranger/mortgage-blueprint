@@ -902,7 +902,7 @@ function migrateLocalStorage() {
       localStorage.removeItem("pp-predictions");
       localStorage.removeItem("pp-fp-guessed-zpids");
       localStorage.setItem("pp-data-version", String(PP_DATA_VERSION));
-      console.log(`[PricePoint] Data version upgraded ${stored} → ${PP_DATA_VERSION}, cleared stale listings`);
+      if (import.meta.env.DEV) console.log(`[PricePoint] Data version upgraded ${stored} → ${PP_DATA_VERSION}, cleared stale listings`);
       return true; // signal: need fresh fetch
     }
   } catch {}
@@ -996,7 +996,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          console.log(`[PricePoint] Loaded ${parsed.length} active listings from cache`);
+          if (import.meta.env.DEV) console.log(`[PricePoint] Loaded ${parsed.length} active listings from cache`);
           return parsed;
         }
       }
@@ -1128,7 +1128,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const unique = shuffled.filter(l => !prevZpids.has(l.zpid));
             return unique.length > 0 ? [...prev, ...unique] : prev;
           });
-          console.log(`[PricePoint] Load More: added ${newListings.length} new properties`);
+          if (import.meta.env.DEV) console.log(`[PricePoint] Load More: added ${newListings.length} new properties`);
           // Prefetch details for first 3 new ones
           setTimeout(() => {
             const targets = shuffled.slice(0, 3).filter(l => l && l.zpid);
@@ -1138,7 +1138,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         setFpHasMore(data.hasMore !== false);
       } else {
         setFpHasMore(false);
-        console.log("[PricePoint] Load More: no more properties available");
+        if (import.meta.env.DEV) console.log("[PricePoint] Load More: no more properties available");
       }
     } catch (err) {
       console.error("[PricePoint] Load More failed:", err);
@@ -1504,7 +1504,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         if (compsData?.soldListings?.length > 0) {
           gotRealSold = true;
           const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_comps" }));
-          console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
+          if (import.meta.env.DEV) console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
           setSoldListings(realSold); // applied immediately → Daily card renders now
         }
         return compsData;
@@ -1519,7 +1519,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             setActiveListings(data.activeListings);
             // Persist immediately so Live mode works on next page load
             try { localStorage.setItem("pp-active-listings", JSON.stringify(data.activeListings)); } catch {}
-            console.log(`[PricePoint] Cached ${data.activeListings.length} active listings`);
+            if (import.meta.env.DEV) console.log(`[PricePoint] Cached ${data.activeListings.length} active listings`);
           }
           // Fallback sold data — ONLY if sold-comps hasn't already delivered.
           // Tag as "sold_search" (less trusted than sold_comps). Validation:
@@ -1530,7 +1530,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               .filter(l => l.soldDate && l.soldPrice && (l.soldPrice !== l.listPrice || !l.listPrice))
               .map(l => ({ ...l, _source: "sold_search" }));
             if (validated.length > 0) {
-              console.log(`[PricePoint] Using ${validated.length} validated search-API sold (of ${data.soldListings.length} raw)`);
+              if (import.meta.env.DEV) console.log(`[PricePoint] Using ${validated.length} validated search-API sold (of ${data.soldListings.length} raw)`);
               setSoldListings(validated);
             }
           }
@@ -2030,7 +2030,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 const unique = newOnes.filter(l => !prevZpids.has(l.zpid));
                 return unique.length > 0 ? [...prev, ...unique] : prev;
               });
-              console.log(`[PricePoint] Background zip fetch added ${newOnes.length} more for ${zip}`);
+              if (import.meta.env.DEV) console.log(`[PricePoint] Background zip fetch added ${newOnes.length} more for ${zip}`);
             }
             setFpHasMore(data.hasMore !== false);
           }

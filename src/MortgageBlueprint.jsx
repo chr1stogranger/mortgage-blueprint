@@ -3211,7 +3211,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      return;
     }
    }
-  } catch (e) { console.log("Ops market-rates fetch failed:", e.message); }
+  } catch (e) { if (import.meta.env.DEV) console.log("Ops market-rates fetch failed:", e.message); }
   // Attempt 2: Blueprint's own serverless proxy (legacy FRED; key stays server-side).
   try {
    const res = await fetch(apiUrl("/api/rates"));
@@ -3223,7 +3223,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      return;
     }
    }
-  } catch(e) { console.log("Proxy fetch failed:", e.message); }
+  } catch(e) { if (import.meta.env.DEV) console.log("Proxy fetch failed:", e.message); }
   // Both sources failed.
   setRatesError("Could not fetch rates — try again in a moment");
   setRatesLoading(false);

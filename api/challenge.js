@@ -80,7 +80,7 @@ export default function handler(req, res) {
   </div>
   <script>
     // Redirect to SPA with challenge token
-    window.location.replace('/' + '?c=' + ${JSON.stringify(c)});
+    window.location.replace('/?c=' + ${JSON.stringify(encodeURIComponent(c)).replace(/</g, '\\u003c')});
   </script>
 </body>
 </html>`);
