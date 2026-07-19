@@ -389,13 +389,17 @@ const orderByRecency = (listings) => {
 
 // Format a sold date (ISO "2025-12-15") → "SOLD DEC '25" for the photo pill.
 // Uses UTC getters so a date-only string isn't shifted a day by local tz.
-const fmtSoldPill = (iso) => {
+// "JUL '26" — three-letter month + two-digit year (Christo's format).
+const fmtMonthYear = (iso) => {
   if (!iso) return null;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
   const mo = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getUTCMonth()];
-  return `SOLD ${mo} '${String(d.getUTCFullYear()).slice(2)}`;
+  return `${mo} '${String(d.getUTCFullYear()).slice(2)}`;
 };
+const fmtSoldPill = (iso) => { const s = fmtMonthYear(iso); return s ? `SOLD ${s}` : null; };
+// Live cards show the PRIOR sale — the home on screen hasn't sold yet.
+const fmtLastSoldPill = (iso) => { const s = fmtMonthYear(iso); return s ? `LAST SOLD ${s}` : null; };
 
 const getDailyProperty = (soldListings, market) => {
   if (!soldListings || soldListings.length === 0) return null;
@@ -2410,7 +2414,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Photo Carousel (for Live mode with property details) ──
-  const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, showSoldDate, listing, FONT }) => {
+  const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT }) => {
     const [idx, setIdx] = useState(0);
     const touchStartX = useRef(null);
     const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
@@ -2482,7 +2486,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         {/* Bottom row: neighborhood (left, photos only) + sold date (right, every slide
             incl. map — sold date is orthogonal to location, and RentCast Free Play
             listings are often map-only, where it's most useful) */}
-        {listing && ((!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area") || (showSoldDate && fmtSoldPill(listing.soldDate))) && (
+        {listing && ((!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area") || datePill) && (
           <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
             {!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area" && (
               <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -2490,10 +2494,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
               </div>
             )}
-            {showSoldDate && fmtSoldPill(listing.soldDate) && (
+            {datePill && (
               <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="calendar" size={13} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{fmtSoldPill(listing.soldDate)}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{datePill}</span>
               </div>
             )}
           </div>
@@ -2503,7 +2507,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, labelOverrides, details, isLoadingDetails, valuePool }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool }) => {
     const accent = accentColor || T.accent;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
@@ -2514,6 +2518,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const useCarousel = hasMultiplePhotos || hasMap; // map slide gives every geolocated listing a carousel
     const desc = decodeEntities(details?.description || listing.description);
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
+    // Date pill: Free Play/daily show the sale that already happened ("SOLD
+    // JUL '26"); Live shows the home's PRIOR sale ("LAST SOLD JUL '19") since
+    // the listing on screen is still active. Never both.
+    const datePill = showSoldDate
+      ? fmtSoldPill(listing.soldDate)
+      : (showLastSold ? fmtLastSoldPill(details?.lastSoldDate || listing.lastSoldDate) : null);
     return (
       // Desktop (≥900): two-column card — big photo carousel left (the photos
       // are the game), info/guess stack right. Mobile/tablet: unchanged stack.
@@ -2523,7 +2533,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             height regardless of how tall the info rail runs. */}
         <div style={isDesktop ? { position: "absolute", inset: 0 } : undefined}>
         {useCarousel ? (
-          <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} showSoldDate={showSoldDate} listing={listing} FONT={FONT} />
+          <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} />
         ) : (
         <div style={{ position: "relative", ...(isDesktop ? { height: "100%" } : {}) }}>
           <img src={listing.photo || NO_PHOTO} alt="" style={{ width: "100%", height: isDesktop ? "100%" : 220, objectFit: "cover", display: "block" }}
@@ -2541,7 +2551,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
           )}
           {/* Bottom row: neighborhood (left) + sold date (right) for quick scanning */}
-          {(resolveNeighborhood(listing) !== "Unknown Area" || (showSoldDate && fmtSoldPill(listing.soldDate))) && (
+          {(resolveNeighborhood(listing) !== "Unknown Area" || datePill) && (
             <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
               {resolveNeighborhood(listing) !== "Unknown Area" && (
                 <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -2549,10 +2559,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
                 </div>
               )}
-              {showSoldDate && fmtSoldPill(listing.soldDate) && (
+              {datePill && (
                 <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
                   <Icon name="calendar" size={12} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT, letterSpacing: 0.5 }}>{fmtSoldPill(listing.soldDate)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT, letterSpacing: 0.5 }}>{datePill}</span>
                 </div>
               )}
             </div>
@@ -3656,11 +3666,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market — prediction resolves if/when it sells</div>
                 </div>
               )}
-              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: null, isLoadingDetails: false, valuePool: liveListings })}
+              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: null, isLoadingDetails: false, valuePool: liveListings })}
             </>
           ) : liveListings[liveIdx] && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "LIVE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 560, margin: "0 auto" } : {}) }}>

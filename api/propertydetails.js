@@ -412,6 +412,22 @@ export default async function handler(req, res) {
     // Sanity: must look like a sale price relative to the known sold price.
     originalListPrice = saneListPrice(originalListPrice, rcSoldPrice);
 
+    // Most recent prior SALE date (priceHistory is newest-first). Powers the
+    // Live card's "LAST SOLD ___ '__" pill — when this home last changed hands
+    // is real guessing context. DATE ONLY: the prior sale PRICE is never
+    // returned here, and for an already-sold Free Play row this date is the
+    // same one that card already shows, so nothing new is revealed.
+    let lastSoldDate = null;
+    for (const evt of priceHistory) {
+      const ev = String(evt?.event || "");
+      if (/rent/i.test(ev)) continue;
+      if (/sold/i.test(ev) && evt.date) { lastSoldDate = evt.date; break; }
+    }
+    if (!lastSoldDate && d.dateSold) {
+      const ds = new Date(d.dateSold);
+      if (!isNaN(ds.getTime())) lastSoldDate = ds.toISOString().split("T")[0];
+    }
+
     const usablePhotos = photos.filter(isUsablePhoto);
     // Rental-listing text (lease terms, rent due dates) misleads the sold-price
     // game — drop it. The photos still show the property itself, so keep them.
@@ -428,6 +444,7 @@ export default async function handler(req, res) {
       homeType,
       taxAssessedValue,
       datePosted,
+      lastSoldDate,
       photoCount: usablePhotos.length,
       cached: false,
     };

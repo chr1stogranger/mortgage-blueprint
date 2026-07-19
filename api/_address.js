@@ -124,6 +124,9 @@ function poolRowToListing(r) {
     daysOnMarket: 0,
     description: isRentalText(r.description) ? "" : (r.description || ""),
     detailUrl: r.detail_url || null,
+    // Prior sale DATE only (never the price) — powers the Live card's
+    // "LAST SOLD ___ '__" pill.
+    lastSoldDate: r.sold_date || null,
     _source: "address_search",
   };
 }
@@ -278,6 +281,8 @@ export async function handleAddressSearch(req, res) {
       daysOnMarket: (status === "active" || status === "pending") ? (d.daysOnZillow || 0) : 0,
       description,
       detailUrl: d.hdpUrl ? `https://www.zillow.com${d.hdpUrl}` : (d.detailUrl || null),
+      // Prior sale DATE only — soldPrice stays absent (it's the answer).
+      lastSoldDate: soldDate,
       _source: "address_search",
     };
 
