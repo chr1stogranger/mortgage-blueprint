@@ -393,7 +393,19 @@ export default async function handler(req, res) {
 
       // Daily prefers fresh (0-6mo). If no fresh entries, fall back to older.
       const fresh = (allRows || []).filter(r => new Date(r.sold_date) >= sixMonthsAgo);
-      const poolRows = fresh.length > 0 ? fresh : (allRows || []);
+      const byRecency = fresh.length > 0 ? fresh : (allRows || []);
+
+      // Guessable rows only. fetchSoldListingsDirect has always enforced
+      // `!beds || !photo` (line ~251) but the POOL path never did, so a row
+      // with no specs could become the Daily — that's how Alameda shipped a
+      // Daily with blank BEDS/BATHS/BUILT and "0 SQFT" (Christo 2026-07-19).
+      // sqft is included because it's load-bearing for a price guess.
+      // Fall back to the unfiltered set rather than serving no Daily at all.
+      const guessable = byRecency.filter(r => r.beds && r.sqft && r.photo);
+      if (guessable.length === 0 && byRecency.length > 0) {
+        console.error(`[pp-daily] No fully-specced pool rows for ${marketId} — falling back to ${byRecency.length} unfiltered`);
+      }
+      const poolRows = guessable.length > 0 ? guessable : byRecency;
 
       let property = null;
       if (poolRows && poolRows.length > 0) {

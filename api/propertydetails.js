@@ -136,6 +136,7 @@ export default async function handler(req, res) {
 
   // Check cache (skip if ?fresh=1, or if cached result has no photos — re-fetch to get real data)
   if (!skipCache) {
+    // L1: in-memory (this lambda instance only)
     const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0) {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
@@ -144,6 +145,30 @@ export default async function handler(req, res) {
     // Clear stale/empty cached entries
     if (cached && (!cached.data.photos?.length || Date.now() - cached.timestamp > CACHE_TTL)) {
       cache.delete(cacheKey);
+    }
+    // L2: Supabase (migration 017) — survives cold starts and is shared across
+    // instances. Without it every cold start re-billed the same RapidAPI
+    // lookup; that was a live quota burner at 85% of the Redfin plan.
+    // NOTE: supabase-js returns { error }, it does not throw — inspect it or
+    // failures are silent.
+    const supa = getSupabaseAdmin();
+    if (supa) {
+      try {
+        const { data: row, error: readErr } = await supa
+          .from("pp_details_cache")
+          .select("data, updated_at")
+          .eq("cache_key", cacheKey)
+          .maybeSingle();
+        if (readErr) {
+          console.error(`[PropertyDetails] L2 read error (continuing): ${readErr.message}`);
+        } else if (row?.data?.photos?.length > 0 && Date.now() - new Date(row.updated_at).getTime() < CACHE_TTL) {
+          cache.set(cacheKey, { data: row.data, timestamp: Date.now() }); // re-warm L1
+          res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+          return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
+        }
+      } catch (e) {
+        console.error(`[PropertyDetails] L2 read failed (continuing): ${e.message}`);
+      }
     }
   } else {
     cache.delete(cacheKey);
@@ -473,6 +498,24 @@ export default async function handler(req, res) {
     // Empty results should be re-fetched next time
     if (usablePhotos.length > 0 || cleanDescription) {
       cache.set(cacheKey, { data: result, timestamp: Date.now() });
+      // L2 write (migration 017). Non-fatal: a missing table or a failed write
+      // just means the next cold start pays for this lookup again, which is
+      // exactly the old behavior.
+      const supaW = getSupabaseAdmin();
+      if (supaW) {
+        try {
+          const { error: upsertErr } = await supaW
+            .from("pp_details_cache")
+            .upsert(
+              { cache_key: cacheKey, data: result, updated_at: new Date().toISOString() },
+              { onConflict: "cache_key" }
+            );
+          if (upsertErr) console.error(`[PropertyDetails] L2 write error (non-fatal): ${upsertErr.message}`);
+          else console.error(`[PropertyDetails] L2 cached ${cacheKey} (${usablePhotos.length} photos, desc ${cleanDescription ? "yes" : "no"})`);
+        } catch (e) {
+          console.error(`[PropertyDetails] L2 write failed (non-fatal): ${e.message}`);
+        }
+      }
     }
     // Evict old entries if cache grows too large
     if (cache.size > 200) {
