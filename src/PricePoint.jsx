@@ -1021,6 +1021,178 @@ function migrateLocalStorage() {
   return false;
 }
 
+// ── Static map URL builder (Mapbox) ──
+const getStaticMapUrl = (lat, lng) => {
+  if (!lat || !lng) return null;
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  if (!token) return null;
+  // Mapbox Static Images API — dark style, indigo marker, retina (@2x)
+  const marker = `pin-s+3b6bf5(${lng},${lat})`;
+  return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${marker}/${lng},${lat},14.5,0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
+};
+
+// ── Photo Carousel ──
+// MODULE SCOPE ON PURPOSE (2026-07-19). This used to be declared inside
+// PricePoint, which gave it a new function identity on every parent render —
+// React saw a different component type, unmounted it, and reset `idx` to 0.
+// Typing a guess re-renders the parent on each keystroke, so the carousel
+// silently snapped back to photo 1 mid-typing. Hoisting it out keeps carousel
+// AND lightbox state alive; `isDesktop` now arrives as a prop.
+const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails }) => {
+  const [idx, setIdx] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+  const touchStartX = useRef(null);
+  const zoomTouchStartX = useRef(null);
+  const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
+  // Real photos first; else the single fallback photo; else let the map be
+  // the hero (licensed sources like RentCast carry no photos); placeholder
+  // only when there's nothing else to show.
+  const basePhotos = photos && photos.length > 0 ? photos : (fallbackPhoto ? [fallbackPhoto] : (mapUrl ? [] : [NO_PHOTO]));
+  // Append map as last slide if lat/lng available
+  const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
+  const photoCount = basePhotos.length; // real photos only (for counter display)
+  const count = allPhotos.length;
+  const isMapSlide = mapUrl && idx === count - 1;
+  const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
+  const showHood = !hideHoodPill && !isMapSlide && listing && resolveNeighborhood(listing) !== "Unknown Area";
+
+  // Esc closes the lightbox; arrows page it. Bound only while open.
+  useEffect(() => {
+    if (!zoomed) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setZoomed(false);
+      else if (e.key === "ArrowRight") go("next");
+      else if (e.key === "ArrowLeft") go("prev");
+    };
+    window.addEventListener("keydown", onKey);
+    // Don't let the page scroll behind the overlay.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prevOverflow; };
+  }, [zoomed, count]);
+
+  return (
+    <div style={{ position: "relative", touchAction: "pan-y", ...(isDesktop ? { height: "100%" } : {}) }}
+      onTouchStart={e => { e.stopPropagation(); touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        // Keep photo swipes local — don't let them bubble up and switch apps.
+        e.stopPropagation();
+        if (touchStartX.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        touchStartX.current = null;
+        if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
+      }}>
+      <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async"
+        onClick={() => setZoomed(true)}
+        style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : (isDesktop ? "100%" : 260), objectFit: "cover", display: "block", transition: "opacity 0.25s", cursor: "zoom-in" }}
+        onError={onPhotoError} />
+      {/* Map slide "Location" label — top left on map, replaces badges */}
+      {isMapSlide ? (
+        <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
+          <div style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
+            <Icon name="map-pin" size={12} /> LOCATION
+          </div>
+        </div>
+      ) : (
+        /* Top badges — photos only */
+        <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
+          {badge && (
+            <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
+          )}
+          {showExtras && pType && (
+            <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
+          )}
+        </div>
+      )}
+      {/* Photo count pill + expand affordance — top right. "1/3", or "MAP". */}
+      <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, alignItems: "center" }}>
+        {isLoadingDetails && (
+          <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
+        )}
+        {count > 1 && (
+          <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
+            {isMapSlide ? (<span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon name="map-pin" size={10} /> MAP</span>) : `${idx + 1} / ${photoCount}`}
+          </div>
+        )}
+        {/* Tapping the photo also opens this — the button is the discoverability cue. */}
+        <button onClick={(e) => { e.stopPropagation(); setZoomed(true); }} aria-label="Expand photo"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", border: "none", borderRadius: 8, padding: "5px 8px", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center" }}>
+          <Icon name="maximize" size={13} />
+        </button>
+      </div>
+      {/* Prev / Next arrows */}
+      {count > 1 && (
+        <>
+          <button onClick={() => go("prev")} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-left" size={16} /></button>
+          <button onClick={() => go("next")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-right" size={16} /></button>
+        </>
+      )}
+      {/* Dot indicators */}
+      {count > 1 && count <= 12 && (
+        <div style={{ position: "absolute", bottom: showHood || datePill ? 48 : 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+          {allPhotos.map((_, i) => {
+            const isMap = mapUrl && i === count - 1;
+            return (
+              <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? (isMap ? 20 : 16) : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : isMap ? "rgba(59,107,245,0.6)" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
+            );
+          })}
+        </div>
+      )}
+      {/* Bottom row: neighborhood (left, photos only) + sold date (right, every slide
+          incl. map — sold date is orthogonal to location, and RentCast Free Play
+          listings are often map-only, where it's most useful) */}
+      {listing && (showHood || datePill) && (
+        <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          {showHood && (
+            <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Icon name="map-pin" size={13} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
+            </div>
+          )}
+          {datePill && (
+            <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Icon name="calendar" size={13} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{datePill}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ LIGHTBOX ═══ full-bleed photo; objectFit contain so nothing crops */}
+      {zoomed && (
+        <div onClick={() => setZoomed(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.94)", display: "flex", alignItems: "center", justifyContent: "center", animation: "ppFadeIn 0.2s ease", touchAction: "pan-y" }}
+          onTouchStart={e => { e.stopPropagation(); zoomTouchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={e => {
+            e.stopPropagation();
+            if (zoomTouchStartX.current === null) return;
+            const dx = e.changedTouches[0].clientX - zoomTouchStartX.current;
+            zoomTouchStartX.current = null;
+            if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
+          }}>
+          <img src={allPhotos[idx] || NO_PHOTO} alt="" onClick={e => e.stopPropagation()} onError={onPhotoError}
+            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+          <button onClick={(e) => { e.stopPropagation(); setZoomed(false); }} aria-label="Close"
+            style={{ position: "absolute", top: "max(16px, env(safe-area-inset-top))", right: 16, width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.14)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>
+            <Icon name="x" size={20} />
+          </button>
+          {count > 1 && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); go("prev"); }} aria-label="Previous photo"
+                style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.14)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}><Icon name="chevron-left" size={22} /></button>
+              <button onClick={(e) => { e.stopPropagation(); go("next"); }} aria-label="Next photo"
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.14)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}><Icon name="chevron-right" size={22} /></button>
+              <div style={{ position: "absolute", bottom: "max(20px, env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", background: "rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", borderRadius: 9999, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
+                {isMapSlide ? "MAP" : `${idx + 1} / ${photoCount}`}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange }) {
@@ -2566,109 +2738,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     </div>
   );
 
-  // ── Static map URL builder (Mapbox) ──
-  const getStaticMapUrl = (lat, lng) => {
-    if (!lat || !lng) return null;
-    const token = import.meta.env.VITE_MAPBOX_TOKEN;
-    if (!token) return null;
-    // Mapbox Static Images API — dark style, indigo marker, retina (@2x)
-    const marker = `pin-s+3b6bf5(${lng},${lat})`;
-    return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${marker}/${lng},${lat},14.5,0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
-  };
-
-  // ── Photo Carousel (for Live mode with property details) ──
-  const PhotoCarousel = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT }) => {
-    const [idx, setIdx] = useState(0);
-    const touchStartX = useRef(null);
-    const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
-    // Real photos first; else the single fallback photo; else let the map be
-    // the hero (licensed sources like RentCast carry no photos); placeholder
-    // only when there's nothing else to show.
-    const basePhotos = photos && photos.length > 0 ? photos : (fallbackPhoto ? [fallbackPhoto] : (mapUrl ? [] : [NO_PHOTO]));
-    // Append map as last slide if lat/lng available
-    const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
-    const photoCount = basePhotos.length; // real photos only (for counter display)
-    const count = allPhotos.length;
-    const isMapSlide = mapUrl && idx === count - 1;
-    const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
-    return (
-      <div style={{ position: "relative", touchAction: "pan-y", ...(isDesktop ? { height: "100%" } : {}) }}
-        onTouchStart={e => { e.stopPropagation(); touchStartX.current = e.touches[0].clientX; }}
-        onTouchEnd={e => {
-          // Keep photo swipes local — don't let them bubble up and switch apps.
-          e.stopPropagation();
-          if (touchStartX.current === null) return;
-          const dx = e.changedTouches[0].clientX - touchStartX.current;
-          touchStartX.current = null;
-          if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
-        }}>
-        <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async" style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : (isDesktop ? "100%" : 260), objectFit: "cover", display: "block", transition: "opacity 0.25s" }}
-          onError={onPhotoError} />
-        {/* Map slide "Location" label — top left on map, replaces badges */}
-        {isMapSlide ? (
-          <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
-            <div style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
-              <Icon name="map-pin" size={12} /> LOCATION
-            </div>
-          </div>
-        ) : (
-          /* Top badges — photos only */
-          <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
-            {badge && (
-              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
-            )}
-            {showExtras && pType && (
-              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
-            )}
-          </div>
-        )}
-        {/* Photo count pill — top right. Shows "1/3" for photos, "MAP" on map slide */}
-        {count > 1 && (
-          <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-            {isMapSlide ? (<span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon name="map-pin" size={10} /> MAP</span>) : `${idx + 1} / ${photoCount}`}
-          </div>
-        )}
-        {/* Prev / Next arrows */}
-        {count > 1 && (
-          <>
-            <button onClick={() => go("prev")} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-left" size={16} /></button>
-            <button onClick={() => go("next")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-right" size={16} /></button>
-          </>
-        )}
-        {/* Dot indicators */}
-        {count > 1 && count <= 12 && (
-          <div style={{ position: "absolute", bottom: listing && resolveNeighborhood(listing) !== "Unknown Area" && !isMapSlide ? 48 : 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
-            {allPhotos.map((_, i) => {
-              const isMap = mapUrl && i === count - 1;
-              return (
-                <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? (isMap ? 20 : 16) : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : isMap ? "rgba(59,107,245,0.6)" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
-              );
-            })}
-          </div>
-        )}
-        {/* Bottom row: neighborhood (left, photos only) + sold date (right, every slide
-            incl. map — sold date is orthogonal to location, and RentCast Free Play
-            listings are often map-only, where it's most useful) */}
-        {listing && ((!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area") || datePill) && (
-          <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
-            {!isMapSlide && resolveNeighborhood(listing) !== "Unknown Area" && (
-              <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Icon name="map-pin" size={13} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
-              </div>
-            )}
-            {datePill && (
-              <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="calendar" size={13} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{datePill}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // ── Property card (shared daily & free play) ──
   const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool }) => {
     const accent = accentColor || T.accent;
@@ -2678,7 +2747,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const mergedPhotos = (details?.photos?.length > 0 ? details.photos : null) || (listing.photos?.length > 0 ? listing.photos : null) || null;
     const hasMultiplePhotos = mergedPhotos?.length > 1;
     const hasMap = !!(listing.latitude && listing.longitude);
-    const useCarousel = hasMultiplePhotos || hasMap; // map slide gives every geolocated listing a carousel
     const desc = decodeEntities(details?.description || listing.description);
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
     // Photo date pill = the sale that already happened ("SOLD JUL '26"), on Sold
@@ -2699,43 +2767,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         {/* Desktop: absolute-fill so the photo always spans the full column
             height regardless of how tall the info rail runs. */}
         <div style={isDesktop ? { position: "absolute", inset: 0 } : undefined}>
-        {useCarousel ? (
-          <PhotoCarousel photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} />
-        ) : (
-        <div style={{ position: "relative", ...(isDesktop ? { height: "100%" } : {}) }}>
-          <img src={listing.photo || NO_PHOTO} alt="" style={{ width: "100%", height: isDesktop ? "100%" : 220, objectFit: "cover", display: "block" }}
-            onError={onPhotoError} />
-          <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
-            {badge && (
-              <div style={{ background: `${badgeColor || accent}E6`, backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{badge}</div>
-            )}
-            {showType && pType && (
-              <div style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{pType}</div>
-            )}
-          </div>
-          {/* Loading photos indicator */}
-          {isLoadingDetails && (
-            <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
-          )}
-          {/* Bottom row: neighborhood (left) + sold date (right) for quick scanning */}
-          {(resolveNeighborhood(listing) !== "Unknown Area" || datePill) && (
-            <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              {resolveNeighborhood(listing) !== "Unknown Area" && (
-                <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Icon name="map-pin" size={13} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{resolveNeighborhood(listing)}</span>
-                </div>
-              )}
-              {datePill && (
-                <div style={{ marginLeft: "auto", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <Icon name="calendar" size={12} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT, letterSpacing: 0.5 }}>{datePill}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        )}
+        {/* One render path for every case. The carousel handles a single photo
+            (no arrows/dots) and is the only place the lightbox lives, so the old
+            plain-<img> fallback branch is gone — it duplicated the whole pill row
+            and had no way to expand. */}
+        <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} />
         </div>
         </div>
         <div style={{ padding: IS_MOBILE ? "10px 14px 12px" : (isDesktop ? "20px 24px" : "16px 18px 20px"), ...(isDesktop ? { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", borderLeft: `1px solid ${T.cardBorder}` } : {}) }}>
@@ -2852,13 +2888,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               When there's no list price the input takes the full row. */}
           <div style={{ display: "flex", gap: 8, alignItems: "stretch", marginBottom: 4, ...(isDesktop ? { flexDirection: "column" } : {}) }}>
             {(() => {
-              {/* rc_/rf_ rows carry no list price (listPrice === soldPrice would
-                  GIVE AWAY the answer) — show the enriched original list price
-                  when available; otherwise hide. */}
-              const zid = String(listing.zpid || "");
-              const isRcRow = zid.startsWith("rc_") || zid.startsWith("rf_");
+              {/* A listPrice EQUAL to soldPrice is a placeholder, not a real
+                  asking price — rendering it puts the answer on screen under a
+                  "LIST PRICE" label. The old guard only applied that test to
+                  rc_/rf_ rows, so plain-zpid rows with the same placeholder
+                  leaked (1 of 250 Alameda comps, verified 2026-07-19). The test
+                  is now on the VALUE, not the id prefix, for every row. */}
               const enriched = details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null;
-              const displayLp = isRcRow ? enriched : listing.listPrice;
+              const raw = listing.listPrice && listing.listPrice !== listing.soldPrice ? listing.listPrice : null;
+              const displayLp = raw || enriched;
               if (!displayLp) return null;
               return (
                 <div style={{ flex: 1, minWidth: 0, background: T.inputBg, borderRadius: 12, padding: IS_MOBILE ? "8px 12px" : "14px 18px", border: `1px solid ${T.cardBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -2962,6 +3000,32 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>{result.insight}</div>
               </div>
             )}
+            {/* What it ASKED vs what it GOT — the number that tells you whether
+                the market bid it up. Only when a real list price exists (a
+                listPrice equal to soldPrice is a placeholder, not an asking
+                price). Reveal-only, so it can never hint at the answer. */}
+            {(() => {
+              const lp = result.listPrice;
+              if (!lp || !result.soldPrice || lp === result.soldPrice) return null;
+              const deltaPct = ((result.soldPrice - lp) / lp) * 100;
+              const over = deltaPct > 0;
+              const deltaColor = over ? T.green : T.orange;
+              return (
+                <div style={{ display: "flex", gap: 12, marginBottom: 20, background: T.inputBg, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}` }}>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>LISTED FOR</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 4 }}>{fmt(lp)}</div>
+                  </div>
+                  <div style={{ width: 1, background: T.cardBorder }} />
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>{over ? "OVER ASKING" : "UNDER ASKING"}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, marginTop: 4, color: deltaColor }}>
+                      {over ? "+" : "−"}{Math.abs(deltaPct).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             <div style={{ textAlign: "center", marginBottom: 20, padding: "10px 0", borderTop: `1px solid ${T.cardBorder}`, borderBottom: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 10, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase", marginBottom: 4 }}>ADDRESS</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
