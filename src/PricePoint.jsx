@@ -2842,6 +2842,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 : `· $${Math.round(vc.ppsf)}/sqft list price`);
             }
             if (vc.domVsMedian) rows.push(`· ${vc.domVsMedian.value} DOM vs ${Math.round(vc.domVsMedian.median)} median`);
+            // How fast the market said yes. The pool's daysOnMarket is 0 on
+            // EVERY sold row, so vc.domVsMedian above never fires on a Sold
+            // card — this comes from the enrichment's priceHistory instead.
+            // Prefer listed→pending; listed→sold is the same span plus escrow,
+            // so it's labeled differently rather than passed off as pending.
+            if (details?.daysToPending != null) {
+              rows.push(`· Pending in ${details.daysToPending} ${details.daysToPending === 1 ? "day" : "days"}`);
+            } else if (details?.daysToSold != null) {
+              rows.push(`· ${details.daysToSold} ${details.daysToSold === 1 ? "day" : "days"} on market (list to close)`);
+            }
             if (vc.lotVsMedian) rows.push(`· ${Math.round(vc.lotVsMedian.value).toLocaleString("en-US")} sqft lot vs ${Math.round(vc.lotVsMedian.median).toLocaleString("en-US")} median`);
             const chips = [
               ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),

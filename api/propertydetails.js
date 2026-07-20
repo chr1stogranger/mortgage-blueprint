@@ -453,6 +453,42 @@ export default async function handler(req, res) {
       if (!isNaN(ds.getTime())) lastSoldDate = ds.toISOString().split("T")[0];
     }
 
+    // ── How long it took to go under contract ────────────────────────────────
+    // The sold pool carries daysOnMarket: 0 for EVERY row (verified Alameda
+    // 2026-07-19: 0 of 250 non-zero), so the "N DOM vs median" value row could
+    // never render on a Sold card. priceHistory is the only place this exists.
+    //
+    // Prefer listed → PENDING (that's when the market actually said yes).
+    // Fall back to listed → SOLD, which is the same signal plus the escrow
+    // period, so the two are reported separately and labeled differently.
+    // priceHistory is newest-first; walk it oldest-first for the LAST listing
+    // event that precedes the sale.
+    const dayGap = (aIso, bIso) => {
+      const a = new Date(aIso), b = new Date(bIso);
+      if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+      const days = Math.round((b - a) / 86400000);
+      // Sanity: negative means the events are out of order; >3y is a stale
+      // relist pairing, not this sale.
+      return days >= 0 && days <= 1095 ? days : null;
+    };
+    const saleEvents = priceHistory.filter(e => e?.date && !/rent/i.test(String(e?.event || "")));
+    const findDate = (re) => {
+      const hit = saleEvents.find(e => re.test(String(e.event || "")));
+      return hit ? hit.date : null;
+    };
+    const soldAt    = findDate(/sold/i);
+    const pendingAt = findDate(/pending|contingent/i);
+    // The listing event must PRECEDE the sale — take the newest one that does.
+    const anchor = pendingAt || soldAt;
+    const listedAt = anchor
+      ? (saleEvents.filter(e => /listed for sale|^listed/i.test(String(e.event || "")) && new Date(e.date) <= new Date(anchor)).map(e => e.date)[0] || null)
+      : null;
+    const daysToPending = listedAt && pendingAt ? dayGap(listedAt, pendingAt) : null;
+    const daysToSold    = listedAt && soldAt    ? dayGap(listedAt, soldAt)    : null;
+    // One-line coverage probe: which events this provider actually returns.
+    // Tells us whether "pending" is real data or whether we always fall back.
+    console.error(`[PropertyDetails] timeline ${zpid || rcid}: events=[${saleEvents.map(e => e.event).slice(0, 6).join("|")}] listed=${listedAt} pending=${pendingAt} sold=${soldAt} -> toPending=${daysToPending} toSold=${daysToSold}`);
+
     const usablePhotos = photos.filter(isUsablePhoto);
     // Rental-listing text (lease terms, rent due dates) misleads the sold-price
     // game — drop it. The photos still show the property itself, so keep them.
@@ -470,6 +506,10 @@ export default async function handler(req, res) {
       taxAssessedValue,
       datePosted,
       lastSoldDate,
+      // Listed → under contract. daysToPending is the real signal; daysToSold
+      // is the fallback (same span plus escrow) and is labeled as such client-side.
+      daysToPending,
+      daysToSold,
       photoCount: usablePhotos.length,
       cached: false,
     };
