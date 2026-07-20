@@ -149,6 +149,43 @@ function normalizeSoldDate(raw) {
   return raw;
 }
 
+// ─── Concurrency limiter ───
+// RapidAPI's PRO plan enforces a per-SECOND rate limit. The old code fanned out
+// all 16 page requests (10 active + 6 sold) simultaneously, which reliably
+// tripped "You have exceeded the rate limit per second for your plan, PRO".
+// Those 429s landed on page 1 as readily as on later pages, and a failed page 1
+// zeroed out the entire city (see fetchAllPages) — that's why Alameda reported
+// "no active listings" while genuinely having ~49.
+const MAX_CONCURRENT = 4;
+let inFlight = 0;
+const slotWaiters = [];
+async function withSlot(fn) {
+  if (inFlight >= MAX_CONCURRENT) await new Promise(r => slotWaiters.push(r));
+  inFlight++;
+  try {
+    return await fn();
+  } finally {
+    inFlight--;
+    const next = slotWaiters.shift();
+    if (next) next();
+  }
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const RETRY_DELAYS = [400, 1200, 2500]; // a per-second cap needs real spacing
+
+// True when the response carries a recognizable listings array (any shape
+// variant extractListings knows about).
+function hasListingsArray(response) {
+  if (!response) return false;
+  return Array.isArray(response)
+    || Array.isArray(response.data)
+    || Array.isArray(response.results)
+    || Array.isArray(response.props)
+    || Array.isArray(response.searchResults)
+    || Array.isArray(response.data?.results);
+}
+
 // ─── Fetch from RapidAPI ───
 async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
   // The RapidAPI "Real-Time Real-Estate Data" endpoint uses "status" not "home_status"
@@ -173,21 +210,55 @@ async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
   const url = `https://${apiHost}/search?${params}`;
   console.error(`[PricePoint] Fetching: ${url.replace(apiKey, "***")}`);
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "X-RapidAPI-Key": apiKey,
-      "X-RapidAPI-Host": apiHost,
-    },
-  });
+  // Retry 429s, 5xx, and malformed 200s. This provider intermittently answers
+  // 200 with {status, request_id, parameters} and NO data array — which used to
+  // be indistinguishable from "this city has zero listings".
+  let data = null;
+  let lastErr = null;
+  let fatal = false;
+  for (let attempt = 0; attempt <= RETRY_DELAYS.length && !fatal; attempt++) {
+    if (attempt > 0) {
+      const wait = RETRY_DELAYS[attempt - 1] + Math.floor(Math.random() * 250);
+      console.error(`[PricePoint] Retry ${attempt} for ${homeStatus} p${page} in ${wait}ms (last: ${lastErr})`);
+      await sleep(wait);
+    }
+    try {
+      const res = await withSlot(() => fetch(url, {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": apiKey,
+          "X-RapidAPI-Host": apiHost,
+        },
+      }));
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error(`[PricePoint] API error ${res.status} for ${homeStatus}: ${body.slice(0, 300)}`);
-    throw new Error(`API ${res.status}: ${body.slice(0, 200)}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        lastErr = `API ${res.status}: ${body.slice(0, 200)}`;
+        console.error(`[PricePoint] API error ${res.status} for ${homeStatus} p${page}: ${body.slice(0, 300)}`);
+        if (res.status === 429 || res.status >= 500) continue; // transient
+        fatal = true;                                          // 4xx — our bug, don't hammer
+        break;
+      }
+
+      const body = await res.json();
+      // Soft failure: 200 with an ERROR envelope, or no listings array at all.
+      // Only page 1 retries on a missing array — on later pages that legitimately
+      // means "past the end of the inventory".
+      if (body?.status === "ERROR" || (!hasListingsArray(body) && page === 1)) {
+        lastErr = `malformed 200 (keys=${Object.keys(body || {}).join(",")})`;
+        console.error(`[PricePoint] Soft failure for ${homeStatus} p${page}: ${lastErr}`);
+        continue;
+      }
+
+      data = body;
+      break;
+    } catch (e) {
+      lastErr = e.message;
+      console.error(`[PricePoint] Fetch threw for ${homeStatus} p${page}: ${e.message}`);
+    }
   }
 
-  const data = await res.json();
+  if (!data) throw new Error(lastErr || "unknown fetch failure");
 
   // Diagnostic: log response shape and counts
   const topKeys = Object.keys(data).join(", ");
@@ -419,8 +490,13 @@ export default async function handler(req, res) {
       };
     }
 
-    // Only cache if we got results — write both layers
-    if (active.length > 0 || sold.length > 0) {
+    // Only cache a result we actually trust — write both layers.
+    // The active fetch must have SUCCEEDED, not merely returned rows: if it
+    // failed we'd otherwise pin "0 active listings" for this city for a full
+    // 24h. Its failure also silently breaks the dedup above (fake sold listings
+    // are stripped by zpid overlap with active), so the sold half is suspect too.
+    const activeOk = activeData.status === "fulfilled";
+    if (activeOk && (active.length > 0 || sold.length > 0)) {
       setCache(cacheKey, result);
       if (supabase) {
         try {
