@@ -224,12 +224,46 @@ const getLevel = (xp) => [...LEVELS].reverse().find(l => xp >= l.req) || LEVELS[
 // scrolling (photo -> description -> specs -> price entry -> Final Answer).
 const IS_MOBILE = typeof window !== "undefined" && window.innerWidth <= 480;
 
-// MLS remarks arrive with HTML entities from some feeds ("Elegant &amp; Welcoming!")
+// MLS remarks arrive with HTML entities from some feeds ("Elegant &amp; Welcoming!",
+// "Alameda&rsquo;s Gold Coast", "2&frac12; bathrooms"). The old shortlist missed the
+// curly quotes and fractions agents actually type, so they rendered literally.
+//
+// This is also the single choke point feeding extractValueSignals/renderHighlightedDesc:
+// an undecoded &rsquo; made the "chef's kitchen" highlight pattern silently never match.
+const HTML_ENTITIES = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  lsquo: "\u2018", rsquo: "\u2019", sbquo: "\u201a",
+  ldquo: "\u201c", rdquo: "\u201d", bdquo: "\u201e",
+  mdash: "\u2014", ndash: "\u2013", hellip: "\u2026",
+  frac12: "\u00bd", frac14: "\u00bc", frac34: "\u00be",
+  deg: "\u00b0", plusmn: "\u00b1", times: "\u00d7", divide: "\u00f7",
+  bull: "\u2022", middot: "\u00b7", dagger: "\u2020",
+  copy: "\u00a9", reg: "\u00ae", trade: "\u2122",
+  cent: "\u00a2", pound: "\u00a3", euro: "\u20ac",
+  laquo: "\u00ab", raquo: "\u00bb", sect: "\u00a7", para: "\u00b6",
+  eacute: "\u00e9", egrave: "\u00e8", ccedil: "\u00e7", ntilde: "\u00f1",
+  aacute: "\u00e1", iacute: "\u00ed", oacute: "\u00f3", uacute: "\u00fa",
+  auml: "\u00e4", ouml: "\u00f6", uuml: "\u00fc",
+  aring: "\u00e5", oslash: "\u00f8", aelig: "\u00e6", szlig: "\u00df",
+};
+
+// Out-of-range/invalid code points pass through as the original text rather than
+// throwing or emitting U+FFFD.
+const safeCodePoint = (n, raw) => {
+  if (!Number.isFinite(n) || n <= 0 || n > 0x10ffff) return raw;
+  try { return String.fromCodePoint(n); } catch { return raw; }
+};
+
+// Single pass, numeric first: decoding &amp; last means "&amp;rsquo;" stays literal
+// instead of being double-decoded into a quote.
 const decodeEntities = (str) => String(str || "")
-  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-  .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ")
-  .replace(/&mdash;/g, "\u2014").replace(/&ndash;/g, "\u2013").replace(/&hellip;/g, "\u2026")
-  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).trim();
+  .replace(/&#(\d+);/g, (m, n) => safeCodePoint(Number(n), m))
+  .replace(/&#x([0-9a-f]+);/gi, (m, h) => safeCodePoint(parseInt(h, 16), m))
+  .replace(/&([a-z][a-z0-9]*);/gi, (m, name) => {
+    const hit = HTML_ENTITIES[name.toLowerCase()];
+    return hit === undefined ? m : hit; // unknown entity \u2192 leave as typed
+  })
+  .trim();
 
 // Free Play property-type filter options. Empty selection = all types.
 // 'Manufactured' plays under Single Family.
@@ -476,8 +510,8 @@ const fmtMonthYear = (iso) => {
   return `${mo} '${String(d.getUTCFullYear()).slice(2)}`;
 };
 const fmtSoldPill = (iso) => { const s = fmtMonthYear(iso); return s ? `SOLD ${s}` : null; };
-// Live cards show the PRIOR sale — the home on screen hasn't sold yet.
-const fmtLastSoldPill = (iso) => { const s = fmtMonthYear(iso); return s ? `LAST SOLD ${s}` : null; };
+// For Sale cards render the prior sale as a Value Signals row, not a photo pill,
+// so there's no fmtLastSoldPill — fmtMonthYear is used directly there.
 
 const getDailyProperty = (soldListings, market) => {
   if (!soldListings || soldListings.length === 0) return null;
@@ -2647,12 +2681,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const useCarousel = hasMultiplePhotos || hasMap; // map slide gives every geolocated listing a carousel
     const desc = decodeEntities(details?.description || listing.description);
     const yearBuilt = listing.yearBuilt || details?.yearBuilt;
-    // Date pill: Free Play/daily show the sale that already happened ("SOLD
-    // JUL '26"); Live shows the home's PRIOR sale ("LAST SOLD JUL '19") since
-    // the listing on screen is still active. Never both.
-    const datePill = showSoldDate
-      ? fmtSoldPill(listing.soldDate)
-      : (showLastSold ? fmtLastSoldPill(details?.lastSoldDate || listing.lastSoldDate) : null);
+    // Photo date pill = the sale that already happened ("SOLD JUL '26"), on Sold
+    // and Daily cards.
+    //
+    // For Sale cards do NOT get a photo pill: the home on screen hasn't sold, so
+    // its PRIOR sale is guessing context, not a caption — it reads as the answer
+    // sitting on the photo. It moves into Value Signals below (Christo 2026-07-19).
+    const datePill = showSoldDate ? fmtSoldPill(listing.soldDate) : null;
+    const lastSoldLabel = showLastSold
+      ? fmtMonthYear(details?.lastSoldDate || listing.lastSoldDate)
+      : null;
     return (
       // Desktop (≥900): two-column card — big photo carousel left (the photos
       // are the game), info/guess stack right. Mobile/tablet: unchanged stack.
@@ -2739,6 +2777,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const vc = computeValueContext(listing, valuePool, enrichedLp);
             const sigs = extractValueSignals(desc); // no description (RentCast rows) -> quant stats only
             const rows = [];
+            // Prior sale leads the list — on a For Sale card it's the strongest
+            // anchor for what the home is worth (and tells you if it's a flip).
+            if (lastSoldLabel) rows.push(`· Last sold ${lastSoldLabel}`);
             if (vc.ppsf) {
               rows.push(vc.medianPpsf
                 ? `· $${Math.round(vc.ppsf)}/sqft vs $${Math.round(vc.medianPpsf)} area median (${vc.ppsfDeltaPct >= 0 ? "+" : ""}${Math.round(vc.ppsfDeltaPct)}%)`
@@ -3338,7 +3379,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
             </div>
           </div>
-          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent, showPropertyType: true, showExtras: true, details: propertyDetails[dailyProperty.zpid] || null, isLoadingDetails: detailsLoading === dailyProperty.zpid })}
+          {PropertyCard({ listing: dailyProperty, guess: guessInput, onGuessChange: handleGuessInput, onGuess: handleDailyGuess, badge: "DAILY", badgeColor: T.accent, accentColor: T.accent, showPropertyType: true, showExtras: true, showSoldDate: true, details: propertyDetails[dailyProperty.zpid] || null, isLoadingDetails: detailsLoading === dailyProperty.zpid })}
         </div>
       )}
 

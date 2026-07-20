@@ -302,6 +302,7 @@ function pickDailyProperty(listings, dailyNumber) {
     latitude: l.latitude,
     longitude: l.longitude,
     sold_price: l.soldPrice,
+    sold_date: l.soldDate ?? null,
   };
 }
 
@@ -421,6 +422,9 @@ export default async function handler(req, res) {
           latitude: r.latitude ?? null,
           longitude: r.longitude ?? null,
           sold_price: r.sold_price,
+          // Date only — the PRICE stays server-side until reveal. Powers the
+          // Daily photo's "SOLD MMM 'YY" pill (migration 016).
+          sold_date: r.sold_date ?? null,
         };
         console.error(`[pp-daily] Picked from pool (${poolRows.length} entries) → ${r.address}`);
       } else {
@@ -459,13 +463,14 @@ export default async function handler(req, res) {
       // with PGRST204 ("Could not find the 'photos' column"). Retry without it
       // so the Daily still seeds — the response falls back to [photo].
       // Pre-migration safety: optional columns (`photos` — migration 013;
-      // `latitude`/`longitude` — migration 015) may not exist yet. PostgREST
-      // rejects the whole insert with PGRST204 naming ONE missing column, so
-      // strip whichever it names and retry, cumulatively. The Daily always
-      // seeds; it just serves [photo] and/or no map slide until applied.
+      // `latitude`/`longitude` — migration 015; `sold_date` — migration 016)
+      // may not exist yet. PostgREST rejects the whole insert with PGRST204
+      // naming ONE missing column, so strip whichever it names and retry,
+      // cumulatively. The Daily always seeds; it just serves [photo] and/or
+      // no map slide and/or no sold-date pill until applied.
       let attemptRow = row;
-      for (let attempt = 0; attempt < 3 && insertErr?.code === 'PGRST204'; attempt++) {
-        const missing = ['photos', 'latitude', 'longitude']
+      for (let attempt = 0; attempt < 4 && insertErr?.code === 'PGRST204'; attempt++) {
+        const missing = ['photos', 'latitude', 'longitude', 'sold_date']
           .find(col => new RegExp(`'${col}'|\\b${col}\\b`, 'i').test(insertErr.message || '') && col in attemptRow);
         if (!missing) break;
         console.error(`[pp-daily] '${missing}' column missing — retrying insert without it`);
@@ -548,6 +553,10 @@ export default async function handler(req, res) {
       // map slide while these are null.
       latitude: daily.latitude ?? null,
       longitude: daily.longitude ?? null,
+      // WHEN it sold, never for how much — sold_price stays gated behind the
+      // reveal check below. Renders as the photo's "SOLD MMM 'YY" pill; the
+      // card omits the pill while this is null (pre-migration-016 rows).
+      soldDate: daily.sold_date ?? null,
     };
 
     // Only include sold_price if player has already guessed
