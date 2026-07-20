@@ -340,8 +340,10 @@ export default function QualifyContent(props) {
 
  {/* PRE-QUALIFIED celebration hero — only when allGood. Sits between FICO and the
      2-col body so the 'all green' state visually celebrates the pillars + FICO. */}
+ {/* White card, not a green wash (Christo 2026-07-19) — the trophy and the
+     green headline carry the celebration. */}
  {allGood && (
-  <Card style={{ marginTop: 16, background: `${T.green}15`, textAlign: "center", padding: "22px 20px" }}>
+  <Card style={{ marginTop: 16, background: T.card, border: `1px solid ${T.green}33`, textAlign: "center", padding: "22px 20px" }}>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 4 }}>
     <Icon name="trophy" size={28} style={{ color: T.green }} />
     <div style={{ fontSize: 22, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "0.02em" }}>{isRefi ? "REFI QUALIFIED" : "PRE-QUALIFIED"}</div>

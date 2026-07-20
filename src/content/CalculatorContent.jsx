@@ -1135,8 +1135,8 @@ export default function CalculatorContent(props) {
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6 }}>
       {compactChecks.map((c, i) => {
        const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
-       // Composited over T.card — bare tints let the wireframe canvas through.
-       const bg = tintOver(c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`, T.card);
+       // Plain white tiles (Christo 2026-07-19) — status reads from the circle
+       // and label color, not a background wash.
        return (
         <div
          key={i}
@@ -1144,7 +1144,8 @@ export default function CalculatorContent(props) {
          title={`${c.label}: ${c.sub} — click for details`}
          style={{
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "12px 4px", minHeight: 92, background: bg, borderRadius: 12,
+          padding: "12px 4px", minHeight: 92, background: T.card, borderRadius: 12,
+          border: `1px solid ${color}2E`, boxShadow: T.cardShadow,
           cursor: "pointer", transition: "all 0.2s",
          }}
         >

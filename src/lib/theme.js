@@ -29,9 +29,12 @@ export const DARK = {
  ringTrack: "rgba(255,255,255,0.06)", pillBg: "rgba(255,255,255,0.06)",
  // Grange glass surfaces — translucent chrome over the ribbon canvas.
  // Dense data tables/cards stay solid (use `card`); glass is chrome + tiles.
- // Alphas halved-toward-opaque 2026-07-19 (Christo: "50% less see-through") —
- // the wireframe canvas was reading straight through the chrome.
- glass: "rgba(18,28,48,0.90)", glassStrong: "rgba(16,24,42,0.93)",
+ // Christo 2026-07-19 (2nd pass): glass CARDS sit at 75% opaque / 25%
+ // see-through. Nav chrome (sideBg/headerBg) stays denser — it overlaps
+ // scrolling content, where bleed-through reads as a rendering bug.
+ // cardGlass is the semi-opaque base to layer tints over (see tintOver).
+ glass: "rgba(18,28,48,0.75)", glassStrong: "rgba(16,24,42,0.75)",
+ cardGlass: "rgba(18,28,48,0.75)",
  glassBorder: "rgba(255,255,255,0.10)", sideBg: "rgba(16,24,42,0.88)",
  glassShadow: "0 1px 2px rgba(0,0,0,0.3), 0 18px 40px -14px rgba(0,0,0,0.55)",
 };
@@ -50,8 +53,9 @@ export const LIGHT = {
  errorBg: "rgba(229,72,77,0.08)", errorBorder: "rgba(229,72,77,0.15)",
  warningBg: "rgba(217,138,11,0.08)", warningBorder: "rgba(217,138,11,0.15)",
  ringTrack: "rgba(16,27,46,0.10)", pillBg: "rgba(16,27,46,0.06)",
- // Alphas halved-toward-opaque 2026-07-19 — see the DARK note above.
- glass: "rgba(255,255,255,0.88)", glassStrong: "rgba(255,255,255,0.97)",
+ // Christo 2026-07-19 (2nd pass) — see the DARK note above.
+ glass: "rgba(255,255,255,0.75)", glassStrong: "rgba(255,255,255,0.75)",
+ cardGlass: "rgba(255,255,255,0.75)",
  glassBorder: "rgba(255,255,255,0.75)", sideBg: "rgba(255,255,255,0.88)",
  glassShadow: "0 1px 2px rgba(16,27,46,0.04), 0 12px 32px -12px rgba(16,27,46,0.16)",
 };
@@ -68,11 +72,25 @@ export const LIGHT = {
 // top, the opaque base underneath.
 export const tintOver = (tint, base) => `linear-gradient(${tint}, ${tint}), ${base}`;
 
-// True when a CSS background value is a plain color we can safely composite
-// (hex or rgb/hsl) — as opposed to a gradient, image, keyword, or shorthand
-// that already carries its own layers.
-export const isPlainColor = (v) =>
-  typeof v === "string" && /^(#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i.test(v.trim());
+// True when a CSS background value is a TRANSLUCENT plain color — the case that
+// needs compositing. Gradients, images, keywords, and already-opaque colors are
+// excluded: a gradient would nest illegally, and an opaque fill has nothing to
+// bleed through, so wrapping it would just add a redundant paint layer.
+export const isTranslucentColor = (v) => {
+  if (typeof v !== "string") return false;
+  const s = v.trim();
+  const hex8 = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(s);       // #RRGGBBAA
+  if (hex8) return parseInt(hex8[1], 16) < 255;
+  const hex4 = /^#[0-9a-f]{3}([0-9a-f])$/i.exec(s);          // #RGBA
+  if (hex4) return parseInt(hex4[1], 16) < 15;
+  if (/^#[0-9a-f]{3}$|^#[0-9a-f]{6}$/i.test(s)) return false; // opaque hex
+  const fn = /^(?:rgba?|hsla?)\(([^)]*)\)$/i.exec(s);
+  if (!fn) return false;
+  const parts = fn[1].split(/[,/]/).map(p => p.trim()).filter(Boolean);
+  if (parts.length < 4) return false;                         // no alpha => opaque
+  const a = parts[3].endsWith("%") ? parseFloat(parts[3]) / 100 : parseFloat(parts[3]);
+  return Number.isFinite(a) && a < 1;
+};
 
 // Woven-ribbon background palette (Grange / Plaid-inspired spectrum), same
 // values as loan-pipeline: teal → aqua → warm gold → blue → violet → pink.

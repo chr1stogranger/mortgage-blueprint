@@ -14,7 +14,7 @@ import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
-import { DARK, LIGHT, tintOver, isPlainColor } from "./lib/theme.js";
+import { DARK, LIGHT, tintOver, isTranslucentColor } from "./lib/theme.js";
 import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
@@ -461,7 +461,10 @@ function Hero({ value, label, color, sub, small, light }) {
  const accent = color || T.blue;
  if (light) {
   return (<div style={{
-    background: `linear-gradient(135deg, ${accent}18, ${accent}0c)`,
+    // The gradient alone is 5–9% alpha, so the blueprint canvas read straight
+    // through (Christo 2026-07-19). Layered over cardGlass it stays a glass
+    // card — 75% opaque, 25% see-through — instead of a window.
+    background: `linear-gradient(135deg, ${accent}18, ${accent}0c), ${T.cardGlass}`,
     border: `1px solid ${accent}38`,
     padding: small ? "14px 18px" : "18px 22px",
     borderRadius: 14,
@@ -496,9 +499,10 @@ function Hero({ value, label, color, sub, small, light }) {
 function Card({ children, style: s, onClick, pad }) {
  // Callers tint a card with `background: `${T.blue}08``, which REPLACED the
  // solid fill and let the blueprint canvas read through (Christo 2026-07-19).
- // Composite any plain-color caller background over T.card instead — same hue,
- // no bleed-through. Gradients/keywords pass through untouched.
- const bg = s && isPlainColor(s.background) ? tintOver(s.background, T.card) : undefined;
+ // Composite any plain-color caller background over cardGlass instead — same
+ // hue, and the surface reads as a glass card (75% opaque / 25% see-through)
+ // rather than a window. Gradients/keywords pass through untouched.
+ const bg = s && isTranslucentColor(s.background) ? tintOver(s.background, T.cardGlass) : undefined;
  return (<div onClick={onClick} style={{ background: T.card, borderRadius: 16, padding: pad || 18, boxShadow: T.cardShadow, marginBottom: 12, cursor: onClick ? "pointer" : "default", ...s, ...(bg ? { background: bg } : {}) }}>{children}</div>);
 }
 function Sec({ title, color, children, action, onAction }) {
@@ -524,8 +528,10 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
  const [expanded, setExpanded] = React.useState(null);
  return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", margin: "8px 0 20px" }}>
   {/* Main status badge — hidden when hideBanner is set (e.g. in the Monthly Payment section) */}
+  {/* Plain white card — no status wash (Christo 2026-07-19). The trophy icon,
+      headline color and border carry the state instead. */}
   {!hideBanner && (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: allGreen ? "16px 24px 20px" : "12px 24px", borderRadius: 16, background: tintOver(allGreen ? `${T.green}18` : anyGreen ? `${T.orange}18` : `${T.red}18`, T.card), marginBottom: 20, width: "100%" }}>
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: allGreen ? "16px 24px 20px" : "12px 24px", borderRadius: 16, background: T.card, border: `1px solid ${allGreen ? `${T.green}33` : anyGreen ? `${T.orange}33` : `${T.red}33`}`, boxShadow: T.cardShadow, marginBottom: 20, width: "100%" }}>
    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <span style={{ display: "flex", alignItems: "center", color: allGreen ? T.green : anyGreen ? T.orange : T.red }}><Icon name={allGreen ? "trophy" : anyGreen ? "unlock" : "lock"} size={28} /></span>
     <div>
@@ -548,10 +554,12 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
     const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
     const glow = c.ok === true ? `0 0 12px ${T.green}60` : "none";
     const isExp = expanded === i;
-    // Composited over T.card — as a bare tint these tiles were windows onto
-    // the wireframe canvas (Christo 2026-07-19).
-    const bg = tintOver(isExp ? `${T.blue}18` : c.ok === true ? `${T.green}15` : c.ok === null ? T.pillBg : `${T.red}12`, T.card);
-    return (<div key={i} onClick={() => { setExpanded(isExp ? null : i); Haptics.light(); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 8px 12px", background: bg, borderRadius: 16, transition: "all 0.4s", cursor: "pointer", border: isExp ? `1px solid ${T.blue}40` : "1px solid transparent" }}>
+    // Plain white tiles (Christo 2026-07-19) — the status circle and label
+    // color carry pass/fail; only the expanded tile keeps a tint so the open
+    // one is distinguishable from its neighbours.
+    const bg = isExp ? tintOver(`${T.blue}18`, T.card) : T.card;
+    const tileBorder = isExp ? `${T.blue}40` : `${color}2E`;
+    return (<div key={i} onClick={() => { setExpanded(isExp ? null : i); Haptics.light(); }} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 8px 12px", background: bg, borderRadius: 16, transition: "all 0.4s", cursor: "pointer", border: `1px solid ${tileBorder}`, boxShadow: T.cardShadow }}>
      {/* The light */}
      <div style={{ position: "relative", width: 44, height: 44, marginBottom: 10 }}>
       <div style={{ width: 44, height: 44, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, boxShadow: glow, transition: "all 0.5s", display: "flex", alignItems: "center", justifyContent: "center" }}>
