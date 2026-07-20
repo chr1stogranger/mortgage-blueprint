@@ -49,6 +49,14 @@
 ## Gotchas
 - `email-templates/*.html` are pasted into Supabase Auth settings by hand —
   editing the files does NOT deploy them; remind Christo to re-paste.
+- **`migrations/*.sql` and `sql/*.sql` do NOT auto-apply** — they are pasted
+  into the Supabase SQL Editor by hand, so a merged migration can sit unapplied
+  for weeks while code silently degrades. Two live cases found 2026-07-19:
+  `sql/2026-06-11-pp_city_cache.sql` (never run → /api/pricepoint has NO L2
+  cache, every request re-fans-out ~16 RapidAPI calls) and migration 016
+  (Daily sold-date pill renders nothing until applied). Write API code to
+  tolerate the un-applied state (PGRST204 strip-and-retry, null-safe reads),
+  and ALWAYS remind Christo to run the SQL in the same message that ships it.
 - Light-mode contrast pass (Christo 2026-07-05): borders/separators/inputs
   are deliberately darker than 6% gray — keep it when touching LIGHT tokens.
 - Markets/PricePoint render inside MortgageBlueprint's shell (one root,
