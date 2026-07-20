@@ -17,6 +17,13 @@ export const config = { maxDuration: 30 };
 // ─── In-memory cache (persists across warm invocations) ───
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — property details don't change often
+// Negative-cache window for a FAILED enrichment. Without this, a row whose
+// upstream call failed is never persisted, so the pp_property_pool short-circuit
+// never engages and every later view re-bills the same doomed request. When the
+// provider quota runs out that becomes self-sustaining: failure guarantees more
+// failure, which is how the Redfin monthly quota went 85% → 100% in a day
+// (2026-07-19/20). 6h is short enough that a transient blip self-heals.
+const FAIL_TTL = 6 * 60 * 60 * 1000;
 
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -126,7 +133,11 @@ export default async function handler(req, res) {
   let zpid = req.query.zpid;
   const rcid = req.query.rcid;
   const address = req.query.address;
-  const skipCache = req.query.fresh === "1";
+  // fresh=1 bypasses L1, L2 AND the pp_property_pool short-circuit, forcing a
+  // live upstream call — i.e. it spends quota on demand. sold-comps already
+  // gates its equivalent flag behind isPrivileged; this route did not, leaving
+  // an unauthenticated way to burn the RapidAPI plan at 30 req/min/IP.
+  const skipCache = req.query.fresh === "1" && isPrivileged(req);
   if (!zpid && !(rcid && address)) {
     return res.status(400).json({ error: "zpid, or rcid + address, required" });
   }
@@ -159,9 +170,20 @@ export default async function handler(req, res) {
           .select("data, updated_at")
           .eq("cache_key", cacheKey)
           .maybeSingle();
+        const ageMs = row?.updated_at ? Date.now() - new Date(row.updated_at).getTime() : Infinity;
         if (readErr) {
           console.error(`[PropertyDetails] L2 read error (continuing): ${readErr.message}`);
-        } else if (row?.data?.photos?.length > 0 && Date.now() - new Date(row.updated_at).getTime() < CACHE_TTL) {
+        } else if (row?.data?.__enrichFailed && ageMs < FAIL_TTL) {
+          // Last attempt failed recently — serve the degraded shape and do NOT
+          // touch the provider. enrichPending tells the client this is a
+          // "not yet", not a "this property has no data".
+          console.error(`[PropertyDetails] negative-cache hit ${cacheKey} (${Math.round(ageMs / 60000)}m old) — skipping upstream`);
+          res.setHeader("Cache-Control", "no-store");
+          return res.status(200).json({
+            zpid: String(cacheKey), photos: [], description: "", listPrice: null,
+            photoCount: 0, enrichPending: true, source: "negative-cache",
+          });
+        } else if (row?.data?.photos?.length > 0 && ageMs < CACHE_TTL) {
           cache.set(cacheKey, { data: row.data, timestamp: Date.now() }); // re-warm L1
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
           return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
@@ -309,6 +331,32 @@ export default async function handler(req, res) {
           source: "redfin-detail",
         };
         if (out.photos.length > 0) cache.set(cacheKey, { timestamp: Date.now(), data: out });
+
+        // L2 write for Redfin rows. This branch returns here, well before the
+        // pp_details_cache upsert further down, so rf_ rows — the MAJORITY of
+        // the sold pool (154 of 250 Alameda) — were never covered by the L2
+        // cache at all, and every cold start re-paid for them.
+        //
+        // On failure we persist a marker instead, which is what actually stops
+        // the retry loop: pp_property_pool is only patched when upstreamOk, so
+        // without this a failed row re-bills on every single view.
+        try {
+          const supaD = getSupabaseAdmin();
+          if (supaD) {
+            const payload = upstreamOk && (out.photos.length > 0 || description)
+              ? out
+              : { __enrichFailed: true, reason: upstreamOk ? "empty-payload" : "upstream-error" };
+            const { error: wErr } = await supaD
+              .from("pp_details_cache")
+              .upsert({ cache_key: cacheKey, data: payload, updated_at: new Date().toISOString() },
+                      { onConflict: "cache_key" });
+            if (wErr) console.error(`[PropertyDetails] L2 write error (non-fatal): ${wErr.message}`);
+            else console.error(`[PropertyDetails] L2 ${payload.__enrichFailed ? "NEGATIVE" : "cached"} ${cacheKey}${payload.__enrichFailed ? ` (${payload.reason})` : ` (${out.photos.length} photos)`}`);
+          }
+        } catch (e) {
+          console.error(`[PropertyDetails] L2 write failed (non-fatal): ${e.message}`);
+        }
+
         res.setHeader("Cache-Control", description ? "s-maxage=86400, stale-while-revalidate=3600" : "no-store");
         return res.status(200).json(out);
       }
