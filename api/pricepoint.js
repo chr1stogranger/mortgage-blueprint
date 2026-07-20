@@ -517,9 +517,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // Don't CDN-cache debug/fresh requests
+    // Don't CDN-cache debug/fresh requests, or a run whose active fetch failed.
+    // Vercel's edge cache is the OUTERMOST layer and it honors this header, so
+    // an s-maxage=86400 on a bad result pins the failure at the CDN for 24h no
+    // matter what the L1/L2 layers do — the app keeps serving "0 active" even
+    // once the upstream recovers. Short TTL lets the next request re-fetch.
     if (skipCache) {
       res.setHeader("Cache-Control", "no-store");
+    } else if (!activeOk) {
+      res.setHeader("Cache-Control", "s-maxage=60");
     } else {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
     }
