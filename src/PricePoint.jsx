@@ -1327,6 +1327,26 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Property Details (lazy-fetched for Live mode: photos + description) ──
   const [propertyDetails, setPropertyDetails] = useState({}); // keyed by zpid
+
+  // Resolve the REAL original asking price for a listing.
+  //
+  // The sold pool's raw listPrice is usually a placeholder equal to soldPrice —
+  // ~90% of rf_/rc_ rows (measured Alameda 2026-07-19: 24 of 250 carried a
+  // genuine one). The enriched /api/propertydetails fetch DOES carry the true
+  // asking price; PropertyCard already prefers it, but the reveal was reading
+  // listing.listPrice directly, so "Listed for" almost never appeared even
+  // though the data was sitting in propertyDetails. Costs no extra API call —
+  // the details are already fetched for the card.
+  //
+  // Same test as the card: a list price equal to the sold price is not an
+  // anchor, it's the answer, so it never renders.
+  const trueListPrice = (lst) => {
+    if (!lst) return null;
+    const det = propertyDetails[lst.zpid];
+    const raw = lst.listPrice && lst.listPrice !== lst.soldPrice ? lst.listPrice : null;
+    const enriched = det?.listPrice && det.listPrice !== lst.soldPrice ? det.listPrice : null;
+    return raw || enriched;
+  };
   const [detailsLoading, setDetailsLoading] = useState(null); // zpid currently loading
   const detailsCacheRef = useRef({}); // persist across re-renders
 
@@ -1924,7 +1944,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const insight = getInsight(listing, pctOff, val > listing.soldPrice);
     const myAccuracy = parseFloat((100 - pctOff).toFixed(1));
     setChallengeResult({
-      guess: val, soldPrice: listing.soldPrice, listPrice: listing.listPrice,
+      guess: val, soldPrice: listing.soldPrice, listPrice: trueListPrice(listing),
       address: listing.address, neighborhood: listing.neighborhood,
       city: listing.city, state: listing.state, zip: listing.zip,
       beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
@@ -1999,7 +2019,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const propForInsight = { ...dailyProperty, soldPrice };
     const insight = getInsight(propForInsight, pctOffRound, val > soldPrice);
     const result = {
-      guess: val, soldPrice, listPrice: dailyProperty.listPrice,
+      guess: val, soldPrice, listPrice: trueListPrice({ ...dailyProperty, soldPrice }),
       address: dailyProperty.address, neighborhood: dailyProperty.neighborhood,
       city: dailyProperty.city, state: dailyProperty.state, zip: dailyProperty.zip,
       beds: dailyProperty.beds, baths: dailyProperty.baths, sqft: dailyProperty.sqft,
@@ -2115,7 +2135,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const insight = getInsight(listing, pctOff, val > listing.soldPrice);
     const pctOffRound = parseFloat(pctOff.toFixed(1));
     setFpResult({
-      guess: val, soldPrice: listing.soldPrice, listPrice: listing.listPrice,
+      guess: val, soldPrice: listing.soldPrice, listPrice: trueListPrice(listing),
       address: listing.address, neighborhood: listing.neighborhood,
       city: listing.city, state: listing.state, beds: listing.beds, baths: listing.baths,
       sqft: listing.sqft, photo: listing.photo, pctOff: pctOffRound,
