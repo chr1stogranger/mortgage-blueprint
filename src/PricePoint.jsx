@@ -1046,18 +1046,16 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
   const mapUrl = getStaticMapUrl(listing?.latitude, listing?.longitude);
   // Real photos first; else the single fallback photo; else let the map be
   // the hero (licensed sources like RentCast carry no photos); placeholder
-  // only when there's nothing else to show.
-  const basePhotos = photos && photos.length > 0 ? photos : (fallbackPhoto ? [fallbackPhoto] : (mapUrl ? [] : [NO_PHOTO]));
-  // Append map as last slide if lat/lng available
+  // only when there's nothing else to show. De-dupe by URL — some feeds repeat
+  // the hero shot, which otherwise rendered as "photo 2 = a copy of photo 1".
+  const basePhotos = photos && photos.length > 0 ? [...new Set(photos)] : (fallbackPhoto ? [fallbackPhoto] : (mapUrl ? [] : [NO_PHOTO]));
+  // Append the location map as the last slide when lat/lng exist. It's counted
+  // as a real slide (e.g. a lone photo + map reads "1 / 2" → "2 / 2") so people
+  // discover there's a location to swipe to; the LOCATION label + blue dot mark
+  // which slide it is.
   const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
-  const photoCount = basePhotos.length; // real photos only (for counter display)
   const count = allPhotos.length;
   const isMapSlide = mapUrl && idx === count - 1;
-  // Show the "X / N" counter only when there's genuinely more than one real
-  // photo. The appended map slide bumps `count` but isn't a photo, so a lone
-  // photo + map must NOT read as "1 / 2" — the map slide carries its own MAP
-  // label instead.
-  const showPager = count > 1 && (isMapSlide || photoCount > 1);
   const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
   const showHood = !hideHoodPill && !isMapSlide && listing && resolveNeighborhood(listing) !== "Unknown Area";
 
@@ -1114,9 +1112,9 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
         {isLoadingDetails && (
           <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
         )}
-        {showPager && (
+        {count > 1 && (
           <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-            {isMapSlide ? (<span style={{ display: "flex", alignItems: "center", gap: 4 }}><Icon name="map-pin" size={10} /> MAP</span>) : `${idx + 1} / ${photoCount}`}
+            {`${idx + 1} / ${count}`}
           </div>
         )}
         {/* Tapping the photo also opens this — the button is the discoverability cue. */}
@@ -1187,11 +1185,9 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
                 style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.14)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}><Icon name="chevron-left" size={22} /></button>
               <button onClick={(e) => { e.stopPropagation(); go("next"); }} aria-label="Next photo"
                 style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.14)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}><Icon name="chevron-right" size={22} /></button>
-              {showPager && (
-                <div style={{ position: "absolute", bottom: "max(20px, env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", background: "rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", borderRadius: 9999, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-                  {isMapSlide ? "MAP" : `${idx + 1} / ${photoCount}`}
-                </div>
-              )}
+              <div style={{ position: "absolute", bottom: "max(20px, env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", background: "rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", borderRadius: 9999, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
+                {`${idx + 1} / ${count}`}
+              </div>
             </>
           )}
         </div>
