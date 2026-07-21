@@ -268,10 +268,20 @@ const decodeEntities = (str) => String(str || "")
 // Free Play property-type filter options. Empty selection = all types.
 // 'Manufactured' plays under Single Family.
 const FP_TYPE_OPTIONS = ["Single Family", "Condo", "Townhouse", "Multi-Family"];
+// The pipeline emits BOTH spellings of the duplex type: "Multi Family" from the
+// Zillow-shaped routes (pricepoint, pp-daily, _address, sold-comps' Zillow
+// branch) and "Multi-Family" from listings.js / propertydetails / the Redfin
+// branch. A literal compare against the "Multi-Family" chip silently dropped
+// every space-spelled listing, so that filter looked like it returned nothing.
+// Canonicalize both sides: letters only, lowercased.
+const canonPropType = (t) => {
+  const s = String(t || "").toLowerCase().replace(/[^a-z]/g, "");
+  return s === "manufactured" ? "singlefamily" : (s || "singlefamily");
+};
 const fpTypeMatch = (sel, pt) => {
   if (!sel || sel.length === 0) return true;
-  const t = pt === "Manufactured" ? "Single Family" : (pt || "Single Family");
-  return sel.includes(t);
+  const t = canonPropType(pt);
+  return sel.some(s => canonPropType(s) === t);
 };
 
 // ── Value signals (Free Play / Live only) ──
@@ -1258,6 +1268,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const toggleFpType = (t) => setFpTypeSel(prev => {
     const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t];
     try { localStorage.setItem("pp-fp-types", JSON.stringify(next)); } catch { /* ignore */ }
+    return next;
+  });
+  // Live (For Sale) keeps its OWN type filter — the two modes are browsed
+  // independently, and inheriting a Sold-side "Condo only" into For Sale
+  // would silently shrink the active pool with no visible cause.
+  const [liveTypeSel, setLiveTypeSel] = useState(() => {
+    try { const v = JSON.parse(localStorage.getItem("pp-live-types") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+  });
+  const toggleLiveType = (t) => setLiveTypeSel(prev => {
+    const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t];
+    try { localStorage.setItem("pp-live-types", JSON.stringify(next)); } catch { /* ignore */ }
     return next;
   });
 
@@ -2368,7 +2389,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Live Mode — re-fetches if activeListings cache is empty ──
-  const enterLiveMode = async (zipFilter, hoodName) => {
+  // typeOverride: the picker passes the chips as they are AT TAP TIME, so a
+  // toggle-then-tap in the same frame can't apply a stale selection.
+  const enterLiveMode = async (zipFilter, hoodName, typeOverride) => {
+    const typeSel = typeOverride || liveTypeSel;
     // Switch to the Live view IMMEDIATELY so the tap feels responsive. Previously
     // we awaited the (sometimes 30s) /api/pricepoint fetch BEFORE switching views,
     // leaving the user on the picker with no feedback — the tap looked dead.
@@ -2392,6 +2416,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const alreadyGuessed = liveGuessedZpidsRef.current;
       let pool = src.filter(isTrueActive);
       if (zipGroup) pool = pool.filter(l => zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)));
+      // Property-type filter (multi-select; empty = all types)
+      pool = pool.filter(l => fpTypeMatch(typeSel, l.propertyType));
       // A listing you've already predicted is done — never re-serve it.
       pool = pool.filter(l => !l.zpid || !alreadyGuessed.has(String(l.zpid)));
       pool.sort(() => Math.random() - 0.5);
@@ -3892,7 +3918,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
                 <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
-                <div onClick={() => setView("livePicker")} style={{ fontSize: 13, color: T.red, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>{liveHoodName || "All"} <Icon name="chevron-right" size={12} /></div>
+                {/* Surfaces the active type filter — it persists across sessions,
+                    so a shrunken pool needs a visible cause. Tap → picker. */}
+                <div onClick={() => setView("livePicker")} style={{ fontSize: 13, color: T.red, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                  {liveHoodName || "All"}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? liveTypeSel[0] : `${liveTypeSel.length} types`}` : ""} <Icon name="chevron-right" size={12} />
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -4024,11 +4054,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>No active listings right now</div>
               <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 8, fontFamily: FONT, lineHeight: 1.5 }}>
-                We couldn't find active or pending listings in {locationLabel || market?.label || "your market"}.
+                We couldn't find {liveTypeSel.length > 0 ? liveTypeSel.join(" or ").toLowerCase() + " " : ""}
+                active or pending listings in {liveHoodName || locationLabel || market?.label || "your market"}.
               </div>
               <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
-                New listings drop daily — check back soon.
+                {liveTypeSel.length > 0 ? "The property-type filter may be too narrow." : "New listings drop daily — check back soon."}
               </div>
+              {/* The type filter persists across sessions, so an empty pool is
+                  often a filter left on days ago — offer the one-tap escape. */}
+              {liveTypeSel.length > 0 && (
+                <PillButton onClick={() => { setLiveTypeSel([]); try { localStorage.setItem("pp-live-types", "[]"); } catch { /* ignore */ } enterLiveMode(liveHoodFilter, liveHoodName, []); }}
+                  style={{ marginBottom: 10, background: T.red, color: "#fff" }}>Show All Property Types</PillButton>
+              )}
               <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Sold Instead</PillButton>
               <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
@@ -4066,11 +4103,29 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, fontFamily: FONT }}>Predict sale prices on active listings</div>
           </div>
 
+          {/* Property type multi-select (empty = all types) — mirrors the Sold
+              picker, in the For Sale accent. Tapping a neighborhood applies it. */}
+          <div style={{ marginBottom: IS_MOBILE ? 14 : 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Property Type</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {FP_TYPE_OPTIONS.map((t) => {
+                const on = liveTypeSel.includes(t);
+                return (
+                  <button key={t} onClick={() => toggleLiveType(t)}
+                    style={{ padding: "8px 14px", borderRadius: 9999, border: `1px solid ${on ? T.red : T.cardBorder}`, background: on ? `${T.red}1f` : T.card, color: on ? T.red : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", transition: "all 0.15s" }}>
+                    {on ? "✓ " : ""}{t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Neighborhoods</div>
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: 12 }}>
             {(LAUNCH_MARKETS.find(m => m.id === market?.id)?.neighborhoods || SF_NEIGHBORHOODS).map((hood, idx) => (
               <button
                 key={idx}
-                onClick={() => { enterLiveMode(hood.zip, hood.name); }}
+                onClick={() => { enterLiveMode(hood.zip, hood.name, liveTypeSel); }}
                 style={{
                   padding: "16px", borderRadius: 12, border: `1px solid ${T.cardBorder}`, background: T.card,
                   fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
