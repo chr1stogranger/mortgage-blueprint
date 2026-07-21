@@ -51,14 +51,18 @@ export default function RentVsBuyContent(props) {
  </Sec>
  <Sec title="But Buying Builds Wealth">
   <Card>
-   <MRow label="Monthly Tax Savings (Yr 1)" value={fmt(calc.monthlyTaxSavings)} />
+   {/* Reads the shared ladder (calc.netPostSaleExpense) rather than
+       re-deriving it — this used to inline the four-term expression and drift
+       from the same number shown in Payment Breakdown and Tax Savings. */}
+   {calc.ladderRentCredit > 0 && <MRow label="Monthly Rental Income (75%)" value={fmt(calc.ladderRentCredit)} />}
+   <MRow label="Monthly Tax Savings (Yr 1)" value={fmt(calc.ladderTaxSavings)} />
    <MRow label="Monthly Principal Paydown" value={fmt(calc.monthlyPrinReduction)} />
    <MRow label="Monthly Appreciation" value={fmt(calc.monthlyAppreciation)} />
    <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label="True Net Cost of Buying" value={fmt(calc.housingPayment - calc.monthlyTaxSavings - calc.monthlyPrinReduction - calc.monthlyAppreciation)} bold />
+    <MRow label="True Net Cost of Buying" value={fmt(calc.netPostSaleExpense)} bold />
     <MRow label="True Net Cost of Renting" value={fmt(rbCurrentRent)} bold />
    </div>
-   {(calc.housingPayment - calc.monthlyTaxSavings - calc.monthlyPrinReduction - calc.monthlyAppreciation) < rbCurrentRent && (
+   {calc.netPostSaleExpense < rbCurrentRent && (
     <Note color={T.green}>When you factor in tax savings, equity, and appreciation, buying is actually <strong>cheaper</strong> than renting!</Note>
    )}
   </Card>

@@ -1,6 +1,7 @@
 import { FONT } from "../lib/fonts.js";
 import React from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
+import NetPaymentLadder from "../components/NetPaymentLadder";
 
 
 export default function TaxContent(props) {
@@ -159,13 +160,12 @@ export default function TaxContent(props) {
  const combBefore = fedEffBefore + stEffBefore;
  const combAfter = fedEffAfter + stEffAfter;
 
- // Adjusted Housing walkdown
- const monthlyHousing = calc.housingPayment;
+ // The Adjusted Housing walkdown that used to be recomputed here now lives in
+ // components/NetPaymentLadder.jsx, fed by the calc memo. The local copy used
+ // unclamped savings and no HOH state brackets, so it drifted from
+ // computeTaxSavings — and from the same ladder shown under Payment Breakdown.
  const mFedSav = fedSav / 12;
  const mStateSav = stateSav / 12;
- const afterTaxCashFlow = monthlyHousing - mFedSav - mStateSav;
- const adjustedHousing = afterTaxCashFlow - calc.monthlyPrinReduction;
- const netPostSale = adjustedHousing - calc.monthlyAppreciation;
 
  const FILING_LABELS = { Single: "Single", MFJ: "Married, Joint", MFS: "Married, Separate", HOH: "Head of Household" };
 
@@ -445,49 +445,19 @@ export default function TaxContent(props) {
    </Sec>
   )}
 
-  {/* 7. Adjusted Housing Expense walkdown */}
+  {/* 7. Adjusted Housing Expense walkdown — same component, same numbers as
+      the Advanced disclosure under Payment Breakdown at the top of the app. */}
   <Sec title="Adjusted Housing Expense">
    <Card>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 14 }}>
-     <span style={{ color: T.text, fontWeight: 600 }}>Monthly Housing Expense</span>
-     <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(monthlyHousing)}</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.textSecondary }}>− Additional Federal Tax Savings</span>
-     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(mFedSav)}</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.textSecondary }}>− Additional State Tax Savings</span>
-     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(mStateSav)}</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 12px", borderRadius: 10, marginTop: 4, background: `${T.green}08`, fontSize: 14 }}>
-     <span style={{ color: T.text, fontWeight: 700 }}>After-Tax Monthly Payment (Cash Flow)</span>
-     <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(afterTaxCashFlow)}</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13, marginTop: 4 }}>
-     <span style={{ color: T.textSecondary }}>− Monthly Principal Reduction</span>
-     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(calc.monthlyPrinReduction)}</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 12px", borderRadius: 10, marginTop: 4, background: `${T.blue}08`, fontSize: 14 }}>
-     <span style={{ color: T.text, fontWeight: 700 }}>Adjusted Housing Expense</span>
-     <span style={{ fontFamily: FONT, fontWeight: 700, color: T.text }}>{fmt(adjustedHousing)}</span>
-    </div>
-    <div style={{ display: "grid", gridTemplateColumns: "auto 100px auto", alignItems: "center", padding: "10px 0 10px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13, marginTop: 4, gap: 8 }}>
-     <span style={{ color: T.textSecondary }}>Annual Appreciation Factor</span>
-     <input type="text" inputMode="decimal" value={appreciationRate}
-      onChange={e => { const v = parseFloat(e.target.value.replace(/[^0-9.]/g, "")); setAppreciationRate(isNaN(v) ? 0 : Math.min(v, 50)); }}
-      style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8, padding: "6px 10px", color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "right", width: "100%" }} />
-     <span style={{ fontSize: 12, color: T.textTertiary }}>%/yr</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 8px 16px", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.textSecondary }}>− Monthly Appreciation</span>
-     <span style={{ fontFamily: FONT, fontWeight: 600, color: T.green }}>−{fmt(calc.monthlyAppreciation)}</span>
-    </div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 14px", borderRadius: 12, marginTop: 8, background: netPostSale < 0 ? `${T.green}18` : `${T.green}08`, border: netPostSale < 0 ? `2px solid ${T.green}` : `1px solid ${T.green}22`, fontSize: 15 }}>
-     <span style={{ color: T.text, fontWeight: 700 }}>Net Post-Sale Housing Expense</span>
-     <span style={{ fontFamily: FONT, fontWeight: 800, color: netPostSale < 0 ? T.green : T.text, fontSize: 18, letterSpacing: "-0.02em" }}>{fmt(netPostSale)}</span>
-    </div>
-    {netPostSale < 0 && <Note color={T.green}>Negative means appreciation alone exceeds the net cost of housing — your home is generating wealth faster than it costs you.</Note>}
+    <NetPaymentLadder
+     T={T}
+     fmt={fmt}
+     calc={calc}
+     appreciationRate={appreciationRate}
+     setAppreciationRate={setAppreciationRate}
+     subjectRentalIncome={subjectRentalIncome}
+     variant="full"
+    />
    </Card>
   </Sec>
 

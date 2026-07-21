@@ -42,7 +42,7 @@ const STATE_PROPERTY_TAX_RATES = {
 };
 
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo"];
-const PROP_TYPES = ["Single Family", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
+const PROP_TYPES = ["Single Family", "Single Family with ADU", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
 const CONDO_TYPES = new Set(["Condo", "Townhouse"]);
 const CONF_LIMIT = 832750;
 

@@ -2,6 +2,7 @@ import { FONT } from "../lib/fonts.js";
 import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
+import NetPaymentLadder from "../components/NetPaymentLadder";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
 import { getPMIRate } from "../lib/finance.js";
@@ -121,7 +122,7 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
 
 export default function CalculatorContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -140,6 +141,7 @@ export default function CalculatorContent(props) {
   getHighBalLimit, UNIT_COUNT,
   propType, setPropType, PROP_TYPES,
   subjectRentalIncome, setSubjectRentalIncome,
+  appreciationRate, setAppreciationRate,
   propertyState, setPropertyState, setCity,
   propertyCounty, setPropertyCounty,
   STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES,
@@ -170,6 +172,10 @@ export default function CalculatorContent(props) {
   const [pmiExpanded, setPmiExpanded] = useState(false);
   const [piExpanded, setPiExpanded] = useState(false); // Principal & Interest split disclosure
   const [buydownExpanded, setBuydownExpanded] = useState(false); // Temporary buydown disclosure (B2)
+  // Advanced net-payment ladder (rent → tax savings → equity → appreciation).
+  // Closed at rest so the Payment Breakdown card keeps the fixed height that
+  // bottom-aligns it with Cash-to-Close on desktop.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   // Advanced PMI rate chart (LO-editable Radian matrix for the current FICO band).
   const [pmiChartOpen, setPmiChartOpen] = useState(false);
   // Live-rates popup — opens when user clicks the inline '✓ Live' pill in the Rate
@@ -985,6 +991,50 @@ export default function CalculatorContent(props) {
        letterSpacing: "-0.02em",
      }}>{fmt(calc.displayPayment)}/mo</div>
     </div>
+    {/* Advanced — the net-payment ladder. Lives BELOW the total band (inside
+        the same card) because the card body is height-locked to 5 rows to
+        bottom-align with Cash-to-Close; growing downward preserves that at
+        rest. The ladder descends from the total it sits under. */}
+    <div
+     onClick={() => setAdvancedOpen(!advancedOpen)}
+     title={advancedOpen ? "Hide the net-cost breakdown" : "Show what you actually pay after rent, tax savings and equity"}
+     style={{
+      borderTop: `1px solid ${T.separator}`,
+      padding: "11px 18px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      cursor: "pointer",
+      userSelect: "none",
+     }}
+    >
+     <span style={{ fontSize: 12, fontWeight: 700, color: T.blue, fontFamily: FONT }}>
+      Advanced
+      <span style={{ fontWeight: 500, color: T.textTertiary, marginLeft: 6 }}>
+       net cost after {calc.ladderRentCredit > 0 ? "rent, " : ""}tax savings &amp; equity
+      </span>
+     </span>
+     <span style={{
+      fontSize: 10, color: T.blue, lineHeight: 1,
+      transform: `rotate(${advancedOpen ? 180 : 0}deg)`,
+      transition: "transform 0.2s",
+     }}>▾</span>
+    </div>
+    {advancedOpen && (
+     <div style={{ padding: "4px 18px 16px" }}>
+      <NetPaymentLadder
+       T={T}
+       fmt={fmt}
+       calc={calc}
+       appreciationRate={appreciationRate}
+       setAppreciationRate={setAppreciationRate}
+       subjectRentalIncome={subjectRentalIncome}
+       includeEscrow={includeEscrow}
+       variant="compact"
+      />
+     </div>
+    )}
    </div>
    {(() => {
      // Guided step 9 gate: Tax caret must be expanded (when escrow shown) and
@@ -1189,14 +1239,23 @@ export default function CalculatorContent(props) {
  </div>
  {/* End Row 3 */}
 
- {/* Investment / multi-unit rental income block (preserved from original) */}
- {(loanPurpose === "Purchase Investment" || (loanPurpose === "Purchase Primary" && (UNIT_COUNT[propType] || 1) > 1)) && (
+ {/* Rental income block — an investment purchase, or a PRIMARY that has units
+     the borrower won't occupy: an SFR with an ADU, or a 2–4 unit they live in
+     (Christo 2026-07-21). calc.rentalUnits carries the count; a plain
+     SFR/condo primary is 0 and this block stays hidden. */}
+ {(() => {
+  const rentalUnits = calc.rentalUnits || 0;
+  const isAdu = propType === "Single Family with ADU";
+  const unitWord = rentalUnits > 1 ? "units" : "unit";
+  return (loanPurpose === "Purchase Investment" || (loanPurpose === "Purchase Primary" && rentalUnits > 0)) && (
   <div style={{ marginBottom: 16 }}>
-   <Inp label={loanPurpose === "Purchase Investment" ? "Expected Monthly Rent" : `Non-Occupying Unit Rent (${(UNIT_COUNT[propType] || 1) - 1} unit${(UNIT_COUNT[propType] || 1) - 1 > 1 ? "s" : ""})`}
+   <Inp label={loanPurpose === "Purchase Investment" ? "Expected Monthly Rent" : isAdu ? "ADU Rent" : `Non-Occupying Unit Rent (${rentalUnits} ${unitWord})`}
     value={subjectRentalIncome} onChange={setSubjectRentalIncome} prefix="$" suffix="/mo" max={50000}
     tip={loanPurpose === "Purchase Investment"
      ? "Expected gross monthly rent. Lenders use 75% of this to offset your PITIA (housing payment) for DTI qualification. If 75% of rent exceeds PITIA, the excess counts as income."
-     : `Total rent from the ${(UNIT_COUNT[propType] || 1) - 1} unit${(UNIT_COUNT[propType] || 1) - 1 > 1 ? "s" : ""} you won't live in. Lenders add 75% of this as qualifying income on top of your regular employment income.`
+     : isAdu
+     ? "Expected gross rent from the accessory dwelling unit. You still occupy the main house, so this stays a primary residence — lenders add 75% of the ADU rent as qualifying income. Confirm your loan program allows ADU income; agency rules vary."
+     : `Total rent from the ${rentalUnits} ${unitWord} you won't live in. You occupy one unit, so this is still a primary residence — lenders add 75% of this as qualifying income on top of your regular employment income.`
     } />
    {subjectRentalIncome > 0 && (
     <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 14px", marginTop: -4, border: `1px solid ${T.green}18` }}>
@@ -1211,13 +1270,14 @@ export default function CalculatorContent(props) {
      ) : (
       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
        <strong style={{ color: T.green }}>75% of rent: {fmt(subjectRentalIncome * 0.75)}/mo added as qualifying income</strong>
-       <span> — your total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong></span>
+       <span> — your total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong>, and it drops your net payment to <strong>{fmt(calc.netPayment)}/mo</strong> (see Advanced under Payment Breakdown).</span>
       </div>
      )}
     </div>
    )}
   </div>
- )}
+  );
+ })()}
 
  {/* State / City for property tax are set on the Setup tab — removed from Monthly Payment (redundant). */}
 
