@@ -2539,6 +2539,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setLiveSearchListing(null);
       setLiveSearchAddr("");
       setLiveSearchGuessInput("");
+      // The searched home is often IN the pool (the typeahead surfaces pool
+      // listings first), and it may be the very card the cursor is parked on.
+      // Re-seek from the current index — otherwise we land on a listing that
+      // is now guessed and the card area falsely renders "All caught up!"
+      // while the header still says N left.
+      setLiveIdx(prev => nextUnguessedLiveIdx(prev));
     } else {
       setLiveIdx(prev => nextUnguessedLiveIdx(prev + 1));
     }
