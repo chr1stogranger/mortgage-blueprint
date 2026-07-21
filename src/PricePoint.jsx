@@ -2442,6 +2442,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // draw them as "done"), so the card cursor walks past them instead. Wraps, so
   // jumping ahead via a map pin doesn't strand the ones you skipped. ──
   const isLiveGuessed = (l) => !!(l?.zpid && liveGuessedZpids.has(String(l.zpid)));
+
+  // Bias the address typeahead toward the market the player is actually in —
+  // the first pooled listing with coordinates is a good-enough centroid.
+  // Memoized: a new object each render would re-fire the geocoder effect.
+  const liveProximity = useMemo(() => {
+    const withGeo = liveListings.find(l => l?.latitude && l?.longitude);
+    return withGeo ? { lat: withGeo.latitude, lng: withGeo.longitude } : null;
+  }, [liveListings]);
   const liveRemaining = liveListings.filter(l => !isLiveGuessed(l)).length;
   const nextUnguessedLiveIdx = (from) => {
     const n = liveListings.length;
@@ -2559,12 +2567,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
 
-  // Places suggestion picked (when the Maps script is present) — rebuild the
-  // full "street, city, ST zip" string and run the same search.
+  // Geocoder suggestion picked (Mapbox, or Places if the Maps script ever
+  // loads) — rebuild the full "street, city, ST zip" string and run the same
+  // server lookup. The component has already written the input value.
   const handleLiveAddressSelect = (sel) => {
     const full = [sel.address, sel.city, [sel.state, sel.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
     setLiveSearchAddr(full);
     runLiveAddressSearch(full);
+  };
+
+  // A suggestion that came from the ALREADY-LOADED live pool: we hold the full
+  // listing, so render the card immediately — no /api/propertydetails call, no
+  // RapidAPI quota, no "couldn't find that address" risk.
+  const handleLiveListingSelect = (listing) => {
+    setLiveSearchError(null);
+    setLiveSearchGuessInput("");
+    setLiveSearchLoading(false);
+    setLiveSearchListing(listing);
   };
 
   const handleLiveSearchGuessInput = (e) => {
@@ -3907,6 +3926,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 onChange={(v) => { setLiveSearchAddr(v); if (liveSearchError) setLiveSearchError(null); }}
                 onSelect={handleLiveAddressSelect}
                 onSubmit={runLiveAddressSearch}
+                localSuggestions={liveListings}
+                onSelectLocal={handleLiveListingSelect}
+                localBadge="For sale"
+                proximity={liveProximity}
                 placeholder="Search any address…"
                 containerStyle={{ marginBottom: 0 }}
                 inputStyle={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, padding: "11px 18px", paddingRight: 40, color: T.text, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
