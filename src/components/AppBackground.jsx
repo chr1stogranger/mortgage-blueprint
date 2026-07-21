@@ -605,7 +605,7 @@ export default function AppBackground({ darkMode, paused, variant = "ribbons", c
       for (let r = 0; r < ribbons; r++) {
         const c = RIBBONS[r % RIBBONS.length];
         const isGold = (r % RIBBONS.length) === 2;      // ease gold so it warms, not shouts
-        const alpha = (dark ? 0.40 : 0.30) * (isGold ? 0.72 : 1);
+        const alpha = (dark ? 0.40 : 0.22) * (isGold ? 0.72 : 1);
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
         ctx.lineWidth = dpr;
         const ry = ((r + 0.5) / ribbons) * Hc;
