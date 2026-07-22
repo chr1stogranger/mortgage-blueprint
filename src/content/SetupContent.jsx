@@ -105,8 +105,13 @@ export default function SetupContent(props) {
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
       Experience Level
      </div>
+     {/* Standard sits on the LEFT (Christo 2026-07-21) — Standard + Purchase is
+         the everyday combination, so both defaults line up on the left edge and
+         the common path is a straight read down. Explicit order rather than
+         reordering SKILL_PRESETS, so the welcome modal keeps leading with
+         Guided for first-time visitors. */}
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-      {Object.entries(SKILL_PRESETS).map(([key, preset]) => (
+      {["standard", "guided"].filter(k => SKILL_PRESETS[k]).map(key => [key, SKILL_PRESETS[key]]).map(([key, preset]) => (
        <button key={key} onClick={() => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(); }}
         style={{ padding: "8px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
         <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>

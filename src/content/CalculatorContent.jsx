@@ -537,8 +537,12 @@ export default function CalculatorContent(props) {
               : ``) },
      { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
      { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
+    // marginBottom:0 overrides Card's baked-in 12px. Inside a grid cell that
+    // margin is phantom height — it kept these cards 12px short of their row
+    // while the pillar tiles opposite filled theirs, so the two rows shared a
+    // top edge but not a bottom one (Christo 2026-07-21).
     ]).map((m, i) => (
-     <Card key={i} pad={14} style={{ minHeight: 92, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+     <Card key={i} pad={14} style={{ minHeight: 92, marginBottom: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
       <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
       {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
