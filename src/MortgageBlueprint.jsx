@@ -715,7 +715,7 @@ function Spark({ data, color, w, h }) {
  const pts = data.map((v, i) => `${(i / (data.length - 1)) * width},${height - ((v - min) / range) * height}`).join(" ");
  return <svg width={width} height={height} style={{ display: "block" }}><polyline points={pts} fill="none" stroke={color || T.blue} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
-// Notification banners ride the glass standard — 75% opaque / 25% see-through
+// Notification banners ride the glass standard — 50% opaque / 50% see-through
 // (Christo 2026-07-21) — so the blueprint grid stops reading through them. The
 // accent stays a thin tint LAYERED OVER cardGlass, never the fill itself: at
 // 75% alpha the accent would swallow the same-colored text sitting on it.
