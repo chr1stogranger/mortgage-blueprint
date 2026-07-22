@@ -7,7 +7,7 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } fro
 import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
  getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, progressiveTax,
- computeTaxSavings, buildAmortization, computeProp19,
+ computeTaxSavings, computePassiveLossAllowance, buildAmortization, computeProp19,
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
 import { generateEstimateHtml } from "./lib/estimatePdf.js";
@@ -4459,6 +4459,26 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Cash flow charges only the rented share of debt service, to stay consistent
   // with the apportioned expenses above.
   const schedECashFlow = schedEGrossIncome - schedECashExpenses - (pi * 12 * rentalShare);
+  // ── §469 passive activity loss limitation ──
+  // Rental activity is passive by default. The $25,000 special allowance
+  // (§469(i)) requires active participation and PHASES OUT starting at $100K
+  // MAGI — 50¢ per dollar — reaching zero at $150K. The app previously implied
+  // a clean "under $150K gets $25K" rule, which overstates the benefit for
+  // anyone in the phase-out band and badly overstates it above $150K, where the
+  // allowance is zero and the loss simply suspends (Christo 2026-07-21).
+  //
+  // NOTE: paMagi is an APPROXIMATION. True MAGI for this test has add-backs and
+  // is computed before the passive loss itself; yearlyInc is qualifying income
+  // annualized. Close enough to drive the phase-out, not close enough to
+  // present as a tax figure — the UI labels it as an estimate.
+  const paMagi = yearlyInc;
+  const schedELoss = Math.max(0, -schedENetIncome);
+  // Formula lives in lib/finance.js per that file's own rule — every money
+  // formula belongs there, where it's pure and unit-tested.
+  const {
+   allowance: paAllowance, deductibleNow: paDeductibleNow, suspended: paSuspended,
+   phaseOutStart: paPhaseOutStart, phaseOutEnd: paPhaseOutEnd, maxAllowance: paMaxAllowance,
+  } = computePassiveLossAllowance({ magi: paMagi, loss: schedELoss, married });
   const netPostSaleExpense = adjustedHousingExpense - monthlyAppreciation;
   const refiNewMr = mr;
   const refiNewPi = calcPI(refiNewLoanAmt, rate, term);
@@ -4627,6 +4647,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ladderRentCredit, netPayment, ladderTaxSavings, afterTaxPayment, monthlyPrinReduction, monthlyAppreciation, adjustedHousingExpense, netPostSaleExpense,
    schedEGrossIncome, schedEDepreciation, schedEMgmt, schedECashExpenses, schedETotalExpenses, schedENetIncome, schedECashFlow,
    schedEGrossRent, schedEVacancy, schedETax, schedEIns, schedEHoa, schedEMI, schedEInterest,
+   paMagi, paAllowance, paPhaseOutStart, paPhaseOutEnd, paMaxAllowance, schedELoss, paDeductibleNow, paSuspended,
    rentalSharePct, rentalShare, personalUseShare, defaultRentalSharePct, improvementPct, depreciableBasis, assessedTotal,
    yearlyMortInt, yearlyIns, monthlyHOA: hoa,
    refiCalcPI, refiMonthsElapsed, refiCalcRemainingMonths, refiCalcBalance, refiMinBalance,

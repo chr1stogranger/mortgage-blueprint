@@ -639,3 +639,45 @@ export function computeProp19({ replacementPrice, autoCountyRate, rateOverridePc
    warnings,
   };
 }
+
+/**
+ * §469(i) passive activity loss allowance for rental real estate.
+ *
+ * Rental activity is passive by default (§469(c)(2)). The special allowance
+ * lets an ACTIVELY participating owner deduct up to $25,000 of rental loss
+ * against ordinary income — but it phases out at 50¢ per dollar of MAGI above
+ * a threshold, reaching zero $50,000 later. Disallowed losses are NOT lost:
+ * they suspend and carry forward indefinitely, releasing against future
+ * passive income or on a fully taxable disposition of the activity.
+ *
+ * Married-filing-separately is halved and starts phasing out at half the
+ * income — and is zero outright for a couple who lived together at any point
+ * in the year, which we cannot detect, so callers get the living-apart figure
+ * and the UI says to confirm it.
+ *
+ * @param {object} p
+ * @param {number} p.magi  modified AGI (approximate is fine — see caller)
+ * @param {number} p.loss  the Schedule E loss as a POSITIVE number
+ * @param {"Single"|"MFJ"|"MFS"|"HOH"} [p.married] filing status
+ * @returns {{allowance:number, deductibleNow:number, suspended:number, phaseOutStart:number, phaseOutEnd:number, maxAllowance:number}}
+ */
+export function computePassiveLossAllowance({ magi, loss, married = "Single" }) {
+  const isMFS = married === "MFS";
+  const maxAllowance = isMFS ? 12500 : 25000;
+  const phaseOutStart = isMFS ? 50000 : 100000;
+  // The allowance burns off at 50 cents per dollar, so the band is always
+  // twice the allowance wide.
+  const phaseOutEnd = phaseOutStart + maxAllowance * 2;
+  const m = Math.max(0, Number(magi) || 0);
+  const l = Math.max(0, Number(loss) || 0);
+  const allowance = Math.max(0, Math.min(maxAllowance, maxAllowance - 0.5 * Math.max(0, m - phaseOutStart)));
+  const deductibleNow = Math.min(l, allowance);
+  return {
+    allowance,
+    deductibleNow,
+    suspended: Math.max(0, l - deductibleNow),
+    phaseOutStart,
+    phaseOutEnd,
+    maxAllowance,
+  };
+}

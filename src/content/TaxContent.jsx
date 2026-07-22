@@ -3,6 +3,7 @@ import React from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import NetPaymentLadder from "../components/NetPaymentLadder";
 import SchedEInputs from "../components/SchedEInputs";
+import PassiveLossNote from "../components/PassiveLossNote";
 
 
 export default function TaxContent(props) {
@@ -102,9 +103,10 @@ export default function TaxContent(props) {
       <MRow label="Net Rental Income (Loss)" value={fmt(calc.schedENetIncome)} color={calc.schedENetIncome < 0 ? T.green : T.text} bold />
       {calc.schedENetIncome < 0 && (
        <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, marginTop: 8 }}>
-        A paper loss of <strong style={{ color: T.green }}>{fmt(Math.abs(calc.schedENetIncome))}</strong> may be deductible against other income if your AGI is under $150K (up to $25K passive loss allowance). This can reduce your tax bill even though the property generates positive cash flow after adding back depreciation.
+        Depreciation is a non-cash deduction, so a paper loss can sit alongside positive cash flow. Whether the loss is usable <em>this year</em> is a separate question — §469 below.
        </div>
       )}
+      <PassiveLossNote T={T} fmt={fmt} calc={calc} />
      </div>
     </Card>
    </Sec>
@@ -526,11 +528,19 @@ export default function TaxContent(props) {
       <MRow label="Net Rental Income (Loss)" value={fmt(calc.schedENetIncome)} color={calc.schedENetIncome < 0 ? T.green : T.text} bold />
       {calc.schedENetIncome < 0 && (
        <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, marginTop: 8 }}>
-        A paper loss of <strong style={{ color: T.green }}>{fmt(Math.abs(calc.schedENetIncome))}</strong> may offset other income if your AGI is under $150K (up to the $25K passive loss allowance). Depreciation is a non-cash deduction, so this loss can coexist with positive cash flow.
+        Depreciation is a non-cash deduction, so a paper loss can sit alongside positive cash flow. Whether it&rsquo;s usable <em>this year</em> is a separate question — §469 below.
        </div>
       )}
+      <PassiveLossNote T={T} fmt={fmt} calc={calc} />
      </div>
-     <Note color={T.orange}>Owner-occupied rentals have their own traps — the personal-use portion of a loss is not deductible, and depreciation is recaptured on sale. Have your CPA confirm the split before filing.</Note>
+     {/* The old note here claimed the personal-use portion of a loss isn't
+         deductible. That's the §280A vacation-home rule, and it generally does
+         NOT apply when you occupy one unit and rent a separate one — your unit
+         isn't personal use of the rental unit. §469 is what actually limits the
+         loss, and it's covered above. (Corrected 2026-07-21.) */}
+     <Note color={T.orange}>
+      Each unit is normally its own dwelling unit, so occupying one doesn&rsquo;t trigger the §280A vacation-home limits — but that turns on the units being genuinely separate, and depreciation is recaptured on sale. Have your CPA confirm the allocation method and the unit treatment before filing.
+     </Note>
     </Card>
    </Sec>
   )}

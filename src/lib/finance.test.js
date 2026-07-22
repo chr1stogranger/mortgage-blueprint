@@ -11,7 +11,7 @@ import {
   calcPI, calcBalance, balanceAfter, computeLTV, computeDTI,
   getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly,
   computeTaxSavings, buildAmortization, computeProp19, calcTempBuydown,
-  computeIncomeMethods, isDecliningIncome,
+  computeIncomeMethods, isDecliningIncome, computePassiveLossAllowance,
 } from "./finance.js";
 
 // ── 1. P&I — standard formula + 0%-rate guard ───────────────────────────────
@@ -290,4 +290,50 @@ describe("computeIncomeMethods", () => {
     const m = computeIncomeMethods({ ytd: 5000, py1: 60000, py2: 0, monthsElapsed: 0 });
     expect(m["1Y_YTD"]).toBe((60000 + 60000) / 2); // ytdAnn = 5000×12/1
   });
+});
+
+describe("computePassiveLossAllowance (§469i)", () => {
+ const run = (magi, loss = 50000, married = "MFJ") => computePassiveLossAllowance({ magi, loss, married });
+
+ it("gives the full $25K below the phase-out", () => {
+  expect(run(80000).allowance).toBe(25000);
+  expect(run(100000).allowance).toBe(25000);
+ });
+
+ it("burns off at 50 cents per dollar through the band", () => {
+  expect(run(110000).allowance).toBe(20000);
+  expect(run(130000).allowance).toBe(10000);
+  expect(run(140000).allowance).toBe(5000);
+ });
+
+ it("is zero at and above $150K — the case the old copy got wrong", () => {
+  expect(run(150000).allowance).toBe(0);
+  expect(run(162000).allowance).toBe(0);
+  expect(run(500000).allowance).toBe(0);
+ });
+
+ it("suspends whatever it cannot deduct, losing nothing", () => {
+  const r = run(162000, 76904);
+  expect(r.deductibleNow).toBe(0);
+  expect(r.suspended).toBe(76904);
+  const mid = run(130000, 76904);
+  expect(mid.deductibleNow + mid.suspended).toBe(76904);
+ });
+
+ it("never deducts more than the loss itself", () => {
+  const r = run(80000, 4000);
+  expect(r.deductibleNow).toBe(4000);
+  expect(r.suspended).toBe(0);
+ });
+
+ it("halves the allowance and the band for MFS", () => {
+  expect(run(40000, 50000, "MFS").allowance).toBe(12500);
+  expect(run(60000, 50000, "MFS").allowance).toBe(7500);
+  expect(run(75000, 50000, "MFS").allowance).toBe(0);
+ });
+
+ it("handles a zero loss and junk input without throwing", () => {
+  expect(run(120000, 0).deductibleNow).toBe(0);
+  expect(computePassiveLossAllowance({ magi: NaN, loss: NaN }).suspended).toBe(0);
+ });
 });
