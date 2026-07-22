@@ -491,19 +491,22 @@ export default function CalculatorContent(props) {
       </button>
      );
      if (isRefi) {
+      // Stacked vertically, Insurance above Taxes (Christo 2026-07-22) — the
+      // side-by-side pair read as one control. Labels right-align against the
+      // knobs so the two rows line up.
       return (
-       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "4px 6px 10px", width: "100%", flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, padding: "4px 6px 10px", width: "100%" }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1, paddingTop: 3 }}>
          Escrow on new loan
         </span>
-        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Taxes</span>
-          <Knob on={refiNewEscrowTax} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowTax ? "Taxes escrowed on the new loan" : "Taxes paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowTax(!refiNewEscrowTax); }} />
-         </span>
-         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Insurance</span>
           <Knob on={refiNewEscrowIns} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowIns ? "Insurance escrowed on the new loan" : "Insurance paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowIns(!refiNewEscrowIns); }} />
+         </span>
+         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Taxes</span>
+          <Knob on={refiNewEscrowTax} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowTax ? "Taxes escrowed on the new loan" : "Taxes paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowTax(!refiNewEscrowTax); }} />
          </span>
         </div>
        </div>
