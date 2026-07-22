@@ -426,9 +426,16 @@ export function progressiveTax(taxableIncome, brackets) {
  * @param {number} p.yearlyTax  annual property tax ($)
  * @param {number} p.loan       total loan amount ($)
  * @param {number} p.rate       annual interest rate in percent
+ * @param {number} [p.schedAShare=1] Fraction of property tax and mortgage
+ *   interest that belongs on SCHEDULE A (personal use). On an owner-occupied
+ *   duplex the borrower lives in half the building, so only half the tax and
+ *   interest are itemized deductions — the rented half is a Schedule E expense
+ *   instead, and double-counting it here would overstate the tax savings.
+ *   1 = fully personal (a plain primary residence). 0 = pure investment.
  * @returns {object} every intermediate + totalTaxSavings (≥ 0)
  */
-export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate }) {
+export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate, schedAShare = 1 }) {
+  const share = Math.max(0, Math.min(1, Number(schedAShare) ?? 1));
   const fedBrackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
   const fedStdDeduction = FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single;
   const stInfo = STATE_TAX[taxState] || { type: "none" };
@@ -446,14 +453,18 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
   const saltCap = yearlyInc > saltPhaseoutStart
     ? Math.max(saltFloor, Math.round(saltBase - 0.30 * (yearlyInc - saltPhaseoutStart)))
     : saltBase;
-  const fedPropTax = Math.min(yearlyTax, saltCap);
+  // Only the personal-use portion is itemized, and the SALT cap applies to that
+  // portion alone — the rental share leaves via Schedule E, which SALT doesn't cap.
+  const schedATax = yearlyTax * share;
+  const fedPropTax = Math.min(schedATax, saltCap);
   const mortIntDeductLimit = married === "MFS" ? 375000 : 750000;
   const deductibleLoanPct = loan > 0 ? Math.min(1, mortIntDeductLimit / loan) : 1;
   const totalMortInt = loan * (rate / 100);
-  const fedMortInt = totalMortInt * deductibleLoanPct;
+  const schedAMortInt = totalMortInt * share;
+  const fedMortInt = schedAMortInt * deductibleLoanPct;
   const fedItemized = fedPropTax + fedMortInt;
-  const stateMortInt = totalMortInt;
-  const stateItemized = yearlyTax + stateMortInt;
+  const stateMortInt = schedAMortInt;
+  const stateItemized = schedATax + stateMortInt;
   const fedTaxableIncome = yearlyInc - Math.max(fedStdDeduction, fedItemized);
   const fedTaxBefore = progressiveTax(yearlyInc - fedStdDeduction, fedBrackets);
   const fedTaxAfter = progressiveTax(fedTaxableIncome, fedBrackets);
@@ -506,6 +517,7 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
   return {
    fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit,
    totalMortInt, deductibleLoanPct, fedMortInt, fedItemized, stateMortInt, stateItemized,
+   schedATax, schedAMortInt, schedAShare: share,
    fedTaxBefore, fedTaxAfter, fedSavings, stateTaxBefore, stateTaxAfter, stateSavings,
    totalTaxSavings, fedDelta, fedItemizes, stateDelta, stateItemizes,
    fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,

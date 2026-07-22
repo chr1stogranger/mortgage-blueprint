@@ -1421,6 +1421,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [married, setMarried] = useState("Single");
  const [taxState, setTaxState] = useState("California");
  const [appreciationRate, setAppreciationRate] = useState(3);
+ // ── Schedule E modeler ──
+ // Assessed land / improvement values, read off the client's property tax bill.
+ // Both 0 = fall back to a 50/50 split (Christo 2026-07-21) — a neutral starting
+ // point, not a claim about the property. Only the RATIO is used; it's applied
+ // to the purchase price, because depreciable basis is what you paid, allocated
+ // the way the assessor allocates, not the assessed dollars themselves.
+ const [assessedLand, setAssessedLand] = useState(0);
+ const [assessedImprovements, setAssessedImprovements] = useState(0);
+ // Rental share of an owner-occupied multi-unit, as a percent. Drives BOTH the
+ // Schedule A / Schedule E split and the depreciable portion. Defaults to unit
+ // count (duplex 50, triplex 67, fourplex 75) but is editable — an ADU is
+ // nowhere near half the square footage, and an owner's unit is often larger.
+ const [rentalSharePctOverride, setRentalSharePctOverride] = useState(null);
+ const [schedEVacancyPct, setSchedEVacancyPct] = useState(5);
+ const [schedEMgmtPct, setSchedEMgmtPct] = useState(10);
  const [sellPrice, setSellPrice] = useState(1000000);
  const [sellMortgagePayoff, setSellMortgagePayoff] = useState(0);
  const [sellCommission, setSellCommission] = useState(5);
@@ -4229,6 +4244,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const investRentalOffset = isInvestment ? subjectRent75 : 0;
   // Rental primary (ADU or 2–4 unit): 75% of non-occupying rents added as qualifying income
   const multiUnitRentalIncome = isRentalPrimary ? subjectRent75 : 0;
+  // ── Schedule A / Schedule E apportionment ──
+  // How much of the building is rented out. A pure investment is 100%; an
+  // owner-occupied duplex is 50% by unit count, a triplex with one unit
+  // occupied is 67%, a fourplex 75%. Editable, because unit count is a proxy
+  // for square footage and a poor one for an ADU.
+  const defaultRentalSharePct = isInvestment ? 100 : (units > 1 ? Math.round((rentalUnits / units) * 100) : (rentalUnits > 0 ? 33 : 0));
+  const rentalSharePct = isInvestment ? 100
+   : (!isRentalPrimary ? 0
+   : (rentalSharePctOverride === null ? defaultRentalSharePct : Math.max(0, Math.min(100, Number(rentalSharePctOverride) || 0))));
+  const rentalShare = rentalSharePct / 100;
+  // The other side of the same building. Schedule A only ever sees this much of
+  // the property tax and mortgage interest.
+  const personalUseShare = 1 - rentalShare;
   const qualifyingIncome = monthlyIncome + reoPositiveIncome + multiUnitRentalIncome + (investRentalOffset > 0 ? investRentalOffset : 0);
   const annualIncome = qualifyingIncome * 12;
   const totalAssetValue = assets.reduce((s, a) => s + (a.value || 0), 0);
@@ -4372,11 +4400,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const {
    fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit,
    totalMortInt, deductibleLoanPct, fedMortInt, fedItemized, stateMortInt, stateItemized,
+   schedATax, schedAMortInt,
    fedTaxBefore, fedTaxAfter, fedSavings, stateTaxBefore, stateTaxAfter, stateSavings,
    totalTaxSavings, fedDelta, fedItemizes, stateDelta, stateItemizes,
    fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
    fedTaxableBeforeDelta, stTaxableBeforeDelta,
-  } = computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate });
+  } = computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate, schedAShare: personalUseShare });
   const monthlyTaxSavings = totalTaxSavings / 12;
   // ── Net-payment ladder — SINGLE SOURCE OF TRUTH ──
   // Rendered by components/NetPaymentLadder.jsx in two places (the Advanced
@@ -4400,16 +4429,36 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const adjustedHousingExpense = afterTaxPayment - monthlyPrinReduction;
   // ── Schedule E (Investment Property) Pro Forma ──
   const schedEGrossRent = subjectRentalIncome * 12;
-  const schedEVacancy = Math.round(schedEGrossRent * 0.05);
+  const schedEVacancy = Math.round(schedEGrossRent * (schedEVacancyPct / 100));
   const schedEGrossIncome = schedEGrossRent - schedEVacancy;
-  const schedEDepreciation = Math.round((salesPrice * 0.8) / 27.5); // 80% building / 27.5yr
-  const schedEMgmt = Math.round(schedEGrossIncome * 0.10); // 10% management + maintenance
+  // ── Depreciable basis ──
+  // Land is never depreciable, so only the improvement portion counts. The
+  // allocation comes from the assessor's own land/improvement split on the tax
+  // bill — the ratio is applied to the PURCHASE PRICE (what was actually paid),
+  // which is the standard method; the assessed dollars themselves are usually
+  // far off market and are only used to derive the percentage. With nothing
+  // entered we fall back to 50/50 rather than guessing at the property.
+  const assessedTotal = (Number(assessedLand) || 0) + (Number(assessedImprovements) || 0);
+  const improvementPct = assessedTotal > 0 ? (Number(assessedImprovements) || 0) / assessedTotal : 0.5;
+  const depreciableBasis = salesPrice * improvementPct * rentalShare;
+  const schedEDepreciation = Math.round(depreciableBasis / 27.5); // straight line, 27.5 yr
+  const schedEMgmt = Math.round(schedEGrossIncome * (schedEMgmtPct / 100));
   const yearlyMortInt = totalMortInt;
   const yearlyIns = ins * 12;
-  const schedECashExpenses = yearlyTax + yearlyIns + (hoa * 12) + (monthlyMI * 12) + schedEMgmt;
-  const schedETotalExpenses = schedECashExpenses + yearlyMortInt + schedEDepreciation;
+  // Every carrying cost is apportioned: only the rented share of tax, insurance,
+  // HOA, MI and interest is a Schedule E expense. The rest went to Schedule A
+  // above (via schedAShare), so nothing is deducted twice.
+  const schedETax = yearlyTax * rentalShare;
+  const schedEIns = yearlyIns * rentalShare;
+  const schedEHoa = hoa * 12 * rentalShare;
+  const schedEMI = monthlyMI * 12 * rentalShare;
+  const schedEInterest = yearlyMortInt * rentalShare;
+  const schedECashExpenses = schedETax + schedEIns + schedEHoa + schedEMI + schedEMgmt;
+  const schedETotalExpenses = schedECashExpenses + schedEInterest + schedEDepreciation;
   const schedENetIncome = schedEGrossIncome - schedETotalExpenses;
-  const schedECashFlow = schedEGrossIncome - schedECashExpenses - (pi * 12);
+  // Cash flow charges only the rented share of debt service, to stay consistent
+  // with the apportioned expenses above.
+  const schedECashFlow = schedEGrossIncome - schedECashExpenses - (pi * 12 * rentalShare);
   const netPostSaleExpense = adjustedHousingExpense - monthlyAppreciation;
   const refiNewMr = mr;
   const refiNewPi = calcPI(refiNewLoanAmt, rate, term);
@@ -4571,12 +4620,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose, emdAmt, emdCredit,
    reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
-   stateMortInt, stateItemized, fedTaxBefore, fedTaxAfter, fedSavings,
+   stateMortInt, stateItemized, schedATax, schedAMortInt, fedTaxBefore, fedTaxAfter, fedSavings,
    stateTaxBefore, stateTaxAfter, stateSavings, totalTaxSavings, monthlyTaxSavings,
    fedDelta, fedItemizes, stateDelta, stateItemizes, fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
    fedTaxableBeforeDelta, stTaxableBeforeDelta,
    ladderRentCredit, netPayment, ladderTaxSavings, afterTaxPayment, monthlyPrinReduction, monthlyAppreciation, adjustedHousingExpense, netPostSaleExpense,
    schedEGrossIncome, schedEDepreciation, schedEMgmt, schedECashExpenses, schedETotalExpenses, schedENetIncome, schedECashFlow,
+   schedEGrossRent, schedEVacancy, schedETax, schedEIns, schedEHoa, schedEMI, schedEInterest,
+   rentalSharePct, rentalShare, personalUseShare, defaultRentalSharePct, improvementPct, depreciableBasis, assessedTotal,
    yearlyMortInt, yearlyIns, monthlyHOA: hoa,
    refiCalcPI, refiMonthsElapsed, refiCalcRemainingMonths, refiCalcBalance, refiMinBalance,
    refiEffPI, refiEffBalance, refiEffRemaining,
@@ -4602,7 +4653,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
- }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, subjectRentalIncome,
+ }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, subjectRentalIncome, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   customFees, hiddenFees,
@@ -6000,7 +6051,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
-{tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
+{tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
 {tab === "prop19" && <Prop19Content {...{T, isDesktop, fmt, prop19, prop19Eligibility, setProp19Eligibility, prop19OldTaxableValue, setProp19OldTaxableValue, prop19OldSalePrice, setProp19OldSalePrice, prop19SaleDate, setProp19SaleDate, prop19PurchaseDate, setProp19PurchaseDate, prop19TransfersUsed, setProp19TransfersUsed, city, propertyCounty, prop19RateOverride, setProp19RateOverride, fixedAssessments, setFixedAssessments, Hero, Card, Sec, Inp, Note, MRow}} />}
 {/* ═══ SELLER NET ═══ */}
@@ -6266,6 +6317,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    payExtra, setPayExtra, extraPayment, setExtraPayment,
    amortView, setAmortView,
    appreciationRate, setAppreciationRate,
+   /* Schedule E modeler — must be here too, not only in the tab==="tax"
+      spread: Overview renders TaxContent through this object, so anything
+      missing here silently arrives undefined (vacancy read 0% instead of 5%). */
+   assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements,
+   rentalSharePctOverride, setRentalSharePctOverride,
+   schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct,
    /* Sell */
    sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff,
    sellLinkedReoId, setSellLinkedReoId,

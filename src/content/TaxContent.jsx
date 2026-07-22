@@ -2,14 +2,18 @@ import { FONT } from "../lib/fonts.js";
 import React from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import NetPaymentLadder from "../components/NetPaymentLadder";
+import SchedEInputs from "../components/SchedEInputs";
 
 
 export default function TaxContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "assessedLand", "setAssessedLand", "assessedImprovements", "setAssessedImprovements", "rentalSharePctOverride", "setRentalSharePctOverride", "schedEVacancyPct", "setSchedEVacancyPct", "schedEMgmtPct", "setSchedEMgmtPct", "propType", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton"]);
   const {
   T, isDesktop, calc, fmt,
   loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate,
+  assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements,
+  rentalSharePctOverride, setRentalSharePctOverride,
+  schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, propType,
   married, setMarried, FILING_STATUSES,
   taxState, setTaxState, STATE_NAMES,
   STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION,
@@ -52,6 +56,20 @@ export default function TaxContent(props) {
     <div style={{ fontSize: 24, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em", color: calc.schedECashFlow >= 0 ? T.green : T.red }}>{fmt(calc.schedECashFlow)}<span style={{ fontSize: 13, color: T.textTertiary }}>/yr</span></div>
     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{fmt(calc.schedECashFlow / 12)}/mo before taxes</div>
    </Card>
+   {/* The rail used to stop here, stranding most of a viewport of empty
+       canvas. The controls that drive the pro forma on the right belong
+       here — inputs left, results right (Christo 2026-07-21). */}
+   <Card pad={16} style={{ marginTop: 16 }}>
+    <SchedEInputs
+     T={T} fmt={fmt} calc={calc}
+     assessedLand={assessedLand} setAssessedLand={setAssessedLand}
+     assessedImprovements={assessedImprovements} setAssessedImprovements={setAssessedImprovements}
+     rentalSharePctOverride={rentalSharePctOverride} setRentalSharePctOverride={setRentalSharePctOverride}
+     schedEVacancyPct={schedEVacancyPct} setSchedEVacancyPct={setSchedEVacancyPct}
+     schedEMgmtPct={schedEMgmtPct} setSchedEMgmtPct={setSchedEMgmtPct}
+     isOwnerOccupied={false}
+    />
+   </Card>
   </div>
   <div style={isDesktop ? { width: "50%", flexShrink: 0, minWidth: 0 } : {}}>
    <Sec title="Schedule E Pro Forma">
@@ -63,19 +81,19 @@ export default function TaxContent(props) {
      <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Gross Rental Income</div>
      <MRow label="Monthly Rent" value={fmt(subjectRentalIncome)} />
      <MRow label="Annual Gross Rent" value={fmt(subjectRentalIncome * 12)} bold />
-     <MRow label="Vacancy (5%)" value={`-${fmt(Math.round(subjectRentalIncome * 12 * 0.05))}`} color={T.red} />
+     <MRow label={`Vacancy (${schedEVacancyPct}%)`} value={`-${fmt(calc.schedEVacancy)}`} color={T.red} />
      <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 16 }}>
       <MRow label="Effective Gross Income" value={fmt(calc.schedEGrossIncome)} bold />
      </div>
      {/* Expenses */}
      <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Deductible Expenses</div>
-     <MRow label="Mortgage Interest (Yr 1)" value={fmt(calc.yearlyMortInt)} />
-     <MRow label="Property Tax" value={fmt(calc.yearlyTax)} />
-     <MRow label="Insurance" value={fmt(calc.yearlyIns)} />
-     {calc.monthlyHOA > 0 && <MRow label="HOA" value={fmt(calc.monthlyHOA * 12)} />}
-     {calc.monthlyMI > 0 && <MRow label="Mortgage Insurance" value={fmt(calc.monthlyMI * 12)} />}
-     <MRow label="Depreciation (27.5 yr)" value={fmt(calc.schedEDepreciation)} tip="Only the building value is depreciated — land is excluded. Estimated at 80% of purchase price ÷ 27.5 years." />
-     <MRow label="Mgmt & Maintenance (10%)" value={fmt(calc.schedEMgmt)} />
+     <MRow label="Mortgage Interest (Yr 1)" value={fmt(calc.schedEInterest)} tip={calc.rentalSharePct < 100 ? `${calc.rentalSharePct}% of ${fmt(calc.yearlyMortInt)} — the rented share. The other ${100 - calc.rentalSharePct}% is itemized on Schedule A.` : undefined} />
+     <MRow label="Property Tax" value={fmt(calc.schedETax)} tip={calc.rentalSharePct < 100 ? `${calc.rentalSharePct}% of ${fmt(calc.yearlyTax)} — the rented share. The rest goes on Schedule A, where the SALT cap applies.` : undefined} />
+     <MRow label="Insurance" value={fmt(calc.schedEIns)} />
+     {calc.schedEHoa > 0 && <MRow label="HOA" value={fmt(calc.schedEHoa)} />}
+     {calc.schedEMI > 0 && <MRow label="Mortgage Insurance" value={fmt(calc.schedEMI)} />}
+     <MRow label="Depreciation (27.5 yr)" value={fmt(calc.schedEDepreciation)} tip={`Land is never depreciable. Improvement ratio ${Math.round((calc.improvementPct||0)*100)}% ${calc.assessedTotal > 0 ? "from the assessed values you entered" : "(placeholder 50/50 — enter assessed values)"}, applied to the purchase price${calc.rentalSharePct < 100 ? `, then the ${calc.rentalSharePct}% rented share` : ""} ÷ 27.5 years.`} />
+     <MRow label={`Mgmt & Maintenance (${schedEMgmtPct}%)`} value={fmt(calc.schedEMgmt)} />
      <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 16 }}>
       <MRow label="Total Expenses" value={fmt(calc.schedETotalExpenses)} bold />
      </div>
@@ -94,7 +112,7 @@ export default function TaxContent(props) {
     <Card>
      <MRow label="Effective Gross Income" value={fmt(calc.schedEGrossIncome)} />
      <MRow label="Operating Expenses (excl. depreciation)" value={`-${fmt(calc.schedECashExpenses)}`} color={T.red} />
-     <MRow label="Debt Service (P&I)" value={`-${fmt(calc.pi * 12)}`} color={T.red} />
+     <MRow label="Debt Service (P&I)" value={`-${fmt(calc.pi * 12 * (calc.rentalShare ?? 1))}`} color={T.red} />
      <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
       <MRow label="Annual Cash Flow" value={fmt(calc.schedECashFlow)} color={calc.schedECashFlow >= 0 ? T.green : T.red} bold />
      </div>
@@ -226,7 +244,7 @@ export default function TaxContent(props) {
      <span style={{ textAlign: "right" }}>{taxState}</span>
     </div>
     {[
-     { label: "Property Taxes Paid (1 year)", amount: calc.yearlyTax, fed: calc.fedPropTax, state: calc.yearlyTax },
+     { label: "Property Taxes Paid (1 year)", amount: calc.yearlyTax, fed: calc.fedPropTax, state: calc.schedATax ?? calc.yearlyTax },
      { label: "Mortgage Interest Paid (1 year)", amount: calc.yearlyMortInt || 0, fed: calc.fedMortInt, state: calc.stateMortInt },
     ].map((row, i) => (
      <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
@@ -460,6 +478,62 @@ export default function TaxContent(props) {
     />
    </Card>
   </Sec>
+
+  {/* 7b. Schedule E — owner-occupied rental (ADU or 2–4 unit primary).
+      The borrower lives in part of the building and rents the rest, so the
+      property straddles both schedules: the occupied share is itemized on
+      Schedule A above, the rented share runs through Schedule E here. Nothing
+      is deducted twice — one apportionment drives both (Christo 2026-07-21). */}
+  {calc.rentalSharePct > 0 && subjectRentalIncome > 0 && (
+   <Sec title="Schedule E — Rented Portion">
+    <Card>
+     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 6 }}>
+      You occupy part of this {propType === "Single Family with ADU" ? "property" : propType.toLowerCase()} and rent the rest, so it files on both schedules.
+      <strong style={{ color: T.text }}> {calc.rentalSharePct}%</strong> of the property tax, insurance and mortgage interest is a rental expense below;
+      the other <strong style={{ color: T.text }}>{100 - calc.rentalSharePct}%</strong> is itemized on Schedule A in the sections above.
+     </div>
+     <div style={{ padding: "12px 0", borderTop: `1px solid ${T.separator}`, borderBottom: `1px solid ${T.separator}`, marginBottom: 14 }}>
+      <SchedEInputs
+       T={T} fmt={fmt} calc={calc}
+       assessedLand={assessedLand} setAssessedLand={setAssessedLand}
+       assessedImprovements={assessedImprovements} setAssessedImprovements={setAssessedImprovements}
+       rentalSharePctOverride={rentalSharePctOverride} setRentalSharePctOverride={setRentalSharePctOverride}
+       schedEVacancyPct={schedEVacancyPct} setSchedEVacancyPct={setSchedEVacancyPct}
+       schedEMgmtPct={schedEMgmtPct} setSchedEMgmtPct={setSchedEMgmtPct}
+       isOwnerOccupied={true}
+      />
+     </div>
+     <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Rental Income</div>
+     <MRow label="Annual Gross Rent" value={fmt(calc.schedEGrossRent)} />
+     <MRow label={`Vacancy (${schedEVacancyPct}%)`} value={`-${fmt(calc.schedEVacancy)}`} color={T.red} />
+     <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 14 }}>
+      <MRow label="Effective Gross Income" value={fmt(calc.schedEGrossIncome)} bold />
+     </div>
+     <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>
+      Deductible Expenses <span style={{ fontWeight: 500, letterSpacing: 0, textTransform: "none", color: T.textTertiary }}>· rented {calc.rentalSharePct}% only</span>
+     </div>
+     <MRow label="Mortgage Interest (Yr 1)" value={fmt(calc.schedEInterest)} tip={`${calc.rentalSharePct}% of ${fmt(calc.yearlyMortInt)}.`} />
+     <MRow label="Property Tax" value={fmt(calc.schedETax)} tip={`${calc.rentalSharePct}% of ${fmt(calc.yearlyTax)}. The Schedule A share above is what the SALT cap applies to.`} />
+     <MRow label="Insurance" value={fmt(calc.schedEIns)} />
+     {calc.schedEHoa > 0 && <MRow label="HOA" value={fmt(calc.schedEHoa)} />}
+     {calc.schedEMI > 0 && <MRow label="Mortgage Insurance" value={fmt(calc.schedEMI)} />}
+     <MRow label="Depreciation (27.5 yr)" value={fmt(calc.schedEDepreciation)} />
+     <MRow label={`Mgmt & Maintenance (${schedEMgmtPct}%)`} value={fmt(calc.schedEMgmt)} />
+     <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 14 }}>
+      <MRow label="Total Expenses" value={fmt(calc.schedETotalExpenses)} bold />
+     </div>
+     <div style={{ background: calc.schedENetIncome < 0 ? `${T.green}08` : `${T.orange}08`, borderRadius: 12, padding: 14 }}>
+      <MRow label="Net Rental Income (Loss)" value={fmt(calc.schedENetIncome)} color={calc.schedENetIncome < 0 ? T.green : T.text} bold />
+      {calc.schedENetIncome < 0 && (
+       <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, marginTop: 8 }}>
+        A paper loss of <strong style={{ color: T.green }}>{fmt(Math.abs(calc.schedENetIncome))}</strong> may offset other income if your AGI is under $150K (up to the $25K passive loss allowance). Depreciation is a non-cash deduction, so this loss can coexist with positive cash flow.
+       </div>
+      )}
+     </div>
+     <Note color={T.orange}>Owner-occupied rentals have their own traps — the personal-use portion of a loss is not deductible, and depreciation is recaptured on sale. Have your CPA confirm the split before filing.</Note>
+    </Card>
+   </Sec>
+  )}
 
   {/* 8. Disclaimer */}
   <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
