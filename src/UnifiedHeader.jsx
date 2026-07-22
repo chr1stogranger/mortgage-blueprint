@@ -111,6 +111,25 @@ export default function UnifiedHeader({
         ["__t", "Cash to Close", fmt(calc.cashToClose)],
       ] };
     }
+    if (key === "savings") {
+      return { title: "Monthly Savings", section: "overview-payment", rows: [
+        ["Current Payment", fmt(calc.refiCurTotalPmt)],
+        ["New Payment", fmt(calc.refiNewTotalPmt)],
+        ["__t", "Savings", `${fmt(Math.round(calc.refiMonthlyTotalSavings || 0))}/mo`],
+        ...((calc.refiBreakevenMonths || 0) > 0 ? [["Breakeven", `${calc.refiBreakevenMonths} months`]] : []),
+      ] };
+    }
+    if (key === "netcash") {
+      return { title: "Net Cash in Hand", section: "overview-costs", rows: [
+        ["New Loan", fmt(calc.refiNetNewLoan)],
+        ["Closing Costs", "−" + fmt(calc.refiNetClosingCosts)],
+        ["Prepaids & Escrow", "−" + fmt(calc.refiNetPrepaids)],
+        ["Current Loan Payoff", "−" + fmt(calc.refiNetPayoff)],
+        ...((calc.refiSkipPmtAmt || 0) > 0 ? [["Skipped Payments", "+" + fmt(calc.refiSkipPmtAmt)]] : []),
+        ...((calc.refiEscrowRefund || 0) > 0 ? [["Escrow Refund", "+" + fmt(calc.refiEscrowRefund)]] : []),
+        ["__t", "Net Cash", fmt(Math.round(calc.refiNetCashInHand || 0))],
+      ] };
+    }
     if (key === "payment") {
       const rows = [["Principal & Interest", fmt(calc.pi)]];
       if (includeEscrow) { rows.push(["Property Tax", fmt(calc.monthlyTax)]); rows.push(["Insurance", fmt(calc.ins)]); }
@@ -225,6 +244,28 @@ export default function UnifiedHeader({
       }}>{value}</div>
     </div>
   );
+
+  // ── The stat row, shared by the desktop and mobile strips ──
+  // REFI (Christo 2026-07-22): Value · Loan Amount · Savings · Payment ·
+  // Net Cash. Replaces Down (meaningless on a refi), Refi Cost (the borrower
+  // decision numbers are savings and walk-away cash; costs live in the
+  // popovers and the Costs tab), and DTI (still in the pillars/badge).
+  // PURCHASE: unchanged.
+  const statRow = isRefi ? (<>
+    <Stat label="Value" value={fmt(salesPrice)} statKey="price" />
+    <Stat label="Loan Amount" value={fmt(calc.refiNewLoanAmt || 0)} statKey="price" />
+    <Stat label="Savings" value={`${(calc.refiMonthlyTotalSavings || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiMonthlyTotalSavings || 0)))}/mo`} color={(calc.refiMonthlyTotalSavings || 0) >= 0 ? T.green : T.red} statKey="savings" />
+    <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
+    <Stat label="Net Cash" value={`${(calc.refiNetCashInHand || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiNetCashInHand || 0)))}`} color={(calc.refiNetCashInHand || 0) >= 0 ? T.green : T.red} statKey="netcash" />
+  </>) : (<>
+    <Stat label="Price" value={fmt(salesPrice)} statKey="price" />
+    <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
+    <Stat label="Cash Close" value={fmt(calc.cashToClose)} color={T.green} statKey="cashclose" />
+    <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
+    {calc.qualifyingIncome > 0 && (
+      <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
+    )}
+  </>);
 
   return (
     <div style={{
@@ -418,13 +459,7 @@ export default function UnifiedHeader({
           height: 48,
           borderTop: `1px solid ${T.separator}`,
         }}>
-          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} statKey="price" />
-          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} statKey="cashclose" />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
-          {calc.qualifyingIncome > 0 && (
-            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
-          )}
+          {statRow}
           {qualBadge}
         </div>
       ) : (
@@ -435,13 +470,7 @@ export default function UnifiedHeader({
           borderTop: `1px solid ${T.separator}`,
           gap: 2,
         }}>
-          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} statKey="price" />
-          <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} statKey="cashclose" />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
-          {calc.qualifyingIncome > 0 && (
-            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
-          )}
+          {statRow}
           {qualBadge}
         </div>
       )}

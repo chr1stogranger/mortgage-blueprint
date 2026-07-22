@@ -1671,6 +1671,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [refiAnnualTax, setRefiAnnualTax] = useState(0);
  const [refiAnnualIns, setRefiAnnualIns] = useState(0);
  const [refiHasEscrow, setRefiHasEscrow] = useState(true);
+ // Homeowner's insurance effective (anniversary) month, "YYYY-MM-01" like
+ // refiClosedDate. On a refi the policy carries over, so the 12-month premium
+ // belongs in the closing costs ONLY when the renewal lands at closing —
+ // otherwise the borrower pays it on their normal schedule either way
+ // (Christo 2026-07-22). Unset = assume it renews elsewhere in the year.
+ const [insEffectiveDate, setInsEffectiveDate] = useState("");
  const [refiEscrowBalance, setRefiEscrowBalance] = useState(0);
  const [refiSkipMonths, setRefiSkipMonths] = useState(2);
  const [showFedBrackets, setShowFedBrackets] = useState(true);
@@ -1787,7 +1793,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, borrowerEmail,
   showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   showProp19, prop19Eligibility, prop19OldTaxableValue, prop19OldSalePrice, prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate, prop19RateOverride,
@@ -1959,6 +1965,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiExtraPaid !== undefined) setRefiExtraPaid(s.refiExtraPaid);
   if (s.refiAnnualTax !== undefined) setRefiAnnualTax(s.refiAnnualTax);
   if (s.refiAnnualIns !== undefined) setRefiAnnualIns(s.refiAnnualIns);
+  if (s.insEffectiveDate !== undefined) setInsEffectiveDate(s.insEffectiveDate);
   if (s.refiHasEscrow !== undefined) setRefiHasEscrow(s.refiHasEscrow);
   if (s.refiEscrowBalance !== undefined) setRefiEscrowBalance(s.refiEscrowBalance);
   if (s.refiSkipMonths !== undefined) setRefiSkipMonths(s.refiSkipMonths);
@@ -2237,7 +2244,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, borrowerEmail,
   darkMode, loaded, scenarioName]);
  // ── Blueprint switcher (left panel): client callbacks + open helper ──
  const borrowerPickerCallbacks = {
@@ -4476,7 +4483,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const autoPrepaidDays = daysToMonthEnd + 1;
   const dailyInt = (feeLoanBasis * rate / 100) / 365;
   const prepaidInt = dailyInt * autoPrepaidDays;
-  const prepaidIns = annualIns;
+  // Prepaid homeowner's insurance.
+  // PURCHASE — a new policy always starts at closing: 12 months due. Unchanged.
+  // REFI — the existing policy carries over, so the premium is only a closing
+  // cost when its renewal lands in the closing window (closing month or the
+  // next). Otherwise the borrower pays it on their normal schedule whether or
+  // not they refinance, and counting it inflated "Refi Cost" (Christo
+  // 2026-07-22). Renewal month comes from insEffectiveDate (anniversary).
+  const insRenewalAtClose = (() => {
+   if (!isRefi) return true;
+   if (!insEffectiveDate) return false;
+   const effMonth = Number(insEffectiveDate.slice(5, 7));
+   if (!effMonth) return false;
+   const nextMonth = (closingMonth % 12) + 1;
+   return effMonth === closingMonth || effMonth === nextMonth;
+  })();
+  const prepaidIns = isRefi ? (insRenewalAtClose ? (refiAnnualIns || annualIns) : 0) : annualIns;
   const daysToYearEnd = Math.ceil((new Date(closeDate.getFullYear(), 11, 31) - closeDate) / (1000 * 60 * 60 * 24));
   const sellerProration = 0;
   // Section F now includes: prepaid interest + 12mo insurance + property tax installment
@@ -4747,7 +4769,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
    confLimit, highBalLimit, countyLimit, limitYear: LIMIT_YEAR, loanCategory, maxDTI, yourDTI,
    ttEntry, buyerCityTT, buyerCountyTT, countyTTRate, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
-   govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
+   govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, insRenewalAtClose, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose, emdAmt, emdCredit,
    reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
@@ -4796,7 +4818,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate]);
 
  // ── Refi title & escrow defaults, tiered on the new loan amount ──
  // The flat $2,400 escrow / $2,000 title defaults are purchase-shaped guesses.
@@ -6602,7 +6624,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiRemainingMonths, setRefiRemainingMonths,
    refiCurrentPayment, setRefiCurrentPayment,
    refiAnnualTax, setRefiAnnualTax,
-   refiAnnualIns, setRefiAnnualIns,
+   refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate,
    refiCurrentEscrow, setRefiCurrentEscrow,
    refiHasEscrow, setRefiHasEscrow,
    refiEscrowBalance, setRefiEscrowBalance,
@@ -6657,7 +6679,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, refiCurrentEscrow, setRefiCurrentEscrow, refiHasEscrow, setRefiHasEscrow, includeEscrow, setIncludeEscrow, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, ClusterContinue}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate, refiCurrentEscrow, setRefiCurrentEscrow, refiHasEscrow, setRefiHasEscrow, includeEscrow, setIncludeEscrow, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, ClusterContinue}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && (<>
  <div style={{ marginTop: 20 }}>

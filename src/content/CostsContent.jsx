@@ -475,18 +475,54 @@ const FEE_CATALOG = {
   ],
 };
 
-// "+ Add fee" — searchable dropdown of catalog fees + deleted built-ins to
-// restore + free-text custom entry. Only shows while the section is unlocked.
+// ── Saved custom fee types (Christo 2026-07-22) ──
+// A custom fee typed into "+ Add fee" used to vanish with the scenario. Now it
+// is remembered per section in localStorage (this device/browser) and offered
+// in the dropdown on every future scenario, tagged "saved". Amount is captured
+// when the fee is added; picking it later seeds that amount. The × on a saved
+// row forgets the type (not any scenario that already used it).
+const FEE_LIBRARY_KEY = "bp_custom_fee_library_v1";
+function readFeeLibrary() {
+  try { return JSON.parse(localStorage.getItem(FEE_LIBRARY_KEY)) || {}; } catch { return {}; }
+}
+function saveFeeToLibrary(section, label, amount) {
+  const lib = readFeeLibrary();
+  const list = lib[section] || [];
+  const norm = label.trim().toLowerCase();
+  // Catalog fees don't need saving, and re-adding an existing saved fee just
+  // refreshes its amount.
+  if ((FEE_CATALOG[section] || []).some(f => f.label.toLowerCase() === norm)) return;
+  lib[section] = [...list.filter(f => f.label.toLowerCase() !== norm), { label: label.trim(), amount: Number(amount) || 0 }];
+  try { localStorage.setItem(FEE_LIBRARY_KEY, JSON.stringify(lib)); } catch { /* private mode — nonfatal */ }
+}
+function removeFeeFromLibrary(section, label) {
+  const lib = readFeeLibrary();
+  const norm = label.trim().toLowerCase();
+  lib[section] = (lib[section] || []).filter(f => f.label.toLowerCase() !== norm);
+  try { localStorage.setItem(FEE_LIBRARY_KEY, JSON.stringify(lib)); } catch { /* nonfatal */ }
+}
+
+// "+ Add fee" — searchable dropdown of catalog fees + saved custom types +
+// deleted built-ins to restore + free-text custom entry. Only shows while the
+// section is unlocked.
 function AddFeeControl({ section, hiddenBuiltins, onAdd, onRestore, alwaysOn = false }) {
   const { T, ACCENT } = useContext(CostsCtx);
   const { unlocked } = useContext(LockCtx);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [libVersion, setLibVersion] = useState(0); // bump to re-read after ×
   if (!unlocked && !alwaysOn) return null;
   const q = query.trim().toLowerCase();
   const items = (FEE_CATALOG[section] || []).filter(f => !q || f.label.toLowerCase().includes(q));
+  // eslint-disable-next-line no-unused-vars
+  const _v = libVersion; // ties the read below to state so × re-renders
+  const savedItems = (readFeeLibrary()[section] || []).filter(f => !q || f.label.toLowerCase().includes(q));
   const restores = (hiddenBuiltins || []).filter(f => !q || f.label.toLowerCase().includes(q));
-  const pick = (label, amount) => { onAdd(label, amount); setOpen(false); setQuery(""); };
+  const pick = (label, amount, { remember = false } = {}) => {
+    if (remember) saveFeeToLibrary(section, label, amount);
+    onAdd(label, amount);
+    setOpen(false); setQuery("");
+  };
   return (
     <div style={{ padding: "6px 0 2px", position: "relative" }}>
       {!open ? (
@@ -513,6 +549,19 @@ function AddFeeControl({ section, hiddenBuiltins, onAdd, onRestore, alwaysOn = f
                 <span style={{ color: T.textTertiary }}>{"$" + f.def.toLocaleString()}</span>
               </div>
             ))}
+            {savedItems.map((f) => (
+              <div key={"s-" + f.label} onClick={() => pick(f.label, f.amount)}
+                style={{ padding: "7px 8px", fontSize: 13, fontFamily: FONT, color: T.text, cursor: "pointer", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}
+                onMouseEnter={(e) => e.currentTarget.style.background = T.pillBg} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                <span>{f.label} <span style={{ color: ACCENT, fontSize: 11 }}>· saved</span></span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: T.textTertiary }}>{"$" + f.amount.toLocaleString()}</span>
+                  <span title="Forget this saved fee type"
+                    onClick={(e) => { e.stopPropagation(); removeFeeFromLibrary(section, f.label); setLibVersion(v => v + 1); }}
+                    style={{ color: T.textTertiary, cursor: "pointer", fontSize: 13, lineHeight: 1, padding: "0 2px" }}>✕</span>
+                </span>
+              </div>
+            ))}
             {items.map((f) => (
               <div key={f.label} onClick={() => pick(f.label, f.amount)}
                 style={{ padding: "7px 8px", fontSize: 13, fontFamily: FONT, color: T.text, cursor: "pointer", borderRadius: 8, display: "flex", justifyContent: "space-between" }}
@@ -522,10 +571,10 @@ function AddFeeControl({ section, hiddenBuiltins, onAdd, onRestore, alwaysOn = f
               </div>
             ))}
             {q && (
-              <div onClick={() => pick(query.trim(), 0)}
+              <div onClick={() => pick(query.trim(), 0, { remember: true })}
                 style={{ padding: "7px 8px", fontSize: 13, fontFamily: FONT, color: ACCENT, fontWeight: 600, cursor: "pointer", borderRadius: 8 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = T.pillBg} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                + Add “{query.trim()}” as a custom fee
+                + Add “{query.trim()}” as a custom fee <span style={{ fontWeight: 400, color: T.textTertiary }}>(remembered for future files)</span>
               </div>
             )}
             {!q && items.length === 0 && restores.length === 0 && (
@@ -974,7 +1023,13 @@ export default function CostsContent(props) {
   };
   const addCustomFee = (section, label, amount) =>
     setCustomFees((c) => [...(c || []), { id: Date.now(), section, label: String(label).slice(0, 60), amount: amount || 0 }]);
-  const updateCustomFee = (id, amount) => setCustomFees((c) => (c || []).map((f) => (f.id === id ? { ...f, amount } : f)));
+  const updateCustomFee = (id, amount) => setCustomFees((c) => (c || []).map((f) => {
+    if (f.id !== id) return f;
+    // Keep the saved library in step: a custom type is usually added at $0 and
+    // priced a moment later — the remembered amount should be the real one.
+    saveFeeToLibrary(f.section, f.label, amount);
+    return { ...f, amount };
+  }));
   const removeCustomFee = (id) => setCustomFees((c) => (c || []).filter((f) => f.id !== id));
   // Plain render function (NOT a component) so FeeRow/AddFeeControl keep
   // stable identity — inline component defs remount on every parent render

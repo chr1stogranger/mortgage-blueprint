@@ -139,13 +139,23 @@ export default function OverviewStickyBar({
 
         {/* Key Stats — evenly spaced */}
         <div style={{ display: "flex", alignItems: "center", flex: 1, justifyContent: "space-around", gap: isDesktop ? 12 : 4 }}>
-          <Stat label={isRefi ? "Value" : "Price"} value={fmt(salesPrice)} />
-          <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
-          <Stat label={isRefi ? "Refi Cost" : "Cash Close"} value={isRefi ? fmt(calc.totalClosingCosts + calc.totalPrepaidExp) : fmt(calc.cashToClose)} color={T.green} />
-          <Stat label="LTV" value={pct(calc.ltv, 0)} />
-          {calc.qualifyingIncome > 0 && (
-            <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
-          )}
+          {/* Refi mirrors the UnifiedHeader stat row (Christo 2026-07-22):
+              Value · Loan · Savings · Payment · Net Cash. */}
+          {isRefi ? (<>
+            <Stat label="Value" value={fmt(salesPrice)} />
+            <Stat label="Loan" value={fmt(calc.refiNewLoanAmt || 0)} />
+            <Stat label="Savings" value={`${(calc.refiMonthlyTotalSavings || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiMonthlyTotalSavings || 0)))}/mo`} color={(calc.refiMonthlyTotalSavings || 0) >= 0 ? T.green : T.red} />
+            <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+            <Stat label="Net Cash" value={`${(calc.refiNetCashInHand || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiNetCashInHand || 0)))}`} color={(calc.refiNetCashInHand || 0) >= 0 ? T.green : T.red} />
+          </>) : (<>
+            <Stat label="Price" value={fmt(salesPrice)} />
+            <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} />
+            <Stat label="Cash Close" value={fmt(calc.cashToClose)} color={T.green} />
+            <Stat label="LTV" value={pct(calc.ltv, 0)} />
+            {calc.qualifyingIncome > 0 && (
+              <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} />
+            )}
+          </>)}
         </div>
 
         {/* Divider */}
