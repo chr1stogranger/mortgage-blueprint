@@ -245,8 +245,13 @@ export default function CalculatorContent(props) {
      a broker tunes the scenario. */}
  {/* ─────────────────────────────────────────────────────────────── */}
 
+ {/* Gold/strong to match the "Escrow OFF" banner below the donut — both are
+     "we changed something about your numbers" alerts, so they read alike.
+     marginBottom keeps it off the Price / Rate cards that follow. */}
  {loanPurpose === "Purchase Investment" && (
-  <Note color={T.orange}>Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
+  <div style={{ marginBottom: 14 }}>
+   <Note color={T.orange} strong>Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
+  </div>
  )}
  {loanType === "VA" && (
   <div style={{ marginBottom: 12 }}>
@@ -460,7 +465,7 @@ export default function CalculatorContent(props) {
 
    {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
-   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: `${T.orange}1C`, border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>Escrow OFF — Tax + Ins ({fmt(calc.escrowAmount)}/mo) paid separately · still counted in DTI</div>}
+   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: `${T.orange}1C`, border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>Escrow OFF — Tax + Ins ({fmt(calc.escrowAmount)}/mo) paid separately</div>}
 
    {/* Refi Current → New comparison */}
    {isRefi && calc.refiEffPI > 0 && (
@@ -609,10 +614,14 @@ export default function CalculatorContent(props) {
       // month-1 P-vs-I split lives behind the "Split" chevron below. Donut
       // keeps its two separate segments (Christo, 2026-07-07).
       { label: "Principal & Interest", value: calc.pi || 0, color: T.blue, pi: true },
-      ...(includeEscrow ? [
-       { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange, jumpTo: "tax" },
-       { label: "Insurance", value: calc.ins || 0,        color: T.green,  editable: true, onChange: (v) => setAnnualIns(Math.max(0, v) * 12) },
-      ] : []),
+      // Escrow OFF still renders Tax + Insurance — dimmed and tagged "not
+      // escrowed" — instead of deleting them. The borrower still owes them and
+      // the underwriter still counts them in DTI, so hiding them was the wrong
+      // answer (Christo, 2026-07-21). Keeping the rows also holds the card at
+      // the same height as escrow-on, so the Total Payment band stays level
+      // with Estimated Cash to Close.
+      { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange, jumpTo: "tax", excluded: !includeEscrow },
+      { label: "Insurance", value: calc.ins || 0,        color: T.green,  editable: true, onChange: (v) => setAnnualIns(Math.max(0, v) * 12), excluded: !includeEscrow },
       ...((calc.monthlyMI || 0) > 0 ? [
        { label: loanType === "FHA" ? "MIP" : "PMI", value: calc.monthlyMI || 0, color: T.red, jumpTo: "pmi" },
       ] : []),
@@ -625,8 +634,11 @@ export default function CalculatorContent(props) {
       <React.Fragment key={i}>
        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-         <span style={{ width: 8, height: 8, borderRadius: 4, background: row.pi ? `linear-gradient(90deg, ${T.cyan || T.blue} 50%, ${T.blue} 50%)` : row.color, flexShrink: 0 }} />
-         <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>{row.label}</span>
+         <span style={{ width: 8, height: 8, borderRadius: 4, background: row.pi ? `linear-gradient(90deg, ${T.cyan || T.blue} 50%, ${T.blue} 50%)` : row.color, flexShrink: 0, opacity: row.excluded ? 0.4 : 1 }} />
+         <span style={{ fontSize: 13, color: row.excluded ? T.textTertiary : T.textSecondary, fontFamily: FONT }}>{row.label}</span>
+         {row.excluded && (
+          <span title="Not escrowed — you pay this yourself. Underwriting still counts it in your DTI." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Not escrowed</span>
+         )}
          {onToggle && (
           <span
            onClick={onToggle}
@@ -655,7 +667,7 @@ export default function CalculatorContent(props) {
          ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />
          : (
           <div style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
-           <span style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT }}>{fmt(row.value)}</span>
+           <span style={{ fontSize: 14, fontWeight: 600, color: row.excluded ? T.textTertiary : T.text, fontFamily: FONT }}>{fmt(row.value)}</span>
            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
           </div>
          )
@@ -1015,12 +1027,7 @@ export default function CalculatorContent(props) {
      {/* Pad to a fixed 5 rows so the Payment Breakdown card is always the same
          height as the Cash-to-Close Summary (empty slots where Tax/Ins/PMI
          would be), keeping the two cards + their footers on the same line. */}
-     {(() => { const n = 1 + (includeEscrow ? 2 : 0) + ((calc.monthlyMI || 0) > 0 ? 1 : 0) + 1 + (showBuydownRow ? 1 : 0); return Array.from({ length: Math.max(0, 5 - n) }).map((_, i) => <div key={"pbpad" + i} aria-hidden="true" style={{ minHeight: 28 }} />); })()}
-     {!includeEscrow && (
-      <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center" }}>
-       Escrow excluded — full PITI would be {fmt(calc.housingPayment)}/mo
-      </div>
-     )}
+     {(() => { const n = 1 + 2 + ((calc.monthlyMI || 0) > 0 ? 1 : 0) + 1 + (showBuydownRow ? 1 : 0); return Array.from({ length: Math.max(0, 5 - n) }).map((_, i) => <div key={"pbpad" + i} aria-hidden="true" style={{ minHeight: 28 }} />); })()}
     </div>
     {/* Total Payment band — mirrors CashToCloseSummary's bottom band */}
     <div style={{
@@ -1049,6 +1056,34 @@ export default function CalculatorContent(props) {
        letterSpacing: "-0.02em",
      }}>{fmt(calc.displayPayment)}/mo</div>
     </div>
+    {/* Escrow-OFF true-cost strip. Sits BELOW the total band (never inside the
+        body) so the band itself stays level with Estimated Cash to Close.
+        Shows the escrow the borrower now pays on their own plus the full PITI
+        the underwriter actually qualifies them on. */}
+    {!includeEscrow && (
+     <div style={{
+       borderTop: `1px solid ${T.orange}38`,
+       background: `${T.orange}12`,
+       padding: "10px 18px",
+       display: "flex",
+       justifyContent: "space-between",
+       alignItems: "center",
+       gap: 12,
+     }}>
+      <div style={{ minWidth: 0 }}>
+       <div style={{ fontSize: 12, fontWeight: 700, color: T.orange, fontFamily: FONT }}>
+        + Tax &amp; Insurance you pay yourself
+       </div>
+       <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, marginTop: 2, lineHeight: 1.4 }}>
+        {fmt(calc.monthlyTax)} tax + {fmt(calc.ins)} ins = {fmt(calc.escrowAmount)}/mo · still counted in DTI
+       </div>
+      </div>
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}/mo</div>
+       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>True cost · PITI</div>
+      </div>
+     </div>
+    )}
     {/* Advanced — the net-payment ladder. Lives BELOW the total band (inside
         the same card) because the card body is height-locked to 5 rows to
         bottom-align with Cash-to-Close; growing downward preserves that at
