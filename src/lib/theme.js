@@ -29,14 +29,15 @@ export const DARK = {
  ringTrack: "rgba(255,255,255,0.06)", pillBg: "rgba(255,255,255,0.06)",
  // Grange glass surfaces — translucent chrome over the ribbon canvas.
  // Dense data tables/cards stay solid (use `card`); glass is chrome + tiles.
- // Christo 2026-07-21 (3rd pass): glass CARDS sit at 80% opaque / 20%
- // see-through — 75/25 still let the blueprint canvas read through, 85 was
- // a touch heavy, 80 is the settled point. Nav chrome (sideBg/headerBg)
- // stays denser — it overlaps scrolling content, where bleed-through reads
- // as a rendering bug.
+ // Christo 2026-07-19: glass CARDS sit at 75% opaque / 25% see-through.
+ // Tried 85 and 80 on 2026-07-21 and came back to 75 — don't re-raise it.
+ // What actually fixed the banners that day was giving them a base at all
+ // (they were a bare accent tint over nothing); the token was never the
+ // problem. Nav chrome (sideBg/headerBg) stays denser — it overlaps
+ // scrolling content, where bleed-through reads as a rendering bug.
  // cardGlass is the semi-opaque base to layer tints over (see tintOver).
- glass: "rgba(18,28,48,0.8)", glassStrong: "rgba(16,24,42,0.8)",
- cardGlass: "rgba(18,28,48,0.8)",
+ glass: "rgba(18,28,48,0.75)", glassStrong: "rgba(16,24,42,0.75)",
+ cardGlass: "rgba(18,28,48,0.75)",
  glassBorder: "rgba(255,255,255,0.10)", sideBg: "rgba(16,24,42,0.88)",
  glassShadow: "0 1px 2px rgba(0,0,0,0.3), 0 18px 40px -14px rgba(0,0,0,0.55)",
 };
@@ -55,10 +56,11 @@ export const LIGHT = {
  errorBg: "rgba(229,72,77,0.08)", errorBorder: "rgba(229,72,77,0.15)",
  warningBg: "rgba(217,138,11,0.08)", warningBorder: "rgba(217,138,11,0.15)",
  ringTrack: "rgba(16,27,46,0.10)", pillBg: "rgba(16,27,46,0.06)",
- // Christo 2026-07-21 (3rd pass) — see the DARK note above. glassBorder is a
- // BORDER color, not a surface, so it keeps its own 0.75 and is not swept.
- glass: "rgba(255,255,255,0.8)", glassStrong: "rgba(255,255,255,0.8)",
- cardGlass: "rgba(255,255,255,0.8)",
+ // Christo 2026-07-19 — see the DARK note above. glassBorder shares the 0.75
+ // number by coincidence only: it is a BORDER color, not a surface, so it
+ // does NOT move when the glass surfaces are retuned.
+ glass: "rgba(255,255,255,0.75)", glassStrong: "rgba(255,255,255,0.75)",
+ cardGlass: "rgba(255,255,255,0.75)",
  glassBorder: "rgba(255,255,255,0.75)", sideBg: "rgba(255,255,255,0.88)",
  glassShadow: "0 1px 2px rgba(16,27,46,0.04), 0 12px 32px -12px rgba(16,27,46,0.16)",
 };
