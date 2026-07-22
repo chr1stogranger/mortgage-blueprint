@@ -1692,6 +1692,8 @@ export default function CostsContent(props) {
         prepaids={calc.totalPrepaidExp || 0}
         payoffs={calc.payoffAtClosing || 0}
         credits={calc.totalCredits || 0}
+        newLoan={calc.refiNewLoanAmt || 0}
+        oldLoanPayoff={calc.refiPayoffAmount || 0}
         isRefi={isRefi}
       />
       </div>{/* end right column */}

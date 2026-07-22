@@ -629,8 +629,11 @@ export default function CalculatorContent(props) {
        CashToCloseSummary so the two read as a matched pair (per Christo).
        Wrapped in the payment-breakdown guided anchor: step 9 pulses this card
        and asks the user to expand the Tax/PMI carets before Continue. */}
-   <div style={isDesktop ? { gridColumn: 1, gridRow: 3, alignSelf: "start", minWidth: 0 } : {}}>
-   <div data-field="payment-breakdown" className={isPulse && isPulse("payment-breakdown")} style={{ borderRadius: 14, transition: "all 0.3s", marginBottom: 16 }}>
+   {/* Row-3 cells STRETCH so both cards share one height and their footer
+       bands sit on the same line (Christo 2026-07-22) — the band is the LAST
+       element in each card and the row body flex-grows. */}
+   <div style={isDesktop ? { gridColumn: 1, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : {}}>
+   <div data-field="payment-breakdown" className={isPulse && isPulse("payment-breakdown")} style={{ borderRadius: 14, transition: "all 0.3s", marginBottom: 16, flex: 1, display: "flex", flexDirection: "column" }}>
    <div style={{
      background: T.card,
      border: `1px solid ${T.cardBorder}`,
@@ -638,6 +641,9 @@ export default function CalculatorContent(props) {
      overflow: "hidden",
      marginBottom: 0,
      boxShadow: `0 0 0 1px ${T.blue}10`,
+     flex: 1,
+     display: "flex",
+     flexDirection: "column",
    }}>
     {/* Header band — same style as CashToCloseSummary */}
     <div style={{
@@ -656,8 +662,9 @@ export default function CalculatorContent(props) {
       Payment Breakdown
      </div>
     </div>
-    {/* Body — keeps existing row styling per Christo */}
-    <div style={{ padding: "12px 18px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+    {/* Body — keeps existing row styling per Christo; flex-grows so the
+        Total Payment band pins to the card's bottom edge. */}
+    <div style={{ padding: "12px 18px 14px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
      {[
       // Principal & Interest merged into one PITI-style line; the volatile
       // month-1 P-vs-I split lives behind the "Split" chevron below. Donut
@@ -1075,42 +1082,11 @@ export default function CalculatorContent(props) {
       </React.Fragment>
       );
      })()}
-     {/* Pad to a fixed 5 rows so the Payment Breakdown card is always the same
-         height as the Cash-to-Close Summary (empty slots where Tax/Ins/PMI
-         would be), keeping the two cards + their footers on the same line. */}
-     {(() => { const n = 1 + 2 + ((calc.monthlyMI || 0) > 0 ? 1 : 0) + 1 + (showBuydownRow ? 1 : 0); return Array.from({ length: Math.max(0, 5 - n) }).map((_, i) => <div key={"pbpad" + i} aria-hidden="true" style={{ minHeight: 28 }} />); })()}
     </div>
-    {/* Total Payment band — mirrors CashToCloseSummary's bottom band */}
-    <div style={{
-      background: `${T.blue}0E`,
-      borderTop: `1.5px solid ${T.blue}40`,
-      padding: "16px 18px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}>
-     <div style={{
-       fontSize: 12,
-       fontWeight: 700,
-       color: T.blue,
-       letterSpacing: "0.08em",
-       textTransform: "uppercase",
-       fontFamily: FONT,
-     }}>
-      Total Payment
-     </div>
-     <div style={{
-       fontFamily: FONT,
-       fontSize: 22,
-       fontWeight: 800,
-       color: T.blue,
-       letterSpacing: "-0.02em",
-     }}>{fmt(calc.displayPayment)}/mo</div>
-    </div>
-    {/* Escrow-OFF true-cost strip. Sits BELOW the total band (never inside the
-        body) so the band itself stays level with Estimated Cash to Close.
-        Shows the escrow the borrower now pays on their own plus the full PITI
-        the underwriter actually qualifies them on. */}
+    {/* Escrow-OFF true-cost strip — above the Total band, which is pinned to
+        the card's bottom to stay level with Estimated Refi Cost / Cash to
+        Close. Shows the escrow the borrower now pays on their own plus the
+        full PITI the underwriter actually qualifies them on. */}
     {(!escTax || !escIns) && (
      <div style={{
        borderTop: `1px solid ${T.orange}38`,
@@ -1135,10 +1111,7 @@ export default function CalculatorContent(props) {
       </div>
      </div>
     )}
-    {/* Advanced — the net-payment ladder. Lives BELOW the total band (inside
-        the same card) because the card body is height-locked to 5 rows to
-        bottom-align with Cash-to-Close; growing downward preserves that at
-        rest. The ladder descends from the total it sits under. */}
+    {/* Advanced — the net-payment ladder, above the pinned Total band. */}
     <div
      onClick={() => setAdvancedOpen(!advancedOpen)}
      title={advancedOpen ? "Hide the net-cost breakdown" : "Show what you actually pay after rent, tax savings and equity"}
@@ -1179,6 +1152,33 @@ export default function CalculatorContent(props) {
       />
      </div>
     )}
+    {/* Total Payment band — mirrors CashToCloseSummary's bottom band */}
+    <div style={{
+      background: `${T.blue}0E`,
+      borderTop: `1.5px solid ${T.blue}40`,
+      padding: "16px 18px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}>
+     <div style={{
+       fontSize: 12,
+       fontWeight: 700,
+       color: T.blue,
+       letterSpacing: "0.08em",
+       textTransform: "uppercase",
+       fontFamily: FONT,
+     }}>
+      Total Payment
+     </div>
+     <div style={{
+       fontFamily: FONT,
+       fontSize: 22,
+       fontWeight: 800,
+       color: T.blue,
+       letterSpacing: "-0.02em",
+     }}>{fmt(calc.displayPayment)}/mo</div>
+    </div>
    </div>
    {(() => {
      // Guided step 9 gate: Tax caret must be expanded (when escrow shown) and
@@ -1370,16 +1370,19 @@ export default function CalculatorContent(props) {
    {/* — row 3: Cash To Close Summary, opposite Payment Breakdown. Also
        alignSelf:start, so the two summary cards top-align and neither one
        expanding drags the aligned pillar row with it. */}
-   <div style={isDesktop ? { gridColumn: 2, gridRow: 3, alignSelf: "start", minWidth: 0 } : {}}>
+   <div style={isDesktop ? { gridColumn: 2, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : {}}>
    <CashToCloseSummary
+    stretch
     T={T}
     ACCENT={T.blue}
     fmt={fmt}
     downPayment={calc.dp || 0}
     closingCosts={calc.totalClosingCosts || 0}
     prepaids={calc.totalPrepaidExp || 0}
-    payoffs={0}
+    payoffs={calc.payoffAtClosing || 0}
     credits={calc.totalCredits || 0}
+    newLoan={calc.refiNewLoanAmt || 0}
+    oldLoanPayoff={calc.refiPayoffAmount || 0}
     isRefi={isRefi}
    />
    </div>
