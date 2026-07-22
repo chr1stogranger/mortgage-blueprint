@@ -1102,8 +1102,14 @@ export default function CostsContent(props) {
   const liveBuyerComm = buyerPaysComm ? salesPrice * (buyerCommPct / 100) : 0;
 
   // Derived numbers
-  const escrowHOI_reserve = includeEscrow ? calc.ins * calc.escrowInsMonths : 0;
-  const escrowTax_reserve = includeEscrow ? calc.monthlyTax * calc.escrowTaxMonths : 0;
+  // Per-component escrow (refi) vs the purchase master toggle. Refi reserves
+  // use the refi-side monthlies (Christo 2026-07-22).
+  const gEscTax = isRefi ? !!calc.refiNewEscrowTax : includeEscrow;
+  const gEscIns = isRefi ? !!calc.refiNewEscrowIns : includeEscrow;
+  const gMonthlyTax = isRefi ? (calc.refiNewMonthlyTax || 0) : (calc.monthlyTax || 0);
+  const gMonthlyIns = isRefi ? (calc.refiNewMonthlyIns || 0) : (calc.ins || 0);
+  const escrowHOI_reserve = gEscIns ? gMonthlyIns * calc.escrowInsMonths : 0;
+  const escrowTax_reserve = gEscTax ? gMonthlyTax * calc.escrowTaxMonths : 0;
   const proposedTax_atClosing = includeEscrow ? calc.monthlyTax * calc.escrowTaxMonths : 0;
 
   // H. Other (purchase only) — Owner's Title, Warranty, HOA Transfer, Buyer Comm
@@ -1487,14 +1493,24 @@ export default function CostsContent(props) {
             explainer="Interest from your closing date through end of month — pick the closing date and everything recalculates. First payment is the 1st of the second month after closing: the prepaid interest covers your closing month, the next month's interest accrues, and it's paid in arrears with that first payment."
           />
 
-          {/* 2. Homeowner's Insurance — First Year — read-only. Calculates from monthly
-              insurance (annualIns / 12) set in Setup. No inline edit here. */}
+          {/* 2. Homeowner's Insurance Premium.
+              PURCHASE — a new policy always starts at closing: 12 months due.
+              REFI — collected ONLY when the new loan escrows insurance AND the
+              policy renews within ~60 days of closing (calc.prepaidIns applies
+              the rule). Non-escrowed renewals are a docs condition, never a
+              collection (Christo 2026-07-22). */}
           <FeeRow
-            label="Homeowner's Insurance Premium — First Year (12 mo)"
-            value={annualIns}
+            label={isRefi ? "Homeowner's Insurance Premium — Renewal (12 mo)" : "Homeowner's Insurance Premium — First Year (12 mo)"}
+            value={isRefi ? calc.prepaidIns : annualIns}
             readOnly
             autoBadge
-            explainer="First-year homeowner's insurance, calculated from monthly insurance × 12. Edit the monthly amount in the Setup tab."
+            note={!isRefi ? undefined
+              : calc.prepaidIns > 0 ? `Policy renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} — premium collected at closing; escrow starts a fresh 12-month cycle.`
+              : calc.insDocCondition ? "Escrow waived and the policy renews near closing — nothing collected; paid receipt for the renewal is a docs condition."
+              : "Policy renews outside the 60-day window — nothing collected at closing."}
+            explainer={isRefi
+              ? "On a refinance the existing policy carries over. The 12-month premium is only collected at closing when the new loan escrows insurance and the policy renews within about 60 days of closing. Set the effective date in Setup."
+              : "First-year homeowner's insurance, calculated from monthly insurance × 12. Edit the monthly amount in the Setup tab."}
           />
 
           {/* 3. Property Taxes — Installment (hidden by default; revealed when section unlocked) */}
@@ -1538,28 +1554,36 @@ export default function CostsContent(props) {
             (mirrors how Buyer Pays Agent Commission anchors the bottom of Section H).
             Toggle stays visible whether escrow is on or off so users can flip it back. */}
         <LetterSection letter="G" title="Initial Escrow Payment at Closing">
-          {!includeEscrow ? (
+          {!gEscTax && !gEscIns ? (
             <div style={{ padding: "8px 0", fontSize: 12, color: T.textSecondary }}>
               Escrow waived — taxes and insurance paid separately by borrower.
             </div>
           ) : (
             <>
+              {gEscIns ? (
               <FeeRow
                 label="Hazard Insurance Reserve"
                 value={escrowHOI_reserve}
                 readOnly
                 autoBadge
-                calc={`${calc.escrowInsMonths} mo × ${fmt2(monthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
+                calc={`${calc.escrowInsMonths} mo × ${fmt2(gMonthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
                 explainer="Cushion held by lender for upcoming insurance payments"
               />
+              ) : (
+              <div style={{ padding: "6px 0", fontSize: 11, color: T.textTertiary }}>Insurance not escrowed — borrower pays the carrier directly.</div>
+              )}
+              {gEscTax ? (
               <FeeRow
                 label="Property Taxes"
                 value={escrowTax_reserve}
                 readOnly
                 autoBadge
-                calc={`${calc.escrowTaxMonths} mo × ${fmt2(monthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
+                calc={`${calc.escrowTaxMonths} mo × ${fmt2(gMonthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
                 explainer="Cushion for upcoming property tax bills"
               />
+              ) : (
+              <div style={{ padding: "6px 0", fontSize: 11, color: T.textTertiary }}>Taxes not escrowed — borrower pays the county directly.</div>
+              )}
               {/* Escrow Calendar — chevron expander showing 12-month forward projection.
                   Sits BETWEEN the reserves and the toggle so the toggle stays last. */}
               <EscrowCalendar
@@ -1567,8 +1591,8 @@ export default function CostsContent(props) {
                 onToggle={() => setEscrowCalendarOpen(o => !o)}
                 closingMonth={closingMonth}
                 closingDay={closingDay}
-                monthlyTax={monthlyTax}
-                monthlyIns={monthlyIns}
+                monthlyTax={gEscTax ? gMonthlyTax : 0}
+                monthlyIns={gEscIns ? gMonthlyIns : 0}
                 annualIns={annualIns}
                 startingBalance={escrowHOI_reserve + escrowTax_reserve}
                 monthNames={monthNames}

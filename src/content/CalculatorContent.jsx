@@ -130,7 +130,7 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
 
 export default function CalculatorContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "refiNewEscrowTax", "setRefiNewEscrowTax", "refiNewEscrowIns", "setRefiNewEscrowIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -165,7 +165,9 @@ export default function CalculatorContent(props) {
   pmiRateLocked, setPmiRateLocked,
   pmiRateOverride, setPmiRateOverride,
   pmiChartOverrides, setPmiChartOverrides,
-  annualIns, setAnnualIns, setRefiAnnualIns, hoa, setHoa,
+  annualIns, setAnnualIns, setRefiAnnualIns,
+  refiNewEscrowTax, setRefiNewEscrowTax, refiNewEscrowIns, setRefiNewEscrowIns,
+  hoa, setHoa,
   buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
   underwritingFee, processingFee,
   propertyZip, setPropertyZip, creditScore,
@@ -239,16 +241,18 @@ export default function CalculatorContent(props) {
   const dispTax = isRefi ? (calc.refiNewMonthlyTax || 0) : (calc.monthlyTax || 0);
   const dispIns = isRefi ? (calc.refiNewMonthlyIns || 0) : (calc.ins || 0);
   const dispMI = isRefi ? (calc.refiNewMI || 0) : (calc.monthlyMI || 0);
-  const dispEscrowAmt = dispTax + dispIns;
+  // Which components the NEW loan escrows. Purchase keeps the single master
+  // toggle; refi is per-component (Christo 2026-07-22).
+  const escTax = isRefi ? !!refiNewEscrowTax : includeEscrow;
+  const escIns = isRefi ? !!refiNewEscrowIns : includeEscrow;
+  const excludedEscrowAmt = (escTax ? 0 : dispTax) + (escIns ? 0 : dispIns);
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
   const legendRows = [
     { label: "Principal", value: dispPrin, color: T.cyan || T.blue },
     { label: "Interest",  value: dispPI - dispPrin, color: T.blue },
-    ...(includeEscrow ? [
-      { label: "Tax",       value: dispTax, color: T.orange },
-      { label: "Insurance", value: dispIns, color: T.green },
-    ] : []),
+    ...(escTax ? [{ label: "Tax",       value: dispTax, color: T.orange }] : []),
+    ...(escIns ? [{ label: "Insurance", value: dispIns, color: T.green }] : []),
     ...(dispMI > 0 ? [
       { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red },
     ] : []),
@@ -470,42 +474,47 @@ export default function CalculatorContent(props) {
        On a solid card — the block used to sit bare on the blueprint canvas and
        the wireframe read straight through the ring (Christo 2026-07-19). */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: 12, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "10px 12px 14px" }}>
-    {/* Escrow toggle header row — label upper-left, toggle upper-right */}
+    {/* Escrow header row.
+        PURCHASE — one master toggle (includeEscrow), unchanged.
+        REFI — a toggle per component (Christo 2026-07-22): taxes and
+        insurance impound independently on the NEW loan. They default to the
+        current loan's setup (see the mirror effect in MortgageBlueprint). */}
     {(() => {
      const escrowLocked = loanType === "FHA" || loanType === "VA";
+     const Knob = ({ on, onClick, title }) => (
+      <button
+       onClick={onClick}
+       title={title}
+       style={{ width: 44, height: 26, borderRadius: 13, border: "none", padding: 0, cursor: escrowLocked ? "not-allowed" : "pointer", background: on ? T.blue : T.inputBorder, position: "relative", transition: "background 0.2s", opacity: escrowLocked ? 0.6 : 1 }}
+      >
+       <div style={{ width: 20, height: 20, borderRadius: 10, background: "#fff", position: "absolute", top: 3, left: on ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      </button>
+     );
+     if (isRefi) {
+      return (
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "4px 6px 10px", width: "100%", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
+         Escrow on new loan
+        </span>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Taxes</span>
+          <Knob on={refiNewEscrowTax} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowTax ? "Taxes escrowed on the new loan" : "Taxes paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowTax(!refiNewEscrowTax); }} />
+         </span>
+         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Insurance</span>
+          <Knob on={refiNewEscrowIns} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowIns ? "Insurance escrowed on the new loan" : "Insurance paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowIns(!refiNewEscrowIns); }} />
+         </span>
+        </div>
+       </div>
+      );
+     }
      return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
         Include Escrow (Tax &amp; Ins)
        </span>
-       <button
-        onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }}
-        title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")}
-        style={{
-         width: 44,
-         height: 26,
-         borderRadius: 13,
-         border: "none",
-         padding: 0,
-         cursor: escrowLocked ? "not-allowed" : "pointer",
-         background: includeEscrow ? T.blue : T.inputBorder,
-         position: "relative",
-         transition: "background 0.2s",
-         opacity: escrowLocked ? 0.6 : 1,
-        }}
-       >
-        <div style={{
-         width: 20,
-         height: 20,
-         borderRadius: 10,
-         background: "#fff",
-         position: "absolute",
-         top: 3,
-         left: includeEscrow ? 21 : 3,
-         transition: "left 0.2s",
-         boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-        }} />
-       </button>
+       <Knob on={includeEscrow} title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")} onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }} />
       </div>
      );
     })()}
@@ -543,7 +552,7 @@ export default function CalculatorContent(props) {
 
    {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
-   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>Escrow OFF — Tax + Ins ({fmt(dispEscrowAmt)}/mo) paid separately</div>}
+   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>{!escTax && !escIns ? "Escrow OFF — Tax + Ins" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} ({fmt(excludedEscrowAmt)}/mo) paid separately</div>}
 
    </div>{/* end row 1 (left) */}
 
@@ -657,10 +666,10 @@ export default function CalculatorContent(props) {
       // answer (Christo, 2026-07-21). Keeping the rows also holds the card at
       // the same height as escrow-on, so the Total Payment band stays level
       // with Estimated Cash to Close.
-      { label: "Tax",       value: dispTax, color: T.orange, jumpTo: "tax", excluded: !includeEscrow },
+      { label: "Tax",       value: dispTax, color: T.orange, jumpTo: "tax", excluded: !escTax },
       // Refi insurance comes from refiAnnualIns (the current policy carries
       // over), so the inline edit writes back to that field there.
-      { label: "Insurance", value: dispIns, color: T.green,  editable: true, onChange: (v) => (isRefi && setRefiAnnualIns ? setRefiAnnualIns(Math.max(0, v) * 12) : setAnnualIns(Math.max(0, v) * 12)), excluded: !includeEscrow },
+      { label: "Insurance", value: dispIns, color: T.green,  editable: true, onChange: (v) => (isRefi && setRefiAnnualIns ? setRefiAnnualIns(Math.max(0, v) * 12) : setAnnualIns(Math.max(0, v) * 12)), excluded: !escIns },
       ...(dispMI > 0 ? [
        { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red, jumpTo: "pmi" },
       ] : []),
@@ -1099,7 +1108,7 @@ export default function CalculatorContent(props) {
         body) so the band itself stays level with Estimated Cash to Close.
         Shows the escrow the borrower now pays on their own plus the full PITI
         the underwriter actually qualifies them on. */}
-    {!includeEscrow && (
+    {(!escTax || !escIns) && (
      <div style={{
        borderTop: `1px solid ${T.orange}38`,
        background: `${T.orange}12`,
@@ -1111,14 +1120,14 @@ export default function CalculatorContent(props) {
      }}>
       <div style={{ minWidth: 0 }}>
        <div style={{ fontSize: 12, fontWeight: 700, color: T.orange, fontFamily: FONT }}>
-        + Tax &amp; Insurance you pay yourself
+        + {!escTax && !escIns ? "Tax & Insurance" : !escTax ? "Tax" : "Insurance"} you pay yourself
        </div>
        <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, marginTop: 2, lineHeight: 1.4 }}>
-        {fmt(dispTax)} tax + {fmt(dispIns)} ins = {fmt(dispEscrowAmt)}/mo · still counted in DTI
+        {[!escTax ? `${fmt(dispTax)} tax` : null, !escIns ? `${fmt(dispIns)} ins` : null].filter(Boolean).join(" + ")} = {fmt(excludedEscrowAmt)}/mo · still counted in DTI
        </div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
-       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt((calc.displayPayment || 0) + dispEscrowAmt)}/mo</div>
+       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt((calc.displayPayment || 0) + excludedEscrowAmt)}/mo</div>
        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>True cost · PITI</div>
       </div>
      </div>

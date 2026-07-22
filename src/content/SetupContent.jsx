@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiHasEscrow", "setRefiHasEscrow", "includeEscrow", "setIncludeEscrow", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -59,7 +59,7 @@ export default function SetupContent(props) {
     refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance,
     refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment,
     refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate, refiCurrentEscrow, setRefiCurrentEscrow,
-    refiHasEscrow, setRefiHasEscrow, includeEscrow, setIncludeEscrow,
+    refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns,
     refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths,
     refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid,
     refiHomeValue, setRefiHomeValue,
@@ -541,43 +541,41 @@ export default function SetupContent(props) {
      </select>
     </div>
     {insEffectiveDate && (
+     /* Escrowed = the timing question is a cash-to-close line item.
+        Non-escrowed = it's a docs condition, never a collection. */
      <div style={{ fontSize: 11, fontWeight: 600, marginTop: 6, color: calc.insRenewalAtClose ? T.orange : T.green }}>
       {calc.insRenewalAtClose
-       ? `Renews at closing — 12-month premium (${fmt(refiAnnualIns || 0)}) added to prepaids`
-       : "Renews outside the closing window — premium not counted as a refi cost"}
+       ? (calc.refiNewEscrowIns
+          ? `Renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} (≤60-day window) — 12-month premium (${fmt(refiAnnualIns || 0)}) collected at closing; escrow starts a fresh cycle`
+          : `Renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} — escrow waived, so nothing is collected. Docs condition: paid receipt for the renewal before docs.`)
+       : `Renews outside the 60-day window${calc.insRenewalDays != null ? ` (${calc.insRenewalDays} days after closing)` : ""} — premium not collected; ${calc.refiNewEscrowIns ? "funded through escrow reserves" : "borrower pays the carrier directly"}`}
      </div>
     )}
    </div>
    {refiAnnualTax <= 0 && refiAnnualIns <= 0 && (
     <Inp label="Current Monthly Escrow (Tax+Ins)" value={refiCurrentEscrow} onChange={setRefiCurrentEscrow} tip="If you don't know the annual amounts, enter your combined monthly escrow here." />
    )}
-   {/* Escrow: two independent toggles (Christo 2026-07-22). These were one
-       setting mirrored across both loans, so "my old loan escrowed but I want
-       to waive it on the new one" — a routine request — couldn't be modeled.
-       Current drives refiCurTotalPmt, New drives refiNewTotalPmt, and the
-       savings figure is the difference between them. */}
+   {/* Escrow on the CURRENT loan, per component (Christo 2026-07-22): tax and
+       insurance can be impounded independently. The NEW loan's pair of
+       toggles lives on the payment donut (Monthly Payment section) and
+       defaults to whatever these are set to. */}
    <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, marginBottom: 10 }}>
-    <div style={{ fontSize: 14, color: T.text, marginBottom: 2 }}>Tax/Ins included in payment?</div>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8 }}>Set each loan separately — escrow can be waived on the new loan even if the current one has it.</div>
+    <div style={{ fontSize: 14, color: T.text, marginBottom: 2 }}>Included in the current payment?</div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8 }}>What the current loan escrows. The new loan's escrow is set on the payment donut and starts out matching this.</div>
     {[
-     { key: "cur", label: "Current loan", on: refiHasEscrow, set: setRefiHasEscrow,
-       hint: refiHasEscrow ? "Tax & insurance included in today's payment" : "Tax & insurance paid separately today" },
-     { key: "new", label: "New loan", on: includeEscrow, set: setIncludeEscrow,
-       hint: includeEscrow ? "Tax & insurance escrowed on the new loan" : "Escrow waived — tax & insurance paid separately",
-       // FHA and VA require escrow; the same lock the Calculator tab enforces.
-       locked: loanType === "FHA" || loanType === "VA" },
+     { key: "tax", label: "Property taxes", on: refiCurEscrowTax, set: setRefiCurEscrowTax,
+       hint: refiCurEscrowTax ? "Taxes included in today's payment" : "Taxes paid separately today" },
+     { key: "ins", label: "Homeowner's insurance", on: refiCurEscrowIns, set: setRefiCurEscrowIns,
+       hint: refiCurEscrowIns ? "Insurance included in today's payment" : "Insurance paid separately today" },
     ].map(row => (
      <div key={row.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
       <div>
        <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{row.label}</div>
-       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>
-        {row.locked ? `${loanType} loans require escrow` : row.hint}
-       </div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>{row.hint}</div>
       </div>
       <div
-       onClick={() => { if (!row.locked) row.set(!row.on); }}
-       title={row.locked ? `${loanType} loans require escrow — cannot be toggled off` : undefined}
-       style={{ width: 52, height: 30, borderRadius: 99, background: row.on ? T.green : T.inputBg, cursor: row.locked ? "not-allowed" : "pointer", opacity: row.locked ? 0.55 : 1, padding: 2, transition: "all 0.3s", flexShrink: 0 }}
+       onClick={() => row.set(!row.on)}
+       style={{ width: 52, height: 30, borderRadius: 99, background: row.on ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}
       >
        <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: row.on ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
       </div>
