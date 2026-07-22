@@ -69,6 +69,7 @@ import useSelfCloudSync from "./hooks/useSelfCloudSync";
 import AccountSheet from "./components/AccountSheet";
 import CloudMergeSheet from "./components/CloudMergeSheet";
 import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
+import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -1388,10 +1389,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [floodCertFee, setFloodCertFee] = useState(8);
  const [mersFee, setMersFee] = useState(25);
  const [taxServiceFee, setTaxServiceFee] = useState(85);
- const [titleInsurance, setTitleInsurance] = useState(2000);
+ // Purchase-shaped flat defaults. Refis override these from the tiered
+ // schedule (see the refi title/escrow effect) unless the LO has edited them,
+ // which is why the two factory values are named rather than inlined.
+ const TITLE_INS_DEFAULT = 2000;
+ const ESCROW_FEE_DEFAULT = 2400;
+ const [titleInsurance, setTitleInsurance] = useState(TITLE_INS_DEFAULT);
  const [titleSearch, setTitleSearch] = useState(0);   // retired fee (2026-07-05) — kept for old scenario loads
  const [settlementFee, setSettlementFee] = useState(0); // retired fee (2026-07-05) — kept for old scenario loads
- const [escrowFee, setEscrowFee] = useState(2400);
+ const [escrowFee, setEscrowFee] = useState(ESCROW_FEE_DEFAULT);
  // Section C — additional title/escrow line items (from the fee worksheet)
  const [courierFee, setCourierFee] = useState(150);
  const [loanTieInFee, setLoanTieInFee] = useState(150);
@@ -1840,6 +1846,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.titleSearch !== undefined) setTitleSearch(s.titleSearch);
   if (s.settlementFee !== undefined) setSettlementFee(s.settlementFee);
   if (s.escrowFee !== undefined) setEscrowFee(s.escrowFee);
+  // Each loaded scenario starts back on the tiered schedule (refi only —
+  // purchase never auto-applies). Deliberate: the pre-schedule refi UI stored
+  // one combined flat fee + an unused $2,000 title default, so stored values
+  // are stale for the entire existing population and indistinguishable from
+  // custom ones. A custom fee holds within the session it was typed.
+  titleEscrowTouchedRef.current = false;
   if (s.courierFee !== undefined) setCourierFee(s.courierFee);
   if (s.loanTieInFee !== undefined) setLoanTieInFee(s.loanTieInFee);
   if (s.notaryFee !== undefined) setNotaryFee(s.notaryFee);
@@ -4785,6 +4797,36 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
+
+ // ── Refi title & escrow defaults, tiered on the new loan amount ──
+ // The flat $2,400 escrow / $2,000 title defaults are purchase-shaped guesses.
+ // A refi prices off a published tier table (src/data/titleEscrowFees.js), so
+ // the estimate should move with the loan (Christo 2026-07-22).
+ //
+ // Only auto-applies while the figure is still ours: lastAutoTitleEscrowRef
+ // holds what we last wrote, and we re-apply only if the current value still
+ // matches it. The moment an LO types their own number we stop touching it.
+ // Purchase is never affected, and an out-of-region county returns null so the
+ // existing defaults stand rather than Bay Area pricing being applied blindly.
+ // Tracks whether the LO has typed over either figure in THIS session. A
+ // stored value is not evidence of intent here: refi previously showed a
+ // single combined "Title / Escrow Flat Fee" and never used titleInsurance at
+ // all, so old scenarios carry a stale combined number and a $0 title row.
+ // Keying off session edits is what lets the schedule seed those correctly
+ // while still never overwriting a number the LO just typed.
+ const titleEscrowTouchedRef = useRef(false);
+ const setTitleInsuranceManual = (v) => { titleEscrowTouchedRef.current = true; setTitleInsurance(v); };
+ const setEscrowFeeManual = (v) => { titleEscrowTouchedRef.current = true; setEscrowFee(v); };
+ const refiTitleEscrow = React.useMemo(
+  () => (isRefi ? lookupTitleEscrow(calc.refiNewLoanAmt, propertyCounty) : null),
+  [isRefi, calc.refiNewLoanAmt, propertyCounty]
+ );
+ useEffect(() => {
+  if (!refiTitleEscrow || titleEscrowTouchedRef.current) return;
+  setTitleInsurance(refiTitleEscrow.loanPolicy);
+  setEscrowFee(refiTitleEscrow.escrow);
+ }, [refiTitleEscrow]);
+
  // Auto-switch to Jumbo when the loan exceeds the county high-balance limit.
  //
  // This used to read `salesPrice * (1 - downPct/100)` unconditionally, which is
@@ -6195,7 +6237,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
-{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
+{tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
 {tab === "income" && <IncomeContent {...{T, isDesktop, calc, fmt, incomes, addIncome, updateIncome, removeIncome, removeBorrower, otherIncome, setOtherIncome, otherIncome2, setOtherIncome2, numBorrowers, setNumBorrowers, borrowerNames, setBorrowerNames, otherIncomeByBorrower, setOtherIncomeByBorrower, Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress, VARIABLE_PAY_TYPES, PAY_TYPES, loanType, isPulse, GuidedNextButton, ClusterContinue}} />}
 {/* ═══ ASSETS ═══ */}
@@ -6498,8 +6540,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
    appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee,
    floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee,
-   titleInsurance, setTitleInsurance, titleSearch, setTitleSearch,
-   settlementFee, setSettlementFee, escrowFee, setEscrowFee,
+   /* Manual setters flag the fee as LO-edited so the refi tier schedule
+      stops auto-applying (see titleEscrowTouchedRef). */
+   titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch,
+   settlementFee, setSettlementFee, escrowFee, setEscrowFee: setEscrowFeeManual,
    courierFee, setCourierFee, loanTieInFee, setLoanTieInFee,
    notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien,
    transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit,

@@ -3,6 +3,76 @@ import React, { useState, useContext, createContext, useMemo } from "react";
 import Icon from "../Icon";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import { devCheckProps } from "../lib/devPropCheck.js";
+import { TIERS as TITLE_ESCROW_TIERS, isRegionCounty, lookupTitleEscrow } from "../data/titleEscrowFees.js";
+
+// Collapsible "where these numbers come from" chart for the refi title/escrow
+// rows. Shows the full tier table with the borrower's bracket highlighted, so
+// an LO can see how close the loan is to the next threshold (Christo
+// 2026-07-22). Deliberately never names the underwriter — these are estimates.
+function TitleEscrowScheduleNote({ T, fmt, loanAmount, county }) {
+  const [open, setOpen] = useState(false);
+  const applies = isRegionCounty(county);
+  const current = applies ? lookupTitleEscrow(loanAmount, county) : null;
+  if (!applies) {
+    return (
+      <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, padding: "6px 2px 2px", lineHeight: 1.5 }}>
+        Estimated fees — no tiered schedule on file for {county ? `${county} County` : "this county"}, so these are flat defaults. Confirm with your title rep.
+      </div>
+    );
+  }
+  const cell = { padding: "4px 8px", fontSize: 11, fontFamily: FONT, whiteSpace: "nowrap" };
+  return (
+    <div style={{ padding: "4px 2px 2px" }}>
+      <div onClick={() => setOpen(o => !o)} style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer", color: T.blue, fontSize: 11, fontWeight: 600, fontFamily: FONT }}>
+        <Icon name={open ? "chevron-down" : "chevron-right"} size={12} />
+        Estimated fees — how the tiers work
+      </div>
+      {current && (
+        <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 3, lineHeight: 1.5 }}>
+          {current.overCap
+            ? `Loan is above the ${fmt(5000000)} top tier — the policy adds $500 per additional $1M.`
+            : `A ${fmt(Math.round(loanAmount || 0))} loan falls in the "up to ${fmt(current.tier)}" bracket.`}
+        </div>
+      )}
+      {open && (
+        <div style={{ marginTop: 8, overflowX: "auto", border: `1px solid ${T.separator}`, borderRadius: 10 }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 340 }}>
+            <thead>
+              <tr style={{ background: T.inputBg }}>
+                <th style={{ ...cell, textAlign: "left", color: T.textSecondary, fontWeight: 700 }}>Loan up to</th>
+                <th style={{ ...cell, textAlign: "right", color: T.textSecondary, fontWeight: 700 }}>Lender's policy</th>
+                <th style={{ ...cell, textAlign: "right", color: T.textSecondary, fontWeight: 700 }}>Escrow</th>
+                <th style={{ ...cell, textAlign: "right", color: T.textSecondary, fontWeight: 700 }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TITLE_ESCROW_TIERS.map(t => {
+                const active = current && !current.overCap && current.tier === t.upTo;
+                return (
+                  <tr key={t.upTo} style={{ background: active ? `${T.blue}14` : "transparent", borderTop: `1px solid ${T.separator}` }}>
+                    <td style={{ ...cell, color: active ? T.blue : T.text, fontWeight: active ? 700 : 500 }}>{fmt(t.upTo)}</td>
+                    <td style={{ ...cell, textAlign: "right", color: active ? T.blue : T.textSecondary }}>{fmt(t.loanPolicy)}</td>
+                    <td style={{ ...cell, textAlign: "right", color: active ? T.blue : T.textSecondary }}>{fmt(t.escrow)}</td>
+                    <td style={{ ...cell, textAlign: "right", fontWeight: 700, color: active ? T.blue : T.text }}>{fmt(t.loanPolicy + t.escrow)}</td>
+                  </tr>
+                );
+              })}
+              <tr style={{ background: current?.overCap ? `${T.blue}14` : "transparent", borderTop: `1px solid ${T.separator}` }}>
+                <td style={{ ...cell, color: T.textSecondary }}>Above {fmt(5000000)}</td>
+                <td colSpan={3} style={{ ...cell, textAlign: "right", color: T.textSecondary }}>
+                  {fmt(3695)} + {fmt(500)} per additional $1M · escrow {fmt(1235)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, padding: "6px 8px", lineHeight: 1.5 }}>
+            Estimates for a single-loan residential refinance. Excludes recording fees and transfer/SB2 charges, which are itemized in section E. Confirm with your title rep.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 // ──────────────────────────────────────────────────────────────
@@ -789,7 +859,7 @@ function EscrowCalendar({
 
 export default function CostsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "customFees", "setCustomFees", "hiddenFees", "setHiddenFees", "emdLocked", "setEmdLocked", "emdFlat", "setEmdFlat", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CostsContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "isRefi", "downPct", "underwritingFee", "setUnderwritingFee", "processingFee", "setProcessingFee", "adminFee", "setAdminFee", "lenderWireFee", "setLenderWireFee", "discountPts", "setDiscountPts", "originatorComp", "setOriginatorComp", "appraisalFee", "setAppraisalFee", "creditReportFee", "setCreditReportFee", "floodCertFee", "setFloodCertFee", "mersFee", "setMersFee", "taxServiceFee", "setTaxServiceFee", "escrowFee", "setEscrowFee", "courierFee", "setCourierFee", "loanTieInFee", "setLoanTieInFee", "notaryFee", "setNotaryFee", "envProtectionLien", "setEnvProtectionLien", "titleInsurance", "setTitleInsurance", "titleSearch", "setTitleSearch", "settlementFee", "setSettlementFee", "transferTaxCity", "setTransferTaxCity", "transferTaxSplit", "setTransferTaxSplit", "transferTaxCountySplit", "setTransferTaxCountySplit", "city", "propertyState", "propertyCounty", "salesPrice", "getTTCitiesForState", "getTTForCity", "recordingFee", "setRecordingFee", "ownersTitleIns", "setOwnersTitleIns", "homeWarranty", "setHomeWarranty", "hoa", "hoaTransferFee", "setHoaTransferFee", "buyerPaysComm", "setBuyerPaysComm", "buyerCommPct", "setBuyerCommPct", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "propertyTaxesInstallment", "setPropertyTaxesInstallment", "sellersProratedTaxCredit", "setSellersProratedTaxCredit", "annualIns", "setAnnualIns", "includeEscrow", "setIncludeEscrow", "lenderCredit", "setLenderCredit", "sellerCredit", "setSellerCredit", "realtorCredit", "setRealtorCredit", "emd", "setEmd", "emdPct", "setEmdPct", "emdPaid", "setEmdPaid", "customFees", "setCustomFees", "hiddenFees", "setHiddenFees", "emdLocked", "setEmdLocked", "emdFlat", "setEmdFlat", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton", "skillLevel", "isPulse", "markTouched", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2,
   isRefi, downPct,
@@ -815,7 +885,7 @@ export default function CostsContent(props) {
   transferTaxCity, setTransferTaxCity,
   transferTaxSplit, setTransferTaxSplit,
   transferTaxCountySplit, setTransferTaxCountySplit,
-  city, propertyState, salesPrice,
+  city, propertyState, propertyCounty, salesPrice,
   getTTCitiesForState, getTTForCity,
   recordingFee, setRecordingFee,
   ownersTitleIns, setOwnersTitleIns,
@@ -1107,7 +1177,14 @@ export default function CostsContent(props) {
         {/* C. Services You Can Shop For — lockable */}
         <LetterSection letter="C" title="Services You Can Shop For" total={fmt2(calc.canShop)} lockable>
           {isRefi ? (
-            <FeeRow label="Title / Escrow Flat Fee" value={escrowFee} onChange={setEscrowFee} explainer="Refinances use a flat title/escrow fee" note="Refinances use a flat title/escrow fee." />
+            <>
+              {/* Both refi title/escrow charges, tiered on the new loan amount.
+                  Was a single flat "Title / Escrow Flat Fee" that never moved
+                  with the loan (Christo 2026-07-22). */}
+              <FeeRow label="Title Insurance — Lender's Policy" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Insures the lender's lien position. A refi needs a new loan policy; your owner's policy carries over." />
+              <FeeRow label="Escrow / Settlement Fee" value={escrowFee} onChange={setEscrowFee} hidden={isHidden("escrowFee")} onDelete={() => deleteBuiltin("escrowFee")} explainer="Basic residential loan escrow services for a single-loan refinance." />
+              <TitleEscrowScheduleNote T={T} fmt={fmt} loanAmount={calc.refiNewLoanAmt} county={propertyCounty} />
+            </>
           ) : (
             <>
               {/* Title — Settlement Agent Fee + Title Search removed from
