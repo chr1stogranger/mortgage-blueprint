@@ -1691,6 +1691,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // two facts, not one. Informational for now; an adjustable current loan is
  // often the whole reason for the refi.
  const [refiCurrentRateType, setRefiCurrentRateType] = useState("Fixed");
+ // ARM history — lets the balance amortize truthfully instead of assuming one
+ // constant rate (Christo 2026-07-22): the note starts at refiArmStartRate,
+ // adjusts in refiArmAdjustedDate, and refiCurrentRate is the rate it
+ // adjusted TO (the rate today).
+ const [refiArmStartRate, setRefiArmStartRate] = useState(0);
+ const [refiArmAdjustedDate, setRefiArmAdjustedDate] = useState("");
+ // Statement anchors — the balance the servicer reports and the month of the
+ // most recent payment. When present these beat the amortized estimate, and
+ // the paid-through date is what per-diem payoff interest accrues from.
+ const [refiLastPaymentDate, setRefiLastPaymentDate] = useState("");
  // Homeowner's insurance effective (anniversary) month, "YYYY-MM-01" like
  // refiClosedDate. On a refi the policy carries over, so the 12-month premium
  // belongs in the closing costs ONLY when the renewal lands at closing —
@@ -1777,6 +1787,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const defaultClose = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
  const [closingMonth, setClosingMonth] = useState(defaultClose.getMonth() + 1);
  const [closingDay, setClosingDay] = useState(defaultClose.getDate());
+ // Skipped payments are a function of the estimated closing date, not a
+ // choice (Christo 2026-07-22): fund by the 15th and the next TWO payments
+ // are skipped; fund after the 15th and only the next one is.
+ React.useEffect(() => {
+  if (isRefi) setRefiSkipMonths(closingDay <= 15 ? 2 : 1);
+ }, [isRefi, closingDay]);
  const [closingYear, setClosingYear] = useState(defaultClose.getFullYear());
  // F. Prepaids — split Property Taxes into Installment + Sellers Prorated Reimbursement
  // Both default to $0 and stay hidden in the UI until the user unlocks Section F.
@@ -1827,7 +1843,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, borrowerEmail,
   showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   showProp19, prop19Eligibility, prop19OldTaxableValue, prop19OldSalePrice, prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate, prop19RateOverride,
@@ -2003,6 +2019,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // refiCurrentRateType postdates scenarios that stored "ARM" as the loan
   // TYPE (a one-day option, 2026-07-22) — map those to Conventional/Adjustable.
   if (s.refiCurrentRateType !== undefined) setRefiCurrentRateType(s.refiCurrentRateType);
+  if (s.refiArmStartRate !== undefined) setRefiArmStartRate(s.refiArmStartRate);
+  if (s.refiArmAdjustedDate !== undefined) setRefiArmAdjustedDate(s.refiArmAdjustedDate);
+  if (s.refiLastPaymentDate !== undefined) setRefiLastPaymentDate(s.refiLastPaymentDate);
   else if (s.refiCurrentLoanType === "ARM") setRefiCurrentRateType("Adjustable");
   if (s.refiCurrentLoanType === "ARM") setRefiCurrentLoanType("Conventional");
   // Escrow flags. New granular keys win; legacy single flags fan out to both
@@ -2293,7 +2312,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, borrowerEmail,
   darkMode, loaded, scenarioName]);
  // ── Blueprint switcher (left panel): client callbacks + open helper ──
  const borrowerPickerCallbacks = {
@@ -4482,7 +4501,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    Previously those used the purchase `loan` even in refi mode. ──
   const refiOrigNp = refiOriginalTerm * 12;
   const refiOrigMr = (refiCurrentRate / 100) / 12;
-  const refiCalcPI = calcPI(refiOriginalAmount, refiCurrentRate, refiOriginalTerm);
+  const refiCurMrEarly = (refiCurrentRate / 100) / 12;
+  // On an ARM the note starts at refiArmStartRate and the payment RECASTS at
+  // the adjustment: the balance re-amortizes over the remaining term at the
+  // new rate. A constant-rate estimate is wrong on both sides of that date —
+  // the reason Christo's real UWM file didn't match ("in Abe, it's not
+  // calculating correctly").
+  const armActive = refiCurrentRateType === "Adjustable" && refiArmStartRate > 0;
+  const refiCalcPI = calcPI(refiOriginalAmount, armActive ? refiArmStartRate : refiCurrentRate, refiOriginalTerm);
   const refiMonthsElapsed = (() => {
    if (!refiClosedDate) return 0;
    const cd = new Date(refiClosedDate + "T00:00:00");
@@ -4491,16 +4517,39 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    return Math.max(0, (now.getFullYear() - cd.getFullYear()) * 12 + (now.getMonth() - cd.getMonth()));
   })();
   const refiCalcRemainingMonths = Math.max(0, refiOrigNp - refiMonthsElapsed);
-  const refiCalcBalance = (() => {
-   if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return 0;
-   let bal = refiOriginalAmount;
-   const pmtWithExtra = refiCalcPI + (refiExtraPaid || 0);
-   for (let m = 0; m < refiMonthsElapsed && bal > 0; m++) {
-    const intPmt = bal * refiOrigMr;
-    bal -= (pmtWithExtra - intPmt);
-   }
-   return Math.max(0, bal);
+  // Months from close to the ARM adjustment (Infinity = never adjusted /
+  // fixed loan) — the amortization switches rate & payment at this index.
+  const armAdjMonth = (() => {
+   if (!armActive || !refiArmAdjustedDate || !refiClosedDate) return Infinity;
+   const cd = new Date(refiClosedDate + "T00:00:00");
+   const ad = new Date(refiArmAdjustedDate + "T00:00:00");
+   if (isNaN(cd) || isNaN(ad)) return Infinity;
+   return Math.max(0, (ad.getFullYear() - cd.getFullYear()) * 12 + (ad.getMonth() - cd.getMonth()));
   })();
+  const armSim = (() => {
+   if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return { balance: 0, pi: refiCalcPI };
+   let bal = refiOriginalAmount;
+   let pi = refiCalcPI;                       // start-rate payment
+   let mr = armActive ? (refiArmStartRate / 100) / 12 : refiOrigMr;
+   for (let m = 0; m < refiMonthsElapsed && bal > 0; m++) {
+    if (m === armAdjMonth) {
+     // Recast: remaining balance re-amortized over the remaining term at the
+     // adjusted rate (= refiCurrentRate, the rate today).
+     const remMonths = Math.max(1, refiOrigNp - m);
+     pi = calcPI(bal, refiCurrentRate, remMonths / 12);
+     mr = refiCurMrEarly;
+    }
+    const intPmt = bal * mr;
+    bal -= (pi + (refiExtraPaid || 0) - intPmt);
+   }
+   // Adjustment lands exactly this month (loop ran m < elapsed, so index
+   // armAdjMonth was never reached) — today's payment is still the recast one.
+   if (armAdjMonth !== Infinity && refiMonthsElapsed === armAdjMonth) {
+    pi = calcPI(bal, refiCurrentRate, Math.max(1, refiOrigNp - armAdjMonth) / 12);
+   }
+   return { balance: Math.max(0, bal), pi };
+  })();
+  const refiCalcBalance = armSim.balance;
   const refiMinBalance = (() => {
    if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return 0;
    let bal = refiOriginalAmount;
@@ -4510,8 +4559,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
    return Math.max(0, bal);
   })();
-  const refiEffPI = refiOriginalAmount > 0 ? refiCalcPI : refiCurrentPayment;
-  const refiEffBalance = refiOriginalAmount > 0 && refiClosedDate ? refiCalcBalance : refiCurrentBalance;
+  const refiEffPI = refiOriginalAmount > 0 ? (armActive ? armSim.pi : refiCalcPI) : refiCurrentPayment;
+  // Statement balance is ground truth when the LO has it — the amortized
+  // figure assumes minimum payments at a constant rate, which breaks for
+  // extra-payers and adjusted ARMs (Christo 2026-07-22).
+  const refiEffBalance = refiCurrentBalance > 0
+   ? refiCurrentBalance
+   : (refiOriginalAmount > 0 && refiClosedDate ? refiCalcBalance : 0);
   const refiEffRemaining = refiClosedDate ? refiCalcRemainingMonths : refiRemainingMonths;
   const refiCurMr = (refiCurrentRate / 100) / 12;
   const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : refiCurrentEscrow;
@@ -4526,7 +4580,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiCurTotalRemaining = refiCurRemainingInt + refiEffBalance;
   const refiCurTotalCostRemaining = refiEffPI * refiEffRemaining;
   const refiCurLTV = refiHomeValue > 0 ? refiEffBalance / refiHomeValue : 0;
-  const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
+  // ── Payoff (the UWM-payoff-sheet math): balance + per-diem interest from
+  //    the paid-through date to the estimated closing date. Mortgage interest
+  //    is paid in arrears, so a payment made July 1 pays interest THROUGH
+  //    June 30 and the payoff accrues from July 1. ──
+  const refiPayoffPerDiem = refiEffBalance * (refiCurrentRate / 100) / 365;
+  const estCloseDateEarly = new Date(closingYear || new Date().getFullYear(), closingMonth - 1, closingDay);
+  const refiPayoffDays = (() => {
+   if (!refiLastPaymentDate) return 0;
+   const pt = new Date(refiLastPaymentDate + "T00:00:00");
+   if (isNaN(pt) || isNaN(estCloseDateEarly)) return 0;
+   return Math.max(0, Math.round((estCloseDateEarly - pt) / 86400000));
+  })();
+  const refiPayoffInterest = refiPayoffPerDiem * refiPayoffDays;
+  const refiPayoffAmount = refiEffBalance + refiPayoffInterest;
+  const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut) : refiPayoffAmount;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   // Which rate sheet this loan prices off. Measures whichever loan actually
   // exists — the new refi loan, or the purchase loan.
@@ -4737,7 +4805,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiNetNewLoan = refiNewLoanAmt;
   const refiNetClosingCosts = totalClosingCosts;
   const refiNetPrepaids = totalPrepaidExp;
-  const refiNetPayoff = refiEffBalance;
+  const refiNetPayoff = refiPayoffAmount;
   const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff;
   const refiSkipPmtAmt = refiCurTotalPmt * (refiSkipMonths || 0);
   const refiEscrowRefund = refiEscrowBalance || 0;
@@ -4892,6 +4960,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiEffPI, refiEffBalance, refiEffRemaining,
    refiCurMr, refiCurTotalPmt, refiCurIntThisMonth, refiCurPrinThisMonth,
    refiCurMonthlyTax, refiCurMonthlyIns, refiCurEscrowEffective,
+   refiPayoffPerDiem, refiPayoffDays, refiPayoffInterest, refiPayoffAmount, armActive, armAdjMonth,
    refiNewMonthlyTax, refiNewMonthlyIns,
    refiCurRemainingInt, refiCurTotalRemaining, refiCurTotalCostRemaining, refiCurLTV,
    refiAutoLoanAmt, refiNewLoanAmt, refiNewPi, refiNewEscrow, refiNewMI, refiNewTotalPmt,
@@ -4923,7 +4992,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate]);
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate]);
 
  // ── Refi title & escrow defaults, tiered on the new loan amount ──
  // The flat $2,400 escrow / $2,000 title defaults are purchase-shaped guesses.
@@ -6722,7 +6791,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    invHoldYears, setInvHoldYears,
    invSellerComm, setInvSellerComm, invSellClosing, setInvSellClosing,
    /* Refi (for SetupContent) */
-   refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType,
+   refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear,
    refiOriginalAmount, setRefiOriginalAmount,
    refiOriginalTerm, setRefiOriginalTerm, setRefiCurrentRate,
    refiClosedDate, setRefiClosedDate,
@@ -6786,7 +6855,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, ClusterContinue}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, ClusterContinue}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && (<>
  <div style={{ marginTop: 20 }}>

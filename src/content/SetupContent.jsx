@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -54,6 +54,9 @@ export default function SetupContent(props) {
     lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, ClusterContinue,
     // Refi-specific states
     refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType,
+    refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate,
+    refiLastPaymentDate, setRefiLastPaymentDate,
+    closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear,
     refiOriginalAmount, setRefiOriginalAmount,
     refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate,
     refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance,
@@ -480,6 +483,34 @@ export default function SetupContent(props) {
     <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
     <Sel label="Fixed / Adjustable" value={refiCurrentRateType} onChange={setRefiCurrentRateType} options={["Fixed", "Adjustable"]} tip="Whether the current note's rate is fixed or adjustable (ARM). An ARM about to reset is often the reason to refinance." />
    </div>
+   {/* ARM history — the note starts at one rate and RECASTS at the adjustment
+       (balance re-amortized over the remaining term at the new rate). Without
+       these two facts the balance estimate amortizes at a single rate and is
+       simply wrong for an adjusted ARM (Christo 2026-07-22). Current Rate
+       above is the rate it adjusted TO. */}
+   {refiCurrentRateType === "Adjustable" && (
+    <>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <Inp label="Start Rate" value={refiArmStartRate} onChange={setRefiArmStartRate} prefix="" suffix="%" step={0.125} max={30} sm tip="The initial (teaser) rate the ARM closed at. The balance amortizes at this rate until the adjustment." />
+      <div style={{ marginBottom: 6 }}>
+       <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Adjusted In</label>
+       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <select value={refiArmAdjustedDate ? refiArmAdjustedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiArmAdjustedDate(""); return; } const y = refiArmAdjustedDate ? refiArmAdjustedDate.slice(0, 4) : String(new Date().getFullYear()); setRefiArmAdjustedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiArmAdjustedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+         <option value="">Month</option>
+         {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+        </select>
+        <select value={refiArmAdjustedDate ? refiArmAdjustedDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiArmAdjustedDate ? refiArmAdjustedDate.slice(5, 7) : "01"; if (y) setRefiArmAdjustedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiArmAdjustedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+         <option value="">Year</option>
+         {Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+       </div>
+      </div>
+     </div>
+     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -2, marginBottom: 10 }}>
+      Amortizes at the start rate until "{refiArmAdjustedDate ? "the adjustment" : "adjusted"}", then recasts at the Current Rate above (the rate it adjusted to).
+     </div>
+    </>
+   )}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm req />
     <Inp label="Current Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} sm req />
@@ -500,21 +531,68 @@ export default function SetupContent(props) {
    {refiOriginalAmount > 0 && refiCurrentRate > 0 && (<div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.blue, marginBottom: 6 }}>AUTO-CALCULATED</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-     <div><div style={{ fontSize: 10, color: T.textTertiary }}>P&I Payment</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiCalcPI)}</div></div>
+     {/* refiEffPI = today's payment — for an adjusted ARM that's the RECAST
+         payment, not the start-rate one (refiCalcPI). */}
+     <div><div style={{ fontSize: 10, color: T.textTertiary }}>P&I Payment</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffPI)}</div></div>
      {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Months Elapsed</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{calc.refiMonthsElapsed}</div></div>}
      {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Est. Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffBalance)}</div></div>}
      {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Remaining</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{calc.refiEffRemaining} mos</div></div>}
     </div>
    </div>)}
-   {!refiClosedDate && <Note color={T.orange}>Enter the close date above and we'll auto-calculate balance & remaining months. Or enter manually below.</Note>}
-   {!refiClosedDate && <>
-    <Inp label="Current Balance (manual)" value={refiCurrentBalance} onChange={setRefiCurrentBalance} />
+   {/* The auto-estimate's blind spots, stated plainly: it assumes minimum
+       payments at a constant rate. Statement figures below beat it. */}
+   {refiOriginalAmount > 0 && refiCurrentRate > 0 && refiClosedDate && (
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 12, lineHeight: 1.5 }}>
+     Estimate assumes minimum payments at {refiCurrentRateType === "Adjustable" ? "the rates entered above" : "the same rate"} since closing — it will be off for extra principal payments{refiCurrentRateType === "Adjustable" ? "" : " or an ARM that has adjusted"}. A statement balance below overrides it.
+    </div>
+   )}
+   {/* Statement anchors — the servicer's number beats any estimate, and the
+       last-payment month is what per-diem payoff interest accrues from
+       (payments pay interest in ARREARS: a July 1 payment covers June). */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Current Balance — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} sm tip="Outstanding principal from the most recent mortgage statement. When set, this overrides the auto-estimate and anchors the payoff calculation." />
+    <div style={{ marginBottom: 6 }}>
+     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
+      Last Payment Made
+      <InfoTip tip="The month of the most recent payment on the statement. Mortgage interest is paid in arrears, so payoff interest accrues from the 1st of this month to the estimated closing date." />
+     </label>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <select value={refiLastPaymentDate ? refiLastPaymentDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiLastPaymentDate(""); return; } const y = refiLastPaymentDate ? refiLastPaymentDate.slice(0, 4) : String(new Date().getFullYear()); setRefiLastPaymentDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiLastPaymentDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+       <option value="">Month</option>
+       {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+      </select>
+      <select value={refiLastPaymentDate ? refiLastPaymentDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiLastPaymentDate ? refiLastPaymentDate.slice(5, 7) : "01"; if (y) setRefiLastPaymentDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiLastPaymentDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+       <option value="">Year</option>
+       {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+      </select>
+     </div>
+    </div>
+   </div>
+   {/* Payoff readout — balance + per-diem interest through the est. closing */}
+   {refiCurrentBalance > 0 && refiLastPaymentDate && calc.refiPayoffDays > 0 && (
+    <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
+     <div style={{ fontSize: 11, fontWeight: 600, color: T.blue, marginBottom: 6 }}>ESTIMATED PAYOFF</div>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Per Diem</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffPerDiem)}/day</div></div>
+      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Days to Closing</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{calc.refiPayoffDays}</div></div>
+      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Payoff Interest</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiPayoffInterest)}</div></div>
+      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Payoff Amount</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount)}</div></div>
+     </div>
+    </div>
+   )}
+   {!refiClosedDate && !refiCurrentBalance && <Note color={T.orange}>Enter the close date above and we'll estimate the balance — or enter the statement balance directly.</Note>}
+   {!refiClosedDate && (
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
-   </>}
+   )}
    {!refiOriginalAmount && <Inp label="Current P&I Payment (manual)" value={refiCurrentPayment} onChange={setRefiCurrentPayment} />}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Annual Prop Tax" value={refiAnnualTax} onChange={setRefiAnnualTax} sm tip="Annual property tax. Stays the same after refi." />
     <Inp label="Annual Home Ins" value={refiAnnualIns} onChange={setRefiAnnualIns} sm tip="Annual homeowner's insurance premium. Stays the same after refi." />
+   </div>
+   {/* MI/MIP + escrow balance, paired below the annual figures (Christo 2026-07-22) */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} sm tip="Monthly mortgage insurance on the current loan, if any." />
+    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm tip="Money sitting in your escrow account — refunded to you after the old loan pays off." />
    </div>
    {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
@@ -582,11 +660,34 @@ export default function SetupContent(props) {
      </div>
     ))}
    </div>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm tip="Money sitting in your escrow account — refunded to you when the old loan closes." />
-    <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end" }}><Sel label="Skip Payments" value={String(refiSkipMonths)} onChange={v => setRefiSkipMonths(Number(v))} options={[{value:"0",label:"0 months"},{value:"1",label:"1 month"},{value:"2",label:"2 months"}]} sm tip="Mortgage payments you skip during the refi process. Auto-set based on closing day — close by the 15th = skip 2, after the 15th = skip 1." /></div>
+   {/* Estimated closing date drives the skipped-payment count — it is a
+       function of the calendar, not a choice, so the old dropdown is gone
+       (Christo 2026-07-22): fund by the 15th → skip 2, after → skip 1. */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
+    <div style={{ marginBottom: 6 }}>
+     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
+      Estimated Closing Date
+      <InfoTip tip="When the refi is expected to fund. Drives prepaid interest, the insurance-renewal window, payoff per-diem days, and how many payments get skipped." />
+     </label>
+     <input
+      type="date"
+      value={`${closingYear || new Date().getFullYear()}-${String(closingMonth).padStart(2, "0")}-${String(closingDay).padStart(2, "0")}`}
+      onChange={e => {
+       const [y, m, d] = e.target.value.split("-").map(Number);
+       if (y && m && d) { setClosingYear(y); setClosingMonth(m); setClosingDay(d); }
+      }}
+      style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "11px 14px", color: T.text, fontSize: 14, outline: "none", fontFamily: FONT }}
+     />
+    </div>
+    <div style={{ marginBottom: 6 }}>
+     <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Skipped Payments</div>
+     <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.pillBg, borderRadius: 12, padding: "11px 14px" }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>{refiSkipMonths} {refiSkipMonths === 1 ? "month" : "months"}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "2px 7px" }}>AUTO</span>
+     </div>
+     <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4 }}>Close by the 15th → skip 2 · after → skip 1</div>
+    </div>
    </div>
-   <Inp label="Current MI/MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} />
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
   </Card>
  </Sec>}
