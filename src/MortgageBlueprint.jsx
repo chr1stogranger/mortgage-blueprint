@@ -3829,7 +3829,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
   // 4. Modules — pulse stays on the card until the user clicks "Continue"
   //    (sets "modules-done"). Tapping individual modules no longer advances.
-  if (!guideTouched.has("modules-done")) return "modules";
+  //    Skipped on refi: every module is purchase-only, so the card no longer
+  //    renders there and a guided refi would stall pointing at nothing.
+  if (!isRefi && !guideTouched.has("modules-done")) return "modules";
 
   // 5. Purchase price (purchase only) — hold the pulse until a full
   //    6-digit price ($100k+) is entered. The input is debounced, but a
@@ -4188,18 +4190,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return { ...r, assumedCeiling: false };
  }, [propertyState, propertyCounty]);
  const getCountyHighBal = React.useCallback((pt) => countyLimitsFor(pt).highBalance, [countyLimitsFor]);
- useEffect(() => {
-  const baseLoan = salesPrice * (1 - downPct / 100);
-  const hbl = getCountyHighBal(propType);
-  const userType = userLoanTypeRef.current;
-  if ((userType === "Conventional") && baseLoan > hbl && loanType !== "Jumbo") {
-   setLoanType("Jumbo");
-   setAutoJumboSwitch(true);
-  } else if (autoJumboSwitch && baseLoan <= hbl && loanType === "Jumbo") {
-   setLoanType(userLoanTypeRef.current);
-   setAutoJumboSwitch(false);
-  }
- }, [salesPrice, downPct, propType, getCountyHighBal]);
+ // Auto-Jumbo lives BELOW the calc memo — it needs calc.refiNewLoanAmt, which
+ // does not exist until calc runs. See the effect after calc.
  const calc = useMemo(() => {
   const dp = salesPrice * downPct / 100;
   const baseLoan = salesPrice - dp;
@@ -4378,7 +4370,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // the borrower is quoted, so the county lookup matters materially.
   const countyLimit = countyLimitsFor(propType);
   const confLimit = countyLimit.conforming, highBalLimit = countyLimit.highBalance;
-  const loanCategory = baseLoan <= confLimit ? "Conforming" : baseLoan <= highBalLimit ? "High Balance" : "Jumbo";
+  // loanCategory moved below refiNewLoanAmt — on a refi it has to measure the
+  // NEW loan, not the purchase-shaped baseLoan. Same root cause as the
+  // auto-Jumbo bug: baseLoan is homeValue×(1−downPct) on a refi, which is
+  // meaningless (Christo 2026-07-22).
   const maxDTI = MAX_DTI[loanType] || 0.50;
   const yourDTI = computeDTI(totalPayment, qualifyingIncome); // fraction (0.43 = 43%) or null
   // ── Refi current-loan math — moved ABOVE the fee section (2026-07-05) so
@@ -4430,6 +4425,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiCurLTV = refiHomeValue > 0 ? refiEffBalance / refiHomeValue : 0;
   const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiEffBalance + refiCashOut) : refiEffBalance;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
+  // Which rate sheet this loan prices off. Measures whichever loan actually
+  // exists — the new refi loan, or the purchase loan.
+  const categoryLoan = isRefi ? refiNewLoanAmt : baseLoan;
+  const loanCategory = categoryLoan <= confLimit ? "Conforming" : categoryLoan <= highBalLimit ? "High Balance" : "Jumbo";
   // Loan basis for $-fees that scale with the loan: refi uses the NEW refi
   // loan amount; purchase uses the purchase loan.
   const feeLoanBasis = isRefi ? (refiNewLoanAmt || loan) : loan;
@@ -4786,6 +4785,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiHasEscrow, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride]);
+ // Auto-switch to Jumbo when the loan exceeds the county high-balance limit.
+ //
+ // This used to read `salesPrice * (1 - downPct/100)` unconditionally, which is
+ // only the loan amount on a PURCHASE. In a refi salesPrice is the HOME VALUE
+ // and downPct is a leftover default (20%), so a $1.65M home refinancing
+ // $775K was measured as a $1.32M loan and force-switched to Jumbo — wrong
+ // type, wrong rate, and a banner quoting a loan amount that appeared nowhere
+ // on the page (Christo 2026-07-22). The refi's real figure is refiNewLoanAmt,
+ // which is why this now sits below the calc memo.
+ const jumboTestLoan = isRefi ? (calc.refiNewLoanAmt || 0) : calc.baseLoan;
+ useEffect(() => {
+  const hbl = getCountyHighBal(propType);
+  const userType = userLoanTypeRef.current;
+  if (userType === "Conventional" && jumboTestLoan > hbl && loanType !== "Jumbo") {
+   setLoanType("Jumbo");
+   setAutoJumboSwitch(true);
+  } else if (autoJumboSwitch && jumboTestLoan <= hbl && loanType === "Jumbo") {
+   setLoanType(userLoanTypeRef.current);
+   setAutoJumboSwitch(false);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [jumboTestLoan, propType, getCountyHighBal]);
  // === INVESTMENT PROPERTY CALCULATIONS ===
  const invCalc = useMemo(() => {
   const annualRent = invMonthlyRent * 12;

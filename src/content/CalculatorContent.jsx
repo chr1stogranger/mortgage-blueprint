@@ -15,14 +15,22 @@ function InlineEditValue({ value, onChange, T }) {
   const [focused, setFocused] = useState(false);
   const [editStr, setEditStr] = useState(null);
   const inputRef = useRef(null);
+  // Comma-group the INTEGER part only. Grouping the whole string walked the
+  // decimals too, so insurance of 2000/12 = 166.66666666666666 rendered as
+  // "$166.66,666,666,66" (Christo 2026-07-22).
   const fmtComma = (n) => {
     if (n === 0 || n === "0") return "0";
     if (n === "" || n == null) return "";
-    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const [int, dec] = String(n).split(".");
+    const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return dec === undefined ? grouped : `${grouped}.${dec}`;
   };
+  // Derived values (annualIns/12) carry full float precision. Round for display
+  // only — the underlying value stays exact until the user actually edits it.
+  const round2 = (n) => (typeof n === "number" && isFinite(n) ? Math.round(n * 100) / 100 : n);
   const display = focused
-    ? (editStr !== null ? editStr : (value === 0 ? "" : fmtComma(value)))
-    : `$${fmtComma(value || 0)}`;
+    ? (editStr !== null ? editStr : (value === 0 ? "" : fmtComma(round2(value))))
+    : `$${fmtComma(round2(value || 0))}`;
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
       <input
@@ -261,7 +269,9 @@ export default function CalculatorContent(props) {
  {autoJumboSwitch && (
   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: `${T.orange}12`, borderRadius: 10, marginBottom: 12 }}>
    <div style={{ fontSize: 11, color: T.orange, lineHeight: 1.4 }}>
-    <strong>Auto-switched to Jumbo</strong> — loan amount ({fmt(Math.round(salesPrice * (1 - downPct / 100)))}) exceeds the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` for ${propType.toLowerCase()} properties` : ""}. Jumbo requires 20% down, 700+ FICO, and max 43–50% DTI.
+    {/* Quote the SAME figure the switch tested — the refi loan amount on a
+        refi, the purchase loan amount otherwise. */}
+    <strong>Auto-switched to Jumbo</strong> — loan amount ({fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))}) exceeds the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` for ${propType.toLowerCase()} properties` : ""}. Jumbo requires 20% down, 700+ FICO, and max 43–50% DTI.
     <span onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }} style={{ color: T.blue, cursor: "pointer", fontWeight: 600, marginLeft: 4 }}>Override →</span>
    </div>
   </div>
@@ -325,7 +335,7 @@ export default function CalculatorContent(props) {
         {/* Refi: Equity & Balance */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 14 }}>
          <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>CURRENT BALANCE</div>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>ESTIMATED CURRENT BALANCE</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
          </div>

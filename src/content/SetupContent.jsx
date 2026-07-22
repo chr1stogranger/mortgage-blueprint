@@ -182,6 +182,45 @@ export default function SetupContent(props) {
    </div>
   );
 
+  /* Middle FICO input + slider. Extracted for the same reason as the location
+     card: purchase renders it inside Quick Start, refi renders it on the right
+     where the Modules card used to be (Christo 2026-07-22). */
+  const ficoBlock = (
+    <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+     <FieldLabel label="Middle FICO Score" tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." req filled={creditScore > 0} />
+     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ flex: "0 0 90px" }}>
+       <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
+        onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
+        onBlur={() => {
+          if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
+          else if (creditScore >= 300) markTouched("fico-input-done");
+        }}
+        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+       <input type="range" min={300} max={850} step={5} value={creditScore || 650}
+        onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+        onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
+        style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
+        <span>300</span>
+        <span>580</span>
+        <span>670</span>
+        <span>740</span>
+        <span>850</span>
+       </div>
+      </div>
+     </div>
+     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
+      <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
+      <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
+       {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
+      </span>
+     </div>}
+    </div>
+  );
+
   return (<>
  {!hideHero && (
   <div style={{ marginTop: 12 }}>
@@ -279,40 +318,9 @@ export default function SetupContent(props) {
     </div>
     )}
 
-    {/* 3) FICO with slider — Zip/State/City are entered in Monthly Payment section below */}
-    <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-     <FieldLabel label="Middle FICO Score" tip="Your middle credit score from the 3 bureaus. Lenders pull all 3 and use the middle score for qualification." req filled={creditScore > 0} />
-     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ flex: "0 0 90px" }}>
-       <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
-        onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
-        onBlur={() => {
-          if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
-          else if (creditScore >= 300) markTouched("fico-input-done");
-        }}
-        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-       <input type="range" min={300} max={850} step={5} value={creditScore || 650}
-        onChange={e => setCreditScore(parseInt(e.target.value, 10))}
-        onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
-        style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
-       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
-        <span>300</span>
-        <span>580</span>
-        <span>670</span>
-        <span>740</span>
-        <span>850</span>
-       </div>
-      </div>
-     </div>
-     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
-      <div style={{ width: 10, height: 10, borderRadius: "50%", background: creditScore >= calc.ficoMin ? T.green : T.red }} />
-      <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
-       {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+) — need ${calc.ficoMin - creditScore} more pts`}
-      </span>
-     </div>}
-    </div>
+    {/* 3) FICO — purchase keeps it in the Quick Start card. Refi renders it in
+        the right column, in the slot the Modules card used to occupy. */}
+    {!isRefi && ficoBlock}
     {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
 
@@ -323,19 +331,21 @@ export default function SetupContent(props) {
 
   {/* ── RIGHT COLUMN ──
       PURCHASE — the Modules card (FTHB, REO, seller net sheet, investor…).
-      REFINANCE — the property address, plus the one module that still applies.
-      Every other module is purchase-only, so in refi the Modules card was
-      rendering as a title and a single row against a tall empty box; Christo
-      asked for it gone (2026-07-22). "Own Properties?" is kept because it is
-      what unlocks the REO tab, which refinancing investors still need. */}
+      REFINANCE — property address, then FICO in the slot Modules used to hold.
+      Every module is purchase-only, so the card is gone entirely on refi
+      (Christo 2026-07-22). REO for a refinancing investor is reachable from
+      Settings; it no longer needs a near-empty card in Quick Start.
+      The guided flow skips its "modules" step on refi to match — see
+      MortgageBlueprint's guideField. */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
 
    {isRefi && propertyLocationCard}
+   {isRefi && <Card style={{ marginTop: 12 }}>{ficoBlock}</Card>}
 
-   {/* ── Modules — full-width toggles with descriptions. Always visible:
-       guided users keep the modules card even when FTHB = No. ── */}
-   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop && !isRefi ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
-    {!isRefi && <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>}
+   {/* ── Modules — full-width toggles with descriptions. Purchase only. ── */}
+   {!isRefi && (
+   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
+    <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
     {/* First-Time Homebuyer — Yes/No (purchase only) */}
     {!isRefi && (
     <div data-field="fthb" className={isPulse("fthb")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
@@ -351,9 +361,8 @@ export default function SetupContent(props) {
      />
     </div>
     )}
-    {/* Own Properties — the only module that survives in refi mode, so it drops
-        its top separator there (nothing above it to separate from). */}
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: isRefi ? "none" : `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+    {/* Own Properties */}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Own Properties?</div>
       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show REO (Real Estate Owned) tab</div>
@@ -429,6 +438,7 @@ export default function SetupContent(props) {
      <ClusterContinue stepId="modules" />
     </div>
    </div>
+   )}
   </div>{/* end right column */}
 
  </div>{/* end 2-column grid */}
@@ -453,7 +463,10 @@ export default function SetupContent(props) {
  {isRefi && <Sec title="Your Current Loan">
   <Card>
    <Inp label="Home Value" value={salesPrice} onChange={setSalesPrice} max={100000000} req tip="Current estimated market value of your home. This determines your LTV and equity position." />
-   <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
+   {/* ARM is a CURRENT-loan-only option — it describes the note being paid
+       off, which is often exactly why someone is refinancing. It is not in
+       LOAN_TYPES because Blueprint does not model an adjustable NEW loan. */}
+   <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA", "ARM"]} req />
    <Inp label="Original Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm req />
