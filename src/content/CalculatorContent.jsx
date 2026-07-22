@@ -130,7 +130,7 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
 
 export default function CalculatorContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -165,7 +165,7 @@ export default function CalculatorContent(props) {
   pmiRateLocked, setPmiRateLocked,
   pmiRateOverride, setPmiRateOverride,
   pmiChartOverrides, setPmiChartOverrides,
-  annualIns, setAnnualIns, hoa, setHoa,
+  annualIns, setAnnualIns, setRefiAnnualIns, hoa, setHoa,
   buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
   underwritingFee, processingFee,
   propertyZip, setPropertyZip, creditScore,
@@ -226,21 +226,144 @@ export default function CalculatorContent(props) {
     : "Not required for this scenario."
   ) : null;
 
+  // ── Payment components, mode-aware ──
+  // On a refi the payment is built from the NEW loan (refiNewLoanAmt →
+  // refiNew*); calc.pi/monthlyTax/ins/monthlyMI describe the purchase-shaped
+  // baseLoan (homeValue × (1−downPct)) and are WRONG there. The breakdown card
+  // used calc.pi for its P&I row while the total band used displayPayment
+  // (refi-correct), so one card showed $8,082 P&I over a $4,830 total —
+  // Christo's screenshot, 2026-07-22. Every consumer below (rows, donut
+  // legend, split disclosure, true-cost strip) draws from these.
+  const dispPI = isRefi ? (calc.refiNewPi || 0) : (calc.pi || 0);
+  const dispPrin = isRefi ? (calc.refiNewPrinThisMonth || 0) : (calc.monthlyPrinReduction || 0);
+  const dispTax = isRefi ? (calc.refiNewMonthlyTax || 0) : (calc.monthlyTax || 0);
+  const dispIns = isRefi ? (calc.refiNewMonthlyIns || 0) : (calc.ins || 0);
+  const dispMI = isRefi ? (calc.refiNewMI || 0) : (calc.monthlyMI || 0);
+  const dispEscrowAmt = dispTax + dispIns;
+
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
   const legendRows = [
-    { label: "Principal", value: calc.monthlyPrinReduction || 0, color: T.cyan || T.blue },
-    { label: "Interest",  value: (calc.pi || 0) - (calc.monthlyPrinReduction || 0), color: T.blue },
+    { label: "Principal", value: dispPrin, color: T.cyan || T.blue },
+    { label: "Interest",  value: dispPI - dispPrin, color: T.blue },
     ...(includeEscrow ? [
-      { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange },
-      { label: "Insurance", value: calc.ins || 0,        color: T.green },
+      { label: "Tax",       value: dispTax, color: T.orange },
+      { label: "Insurance", value: dispIns, color: T.green },
     ] : []),
-    ...((calc.monthlyMI || 0) > 0 ? [
-      { label: loanType === "FHA" ? "MIP" : "PMI", value: calc.monthlyMI || 0, color: T.red },
+    ...(dispMI > 0 ? [
+      { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red },
     ] : []),
     ...(hoa > 0 ? [
       { label: "HOA", value: hoa, color: T.purple || T.blue },
     ] : []),
   ];
+
+  // Price card (Purchase Price+Down / Home Value+Balance+Equity+New Loan).
+  // A const because the two modes park it in different columns (Christo
+  // 2026-07-22): purchase keeps it top-left; refi moves it top-RIGHT above
+  // the New Rate card, so the left column can lead with Current -> New.
+  const priceCard = (
+   <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
+    <div data-field="down-pct-input">
+     <Card>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
+       <div>
+        {/* Custom label row mirrors the Down field's label row exactly
+            (height: 22, label on left) so the two input fields below
+            sit on the same baseline. Fixes the visual offset Christo
+            flagged on mobile (2026-05-04). */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
+         <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+          {isRefi ? "Home Value" : "Purchase Price"}
+          <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+         </div>
+        </div>
+        <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
+        {isRefi ? (
+         /* New Loan Amount lives right under Home Value (Christo 2026-07-22) —
+            the two numbers an LO reads together. Was a stranded input at the
+            bottom of the column. */
+         <div style={{ marginTop: 10 }}>
+          <Inp label="New Loan Amount" value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} tip="Defaults to your payoff balance. Override if your new loan amount differs (e.g., rolling in closing costs)." />
+          {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -8 }}>
+            <div style={{ fontSize: 11, color: T.textTertiary }}>Payoff balance: {fmt(calc.refiAutoLoanAmt)}</div>
+            <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+           </div>
+          )}
+         </div>
+        ) : (
+         /* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */
+         <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
+        )}
+       </div>
+       {isRefi ? (<>
+        {/* Refi: Equity & Balance */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 14 }}>
+         <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
+          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>ESTIMATED CURRENT BALANCE</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
+          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
+         </div>
+         <div style={{ background: `${T.green}10`, borderRadius: 12, padding: "10px 12px" }}>
+          <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginBottom: 2 }}>EQUITY</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
+          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
+         </div>
+        </div>
+        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
+       </>) : (<>
+        {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
+        {(() => {
+         // Compact summary so the label row fits on mobile even at $1M+ down payments
+         const fmtCompactUSD = (n) => {
+          if (n >= 1000000) return `$${(n / 1000000).toFixed(n >= 10000000 ? 0 : 1).replace(/\.0$/, "")}M`;
+          if (n >= 1000) return `$${Math.round(n / 1000)}K`;
+          return `$${Math.round(n)}`;
+         };
+         const fmtCompactPct = (p) => `${p % 1 === 0 ? p.toFixed(0) : p.toFixed(1).replace(/\.0$/, "")}%`;
+         const downSummary = downMode === "pct"
+          ? fmtCompactUSD(salesPrice * downPct / 100)
+          : fmtCompactPct(downPct);
+         // Subtitle below input shows the inverse of the active mode:
+         //   pct mode → "$300,000 down"
+         //   $   mode → "20% down"
+         const downSubtitle = downMode === "pct"
+          ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
+          : `${fmtCompactPct(downPct)} down`;
+         return (
+          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
+           {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
+           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+             Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+            </div>
+            <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
+            </div>
+           </div>
+           {/* Input pill — full width, suffix shows the active unit */}
+           {downMode === "pct" ? (
+            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+           ) : (
+            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
+           )}
+           {/* Subtitle: shows the inverse format directly under the input */}
+           <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
+            {downSubtitle}
+           </div>
+          </div>
+         );
+        })()}
+       </>)}
+      </div>
+      {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
+      {!isRefi && loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
+     </Card>
+    </div>
+   </div>
+
+  );
 
   return (<>
 
@@ -311,92 +434,37 @@ export default function CalculatorContent(props) {
    {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
-   {/* 1. Purchase Price / Down Payment card — TOP of left column */}
-   <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
-    <div data-field="down-pct-input">
-     <Card>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
-       <div>
-        {/* Custom label row mirrors the Down field's label row exactly
-            (height: 22, label on left) so the two input fields below
-            sit on the same baseline. Fixes the visual offset Christo
-            flagged on mobile (2026-05-04). */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
-         <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-          {isRefi ? "Home Value" : "Purchase Price"}
-          <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-         </div>
-        </div>
-        <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
-        {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */}
-        <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
-       </div>
-       {isRefi ? (<>
-        {/* Refi: Equity & Balance */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 14 }}>
-         <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>ESTIMATED CURRENT BALANCE</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
-         </div>
-         <div style={{ background: `${T.green}10`, borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginBottom: 2 }}>EQUITY</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
-         </div>
-        </div>
-        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
-       </>) : (<>
-        {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
-        {(() => {
-         // Compact summary so the label row fits on mobile even at $1M+ down payments
-         const fmtCompactUSD = (n) => {
-          if (n >= 1000000) return `$${(n / 1000000).toFixed(n >= 10000000 ? 0 : 1).replace(/\.0$/, "")}M`;
-          if (n >= 1000) return `$${Math.round(n / 1000)}K`;
-          return `$${Math.round(n)}`;
-         };
-         const fmtCompactPct = (p) => `${p % 1 === 0 ? p.toFixed(0) : p.toFixed(1).replace(/\.0$/, "")}%`;
-         const downSummary = downMode === "pct"
-          ? fmtCompactUSD(salesPrice * downPct / 100)
-          : fmtCompactPct(downPct);
-         // Subtitle below input shows the inverse of the active mode:
-         //   pct mode → "$300,000 down"
-         //   $   mode → "20% down"
-         const downSubtitle = downMode === "pct"
-          ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
-          : `${fmtCompactPct(downPct)} down`;
-         return (
-          <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-           {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
-           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-             Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-            </div>
-            <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
-             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
-             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
-            </div>
-           </div>
-           {/* Input pill — full width, suffix shows the active unit */}
-           {downMode === "pct" ? (
-            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
-           ) : (
-            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
-           )}
-           {/* Subtitle: shows the inverse format directly under the input */}
-           <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
-            {downSubtitle}
-           </div>
-          </div>
-         );
-        })()}
-       </>)}
+   {!isRefi && priceCard}
+
+   {/* Refi Current → New — ABOVE the donut, the first thing read (Christo 2026-07-22) */}
+   {isRefi && calc.refiEffPI > 0 && (
+    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
+     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW</div>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+      <div style={{ textAlign: "center" }}>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurTotalPmt)}</div>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
       </div>
-      {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
-      {!isRefi && loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
-     </Card>
+      <div style={{ fontSize: 20, color: T.green }}>→</div>
+      <div style={{ textAlign: "center" }}>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>New</div>
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
+      </div>
+     </div>
+     {calc.refiMonthlyTotalSavings > 0 ? (
+      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
+       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiMonthlyTotalSavings)}/mo savings</span>
+       {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
+      </div>
+     ) : calc.refiMonthlyTotalSavings < 0 ? (
+      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
+       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiMonthlyTotalSavings))}/mo higher</span>
+      </div>
+     ) : null}
     </div>
-   </div>
+   )}
 
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
@@ -475,48 +543,7 @@ export default function CalculatorContent(props) {
 
    {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
-   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>Escrow OFF — Tax + Ins ({fmt(calc.escrowAmount)}/mo) paid separately</div>}
-
-   {/* Refi Current → New comparison */}
-   {isRefi && calc.refiEffPI > 0 && (
-    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
-     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
-      <div style={{ textAlign: "center" }}>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurTotalPmt)}</div>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
-      </div>
-      <div style={{ fontSize: 20, color: T.green }}>→</div>
-      <div style={{ textAlign: "center" }}>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>New</div>
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
-      </div>
-     </div>
-     {calc.refiMonthlyTotalSavings > 0 ? (
-      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiMonthlyTotalSavings)}/mo savings</span>
-       {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
-      </div>
-     ) : calc.refiMonthlyTotalSavings < 0 ? (
-      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiMonthlyTotalSavings))}/mo higher</span>
-      </div>
-     ) : null}
-    </div>
-   )}
-   {isRefi && calc.refiEffPI > 0 && (
-    <div style={{ marginBottom: 12 }}>
-     <Inp label="New Loan Amount" value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} tip="Defaults to your payoff balance. Override if your new loan amount differs (e.g., rolling in closing costs)." />
-     {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -8, marginBottom: 4 }}>
-       <div style={{ fontSize: 11, color: T.textTertiary }}>Payoff balance: {fmt(calc.refiAutoLoanAmt)}</div>
-       <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
-      </div>
-     )}
-    </div>
-   )}
+   {!includeEscrow && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>Escrow OFF — Tax + Ins ({fmt(dispEscrowAmt)}/mo) paid separately</div>}
 
    </div>{/* end row 1 (left) */}
 
@@ -623,17 +650,19 @@ export default function CalculatorContent(props) {
       // Principal & Interest merged into one PITI-style line; the volatile
       // month-1 P-vs-I split lives behind the "Split" chevron below. Donut
       // keeps its two separate segments (Christo, 2026-07-07).
-      { label: "Principal & Interest", value: calc.pi || 0, color: T.blue, pi: true },
+      { label: "Principal & Interest", value: dispPI, color: T.blue, pi: true },
       // Escrow OFF still renders Tax + Insurance — dimmed and tagged "not
       // escrowed" — instead of deleting them. The borrower still owes them and
       // the underwriter still counts them in DTI, so hiding them was the wrong
       // answer (Christo, 2026-07-21). Keeping the rows also holds the card at
       // the same height as escrow-on, so the Total Payment band stays level
       // with Estimated Cash to Close.
-      { label: "Tax",       value: calc.monthlyTax || 0, color: T.orange, jumpTo: "tax", excluded: !includeEscrow },
-      { label: "Insurance", value: calc.ins || 0,        color: T.green,  editable: true, onChange: (v) => setAnnualIns(Math.max(0, v) * 12), excluded: !includeEscrow },
-      ...((calc.monthlyMI || 0) > 0 ? [
-       { label: loanType === "FHA" ? "MIP" : "PMI", value: calc.monthlyMI || 0, color: T.red, jumpTo: "pmi" },
+      { label: "Tax",       value: dispTax, color: T.orange, jumpTo: "tax", excluded: !includeEscrow },
+      // Refi insurance comes from refiAnnualIns (the current policy carries
+      // over), so the inline edit writes back to that field there.
+      { label: "Insurance", value: dispIns, color: T.green,  editable: true, onChange: (v) => (isRefi && setRefiAnnualIns ? setRefiAnnualIns(Math.max(0, v) * 12) : setAnnualIns(Math.max(0, v) * 12)), excluded: !includeEscrow },
+      ...(dispMI > 0 ? [
+       { label: loanType === "FHA" ? "MIP" : "PMI", value: dispMI, color: T.red, jumpTo: "pmi" },
       ] : []),
       // HOA: always render so it's discoverable as editable (was previously hidden when 0)
       { label: "HOA", value: hoa || 0, color: T.purple || T.blue, editable: true, onChange: setHoa },
@@ -688,8 +717,8 @@ export default function CalculatorContent(props) {
            shifts toward principal every payment, so it's labeled as the
            first payment and points at the full amortization schedule. */}
        {row.pi && piExpanded && (() => {
-        const prin = calc.monthlyPrinReduction || 0;
-        const intr = (calc.pi || 0) - prin;
+        const prin = dispPrin;
+        const intr = dispPI - prin;
         const subRow = (dot, label, val) => (
          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", minHeight: 22 }}>
           <span style={{ fontSize: 12, color: T.textSecondary, display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -1085,11 +1114,11 @@ export default function CalculatorContent(props) {
         + Tax &amp; Insurance you pay yourself
        </div>
        <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, marginTop: 2, lineHeight: 1.4 }}>
-        {fmt(calc.monthlyTax)} tax + {fmt(calc.ins)} ins = {fmt(calc.escrowAmount)}/mo · still counted in DTI
+        {fmt(dispTax)} tax + {fmt(dispIns)} ins = {fmt(dispEscrowAmt)}/mo · still counted in DTI
        </div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
-       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.housingPayment)}/mo</div>
+       <div style={{ fontSize: 18, fontWeight: 800, color: T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt((calc.displayPayment || 0) + dispEscrowAmt)}/mo</div>
        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT }}>True cost · PITI</div>
       </div>
      </div>
@@ -1160,6 +1189,9 @@ export default function CalculatorContent(props) {
   <div style={isDesktop ? { display: "contents" } : {}}>
   {/* — row 1: rate + live rates + the 4 loan-structure pills — */}
   <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", alignSelf: "start", minWidth: 0 } : {}}>
+   {/* Refi: Home Value / Balance / Equity / New Loan Amount leads the right
+       column, directly above New Rate (Christo 2026-07-22). */}
+   {isRefi && priceCard}
    {/* The 3-stat row (Loan Amount / LTV / Cash to Close) was moved to the
        LEFT column under the donut legend per the 2026-05-02 final layout.
        The right column now leads with Rate / Live Rates → 4 loan-structure
