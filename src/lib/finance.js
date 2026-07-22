@@ -655,6 +655,15 @@ export function computeProp19({ replacementPrice, autoCountyRate, rateOverridePc
  * in the year, which we cannot detect, so callers get the living-apart figure
  * and the UI says to confirm it.
  *
+ * DELIBERATELY NOT MODELLED — real-estate-professional status (§469(c)(7)).
+ * It would take rentals out of the passive rules entirely, but it turns on
+ * 750+ hours and more than half of personal services in real property trades
+ * or businesses, plus material participation. That is a facts-and-circumstances
+ * test that gets audited, and a toggle in a calculator invites people to flip
+ * it optimistically. Christo confirmed 2026-07-21: do not add it. Note also
+ * that being a loan officer does not qualify — mortgage lending is not a real
+ * property trade or business for this purpose.
+ *
  * @param {object} p
  * @param {number} p.magi  modified AGI (approximate is fine — see caller)
  * @param {number} p.loss  the Schedule E loss as a POSITIVE number
