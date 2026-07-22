@@ -3145,6 +3145,43 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyTaxesInstallment, sellersProratedTaxCredit,
   sellerCredit, lenderCredit, realtorCredit, customFees,
  });
+ // Refi Savings Summary PDF — the one-pager modeled on the spreadsheet Christo
+ // has closed refis with for years (2026-07-22). Optional page 2 = the fees
+ // worksheet. Same dynamic-import pattern as the fees PDF so react-pdf stays
+ // out of the main bundle.
+ const [refiPdfBusy, setRefiPdfBusy] = useState(false);
+ const downloadRefiSummaryPdf = async (includeFees) => {
+  if (refiPdfBusy) return;
+  setRefiPdfBusy(true);
+  try {
+   const [{ pdf }, { RefiSummaryDoc }] = await Promise.all([
+    import("@react-pdf/renderer"),
+    import("./lib/RefiSummaryPdf.jsx"),
+   ]);
+   const props = {
+    ...buildWorksheetProps(),
+    includeFees,
+    // Current-loan facts the fees worksheet never needed
+    refiCurrentRate, refiOriginalTerm, refiClosedDate, refiEscrowBalance, refiCurrentMI,
+   };
+   const blob = await pdf(React.createElement(RefiSummaryDoc, props)).toBlob();
+   const url = URL.createObjectURL(blob);
+   const a = document.createElement("a");
+   const last = (borrowerName || "").trim().split(/\s+/).pop() || scenarioName || "Scenario";
+   const d = new Date();
+   a.href = url;
+   a.download = `RefiSummary-${last.replace(/[^A-Za-z0-9-_ ]/g, "").trim().replace(/\s+/g, "-")}-${d.toLocaleDateString("en-US", { month: "short" })}${d.getDate()}.pdf`;
+   document.body.appendChild(a);
+   a.click();
+   a.remove();
+   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch (e) {
+   console.error("Refi summary PDF failed:", e);
+   alert("Could not generate the PDF — try again.");
+  }
+  setRefiPdfBusy(false);
+ };
+
  // Short note in Christo's voice + headline figures; the PDF carries the detail.
  const buildWorksheetEmailBody = () => {
   const firstName = (borrowerName || "").trim().split(/\s+/)[0];
@@ -4850,8 +4887,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const setTitleInsuranceManual = (v) => { titleEscrowTouchedRef.current = true; setTitleInsurance(v); };
  const setEscrowFeeManual = (v) => { titleEscrowTouchedRef.current = true; setEscrowFee(v); };
  const refiTitleEscrow = React.useMemo(
-  () => (isRefi ? lookupTitleEscrow(calc.refiNewLoanAmt, propertyCounty) : null),
-  [isRefi, calc.refiNewLoanAmt, propertyCounty]
+  () => (isRefi ? lookupTitleEscrow(calc.refiNewLoanAmt, propertyState) : null),
+  [isRefi, calc.refiNewLoanAmt, propertyState]
  );
  useEffect(() => {
   if (!refiTitleEscrow || titleEscrowTouchedRef.current) return;
@@ -6694,6 +6731,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "refi" && (<>
  <div style={{ marginTop: 20 }}>
   <Hero value={fmt(Math.abs(calc.refiMonthlySavings))} label={calc.refiMonthlySavings >= 0 ? "Monthly P&I Savings" : "Monthly P&I Increase"} color={calc.refiMonthlySavings > 0 ? T.green : calc.refiMonthlySavings < 0 ? T.red : T.textSecondary} sub={calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiMonthlySavings <= 0 ? "No P&I savings" : ""} />
+ </div>
+ {/* Refi Savings Summary PDF — the borrower-facing one-pager (Christo
+     2026-07-22). Second button appends the fees worksheet as page 2. */}
+ <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
+  {[
+   { label: refiPdfBusy ? "Generating…" : "Download Summary PDF", fees: false, solid: true },
+   { label: refiPdfBusy ? "Generating…" : "PDF + Fees Page", fees: true, solid: false },
+  ].map(b => (
+   <button key={b.label + b.fees} onClick={() => downloadRefiSummaryPdf(b.fees)} disabled={refiPdfBusy}
+    style={{ padding: "9px 18px", borderRadius: 9999, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: refiPdfBusy ? "default" : "pointer", opacity: refiPdfBusy ? 0.6 : 1,
+     background: b.solid ? T.blue : "transparent", color: b.solid ? "#fff" : T.blue, border: b.solid ? "none" : `1px solid ${T.blue}66` }}>
+    {b.label}
+   </button>
+  ))}
  </div>
  {/* Quick verdict card */}
  <div data-field="refi-current-rate" className={isPulse("refi-current-rate") || isPulse("refi-current-balance")} onClick={() => { if (refiCurrentRate === 0 || refiCurrentBalance === 0) setTab("setup"); }} style={{ borderRadius: 18, transition: "all 0.3s", cursor: (refiCurrentRate === 0 || refiCurrentBalance === 0) ? "pointer" : "default" }}>

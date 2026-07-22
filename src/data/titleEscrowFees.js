@@ -10,25 +10,17 @@
 // UI copy calls these "estimated fees" and never names the underwriter — rate
 // sheets are underwriter-specific and this is a quoting aid, not a quote.
 //
-// SCOPE — these figures are for ONE region only:
-//   Alameda · Contra Costa · Marin · Santa Clara · San Francisco · San Mateo
-// Other counties price differently. `lookupTitleEscrow` returns null outside
-// this list rather than applying Bay Area pricing statewide, and the caller
-// leaves its existing defaults alone when it gets null. Adding a region means
-// adding its own tier table here — do NOT widen COUNTIES to cover a county
-// whose numbers you do not have.
+// SCOPE — statewide California (Christo 2026-07-22). The sheet itself is the
+// Bay Area region table, but Christo wants it as the CA-wide estimate:
+// close enough for quoting, and the UI already says "estimated fees —
+// confirm with your title rep". Out-of-state properties return null and the
+// caller keeps its flat defaults.
 //
 // Effective dates on the source sheet: title 2026-03-01, escrow 2026-04-30.
 // Excludes government recording fees and CA transfer/SB2 charges, which
 // Blueprint already models separately in section E.
 
-export const TITLE_ESCROW_REGION = "Bay Area";
-
-// Normalized (lowercase, no " County" suffix) — matches how propertyCounty is
-// stored after lookupZip()/the geocoder strip it.
-export const COUNTIES = [
-  "alameda", "contra costa", "marin", "santa clara", "san francisco", "san mateo",
-];
+export const TITLE_ESCROW_REGION = "California";
 
 // upTo = policy amount up to AND INCLUDING this figure.
 export const TIERS = [
@@ -49,20 +41,19 @@ const OVER_CAP_POLICY = 3695;
 const OVER_CAP_ESCROW = 1235;
 const OVER_CAP_PER_MILLION = 500;
 
-export function isRegionCounty(county) {
-  if (!county) return false;
-  return COUNTIES.includes(String(county).replace(/\s+county$/i, "").trim().toLowerCase());
+export function isRegionState(state) {
+  return /^(california|ca)$/i.test(String(state || "").trim());
 }
 
 /**
- * Estimated lender's-policy + escrow fees for a refinance.
- * Returns null when we have no schedule for that county, or the amount is
- * unusable — callers must treat null as "keep whatever default you had".
+ * Estimated lender's-policy + escrow fees for a California refinance.
+ * Returns null outside CA or for an unusable amount — callers must treat
+ * null as "keep whatever default you had".
  */
-export function lookupTitleEscrow(loanAmount, county) {
+export function lookupTitleEscrow(loanAmount, state) {
   const amt = Number(loanAmount);
   if (!isFinite(amt) || amt <= 0) return null;
-  if (!isRegionCounty(county)) return null;
+  if (!isRegionState(state)) return null;
 
   const tier = TIERS.find(t => amt <= t.upTo);
   if (tier) {

@@ -3,20 +3,20 @@ import React, { useState, useContext, createContext, useMemo } from "react";
 import Icon from "../Icon";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import { devCheckProps } from "../lib/devPropCheck.js";
-import { TIERS as TITLE_ESCROW_TIERS, isRegionCounty, lookupTitleEscrow } from "../data/titleEscrowFees.js";
+import { TIERS as TITLE_ESCROW_TIERS, isRegionState, lookupTitleEscrow } from "../data/titleEscrowFees.js";
 
 // Collapsible "where these numbers come from" chart for the refi title/escrow
 // rows. Shows the full tier table with the borrower's bracket highlighted, so
 // an LO can see how close the loan is to the next threshold (Christo
 // 2026-07-22). Deliberately never names the underwriter — these are estimates.
-function TitleEscrowScheduleNote({ T, fmt, loanAmount, county }) {
+function TitleEscrowScheduleNote({ T, fmt, loanAmount, state }) {
   const [open, setOpen] = useState(false);
-  const applies = isRegionCounty(county);
-  const current = applies ? lookupTitleEscrow(loanAmount, county) : null;
+  const applies = isRegionState(state);
+  const current = applies ? lookupTitleEscrow(loanAmount, state) : null;
   if (!applies) {
     return (
       <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, padding: "6px 2px 2px", lineHeight: 1.5 }}>
-        Estimated fees — no tiered schedule on file for {county ? `${county} County` : "this county"}, so these are flat defaults. Confirm with your title rep.
+        Estimated fees — no tiered schedule on file for {state || "this state"}, so these are flat defaults. Confirm with your title rep.
       </div>
     );
   }
@@ -1238,7 +1238,7 @@ export default function CostsContent(props) {
                   with the loan (Christo 2026-07-22). */}
               <FeeRow label="Title Insurance — Lender's Policy" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Insures the lender's lien position. A refi needs a new loan policy; your owner's policy carries over." />
               <FeeRow label="Escrow / Settlement Fee" value={escrowFee} onChange={setEscrowFee} hidden={isHidden("escrowFee")} onDelete={() => deleteBuiltin("escrowFee")} explainer="Basic residential loan escrow services for a single-loan refinance." />
-              <TitleEscrowScheduleNote T={T} fmt={fmt} loanAmount={calc.refiNewLoanAmt} county={propertyCounty} />
+              <TitleEscrowScheduleNote T={T} fmt={fmt} loanAmount={calc.refiNewLoanAmt} state={propertyState} />
             </>
           ) : (
             <>
