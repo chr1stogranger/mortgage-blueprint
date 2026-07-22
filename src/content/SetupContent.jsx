@@ -36,11 +36,13 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiHasEscrow", "setRefiHasEscrow", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiHasEscrow", "setRefiHasEscrow", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
-    loanType, setLoanType, propertyState, setPropertyState, propertyCounty, city, setCity,
-    propertyZip, setPropertyZip, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm,
+    loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
+    propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD,
+    addressInput, setAddressInput, AddressAutocomplete,
+    annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm,
     creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer,
     refiPurpose, setRefiPurpose, taxState, scenarioName,
     ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor,
@@ -173,13 +175,76 @@ export default function SetupContent(props) {
     {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
 
-   {/* Property ZIP — single input. City / County / State auto-populate from
-       the existing useEffect in MortgageBlueprint that watches propertyZip and
-       calls lookupZip() to fill the rest. Replaces the 4-pill ZIP/City/County/
-       State row that used to sit at the top of the Calculator. */}
+   {/* Property location.
+       PURCHASE — a single ZIP input. City / County / State auto-populate from
+       the useEffect in MortgageBlueprint that watches propertyZip and calls
+       lookupZip(). A purchase often has no property yet, so ZIP is all we ask.
+       REFINANCE — a refi ALWAYS has a subject property, so the address
+       typeahead replaces ZIP as the first thing asked (Christo 2026-07-22).
+       Picking a suggestion fills address + ZIP, and the ZIP effect then fills
+       city/county/state exactly as the purchase path does. The ZIP input only
+       reappears as a fallback when the picked address carried no postcode. */}
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s" }}>
    <Card style={{ marginTop: 12 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
+    {isRefi ? (
+     <>
+      <AddressAutocomplete
+       /* Legacy scenarios saved a propertyAddress with no addressInput — fall
+          back so a reopened scenario shows the address it already has. */
+       value={addressInput || propertyAddress || ""}
+       onChange={v => {
+        setAddressInput(v);
+        // Free-typed text is still the property address — a scenario saved
+        // mid-type keeps what the user wrote instead of silently dropping it.
+        setPropertyAddress(v);
+        if (v) setPropertyTBD(false);
+       }}
+       onSelect={sel => {
+        const street = sel.address || "";
+        setPropertyAddress(street);
+        setPropertyTBD(false);
+        // Set city/county/state from the geocoder FIRST; when the ZIP is in
+        // ZIP_DATA the propertyZip effect overwrites them a render later with
+        // the lookup values the tax tables are keyed to. When it isn't, these
+        // survive as the only location we have.
+        if (sel.city) setCity(sel.city);
+        if (sel.state) setPropertyState(sel.state);
+        if (sel.county) setPropertyCounty(sel.county);
+        const z = String(sel.zip || "").replace(/[^0-9]/g, "").slice(0, 5);
+        if (z.length === 5) { setPropertyZip(z); markTouched("zip-code-done"); }
+       }}
+       placeholder="Start typing the property address..."
+      />
+      {/* Fallback: address picked (or typed) but no ZIP came with it — county,
+          tax rate and loan limits all key off ZIP, so ask for it directly. */}
+      {(addressInput || propertyAddress) && !(propertyZip && propertyZip.length === 5) && (
+       <div style={{ flex: "0 0 140px", maxWidth: 140 }}>
+        <Inp
+         label="Zip Code"
+         value={propertyZip || ""}
+         onChange={v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
+         type="text"
+         placeholder="94501"
+         sm
+         req
+        />
+       </div>
+      )}
+      {propertyZip && propertyZip.length === 5 && (city || propertyCounty || propertyState) && (
+       <div style={{
+        display: "flex", alignItems: "center", gap: 6, padding: "10px 12px",
+        background: `${T.green}10`, border: `1px solid ${T.green}30`,
+        borderRadius: 12, fontSize: 12, color: T.text, fontFamily: FONT, minHeight: 38,
+       }}>
+        <span style={{ color: T.green, fontWeight: 700 }}>✓</span>
+        <span>
+         {city ? `${city}, ` : ""}{propertyCounty ? `${propertyCounty} County, ` : ""}{propertyState || "—"} {propertyZip}
+        </span>
+       </div>
+      )}
+     </>
+    ) : (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
      <div style={{ flex: "0 0 140px" }}>
       <Inp
@@ -217,6 +282,7 @@ export default function SetupContent(props) {
       </div>
      )}
     </div>
+    )}
    </Card>
    </div>{/* end zip-code anchor */}
   </div>{/* end left column */}
