@@ -68,6 +68,7 @@ import useAccount from "./hooks/useAccount";
 import useSelfCloudSync from "./hooks/useSelfCloudSync";
 import AccountSheet from "./components/AccountSheet";
 import CloudMergeSheet from "./components/CloudMergeSheet";
+import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -312,6 +313,12 @@ const UNIT_COUNT = { "Single Family": 1, "Single Family with ADU": 1, "Condo": 1
 // SFR/condo primary never shows a rent field.
 const RENTAL_UNITS = { "Single Family with ADU": 1, "2-Unit": 1, "3-Unit": 2, "4-Unit": 3 };
 const getRentalUnits = (pt) => RENTAL_UNITS[pt] || 0;
+// National fallbacks only. `getHighBalLimit` here returns the statutory CEILING
+// (150% of baseline), which is correct ONLY in the highest-cost counties — real
+// per-county high-balance limits sit anywhere between baseline and ceiling
+// (Sonoma CA is $897,000, King WA $1,063,750, not $1,249,125). The component
+// uses the county-aware lookup in src/data/loanLimits.js and only falls back to
+// these when the county is unknown. (Christo 2026-07-21.)
 const getConfLimit = (pt) => CONF_LIMITS[UNIT_COUNT[pt] || 1] || CONF_LIMITS[1];
 const getHighBalLimit = (pt) => Math.round(getConfLimit(pt) * 1.5);
 const DEBT_TYPES = ["Mortgage", "HELOC", "Auto Loan", "Auto Lease", "Student Loan", "Revolving", "Installment", "Collection", "Other"];
@@ -4041,9 +4048,36 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setEnvProtectionLien(100);
   }
  }, [isRefi]);
+ // County-aware FHFA limits, with a deliberately PERMISSIVE fallback.
+ //
+ // When we don't actually know the county we keep the old national-ceiling
+ // behavior instead of collapsing high-balance to the baseline. Collapsing
+ // would silently reclassify e.g. a $1M California loan as Jumbo and trip the
+ // auto-jumbo switch into 20% down / 700 FICO / 43% DTI — a hard failure on a
+ // form the user simply hasn't finished filling in. Tightening on unknown data
+ // is the wrong direction; we only narrow the limit once we can name the county.
+ //
+ // "Don't know the county" means: no county entered, OR Connecticut (FHFA
+ // publishes CT by planning region, and a legacy CT county spans regions with
+ // different limits — see the header of src/data/loanLimits.js).
+ // A county that IS named and simply isn't high-cost is a real baseline county,
+ // and its baseline high-balance limit is correct — no fallback there.
+ const countyLimitsFor = React.useCallback((pt) => {
+  const units = UNIT_COUNT[pt] || 1;
+  const r = getCountyLimits(propertyState, propertyCounty, units);
+  const unknownCounty = !String(propertyCounty || "").trim() || propertyState === "Connecticut";
+  if (unknownCounty && r.highBalance === r.conforming) {
+   return { ...r, highBalance: r.ceiling, assumedCeiling: true,
+            source: propertyState === "Connecticut"
+             ? "national ceiling assumed — FHFA publishes CT by planning region"
+             : "national ceiling assumed — county not set" };
+  }
+  return { ...r, assumedCeiling: false };
+ }, [propertyState, propertyCounty]);
+ const getCountyHighBal = React.useCallback((pt) => countyLimitsFor(pt).highBalance, [countyLimitsFor]);
  useEffect(() => {
   const baseLoan = salesPrice * (1 - downPct / 100);
-  const hbl = getHighBalLimit(propType);
+  const hbl = getCountyHighBal(propType);
   const userType = userLoanTypeRef.current;
   if ((userType === "Conventional") && baseLoan > hbl && loanType !== "Jumbo") {
    setLoanType("Jumbo");
@@ -4052,7 +4086,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setLoanType(userLoanTypeRef.current);
    setAutoJumboSwitch(false);
   }
- }, [salesPrice, downPct, propType]);
+ }, [salesPrice, downPct, propType, getCountyHighBal]);
  const calc = useMemo(() => {
   const dp = salesPrice * downPct / 100;
   const baseLoan = salesPrice - dp;
@@ -4213,7 +4247,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // For investment properties, 75% rent offsets housing payment in DTI
   const effectiveHousingForDTI = isInvestment ? Math.max(0, housingPayment - subjectRent75) : housingPayment;
   const totalPayment = effectiveHousingForDTI + totalMonthlyDebts + reoNegativeDebt;
-  const confLimit = getConfLimit(propType), highBalLimit = getHighBalLimit(propType);
+  // Real FHFA limits for THIS county — not baseline×1.5. This drives
+  // loanCategory (Conforming / High Balance / Jumbo), which drives which rate
+  // the borrower is quoted, so the county lookup matters materially.
+  const countyLimit = countyLimitsFor(propType);
+  const confLimit = countyLimit.conforming, highBalLimit = countyLimit.highBalance;
   const loanCategory = baseLoan <= confLimit ? "Conforming" : baseLoan <= highBalLimit ? "High Balance" : "Jumbo";
   const maxDTI = MAX_DTI[loanType] || 0.50;
   const yourDTI = computeDTI(totalPayment, qualifyingIncome); // fraction (0.43 = 43%) or null
@@ -4524,7 +4562,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    housingPayment, displayPayment: finalDisplayPayment, escrowAmount, monthlyIncome, employmentMonthlyIncome: totalIncomeFromEntries, qualifyingIncome, reoPositiveIncome, reoNegativeDebt, reoPrimaryDebt, reoInvestmentNet, annualIncome, totalAssetValue: totalAssetValueAll, totalForClosing: totalForClosingAll, totalReserves, saleProceedsAsset,
    subjectRent75, investRentalOffset, multiUnitRentalIncome, effectiveHousingForDTI, isInvestment, isMultiUnitPrimary, isRentalPrimary, rentalUnits,
    qualifyingDebts, totalMonthlyDebts, reoLinkedDebtIds, payoffAtClosing, totalPayment, addDebt, updateDebt, removeDebt,
-   confLimit, highBalLimit, loanCategory, maxDTI, yourDTI,
+   confLimit, highBalLimit, countyLimit, limitYear: LIMIT_YEAR, loanCategory, maxDTI, yourDTI,
    ttEntry, buyerCityTT, buyerCountyTT, countyTTRate, pointsCost, origCharges, hoaCert, cannotShop, canShop, titleEscrowTotal,
    govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose, emdAmt, emdCredit,
@@ -4561,7 +4599,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    amortSchedule, amortStandard, yearlyData, totalIntWithExtra, totalIntStandard,
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
- }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, hoa, annualIns, includeEscrow, subjectRentalIncome,
+ }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, subjectRentalIncome,
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   customFees, hiddenFees,
@@ -5944,7 +5982,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -5957,7 +5995,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ REO (Real Estate Owned) ═══ */}
 {tab === "reo" && <ReoContent {...{T, isDesktop, calc, fmt, reos, addReo, updateReo, removeReo, syncReoPayment, syncReoBalance, debts, setReos, debtFree, hasSellProperty, setHasSellProperty, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, MRow, ownsProperties, setOwnsProperties, Hero, Card, Sec, Inp, Sel, TextInp, Note, Progress, REO_PROPERTY_TYPES, REO_OCCUPANCY_TYPES, isPulse, markTouched, GuidedNextButton}} />}
 {/* ═══ QUALIFY ═══ */}
-{tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
+{tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
 {tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
@@ -6193,7 +6231,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType,
    affordTargetDTI, setAffordTargetDTI, confirmAffordApply, setConfirmAffordApply,
    handlePillarClick, isTabUnlocked, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch,
-   getHighBalLimit,
+   getHighBalLimit: getCountyHighBal,
    /* Debts */
    debts, debtFree, setDebtFree,
    ownsProperties, setOwnsProperties, reos, setReos,

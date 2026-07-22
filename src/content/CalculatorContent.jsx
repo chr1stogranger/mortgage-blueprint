@@ -269,14 +269,30 @@ export default function CalculatorContent(props) {
  {/* ─────────────────────────────────────────────────────────────── */}
  {/* ROW 3 — 2-col: rate + donut + price inputs LEFT | compact pillars + payment breakdown + cash-to-close RIGHT */}
  {/* ─────────────────────────────────────────────────────────────── */}
- {/* alignItems: stretch so both columns expand to the same height; each column
-     is itself a flex column with the LAST card (Payment Breakdown on left,
-     CashToCloseSummary on right) pushed to the bottom via marginTop: auto so
-     their bottom edges align horizontally per Christo's spec. */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "stretch", marginBottom: 16 } : {}}>
+ {/* THREE GRID ROWS, not two bottom-anchored columns (Christo 2026-07-21).
+     The old layout leaned on marginTop:auto to bottom-align Payment Breakdown
+     with Cash-to-Close, and *hoped* the 3-stat row and the 5-pillar row would
+     then line up. That only held while both summary cards happened to be the
+     same height — expanding the Tax caret, the P&I split, or the Advanced
+     ladder broke it instantly (measured: a 41px drift from the Advanced strip
+     alone, plus a standing 16px row-height mismatch).
+
+     Now each column is `display: contents` on desktop, so its three child
+     blocks become grid items placed on explicit rows:
+       row 1  top inputs      (donut/price  |  rate + loan-structure pills)
+       row 2  3-stat row      |  5-pillar row    ← stretched: tops AND bottoms
+                                                   align by construction
+       row 3  Payment Breakdown  |  Cash to Close  ← alignSelf:start, so either
+                                                     can grow without moving
+                                                     anything above it.
+     Mobile keeps the original DOM order untouched — `display: contents` and
+     every grid placement is desktop-only. */}
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto auto", gap: 20, alignItems: "stretch", marginBottom: 16 } : {}}>
 
   {/* ========== LEFT COLUMN ========== */}
-  <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
+  <div style={isDesktop ? { display: "contents" } : {}}>
+  {/* — row 1: price / donut / escrow — */}
+  <div style={isDesktop ? { gridColumn: 1, gridRow: 1, display: "flex", flexDirection: "column", alignSelf: "start", minWidth: 0 } : {}}>
    {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
@@ -487,22 +503,38 @@ export default function CalculatorContent(props) {
     </div>
    )}
 
-   {/* Bottom block — 3-stat row + Payment Breakdown stacked together with
-       marginTop:auto so they bottom-align with the matching block in the
-       RIGHT column (4-pill grid + 5-pillar + Cash-to-Close Summary). The
-       3-stat row sits directly above Payment Breakdown so its baseline
-       lines up with the 5-pillar row in the RIGHT column. */}
-   <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
-   {/* Loan Amount / LTV / Cash to Close — 3-stat row (was previously rendered
-       higher up; relocated here so its Y position aligns with the 5-pillar
-       row in the RIGHT column per Christo's 2026-05-02 layout note). */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+   </div>{/* end row 1 (left) */}
+
+   {/* — row 2: Loan Amount / LTV / Cash to Close. Shares grid row 2 with the
+       5-pillar row on the right, so the two line up top and bottom no matter
+       what either column does above or below. */}
+   <div style={isDesktop ? { gridColumn: 1, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : {}}>
+   {/* Overline mirrors "Qualification · N Pillars" on the right so both row-2
+       cells have identical structure (overline + tiles) and identical height. */}
+   <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
+    {isRefi ? "Refinance Summary" : "Loan Summary"}
+   </div>
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12, flex: 1 }}>
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
      { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
     ] : [
-     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue, s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory, tip: "Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee)." },
+     // Subtitle keeps showing financed fees when there are any (that's the more
+     // urgent fact), otherwise the loan category. The tip carries the actual
+     // county thresholds — the two numbers that decide which rate sheet the
+     // borrower prices off (Christo 2026-07-21).
+     { l: "Loan Amount", v: fmt(calc.loan), c: T.blue,
+       s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory,
+       limits: true,
+       tip: `Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee).\n\n`
+        + `${calc.limitYear} FHFA limits — ${calc.countyLimit?.assumedCeiling ? "county not set, showing the national maximum" : `${propertyCounty || calc.countyLimit?.county || "this county"}${calc.countyLimit?.state ? ", " + calc.countyLimit.state : ""}`} (${UNIT_COUNT[propType] || 1}-unit):\n`
+        + `• Conforming up to ${fmt(calc.confLimit)}\n• High balance up to ${fmt(calc.highBalLimit)}\n• Above that = Jumbo\n`
+        + (calc.countyLimit?.assumedCeiling
+            ? `\nSet the county to get its real high-balance limit — most counties are well below the national maximum (Sonoma CA is ${fmt(897000)}, King WA ${fmt(1063750)}).`
+            : calc.highBalLimit === calc.confLimit
+              ? `\nThis county has no high-balance tier — it goes straight from conforming to jumbo.`
+              : ``) },
      { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
      { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
     ]).map((m, i) => (
@@ -510,14 +542,36 @@ export default function CalculatorContent(props) {
       <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
       {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
+      {/* County FHFA thresholds — the two numbers that decide the rate sheet.
+          Compact ($1.25M) because three of these sit side by side. */}
+      {m.limits && calc.confLimit > 0 && (() => {
+       const k = (n) => n >= 1e6 ? `$${(n / 1e6).toFixed(2).replace(/\.?0+$/, "")}M` : `$${Math.round(n / 1000)}K`;
+       const noHighBal = calc.highBalLimit === calc.confLimit;
+       return (
+        <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4, lineHeight: 1.4, fontFamily: FONT }}>
+         {noHighBal
+          ? <>Conf ≤ {k(calc.confLimit)} · then jumbo</>
+          : <>Conf ≤ {k(calc.confLimit)} · HB ≤ {k(calc.highBalLimit)}</>}
+         {/* Never let an assumed national maximum read as this county's real
+             limit — that number decides the rate sheet. */}
+         {calc.countyLimit?.assumedCeiling && (
+          <span style={{ color: T.orange, fontWeight: 600 }}> · set county</span>
+         )}
+        </div>
+       );
+      })()}
      </Card>
     ))}
    </div>
-   {/* Payment Breakdown — banded header/footer matching CashToCloseSummary so
-       the two cards read as a matched pair (per Christo). Body keeps the
-       larger Inter font weights for the row values. Wrapped in the
-       payment-breakdown guided anchor: step 9 pulses this card and asks the
-       user to expand the Tax/PMI carets before the Continue chip appears. */}
+   </div>{/* end row 2 (left) */}
+
+   {/* — row 3: Payment Breakdown. alignSelf:start so the Advanced ladder (and
+       the Tax / PMI / P&I carets) can expand this card freely without shifting
+       the aligned row above it. Banded header/footer matches
+       CashToCloseSummary so the two read as a matched pair (per Christo).
+       Wrapped in the payment-breakdown guided anchor: step 9 pulses this card
+       and asks the user to expand the Tax/PMI carets before Continue. */}
+   <div style={isDesktop ? { gridColumn: 1, gridRow: 3, alignSelf: "start", minWidth: 0 } : {}}>
    <div data-field="payment-breakdown" className={isPulse && isPulse("payment-breakdown")} style={{ borderRadius: 14, transition: "all 0.3s", marginBottom: 16 }}>
    <div style={{
      background: T.card,
@@ -1054,7 +1108,9 @@ export default function CalculatorContent(props) {
   {/* ========== END LEFT COLUMN ========== */}
 
   {/* ========== RIGHT COLUMN ========== */}
-  <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
+  <div style={isDesktop ? { display: "contents" } : {}}>
+  {/* — row 1: rate + live rates + the 4 loan-structure pills — */}
+  <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", alignSelf: "start", minWidth: 0 } : {}}>
    {/* The 3-stat row (Loan Amount / LTV / Cash to Close) was moved to the
        LEFT column under the donut legend per the 2026-05-02 final layout.
        The right column now leads with Rate / Live Rates → 4 loan-structure
@@ -1128,14 +1184,10 @@ export default function CalculatorContent(props) {
     </>)}
    </Card>
 
-   {/* Bottom block — 4-pill 2x2 grid + 5-pillar row + Cash-to-Close Summary
-       stacked together with marginTop:auto so the whole group sticks to the
-       bottom of the RIGHT column. Whitespace fills the gap between the Rate
-       card and the 4-pill grid. The 5-pillar row aligns with the 3-stat row
-       in the LEFT column (both sit directly above their respective bottom
-       summary cards: Payment Breakdown on the left, CTC on the right). */}
-   <div style={isDesktop ? { marginTop: "auto", display: "flex", flexDirection: "column" } : {}}>
-   {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term */}
+   {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term.
+       These sit with Rate in grid row 1: a broker tunes rate and loan
+       structure together, and keeping them out of row 2 lets the pillar row
+       align with the 3-stat row on the left. */}
    <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 12, boxShadow: T.cardShadow }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
@@ -1158,11 +1210,12 @@ export default function CalculatorContent(props) {
     </div>
    </div>
    <ClusterContinue stepId="calc-pills" />
+   </div>{/* end row 1 (right) */}
 
-   {/* Compact 5-pillar row — sits BELOW the loan-structure pills and ABOVE
-       the Cash to Close Summary. 28px circles, click to jump to the matching
-       Qualify section. Unchanged from prior version; only its position in
-       the right-column flow moved. */}
+   {/* — row 2: the compact 5-pillar row. Shares grid row 2 with the 3-stat
+       row on the left. 28px circles, click to jump to the matching Qualify
+       section. */}
+   <div style={isDesktop ? { gridColumn: 2, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : {}}>
    {(() => {
     const compactChecks = isRefi ? [
      { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
@@ -1175,14 +1228,16 @@ export default function CalculatorContent(props) {
      { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
      { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
     ];
+    // Mirrors the left cell exactly: overline, then a grid that flexes to fill
+    // the shared row height so both rows of tiles end up identical.
     return (
-     <div style={{ marginBottom: 12 }}>
+     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
       {/* Overline — the row read as unlabeled colored tiles next to two titled
           cards (Christo 2026-07-19). Matches the CashToCloseSummary band. */}
       <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
        Qualification · {compactChecks.length} Pillars
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12, flex: 1 }}>
       {compactChecks.map((c, i) => {
        const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
        // Plain white tiles (Christo 2026-07-19) — status reads from the circle
@@ -1217,9 +1272,12 @@ export default function CalculatorContent(props) {
     );
    })()}
 
-   {/* Cash To Close Summary — shared component, last card in the right
-       bottom block. The whole bottom block (4-pill grid + 5-pillar row +
-       this CTC) carries marginTop:auto on its wrapper above. */}
+   </div>{/* end row 2 (right) */}
+
+   {/* — row 3: Cash To Close Summary, opposite Payment Breakdown. Also
+       alignSelf:start, so the two summary cards top-align and neither one
+       expanding drags the aligned pillar row with it. */}
+   <div style={isDesktop ? { gridColumn: 2, gridRow: 3, alignSelf: "start", minWidth: 0 } : {}}>
    <CashToCloseSummary
     T={T}
     ACCENT={T.blue}
