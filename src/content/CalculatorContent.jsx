@@ -1331,8 +1331,14 @@ export default function CalculatorContent(props) {
       </div>
      ) : (
       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
-       <strong style={{ color: T.green }}>75% of rent: {fmt(subjectRentalIncome * 0.75)}/mo added as qualifying income</strong>
-       <span> — your total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong>, and it drops your net payment to <strong>{fmt(calc.netPayment)}/mo</strong> (see Advanced under Payment Breakdown).</span>
+       {/* Two different numbers on purpose: 75% qualifies the loan, 100% is
+           what the borrower actually banks. Spelled out so neither reads as
+           a typo of the other (Christo 2026-07-21). */}
+       <strong style={{ color: T.green }}>Qualifying: 75% of rent = {fmt(subjectRentalIncome * 0.75)}/mo</strong>
+       <span> — total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong>.</span>
+       <br />
+       <strong style={{ color: T.green }}>Cash flow: the full {fmt(subjectRentalIncome)}/mo</strong>
+       <span> comes in, dropping your net payment to <strong>{fmt(calc.netPayment)}/mo</strong> (see Advanced under Payment Breakdown).</span>
       </div>
      )}
     </div>

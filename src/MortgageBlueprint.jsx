@@ -4384,9 +4384,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // re-derive these terms in a content file — that's how the top and bottom of
   // the app drifted apart before (Christo 2026-07-21).
   //
-  // Rent uses the lender's 75% factor, the same figure the DTI math above uses,
-  // so the ladder can never contradict the qualifying numbers on screen.
-  const ladderRentCredit = (isInvestment || isRentalPrimary) ? subjectRent75 : 0;
+  // Rent enters the ladder at FULL gross (Christo 2026-07-21). The 75% factor
+  // is a lender underwriting convention for DTI, not a real expense — the
+  // borrower actually collects the whole rent, so a cash-flow ladder that
+  // showed 75% would understate reality. DTI keeps using subjectRent75 above;
+  // these two intentionally differ and the ladder says so on its face.
+  const ladderRentCredit = (isInvestment || isRentalPrimary) ? (Number(subjectRentalIncome) || 0) : 0;
   const netPayment = housingPayment - ladderRentCredit;
   // Investment deductions run through Schedule E, not the itemized
   // primary-residence model computeTaxSavings uses — so no tax row there.

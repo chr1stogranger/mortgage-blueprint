@@ -54,7 +54,7 @@ export default function RentVsBuyContent(props) {
    {/* Reads the shared ladder (calc.netPostSaleExpense) rather than
        re-deriving it — this used to inline the four-term expression and drift
        from the same number shown in Payment Breakdown and Tax Savings. */}
-   {calc.ladderRentCredit > 0 && <MRow label="Monthly Rental Income (75%)" value={fmt(calc.ladderRentCredit)} />}
+   {calc.ladderRentCredit > 0 && <MRow label="Monthly Rental Income" value={fmt(calc.ladderRentCredit)} />}
    <MRow label="Monthly Tax Savings (Yr 1)" value={fmt(calc.ladderTaxSavings)} />
    <MRow label="Monthly Principal Paydown" value={fmt(calc.monthlyPrinReduction)} />
    <MRow label="Monthly Appreciation" value={fmt(calc.monthlyAppreciation)} />
