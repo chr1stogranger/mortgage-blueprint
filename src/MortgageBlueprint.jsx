@@ -2320,7 +2320,52 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // from the loan. Re-importing the same file later just adds another scenario
  // with current numbers — nothing is overwritten. Returns
  // { borrower, scenario, label } and does NOT navigate — callers decide.
- const createClientFromArivePayload = async (payload) => {
+ // Turn a FUNDED Arive file into a refi scenario (Ops "Refi in Blueprint"
+ // button, Christo 2026-07-22). The Arive prefill describes the loan as it was
+ // originated — for a closed purchase that is a PURCHASE shape (salesPrice /
+ // downPct / rate / term). A refi treats that same loan as the loan being paid
+ // off, so everything shifts one slot: origination terms become the refi*
+ // "current loan" fields, and the new loan starts at a default quote.
+ const REFI_DEFAULT_RATE_DROP = 0.5; // pts below the closed rate — a starting point, not a quote
+ const toRefiPrefill = (p) => {
+  const currentRate = Number(p.refiCurrentRate ?? p.rate) || 0;
+  const currentTerm = Number(p.term) || 30;
+  const salesPrice = Number(p.salesPrice) || 0;
+  const downPct = Number(p.downPct) || 0;
+  // Original note amount: an Arive refi file already carries a balance; a
+  // purchase file only carries price + down, so derive it.
+  const originalAmount = Number(p.refiCurrentBalance) > 0
+   ? Number(p.refiCurrentBalance)
+   : Math.round(salesPrice * (1 - downPct / 100));
+  // Today's value. We have no AVM here, so the purchase price is the honest
+  // starting point — the LO overwrites Home Value with an actual estimate.
+  const homeValue = Number(p.refiHomeValue) > 0 ? Number(p.refiHomeValue) : salesPrice;
+  return {
+   ...p,
+   isRefi: true,
+   loanPurpose: 'Refi Rate/Term',
+   refiPurpose: p.refiPurpose || 'Rate/Term',
+   // ── the closed loan, restated as the loan being refinanced ──
+   refiCurrentLoanType: p.loanType || 'Conventional',
+   refiOriginalAmount: originalAmount,
+   refiOriginalTerm: currentTerm,
+   refiCurrentRate: currentRate,
+   refiHomeValue: homeValue,
+   salesPrice: homeValue, // the refi flow labels this field "Home Value"
+   // ── the proposed new loan ──
+   // Arive gives us no funding date on this payload, so refiClosedDate stays
+   // unset on purpose: Blueprint then shows its manual Balance / Remaining
+   // Months inputs instead of silently amortizing from a guessed date.
+   rate: Math.max(0, Number((currentRate - REFI_DEFAULT_RATE_DROP).toFixed(3))),
+   term: currentTerm,
+   // Same property, and it is definitionally not TBD on a refi.
+   propertyTBD: false,
+   // Refi fees fall through to Blueprint's own defaults — the purchase-side
+   // credits (seller/realtor/EMD) are absent from the payload and stay at 0.
+  };
+ };
+
+ const createClientFromArivePayload = async (payload, { asRefi = false } = {}) => {
   if (!payload?.borrower) throw new Error('Arive returned no borrower data');
 
   // Normalize the financial rows before they become state_data. Ops is the
@@ -2328,7 +2373,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // (which sent income.borrower as the borrower's NAME — IncomeContent groups
   // by borrower NUMBER, so a string row renders on no card at all) and against
   // any account-number field sneaking into a future payload.
-  const prefill = normalizeArivePrefill(payload.prefill);
+  const basePrefill = normalizeArivePrefill(payload.prefill);
+  const prefill = asRefi ? toRefiPrefill(basePrefill) : basePrefill;
 
   // 1. Client record (POST dedupes by email and returns the existing row).
   //    Lead-stage Arive files (Application / Qualification / Pre-Approved)
@@ -2379,7 +2425,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch { /* deal team is best-effort — the client + scenario still land */ }
 
   // 3. Scenario prefilled from the file
-  const label = `Arive Import${b._deduplicated ? ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
+  const label = `${asRefi ? 'Refi' : 'Arive Import'}${b._deduplicated || asRefi ? ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
   const newScenario = await apiCreateScenario({
    borrower_id: b.id, name: label,
    type: prefill.isRefi ? 'refi' : 'purchase',
@@ -2484,6 +2530,50 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status });
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isCloud, isBorrower, borrowerList]);
+
+ // ── Deep link: ?ariveRefi=<arive sysGUID> ──
+ // The Ops closed-loan "Refi in Blueprint" button. Pulls the funded file
+ // through the SAME /api/arive?action=blueprint-import round-trip the sidebar
+ // importer uses, then restates it as a refi (see toRefiPrefill).
+ //
+ // Only the GUID travels in the URL — no borrower data in the query string,
+ // and the endpoint is LO-authenticated, so a leaked link is inert.
+ //
+ // Arive drops old loans, and the income/asset/liability detail is never
+ // persisted anywhere — it exists only for as long as Arive answers for that
+ // file. When the fetch comes back empty we say so outright rather than
+ // opening a blank refi that looks like a successful import (Christo
+ // 2026-07-22).
+ const deepLinkRefiConsumedRef = useRef(false);
+ const [refiImportError, setRefiImportError] = useState(null);
+ useEffect(() => {
+  if (deepLinkRefiConsumedRef.current) return;
+  if (!isCloud || isBorrower) return;
+  let guid = null;
+  try { guid = new URLSearchParams(window.location.search).get('ariveRefi'); } catch { /* ignore */ }
+  if (!guid) { deepLinkRefiConsumedRef.current = true; return; }
+  deepLinkRefiConsumedRef.current = true;
+  try { window.history.replaceState(null, '', window.location.pathname); } catch { /* ignore */ }
+  (async () => {
+   try {
+    const payload = await fetchAriveImport(guid);
+    if (!payload?.borrower) throw new Error('Arive no longer has this file');
+    const { borrower: b, scenario: s, label, prefill } = await createClientFromArivePayload(payload, { asRefi: true });
+    setActiveBorrower(b);
+    setBorrowerScenarios(prev => (s?.id ? [s, ...(b._deduplicated ? prev : [])] : prev));
+    if (s?.id) {
+     loadState(prefill);
+     setActiveScenarioId(s.id);
+     setScenarioName(s.name || label);
+     sync.initSync(prefill, null);
+    }
+    setTab('overview');
+   } catch (e) {
+    setRefiImportError(e.message || 'Could not load that file from Arive.');
+   }
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isCloud, isBorrower]);
 
  const switchScenario = async (name, opts = {}) => {
   // ── Cloud mode: switch between the client's cloud rows by id. ──
@@ -5091,6 +5181,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  return (
   <WorkspaceProvider>
   <AppBackground darkMode={darkMode} paused={bgPaused} variant={appMode === "blueprint" ? "house" : appMode === "pricepoint" ? "target" : "chart"} complete={appMode === "blueprint" && tab === "workspace"} />
+  {/* Refi deep-link failure. Loud on purpose — the alternative is an empty
+      refi that reads as a successful import (see the ?ariveRefi effect). */}
+  {refiImportError && (
+   <div role="alert" style={{
+    position: "fixed", top: 0, left: 0, right: 0, zIndex: 2000,
+    background: T.red, color: "#fff", fontFamily: FONT, fontSize: 13, fontWeight: 600,
+    padding: "10px 16px", display: "flex", alignItems: "center", gap: 10,
+    boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+   }}>
+    <Icon name="alert-triangle" size={15} />
+    <span style={{ flex: 1 }}>Refi import failed — {refiImportError}. Nothing was prefilled; build the refi manually.</span>
+    <button onClick={() => setRefiImportError(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "4px 9px", fontFamily: FONT }}>✕</button>
+   </div>
+  )}
   <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
