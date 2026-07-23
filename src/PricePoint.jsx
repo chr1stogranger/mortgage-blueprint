@@ -2102,10 +2102,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const fmtGuess = (raw) => raw ? parseInt(raw).toLocaleString("en-US") : "";
 
   // ── Challenge Mode Handlers ──
+  // Store RAW digits (like the Daily/Sold/Live inputs) — the shared display does
+  // `parseInt(guess)`, and parseInt stops at the first comma, so a formatted
+  // "3,500,000" here rendered as "$3" the moment a comma appeared (the input
+  // looked like it cleared on the 4th digit). Keep it unformatted.
   const handleChallengeGuessInput = (e) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
-    if (!raw) { setChallengeGuess(""); return; }
-    setChallengeGuess(parseInt(raw).toLocaleString("en-US"));
+    setChallengeGuess(raw);
   };
 
   const handleChallengeGuess = () => {
