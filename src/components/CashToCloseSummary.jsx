@@ -21,6 +21,10 @@ export default function CashToCloseSummary({
   newLoan = 0, oldLoanPayoff = 0,
   isRefi = false,
   stretch = false,
+  // Transparent strip rendered BELOW the total band, matching the Payment
+  // Breakdown card's "Advanced" expander (which sits below ITS band) so the
+  // two total bands stay on the same line at rest (Christo 2026-07-22).
+  footerReserve = 0,
 }) {
   const total = isRefi
     ? newLoan - oldLoanPayoff - closingCosts - prepaids - payoffs + credits
@@ -137,6 +141,9 @@ export default function CashToCloseSummary({
           letterSpacing: "-0.02em",
         }}>{isRefi && total < 0 ? `−${fmt(Math.abs(total))}` : fmt(total)}</div>
       </div>
+      {/* Reserve matching Payment Breakdown's Advanced expander so the total
+          bands align at rest. Transparent — nothing to show here. */}
+      {stretch && footerReserve > 0 && <div aria-hidden="true" style={{ height: footerReserve }} />}
     </div>
   );
 }

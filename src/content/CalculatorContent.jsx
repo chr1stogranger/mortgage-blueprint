@@ -1126,7 +1126,38 @@ export default function CalculatorContent(props) {
       </div>
      </div>
     )}
-    {/* Advanced — the net-payment ladder, above the pinned Total band. */}
+    {/* Total Payment band — mirrors CashToCloseSummary's bottom band. The
+        band is the aligned element; the Advanced expander is tucked BELOW it
+        (Christo 2026-07-22, matching purchase). CashToCloseSummary reserves a
+        matching strip below its band (footerReserve) so the two bands stay on
+        the same line at rest. */}
+    <div style={{
+      background: `${T.blue}0E`,
+      borderTop: `1.5px solid ${T.blue}40`,
+      padding: "16px 18px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}>
+     <div style={{
+       fontSize: 12,
+       fontWeight: 700,
+       color: T.blue,
+       letterSpacing: "0.08em",
+       textTransform: "uppercase",
+       fontFamily: FONT,
+     }}>
+      Total Payment
+     </div>
+     <div style={{
+       fontFamily: FONT,
+       fontSize: 22,
+       fontWeight: 800,
+       color: T.blue,
+       letterSpacing: "-0.02em",
+     }}>{fmt(calc.displayPayment)}/mo</div>
+    </div>
+    {/* Advanced — the net-payment ladder, tucked UNDER the Total band. */}
     <div
      onClick={() => setAdvancedOpen(!advancedOpen)}
      title={advancedOpen ? "Hide the net-cost breakdown" : "Show what you actually pay after rent, tax savings and equity"}
@@ -1167,33 +1198,6 @@ export default function CalculatorContent(props) {
       />
      </div>
     )}
-    {/* Total Payment band — mirrors CashToCloseSummary's bottom band */}
-    <div style={{
-      background: `${T.blue}0E`,
-      borderTop: `1.5px solid ${T.blue}40`,
-      padding: "16px 18px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}>
-     <div style={{
-       fontSize: 12,
-       fontWeight: 700,
-       color: T.blue,
-       letterSpacing: "0.08em",
-       textTransform: "uppercase",
-       fontFamily: FONT,
-     }}>
-      Total Payment
-     </div>
-     <div style={{
-       fontFamily: FONT,
-       fontSize: 22,
-       fontWeight: 800,
-       color: T.blue,
-       letterSpacing: "-0.02em",
-     }}>{fmt(calc.displayPayment)}/mo</div>
-    </div>
    </div>
    {(() => {
      // Guided step 9 gate: Tax caret must be expanded (when escrow shown) and
@@ -1388,6 +1392,9 @@ export default function CalculatorContent(props) {
    <div style={isDesktop ? { gridColumn: 2, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : {}}>
    <CashToCloseSummary
     stretch
+    /* Matches the Advanced expander bar tucked under Payment Breakdown's
+       Total band so the two bands align at rest (Christo 2026-07-22). */
+    footerReserve={39}
     T={T}
     ACCENT={T.blue}
     fmt={fmt}
