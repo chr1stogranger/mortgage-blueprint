@@ -270,10 +270,9 @@ export default function CalculatorContent(props) {
     <div data-field="down-pct-input">
      <Card>
       {isRefi ? (<>
-       {/* Refi price card, 2×2 (Christo 2026-07-22):
-             Home Value        | New Loan Amount
-             Equity            | Estimated Current Balance
-           Inputs on top, the two derived tiles directly beneath their input. */}
+       {/* Refi price card (Christo 7.24): just the two inputs. The Equity and
+           payoff TILES are gone — equity already lives in the card beneath the
+           donut, and the payoff is a small gray line under New Loan Amount. */}
        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
         <div>
          <div style={{ display: "flex", alignItems: "center", marginBottom: 6, height: 22, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -283,37 +282,24 @@ export default function CalculatorContent(props) {
         </div>
         <div>
          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6, height: 22, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-          New Loan Amount<InfoTip text="Defaults to your payoff balance. Override if your new loan amount differs (e.g., rolling in closing costs)." />
+          New Loan Amount<InfoTip text="Defaults to your payoff amount. Override if your new loan amount differs (e.g., rolling in closing costs)." />
          </div>
          <Inp value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} prefix="$" />
-        </div>
-        {/* Equity — beneath Home Value */}
-        <div style={{ background: `${T.green}10`, borderRadius: 12, padding: "10px 12px" }}>
-         <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginBottom: 2 }}>EQUITY</div>
-         <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
-         <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
-        </div>
-        {/* Estimated Payoff Amount — beneath New Loan Amount (doc 7.23). The
-            payoff, not the balance, is what the new loan actually retires;
-            the balance moved to the gray line below the card. */}
-        <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
-         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>
-          ESTIMATED PAYOFF AMOUNT
-          <InfoTip text="Your current balance is not your payoff amount — when you get a new loan you skip your next mortgage payment, so you're always about a month of interest behind, plus small payoff fees." />
-         </div>
-         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiPayoffAmount || calc.refiEffBalance || 0)}</div>
-         <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
-        </div>
-       </div>
-       {/* Current-balance / reset hint spans full width so the two inputs stay aligned */}
-       {(calc.refiEffBalance || 0) > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-         <div style={{ fontSize: 11, color: T.textTertiary }}>Current balance: {fmt(calc.refiEffBalance)}</div>
-         {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
-          <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+         {(calc.refiPayoffAmount || 0) > 0 && (
+          <div style={{ marginTop: 4 }}>
+           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: T.textTertiary }}>
+            <span>Estimated payoff: {fmt(calc.refiPayoffAmount)}</span>
+            {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+             <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+            )}
+           </div>
+           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>
+            Runs above your balance — interest accrues to closing, plus payoff fees.
+           </div>
+          </div>
          )}
         </div>
-       )}
+       </div>
        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
       </>) : (<>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
