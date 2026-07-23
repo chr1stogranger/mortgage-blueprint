@@ -314,6 +314,70 @@ const extractValueSignals = (desc) => {
   };
 };
 
+// ── Agent-speak decoder ──
+// Listing copy is a euphemism dialect: "original charm" is how you say "not
+// updated" without saying it. This lexicon translates the classic tells into
+// plain English and scores each one — the translation IS the payload, so unlike
+// the terse chips above these carry a `means` string. tone:
+//   bad     → red    — price risk, hidden cost, or "not what it sounds like"
+//   neutral → amber  — heads-up; depends, or a soft tell / buyer leverage
+//   good    → green  — a genuine plus (the honest ones say it plainly)
+// Curated toward strong, low-ambiguity phrases: over-flagging a nice home reads
+// as cynical, so common words (e.g. "beautiful") stay out; only realtor code does.
+const AGENT_SPEAK = [
+  // "We can't say old / not updated"
+  { key: "charm",     re: /\b(?:original charm|olde?[ -]world charm|vintage charm|period charm|full of (?:charm|character)|lots of character|loaded with character|tons of character|characterful|old[ -]world|yesteryear)\b/i, means: "usually older & not updated", tone: "bad" },
+  { key: "charming",  re: /\bcharming\b/i, means: "often code for small or dated", tone: "neutral" },
+  { key: "vintage",   re: /\b(?:time capsule|original condition|mostly original|well[ -]loved|lovingly (?:maintained|cared for)|estate condition)\b/i, means: "not updated in a long time", tone: "bad" },
+  { key: "dated",     re: /\b(?:dated|needs? updating|update to taste|bring your (?:contractor|imagination|vision|tools|designer)|make it your own|sweat equity|some updating|a little (?:tlc|love)|needs? (?:some )?love)\b/i, means: "budget to renovate", tone: "bad" },
+  { key: "cosmetic",  re: /\bcosmetic(?:s|ally)?\b/i, means: "“just cosmetic” rarely is — get quotes", tone: "neutral" },
+  // "Small"
+  { key: "cozy",      re: /\b(?:cozy|quaint|snug|intimate)\b/i, means: "small", tone: "bad" },
+  { key: "efficient", re: /\b(?:efficient (?:layout|floor ?plan|use of space)|space[ -]efficient)\b/i, means: "small / compact", tone: "neutral" },
+  // "Needs work — that's the pitch"
+  { key: "potential", re: /\b(?:tons of potential|lots of potential|great potential|full of potential|endless (?:potential|possibilities)|diamond in the rough|opportunity knocks|investor'?s dream|priced accordingly)\b/i, means: "needs work — that's the “potential”", tone: "bad" },
+  { key: "bones",     re: /\b(?:good bones|great bones|solid bones)\b/i, means: "sound structure, but plan to renovate", tone: "neutral" },
+  { key: "canvas",    re: /\b(?:blank (?:canvas|slate)|clean slate)\b/i, means: "unfinished — you finish it", tone: "neutral" },
+  // Money / financing red flags
+  { key: "cash",      re: /\b(?:cash (?:only|buyers? only|offers? only)|no financing|not financeable)\b/i, means: "likely won't pass a loan appraisal", tone: "bad" },
+  { key: "permit",    re: /\b(?:unpermitted|without permits|no permits|permits? unknown|buyer to verify permits?|not permitted)\b/i, means: "unpermitted work — appraisal & resale risk", tone: "bad" },
+  { key: "mello",     re: /\b(?:mello[ -]roos|special assessment|special tax|cfd fee)\b/i, means: "extra tax on top of the mortgage", tone: "bad" },
+  // "Not a real bedroom"
+  { key: "bedroom",   re: /\b(?:non[ -]conforming|junior (?:bed|bedroom|suite)|possible (?:3rd|4th|5th|third|fourth|fifth) (?:bed|bedroom)|optional bedroom|bonus room)\b/i, means: "a room that may not count as a legal bed", tone: "neutral" },
+  // Layout / location
+  { key: "layout",    re: /\b(?:unique (?:layout|floor ?plan)|quirky|one[ -]of[ -]a[ -]kind (?:layout|floor ?plan)|unconventional (?:layout|floor ?plan)|flexible floor ?plan)\b/i, means: "unusual / awkward floor plan", tone: "neutral" },
+  { key: "upcoming",  re: /\b(?:up[ -]and[ -]coming|up[ -]&[ -]coming|emerging (?:neighborhood|area)|transitional (?:neighborhood|area)|developing (?:neighborhood|area)|gentrif(?:ying|ication))\b/i, means: "neighborhood not established yet", tone: "neutral" },
+  { key: "freeway",   re: /\b(?:easy (?:freeway|highway) access|close to (?:the )?(?:freeway|highway)|near (?:the )?(?:freeway|highway)|convenient to (?:freeway|highway)|steps to transit)\b/i, means: "traffic / noise likely nearby", tone: "neutral" },
+  // Seller pressure (buyer leverage)
+  { key: "motivated", re: /\b(?:motivated seller|must sell|bring all offers|all offers (?:considered|welcome)|priced to sell|won'?t last|seller says sell)\b/i, means: "seller's under pressure — negotiate", tone: "neutral" },
+  // Genuine positives (the honest listings just say it)
+  { key: "turnkey",   re: /\b(?:turn[ -]?key|move[ -]in ready|nothing to do but move in|shows? like a (?:model|dream)|model[ -]perfect)\b/i, means: "genuinely updated & ready", tone: "good" },
+  { key: "pride",     re: /\b(?:pride of ownership|meticulously (?:maintained|kept)|impeccably maintained|no expense spared|no detail (?:overlooked|spared))\b/i, means: "well cared for", tone: "good" },
+];
+
+// Decode a (decoded-entity) description into matched euphemisms. Returns the
+// ACTUAL matched text (so the card quotes the listing's own words) plus the
+// translation and tone. Warnings sort first — they're the reason this exists.
+// Capped so a flowery listing can't bury the card in translations.
+const AGENT_SPEAK_RANK = { bad: 0, neutral: 1, good: 2 };
+const extractAgentSpeak = (desc) => {
+  const text = String(desc || "");
+  if (!text) return [];
+  const hits = [];
+  const seen = new Set();
+  for (const s of AGENT_SPEAK) {
+    const m = s.re.exec(text);
+    if (m && !seen.has(s.key)) {
+      seen.add(s.key);
+      hits.push({ key: s.key, matched: m[0].toLowerCase(), means: s.means, tone: s.tone });
+    }
+  }
+  // "charming" is the soft echo of "charm" — drop it when the strong one fired.
+  let out = seen.has("charm") ? hits.filter(h => h.key !== "charming") : hits;
+  out.sort((a, b) => AGENT_SPEAK_RANK[a.tone] - AGENT_SPEAK_RANK[b.tone]);
+  return out.slice(0, 6);
+};
+
 // ── Inline value highlighting (Redfin-style) ──
 // The chips above say WHICH signals fired; this marks WHERE in the remarks they
 // fired, so the eye lands on the price movers instead of agent filler. Kept
@@ -2890,6 +2954,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               : null;
             const vc = computeValueContext(listing, valuePool, enrichedLp);
             const sigs = extractValueSignals(desc); // no description (RentCast rows) -> quant stats only
+            const decoded = extractAgentSpeak(desc); // realtor euphemisms → plain English
+            const toneColor = (tone) => tone === "bad" ? T.red : tone === "good" ? T.green : T.orange;
             const rows = [];
             // Prior sale leads the list — on a For Sale card it's the strongest
             // anchor for what the home is worth (and tells you if it's a flip).
@@ -2915,14 +2981,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),
               ...sigs.discount.map(s => ({ ...s, color: T.red, bg: T.errorBg, border: T.errorBorder })),
             ];
-            if (chips.length === 0 && rows.length === 0) return null;
+            if (chips.length === 0 && rows.length === 0 && decoded.length === 0) return null;
             return (
               <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
                 <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                   <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Value Signals</span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textTertiary }}>
                     {!valueSignalsOpen && (
-                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{chips.length + rows.length}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{chips.length + decoded.length + rows.length}</span>
                     )}
                     <Icon name="chevron-down" size={13} style={{ transform: valueSignalsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
                   </span>
@@ -2934,6 +3000,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         {chips.map(c => (
                           <span key={c.key} style={{ fontSize: 11, fontWeight: 600, fontFamily: FONT, color: c.color, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 9999, padding: "3px 10px" }}>{c.label}</span>
                         ))}
+                      </div>
+                    )}
+                    {decoded.length > 0 && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 5 }}>Agent-speak, decoded</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {decoded.map(d => (
+                            <div key={d.key} style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, display: "flex", gap: 7 }}>
+                              <span aria-hidden style={{ flexShrink: 0, marginTop: 6, width: 6, height: 6, borderRadius: 9999, background: toneColor(d.tone) }} />
+                              <span><span style={{ color: toneColor(d.tone), fontWeight: 700 }}>“{d.matched}”</span> {d.means}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {rows.length > 0 && (
