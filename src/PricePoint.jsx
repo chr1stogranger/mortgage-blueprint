@@ -3004,7 +3004,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     )}
                     {decoded.length > 0 && (
                       <div style={{ marginTop: 10 }}>
-                        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 5 }}>Agent-speak, decoded</div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: 0.2 }}>Real<span style={{ color: T.accent }}>Talk</span></span>
+                          <span style={{ fontSize: 10, fontWeight: 500, fontFamily: FONT, color: T.textTertiary }}>reading between the lines</span>
+                        </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                           {decoded.map(d => (
                             <div key={d.key} style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, display: "flex", gap: 7 }}>
