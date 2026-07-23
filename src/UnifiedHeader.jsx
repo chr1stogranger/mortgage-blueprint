@@ -39,6 +39,8 @@ export default function UnifiedHeader({
   setTab, onCompare, onJumpToSection,
   /* Auth */
   isCloud, isBorrower, auth,
+  /* LO quick action — Arive-style blue "+" next to the account pill */
+  onCreateNewBlueprint,
   /* Borrower account (self-serve sign-in on the public calculator) */
   showAccountButton, selfAccount, onOpenAccountSheet, selfSyncStatus,
   borrowerList, activeBorrower, borrowerLoading,
@@ -441,6 +443,23 @@ export default function UnifiedHeader({
                 Sign in
               </button>
             )
+          )}
+          {/* Create New Blueprint — Arive-style blue "+" beside the account
+              pill (Christo 7.24). LO-only: the parent passes null otherwise. */}
+          {onCreateNewBlueprint && (
+            <button
+              onClick={onCreateNewBlueprint}
+              title="Create New Blueprint"
+              aria-label="Create New Blueprint"
+              style={{
+                width: 26, height: 26, borderRadius: 9999, border: "none",
+                background: "#3B6BF5", color: "#fff",
+                fontSize: 18, fontWeight: 600, lineHeight: 1,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0, padding: 0, paddingBottom: 2,
+                fontFamily: FONT, boxShadow: "0 1px 4px rgba(59,107,245,0.35)",
+              }}
+            >+</button>
           )}
           {auth?.userPill}
         </div>

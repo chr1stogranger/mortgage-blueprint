@@ -79,6 +79,7 @@ import UnifiedHeader from "./UnifiedHeader";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
 import {
   fetchBorrowers, fetchBorrowerById, createBorrower, updateBorrower, deleteBorrower,
+  fetchRecentScenarios,
   fetchScenarios as apiFetchScenarios, createScenario as apiCreateScenario,
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
@@ -2242,14 +2243,33 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [scenariosAreCloud, cloudScenarioIndex, activeScenarioId]);
 
  // ── Load borrower list from Supabase when authenticated ──
+ // Ordered by most-recent BLUEPRINT activity (Christo 7.24): the server's
+ // borrower order only tracks borrower-row edits, so we pull the recent
+ // scenarios and float each client to their newest scenario's
+ // updated_at / last_opened_at. Clients with no recent scenario keep the
+ // server order (updated_at desc) via the stable index tiebreak.
  useEffect(() => {
   if (!isCloud) return;
   let cancelled = false;
   (async () => {
    setBorrowerLoading(true);
    try {
-    const list = await fetchBorrowers({ status: 'active' });
-    if (!cancelled) setBorrowerList(Array.isArray(list) ? list : []);
+    const [list, recent] = await Promise.all([
+     fetchBorrowers({ status: 'active' }),
+     fetchRecentScenarios().catch(() => []),
+    ]);
+    if (cancelled) return;
+    const rows = Array.isArray(list) ? list : [];
+    const lastUsed = {};
+    for (const s of (Array.isArray(recent) ? recent : [])) {
+     const t = Math.max(Date.parse(s.updated_at || "") || 0, Date.parse(s.last_opened_at || "") || 0);
+     if (s.borrower_id && t > (lastUsed[s.borrower_id] || 0)) lastUsed[s.borrower_id] = t;
+    }
+    const sorted = rows
+     .map((b, i) => [b, lastUsed[b.id] || 0, i])
+     .sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]))
+     .map((x) => x[0]);
+    setBorrowerList(sorted);
    } catch (e) {
     console.warn('[Blueprint] Failed to load borrowers:', e.message);
    } finally {
@@ -6081,6 +6101,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
     isCloud={isCloud} isBorrower={isBorrower} auth={auth}
+    onCreateNewBlueprint={isCloud && !isBorrower ? () => { setCreateClientPrefill(""); setCreateClientOpen(true); } : null}
     showAccountButton={!isBorrower && !isCloud}
     selfAccount={selfMode ? (account.account || { email: account.session?.user?.email || '' }) : null}
     onOpenAccountSheet={() => setShowAccountSheet(true)}

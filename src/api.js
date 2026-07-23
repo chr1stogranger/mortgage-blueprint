@@ -82,6 +82,13 @@ export async function fetchScenarios(borrowerId) {
   return authFetch(`/api/scenarios?borrower_id=${borrowerId}`);
 }
 
+// No filter → the server's dashboard route: the 100 most recently updated
+// scenarios (id, borrower_id, updated_at, last_opened_at, …). Used to order
+// the client list by most-recent blueprint activity.
+export async function fetchRecentScenarios() {
+  return authFetch('/api/scenarios');
+}
+
 export async function fetchScenario(id) {
   return authFetch(`/api/scenarios?id=${id}`);
 }

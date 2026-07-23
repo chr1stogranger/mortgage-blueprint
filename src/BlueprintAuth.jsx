@@ -7,7 +7,7 @@
  * "local mode" — localStorage only, no Supabase sync. This preserves
  * backward compatibility for the public calculator.
  */
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { getSession, onAuthStateChange, signOut as supabaseSignOut } from "./lib/supabaseClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
@@ -108,6 +108,12 @@ export default function BlueprintAuth({ children }) {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [localMode, setLocalMode] = useState(false); // No auth, localStorage only
   const [pillOpen, setPillOpen] = useState(false);
+  // Returning LO whose 12h session lapsed — remembered so the Google script
+  // can silently re-auth them (One Tap auto_select) instead of demanding a
+  // fresh "Sign in" click every morning (Christo 7.24). Cleared by explicit
+  // sign-out via the bp_signed_out flag.
+  const [wantSilentReauth, setWantSilentReauth] = useState(false);
+  const silentPromptedRef = useRef(false);
 
   // Check for existing session
   useEffect(() => {
@@ -121,6 +127,11 @@ export default function BlueprintAuth({ children }) {
           setUser(parsed);
           setToken(savedToken);
           return;
+        }
+        // Token lapsed but this browser WAS an LO — re-auth silently below
+        // unless they explicitly signed out.
+        if (parsed?.email && localStorage.getItem("bp_signed_out") !== "1") {
+          setWantSilentReauth(true);
         }
       } catch { /* fall through */ }
       localStorage.removeItem("bp_user");
@@ -180,6 +191,7 @@ export default function BlueprintAuth({ children }) {
       }
       localStorage.setItem("bp_user", JSON.stringify(userData));
       localStorage.setItem("bp_token", sessionToken);
+      localStorage.removeItem("bp_signed_out");
       setUser(userData);
       setToken(sessionToken);
       setError("");
@@ -213,6 +225,7 @@ export default function BlueprintAuth({ children }) {
         if (!data?.token || !data?.user) return;
         localStorage.setItem("bp_user", JSON.stringify(data.user));
         localStorage.setItem("bp_token", data.token);
+        localStorage.removeItem("bp_signed_out");
         setUser(data.user);
         setToken(data.token);
         setLocalMode(false);
@@ -231,8 +244,18 @@ export default function BlueprintAuth({ children }) {
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleCredentialResponse,
+      // Returning users re-auth without picking an account — pairs with the
+      // silent prompt below so a lapsed 12h LO session heals itself.
+      auto_select: true,
     });
-  }, [scriptLoaded, user, handleCredentialResponse]);
+    // A browser that WAS signed in as an LO (token lapsed, no explicit
+    // sign-out) gets One Tap immediately — Google auto-selects the account
+    // and the server hands back a fresh session with no clicks (Christo 7.24).
+    if (wantSilentReauth && !silentPromptedRef.current) {
+      silentPromptedRef.current = true;
+      try { window.google.accounts.id.prompt(); } catch { /* manual Sign in remains */ }
+    }
+  }, [scriptLoaded, user, handleCredentialResponse, wantSilentReauth]);
 
   const handleGoogleClick = () => {
     if (!window.google) return;
@@ -257,6 +280,10 @@ export default function BlueprintAuth({ children }) {
     try { await supabaseSignOut(); } catch { /* still clear local state below */ }
     localStorage.removeItem("bp_user");
     localStorage.removeItem("bp_token");
+    // Explicit sign-out must stick: blocks the silent One Tap re-auth AND
+    // Google's auto_select until the next deliberate sign-in.
+    localStorage.setItem("bp_signed_out", "1");
+    try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch { /* best effort */ }
     setUser(null);
     setToken(null);
     setError("");
