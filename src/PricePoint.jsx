@@ -4965,16 +4965,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div onClick={() => setShowNotifDrawer(false)} style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 300,
           background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
-          display: "flex", alignItems: "flex-end", justifyContent: "center",
+          display: "flex", alignItems: isDesktop ? "center" : "flex-end", justifyContent: "center",
+          padding: isDesktop ? 20 : 0, boxSizing: "border-box",
           animation: "ppFadeIn 0.2s ease",
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: T.card, borderRadius: "20px 20px 0 0", padding: "24px 20px 32px",
+            background: T.card, borderRadius: isDesktop ? 20 : "20px 20px 0 0", padding: "24px 20px 32px",
             maxWidth: 420, width: "100%", maxHeight: "80vh", display: "flex", flexDirection: "column",
-            border: `1px solid ${T.cardBorder}`, borderBottom: "none",
-            animation: "ppSlideUp 0.3s ease",
+            border: `1px solid ${T.cardBorder}`, borderBottom: isDesktop ? `1px solid ${T.cardBorder}` : "none",
+            animation: isDesktop ? "ppScaleIn 0.3s ease" : "ppSlideUp 0.3s ease",
           }}>
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px", flexShrink: 0 }} />
+            {!isDesktop && <div style={{ width: 40, height: 4, borderRadius: 2, background: T.cardBorder, margin: "0 auto 20px", flexShrink: 0 }} />}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexShrink: 0 }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>NOTIFICATIONS</div>
