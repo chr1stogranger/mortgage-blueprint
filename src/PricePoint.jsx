@@ -1446,6 +1446,52 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
   const [notifEmailInput, setNotifEmailInput] = useState('');
   const [notifPhoneInput, setNotifPhoneInput] = useState('');
+  // ── Admin: "Run resolve now" (hidden from normal users) ──
+  // Sticky per-browser: visit .../pricepoint?admin=1 once and the admin tools
+  // stay visible on this device. Regular visitors never set the flag.
+  const [isAdmin] = useState(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get('admin') === '1') {
+        localStorage.setItem('pp_admin', '1'); return true;
+      }
+      return localStorage.getItem('pp_admin') === '1';
+    } catch { return false; }
+  });
+  const [resolveMsg, setResolveMsg] = useState(null);
+  // Fires /api/cron-resolve with the CRON_SECRET. The secret is NEVER in the
+  // app bundle — the admin types it once and it's held only for this tab.
+  const runResolveNow = async () => {
+    let secret = '';
+    try { secret = sessionStorage.getItem('pp_cron_secret') || ''; } catch {}
+    if (!secret) {
+      secret = window.prompt('Enter CRON_SECRET (Vercel → Settings → Environment Variables). Stays only in this browser tab.') || '';
+      if (!secret.trim()) return;
+      secret = secret.trim();
+      try { sessionStorage.setItem('pp_cron_secret', secret); } catch {}
+    }
+    setResolveMsg('Running… (can take a few seconds)');
+    try {
+      const r = await fetch(apiUrl(`/api/cron-resolve?secret=${encodeURIComponent(secret)}`));
+      const j = await r.json().catch(() => null);
+      if (r.status === 401) {
+        try { sessionStorage.removeItem('pp_cron_secret'); } catch {}
+        setResolveMsg('❌ Wrong secret — cleared it. Tap the button again to re-enter.');
+        return;
+      }
+      if (!r.ok) { setResolveMsg(`❌ ${j?.error || `HTTP ${r.status}`}`); return; }
+      // Guard against a non-JSON 200 (e.g. an HTML fallback) reading as "clean".
+      if (!j || (j.errors === undefined && j.checked === undefined && j.resolved === undefined)) {
+        setResolveMsg(`⚠️ Unexpected response (HTTP ${r.status}) — is the endpoint deployed?`);
+        return;
+      }
+      const errs = Array.isArray(j.errors) ? j.errors.length : 0;
+      setResolveMsg(errs === 0
+        ? `✅ Clean run — checked ${j.checked ?? 0}, resolved ${j.resolved ?? 0}, 0 errors. Pipeline works.`
+        : `⚠️ ${errs} error(s): ${JSON.stringify(j.errors).slice(0, 200)}`);
+    } catch (e) {
+      setResolveMsg(`❌ ${e?.message || 'request failed'}`);
+    }
+  };
 
   // ── Active Listings (for Live Mode) — persisted to localStorage ──
   const [activeListings, setActiveListings] = useState(() => {
@@ -3876,6 +3922,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               )}
             </button>
           </div>
+
+          {/* Admin-only: fire the prediction-resolution cron by hand. Hidden
+              unless this browser has the admin flag (visit .../pricepoint?admin=1). */}
+          {isAdmin && (
+            <div style={{ marginBottom: 20, padding: "14px 16px", background: T.inputBg, borderRadius: 12, border: `1px dashed ${T.cardBorder}` }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 8 }}>Admin · Prediction resolver</div>
+              <button onClick={runResolveNow} style={{
+                width: "100%", padding: "12px", borderRadius: 10, background: T.card, color: T.text,
+                fontSize: 14, fontWeight: 700, border: `1px solid ${T.cardBorder}`, cursor: "pointer", fontFamily: FONT,
+              }}>Run resolve now</button>
+              {resolveMsg && (
+                <div style={{ marginTop: 8, fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, wordBreak: "break-word" }}>{resolveMsg}</div>
+              )}
+            </div>
+          )}
 
           {/* Stats Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
