@@ -269,6 +269,46 @@ export default function CalculatorContent(props) {
    <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
      <Card>
+      {isRefi ? (<>
+       {/* Refi price card, 2×2 (Christo 2026-07-22):
+             Home Value        | New Loan Amount
+             Equity            | Estimated Current Balance
+           Inputs on top, the two derived tiles directly beneath their input. */}
+       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
+        <div>
+         <div style={{ display: "flex", alignItems: "center", marginBottom: 6, height: 22, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+          Home Value<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+         </div>
+         <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter value" prefix="$" />
+        </div>
+        <div>
+         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6, height: 22, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+          New Loan Amount<InfoTip text="Defaults to your payoff balance. Override if your new loan amount differs (e.g., rolling in closing costs)." />
+         </div>
+         <Inp value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} prefix="$" />
+        </div>
+        {/* Equity — beneath Home Value */}
+        <div style={{ background: `${T.green}10`, borderRadius: 12, padding: "10px 12px" }}>
+         <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginBottom: 2 }}>EQUITY</div>
+         <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
+         <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
+        </div>
+        {/* Estimated Current Balance — beneath New Loan Amount */}
+        <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
+         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>ESTIMATED CURRENT BALANCE</div>
+         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
+         <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
+        </div>
+       </div>
+       {/* Payoff-balance / reset hint spans full width so the two inputs stay aligned */}
+       {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+         <div style={{ fontSize: 11, color: T.textTertiary }}>Payoff balance: {fmt(calc.refiAutoLoanAmt)}</div>
+         <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+        </div>
+       )}
+       {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
+      </>) : (<>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
        <div>
         {/* Custom label row mirrors the Down field's label row exactly
@@ -277,45 +317,15 @@ export default function CalculatorContent(props) {
             flagged on mobile (2026-05-04). */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
          <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-          {isRefi ? "Home Value" : "Purchase Price"}
+          Purchase Price
           <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
          </div>
         </div>
         <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
-        {isRefi ? (
-         /* New Loan Amount lives right under Home Value (Christo 2026-07-22) —
-            the two numbers an LO reads together. Was a stranded input at the
-            bottom of the column. */
-         <div style={{ marginTop: 10 }}>
-          <Inp label="New Loan Amount" value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} tip="Defaults to your payoff balance. Override if your new loan amount differs (e.g., rolling in closing costs)." />
-          {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
-           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: -8 }}>
-            <div style={{ fontSize: 11, color: T.textTertiary }}>Payoff balance: {fmt(calc.refiAutoLoanAmt)}</div>
-            <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
-           </div>
-          )}
-         </div>
-        ) : (
-         /* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */
-         <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
-        )}
+        {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */}
+        <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
        </div>
-       {isRefi ? (<>
-        {/* Refi: Equity & Balance */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 14 }}>
-         <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>ESTIMATED CURRENT BALANCE</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
-         </div>
-         <div style={{ background: `${T.green}10`, borderRadius: 12, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, color: T.green, fontWeight: 600, marginBottom: 2 }}>EQUITY</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
-          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
-         </div>
-        </div>
-        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
-       </>) : (<>
+       {(<>
         {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
         {(() => {
          // Compact summary so the label row fits on mobile even at $1M+ down payments
@@ -361,13 +371,46 @@ export default function CalculatorContent(props) {
         })()}
        </>)}
       </div>
-      {!isRefi && calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
-      {!isRefi && loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
+      {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
+      {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
+      </>)}
      </Card>
     </div>
    </div>
 
   );
+
+  // CURRENT → NEW payment comparison. Extracted so it can lead the RIGHT
+  // column while the price card leads the left (Christo 2026-07-22 — the two
+  // cards swapped columns).
+  const currentToNewCard = calc.refiEffPI > 0 ? (
+    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
+     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW</div>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+      <div style={{ textAlign: "center" }}>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurTotalPmt)}</div>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
+      </div>
+      <div style={{ fontSize: 20, color: T.green }}>→</div>
+      <div style={{ textAlign: "center" }}>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>New</div>
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
+      </div>
+     </div>
+     {calc.refiMonthlyTotalSavings > 0 ? (
+      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
+       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiMonthlyTotalSavings)}/mo savings</span>
+       {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
+      </div>
+     ) : calc.refiMonthlyTotalSavings < 0 ? (
+      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
+       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiMonthlyTotalSavings))}/mo higher</span>
+      </div>
+     ) : null}
+    </div>
+  ) : null;
 
   return (<>
 
@@ -438,37 +481,9 @@ export default function CalculatorContent(props) {
    {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
-   {!isRefi && priceCard}
-
-   {/* Refi Current → New — ABOVE the donut, the first thing read (Christo 2026-07-22) */}
-   {isRefi && calc.refiEffPI > 0 && (
-    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "14px 16px", marginBottom: 12 }}>
-     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: T.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>CURRENT → NEW</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
-      <div style={{ textAlign: "center" }}>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurTotalPmt)}</div>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
-      </div>
-      <div style={{ fontSize: 20, color: T.green }}>→</div>
-      <div style={{ textAlign: "center" }}>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>New</div>
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.green }}>{fmt(calc.refiNewTotalPmt)}</div>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
-      </div>
-     </div>
-     {calc.refiMonthlyTotalSavings > 0 ? (
-      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiMonthlyTotalSavings)}/mo savings</span>
-       {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
-      </div>
-     ) : calc.refiMonthlyTotalSavings < 0 ? (
-      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiMonthlyTotalSavings))}/mo higher</span>
-      </div>
-     ) : null}
-    </div>
-   )}
+   {/* Price card leads the LEFT column above the donut, for purchase AND refi
+       (Christo 2026-07-22). CURRENT → NEW now leads the right column. */}
+   {priceCard}
 
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
@@ -1201,9 +1216,9 @@ export default function CalculatorContent(props) {
   <div style={isDesktop ? { display: "contents" } : {}}>
   {/* — row 1: rate + live rates + the 4 loan-structure pills — */}
   <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", alignSelf: "start", minWidth: 0 } : {}}>
-   {/* Refi: Home Value / Balance / Equity / New Loan Amount leads the right
-       column, directly above New Rate (Christo 2026-07-22). */}
-   {isRefi && priceCard}
+   {/* Refi: CURRENT → NEW leads the right column, above New Rate (Christo
+       2026-07-22 — swapped with the price card, now on the left). */}
+   {isRefi && currentToNewCard}
    {/* The 3-stat row (Loan Amount / LTV / Cash to Close) was moved to the
        LEFT column under the donut legend per the 2026-05-02 final layout.
        The right column now leads with Rate / Live Rates → 4 loan-structure
