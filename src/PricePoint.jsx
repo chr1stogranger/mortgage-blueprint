@@ -4530,7 +4530,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.listPrice)}</div>
                 </div>
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
-                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}The market settles it when this one closes.
+                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells.
                 </div>
                 <button onClick={() => shareLiveChallenge(r, challengeData.listing)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
                   <Icon name="send" size={16} /> Challenge another friend
