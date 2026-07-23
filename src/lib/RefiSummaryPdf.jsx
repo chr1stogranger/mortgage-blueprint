@@ -36,7 +36,7 @@ const TINT = "#EFF3FE";
 const GREEN_TINT = "#E8F7EE";
 
 const s = StyleSheet.create({
-  page: { paddingTop: 18, paddingBottom: 14, paddingHorizontal: 34, fontFamily: "Inter", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
+  page: { paddingTop: 14, paddingBottom: 12, paddingHorizontal: 34, fontFamily: "Inter", fontSize: 9, color: INK, backgroundColor: "#FFFFFF" },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   loName: { fontFamily: "Inter-Bold", fontSize: 15 },
   loMeta: { fontSize: 8.5, color: SUB, marginTop: 2 },
@@ -45,19 +45,19 @@ const s = StyleSheet.create({
   rule: { height: 2, backgroundColor: INDIGO, marginTop: 7, marginBottom: 6 },
   metaRow: { flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED, marginBottom: 8 },
 
-  secHead: { backgroundColor: TINT, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 8, marginTop: 8, marginBottom: 4 },
+  secHead: { backgroundColor: TINT, borderRadius: 4, paddingVertical: 3.5, paddingHorizontal: 8, marginTop: 6, marginBottom: 3 },
   secHeadText: { fontFamily: "Inter-Bold", fontSize: 9.5, color: INDIGO, letterSpacing: 0.4, textTransform: "uppercase" },
 
   // Option 1 table
   th: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: HAIR, paddingVertical: 3 },
-  tr: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: HAIR, paddingVertical: 2.5 },
+  tr: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: HAIR, paddingVertical: 2 },
   trTotal: { flexDirection: "row", backgroundColor: GREEN_TINT, borderRadius: 3, paddingVertical: 4, marginTop: 2 },
   cLabel: { width: "31%", fontSize: 8.5, color: SUB, paddingLeft: 2 },
   cNum: { width: "23%", fontSize: 8.5, textAlign: "right", paddingRight: 4 },
   bold: { fontFamily: "Inter-Bold" },
 
   // Simple label:value line rows
-  line: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.5, borderBottomWidth: 0.5, borderBottomColor: HAIR },
+  line: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2, borderBottomWidth: 0.5, borderBottomColor: HAIR },
   lineLabel: { fontSize: 8.5, color: SUB },
   lineValue: { fontSize: 8.5, textAlign: "right" },
   lineTotal: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, paddingHorizontal: 6, backgroundColor: GREEN_TINT, borderRadius: 3, marginTop: 2 },
@@ -70,7 +70,9 @@ const s = StyleSheet.create({
   twoCol: { flexDirection: "row", gap: 14, marginTop: 2 },
   col: { flex: 1 },
 
-  foot: { position: "absolute", left: 34, right: 34, bottom: 12 },
+  // In-flow (NOT absolutely positioned): an absolute footer overlapped the
+  // content once the Cost of Waiting table filled the page (Christo 7.24).
+  foot: { marginTop: 10 },
   footText: { fontSize: 6.5, color: MUTED, lineHeight: 1.3 },
   footGen: { fontSize: 6.5, color: MUTED, marginTop: 2 },
 });
@@ -261,6 +263,15 @@ export function RefiSummaryDoc(p) {
               <Text style={s.lineLabel}>Current escrow balance (refunded)</Text>
               <Text style={s.lineValue}>+ {usd2(c.refiEscrowRefund)}</Text>
             </View>
+            {/* Blank filler rows so this column's total band lands at the SAME
+                height as Estimated Cash to Close on the left (4 rows there;
+                2 + skip count here) — Christo 7.24. */}
+            {Array.from({ length: Math.max(0, 4 - (2 + skipRows.length)) }, (_, i) => (
+              <View key={"pad" + i} style={s.line}>
+                <Text style={s.lineLabel}> </Text>
+                <Text style={s.lineValue}> </Text>
+              </View>
+            ))}
             <View style={s.lineTotal}>
               <Text style={[s.lineLabel, s.bold, { color: INK }]}>Net Cash in Hand</Text>
               <Text style={[s.lineValue, s.bold, { color: (c.refiNetCashInHand || 0) >= 0 ? GREEN : RED }]}>{usd2(c.refiNetCashInHand)}</Text>
