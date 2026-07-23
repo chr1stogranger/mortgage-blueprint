@@ -547,6 +547,62 @@ const computePriceRead = (vc, premium, discount, decoded) => {
   return { d, s, q, gap, position, zone };
 };
 
+// Compute + render the Price Read gauge for a listing, or null when there's no
+// area median to read against. Self-contained (re-derives desc/signals) so the
+// SAME card can appear pre-guess (For Sale) or post-guess (Sold reveal) without
+// threading state through PropertyCard/RevealCard.
+const renderPriceRead = (listing, valuePool, details, T) => {
+  if (!listing || !valuePool) return null;
+  const zid = String(listing.zpid || "");
+  const enrichedLp = (zid.startsWith("rc_") || zid.startsWith("rf_"))
+    ? (details?.listPrice && details.listPrice !== listing.soldPrice ? details.listPrice : null)
+    : null;
+  const vc = computeValueContext(listing, valuePool, enrichedLp);
+  const desc = decodeEntities(details?.description || listing.description);
+  const sigs = extractValueSignals(desc);
+  const decoded = extractAgentSpeak(desc);
+  const pr = computePriceRead(vc, sigs.premium, sigs.discount, decoded);
+  if (!pr) return null;
+  const zoneColor = pr.zone === "transparent" ? T.green : T.orange;
+  const zoneLabel = pr.zone === "teaser" ? "Likely a teaser" : pr.zone === "ambitious" ? "Ambitious ask" : "Priced near value";
+  const absd = Math.round(Math.abs(pr.d));
+  const listPart = Math.abs(pr.d) < 2 ? "Listed about at the area’s $/sqft"
+    : pr.d < 0 ? `Listed ${absd}% under the area’s $/sqft`
+    : `Listed ${absd}% over the area’s $/sqft`;
+  const sigPart = pr.s >= 2 ? "strong upside in the signals"
+    : pr.s > 0 ? "mildly positive signals"
+    : pr.s <= -2 ? "several red flags"
+    : pr.s < 0 ? "some red flags"
+    : "no strong signals either way";
+  const tail = pr.zone === "teaser" ? "reads like bait pricing; expect offers over ask"
+    : pr.zone === "ambitious" ? "priced above where the signals land; may sit or cut"
+    : "looks priced near what it’s worth";
+  const tick = (z, label) => (
+    <span style={{ fontSize: 8.5, letterSpacing: 1, fontFamily: MONO, color: pr.zone === z ? zoneColor : T.textTertiary, fontWeight: pr.zone === z ? 700 : 400 }}>{label}</span>
+  );
+  return (
+    <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 9 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Price Read</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: FONT, color: zoneColor }}>{zoneLabel}</span>
+      </div>
+      <div style={{ position: "relative", height: 8, borderRadius: 9999, background: `linear-gradient(90deg, ${T.orange}, ${T.green} 50%, ${T.orange})`, opacity: 0.9 }} />
+      <div style={{ position: "relative", height: 0 }}>
+        <div style={{ position: "absolute", left: `${pr.position}%`, top: -14, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ width: 2, height: 16, background: T.text }} />
+          <div style={{ width: 11, height: 11, borderRadius: 9999, background: T.text, border: `2px solid ${T.inputBg}`, marginTop: -3 }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+        {tick("teaser", "TEASER")}{tick("transparent", "TRANSPARENT")}{tick("ambitious", "AMBITIOUS")}
+      </div>
+      <div style={{ fontSize: 11.5, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginTop: 8 }}>
+        {listPart}, with {sigPart} — {tail}.
+      </div>
+    </div>
+  );
+};
+
 const getDailyNumber = () => {
   const now = new Date();
   const start = new Date("2026-01-01");
@@ -2971,6 +3027,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               )}
             </div>
           )}
+          {/* Price Read gauge — For Sale shows it up front (a pricing-strategy
+              read is the whole point pre-offer). On the Sold GAME it would
+              telegraph the answer, so there it moves to the post-guess reveal
+              (see RevealCard priceRead below). */}
+          {view === "live" && valuePool && renderPriceRead(listing, valuePool, details, T)}
           {/* Value signals — Free Play / Live ONLY (never daily/challenge: no
               valuePool prop there and the view gate double-locks it). Lexicon
               chips over the MLS description + quant context vs. the current
@@ -2986,9 +3047,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const sigs = extractValueSignals(desc); // no description (RentCast rows) -> quant stats only
             const decoded = extractAgentSpeak(desc); // realtor euphemisms → plain English
             const toneColor = (tone) => tone === "bad" ? T.red : tone === "good" ? T.green : T.orange;
-            // Price Read: synthesize list-vs-median + signal sentiment into a
-            // teaser↔transparent↔ambitious gauge. Null unless we have an area median.
-            const priceRead = computePriceRead(vc, sigs.premium, sigs.discount, decoded);
             const rows = [];
             // Prior sale leads the list — on a For Sale card it's the strongest
             // anchor for what the home is worth (and tells you if it's a flip).
@@ -3014,53 +3072,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),
               ...sigs.discount.map(s => ({ ...s, color: T.red, bg: T.errorBg, border: T.errorBorder })),
             ];
-            if (chips.length === 0 && rows.length === 0 && decoded.length === 0 && !priceRead) return null;
-            // Price Read card (headline verdict, always shown when available).
-            let priceReadCard = null;
-            if (priceRead) {
-              const pr = priceRead;
-              const zoneColor = pr.zone === "transparent" ? T.green : T.orange;
-              const zoneLabel = pr.zone === "teaser" ? "Likely a teaser" : pr.zone === "ambitious" ? "Ambitious ask" : "Priced near value";
-              const absd = Math.round(Math.abs(pr.d));
-              const listPart = Math.abs(pr.d) < 2 ? "Listed about at the area’s $/sqft"
-                : pr.d < 0 ? `Listed ${absd}% under the area’s $/sqft`
-                : `Listed ${absd}% over the area’s $/sqft`;
-              const sigPart = pr.s >= 2 ? "strong upside in the signals"
-                : pr.s > 0 ? "mildly positive signals"
-                : pr.s <= -2 ? "several red flags"
-                : pr.s < 0 ? "some red flags"
-                : "no strong signals either way";
-              const tail = pr.zone === "teaser" ? "reads like bait pricing; expect offers over ask"
-                : pr.zone === "ambitious" ? "priced above where the signals land; may sit or cut"
-                : "looks priced near what it’s worth";
-              const tick = (z, label) => (
-                <span style={{ fontSize: 8.5, letterSpacing: 1, fontFamily: MONO, color: pr.zone === z ? zoneColor : T.textTertiary, fontWeight: pr.zone === z ? 700 : 400 }}>{label}</span>
-              );
-              priceReadCard = (
-                <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
-                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 9 }}>
-                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Price Read</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: FONT, color: zoneColor }}>{zoneLabel}</span>
-                  </div>
-                  <div style={{ position: "relative", height: 8, borderRadius: 9999, background: `linear-gradient(90deg, ${T.orange}, ${T.green} 50%, ${T.orange})`, opacity: 0.9 }} />
-                  <div style={{ position: "relative", height: 0 }}>
-                    <div style={{ position: "absolute", left: `${pr.position}%`, top: -14, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <div style={{ width: 2, height: 16, background: T.text }} />
-                      <div style={{ width: 11, height: 11, borderRadius: 9999, background: T.text, border: `2px solid ${T.inputBg}`, marginTop: -3 }} />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                    {tick("teaser", "TEASER")}{tick("transparent", "TRANSPARENT")}{tick("ambitious", "AMBITIOUS")}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginTop: 8 }}>
-                    {listPart}, with {sigPart} — {tail}.
-                  </div>
-                </div>
-              );
-            }
+            if (chips.length === 0 && rows.length === 0 && decoded.length === 0) return null;
             return (
-              <>
-              {priceReadCard}
               <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
                 <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                   <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Value Signals</span>
@@ -3106,7 +3119,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </>
                 )}
               </div>
-              </>
             );
           })()}
           {/* Specs */}
@@ -3196,7 +3208,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Reveal card ──
-  const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison }) => {
+  const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison, priceRead }) => {
     const color = fbColor(result.feedback);
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: isDesktop ? 560 : 420, width: "100%", margin: isDesktop ? "0 auto" : undefined, animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
@@ -3280,6 +3292,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
               <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{result.neighborhood} · {result.city}, {result.state}</div>
             </div>
+            {/* Price Read — post-guess on the Sold game (passed only from the
+                freeplay reveal, where a comp median exists). */}
+            {priceRead}
           </div>
         )}
         {(!showPhases || revealPhase >= 2) && (
@@ -4456,6 +4471,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           ) : fpResult ? (
             RevealCard({ result: fpResult, onContinue: fpNextProperty,
               onChallenge: (r) => shareChallenge(r, fpListings[fpIdx], false),
+              priceRead: renderPriceRead(fpListings[fpIdx], fpListings, propertyDetails[fpListings[fpIdx]?.zpid] || null, T),
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
