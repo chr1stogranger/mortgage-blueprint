@@ -1279,11 +1279,47 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const lastActivity = useRef(Date.now());
  const lockTimer = useRef(null);
  const [tab, setTab] = useState("overview");
- // ── App Mode: Blueprint is the default landing app. ?mode=pricepoint|markets|blueprint overrides. ──
+ // ── App Mode: which top-level app is showing. Blueprint is the default. ──
+ // Resolved from the URL on load so a link can deep-link a section, in
+ // priority order (most explicit first):
+ //   1. ?mode=pricepoint|markets|blueprint     (works everywhere, always)
+ //   2. /pricepoint or /markets path segment    (Vercel SPA rewrite serves it)
+ //   3. pricepoint.* / markets.* subdomain      (needs the domain added in
+ //      Vercel + the host added to Supabase/Google OAuth allow-lists first —
+ //      until then the subdomain won't resolve; the ?mode= and path links do).
  const [appMode, setAppMode] = useState(() => {
-  try { const p = new URLSearchParams(window.location.search); const m = p.get('mode'); if (m === 'pricepoint') return 'pricepoint'; if (m === 'markets') return 'markets'; if (m === 'blueprint') return 'blueprint'; } catch {}
+  try {
+   const m = new URLSearchParams(window.location.search).get('mode');
+   if (m === 'pricepoint' || m === 'markets' || m === 'blueprint') return m;
+   const seg = window.location.pathname.split('/')[1];
+   if (seg === 'pricepoint' || seg === 'markets' || seg === 'blueprint') return seg;
+   const host = window.location.hostname || '';
+   if (host.startsWith('pricepoint.')) return 'pricepoint';
+   if (host.startsWith('markets.')) return 'markets';
+  } catch {}
   return 'blueprint';
  });
+ // Keep the address bar in sync with the section, so a link is shareable and a
+ // refresh stays put. Skipped for co-brand (/r/:slug) paths and for the section
+ // subdomains (there the bare host already implies the section — no path needed).
+ // Only ever rewrites among the four managed paths, preserving query + hash, so
+ // /privacy, /terms, /r/*, ?share=, ?c= are never touched.
+ useEffect(() => {
+  try {
+   if (realtorPartnerSlug) return;
+   const host = window.location.hostname || '';
+   if (host.startsWith('pricepoint.') || host.startsWith('markets.')) return;
+   const cur = window.location.pathname;
+   if (!(cur === '/' || cur === '/pricepoint' || cur === '/markets' || cur === '/blueprint')) return;
+   const url = new URL(window.location.href);
+   url.pathname = appMode === 'blueprint' ? '/' : `/${appMode}`;
+   url.searchParams.delete('mode'); // the path now encodes the section
+   const next = url.pathname + url.search + url.hash;
+   if (next !== cur + window.location.search + window.location.hash) {
+    window.history.replaceState(null, '', next);
+   }
+  } catch { /* ignore */ }
+ }, [appMode, realtorPartnerSlug]);
  // ── PricePoint sidebar tab sync ──
  const [ppSidebarTab, setPpSidebarTab] = useState(null); // triggers PricePoint tab navigation
  const [ppSidebarTabCounter, setPpSidebarTabCounter] = useState(0); // force re-trigger same tab
