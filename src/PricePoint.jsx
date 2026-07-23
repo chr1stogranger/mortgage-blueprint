@@ -517,6 +517,36 @@ const computeValueContext = (listing, pool, enrichedListPrice) => {
   return out;
 };
 
+// ── Price Read: teaser ↔ transparent ↔ ambitious ──
+// Two inputs decide the read:
+//   d = where it's LISTED   — list $/sqft vs area median (vc.ppsfDeltaPct, %)
+//   q = where it SHOULD sit — quality premium implied by the value signals
+//       (green pushes up, red/amber down), capped so a chip-spam listing can't
+//       run the needle to the rail.
+// The gap (d − q) is the read: listed well under its deserved value = teaser
+// (underpriced, bidding war); listed at it = transparent; listed over it =
+// ambitious (may sit or cut). This is why a *fixer* listed cheap reads
+// transparent, not teaser — its low q justifies the low d.
+// Needs a real area median (>= MIN_COMPS) — returns null otherwise, so the
+// gauge simply hides rather than inventing a read from nothing.
+const PRICE_READ_PER_SIGNAL = 4;   // % of value credited per net signal
+const PRICE_READ_CAP = 18;         // max quality swing we'll credit, ± %
+const priceReadSentiment = (premium, discount, decoded) => {
+  let s = (premium?.length || 0) - (discount?.length || 0);
+  for (const d of (decoded || [])) s += d.tone === "good" ? 1 : d.tone === "bad" ? -1 : -0.5;
+  return s;
+};
+const computePriceRead = (vc, premium, discount, decoded) => {
+  if (!vc || vc.ppsfDeltaPct == null || vc.medianPpsf == null) return null;
+  const d = vc.ppsfDeltaPct;
+  const s = priceReadSentiment(premium, discount, decoded);
+  const q = Math.max(-PRICE_READ_CAP, Math.min(PRICE_READ_CAP, s * PRICE_READ_PER_SIGNAL));
+  const gap = d - q;                                       // <0 teaser · ~0 transparent · >0 ambitious
+  const position = Math.max(8, Math.min(92, 50 + gap * 2)); // 0..100 left→right (inset to clear the end labels)
+  const zone = gap <= -6 ? "teaser" : gap >= 8 ? "ambitious" : "transparent";
+  return { d, s, q, gap, position, zone };
+};
+
 const getDailyNumber = () => {
   const now = new Date();
   const start = new Date("2026-01-01");
@@ -2956,6 +2986,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const sigs = extractValueSignals(desc); // no description (RentCast rows) -> quant stats only
             const decoded = extractAgentSpeak(desc); // realtor euphemisms → plain English
             const toneColor = (tone) => tone === "bad" ? T.red : tone === "good" ? T.green : T.orange;
+            // Price Read: synthesize list-vs-median + signal sentiment into a
+            // teaser↔transparent↔ambitious gauge. Null unless we have an area median.
+            const priceRead = computePriceRead(vc, sigs.premium, sigs.discount, decoded);
             const rows = [];
             // Prior sale leads the list — on a For Sale card it's the strongest
             // anchor for what the home is worth (and tells you if it's a flip).
@@ -2981,8 +3014,53 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),
               ...sigs.discount.map(s => ({ ...s, color: T.red, bg: T.errorBg, border: T.errorBorder })),
             ];
-            if (chips.length === 0 && rows.length === 0 && decoded.length === 0) return null;
+            if (chips.length === 0 && rows.length === 0 && decoded.length === 0 && !priceRead) return null;
+            // Price Read card (headline verdict, always shown when available).
+            let priceReadCard = null;
+            if (priceRead) {
+              const pr = priceRead;
+              const zoneColor = pr.zone === "transparent" ? T.green : T.orange;
+              const zoneLabel = pr.zone === "teaser" ? "Likely a teaser" : pr.zone === "ambitious" ? "Ambitious ask" : "Priced near value";
+              const absd = Math.round(Math.abs(pr.d));
+              const listPart = Math.abs(pr.d) < 2 ? "Listed about at the area’s $/sqft"
+                : pr.d < 0 ? `Listed ${absd}% under the area’s $/sqft`
+                : `Listed ${absd}% over the area’s $/sqft`;
+              const sigPart = pr.s >= 2 ? "strong upside in the signals"
+                : pr.s > 0 ? "mildly positive signals"
+                : pr.s <= -2 ? "several red flags"
+                : pr.s < 0 ? "some red flags"
+                : "no strong signals either way";
+              const tail = pr.zone === "teaser" ? "reads like bait pricing; expect offers over ask"
+                : pr.zone === "ambitious" ? "priced above where the signals land; may sit or cut"
+                : "looks priced near what it’s worth";
+              const tick = (z, label) => (
+                <span style={{ fontSize: 8.5, letterSpacing: 1, fontFamily: MONO, color: pr.zone === z ? zoneColor : T.textTertiary, fontWeight: pr.zone === z ? 700 : 400 }}>{label}</span>
+              );
+              priceReadCard = (
+                <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 9 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Price Read</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: FONT, color: zoneColor }}>{zoneLabel}</span>
+                  </div>
+                  <div style={{ position: "relative", height: 8, borderRadius: 9999, background: `linear-gradient(90deg, ${T.orange}, ${T.green} 50%, ${T.orange})`, opacity: 0.9 }} />
+                  <div style={{ position: "relative", height: 0 }}>
+                    <div style={{ position: "absolute", left: `${pr.position}%`, top: -14, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div style={{ width: 2, height: 16, background: T.text }} />
+                      <div style={{ width: 11, height: 11, borderRadius: 9999, background: T.text, border: `2px solid ${T.inputBg}`, marginTop: -3 }} />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                    {tick("teaser", "TEASER")}{tick("transparent", "TRANSPARENT")}{tick("ambitious", "AMBITIOUS")}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginTop: 8 }}>
+                    {listPart}, with {sigPart} — {tail}.
+                  </div>
+                </div>
+              );
+            }
             return (
+              <>
+              {priceReadCard}
               <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
                 <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                   <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Value Signals</span>
@@ -3028,6 +3106,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </>
                 )}
               </div>
+              </>
             );
           })()}
           {/* Specs */}
