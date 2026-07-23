@@ -4388,31 +4388,35 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       )}
 
       {/* ═══ CHALLENGE MODE — Incoming ═══ */}
-      {view === "challenge" && challengeData && !challengeResult && (
+      {view === "challenge" && challengeData && !challengeResult && (() => {
+        // Themed accent: For Sale challenges read red (like the live cards),
+        // Sold/Daily read purple. (`accent` from PropertyCard isn't in scope here.)
+        const chAccent = challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0");
+        return (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8b7bf0" }}>CHALLENGE</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: chAccent }}>CHALLENGE</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
                 {challengeData.locationLabel || `${challengeData.listing.city}, ${challengeData.listing.state}`}
                 {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : challengeData.mode === 'live' ? ' · For Sale' : ' · Sold'}
               </div>
             </div>
           </div>
-          <div style={{ background: `linear-gradient(135deg, ${accent}12, ${T.purple || "#8b7bf0"}12)`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
+          <div style={{ background: `linear-gradient(135deg, ${chAccent}12, ${T.purple || "#8b7bf0"}12)`, border: `1px solid ${chAccent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
             {challengeData.mode === 'live' ? (
               <>
                 {/* Deliberately hide the friend's number — revealing it here would
                     anchor the guess. Both numbers appear together after you call it. */}
                 <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
-                  A friend made their call on this <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>active listing</span>
+                  A friend made their call on this <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>active listing</span>
                 </div>
                 <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>What's your prediction?</div>
               </>
             ) : (
               <>
                 <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
-                  Someone scored <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
+                  Someone scored <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
                 </div>
                 <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
               </>
@@ -4420,7 +4424,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" } } : {}) })}
         </div>
-      )}
+        );
+      })()}
 
       {/* ═══ CHALLENGE RESULT ═══ */}
       {view === "challenge" && challengeResult && (
@@ -4429,6 +4434,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             // FOR SALE head-to-head: no sold price yet, so we show both calls
             // side by side vs. the list price. Winner is decided by the market.
             const r = challengeResult;
+            const accent = T.accent; // "You" tile highlight
             const same = Math.abs((r.guess || 0) - (r.challengerGuess || 0)) < 1;
             const higher = (r.guess || 0) >= (r.challengerGuess || 0);
             const vsStyle = (v) => ({ fontSize: 12, fontWeight: 700, fontFamily: FONT, color: v == null ? T.textTertiary : v >= 0 ? T.orange : T.green, marginTop: 4 });

@@ -1318,8 +1318,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  //      until then the subdomain won't resolve; the ?mode= and path links do).
  const [appMode, setAppMode] = useState(() => {
   try {
-   const m = new URLSearchParams(window.location.search).get('mode');
+   const params = new URLSearchParams(window.location.search);
+   const m = params.get('mode');
    if (m === 'pricepoint' || m === 'markets' || m === 'blueprint') return m;
+   // A ?c= challenge link is a PricePoint deep link — PricePoint owns the token
+   // (it reads ?c= on mount to open the challenge), but it only mounts under
+   // appMode 'pricepoint', so route there or the link lands on Blueprint.
+   if (params.get('c')) return 'pricepoint';
    const seg = window.location.pathname.split('/')[1];
    if (seg === 'pricepoint' || seg === 'markets' || seg === 'blueprint') return seg;
    const host = window.location.hostname || '';
