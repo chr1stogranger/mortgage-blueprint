@@ -4693,7 +4693,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
    return Math.max(0, bal);
   })();
-  const refiEffPI = refiOriginalAmount > 0 ? (armActive ? armSim.pi : refiCalcPI) : refiCurrentPayment;
+  // Statement P&I beats every estimate (Christo 7.24): an adjusted ARM's real
+  // payment is whatever the servicer says it is — recast math only approximates
+  // it. When the LO types the statement's Regular Monthly Payment, that number
+  // drives the payoff walk, savings, and the PDF; the principal/interest split
+  // still derives from balance × rate, which matches the statement once the
+  // balance and rate are the statement's own.
+  const refiEffPI = refiCurrentPayment > 0
+   ? refiCurrentPayment
+   : refiOriginalAmount > 0 ? (armActive ? armSim.pi : refiCalcPI) : 0;
   // Statement balance is ground truth when the LO has it — the amortized
   // figure assumes minimum payments at a constant rate, which breaks for
   // extra-payers and adjusted ARMs (Christo 2026-07-22).

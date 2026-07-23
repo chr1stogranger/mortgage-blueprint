@@ -589,6 +589,7 @@ export default function SetupContent(props) {
        (payments pay interest in ARREARS: a July 1 payment covers June). */}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Current Balance — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} sm tip="Outstanding principal from the most recent mortgage statement. When set, this overrides the auto-estimate and anchors the payoff calculation." />
+    <Inp label="Current P&I — from statement" value={refiCurrentPayment} onChange={setRefiCurrentPayment} sm tip="The statement's Regular Monthly Payment (P&I only — no escrow). Overrides the estimated payment. Essential for an ARM that has already adjusted, where the recast math is only an approximation." />
     <div style={{ marginBottom: 6 }}>
      {/* Month only — the year is implied (a borrower 12+ months behind isn't
          getting a loan today). Auto-defaults from the calendar: last month, or
@@ -639,7 +640,6 @@ export default function SetupContent(props) {
    {!refiClosedDate && (
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
    )}
-   {!refiOriginalAmount && <Inp label="Current P&I Payment (manual)" value={refiCurrentPayment} onChange={setRefiCurrentPayment} />}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Annual Prop Tax" value={refiAnnualTax} onChange={setRefiAnnualTax} sm tip="Annual property tax. Stays the same after refi." />
     <Inp label="Annual Home Ins" value={refiAnnualIns} onChange={setRefiAnnualIns} sm tip="Annual homeowner's insurance premium. Stays the same after refi." />
