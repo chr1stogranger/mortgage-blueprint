@@ -59,9 +59,9 @@ const encodeChallenge = ({ listing, result, mode, dailyNumber, locationLabel }) 
   const payload = {
     a: listing.address, h: listing.neighborhood, c: listing.city, s: listing.state, z: listing.zip,
     b: listing.beds, ba: listing.baths, sf: listing.sqft, yb: listing.yearBuilt, pt: listing.propertyType,
-    lp: listing.listPrice, sp: listing.soldPrice, dm: listing.daysOnMarket, ph: listing.photo,
-    g: result.guess, ac: parseFloat((100 - result.pctOff).toFixed(1)),
-    m: mode === 'daily' ? 'd' : 'f', dn: dailyNumber || 0, lb: locationLabel || '',
+    lp: listing.listPrice, sp: listing.soldPrice, dm: listing.daysOnMarket, ph: listing.photo, zp: listing.zpid,
+    g: result.guess, ac: result.pctOff != null ? parseFloat((100 - result.pctOff).toFixed(1)) : 0,
+    m: mode === 'daily' ? 'd' : mode === 'live' ? 'l' : 'f', dn: dailyNumber || 0, lb: locationLabel || '',
     t: Math.floor(Date.now() / 1000),
   };
   const json = JSON.stringify(payload);
@@ -77,10 +77,10 @@ const decodeChallenge = (token) => {
       listing: {
         address: d.a, neighborhood: d.h, city: d.c, state: d.s, zip: d.z,
         beds: d.b, baths: d.ba, sqft: d.sf, yearBuilt: d.yb, propertyType: d.pt,
-        listPrice: d.lp, soldPrice: d.sp, daysOnMarket: d.dm, photo: d.ph,
+        listPrice: d.lp, soldPrice: d.sp, daysOnMarket: d.dm, photo: d.ph, zpid: d.zp,
       },
       challengerGuess: d.g, challengerAccuracy: d.ac,
-      mode: d.m === 'd' ? 'daily' : 'freeplay', dailyNumber: d.dn,
+      mode: d.m === 'd' ? 'daily' : d.m === 'l' ? 'live' : 'freeplay', dailyNumber: d.dn,
       locationLabel: d.lb, timestamp: d.t,
     };
   } catch (e) { console.error('Failed to decode challenge:', e); return null; }
@@ -2113,6 +2113,40 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const val = parseInt(challengeGuess.replace(/[^0-9]/g, ""));
     const listing = challengeData.listing;
     if (!val || !listing) return;
+    // FOR SALE challenge: the listing hasn't sold, so there's no answer to score
+    // against. Reveal both predictions side by side vs. the list price; the
+    // market settles who was right when it closes. Recipient's prediction is
+    // persisted as a normal 'live' row so it can resolve later.
+    if (challengeData.mode === 'live') {
+      const lp = Number(listing.listPrice) || 0;
+      const vsList = (g) => lp ? parseFloat((((g - lp) / lp) * 100).toFixed(1)) : null;
+      setChallengeResult({
+        isLive: true, guess: val, listPrice: lp,
+        address: listing.address, neighborhood: listing.neighborhood,
+        city: listing.city, state: listing.state, zip: listing.zip,
+        beds: listing.beds, baths: listing.baths, sqft: listing.sqft, photo: listing.photo,
+        myVsList: vsList(val), theirVsList: vsList(challengeData.challengerGuess),
+        challengerGuess: challengeData.challengerGuess,
+        timestamp: Date.now(), revealed: true,
+      });
+      setView("challenge");
+      setAllPredictions(prev => [...prev, {
+        guess: val, listPrice: lp, address: listing.address, neighborhood: listing.neighborhood,
+        city: listing.city, state: listing.state, zip: listing.zip, beds: listing.beds, baths: listing.baths,
+        sqft: listing.sqft, photo: listing.photo, propertyType: listing.propertyType,
+        status: listing.status || 'active', vsListPct: vsList(val), timestamp: Date.now(), resolved: false, soldPrice: null,
+      }]);
+      submitGuess({
+        marketId: market?.id || 'sf', mode: 'live', zpid: listing.zpid || null,
+        address: listing.address, neighborhood: listing.neighborhood, city: listing.city, zip: listing.zip,
+        propertyType: listing.propertyType || '', beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+        listPrice: lp, photo: listing.photo, guess: val,
+      }).then(resp => {
+        if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
+        refetchLeaderboard();
+      }).catch(e => console.warn('[PricePoint] live challenge guess failed:', e));
+      return;
+    }
     const pctOff = Math.abs((val - listing.soldPrice) / listing.soldPrice) * 100;
     const feedback = getFeedback(pctOff);
     const insight = getInsight(listing, pctOff, val > listing.soldPrice);
@@ -2160,6 +2194,29 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const url = buildChallengeUrl(token);
     const accuracy = (100 - result.pctOff).toFixed(1);
     const text = `I scored ${accuracy}% accuracy on a ${result.neighborhood || result.city} home — think you can beat me?`;
+    if (navigator.share) {
+      navigator.share({ title: 'PricePoint Challenge', text, url }).catch(() => {
+        navigator.clipboard.writeText(`${text}\n${url}`);
+        setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+      });
+    } else {
+      navigator.clipboard.writeText(`${text}\n${url}`);
+      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+    }
+  };
+
+  // ── Share a FOR SALE prediction as a challenge. No sold price yet, so the
+  // brag is the prediction itself — the friend calls the same active listing
+  // and both see their numbers side by side (settled by the market later). ──
+  const shareLiveChallenge = (prediction, fullListing) => {
+    const listing = (fullListing && fullListing.address === prediction.address) ? fullListing : prediction;
+    const token = encodeChallenge({
+      listing, result: prediction, mode: 'live',
+      dailyNumber: 0, locationLabel: locationLabel || market?.label || '',
+    });
+    const url = buildChallengeUrl(token);
+    const place = prediction.neighborhood || prediction.city || 'this';
+    const text = `I bet this ${place} listing sells for ${fmt(prediction.guess)} — what's your call?`;
     if (navigator.share) {
       navigator.share({ title: 'PricePoint Challenge', text, url }).catch(() => {
         navigator.clipboard.writeText(`${text}\n${url}`);
@@ -4208,6 +4265,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ padding: "12px", background: `${T.accent}12`, borderRadius: 10, marginBottom: 12, borderLeft: `3px solid ${T.accent}` }}>
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>68% of players think it'll sell higher. We'll notify you when this one closes.</div>
                 </div>
+                <button onClick={() => shareLiveChallenge(livePrediction, liveListings[liveIdx])} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
+                  <Icon name="send" size={16} /> Challenge a Friend
+                </button>
                 <PillButton onClick={liveNextProperty} secondary>Next Property</PillButton>
               </div>
             </div>
@@ -4335,24 +4395,77 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.purple || "#8b7bf0" }}>CHALLENGE</div>
               <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
                 {challengeData.locationLabel || `${challengeData.listing.city}, ${challengeData.listing.state}`}
-                {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : ' · Sold'}
+                {challengeData.mode === 'daily' ? ` · Daily #${challengeData.dailyNumber}` : challengeData.mode === 'live' ? ' · For Sale' : ' · Sold'}
               </div>
             </div>
           </div>
           <div style={{ background: `linear-gradient(135deg, ${accent}12, ${T.purple || "#8b7bf0"}12)`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "16px 18px", marginBottom: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
-              Someone scored <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
-            </div>
-            <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
+            {challengeData.mode === 'live' ? (
+              <>
+                {/* Deliberately hide the friend's number — revealing it here would
+                    anchor the guess. Both numbers appear together after you call it. */}
+                <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
+                  A friend made their call on this <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>active listing</span>
+                </div>
+                <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>What's your prediction?</div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
+                  Someone scored <span style={{ color: accent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
+                </div>
+                <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
+              </>
+            )}
           </div>
-          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: "CHALLENGE", badgeColor: T.purple || "#8b7bf0", accentColor: T.purple || "#8b7bf0" })}
+          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" } } : {}) })}
         </div>
       )}
 
       {/* ═══ CHALLENGE RESULT ═══ */}
       {view === "challenge" && challengeResult && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: 16 }}>
-          {RevealCard({
+          {challengeResult.isLive ? (() => {
+            // FOR SALE head-to-head: no sold price yet, so we show both calls
+            // side by side vs. the list price. Winner is decided by the market.
+            const r = challengeResult;
+            const same = Math.abs((r.guess || 0) - (r.challengerGuess || 0)) < 1;
+            const higher = (r.guess || 0) >= (r.challengerGuess || 0);
+            const vsStyle = (v) => ({ fontSize: 12, fontWeight: 700, fontFamily: FONT, color: v == null ? T.textTertiary : v >= 0 ? T.orange : T.green, marginTop: 4 });
+            const vsText = (v) => v == null ? "—" : `${v >= 0 ? "+" : ""}${v}% vs list`;
+            const resetTo = () => { setChallengeData(null); setChallengeResult(null); setChallengeGuess(""); if (market) { if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily"); else setView("daily"); } else setView("onboarding"); };
+            return (
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "28px 22px", maxWidth: isDesktop ? 560 : 420, width: "100%", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
+                <div style={{ textAlign: "center", marginBottom: 4 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Head to Head</div>
+                </div>
+                <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginBottom: 18 }}>{r.neighborhood ? `${r.neighborhood} · ` : ""}{r.city}{r.state ? `, ${r.state}` : ""}</div>
+                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1, background: T.inputBg, border: `1px solid ${accent}55`, borderRadius: 14, padding: "16px 10px", textAlign: "center" }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: accent, marginBottom: 6 }}>You</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.guess)}</div>
+                    <div style={vsStyle(r.myVsList)}>{vsText(r.myVsList)}</div>
+                  </div>
+                  <div style={{ flex: 1, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 10px", textAlign: "center" }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 6 }}>Your Friend</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.challengerGuess)}</div>
+                    <div style={vsStyle(r.theirVsList)}>{vsText(r.theirVsList)}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: "center", padding: "10px 0", borderTop: `1px solid ${T.cardBorder}`, borderBottom: `1px solid ${T.cardBorder}`, marginBottom: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 3 }}>List Price</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.listPrice)}</div>
+                </div>
+                <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
+                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}The market settles it when this one closes.
+                </div>
+                <button onClick={() => shareLiveChallenge(r, challengeData.listing)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
+                  <Icon name="send" size={16} /> Challenge another friend
+                </button>
+                <PillButton onClick={resetTo} secondary>Continue</PillButton>
+              </div>
+            );
+          })() : RevealCard({
             result: challengeResult,
             comparison: { myAccuracy: challengeResult.myAccuracy, challengerAccuracy: challengeResult.challengerAccuracy, challengerGuess: challengeResult.challengerGuess, iWon: challengeResult.iWon },
             onChallenge: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),

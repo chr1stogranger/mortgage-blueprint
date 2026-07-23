@@ -30,9 +30,17 @@ export default function handler(req, res) {
   const sqft = Number(data.sf) || 0;                             // numeric — coerced
   const mode = data.m === 'd' ? `Daily #${Number(data.dn) || 0}` : 'Free Play';
   const label = esc(data.lb || '');
+  const isLive = data.m === 'l'; // FOR SALE challenge — no sold price / accuracy yet
 
-  const title = `PricePoint Challenge — ${accuracy}% on ${hood}`;
-  const description = `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;
+  // For a FOR SALE challenge the friend's number is deliberately NOT revealed
+  // (it would anchor the recipient's guess — both numbers appear together only
+  // after they've locked their own prediction).
+  const title = isLive
+    ? `PricePoint Challenge — call this ${hood} listing`
+    : `PricePoint Challenge — ${accuracy}% on ${hood}`;
+  const description = isLive
+    ? `A friend called this active ${hood} listing (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). What's your prediction?`
+    : `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;
   // Static OG image fallback (dynamic @vercel/og not supported in Vite Edge functions)
   const ogImageUrl = `https://blueprint.realstack.app/og-pricepoint.png`;
   const canonicalUrl = `https://blueprint.realstack.app/?c=${encodeURIComponent(c)}`;
