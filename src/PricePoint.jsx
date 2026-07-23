@@ -3436,7 +3436,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* Persistent XP bar — visible on Free, Live, Stats */}
       {(view === "freeplay" || view === "live" || view === "tomorrow") && (
         <div onClick={() => setShowLevelModal(true)} style={{
-          margin: IS_MOBILE ? "0 12px 6px" : "0 16px 12px", padding: IS_MOBILE ? "6px 12px" : "10px 16px", background: T.card,
+          margin: IS_MOBILE ? "10px 12px 6px" : "16px 16px 12px", padding: IS_MOBILE ? "6px 12px" : "10px 16px", background: T.card,
           border: `1px solid ${T.cardBorder}`, borderRadius: 12,
           cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
         }}>
