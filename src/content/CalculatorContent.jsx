@@ -286,16 +286,11 @@ export default function CalculatorContent(props) {
          </div>
          <Inp value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} prefix="$" />
          {(calc.refiPayoffAmount || 0) > 0 && (
-          <div style={{ marginTop: 4 }}>
-           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: T.textTertiary }}>
-            <span>Estimated payoff: {fmt(calc.refiPayoffAmount)}</span>
-            {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
-             <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
-            )}
-           </div>
-           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>
-            Runs above your balance — interest accrues to closing, plus payoff fees.
-           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 11, color: T.textTertiary }}>
+           <span>Estimated payoff: {fmt(calc.refiPayoffAmount)}</span>
+           {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+            <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+           )}
           </div>
          )}
         </div>
