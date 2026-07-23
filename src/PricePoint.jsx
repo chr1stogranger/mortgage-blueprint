@@ -1469,9 +1469,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       secret = secret.trim();
       try { sessionStorage.setItem('pp_cron_secret', secret); } catch {}
     }
-    setResolveMsg('Running… (can take a few seconds)');
+    setResolveMsg('Checking…');
     try {
-      const r = await fetch(apiUrl(`/api/cron-resolve?secret=${encodeURIComponent(secret)}`));
+      // Fast schema smoke test — NOT the full resolve (that also backfills photos
+      // + pulls fresh listings and can exceed the gateway timeout → 504).
+      const r = await fetch(apiUrl(`/api/cron-resolve?check=1&secret=${encodeURIComponent(secret)}`));
       const j = await r.json().catch(() => null);
       if (r.status === 401) {
         try { sessionStorage.removeItem('pp_cron_secret'); } catch {}
@@ -1480,14 +1482,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       }
       if (!r.ok) { setResolveMsg(`❌ ${j?.error || `HTTP ${r.status}`}`); return; }
       // Guard against a non-JSON 200 (e.g. an HTML fallback) reading as "clean".
-      if (!j || (j.errors === undefined && j.checked === undefined && j.resolved === undefined)) {
+      if (!j || (j.errors === undefined && j.ok === undefined)) {
         setResolveMsg(`⚠️ Unexpected response (HTTP ${r.status}) — is the endpoint deployed?`);
         return;
       }
       const errs = Array.isArray(j.errors) ? j.errors.length : 0;
+      const waiting = j.unresolved != null ? ` ${j.unresolved} prediction(s) waiting to resolve.` : '';
       setResolveMsg(errs === 0
-        ? `✅ Clean run — checked ${j.checked ?? 0}, resolved ${j.resolved ?? 0}, 0 errors. Pipeline works.`
-        : `⚠️ ${errs} error(s): ${JSON.stringify(j.errors).slice(0, 200)}`);
+        ? `✅ Pipeline healthy — every table/column present, 0 errors.${waiting}`
+        : `⚠️ ${errs} issue(s): ${JSON.stringify(j.errors).slice(0, 220)}`);
     } catch (e) {
       setResolveMsg(`❌ ${e?.message || 'request failed'}`);
     }
@@ -3931,7 +3934,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <button onClick={runResolveNow} style={{
                 width: "100%", padding: "12px", borderRadius: 10, background: T.card, color: T.text,
                 fontSize: 14, fontWeight: 700, border: `1px solid ${T.cardBorder}`, cursor: "pointer", fontFamily: FONT,
-              }}>Run resolve now</button>
+              }}>Check resolver pipeline</button>
               {resolveMsg && (
                 <div style={{ marginTop: 8, fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, wordBreak: "break-word" }}>{resolveMsg}</div>
               )}

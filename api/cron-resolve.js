@@ -401,6 +401,31 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Database configuration missing' });
     }
 
+    // ── Fast health check (?check=1) ──
+    // Verifies every table/column the resolver touches EXISTS and is queryable,
+    // WITHOUT the slow RapidAPI resolve + photo backfill + fresh-search (that
+    // full pass can exceed the gateway timeout → 504 from a browser). This is
+    // what the in-app "Check resolver" button hits — a schema smoke test.
+    if (String(req.query.check) === '1') {
+      const errors = [];
+      const tables = {};
+      const probe = async (label, q) => {
+        const { error } = await q;
+        tables[label] = error ? `ERR: ${error.message}` : 'ok';
+        if (error) errors.push(`${label}: ${error.message}`);
+      };
+      await probe('pp_predictions', supabase.from('pp_predictions').select('id,player_id,predicted_price,list_price,zpid,resolved,sold_price,pct_off,resolved_at').limit(1));
+      await probe('pp_notifications', supabase.from('pp_notifications').select('id,player_id,type,title,body,payload').limit(1));
+      await probe('pp_notification_queue', supabase.from('pp_notification_queue').select('id,notification_id,channel,status').limit(1));
+      await probe('pp_players.prefs', supabase.from('pp_players').select('push_enabled,email_enabled,sms_enabled').limit(1));
+      let unresolved = null;
+      try {
+        const { count } = await supabase.from('pp_predictions').select('id', { count: 'exact', head: true }).eq('resolved', false);
+        unresolved = count ?? null;
+      } catch { /* count is best-effort */ }
+      return res.status(200).json({ mode: 'check', ok: errors.length === 0, unresolved, tables, errors, timestamp: new Date().toISOString() });
+    }
+
     // Get distinct zpids with unresolved predictions
     const { data: predictions, error: selectError } = await supabase
       .from('pp_predictions')
