@@ -19,18 +19,47 @@ import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import Icon from "./Icon";
 import { apiUrl, WEB_ORIGIN } from "./apiBase";
+// ── Self-healing lazy loader (stale-deploy recovery) ──
+// After a new Vercel deploy, the old hashed chunk (e.g. PricePoint-DAN2Y8cR.js)
+// is replaced by a new hash and the old file 404s. A tab still running the
+// PREVIOUS build asks for the dead chunk the moment you open that route, which
+// surfaced as the "Something went wrong / Failed to fetch dynamically imported
+// module" screen. lazyWithRetry catches that specific failure and reloads ONCE
+// to pull the fresh index.html + current chunk hashes. A sessionStorage flag
+// prevents an infinite reload loop; a successful load clears the flag so a
+// future deploy can self-heal too.
+function lazyWithRetry(factory) {
+  const KEY = "rs-chunk-reloaded";
+  return lazy(() =>
+    factory()
+      .then((mod) => { try { sessionStorage.removeItem(KEY); } catch { /* ignore */ } return mod; })
+      .catch((err) => {
+        const msg = (err && err.message) || "";
+        const isChunkError = /dynamically imported module|Importing a module script failed|Failed to fetch|error loading dynamically/i.test(msg);
+        try {
+          if (isChunkError && !sessionStorage.getItem(KEY)) {
+            sessionStorage.setItem(KEY, "1");
+            window.location.reload();
+            return new Promise(() => {}); // never resolves — the reload takes over
+          }
+        } catch { /* ignore */ }
+        throw err;
+      })
+  );
+}
+
 // Lazy load heavy components for faster initial page load
-const PricePoint = lazy(() => import("./PricePoint"));
-const Markets = lazy(() => import("./Markets"));
-const WorkspaceView = lazy(() => import("./WorkspaceView"));
-const BlueprintPane = lazy(() => import("./BlueprintPane"));
-const SellerNetPane = lazy(() => import("./SellerNetPane"));
-const OverviewTab = lazy(() => import("./OverviewTab"));
-const BottomSheet = lazy(() => import("./BottomSheet"));
-const LoPipelinePanel = lazy(() => import("./components/LoPipelinePanel"));
-const IncomeSheet = lazy(() => import("./IncomeSheet"));
-const DebtsSheet = lazy(() => import("./DebtsSheet"));
-const AssetsSheet = lazy(() => import("./AssetsSheet"));
+const PricePoint = lazyWithRetry(() => import("./PricePoint"));
+const Markets = lazyWithRetry(() => import("./Markets"));
+const WorkspaceView = lazyWithRetry(() => import("./WorkspaceView"));
+const BlueprintPane = lazyWithRetry(() => import("./BlueprintPane"));
+const SellerNetPane = lazyWithRetry(() => import("./SellerNetPane"));
+const OverviewTab = lazyWithRetry(() => import("./OverviewTab"));
+const BottomSheet = lazyWithRetry(() => import("./BottomSheet"));
+const LoPipelinePanel = lazyWithRetry(() => import("./components/LoPipelinePanel"));
+const IncomeSheet = lazyWithRetry(() => import("./IncomeSheet"));
+const DebtsSheet = lazyWithRetry(() => import("./DebtsSheet"));
+const AssetsSheet = lazyWithRetry(() => import("./AssetsSheet"));
 import SetupContent from "./content/SetupContent";
 import IncomeContent from "./content/IncomeContent";
 import AssetsContent from "./content/AssetsContent";
