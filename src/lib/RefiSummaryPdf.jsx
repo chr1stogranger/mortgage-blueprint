@@ -30,6 +30,7 @@ const SUB = "#525252";
 const MUTED = "#737373";
 const HAIR = "#E8E8E8";
 const GREEN = "#12a150";
+const ORANGE = "#d97706";
 const RED = "#e5484d";
 const TINT = "#EFF3FE";
 const GREEN_TINT = "#E8F7EE";
@@ -62,6 +63,10 @@ const s = StyleSheet.create({
   lineTotal: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, paddingHorizontal: 6, backgroundColor: GREEN_TINT, borderRadius: 3, marginTop: 2 },
 
   note: { fontSize: 7, color: MUTED, marginTop: 2 },
+
+  // Cost of Waiting table — compact so page 1 stays a single page
+  cwLabel: { width: "24%", fontSize: 7.5, color: SUB, paddingLeft: 2 },
+  cwNum: { width: "19%", fontSize: 7.5, textAlign: "right", paddingRight: 4 },
   twoCol: { flexDirection: "row", gap: 14, marginTop: 2 },
   col: { flex: 1 },
 
@@ -94,6 +99,9 @@ export function RefiSummaryDoc(p) {
     total: c.refiNewTotalPmt || 0,
   };
   const savings = cur.total - nw.total; // positive = saving money
+  // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
+  // over unchanged on a refi, so they cancel out of the savings math.
+  const piMiSavings = (cur.prin + cur.int + cur.mi) - (nw.prin + nw.int + nw.mi);
   const rows1 = [
     ["Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
     ["Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
@@ -180,12 +188,16 @@ export function RefiSummaryDoc(p) {
           <Text style={[s.cNum, s.bold, { color: savings >= 0 ? GREEN : RED }]}>{savings >= 0 ? usd2(savings) + " saved" : signed2(nw.total - cur.total)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0, marginTop: 3 }]}>
+          <Text style={[s.lineLabel, s.bold, { color: INK }]}>Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)</Text>
+          <Text style={[s.lineValue, s.bold, { color: piMiSavings >= 0 ? GREEN : RED }]}>{piMiSavings >= 0 ? usd2(piMiSavings) : signed2(-piMiSavings)}</Text>
+        </View>
+        <View style={[s.line, { borderBottomWidth: 0 }]}>
           <Text style={[s.lineLabel, s.bold, { color: INK }]}>Refi Cost (closing costs only)</Text>
           <Text style={[s.lineValue, s.bold]}>{usd2(c.totalClosingCosts)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0 }]}>
           <Text style={[s.lineLabel, s.bold, { color: INK }]}>Months to Break Even</Text>
-          <Text style={[s.lineValue, s.bold]}>{savings > 0 && c.totalClosingCosts > 0 ? (c.totalClosingCosts / savings).toFixed(1) : "—"}</Text>
+          <Text style={[s.lineValue, s.bold]}>{piMiSavings > 0 && c.totalClosingCosts > 0 ? (c.totalClosingCosts / piMiSavings).toFixed(1) : "—"}</Text>
         </View>
 
         {/* ── Option 2: Long Term Difference ── */}
@@ -224,7 +236,7 @@ export function RefiSummaryDoc(p) {
               </View>
             ))}
             <View style={s.lineTotal}>
-              <Text style={[s.lineLabel, s.bold, { color: INK }]}>Estimated Cash Out</Text>
+              <Text style={[s.lineLabel, s.bold, { color: INK }]}>{(c.refiEstCashOut || 0) >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close"}</Text>
               <Text style={[s.lineValue, s.bold, { color: (c.refiEstCashOut || 0) >= 0 ? GREEN : RED }]}>{usd2(c.refiEstCashOut)}</Text>
             </View>
             {p.refiPurpose !== "Cash-Out" && (
@@ -256,6 +268,36 @@ export function RefiSummaryDoc(p) {
             <Text style={s.note}>Skipped payments and the escrow refund arrive after closing — cash you keep, not cash the loan pays out.</Text>
           </View>
         </View>
+
+        {/* ── Cost of Waiting — breakeven analysis (doc 7.23) ── */}
+        {(c.refiCostOfWaiting || []).length > 0 && (
+          <>
+            <View style={s.secHead}><Text style={s.secHeadText}>Cost of Waiting · Breakeven Analysis</Text></View>
+            <View style={s.th}>
+              <Text style={[s.cwLabel, s.bold, { color: INK }]}>Waiting for</Text>
+              {["1 Year", "2 Years", "3 Years", "4 Years"].map((h) => (
+                <Text key={h} style={[s.cwNum, s.bold]}>{h}</Text>
+              ))}
+            </View>
+            <View style={s.tr}>
+              <Text style={s.cwLabel}>Lost Savings</Text>
+              {c.refiCostOfWaiting[0].years.map((cell, j) => (
+                <Text key={j} style={s.cwNum}>{usd(cell.lostSavings)}</Text>
+              ))}
+            </View>
+            {c.refiCostOfWaiting.map((row, i) => (
+              <View key={i} style={s.tr}>
+                <Text style={s.cwLabel}>−{row.drop}% rate drop</Text>
+                {row.years.map((cell, j) => (
+                  <Text key={j} style={[s.cwNum, { color: cell.breakeven >= 120 ? RED : cell.breakeven >= 60 ? ORANGE : GREEN }]}>
+                    {cell.breakeven >= 999 ? "Never" : `${cell.breakeven} mo`}
+                  </Text>
+                ))}
+              </View>
+            ))}
+            <Text style={s.note}>Breakeven months: how long a future lower-rate refinance would take to catch up to the savings missed by waiting for that rate.</Text>
+          </>
+        )}
 
         {/* Footer */}
         <View style={s.foot}>

@@ -293,18 +293,25 @@ export default function CalculatorContent(props) {
          <div style={{ fontSize: 18, fontWeight: 700, color: T.green, fontFamily: FONT }}>{fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))}</div>
          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>{salesPrice > 0 ? pct(Math.max(0, 1 - (calc.refiEffBalance || 0) / salesPrice), 0) : "0%"} of value</div>
         </div>
-        {/* Estimated Current Balance — beneath New Loan Amount */}
+        {/* Estimated Payoff Amount — beneath New Loan Amount (doc 7.23). The
+            payoff, not the balance, is what the new loan actually retires;
+            the balance moved to the gray line below the card. */}
         <div style={{ background: T.pillBg, borderRadius: 12, padding: "10px 12px" }}>
-         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>ESTIMATED CURRENT BALANCE</div>
-         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiEffBalance || 0)}</div>
+         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>
+          ESTIMATED PAYOFF AMOUNT
+          <InfoTip text="Your current balance is not your payoff amount — when you get a new loan you skip your next mortgage payment, so you're always about a month of interest behind, plus small payoff fees." />
+         </div>
+         <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmt(calc.refiPayoffAmount || calc.refiEffBalance || 0)}</div>
          <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2 }}>LTV: {pct(calc.refiCurLTV || 0, 0)}</div>
         </div>
        </div>
-       {/* Payoff-balance / reset hint spans full width so the two inputs stay aligned */}
-       {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+       {/* Current-balance / reset hint spans full width so the two inputs stay aligned */}
+       {(calc.refiEffBalance || 0) > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-         <div style={{ fontSize: 11, color: T.textTertiary }}>Payoff balance: {fmt(calc.refiAutoLoanAmt)}</div>
-         <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+         <div style={{ fontSize: 11, color: T.textTertiary }}>Current balance: {fmt(calc.refiEffBalance)}</div>
+         {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
+          <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
+         )}
         </div>
        )}
        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
@@ -399,14 +406,19 @@ export default function CalculatorContent(props) {
        <div style={{ fontSize: 10, color: T.textTertiary }}>{rate}% · {term * 12} mos</div>
       </div>
      </div>
-     {calc.refiMonthlyTotalSavings > 0 ? (
+     {/* Savings judged on P&I + MI only (doc 7.23) — taxes, insurance and HOA
+         carry over unchanged on a refi, so the verdict can't swing with the
+         escrow toggles even while the Current/New totals above do. */}
+     {calc.refiPiMiSavings > 0 ? (
       <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiMonthlyTotalSavings)}/mo savings</span>
+       <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiPiMiSavings)}/mo savings</span>
        {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
+       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI — taxes, insurance & HOA carry over unchanged.</div>
       </div>
-     ) : calc.refiMonthlyTotalSavings < 0 ? (
+     ) : calc.refiPiMiSavings < 0 ? (
       <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiMonthlyTotalSavings))}/mo higher</span>
+       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiPiMiSavings))}/mo higher</span>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI — taxes, insurance & HOA carry over unchanged.</div>
       </div>
      ) : null}
     </div>

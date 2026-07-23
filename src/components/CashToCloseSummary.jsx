@@ -43,8 +43,11 @@ export default function CashToCloseSummary({
     { label: "Loans / Debts to Payoff", sign: "+", value: payoffs },
     { label: "Credits To Buyer",        sign: "−", value: credits, credit: true },
   ];
+  // Refi label follows the direction of the money (doc 7.23): cash TO the
+  // borrower reads "Estimated Cash Out", borrower bringing money reads
+  // "Estimated Cash to Close".
   const totalLabel = isRefi
-    ? `Estimated Cash to Close${total >= 0 ? " (Cash Out)" : ""}`
+    ? (total >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close")
     : "Estimated Cash To Close";
   const totalColor = isRefi ? (total >= 0 ? (T.green || ACCENT) : ACCENT) : ACCENT;
 

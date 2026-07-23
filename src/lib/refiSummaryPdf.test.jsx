@@ -17,8 +17,13 @@ const refiCalc = {
   refiNewIntThisMonth: 3966.25, refiNewMonthlyTax: 1136.84, refiNewMonthlyIns: 200,
   refiNewMI: 0, refiNewTotalPmt: 6092.78,
   // verdicts
-  refiMonthlySavings: 300.61, refiMonthlyTotalSavings: 300.61,
+  refiMonthlySavings: 300.61, refiPiMiSavings: 300.61, refiMonthlyTotalSavings: 300.61,
   refiBreakevenMonths: 18, refiLifetimeSavings: 166866,
+  // Full 4×4 matrix so the one-page assertion covers the Cost of Waiting table.
+  refiCostOfWaiting: [0.125, 0.25, 0.5, 1.0].map((drop) => ({
+    drop,
+    years: [1, 2, 3, 4].map((y) => ({ lostSavings: 300.61 * 12 * y, breakeven: 45 * y })),
+  })),
   refiAccelPayoff: { newPayoffMos: 327, curPayoffMos: 360, yearsFaster: 2.75 },
   // cash walk
   totalClosingCosts: 5263, totalPrepaidExp: 16682.93,
