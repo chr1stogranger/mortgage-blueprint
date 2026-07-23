@@ -186,7 +186,7 @@ async function processBatch(zpids, supabase) {
       // Get all unresolved predictions for this zpid
       const { data: predictions, error: selectError } = await supabase
         .from('pp_predictions')
-        .select('id, user_id, predicted_price, list_price, address')
+        .select('id, player_id, predicted_price, list_price, address')
         .eq('zpid', zpid)
         .eq('resolved', false);
 
@@ -199,46 +199,72 @@ async function processBatch(zpids, supabase) {
         continue;
       }
 
-      // Calculate accuracy percentage
-      const pctOff = Math.abs((predictions[0].predicted_price - soldPrice) / soldPrice * 100);
+      // Score EACH prediction on its own guess (the old code scored only
+      // predictions[0] and applied that to everyone), then rank so we can tell
+      // each player where they landed. These are everyone who predicted this
+      // listing — a challenge pair, plus any other players who called it.
+      const soldStr = `$${(soldPrice / 1000000).toFixed(2)}M`;
+      const scored = predictions.map((p) => ({
+        ...p,
+        pctOff: Math.abs((p.predicted_price - soldPrice) / soldPrice * 100),
+      }));
+      const ranked = [...scored].sort((a, b) => a.pctOff - b.pctOff);
+      const n = scored.length;
+      const rankOf = (id) => ranked.findIndex((r) => r.id === id) + 1;
 
-      // Update all predictions for this zpid as resolved
-      const { error: updateError } = await supabase
-        .from('pp_predictions')
-        .update({
-          resolved: true,
-          sold_price: soldPrice,
-          pct_off: parseFloat(pctOff.toFixed(2)),
-          resolved_at: new Date().toISOString(),
-        })
-        .eq('zpid', zpid)
-        .eq('resolved', false);
+      // Update each prediction with its OWN accuracy.
+      let updateError = null;
+      for (const p of scored) {
+        const { error } = await supabase
+          .from('pp_predictions')
+          .update({
+            resolved: true,
+            sold_price: soldPrice,
+            pct_off: parseFloat(p.pctOff.toFixed(2)),
+            resolved_at: new Date().toISOString(),
+          })
+          .eq('id', p.id);
+        if (error) { updateError = error; break; }
+      }
 
       if (updateError) {
         results.errors.push(`Failed to update predictions for zpid ${zpid}: ${updateError.message}`);
         continue;
       }
 
-      // Create notifications for each prediction
-      const notificationInserts = predictions.map((pred) => ({
-        user_id: pred.user_id,
-        type: 'prediction_resolved',
-        title: 'Your prediction resolved!',
-        body: `${pred.address} sold for $${(soldPrice / 1000000).toFixed(2)}M — you were ${pctOff.toFixed(1)}% off!`,
-        payload: {
-          zpid,
-          address: pred.address,
-          predicted_price: pred.predicted_price,
-          sold_price: soldPrice,
-          pct_off: parseFloat(pctOff.toFixed(2)),
-          list_price: pred.list_price,
-        },
-      }));
+      // Per-player notification. With 2+ callers we frame it as a result
+      // ("closest of N" / a win); solo, it's just how their own call did.
+      const notificationInserts = scored.map((pred) => {
+        const rank = rankOf(pred.id);
+        const won = n > 1 && rank === 1;
+        const off = pred.pctOff.toFixed(1);
+        const body = n > 1
+          ? (won
+              ? `${pred.address} sold for ${soldStr}. You were ${off}% off — closest of ${n}! 🏆`
+              : `${pred.address} sold for ${soldStr}. You were ${off}% off — #${rank} of ${n}.`)
+          : `${pred.address} sold for ${soldStr} — you were ${off}% off!`;
+        return {
+          player_id: pred.player_id,
+          type: 'prediction_resolved',
+          title: won ? 'You won the call! 🏆' : 'Your prediction resolved!',
+          body,
+          payload: {
+            zpid,
+            address: pred.address,
+            predicted_price: pred.predicted_price,
+            sold_price: soldPrice,
+            pct_off: parseFloat(pred.pctOff.toFixed(2)),
+            list_price: pred.list_price,
+            rank,
+            of: n,
+          },
+        };
+      });
 
       const { data: notifications, error: notifError } = await supabase
         .from('pp_notifications')
         .insert(notificationInserts)
-        .select('id, user_id');
+        .select('id, player_id');
 
       if (notifError) {
         results.errors.push(`Failed to insert notifications for zpid ${zpid}: ${notifError.message}`);
@@ -253,18 +279,18 @@ async function processBatch(zpids, supabase) {
         const { data: playerPrefs, error: prefError } = await supabase
           .from('pp_players')
           .select('push_enabled, email_enabled, sms_enabled')
-          .eq('id', notif.user_id)
+          .eq('id', notif.player_id)
           .single();
 
         if (prefError) {
-          console.error(`[CronResolve] Failed to fetch player prefs for user ${notif.user_id}: ${prefError.message}`);
+          console.error(`[CronResolve] Failed to fetch player prefs for user ${notif.player_id}: ${prefError.message}`);
           continue;
         }
 
         // Always add in-app notification
         queueEntries.push({
           notification_id: notif.id,
-          user_id: notif.user_id,
+          player_id: notif.player_id,
           channel: 'in_app',
           status: 'sent',
           sent_at: new Date().toISOString(),
@@ -274,7 +300,7 @@ async function processBatch(zpids, supabase) {
         if (playerPrefs?.push_enabled) {
           queueEntries.push({
             notification_id: notif.id,
-            user_id: notif.user_id,
+            player_id: notif.player_id,
             channel: 'push',
             status: 'pending',
           });
@@ -284,7 +310,7 @@ async function processBatch(zpids, supabase) {
         if (playerPrefs?.email_enabled) {
           queueEntries.push({
             notification_id: notif.id,
-            user_id: notif.user_id,
+            player_id: notif.player_id,
             channel: 'email',
             status: 'pending',
           });
@@ -294,7 +320,7 @@ async function processBatch(zpids, supabase) {
         if (playerPrefs?.sms_enabled) {
           queueEntries.push({
             notification_id: notif.id,
-            user_id: notif.user_id,
+            player_id: notif.player_id,
             channel: 'sms',
             status: 'pending',
           });
