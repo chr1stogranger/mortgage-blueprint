@@ -10,7 +10,6 @@ import {
  computeTaxSavings, computePassiveLossAllowance, buildAmortization, computeProp19,
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
-import { generateEstimateHtml } from "./lib/estimatePdf.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
@@ -3256,29 +3255,57 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   lines.push("Contact a licensed loan officer for an official quote.");
   return lines.join("\n");
  };
- // PDF strategy (Christo 2026-07-05): PURCHASE PDFs = the Fees Worksheet
- // (FeesWorksheetPdf.jsx) — the legacy purchase estimate is retired. REFI
- // PDFs = the legacy refi estimate below (savings analysis, net cash out,
- // 3-point test) — totally different document, keep it.
- const generatePdfHtml = () => generateEstimateHtml({
-  calc, fmt, fmt2, scenarioName, loanOfficer, companyName, companyNmls,
-  borrowerName, propertyTBD, propertyAddress, city, propertyState, propertyZip,
-  loNmls, loPhone, loEmail, realtorPartner, isRefi, refiSkipMonths,
-  salesPrice, downPct, loanType, term, rate, hoa,
+ // PDF strategy (Christo 7.24): ONE document per mode. PURCHASE = the Fees
+ // Worksheet (FeesWorksheetPdf.jsx). REFI = the Refi Savings Summary
+ // (RefiSummaryPdf.jsx) on EVERY surface — download buttons, share card,
+ // print, and the email attachment. The legacy HTML refi estimate is retired
+ // (it was a second, diverging version of the same numbers).
+ const buildRefiSummaryProps = (includeFees) => ({
+  ...buildWorksheetProps(),
+  includeFees,
+  // Current-loan facts the fees worksheet never needed
+  refiCurrentRate, refiOriginalTerm, refiClosedDate, refiEscrowBalance, refiCurrentMI,
  });
- const handlePrintPdf = () => {
-  const html = generatePdfHtml();
-  const w = window.open("", "_blank", "width=700,height=900");
-  if (w) {
-   w.document.write(html);
-   w.document.close();
-   setTimeout(() => w.print(), 500);
-  }
+ const renderRefiSummaryBlob = async (includeFees) => {
+  const [{ pdf }, { RefiSummaryDoc }] = await Promise.all([
+   import("@react-pdf/renderer"),
+   import("./lib/RefiSummaryPdf.jsx"),
+  ]);
+  return pdf(React.createElement(RefiSummaryDoc, buildRefiSummaryProps(includeFees))).toBlob();
  };
+ // A deploy invalidates the old build's hashed chunk URLs, so a tab opened
+ // before the deploy fails the dynamic import above with a fetch error —
+ // that was every "Could not generate the PDF" report on deploy days. Reload
+ // to pick up the new build instead of asking the user to "try again".
+ const handlePdfError = (e) => {
+  console.error("Refi summary PDF failed:", e);
+  if (/dynamically imported module|Loading chunk|Importing a module script failed|Failed to fetch/i.test(String(e?.message || e))) {
+   alert("Blueprint just updated — reloading to grab the new version, then try again.");
+   window.location.reload();
+   return;
+  }
+  alert("Could not generate the PDF — try again.");
+ };
+ // Open the summary in a tab (browser PDF viewer = preview + its own print).
+ const openRefiSummaryPdf = async (autoPrint) => {
+  if (refiPdfBusy) return;
+  setRefiPdfBusy(true);
+  try {
+   const blob = await renderRefiSummaryBlob(false);
+   const url = URL.createObjectURL(blob);
+   const w = window.open(url, "_blank");
+   if (autoPrint && w) { try { w.addEventListener("load", () => { try { w.print(); } catch { /* viewer print button remains */ } }); } catch { /* ignore */ } }
+   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+   handlePdfError(e);
+  }
+  setRefiPdfBusy(false);
+ };
+ const handlePrintPdf = () => openRefiSummaryPdf(true);
  // One entry point for every "save the PDF" button: worksheet for purchases,
  // legacy refi estimate for refis.
  const handleSaveScenarioPdf = () => {
-  if (isRefi) handlePrintPdf();
+  if (isRefi) downloadRefiSummaryPdf(false);
   else handleDownloadWorksheet();
  };
  const handleEmailSummary = () => {
@@ -3313,17 +3340,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (refiPdfBusy) return;
   setRefiPdfBusy(true);
   try {
-   const [{ pdf }, { RefiSummaryDoc }] = await Promise.all([
-    import("@react-pdf/renderer"),
-    import("./lib/RefiSummaryPdf.jsx"),
-   ]);
-   const props = {
-    ...buildWorksheetProps(),
-    includeFees,
-    // Current-loan facts the fees worksheet never needed
-    refiCurrentRate, refiOriginalTerm, refiClosedDate, refiEscrowBalance, refiCurrentMI,
-   };
-   const blob = await pdf(React.createElement(RefiSummaryDoc, props)).toBlob();
+   const blob = await renderRefiSummaryBlob(includeFees);
    const url = URL.createObjectURL(blob);
    const a = document.createElement("a");
    const last = (borrowerName || "").trim().split(/\s+/).pop() || scenarioName || "Scenario";
@@ -3335,8 +3352,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    a.remove();
    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   } catch (e) {
-   console.error("Refi summary PDF failed:", e);
-   alert("Could not generate the PDF — try again.");
+   handlePdfError(e);
   }
   setRefiPdfBusy(false);
  };
@@ -5466,6 +5482,405 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // If the LO hides the 3-Point Test while it's the open tab, bounce to the
  // Refi Summary instead of rendering a blank pane.
  useEffect(() => { if (tab === "refi3" && (!isRefi || !showRefi3)) setTab("refi"); }, [tab, isRefi, showRefi3]);
+ // Refi default (Christo 7.24): pre-fill the amort Extra Monthly Payment with
+ // the monthly P&I+MI savings — "keep the old payment on the new loan" — so
+ // the payoff-acceleration story shows without any input. We only overwrite a
+ // value we defaulted ourselves (or 0); an LO-typed amount always wins. The
+ // toggle flips on only on the FIRST auto-fill, so turning it off sticks.
+ const autoExtraRef = useRef(null);
+ useEffect(() => {
+  if (!isRefi) return;
+  const target = Math.max(0, Math.round(calc.refiPiMiSavings || 0));
+  const isAuto = extraPayment === 0 || extraPayment === autoExtraRef.current;
+  if (!isAuto || target <= 0 || extraPayment === target) return;
+  setExtraPayment(target);
+  if (autoExtraRef.current === null && !payExtra) setPayExtra(true);
+  autoExtraRef.current = target;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isRefi, calc.refiPiMiSavings]);
+
+ // ── Refi Summary + 3-Point Test section bodies ──
+ // Single source of truth for BOTH surfaces (Christo 7.24 — "one screen
+ // as we scroll down"): the standalone routable tabs below AND the
+ // Overview fold-in sections both render these.
+ const renderRefiSummarySection = () => (<>
+ <div style={{ marginTop: 20 }}>
+  <Hero value={fmt(Math.abs(calc.refiPiMiSavings))} label={calc.refiPiMiSavings >= 0 ? "Monthly P&I + MI Savings" : "Monthly P&I + MI Increase"} color={calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary} sub={calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiPiMiSavings <= 0 ? "No P&I + MI savings" : ""} />
+ </div>
+ {/* Refi Savings Summary PDF — the borrower-facing one-pager (Christo
+     2026-07-22). Second button appends the fees worksheet as page 2. */}
+ <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
+  {[
+   { label: refiPdfBusy ? "Generating…" : "Download Summary PDF", fees: false, solid: true },
+   { label: refiPdfBusy ? "Generating…" : "PDF + Fees Page", fees: true, solid: false },
+  ].map(b => (
+   <button key={b.label + b.fees} onClick={() => downloadRefiSummaryPdf(b.fees)} disabled={refiPdfBusy}
+    style={{ padding: "9px 18px", borderRadius: 9999, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: refiPdfBusy ? "default" : "pointer", opacity: refiPdfBusy ? 0.6 : 1,
+     background: b.solid ? T.blue : "transparent", color: b.solid ? "#fff" : T.blue, border: b.solid ? "none" : `1px solid ${T.blue}66` }}>
+    {b.label}
+   </button>
+  ))}
+ </div>
+ {/* Quick verdict card */}
+ <div data-field="refi-current-rate" className={isPulse("refi-current-rate") || isPulse("refi-current-balance")} onClick={() => { if (refiCurrentRate === 0 || refiCurrentBalance === 0) setTab("setup"); }} style={{ borderRadius: 18, transition: "all 0.3s", cursor: (refiCurrentRate === 0 || refiCurrentBalance === 0) ? "pointer" : "default" }}>
+ <Card pad={14} style={{ marginTop: 12, background: calc.refiPiMiSavings > 0 ? T.successBg : calc.refiPiMiSavings < 0 ? T.errorBg : T.pillBg }}>
+  <div style={{ fontSize: 13, fontWeight: 600, color: calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary }}>
+   {calc.refiPiMiSavings > 0 ? `✓ ${refiPurpose} refinance saves ${fmt(calc.refiPiMiSavings)}/mo on P&I + MI. Closing costs recovered in ${calc.refiBreakevenMonths} months.` :
+    calc.refiPiMiSavings < 0 && refiPurpose === "Cash-Out" ? `Cash-out refinance adds ${fmt(Math.abs(calc.refiPiMiSavings))}/mo to P&I + MI, but provides ${fmt(refiCashOut)} in cash proceeds.` :
+    calc.refiPiMiSavings < 0 ? `New payment is ${fmt(Math.abs(calc.refiPiMiSavings))}/mo higher on P&I + MI. Consider if shorter term or other benefits justify the increase.` :
+    "Tap here → Enter current loan details on Setup to see comparison."}
+  </div>
+ </Card>
+ </div>
+ {/* Side-by-side comparison */}
+ <Sec title="Loan Comparison">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
+    <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span>
+   </div>
+   {[
+    ["Loan Type", refiCurrentLoanType, loanType + (loanType === "VA" ? " - " + vaUsage : "")],
+    ["Purpose", "—", refiPurpose],
+    ["Loan Amount", fmt(calc.refiEffBalance), fmt(calc.refiNewLoanAmt)],
+    ["Interest Rate", refiCurrentRate.toFixed(3) + "%", rate.toFixed(3) + "%"],
+    ["Term", `${calc.refiEffRemaining} mos left`, `${term * 12} mos (${term}yr)`],
+   ].map(([l, c, n], i) => (
+    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+     <span style={{ color: T.textSecondary, fontWeight: i === 0 ? 600 : 400 }}>{l}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{n}</span>
+    </div>
+   ))}
+   {refiHomeValue > 0 && [
+    ["Home Value", fmt(refiHomeValue), fmt(refiHomeValue)],
+    ["LTV", pct(calc.refiCurLTV, 1), pct(calc.refiNewLTV, 1)],
+    ["Equity", fmt(refiHomeValue - calc.refiEffBalance), fmt(refiHomeValue - calc.refiNewLoanAmt)],
+   ].map(([l, c, n], i) => (
+    <div key={"ltv" + i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+     <span style={{ color: T.textSecondary }}>{l}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{n}</span>
+    </div>
+   ))}
+  </Card>
+ </Sec>
+ {/* Monthly Payment Comparison */}
+ <Sec title="Monthly Payment">
+  <Card>
+   {/* Header */}
+   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `2px solid ${T.separator}`, letterSpacing: 0.5 }}>
+    <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span><span style={{textAlign:"right"}}>Delta</span>
+   </div>
+   {/* Rows */}
+   {(() => {
+    const curPrin = calc.refiCurPrinThisMonth;
+    const curInt = calc.refiCurIntThisMonth;
+    const newPrin = calc.refiNewPrinThisMonth;
+    const newInt = calc.refiNewIntThisMonth;
+    const curTax = calc.refiCurMonthlyTax;
+    const curIns = calc.refiCurMonthlyIns;
+    const newTax = calc.refiNewMonthlyTax;
+    const newIns = calc.refiNewMonthlyIns;
+    const curMI = refiCurrentMI;
+    const newMI = calc.refiNewMI;
+    const rows = [
+     { label: "Principal", cur: curPrin, nw: newPrin },
+     { label: "Interest", cur: curInt, nw: newInt },
+     ...(refiCurEscrowTax || refiNewEscrowTax ? [
+      { label: "Taxes", cur: refiCurEscrowTax ? curTax : 0, nw: refiNewEscrowTax ? newTax : 0, note: !refiNewEscrowTax ? "paid separately on new loan" : !refiCurEscrowTax ? "newly escrowed" : undefined },
+     ] : refiAnnualTax > 0 ? [{ label: "Taxes", cur: curTax, nw: curTax, note: "paid separately" }] : []),
+     ...(refiCurEscrowIns || refiNewEscrowIns ? [
+      { label: "Insurance", cur: refiCurEscrowIns ? curIns : 0, nw: refiNewEscrowIns ? newIns : 0, note: !refiNewEscrowIns ? "paid separately on new loan" : !refiCurEscrowIns ? "newly escrowed" : undefined },
+     ] : refiAnnualIns > 0 ? [{ label: "Insurance", cur: curIns, nw: curIns, note: "paid separately" }] : []),
+     { label: "MI/MIP", cur: curMI, nw: newMI },
+    ].filter(r => r.cur > 0 || r.nw > 0 || r.note);
+    return rows.map((r, i) => {
+     const delta = r.nw - r.cur;
+     return (
+      <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13, alignItems: "center" }}>
+       <span style={{ color: T.textSecondary }}>
+        {r.label}
+        {r.note && <span style={{ fontSize: 9, color: T.orange, display: "block", marginTop: 1 }}>({r.note})</span>}
+       </span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{fmt(r.nw)}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 12, color: delta < -0.5 ? T.green : delta > 0.5 ? T.red : T.textTertiary }}>
+        {Math.abs(delta) < 0.5 ? "—" : (delta > 0 ? "+" : "") + fmt(delta)}
+       </span>
+      </div>
+     );
+    });
+   })()}
+   {/* Total row */}
+   {(() => {
+    const totalDelta = calc.refiNewTotalPmt - calc.refiCurTotalPmt;
+    return (
+     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4, fontSize: 14 }}>
+      <span style={{ fontWeight: 700 }}>Total Payment</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.refiCurTotalPmt)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(calc.refiNewTotalPmt)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 13, color: totalDelta < -0.5 ? T.green : totalDelta > 0.5 ? T.red : T.textTertiary }}>
+       {Math.abs(totalDelta) < 0.5 ? "—" : (totalDelta > 0 ? "+" : "") + fmt(totalDelta)}
+      </span>
+     </div>
+    );
+   })()}
+   {/* Savings card */}
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: "10px 0", marginTop: 4, background: calc.refiMonthlyTotalSavings > 0 ? T.successBg : calc.refiMonthlyTotalSavings < 0 ? T.errorBg : T.pillBg, borderRadius: 8, paddingLeft: 10, paddingRight: 10 }}>
+    <span style={{ fontWeight: 600, fontSize: 13, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>Monthly {calc.refiMonthlyTotalSavings >= 0 ? "Savings" : "Increase"}</span>
+    <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 16, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>{fmt(Math.abs(calc.refiMonthlyTotalSavings))}</span>
+   </div>
+   {!(refiNewEscrowTax && refiNewEscrowIns) && (refiAnnualTax > 0 || refiAnnualIns > 0) && (
+    <Note color={T.orange} style={{ marginTop: 8 }}>No escrow — tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
+   )}
+  </Card>
+ </Sec>
+ {/* Interest comparison */}
+ <Sec title="Interest Analysis">
+  <Card>
+   <MRow label="Current: This Month's Interest" value={fmt(calc.refiCurIntThisMonth)} />
+   <MRow label="New: This Month's Interest" value={fmt(calc.refiNewIntThisMonth)} color={calc.refiNewIntThisMonth < calc.refiCurIntThisMonth ? T.green : T.red} />
+   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
+    <MRow label="Current: Remaining Interest" value={fmt(calc.refiCurRemainingInt)} sub={`over ${calc.refiEffRemaining} months`} />
+    <MRow label="New: Total Interest" value={fmt(calc.refiNewTotalInt)} sub={`over ${term * 12} months`} color={calc.refiNewTotalInt < calc.refiCurRemainingInt ? T.green : T.red} />
+   </div>
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Interest Savings" value={fmt(calc.refiIntSavings)} color={calc.refiIntSavings > 0 ? T.green : T.red} bold />
+    {calc.refiIntSavings < 0 && <Note color={T.orange} style={{ marginTop: 6 }}>New loan pays more total interest — often due to longer term or cash-out. Monthly savings may still justify it.</Note>}
+   </div>
+  </Card>
+ </Sec>
+ {/* Cost to refinance + breakeven */}
+ <Sec title="Cost to Refinance">
+  <Card>
+   <MRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} />
+   <MRow label="Discount Points" value={fmt(calc.loan * discountPts / 100)} sub={discountPts > 0 ? `${discountPts} pts` : "none"} />
+   {refiPurpose === "Cash-Out" && refiCashOut > 0 && <MRow label="Cash Proceeds" value={fmt(refiCashOut)} color={T.blue} />}
+   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
+    <MRow label="P&I Monthly Savings" value={fmt(calc.refiMonthlySavings)} color={calc.refiMonthlySavings > 0 ? T.green : T.red} bold />
+    <MRow label="Breakeven Period" value={calc.refiBreakevenMonths > 0 ? `${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs)` : "N/A"} bold />
+   </div>
+   {calc.refiBreakevenMonths > 0 && <div style={{ marginTop: 10 }}>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Breakeven Progress</div>
+    <div style={{ position: "relative", height: 24, background: T.inputBg, borderRadius: 12, overflow: "hidden" }}>
+     <div style={{ height: "100%", width: `${Math.min(100, (12 / calc.refiBreakevenMonths) * 100)}%`, background: T.green, borderRadius: 12, transition: "width 0.5s" }} />
+     <span style={{ position: "absolute", top: 4, left: 8, fontSize: 11, fontWeight: 600, color: T.text, fontFamily: FONT }}>1 yr = {fmt(calc.refiMonthlySavings * 12)} saved</span>
+    </div>
+    {[2, 3, 5].filter(y => y * 12 > calc.refiBreakevenMonths).slice(0, 2).map(y => (
+     <div key={y} style={{ fontSize: 12, color: T.textTertiary, marginTop: 4 }}>{y}yr net savings: <strong style={{ color: T.green }}>{fmt((calc.refiMonthlySavings * y * 12) - calc.totalClosingCosts)}</strong></div>
+    ))}
+   </div>}
+  </Card>
+ </Sec>
+ {/* Lifetime comparison */}
+ <Sec title="Lifetime Comparison">
+  <Card>
+   <MRow label="Current: Remaining Payments" value={fmt(calc.refiCurTotalCostRemaining)} sub={`${calc.refiEffRemaining} × ${fmt(calc.refiEffPI)}`} />
+   <MRow label="New: Total Payments + Costs" value={fmt(calc.refiNewTotalCost)} sub={`${term * 12} × ${fmt(calc.refiNewPi)} + ${fmt(calc.totalClosingCosts)}`} />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label="Lifetime Savings" value={fmt(calc.refiLifetimeSavings)} color={calc.refiLifetimeSavings > 0 ? T.green : T.red} bold />
+   </div>
+  </Card>
+ </Sec>
+ {/* ── Net Cash Out ── */}
+ <Sec title="Net Cash Out">
+  <Card>
+   <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 10, textTransform: "uppercase" }}>Cash to Close Summary</div>
+   <MRow label="New Loan Amount" value={fmt(calc.refiNetNewLoan)} color={T.blue} />
+   <MRow label="− Closing Costs" value={`-${fmt(calc.refiNetClosingCosts)}`} />
+   <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
+   <MRow label="− Current Loan Payoff" value={`-${fmt(calc.refiNetPayoff)}`} />
+   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
+    <MRow label={calc.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close"} value={calc.refiEstCashOut >= 0 ? fmt(calc.refiEstCashOut) : fmt(Math.abs(calc.refiEstCashOut))} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
+   </div>
+   {(calc.refiSkipPmtAmt > 0 || calc.refiEscrowRefund > 0) && <>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginTop: 16, marginBottom: 10, textTransform: "uppercase" }}>Money Back in Your Pocket</div>
+    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt)}/mo`} />}
+    {calc.refiEscrowRefund > 0 && <MRow label="Current Escrow Balance Refund" value={`+${fmt(calc.refiEscrowRefund)}`} color={T.green} />}
+   </>}
+   <div style={{ marginTop: 12, padding: "14px 16px", background: calc.refiNetCashInHand >= 0 ? T.successBg : T.errorBg, borderRadius: 14 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+     <span style={{ fontSize: 14, fontWeight: 700, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{calc.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing"}</span>
+     <span style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{calc.refiNetCashInHand >= 0 ? fmt(calc.refiNetCashInHand) : fmt(Math.abs(calc.refiNetCashInHand))}</span>
+    </div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
+     {calc.refiNetCashInHand >= 0 ? "You receive this amount at or after closing" : "You need to bring this amount to closing"}
+    </div>
+   </div>
+  </Card>
+ </Sec>
+ {/* Year-by-year amort comparison */}
+ {calc.refiAmortCompare.length > 0 && <Sec title="Year-by-Year Balance">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 600, paddingBottom: 6, borderBottom: `1px solid ${T.separator}` }}>
+    <span>Yr</span><span style={{textAlign:"right"}}>Cur Bal</span><span style={{textAlign:"right"}}>New Bal</span><span style={{textAlign:"right"}}>Diff</span>
+   </div>
+   <div style={{ maxHeight: 320, overflowY: "auto" }}>
+    {calc.refiAmortCompare.map((row, i) => {
+     const diff = row.curBal - row.newBal;
+     return (
+      <div key={i} style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr 1fr", gap: 0, padding: "5px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12 }}>
+       <span style={{ color: T.textTertiary, fontWeight: 600 }}>{row.year}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500, color: row.curBal > 0 ? T.text : T.textTertiary }}>{row.curBal > 0 ? fmt(row.curBal) : "Paid"}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500, color: row.newBal > 0 ? T.blue : T.textTertiary }}>{row.newBal > 0 ? fmt(row.newBal) : "Paid"}</span>
+       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: diff > 0 ? T.green : diff < 0 ? T.red : T.textTertiary }}>{diff !== 0 ? fmt(diff) : "—"}</span>
+      </div>
+     );
+    })}
+   </div>
+  </Card>
+ </Sec>}
+ <Sec title="Share">
+  <Card>
+   <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
+   <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+    <button onClick={handleEmailWorksheet} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Email</button>
+    <button onClick={() => downloadRefiSummaryPdf(false)} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>PDF</button>
+    <button onClick={() => openRefiSummaryPdf(false)} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Preview</button>
+   </div>
+   {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
+  </Card>
+ </Sec>
+ <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4, marginBottom: 12 }}>
+  <button onClick={() => setShowEmailModal(true)} style={{ padding: 14, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Email</button>
+  <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Print PDF</button>
+ </div>
+ <Sec title="">
+  <Card style={{ background: T.pillBg }}>
+   <Note>Edit new loan on <strong>Calculator</strong> tab. Edit current loan on <strong>Setup</strong> tab. Closing costs on <strong>Costs</strong> tab.</Note>
+  </Card>
+ </Sec>
+ </>);
+ const renderRefi3Section = () => (<>
+ <div style={{ marginTop: 20, textAlign: "center" }}>
+  <div style={{ fontSize: 14, fontWeight: 600, color: T.textTertiary, letterSpacing: "0.05em", marginBottom: 4 }}>THE</div>
+  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.03em" }}>3-Point Refi Test</div>
+  <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 6 }}>Does this refinance make sense?</div>
+ </div>
+ {/* Score badge */}
+ <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+  <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 28px", borderRadius: 99, background: calc.refiTestScore === 3 ? `${T.green}18` : calc.refiTestScore >= 2 ? `${T.orange}18` : `${T.red}18` }}>
+   <span style={{ fontSize: 28 }}>{calc.refiTestScore === 3 ? "●" : calc.refiTestScore >= 2 ? "●" : "●"}</span>
+   <div>
+    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiTestScore === 3 ? T.green : calc.refiTestScore >= 2 ? T.orange : T.red }}>{calc.refiTestScore} / 3</div>
+    <div style={{ fontSize: 11, color: T.textTertiary }}>{calc.refiTestScore === 3 ? "ALL CLEAR — Refi makes sense!" : calc.refiTestScore === 2 ? "Close — worth discussing" : calc.refiTestScore === 1 ? "Proceed with caution" : "Refi may not be advisable"}</div>
+   </div>
+  </div>
+ </div>
+ {/* The 3 tests */}
+ <Sec title="The Tests">
+  <Card>
+   <RefiTestLight
+    passed={calc.refiTest1Pass}
+    label={`1. Rate Improvement ≥ 0.50%`}
+    detail={calc.refiTest1Pass !== null ? `Current ${refiCurrentRate.toFixed(3)}% → New ${rate.toFixed(3)}% = ${calc.refiRateDrop >= 0 ? "-" : "+"}${Math.abs(calc.refiRateDrop).toFixed(3)}% ${calc.refiTest1Pass ? "✓" : "(need 0.50%+)"}` : "Enter current rate on Setup tab"}
+   />
+   <RefiTestLight
+    passed={calc.refiTest2Pass}
+    label="2. Breakeven Under 2 Years"
+    detail={calc.refiTest2Pass !== null ? (calc.refiBreakevenMonths > 0 ? `Breakeven: ${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs) ${calc.refiTest2Pass ? "✓" : "— too long"}` : "No monthly savings to break even") : "Need monthly savings to calculate"}
+   />
+   <div style={{ borderBottom: "none" }}>
+    <RefiTestLight
+     passed={calc.refiTest3Pass}
+     label="3. Accelerated Payoff (1+ Year Faster)"
+     detail={calc.refiTest3Pass !== null ? `Reinvesting ${fmt(calc.refiMonthlySavings)}/mo savings: new loan pays off in ${calc.refiAccelPayoff.newPayoffMos} mos vs current ${calc.refiAccelPayoff.curPayoffMos} mos = ${calc.refiAccelPayoff.yearsFaster.toFixed(1)} years faster ${calc.refiTest3Pass ? "✓" : "— not enough"}` : "Need monthly savings to calculate"}
+    />
+   </div>
+  </Card>
+ </Sec>
+ {/* Detailed explanation cards */}
+ <Sec title="Test 1 — Rate">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Current Rate</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{refiCurrentRate.toFixed(3)}%</div></div>
+    <div><div style={{ fontSize: 11, color: T.textTertiary }}>New Rate</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{rate.toFixed(3)}%</div></div>
+    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Improvement</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: calc.refiRateDrop >= 0.5 ? T.green : T.red }}>{calc.refiRateDrop.toFixed(3)}%</div></div>
+   </div>
+   <Note color={calc.refiTest1Pass ? T.green : T.orange}>A minimum 0.50% rate drop ensures enough savings to justify closing costs and reset the amortization clock.</Note>
+  </Card>
+ </Sec>
+ <Sec title="Test 2 — Breakeven">
+  <Card>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, textAlign: "center" }}>
+    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.totalClosingCosts)}</div></div>
+    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Monthly Savings</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: calc.refiMonthlySavings > 0 ? T.green : T.red }}>{fmt(calc.refiMonthlySavings)}</div></div>
+   </div>
+   {calc.refiBreakevenMonths > 0 && <div style={{ marginTop: 12 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+     <span style={{ color: T.textTertiary }}>0 months</span>
+     <span style={{ fontWeight: 700, color: calc.refiTest2Pass ? T.green : T.red, fontFamily: FONT }}>{calc.refiBreakevenMonths} mos</span>
+     <span style={{ color: T.textTertiary }}>24 months</span>
+    </div>
+    <div style={{ height: 14, background: T.ringTrack, borderRadius: 99, overflow: "hidden", position: "relative" }}>
+     <div style={{ height: "100%", width: `${Math.min(100, (calc.refiBreakevenMonths / 24) * 100)}%`, background: calc.refiTest2Pass ? T.green : T.red, borderRadius: 99, transition: "width 0.5s" }} />
+    </div>
+   </div>}
+   <Note color={calc.refiTest2Pass ? T.green : T.orange}>Under 2 years means you recoup closing costs quickly. If you plan to stay shorter than the breakeven period, the refi doesn't pay for itself.</Note>
+  </Card>
+ </Sec>
+ <Sec title="Test 3 — Accelerated Payoff">
+  <Card>
+   {calc.refiMonthlySavings > 0 ? <>
+    <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 10 }}>If you take your <strong style={{ color: T.green }}>{fmt(calc.refiMonthlySavings)}/mo</strong> savings and apply it as extra principal:</div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
+     <div><div style={{ fontSize: 11, color: T.textTertiary }}>Current Payoff</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>{calc.refiAccelPayoff.curPayoffMos}<span style={{ fontSize: 12 }}> mos</span></div><div style={{ fontSize: 11, color: T.textTertiary }}>{(calc.refiAccelPayoff.curPayoffMos / 12).toFixed(1)} yrs</div></div>
+     <div><div style={{ fontSize: 11, color: T.textTertiary }}>New + Extra</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{calc.refiAccelPayoff.newPayoffMos}<span style={{ fontSize: 12 }}> mos</span></div><div style={{ fontSize: 11, color: T.textTertiary }}>{(calc.refiAccelPayoff.newPayoffMos / 12).toFixed(1)} yrs</div></div>
+     <div><div style={{ fontSize: 11, color: T.textTertiary }}>Faster By</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.refiAccelPayoff.yearsFaster >= 1 ? T.green : T.red }}>{calc.refiAccelPayoff.yearsFaster.toFixed(1)}<span style={{ fontSize: 12 }}> yrs</span></div></div>
+    </div>
+    <Note color={calc.refiTest3Pass ? T.green : T.orange}>{calc.refiTest3Pass ? "Reinvesting savings accelerates payoff by 1+ year — the refi creates real wealth." : "Savings don't accelerate payoff enough. Consider if other benefits (cash flow, dropping MI) still make it worthwhile."}</Note>
+   </> : <Note color={T.orange}>No monthly savings to reinvest. This test requires a lower P&I payment on the new loan.</Note>}
+  </Card>
+ </Sec>
+ <Card style={{ marginTop: 8, background: T.pillBg }}>
+  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.6, textAlign: "center" }}>The 3-Point Refi Test is a framework by Three Point Thursday. Not all 3 points need to pass — but if they do, the refi is a no-brainer.</div>
+ </Card>
+ {/* ── Cost of Waiting / Breakeven Analysis ── */}
+ {calc.refiPiMiSavings > 0 && calc.refiCostOfWaiting.length > 0 && (
+  <Sec title="Cost of Waiting">
+   <Card>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>
+     If you <strong>wait</strong> for rates to drop further, how long would a future lower-rate refi take to <strong>catch up</strong> to the savings you missed by not refinancing now?
+    </div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Breakeven Months to Recoup Lost Savings</div>
+    {/* Header row */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 0, fontSize: 10, fontWeight: 700, color: T.textTertiary, paddingBottom: 6, borderBottom: `2px solid ${T.separator}` }}>
+     <span>Wait for</span>
+     <span style={{ textAlign: "center" }}>1 Year</span>
+     <span style={{ textAlign: "center" }}>2 Years</span>
+     <span style={{ textAlign: "center" }}>3 Years</span>
+     <span style={{ textAlign: "center" }}>4 Years</span>
+    </div>
+    {/* Data rows */}
+    {calc.refiCostOfWaiting.map((row, i) => (
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12, alignItems: "center" }}>
+      <span style={{ fontWeight: 600, color: T.text }}>-{row.drop}%</span>
+      {row.years.map((cell, j) => (
+       <span key={j} style={{ textAlign: "center", fontFamily: FONT, fontWeight: 600, fontSize: 11, color: cell.breakeven >= 120 ? T.red : cell.breakeven >= 60 ? T.orange : T.green }}>
+        {cell.breakeven >= 999 ? "Never" : cell.breakeven >= 120 ? `${Math.round(cell.breakeven / 12)}+ yrs` : `${cell.breakeven} mo`}
+       </span>
+      ))}
+     </div>
+    ))}
+    {/* Legend */}
+    <div style={{ marginTop: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>
+     <strong>How to read:</strong> If you wait <strong>2 years</strong> hoping rates drop <strong>0.50%</strong>, the lost savings during that wait would take the future refi's savings a certain number of months to recoup. High numbers mean <strong>don't wait</strong>.
+    </div>
+    {/* Lost savings summary */}
+    <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+     {[1, 2, 3, 4].map(yr => (
+      <div key={yr} style={{ background: T.inputBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
+       <div style={{ fontSize: 14, fontWeight: 700, color: T.red, fontFamily: FONT }}>{fmt(calc.refiPiMiSavings * yr * 12)}</div>
+       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>Lost if wait {yr}yr</div>
+      </div>
+     ))}
+    </div>
+   </Card>
+  </Sec>
+ )}
+ <GuidedNextButton />
+ </>);
  const TABS = [["overview","Overview"],
   // setup, income, debts, assets, qualify, tax, amort folded into Overview and
   // hidden from the sidebar (2026-05-21, per Christo). calc + costs were folded
@@ -5509,13 +5924,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const OVERVIEW_SECTIONS = [
   { id: "overview-setup",         label: "Quick Start" },
   { id: "overview-payment",       label: "Monthly Payment" },
+  ...(isRefi ? [{ id: "overview-refi", label: "Refi Summary" }] : []),
+  ...(isRefi && showRefi3 ? [{ id: "overview-refi3", label: "3-Point Test" }] : []),
   { id: "overview-costs",         label: isRefi ? "Refi Costs" : "Costs" },
   { id: "overview-assets",        label: "Assets" },
   { id: "overview-debts",         label: "Debts" },
   ...(ownsProperties ? [{ id: "overview-reo", label: "REO" }] : []),
   { id: "overview-income",        label: "Income" },
   { id: "overview-qualification", label: "Pre-Qualified?" },
-  { id: "overview-tax",           label: "Tax Savings" },
+  ...(!isRefi ? [{ id: "overview-tax", label: "Tax Savings" }] : []),
   { id: "overview-equity",        label: "Equity" },
   ...((showRentVsBuy && !isRefi) ? [{ id: "overview-rentvbuy", label: "Rent vs Buy" }] : []),
   ...(showInvestor ? [{ id: "overview-investor", label: "Investor" }] : []),
@@ -6276,9 +6693,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    open={showWorksheetModal}
    onClose={() => setShowWorksheetModal(false)}
    T={T}
-   buildWorksheetProps={buildWorksheetProps}
+   docKind={isRefi ? "refi" : "fees"}
+   buildWorksheetProps={isRefi ? () => buildRefiSummaryProps(true) : buildWorksheetProps}
    defaultTo={borrowerEmail}
-   defaultSubject={`Your ${isRefi ? "Refinance" : "Purchase"} Fees Worksheet — ${scenarioName}`}
+   defaultSubject={isRefi ? `Your Refinance Savings Summary — ${scenarioName}` : `Your Purchase Fees Worksheet — ${scenarioName}`}
    defaultBody={buildWorksheetEmailBody()}
    loEmail={loEmail}
    loanOfficer={loanOfficer}
@@ -6310,7 +6728,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    open={showBorrowerSend}
    onClose={() => setShowBorrowerSend(false)}
    T={T}
-   buildWorksheetProps={buildWorksheetProps}
+   docKind={isRefi ? "refi" : "fees"}
+   buildWorksheetProps={isRefi ? () => buildRefiSummaryProps(true) : buildWorksheetProps}
    scenarioName={scenarioName}
    borrowerName={borrowerName}
    defaultTo={borrowerEmail}
@@ -6872,6 +7291,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    /* Modules */
    showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy,
    showProp19, setShowProp19,
+   /* Refi fold-in sections (Christo 7.24) */
+   renderRefiSummarySection, renderRefi3Section,
    hasSellProperty, setHasSellProperty,
    /* Income */
    incomes, addIncome, updateIncome, removeIncome, removeBorrower,
@@ -7033,385 +7454,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ SETUP (Redesigned) ═══ */}
 {tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue}} />}
 {/* ═══ REFI SUMMARY ═══ */}
-{tab === "refi" && (<>
- <div style={{ marginTop: 20 }}>
-  <Hero value={fmt(Math.abs(calc.refiPiMiSavings))} label={calc.refiPiMiSavings >= 0 ? "Monthly P&I + MI Savings" : "Monthly P&I + MI Increase"} color={calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary} sub={calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiPiMiSavings <= 0 ? "No P&I + MI savings" : ""} />
- </div>
- {/* Refi Savings Summary PDF — the borrower-facing one-pager (Christo
-     2026-07-22). Second button appends the fees worksheet as page 2. */}
- <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10, flexWrap: "wrap" }}>
-  {[
-   { label: refiPdfBusy ? "Generating…" : "Download Summary PDF", fees: false, solid: true },
-   { label: refiPdfBusy ? "Generating…" : "PDF + Fees Page", fees: true, solid: false },
-  ].map(b => (
-   <button key={b.label + b.fees} onClick={() => downloadRefiSummaryPdf(b.fees)} disabled={refiPdfBusy}
-    style={{ padding: "9px 18px", borderRadius: 9999, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: refiPdfBusy ? "default" : "pointer", opacity: refiPdfBusy ? 0.6 : 1,
-     background: b.solid ? T.blue : "transparent", color: b.solid ? "#fff" : T.blue, border: b.solid ? "none" : `1px solid ${T.blue}66` }}>
-    {b.label}
-   </button>
-  ))}
- </div>
- {/* Quick verdict card */}
- <div data-field="refi-current-rate" className={isPulse("refi-current-rate") || isPulse("refi-current-balance")} onClick={() => { if (refiCurrentRate === 0 || refiCurrentBalance === 0) setTab("setup"); }} style={{ borderRadius: 18, transition: "all 0.3s", cursor: (refiCurrentRate === 0 || refiCurrentBalance === 0) ? "pointer" : "default" }}>
- <Card pad={14} style={{ marginTop: 12, background: calc.refiPiMiSavings > 0 ? T.successBg : calc.refiPiMiSavings < 0 ? T.errorBg : T.pillBg }}>
-  <div style={{ fontSize: 13, fontWeight: 600, color: calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary }}>
-   {calc.refiPiMiSavings > 0 ? `✓ ${refiPurpose} refinance saves ${fmt(calc.refiPiMiSavings)}/mo on P&I + MI. Closing costs recovered in ${calc.refiBreakevenMonths} months.` :
-    calc.refiPiMiSavings < 0 && refiPurpose === "Cash-Out" ? `Cash-out refinance adds ${fmt(Math.abs(calc.refiPiMiSavings))}/mo to P&I + MI, but provides ${fmt(refiCashOut)} in cash proceeds.` :
-    calc.refiPiMiSavings < 0 ? `New payment is ${fmt(Math.abs(calc.refiPiMiSavings))}/mo higher on P&I + MI. Consider if shorter term or other benefits justify the increase.` :
-    "Tap here → Enter current loan details on Setup to see comparison."}
-  </div>
- </Card>
- </div>
- {/* Side-by-side comparison */}
- <Sec title="Loan Comparison">
-  <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 600, paddingBottom: 8, borderBottom: `1px solid ${T.separator}` }}>
-    <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span>
-   </div>
-   {[
-    ["Loan Type", refiCurrentLoanType, loanType + (loanType === "VA" ? " - " + vaUsage : "")],
-    ["Purpose", "—", refiPurpose],
-    ["Loan Amount", fmt(calc.refiEffBalance), fmt(calc.refiNewLoanAmt)],
-    ["Interest Rate", refiCurrentRate.toFixed(3) + "%", rate.toFixed(3) + "%"],
-    ["Term", `${calc.refiEffRemaining} mos left`, `${term * 12} mos (${term}yr)`],
-   ].map(([l, c, n], i) => (
-    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.textSecondary, fontWeight: i === 0 ? 600 : 400 }}>{l}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{n}</span>
-    </div>
-   ))}
-   {refiHomeValue > 0 && [
-    ["Home Value", fmt(refiHomeValue), fmt(refiHomeValue)],
-    ["LTV", pct(calc.refiCurLTV, 1), pct(calc.refiNewLTV, 1)],
-    ["Equity", fmt(refiHomeValue - calc.refiEffBalance), fmt(refiHomeValue - calc.refiNewLoanAmt)],
-   ].map(([l, c, n], i) => (
-    <div key={"ltv" + i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-     <span style={{ color: T.textSecondary }}>{l}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{c}</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{n}</span>
-    </div>
-   ))}
-  </Card>
- </Sec>
- {/* Monthly Payment Comparison */}
- <Sec title="Monthly Payment">
-  <Card>
-   {/* Header */}
-   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `2px solid ${T.separator}`, letterSpacing: 0.5 }}>
-    <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span><span style={{textAlign:"right"}}>Delta</span>
-   </div>
-   {/* Rows */}
-   {(() => {
-    const curPrin = calc.refiCurPrinThisMonth;
-    const curInt = calc.refiCurIntThisMonth;
-    const newPrin = calc.refiNewPrinThisMonth;
-    const newInt = calc.refiNewIntThisMonth;
-    const curTax = calc.refiCurMonthlyTax;
-    const curIns = calc.refiCurMonthlyIns;
-    const newTax = calc.refiNewMonthlyTax;
-    const newIns = calc.refiNewMonthlyIns;
-    const curMI = refiCurrentMI;
-    const newMI = calc.refiNewMI;
-    const rows = [
-     { label: "Principal", cur: curPrin, nw: newPrin },
-     { label: "Interest", cur: curInt, nw: newInt },
-     ...(refiCurEscrowTax || refiNewEscrowTax ? [
-      { label: "Taxes", cur: refiCurEscrowTax ? curTax : 0, nw: refiNewEscrowTax ? newTax : 0, note: !refiNewEscrowTax ? "paid separately on new loan" : !refiCurEscrowTax ? "newly escrowed" : undefined },
-     ] : refiAnnualTax > 0 ? [{ label: "Taxes", cur: curTax, nw: curTax, note: "paid separately" }] : []),
-     ...(refiCurEscrowIns || refiNewEscrowIns ? [
-      { label: "Insurance", cur: refiCurEscrowIns ? curIns : 0, nw: refiNewEscrowIns ? newIns : 0, note: !refiNewEscrowIns ? "paid separately on new loan" : !refiCurEscrowIns ? "newly escrowed" : undefined },
-     ] : refiAnnualIns > 0 ? [{ label: "Insurance", cur: curIns, nw: curIns, note: "paid separately" }] : []),
-     { label: "MI/MIP", cur: curMI, nw: newMI },
-    ].filter(r => r.cur > 0 || r.nw > 0 || r.note);
-    return rows.map((r, i) => {
-     const delta = r.nw - r.cur;
-     return (
-      <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13, alignItems: "center" }}>
-       <span style={{ color: T.textSecondary }}>
-        {r.label}
-        {r.note && <span style={{ fontSize: 9, color: T.orange, display: "block", marginTop: 1 }}>({r.note})</span>}
-       </span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{fmt(r.nw)}</span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 12, color: delta < -0.5 ? T.green : delta > 0.5 ? T.red : T.textTertiary }}>
-        {Math.abs(delta) < 0.5 ? "—" : (delta > 0 ? "+" : "") + fmt(delta)}
-       </span>
-      </div>
-     );
-    });
-   })()}
-   {/* Total row */}
-   {(() => {
-    const totalDelta = calc.refiNewTotalPmt - calc.refiCurTotalPmt;
-    return (
-     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4, fontSize: 14 }}>
-      <span style={{ fontWeight: 700 }}>Total Payment</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.refiCurTotalPmt)}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(calc.refiNewTotalPmt)}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 13, color: totalDelta < -0.5 ? T.green : totalDelta > 0.5 ? T.red : T.textTertiary }}>
-       {Math.abs(totalDelta) < 0.5 ? "—" : (totalDelta > 0 ? "+" : "") + fmt(totalDelta)}
-      </span>
-     </div>
-    );
-   })()}
-   {/* Savings card */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: "10px 0", marginTop: 4, background: calc.refiMonthlyTotalSavings > 0 ? T.successBg : calc.refiMonthlyTotalSavings < 0 ? T.errorBg : T.pillBg, borderRadius: 8, paddingLeft: 10, paddingRight: 10 }}>
-    <span style={{ fontWeight: 600, fontSize: 13, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>Monthly {calc.refiMonthlyTotalSavings >= 0 ? "Savings" : "Increase"}</span>
-    <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 16, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>{fmt(Math.abs(calc.refiMonthlyTotalSavings))}</span>
-   </div>
-   {!(refiNewEscrowTax && refiNewEscrowIns) && (refiAnnualTax > 0 || refiAnnualIns > 0) && (
-    <Note color={T.orange} style={{ marginTop: 8 }}>No escrow — tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
-   )}
-  </Card>
- </Sec>
- {/* Interest comparison */}
- <Sec title="Interest Analysis">
-  <Card>
-   <MRow label="Current: This Month's Interest" value={fmt(calc.refiCurIntThisMonth)} />
-   <MRow label="New: This Month's Interest" value={fmt(calc.refiNewIntThisMonth)} color={calc.refiNewIntThisMonth < calc.refiCurIntThisMonth ? T.green : T.red} />
-   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-    <MRow label="Current: Remaining Interest" value={fmt(calc.refiCurRemainingInt)} sub={`over ${calc.refiEffRemaining} months`} />
-    <MRow label="New: Total Interest" value={fmt(calc.refiNewTotalInt)} sub={`over ${term * 12} months`} color={calc.refiNewTotalInt < calc.refiCurRemainingInt ? T.green : T.red} />
-   </div>
-   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label="Interest Savings" value={fmt(calc.refiIntSavings)} color={calc.refiIntSavings > 0 ? T.green : T.red} bold />
-    {calc.refiIntSavings < 0 && <Note color={T.orange} style={{ marginTop: 6 }}>New loan pays more total interest — often due to longer term or cash-out. Monthly savings may still justify it.</Note>}
-   </div>
-  </Card>
- </Sec>
- {/* Cost to refinance + breakeven */}
- <Sec title="Cost to Refinance">
-  <Card>
-   <MRow label="Closing Costs" value={fmt(calc.totalClosingCosts)} />
-   <MRow label="Discount Points" value={fmt(calc.loan * discountPts / 100)} sub={discountPts > 0 ? `${discountPts} pts` : "none"} />
-   {refiPurpose === "Cash-Out" && refiCashOut > 0 && <MRow label="Cash Proceeds" value={fmt(refiCashOut)} color={T.blue} />}
-   <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-    <MRow label="P&I Monthly Savings" value={fmt(calc.refiMonthlySavings)} color={calc.refiMonthlySavings > 0 ? T.green : T.red} bold />
-    <MRow label="Breakeven Period" value={calc.refiBreakevenMonths > 0 ? `${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs)` : "N/A"} bold />
-   </div>
-   {calc.refiBreakevenMonths > 0 && <div style={{ marginTop: 10 }}>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 4 }}>Breakeven Progress</div>
-    <div style={{ position: "relative", height: 24, background: T.inputBg, borderRadius: 12, overflow: "hidden" }}>
-     <div style={{ height: "100%", width: `${Math.min(100, (12 / calc.refiBreakevenMonths) * 100)}%`, background: T.green, borderRadius: 12, transition: "width 0.5s" }} />
-     <span style={{ position: "absolute", top: 4, left: 8, fontSize: 11, fontWeight: 600, color: T.text, fontFamily: FONT }}>1 yr = {fmt(calc.refiMonthlySavings * 12)} saved</span>
-    </div>
-    {[2, 3, 5].filter(y => y * 12 > calc.refiBreakevenMonths).slice(0, 2).map(y => (
-     <div key={y} style={{ fontSize: 12, color: T.textTertiary, marginTop: 4 }}>{y}yr net savings: <strong style={{ color: T.green }}>{fmt((calc.refiMonthlySavings * y * 12) - calc.totalClosingCosts)}</strong></div>
-    ))}
-   </div>}
-  </Card>
- </Sec>
- {/* Lifetime comparison */}
- <Sec title="Lifetime Comparison">
-  <Card>
-   <MRow label="Current: Remaining Payments" value={fmt(calc.refiCurTotalCostRemaining)} sub={`${calc.refiEffRemaining} × ${fmt(calc.refiEffPI)}`} />
-   <MRow label="New: Total Payments + Costs" value={fmt(calc.refiNewTotalCost)} sub={`${term * 12} × ${fmt(calc.refiNewPi)} + ${fmt(calc.totalClosingCosts)}`} />
-   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label="Lifetime Savings" value={fmt(calc.refiLifetimeSavings)} color={calc.refiLifetimeSavings > 0 ? T.green : T.red} bold />
-   </div>
-  </Card>
- </Sec>
- {/* ── Net Cash Out ── */}
- <Sec title="Net Cash Out">
-  <Card>
-   <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 10, textTransform: "uppercase" }}>Cash to Close Summary</div>
-   <MRow label="New Loan Amount" value={fmt(calc.refiNetNewLoan)} color={T.blue} />
-   <MRow label="− Closing Costs" value={`-${fmt(calc.refiNetClosingCosts)}`} />
-   <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
-   <MRow label="− Current Loan Payoff" value={`-${fmt(calc.refiNetPayoff)}`} />
-   <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
-    <MRow label={calc.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close"} value={calc.refiEstCashOut >= 0 ? fmt(calc.refiEstCashOut) : fmt(Math.abs(calc.refiEstCashOut))} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
-   </div>
-   {(calc.refiSkipPmtAmt > 0 || calc.refiEscrowRefund > 0) && <>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginTop: 16, marginBottom: 10, textTransform: "uppercase" }}>Money Back in Your Pocket</div>
-    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt)}/mo`} />}
-    {calc.refiEscrowRefund > 0 && <MRow label="Current Escrow Balance Refund" value={`+${fmt(calc.refiEscrowRefund)}`} color={T.green} />}
-   </>}
-   <div style={{ marginTop: 12, padding: "14px 16px", background: calc.refiNetCashInHand >= 0 ? T.successBg : T.errorBg, borderRadius: 14 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-     <span style={{ fontSize: 14, fontWeight: 700, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{calc.refiNetCashInHand >= 0 ? "Net Cash in Hand" : "Cash to Close at Signing"}</span>
-     <span style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiNetCashInHand >= 0 ? T.green : T.red }}>{calc.refiNetCashInHand >= 0 ? fmt(calc.refiNetCashInHand) : fmt(Math.abs(calc.refiNetCashInHand))}</span>
-    </div>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>
-     {calc.refiNetCashInHand >= 0 ? "You receive this amount at or after closing" : "You need to bring this amount to closing"}
-    </div>
-   </div>
-  </Card>
- </Sec>
- {/* Year-by-year amort comparison */}
- {calc.refiAmortCompare.length > 0 && <Sec title="Year-by-Year Balance">
-  <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 600, paddingBottom: 6, borderBottom: `1px solid ${T.separator}` }}>
-    <span>Yr</span><span style={{textAlign:"right"}}>Cur Bal</span><span style={{textAlign:"right"}}>New Bal</span><span style={{textAlign:"right"}}>Diff</span>
-   </div>
-   <div style={{ maxHeight: 320, overflowY: "auto" }}>
-    {calc.refiAmortCompare.map((row, i) => {
-     const diff = row.curBal - row.newBal;
-     return (
-      <div key={i} style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr 1fr", gap: 0, padding: "5px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12 }}>
-       <span style={{ color: T.textTertiary, fontWeight: 600 }}>{row.year}</span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500, color: row.curBal > 0 ? T.text : T.textTertiary }}>{row.curBal > 0 ? fmt(row.curBal) : "Paid"}</span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 500, color: row.newBal > 0 ? T.blue : T.textTertiary }}>{row.newBal > 0 ? fmt(row.newBal) : "Paid"}</span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: diff > 0 ? T.green : diff < 0 ? T.red : T.textTertiary }}>{diff !== 0 ? fmt(diff) : "—"}</span>
-      </div>
-     );
-    })}
-   </div>
-  </Card>
- </Sec>}
- <Sec title="Share">
-  <Card>
-   <TextInp label="Borrower Name" value={borrowerName} onChange={setBorrowerName} placeholder="Client's full name" />
-   <TextInp label="Borrower Email" value={borrowerEmail} onChange={setBorrowerEmail} placeholder="borrower@email.com" />
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-    <button onClick={handleEmailWorksheet} style={{ padding: "14px 0", background: T.blue, color: "#fff", border: "none", borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Email</button>
-    <button onClick={handlePrintPdf} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>PDF</button>
-    <button onClick={() => { const w = window.open("", "_blank", "width=700,height=900"); w.document.write(generatePdfHtml()); w.document.close(); }} style={{ padding: "14px 0", background: T.inputBg, color: T.text, border: `1px solid ${T.separator}`, borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Preview</button>
-   </div>
-   {loEmail && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8 }}>BCC: {loEmail}</div>}
-  </Card>
- </Sec>
- <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4, marginBottom: 12 }}>
-  <button onClick={() => setShowEmailModal(true)} style={{ padding: 14, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Email</button>
-  <button onClick={handlePrintPdf} style={{ padding: 14, background: `${T.blue}15`, border: `1px solid ${T.blue}33`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>Print PDF</button>
- </div>
- <Sec title="">
-  <Card style={{ background: T.pillBg }}>
-   <Note>Edit new loan on <strong>Calculator</strong> tab. Edit current loan on <strong>Setup</strong> tab. Closing costs on <strong>Costs</strong> tab.</Note>
-  </Card>
- </Sec>
-</>)}
+{tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}
-{tab === "refi3" && (<>
- <div style={{ marginTop: 20, textAlign: "center" }}>
-  <div style={{ fontSize: 14, fontWeight: 600, color: T.textTertiary, letterSpacing: "0.05em", marginBottom: 4 }}>THE</div>
-  <div style={{ fontSize: 28, fontWeight: 800, fontFamily: FONT, color: T.text, letterSpacing: "-0.03em" }}>3-Point Refi Test</div>
-  <div style={{ fontSize: 13, color: T.textTertiary, marginTop: 6 }}>Does this refinance make sense?</div>
- </div>
- {/* Score badge */}
- <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
-  <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 28px", borderRadius: 99, background: calc.refiTestScore === 3 ? `${T.green}18` : calc.refiTestScore >= 2 ? `${T.orange}18` : `${T.red}18` }}>
-   <span style={{ fontSize: 28 }}>{calc.refiTestScore === 3 ? "●" : calc.refiTestScore >= 2 ? "●" : "●"}</span>
-   <div>
-    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiTestScore === 3 ? T.green : calc.refiTestScore >= 2 ? T.orange : T.red }}>{calc.refiTestScore} / 3</div>
-    <div style={{ fontSize: 11, color: T.textTertiary }}>{calc.refiTestScore === 3 ? "ALL CLEAR — Refi makes sense!" : calc.refiTestScore === 2 ? "Close — worth discussing" : calc.refiTestScore === 1 ? "Proceed with caution" : "Refi may not be advisable"}</div>
-   </div>
-  </div>
- </div>
- {/* The 3 tests */}
- <Sec title="The Tests">
-  <Card>
-   <RefiTestLight
-    passed={calc.refiTest1Pass}
-    label={`1. Rate Improvement ≥ 0.50%`}
-    detail={calc.refiTest1Pass !== null ? `Current ${refiCurrentRate.toFixed(3)}% → New ${rate.toFixed(3)}% = ${calc.refiRateDrop >= 0 ? "-" : "+"}${Math.abs(calc.refiRateDrop).toFixed(3)}% ${calc.refiTest1Pass ? "✓" : "(need 0.50%+)"}` : "Enter current rate on Setup tab"}
-   />
-   <RefiTestLight
-    passed={calc.refiTest2Pass}
-    label="2. Breakeven Under 2 Years"
-    detail={calc.refiTest2Pass !== null ? (calc.refiBreakevenMonths > 0 ? `Breakeven: ${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs) ${calc.refiTest2Pass ? "✓" : "— too long"}` : "No monthly savings to break even") : "Need monthly savings to calculate"}
-   />
-   <div style={{ borderBottom: "none" }}>
-    <RefiTestLight
-     passed={calc.refiTest3Pass}
-     label="3. Accelerated Payoff (1+ Year Faster)"
-     detail={calc.refiTest3Pass !== null ? `Reinvesting ${fmt(calc.refiMonthlySavings)}/mo savings: new loan pays off in ${calc.refiAccelPayoff.newPayoffMos} mos vs current ${calc.refiAccelPayoff.curPayoffMos} mos = ${calc.refiAccelPayoff.yearsFaster.toFixed(1)} years faster ${calc.refiTest3Pass ? "✓" : "— not enough"}` : "Need monthly savings to calculate"}
-    />
-   </div>
-  </Card>
- </Sec>
- {/* Detailed explanation cards */}
- <Sec title="Test 1 — Rate">
-  <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
-    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Current Rate</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{refiCurrentRate.toFixed(3)}%</div></div>
-    <div><div style={{ fontSize: 11, color: T.textTertiary }}>New Rate</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{rate.toFixed(3)}%</div></div>
-    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Improvement</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: calc.refiRateDrop >= 0.5 ? T.green : T.red }}>{calc.refiRateDrop.toFixed(3)}%</div></div>
-   </div>
-   <Note color={calc.refiTest1Pass ? T.green : T.orange}>A minimum 0.50% rate drop ensures enough savings to justify closing costs and reset the amortization clock.</Note>
-  </Card>
- </Sec>
- <Sec title="Test 2 — Breakeven">
-  <Card>
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, textAlign: "center" }}>
-    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.totalClosingCosts)}</div></div>
-    <div><div style={{ fontSize: 11, color: T.textTertiary }}>Monthly Savings</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: calc.refiMonthlySavings > 0 ? T.green : T.red }}>{fmt(calc.refiMonthlySavings)}</div></div>
-   </div>
-   {calc.refiBreakevenMonths > 0 && <div style={{ marginTop: 12 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-     <span style={{ color: T.textTertiary }}>0 months</span>
-     <span style={{ fontWeight: 700, color: calc.refiTest2Pass ? T.green : T.red, fontFamily: FONT }}>{calc.refiBreakevenMonths} mos</span>
-     <span style={{ color: T.textTertiary }}>24 months</span>
-    </div>
-    <div style={{ height: 14, background: T.ringTrack, borderRadius: 99, overflow: "hidden", position: "relative" }}>
-     <div style={{ height: "100%", width: `${Math.min(100, (calc.refiBreakevenMonths / 24) * 100)}%`, background: calc.refiTest2Pass ? T.green : T.red, borderRadius: 99, transition: "width 0.5s" }} />
-    </div>
-   </div>}
-   <Note color={calc.refiTest2Pass ? T.green : T.orange}>Under 2 years means you recoup closing costs quickly. If you plan to stay shorter than the breakeven period, the refi doesn't pay for itself.</Note>
-  </Card>
- </Sec>
- <Sec title="Test 3 — Accelerated Payoff">
-  <Card>
-   {calc.refiMonthlySavings > 0 ? <>
-    <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 10 }}>If you take your <strong style={{ color: T.green }}>{fmt(calc.refiMonthlySavings)}/mo</strong> savings and apply it as extra principal:</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
-     <div><div style={{ fontSize: 11, color: T.textTertiary }}>Current Payoff</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>{calc.refiAccelPayoff.curPayoffMos}<span style={{ fontSize: 12 }}> mos</span></div><div style={{ fontSize: 11, color: T.textTertiary }}>{(calc.refiAccelPayoff.curPayoffMos / 12).toFixed(1)} yrs</div></div>
-     <div><div style={{ fontSize: 11, color: T.textTertiary }}>New + Extra</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{calc.refiAccelPayoff.newPayoffMos}<span style={{ fontSize: 12 }}> mos</span></div><div style={{ fontSize: 11, color: T.textTertiary }}>{(calc.refiAccelPayoff.newPayoffMos / 12).toFixed(1)} yrs</div></div>
-     <div><div style={{ fontSize: 11, color: T.textTertiary }}>Faster By</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.refiAccelPayoff.yearsFaster >= 1 ? T.green : T.red }}>{calc.refiAccelPayoff.yearsFaster.toFixed(1)}<span style={{ fontSize: 12 }}> yrs</span></div></div>
-    </div>
-    <Note color={calc.refiTest3Pass ? T.green : T.orange}>{calc.refiTest3Pass ? "Reinvesting savings accelerates payoff by 1+ year — the refi creates real wealth." : "Savings don't accelerate payoff enough. Consider if other benefits (cash flow, dropping MI) still make it worthwhile."}</Note>
-   </> : <Note color={T.orange}>No monthly savings to reinvest. This test requires a lower P&I payment on the new loan.</Note>}
-  </Card>
- </Sec>
- <Card style={{ marginTop: 8, background: T.pillBg }}>
-  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.6, textAlign: "center" }}>The 3-Point Refi Test is a framework by Three Point Thursday. Not all 3 points need to pass — but if they do, the refi is a no-brainer.</div>
- </Card>
- {/* ── Cost of Waiting / Breakeven Analysis ── */}
- {calc.refiPiMiSavings > 0 && calc.refiCostOfWaiting.length > 0 && (
-  <Sec title="Cost of Waiting">
-   <Card>
-    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14 }}>
-     If you <strong>wait</strong> for rates to drop further, how long would a future lower-rate refi take to <strong>catch up</strong> to the savings you missed by not refinancing now?
-    </div>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Breakeven Months to Recoup Lost Savings</div>
-    {/* Header row */}
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 0, fontSize: 10, fontWeight: 700, color: T.textTertiary, paddingBottom: 6, borderBottom: `2px solid ${T.separator}` }}>
-     <span>Wait for</span>
-     <span style={{ textAlign: "center" }}>1 Year</span>
-     <span style={{ textAlign: "center" }}>2 Years</span>
-     <span style={{ textAlign: "center" }}>3 Years</span>
-     <span style={{ textAlign: "center" }}>4 Years</span>
-    </div>
-    {/* Data rows */}
-    {calc.refiCostOfWaiting.map((row, i) => (
-     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 12, alignItems: "center" }}>
-      <span style={{ fontWeight: 600, color: T.text }}>-{row.drop}%</span>
-      {row.years.map((cell, j) => (
-       <span key={j} style={{ textAlign: "center", fontFamily: FONT, fontWeight: 600, fontSize: 11, color: cell.breakeven >= 120 ? T.red : cell.breakeven >= 60 ? T.orange : T.green }}>
-        {cell.breakeven >= 999 ? "Never" : cell.breakeven >= 120 ? `${Math.round(cell.breakeven / 12)}+ yrs` : `${cell.breakeven} mo`}
-       </span>
-      ))}
-     </div>
-    ))}
-    {/* Legend */}
-    <div style={{ marginTop: 12, padding: "10px 12px", background: T.pillBg, borderRadius: 10, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>
-     <strong>How to read:</strong> If you wait <strong>2 years</strong> hoping rates drop <strong>0.50%</strong>, the lost savings during that wait would take the future refi's savings a certain number of months to recoup. High numbers mean <strong>don't wait</strong>.
-    </div>
-    {/* Lost savings summary */}
-    <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-     {[1, 2, 3, 4].map(yr => (
-      <div key={yr} style={{ background: T.inputBg, borderRadius: 10, padding: "8px 6px", textAlign: "center" }}>
-       <div style={{ fontSize: 14, fontWeight: 700, color: T.red, fontFamily: FONT }}>{fmt(calc.refiPiMiSavings * yr * 12)}</div>
-       <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2 }}>Lost if wait {yr}yr</div>
-      </div>
-     ))}
-    </div>
-   </Card>
-  </Sec>
- )}
- <GuidedNextButton />
-</>)}
+{tab === "refi3" && renderRefi3Section()}
 {/* ═══ INVESTMENT PROPERTY ═══ */}
 {tab === "invest" && <InvestContent {...{T, isDesktop, calc, fmt, invCalc, invMonthlyRent, setInvMonthlyRent, invVacancy, setInvVacancy, invRentGrowth, setInvRentGrowth, invMgmt, setInvMgmt, invMaintPct, setInvMaintPct, invCapEx, setInvCapEx, hoa, invHoldYears, setInvHoldYears, invSellerComm, setInvSellerComm, invSellClosing, setInvSellClosing, appreciationRate, setAppreciationRate, Hero, Card, Sec, Inp, MRow, GuidedNextButton}} />}
 {/* ═══ RENT VS BUY ═══ */}

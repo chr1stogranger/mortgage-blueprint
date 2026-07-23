@@ -79,6 +79,7 @@ export default function OverviewTab(props) {
     city, propertyState, propertyZip,
     showInvestor, setShowInvestor,
     showRentVsBuy, setShowRentVsBuy,
+    showRefi3, renderRefiSummarySection, renderRefi3Section,
     hasSellProperty, setHasSellProperty,
     ownsProperties, setOwnsProperties,
     showProp19, prop19, sellPrice,
@@ -181,6 +182,29 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
+          SECTION 2b (REFI): REFI SUMMARY + 3-POINT TEST
+          Folded into the one-screen scroll (Christo 7.24). Bodies come from
+          MortgageBlueprint's render functions — the SAME JSX the standalone
+          routable tabs use, so there's one source of truth.
+          ═══════════════════════════════════════ */}
+      {isRefi && renderRefiSummarySection && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Refi Summary" T={T} id="overview-refi" heroStyle={true}>
+            {renderRefiSummarySection()}
+          </CollapsibleSection>
+        </>
+      )}
+      {isRefi && showRefi3 && renderRefi3Section && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="3-Point Refi Test" T={T} id="overview-refi3" heroStyle={true}>
+            {renderRefi3Section()}
+          </CollapsibleSection>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════
           SECTION 3: CASH TO CLOSE (Costs)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
@@ -232,12 +256,17 @@ export default function OverviewTab(props) {
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
-          SECTION 9: TAX SAVINGS
+          SECTION 9: TAX SAVINGS — purchase only. On a refi they already own
+          the home; the interest-deduction pitch isn't the story (Christo 7.24).
           ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
-      <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" heroStyle={true}>
-        <TaxContent {...props} />
-      </CollapsibleSection>
+      {!isRefi && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Tax Savings" T={T} id="overview-tax" heroStyle={true}>
+            <TaxContent {...props} />
+          </CollapsibleSection>
+        </>
+      )}
 
       {/* ═══════════════════════════════════════
           SECTION 10: EQUITY (Amortization)

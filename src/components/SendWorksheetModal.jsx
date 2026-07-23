@@ -20,23 +20,27 @@ const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 // Ops caps attachments at ~700KB of base64 (fits its 1MB body limit).
 const MAX_B64_CHARS = 700_000;
 
-async function renderWorksheetBlob(worksheetProps) {
+// docKind picks the document (Christo 7.24 — ONE refi PDF everywhere):
+//   "fees" → FeesWorksheetDoc (purchase)
+//   "refi" → RefiSummaryDoc (refi summary; pass includeFees in the props for page 2)
+async function renderWorksheetBlob(worksheetProps, docKind = "fees") {
   // Both imports are dynamic so react-pdf stays out of the main bundle.
-  const [{ pdf }, { FeesWorksheetDoc }] = await Promise.all([
+  const [{ pdf }, mod] = await Promise.all([
     import("@react-pdf/renderer"),
-    import("../lib/FeesWorksheetPdf.jsx"),
+    docKind === "refi" ? import("../lib/RefiSummaryPdf.jsx") : import("../lib/FeesWorksheetPdf.jsx"),
   ]);
-  return pdf(React.createElement(FeesWorksheetDoc, worksheetProps)).toBlob();
+  const Doc = docKind === "refi" ? mod.RefiSummaryDoc : mod.FeesWorksheetDoc;
+  return pdf(React.createElement(Doc, worksheetProps)).toBlob();
 }
 
-// Smart filename: FeesWorksheet-{BorrowerLastName|Scenario}-{MonDD}.pdf so
-// inboxes and Downloads folders sort cleanly (Christo 2026-07-05).
-export function worksheetFileName(borrowerName, scenarioName) {
+// Smart filename: {FeesWorksheet|RefiSummary}-{BorrowerLastName|Scenario}-{MonDD}.pdf
+// so inboxes and Downloads folders sort cleanly (Christo 2026-07-05).
+export function worksheetFileName(borrowerName, scenarioName, docKind = "fees") {
   const last = (borrowerName || "").trim().split(/\s+/).pop() || "";
   const base = (last || scenarioName || "Scenario").replace(/[^A-Za-z0-9-_ ]/g, "").trim().replace(/\s+/g, "-");
   const d = new Date();
   const datePart = `${d.toLocaleDateString("en-US", { month: "short" })}${d.getDate()}`;
-  return `FeesWorksheet-${base}-${datePart}.pdf`;
+  return `${docKind === "refi" ? "RefiSummary" : "FeesWorksheet"}-${base}-${datePart}.pdf`;
 }
 
 function blobToBase64(blob) {
@@ -72,6 +76,7 @@ export default function SendWorksheetModal({
   logMeta,                   // optional { scenarioName, borrowerName } for the send log
   signatureHtml,             // optional raw-HTML signature appended below the body at send
   onFallbackMailto,          // () => void — old mailto path
+  docKind = "fees",          // "fees" | "refi" — which PDF gets attached
 }) {
   const [to, setTo] = useState(defaultTo || "");
   const [subject, setSubject] = useState(defaultSubject || "");
@@ -94,7 +99,7 @@ export default function SendWorksheetModal({
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const emailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()), [to]);
-  const fileName = worksheetFileName(borrowerName, scenarioName);
+  const fileName = worksheetFileName(borrowerName, scenarioName, docKind);
 
   if (!open) return null;
 
@@ -109,7 +114,7 @@ export default function SendWorksheetModal({
     setPhase("sending");
     setError(null);
     try {
-      const blob = await renderWorksheetBlob(buildWorksheetProps());
+      const blob = await renderWorksheetBlob(buildWorksheetProps(), docKind);
       const contentBase64 = await blobToBase64(blob);
       if (contentBase64.length > MAX_B64_CHARS) {
         throw new Error("The PDF is too large to attach — use Download and send it manually.");
@@ -256,12 +261,12 @@ export default function SendWorksheetModal({
 }
 
 // Shared helper so callers can offer "Download PDF" from the same renderer.
-export async function downloadWorksheetPdf(worksheetProps, scenarioName, borrowerName) {
-  const blob = await renderWorksheetBlob(worksheetProps);
+export async function downloadWorksheetPdf(worksheetProps, scenarioName, borrowerName, docKind = "fees") {
+  const blob = await renderWorksheetBlob(worksheetProps, docKind);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = worksheetFileName(borrowerName, scenarioName);
+  a.download = worksheetFileName(borrowerName, scenarioName, docKind);
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -276,6 +281,7 @@ export function BorrowerSendModal({
   open, onClose, T,
   buildWorksheetProps, scenarioName, borrowerName,
   defaultTo, loanOfficer, loEmail,
+  docKind = "fees",
 }) {
   const [to, setTo] = useState(defaultTo || "");
   const [phase, setPhase] = useState("idle");
@@ -290,7 +296,7 @@ export function BorrowerSendModal({
     setPhase("sending");
     setError(null);
     try {
-      const blob = await renderWorksheetBlob(buildWorksheetProps());
+      const blob = await renderWorksheetBlob(buildWorksheetProps(), docKind);
       const contentBase64 = await blobToBase64(blob);
       if (contentBase64.length > MAX_B64_CHARS) throw new Error("PDF too large — use Save PDF instead.");
       // Routed through collab.js (Vercel Hobby 12-function cap — no new api file)
@@ -303,7 +309,7 @@ export function BorrowerSendModal({
           scenarioName: scenarioName || "",
           loName: loanOfficer || "",
           loEmail: loEmail || "",
-          filename: worksheetFileName(borrowerName, scenarioName),
+          filename: worksheetFileName(borrowerName, scenarioName, docKind),
           contentBase64,
         }),
       });
