@@ -2268,7 +2268,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     });
     const url = buildChallengeUrl(token);
     const place = prediction.neighborhood || prediction.city || 'this';
-    const text = `I bet this ${place} listing sells for ${fmt(prediction.guess)} — what's your call?`;
+    // No dollar amount in the message: the sender's number would anchor every
+    // guess in the thread (and the in-app reveal already keeps it hidden until
+    // the friend locks their own). Phrased for group texts — every recipient
+    // can tap the same link and lock an independent call.
+    const text = `I locked in my call on this ${place} listing. Lock in yours — closest to the sold price wins. My number stays hidden until you guess.`;
     if (navigator.share) {
       navigator.share({ title: 'PricePoint Challenge', text, url }).catch(() => {
         navigator.clipboard.writeText(`${text}\n${url}`);
@@ -4530,7 +4534,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.listPrice)}</div>
                 </div>
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
-                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells.
+                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells — and anyone else with the link can still jump in.
                 </div>
                 <button onClick={() => shareLiveChallenge(r, challengeData.listing)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
                   <Icon name="send" size={16} /> Challenge another friend
