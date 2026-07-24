@@ -94,6 +94,52 @@ const buildChallengeUrl = (token) => {
   return `${origin}/api/challenge?c=${token}`;
 };
 
+// ── Head-to-Head record (per device, localStorage) ──
+// Sold challenges settle instantly (winner known at guess time). For Sale
+// challenges settle when the home closes: we stash the pair {my guess, their
+// guess} as "pending" and score it later when the resolution notification
+// arrives carrying the sold price. No schema/migration needed.
+const H2H_KEY = 'pp_h2h_v1';
+const emptyH2H = () => ({ wins: 0, losses: 0, ties: 0, pending: [] });
+const readH2H = () => {
+  try { return { ...emptyH2H(), ...(JSON.parse(localStorage.getItem(H2H_KEY)) || {}) }; }
+  catch { return emptyH2H(); }
+};
+const writeH2H = (h) => { try { localStorage.setItem(H2H_KEY, JSON.stringify(h)); } catch { /* ignore */ } };
+// outcome: 'win' | 'loss' | 'tie'
+const recordH2H = (outcome) => {
+  const h = readH2H();
+  if (outcome === 'win') h.wins++; else if (outcome === 'loss') h.losses++; else h.ties++;
+  writeH2H(h); return h;
+};
+// Stash a For Sale challenge to settle later (keyed by zpid).
+const addPendingH2H = (zpid, myGuess, challengerGuess) => {
+  const z = String(zpid || '');
+  if (!z || !myGuess || !challengerGuess) return readH2H();
+  const h = readH2H();
+  h.pending = (h.pending || []).filter(p => p.zpid !== z);
+  h.pending.push({ zpid: z, myGuess, challengerGuess });
+  writeH2H(h); return h;
+};
+// When resolution notifications land (payload carries {zpid, sold_price}),
+// settle any matching pending For Sale challenges: closer guess wins.
+const settlePendingH2H = (notifications) => {
+  const h = readH2H();
+  if (!h.pending?.length || !Array.isArray(notifications)) return null;
+  const stillPending = [];
+  let changed = false;
+  for (const p of h.pending) {
+    const n = notifications.find(x => x?.type === 'prediction_resolved' && String(x?.payload?.zpid) === p.zpid && x?.payload?.sold_price);
+    if (!n) { stillPending.push(p); continue; }
+    const sold = Number(n.payload.sold_price);
+    const myOff = Math.abs(p.myGuess - sold), theirOff = Math.abs(p.challengerGuess - sold);
+    if (myOff < theirOff) h.wins++; else if (myOff > theirOff) h.losses++; else h.ties++;
+    changed = true;
+  }
+  if (!changed) return null;
+  h.pending = stillPending; writeH2H(h); return h;
+};
+
 // ── Feedback Messages — Emotional Design ──
 const FEEDBACK = {
   bullseye: {
@@ -1437,6 +1483,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [challengeData, setChallengeData] = useState(null);
   const [challengeGuess, setChallengeGuess] = useState("");
   const [challengeResult, setChallengeResult] = useState(null);
+  const [h2h, setH2h] = useState(() => readH2H()); // head-to-head W/L record
 
   // ── Notification State ──
   const [notifications, setNotifications] = useState([]);
@@ -2266,6 +2313,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         timestamp: Date.now(), revealed: true,
       });
       setView("challenge");
+      // For Sale H2H settles later — stash the pair to score when it closes.
+      setH2h(addPendingH2H(listing.zpid, val, challengeData.challengerGuess));
       setAllPredictions(prev => [...prev, {
         guess: val, zpid: listing.zpid || null, listPrice: lp, address: listing.address, neighborhood: listing.neighborhood,
         city: listing.city, state: listing.state, zip: listing.zip, beds: listing.beds, baths: listing.baths,
@@ -2299,6 +2348,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       iWon: myAccuracy >= challengeData.challengerAccuracy,
       dailyNumber: challengeData.dailyNumber, timestamp: Date.now(), revealed: true, isDaily: false,
     });
+    // Sold H2H settles instantly — closer accuracy wins.
+    setH2h(recordH2H(myAccuracy > challengeData.challengerAccuracy ? 'win' : myAccuracy < challengeData.challengerAccuracy ? 'loss' : 'tie'));
     setView("challenge"); // stay in challenge view to show result
     setAllResults(prev => [...prev, { guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)), revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now() }]);
 
@@ -3132,6 +3183,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (result) {
         setNotifications(result.notifications || []);
         setUnreadCount(result.unreadCount || 0);
+        // Settle any For Sale challenges whose homes just closed.
+        const upd = settlePendingH2H(result.notifications);
+        if (upd) setH2h(upd);
       }
     };
     poll();
@@ -4100,6 +4154,38 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               )}
             </div>
           )}
+
+          {/* Head-to-Head record — spans both challenge types, so it sits above
+              the per-mode tabs. Sold challenges score instantly; For Sale ones
+              settle when the home closes (shown as "pending"). */}
+          {(() => {
+            const total = h2h.wins + h2h.losses + h2h.ties;
+            const rate = total ? Math.round((h2h.wins / total) * 100) : 0;
+            return (
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 6 }}>Head to Head</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontSize: 26, fontWeight: 900, fontFamily: FONT, letterSpacing: "-0.02em" }}>
+                      <span style={{ color: T.green }}>{h2h.wins}</span><span style={{ color: T.textTertiary }}>–</span><span style={{ color: T.red }}>{h2h.losses}</span>
+                    </span>
+                    {h2h.ties > 0 && <span style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT }}>· {h2h.ties} tie{h2h.ties === 1 ? "" : "s"}</span>}
+                  </div>
+                </div>
+                {total > 0 ? (
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: rate >= 50 ? T.green : T.orange }}>{rate}%</div>
+                    <div style={{ fontSize: 10, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>win rate</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, maxWidth: 170, textAlign: "right", lineHeight: 1.4 }}>Challenge a friend to start your record</div>
+                )}
+                {h2h.pending?.length > 0 && (
+                  <div style={{ flexBasis: "100%", fontSize: 11, color: T.textTertiary, fontFamily: FONT, borderTop: `1px solid ${T.cardBorder}`, paddingTop: 10 }}>{h2h.pending.length} For&nbsp;Sale challenge{h2h.pending.length === 1 ? "" : "s"} pending — settles when {h2h.pending.length === 1 ? "it sells" : "they sell"}.</div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Stats Tabs */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
