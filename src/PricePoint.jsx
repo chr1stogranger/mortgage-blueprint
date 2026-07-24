@@ -4413,13 +4413,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </button>
             </div>
           </div>
-          {showMap && MAP_ENABLED ? (
-            /* ── A4: map of the live pool — pins only, spoiler-free ── */
-            <Suspense fallback={mapSuspenseFallback}>
-              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} />
-            </Suspense>
-          ) : (<>
-          {/* ── Address search (A3): predict ANY property, not just the pool ── */}
+          {/* ── Address search (A3): predict ANY property, not just the pool.
+              Rendered in BOTH list and map views (Christo 2026-07-24) — picking
+              a result closes the map so the guess card is visible. ── */}
           {!livePrediction && (
             <div style={isDesktop ? { maxWidth: 640, margin: "0 auto 12px" } : { marginBottom: 12 }}>
               <AddressAutocomplete
@@ -4427,10 +4423,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 stateFormat="short"
                 value={liveSearchAddr}
                 onChange={(v) => { setLiveSearchAddr(v); if (liveSearchError) setLiveSearchError(null); }}
-                onSelect={handleLiveAddressSelect}
-                onSubmit={runLiveAddressSearch}
+                onSelect={(v) => { setShowMap(false); handleLiveAddressSelect(v); }}
+                onSubmit={(v) => { setShowMap(false); runLiveAddressSearch(v); }}
                 localSuggestions={liveListings}
-                onSelectLocal={handleLiveListingSelect}
+                onSelectLocal={(l) => { setShowMap(false); handleLiveListingSelect(l); }}
                 localBadge="For sale"
                 proximity={liveProximity}
                 placeholder="Search any address…"
@@ -4454,6 +4450,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               )}
             </div>
           )}
+          {showMap && MAP_ENABLED ? (
+            /* ── A4: map of the live pool — pins only, spoiler-free ── */
+            <Suspense fallback={mapSuspenseFallback}>
+              <PPMapView listings={liveListings} T={T} darkMode={darkMode} activeIdx={liveIdx} onSelect={handleLiveMapSelect} onUnsupported={() => setShowMap(false)} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} />
+            </Suspense>
+          ) : (<>
           {liveSearchListing && !livePrediction ? (
             <>
               {liveSearchListing.status !== "active" && liveSearchListing.status !== "pending" && (
