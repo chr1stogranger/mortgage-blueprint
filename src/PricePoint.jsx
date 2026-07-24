@@ -1741,6 +1741,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   }, [view, fpIdx, fpListings, fetchPropertyDetails]);
 
+  // Auto-fetch details for an open CHALLENGE — the token only carries one
+  // photo + headline stats, so the recipient's card was a husk of the real
+  // For Sale experience (no carousel, no MLS remarks, no value signals).
+  useEffect(() => {
+    if (view === "challenge" && challengeData?.listing?.zpid) {
+      fetchPropertyDetails(challengeData.listing);
+    }
+  }, [view, challengeData, fetchPropertyDetails]);
+
   // ── Countdown ──
   const [countdown, setCountdown] = useState("");
 
@@ -2292,8 +2301,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const url = buildChallengeUrl(token);
     const accuracy = (100 - result.pctOff).toFixed(1);
     const text = `I scored ${accuracy}% accuracy on a ${result.neighborhood || result.city} home — think you can beat me?`;
+    // URL folded INTO text (no separate url field): iOS Messages drops the
+    // text bubble when both are passed, delivering a bare link. The trailing
+    // URL still unfurls into the rich preview.
     if (navigator.share) {
-      navigator.share({ title: 'PricePoint Challenge', text, url }).catch(() => {
+      navigator.share({ title: 'PricePoint Challenge', text: `${text}\n${url}` }).catch(() => {
         navigator.clipboard.writeText(`${text}\n${url}`);
         setShareToast(true); setTimeout(() => setShareToast(false), 2500);
       });
@@ -2319,8 +2331,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // the friend locks their own). Phrased for group texts — every recipient
     // can tap the same link and lock an independent call.
     const text = `I locked in my call on this ${place} listing. Lock in yours — closest to the sold price wins. My number stays hidden until you guess.`;
+    // URL folded INTO text — see shareChallenge; a separate url field makes
+    // iOS Messages drop the text bubble entirely.
     if (navigator.share) {
-      navigator.share({ title: 'PricePoint Challenge', text, url }).catch(() => {
+      navigator.share({ title: 'PricePoint Challenge', text: `${text}\n${url}` }).catch(() => {
         navigator.clipboard.writeText(`${text}\n${url}`);
         setShareToast(true); setTimeout(() => setShareToast(false), 2500);
       });
@@ -4548,7 +4562,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </>
             )}
           </div>
-          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" } } : {}) })}
+          {/* FOR SALE challenges get the FULL live-card experience (photo
+              carousel, MLS remarks, value signals, address, Zillow link) via
+              lazy-fetched details — it's a public active listing. SOLD
+              challenges stay on the token-only card: details/remarks could
+              leak the address and let the recipient look up the answer. */}
+          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" }, showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, details: propertyDetails[challengeData.listing.zpid] || null, isLoadingDetails: detailsLoading === challengeData.listing.zpid } : {}) })}
         </div>
         );
       })()}
