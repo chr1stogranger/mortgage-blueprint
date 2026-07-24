@@ -57,16 +57,54 @@ const asInt = (v) => {
 };
 
 export default async function handler(req, res) {
-  if (applyCors(req, res, { methods: 'POST, OPTIONS' })) return;
+  if (applyCors(req, res, { methods: 'GET, POST, OPTIONS' })) return;
   if (rateLimited(req, res, { limit: 30 })) return;
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
 
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return res.status(500).json({ error: 'Server not configured' });
+  }
+
+  // ── GET ?zpid=X — the group scoreboard for one property ────────────────────
+  // Every prediction on a zpid (one per player, UNIQUE(player_id, zpid)), with
+  // display names. Folded into this route rather than a new file (function-count
+  // discipline). player_ids are NOT returned; the caller passes its own deviceId
+  // (its private localStorage id) and gets a `you` flag back instead.
+  if (req.method === 'GET') {
+    const zpid = String(req.query.zpid || '').trim();
+    if (!zpid) return res.status(400).json({ error: 'Missing ?zpid' });
+    const { data, error } = await supabase
+      .from('pp_predictions')
+      .select('player_id, predicted_price, predicted_at, resolved, sold_price, pct_off, pp_players(display_name)')
+      .eq('zpid', zpid)
+      .order('predicted_at', { ascending: true })
+      .limit(50);
+    if (error) {
+      console.error('[pp-guess] scoreboard read failed:', error.message);
+      return res.status(500).json({ error: 'Scoreboard unavailable' });
+    }
+    let myPlayerId = null;
+    const deviceId = String(req.query.deviceId || '').trim();
+    if (deviceId) {
+      const { data: me } = await supabase
+        .from('pp_players').select('id').eq('device_id', deviceId).maybeSingle();
+      myPlayerId = me?.id || null;
+    }
+    const calls = (data || []).map(r => ({
+      name: r.pp_players?.display_name || '',
+      guess: r.predicted_price,
+      at: r.predicted_at,
+      resolved: !!r.resolved,
+      pctOff: r.pct_off,
+      you: myPlayerId != null && r.player_id === myPlayerId,
+    }));
+    const soldPrice = (data || []).find(r => r.resolved && r.sold_price)?.sold_price || null;
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ zpid, count: calls.length, calls, soldPrice });
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // Body may arrive parsed (Vercel) or as a string.

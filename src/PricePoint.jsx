@@ -7,7 +7,7 @@ import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
-  submitGuess, flushPendingGuesses,
+  submitGuess, flushPendingGuesses, fetchPropertyCalls,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
@@ -1518,6 +1518,52 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveHoodFilter, setLiveHoodFilter] = useState(null); // null = all, or zip string
   const [liveHoodName, setLiveHoodName] = useState(null); // display name of selected neighborhood
   const [livePrediction, setLivePrediction] = useState(null);
+  // ── Group scoreboard: every player's locked call on the current property ──
+  // Fetched AFTER a guess is locked (own reveal or challenge reveal), so it can
+  // never anchor anyone. Re-fetched once after a short delay so the caller's
+  // own just-POSTed prediction shows up without a manual refresh.
+  const [propCalls, setPropCalls] = useState(null);
+  useEffect(() => {
+    const zpid =
+      (view === "challenge" && challengeResult?.isLive && challengeData?.listing?.zpid) ||
+      (view === "live" && livePrediction?.zpid) || null;
+    if (!zpid) { setPropCalls(null); return; }
+    let dead = false;
+    const load = () => fetchPropertyCalls(zpid).then(d => { if (!dead && d) setPropCalls(d); });
+    load();
+    const t = setTimeout(load, 2000); // catch our own just-POSTed row
+    return () => { dead = true; clearTimeout(t); };
+  }, [view, livePrediction, challengeResult, challengeData]);
+
+  // Scoreboard rows for the current property — rendered only post-lock.
+  const renderCallsBoard = (listPrice) => {
+    const calls = propCalls?.calls || [];
+    if (calls.length === 0) return null;
+    const vs = (g) => (listPrice ? ((g - listPrice) / listPrice) * 100 : null);
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 8 }}>
+          The Field · {calls.length} {calls.length === 1 ? "call" : "calls"}
+        </div>
+        {calls.map((c, i) => {
+          const v = vs(c.guess);
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: c.you ? `${T.accent}14` : T.inputBg, border: `1px solid ${c.you ? `${T.accent}55` : T.cardBorder}`, marginBottom: 6 }}>
+              <div style={{ flex: 1, fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {c.you ? "You" : (c.name || "Player")}
+              </div>
+              {v != null && (
+                <div style={{ fontSize: 11, fontWeight: 700, fontFamily: FONT, color: v >= 0 ? T.orange : T.green }}>
+                  {v >= 0 ? "+" : ""}{v.toFixed(1)}% vs list
+                </div>
+              )}
+              <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: T.text, fontVariantNumeric: "tabular-nums" }}>{fmt(c.guess)}</div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   // Zpids predicted THIS session — the pool keeps them (so the map can show
   // "already predicted" pins), but the card cursor skips them. Reset on every
   // enterLiveMode; the durable exclusion lives in liveGuessedZpidsRef below.
@@ -2183,7 +2229,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       });
       setView("challenge");
       setAllPredictions(prev => [...prev, {
-        guess: val, listPrice: lp, address: listing.address, neighborhood: listing.neighborhood,
+        guess: val, zpid: listing.zpid || null, listPrice: lp, address: listing.address, neighborhood: listing.neighborhood,
         city: listing.city, state: listing.state, zip: listing.zip, beds: listing.beds, baths: listing.baths,
         sqft: listing.sqft, photo: listing.photo, propertyType: listing.propertyType,
         status: listing.status || 'active', vsListPct: vsList(val), timestamp: Date.now(), resolved: false, soldPrice: null,
@@ -2764,6 +2810,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
     const prediction = {
       guess: val,
+      zpid: listing.zpid || null, // scoreboard fetch keys on this
       listPrice: listing.listPrice,
       address: listing.address,
       neighborhood: listing.neighborhood,
@@ -2901,6 +2948,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
     const prediction = {
       guess: val,
+      zpid: listing.zpid || null, // scoreboard fetch keys on this
       listPrice: listing.listPrice,
       address: listing.address,
       neighborhood: listing.neighborhood,
@@ -4333,8 +4381,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: livePrediction.status === "pending" ? T.orange : T.green, marginTop: 2 }}>{(livePrediction.status || "active").toUpperCase()}</div>
                   </div>
                 </div>
+                {/* Real group scoreboard (replaced a hardcoded fake "68% of players"
+                    stat — no-pretend-UI). Solo call gets a group-text nudge instead. */}
+                {propCalls && propCalls.count >= 2 && renderCallsBoard(livePrediction.listPrice)}
                 <div style={{ padding: "12px", background: `${T.accent}12`, borderRadius: 10, marginBottom: 12, borderLeft: `3px solid ${T.accent}` }}>
-                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>68% of players think it'll sell higher. We'll notify you when this one closes.</div>
+                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>
+                    {propCalls && propCalls.count >= 2
+                      ? `${propCalls.count} calls locked on this one — closest to the sold price wins. We'll notify you when it closes.`
+                      : "You're the first call on this one. Send it to friends — closest to the sold price wins. We'll notify you when it closes."}
+                  </div>
                 </div>
                 <button onClick={() => shareLiveChallenge(livePrediction, liveListings[liveIdx])} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
                   <Icon name="send" size={16} /> Challenge a Friend
@@ -4533,6 +4588,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 3 }}>List Price</div>
                   <div style={{ fontSize: 18, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.listPrice)}</div>
                 </div>
+                {propCalls && propCalls.count > 2 && renderCallsBoard(r.listPrice)}
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
                   {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells — and anyone else with the link can still jump in.
                 </div>

@@ -224,6 +224,24 @@ export async function flushPendingGuesses() {
 // ── Live Predictions ───────────────────────────────────────────────────
 
 /**
+ * Fetch the group scoreboard for one property: every player's locked
+ * prediction on that zpid (name, guess, timestamp, `you` flag). Sends this
+ * device's own id so the server can mark our row without exposing player ids.
+ */
+export async function fetchPropertyCalls(zpid) {
+  if (!zpid) return null;
+  try {
+    const res = await fetch(apiUrl(
+      `/api/pp-guess?zpid=${encodeURIComponent(zpid)}&deviceId=${encodeURIComponent(getDeviceId())}`
+    ));
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Submit a live prediction (also creates a guess row).
  */
 export async function submitPrediction({
