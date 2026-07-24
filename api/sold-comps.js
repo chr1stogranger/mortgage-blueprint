@@ -713,7 +713,10 @@ function cleanNeighborhood(name) {
 // "Land" (no structure), and 0-bed rows (almost always mislabeled multi-unit /
 // commercial like a "0 bed, 1,750 sqft" building, not real studios).
 // Used at BOTH ingest and read so existing junk is culled too.
-const PLAYABLE_TYPES = new Set(['Single Family', 'Condo', 'Townhouse', 'Manufactured', 'Multi-Family']);
+// NOTE both multi-family spellings: RentCast/Redfin rows carry 'Multi-Family'
+// but Zillow-sourced rows are normalized to 'Multi Family' (normalizeHomeType)
+// — the hyphenless variant was being silently culled at read.
+const PLAYABLE_TYPES = new Set(['Single Family', 'Condo', 'Townhouse', 'Manufactured', 'Multi-Family', 'Multi Family']);
 function isPlayableRow(r) {
   const beds = r.beds;
   const sqft = r.sqft;
@@ -787,6 +790,12 @@ async function redfinRegionId(query, cacheKey, apiKey) {
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST },
     });
     const j = await r.json().catch(() => null);
+    if (!r.ok) {
+      // A 429 here is the RapidAPI MONTHLY quota — it kills the PRIMARY sold
+      // source for every market until the plan resets/upgrades, so shout.
+      console.error(`[SoldComps] redfin auto-complete ${query}: HTTP ${r.status} quota-left=${r.headers.get('x-ratelimit-requests-remaining') ?? '?'} body=${JSON.stringify(j?.message || j || '').slice(0, 120)}`);
+      return null;
+    }
     const sections = Array.isArray(j?.data) ? j.data : [];
     const rows = sections.flatMap(sec => (Array.isArray(sec?.rows) ? sec.rows : []));
     // Prefer region rows (Places: zip type "4" ids "2_xxxxx", city ids "6_xxxxx") in CA.
@@ -847,7 +856,13 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
   const regionId = zip
     ? await redfinRegionId(zip, `zip:${zip}`, apiKey)
     : await redfinRegionId(city, `city:${String(city).toLowerCase()}`, apiKey);
-  if (!regionId) return { rows: [], diag: 'regionId resolve failed' };
+  if (!regionId) {
+    // Loud: without this line a dead Redfin (e.g. exhausted monthly quota)
+    // looked identical to "region has no sales" and the funnel silently
+    // degraded to the junk Zillow feed + stale county records.
+    console.error(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: SKIPPED — regionId resolve failed (see auto-complete error above)`);
+    return { rows: [], diag: 'regionId resolve failed' };
+  }
   let items = [];
   try {
     const controller = new AbortController();
@@ -860,6 +875,10 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
       );
       j = await r.json().catch(() => null);
     } finally { clearTimeout(timer); }
+    if (!r.ok) {
+      console.error(`[SoldComps] redfin search-sold ${marketId}: HTTP ${r.status} quota-left=${r.headers.get('x-ratelimit-requests-remaining') ?? '?'} body=${JSON.stringify(j?.message || j || '').slice(0, 120)}`);
+      return { rows: [], diag: `search-sold HTTP ${r.status}` };
+    }
     items = j?.data || [];
     if (!Array.isArray(items)) items = [];
   } catch (e) {

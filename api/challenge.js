@@ -1,10 +1,20 @@
 // Challenge Landing Page — serves OG meta tags for rich link previews
 // then redirects to the main app with the challenge token
+//
+// Also doubles as the PricePoint home OG page: vercel.json redirects social
+// crawlers (bot user-agents) hitting pricepoint.realstack.app/ here with no
+// token, and the no-token branch serves the generic PricePoint card instead
+// of the Blueprint tags baked into the static index.html.
 export default function handler(req, res) {
   const { c } = req.query;
 
   if (!c) {
-    return res.redirect(302, '/');
+    return sendOgPage(res, {
+      title: 'RealStack PricePoint — The Home Price Guessing Game',
+      description: 'Guess what real homes sold for. Daily challenges, streaks, and leaderboards on real sold listings.',
+      canonicalUrl: 'https://pricepoint.realstack.app/',
+      redirectTo: '/',
+    });
   }
 
   // Decode token to extract display data for OG tags
@@ -41,11 +51,18 @@ export default function handler(req, res) {
   const description = isLive
     ? `A friend called this active ${hood} listing (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). What's your prediction?`
     : `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;
-  // Static OG image fallback (dynamic @vercel/og not supported in Vite Edge functions)
-  const ogImageUrl = `https://blueprint.realstack.app/og-pricepoint.png`;
-  const canonicalUrl = `https://blueprint.realstack.app/?c=${encodeURIComponent(c)}`;
+  return sendOgPage(res, {
+    title,
+    description,
+    canonicalUrl: `https://blueprint.realstack.app/?c=${encodeURIComponent(c)}`,
+    redirectTo: `/?c=${encodeURIComponent(c)}`,
+  });
+}
 
-  // Serve HTML with OG tags, then JS redirect to the SPA
+// Serve HTML with OG tags, then JS redirect to the SPA.
+function sendOgPage(res, { title, description, canonicalUrl, redirectTo }) {
+  // Static OG image fallback (dynamic @vercel/og not supported in Vite Edge functions)
+  const ogImageUrl = `https://pricepoint.realstack.app/og-pricepoint.png`;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600');
   res.status(200).send(`<!DOCTYPE html>
@@ -84,11 +101,11 @@ export default function handler(req, res) {
 <body>
   <div class="loader">
     <h2>PRICEPOINT</h2>
-    <p>Loading challenge...</p>
+    <p>Loading...</p>
   </div>
   <script>
-    // Redirect to SPA with challenge token
-    window.location.replace('/?c=' + ${JSON.stringify(encodeURIComponent(c)).replace(/</g, '\\u003c')});
+    // Redirect to the SPA (with the challenge token when present)
+    window.location.replace(${JSON.stringify(redirectTo).replace(/</g, '\\u003c')});
   </script>
 </body>
 </html>`);
