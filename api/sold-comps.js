@@ -38,6 +38,16 @@ const POOL_THRESHOLD = 40;                 // below this, run discovery to grow.
                                            // a whole city, so thin pools (like Alameda's stuck-at-5)
                                            // now self-heal on the next organic visit.
 const POOL_QUERY_LIMIT = 1000;             // pull up to N pool rows on read
+
+// ── In-memory raw-pool cache (per warm lambda) ──
+// The Supabase pool read is the single biggest egress source, and the
+// shuffle / per-user exclude / recency partition all run AFTER it on
+// user-independent rows. So we cache the RAW rows by (market, zip) and reuse
+// them across requests — still shuffling + excluding per request. A browsing
+// session (pagination, re-picks, multiple users on one warm instance) then
+// skips Supabase entirely for the TTL. Discovery writes force-refresh the key.
+const RAW_POOL_TTL_MS = 5 * 60 * 1000;     // 5 min
+const rawPoolCache = new Map();            // `${market}:${zip}` -> { data, at }
 const RESPONSE_SHUFFLE_CAP = 250;          // default shuffled slice size (was 50 — the
                                            // old ceiling that capped Free Play at 50).
                                            // Override per-request with ?limit=N.
@@ -267,22 +277,36 @@ export default async function handler(req, res) {
     // ─── 1. Read pool (12-month ingest window, then partition) ───
     // selectFromPool returns an object split into 'fresh' (within 6 months) and
     // 'older' (6-12 months). Callers prefer fresh; older is fallback only.
-    async function readPool() {
-      let q = supabase
-        .from('pp_property_pool')
-        .select('*')
-        .eq('market_id', marketId)
-        .gte('sold_date', ingestCutoffStr)
-        .limit(POOL_QUERY_LIMIT);
-      if (zip) q = q.eq('zip', zip);
-      const { data, error } = await q;
-      if (error) {
-        console.error('[SoldComps] Pool read error:', error.message);
-        return { prime: [], fresh: [], older: [], all: [] };
+    async function readPool(opts = {}) {
+      const cacheKey = `${marketId}:${zip || ''}`;
+      let data;
+      const hit = rawPoolCache.get(cacheKey);
+      if (!opts.forceFresh && hit && (Date.now() - hit.at) < RAW_POOL_TTL_MS) {
+        data = hit.data; // warm-lambda cache hit — no Supabase read (no egress)
+      } else {
+        // Explicit columns (NOT select('*')): the fat `description` text is the
+        // single biggest field and the list/pool view doesn't need it — it's
+        // lazy-loaded per card via /api/propertydetails when one is opened. This
+        // roughly halves the Supabase egress of every Sold-comps read.
+        let q = supabase
+          .from('pp_property_pool')
+          .select('id,zpid,address,city,state,zip,neighborhood,beds,baths,sqft,lot_sqft,year_built,property_type,list_price,sold_price,sold_date,photo,photos,latitude,longitude,detail_url')
+          .eq('market_id', marketId)
+          .gte('sold_date', ingestCutoffStr)
+          .limit(POOL_QUERY_LIMIT);
+        if (zip) q = q.eq('zip', zip);
+        const resp = await q;
+        if (resp.error) {
+          console.error('[SoldComps] Pool read error:', resp.error.message);
+          return { prime: [], fresh: [], older: [], all: [] };
+        }
+        data = resp.data || [];
+        rawPoolCache.set(cacheKey, { data, at: Date.now() });
       }
-      // Cull non-playable cards (0-bed/non-residential) on read too, so junk
-      // already persisted in the pool never reaches a player — no migration.
-      const rows = (data || []).filter(r => !excludeSet.has(String(r.zpid)) && isPlayableRow(r));
+      // Cull non-playable cards + per-user exclusions — applied PER REQUEST on
+      // the cached rows, so the cache stays user-independent and gameplay is
+      // unchanged (still shuffled/excluded downstream).
+      const rows = data.filter(r => !excludeSet.has(String(r.zpid)) && isPlayableRow(r));
       // Three-way recency partition: prime (0-3mo) > fresh (3-6mo) > older (6-12mo)
       const prime = rows.filter(r => new Date(r.sold_date) >= primeCutoff);
       const fresh = rows.filter(r => {
@@ -450,7 +474,9 @@ export default async function handler(req, res) {
     }
 
     // ─── Re-read pool and return ───
-    pool = await readPool();
+    // forceFresh: discovery just inserted new rows — bypass the cache and
+    // refresh it so the just-found listings show up now, not in 5 minutes.
+    pool = await readPool({ forceFresh: true });
     const { rows: shuffled, tier } = pickShuffledSlice(pool);
 
     console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: added ${newRows.length} via ${discoverySource}, pool now prime=${pool.prime.length} fresh=${pool.fresh.length} older=${pool.older.length}`);
