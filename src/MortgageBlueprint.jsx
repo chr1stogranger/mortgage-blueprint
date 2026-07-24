@@ -6003,29 +6003,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (tab !== "overview") { setTab("overview"); setTimeout(() => tryScroll(10), 90); }
   else tryScroll(10);
  };
- // Swipe navigation between the three apps (Blueprint <-> PricePoint <-> Markets).
- // Order matches the sidebar mode toggle. Blueprint's internal tabs are reached
- // via the tab bar, not swipe. (2026-06-09)
- const APP_ORDER = ["blueprint", "pricepoint", "markets"];
- const handleTouchStart = (e) => {
-  touchStartRef.current = e.touches[0].clientX;
-  touchStartYRef.current = e.touches[0].clientY;
- };
- const handleTouchEnd = (e) => {
-  if (touchStartRef.current === null) return;
-  const dx = e.changedTouches[0].clientX - touchStartRef.current;
-  const dy = e.changedTouches[0].clientY - touchStartYRef.current;
-  touchStartRef.current = null;
-  touchStartYRef.current = null;
-  // Only trigger on horizontal swipes (more X than Y movement, and threshold)
-  if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
-  // Don't hijack swipes while split-screen is active (desktop only).
-  if (splitMode) return;
-  const curIdx = APP_ORDER.indexOf(appMode);
-  if (curIdx === -1) return;
-  if (dx < -60 && curIdx < APP_ORDER.length - 1) setAppMode(APP_ORDER[curIdx + 1]);
-  else if (dx > 60 && curIdx > 0) setAppMode(APP_ORDER[curIdx - 1]);
- };
+ // Swipe navigation between apps REMOVED (Christo 2026-07-24): accidental
+ // horizontal swipes kept flipping Blueprint→PricePoint mid-scroll. Apps are
+ // switched via the sidebar/mode toggle only. Handlers are inert no-ops so the
+ // attachment points don't need touching (and a future gesture can slot back in).
+ const handleTouchStart = () => {};
+ const handleTouchEnd = () => {};
  // Auto-scroll tab bar to center active tab
  React.useEffect(() => {
   if (!tabBarRef.current) return;

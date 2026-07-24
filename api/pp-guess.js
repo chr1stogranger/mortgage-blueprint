@@ -56,6 +56,33 @@ const asInt = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+// ── Auth-aware player lookup ─────────────────────────────────────────────────
+// Signed-in users resolve to their ACCOUNT player (auth_user_id) so guesses
+// land on one identity across devices; guests resolve by device id as before.
+// Look-up only — never creates (the POST path creates via the RPC when needed).
+async function lookupPlayerId(supabase, req, deviceId) {
+  const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (bearer) {
+    try {
+      const { data, error } = await supabase.auth.getUser(bearer);
+      if (!error && data?.user?.id) {
+        const { data: canon } = await supabase
+          .from('pp_players').select('id')
+          .eq('auth_user_id', data.user.id)
+          .order('created_at', { ascending: true })
+          .limit(1).maybeSingle();
+        if (canon?.id) return canon.id;
+      }
+    } catch (e) {
+      console.error('[pp-guess] auth lookup failed (device fallback):', e.message);
+    }
+  }
+  if (!deviceId) return null;
+  const { data: row } = await supabase
+    .from('pp_players').select('id').eq('device_id', deviceId).maybeSingle();
+  return row?.id || null;
+}
+
 export default async function handler(req, res) {
   if (applyCors(req, res, { methods: 'GET, POST, OPTIONS' })) return;
   if (rateLimited(req, res, { limit: 30 })) return;
@@ -83,13 +110,7 @@ export default async function handler(req, res) {
       console.error('[pp-guess] scoreboard read failed:', error.message);
       return res.status(500).json({ error: 'Scoreboard unavailable' });
     }
-    let myPlayerId = null;
-    const deviceId = String(req.query.deviceId || '').trim();
-    if (deviceId) {
-      const { data: me } = await supabase
-        .from('pp_players').select('id').eq('device_id', deviceId).maybeSingle();
-      myPlayerId = me?.id || null;
-    }
+    const myPlayerId = await lookupPlayerId(supabase, req, String(req.query.deviceId || '').trim());
     const calls = (data || []).map(r => ({
       name: r.pp_players?.display_name || '',
       guess: r.predicted_price,
@@ -131,14 +152,19 @@ export default async function handler(req, res) {
   const market = (marketId || 'sf').toLowerCase();
 
   try {
-    // ── 2. Resolve player (service-role RPC — works even for never-registered clients) ──
-    const { data: playerId, error: playerErr } = await supabase.rpc(
-      'pp_get_or_create_player',
-      { p_device_id: deviceId, p_market: market }
-    );
-    if (playerErr || !playerId) {
-      console.error('[pp-guess] player resolve failed:', playerErr?.message);
-      return res.status(500).json({ error: 'Could not resolve player' });
+    // ── 2. Resolve player: account identity first (signed-in, cross-device),
+    // then the service-role RPC (creates the device player when needed) ──
+    let playerId = await lookupPlayerId(supabase, req, null); // auth-only probe
+    if (!playerId) {
+      const { data: pid, error: playerErr } = await supabase.rpc(
+        'pp_get_or_create_player',
+        { p_device_id: deviceId, p_market: market }
+      );
+      if (playerErr || !pid) {
+        console.error('[pp-guess] player resolve failed:', playerErr?.message);
+        return res.status(500).json({ error: 'Could not resolve player' });
+      }
+      playerId = pid;
     }
 
     // ── 3. Determine sold_price server-side, by mode ──────────────────────

@@ -9,8 +9,21 @@
  * This lets anonymous users have persistent identity across sessions.
  */
 
-import { getSupabaseClient } from './supabaseClient';
+import { getSupabaseClient, getSession } from './supabaseClient';
 import { apiUrl } from '../apiBase';
+
+// ── Auth header (cross-device identity) ────────────────────────────────
+// When the user is signed in, API calls carry the Supabase access token so
+// the server resolves guesses/scoreboards to their ACCOUNT player instead of
+// the per-device anonymous one. Guests get {} and keep device identity.
+async function authHeader() {
+  try {
+    const session = await getSession();
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 // ── Device ID (anonymous fingerprint) ──────────────────────────────────
 
@@ -176,7 +189,7 @@ export async function submitGuess(payload) {
   try {
     const res = await fetch(apiUrl('/api/pp-guess'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -203,11 +216,12 @@ export async function flushPendingGuesses() {
   if (!Array.isArray(q) || q.length === 0) return;
 
   const remaining = [];
+  const auth = await authHeader();
   for (const item of q) {
     try {
       const res = await fetch(apiUrl('/api/pp-guess'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify(item.body),
       });
       // 2xx (saved, incl. alreadyGuessed) or 4xx (unrecoverable) → drop.
@@ -233,7 +247,29 @@ export async function fetchPropertyCalls(zpid) {
   try {
     const res = await fetch(apiUrl(
       `/api/pp-guess?zpid=${encodeURIComponent(zpid)}&deviceId=${encodeURIComponent(getDeviceId())}`
-    ));
+    ), { headers: await authHeader() });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cross-device sync: link this device to the signed-in user's canonical
+ * player (merging any anonymous local history server-side) and return the
+ * account identity + every zpid the account has already called, so local
+ * exclusion sets can hydrate. Returns null when signed out.
+ */
+export async function syncPlayer() {
+  const auth = await authHeader();
+  if (!auth.Authorization) return null;
+  try {
+    const res = await fetch(apiUrl('/api/pp-player'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify({ deviceId: getDeviceId() }),
+    });
     if (!res.ok) return null;
     return await res.json();
   } catch {

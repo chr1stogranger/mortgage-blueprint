@@ -7,12 +7,13 @@ import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
-  submitGuess, flushPendingGuesses, fetchPropertyCalls,
+  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
   getNotificationPreferences, updateNotificationPreferences,
 } from './lib/pricePointDB';
+import { onAuthStateChange } from './lib/supabaseClient';
 
 // ── Map view (A4) — lazy-loaded so mapbox-gl (~1.5 MB) ships in its own
 // chunk, fetched only the first time a player opens the List | Map toggle.
@@ -1523,8 +1524,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // never anchor anyone. Re-fetched once after a short delay so the caller's
   // own just-POSTed prediction shows up without a manual refresh.
   const [propCalls, setPropCalls] = useState(null);
+  // A past prediction opened from Stats — shows that property's board.
+  // Same board as the live/challenge reveals: all paths key on the zpid.
+  const [boardProp, setBoardProp] = useState(null);
   useEffect(() => {
     const zpid =
+      boardProp?.zpid ||
       (view === "challenge" && challengeResult?.isLive && challengeData?.listing?.zpid) ||
       (view === "live" && livePrediction?.zpid) || null;
     if (!zpid) { setPropCalls(null); return; }
@@ -1533,7 +1538,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     load();
     const t = setTimeout(load, 2000); // catch our own just-POSTed row
     return () => { dead = true; clearTimeout(t); };
-  }, [view, livePrediction, challengeResult, challengeData]);
+  }, [view, livePrediction, challengeResult, challengeData, boardProp]);
+
+  // Open a past prediction's board. Predictions saved before 2026-07-24 have
+  // no zpid (the field wasn't persisted) — try to recover it by matching the
+  // address against the zip's active listings, and patch the stored row so
+  // the lookup only ever runs once.
+  const openPredictionBoard = (pred) => {
+    setPropCalls(null);
+    setBoardProp(pred);
+    if (pred.zpid || !pred.address || !pred.zip) return;
+    const cityName = pred.city || market?.city || "San Francisco";
+    const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    fetch(apiUrl(`/api/pricepoint?city=${encodeURIComponent(cityName)}&zip=${pred.zip}`))
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        const ls = d?.listings || d?.activeListings || d?.results || [];
+        const hit = ls.find(l => l?.zpid && norm(l.address) === norm(pred.address));
+        if (!hit) return;
+        setAllPredictions(prev => prev.map(x =>
+          (x.timestamp === pred.timestamp && x.address === pred.address) ? { ...x, zpid: String(hit.zpid) } : x));
+        setBoardProp(prev =>
+          (prev && prev.timestamp === pred.timestamp) ? { ...prev, zpid: String(hit.zpid) } : prev);
+      })
+      .catch(() => {});
+  };
 
   // Scoreboard rows for the current property — rendered only post-lock.
   const renderCallsBoard = (listPrice) => {
@@ -2581,6 +2610,45 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveGuessedZpids(prev => { const next = new Set(prev); next.add(id); return next; });
   };
 
+  // ── Cross-device account sync ──────────────────────────────────────────
+  // Signed-in users get ONE player across devices: /api/pp-player links this
+  // device to the account (merging any anonymous local history server-side)
+  // and returns the account's XP + every zpid it has called, which hydrates
+  // the local exclusion sets — a home guessed on the phone won't re-serve on
+  // the laptop. Runs on mount and again on every sign-in.
+  useEffect(() => {
+    let dead = false;
+    const runSync = async () => {
+      const s = await syncPlayer();
+      if (dead || !s) return;
+      if (s.playerId) {
+        setPlayerId(s.playerId);
+        try { localStorage.setItem('pp-player-id', s.playerId); } catch {}
+      }
+      if (s.totalXp != null) setServerXp(s.totalXp);
+      if (s.displayName) {
+        setDisplayName(prev => {
+          if (prev) return prev;
+          try { localStorage.setItem('pp-display-name', s.displayName); } catch {}
+          return s.displayName;
+        });
+      }
+      if (Array.isArray(s.liveZpids) && s.liveZpids.length) {
+        s.liveZpids.forEach(z => liveGuessedZpidsRef.current.add(String(z)));
+        try { localStorage.setItem('pp-live-guessed-zpids', JSON.stringify([...liveGuessedZpidsRef.current])); } catch {}
+        setLiveGuessedZpids(prev => { const next = new Set(prev); s.liveZpids.forEach(z => next.add(String(z))); return next; });
+      }
+      if (Array.isArray(s.guessedZpids) && s.guessedZpids.length) {
+        s.guessedZpids.forEach(z => fpGuessedZpidsRef.current.add(String(z)));
+        try { localStorage.setItem('pp-fp-guessed-zpids', JSON.stringify([...fpGuessedZpidsRef.current])); } catch {}
+      }
+    };
+    runSync();
+    const sub = onAuthStateChange((session) => { if (session) runSync(); });
+    return () => { dead = true; try { sub.unsubscribe(); } catch { /* noop */ } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const enterFreePlay = (hoods) => { // hoods: array of {zip, name}; empty/null = all of the city
     // Step 1: Filter to trusted sold listings only, AND only listings whose
     // city matches the current market. The city guard is a defensive belt-and-
@@ -2722,7 +2790,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveHoodFilter(zipFilter || null);
     setLiveHoodName(hoodName || null);
     setLiveIdx(0); setLiveGuessInput(""); setLivePrediction(null);
-    setLiveGuessedZpids(new Set());
+    // Seed the session guessed-set with the durable cross-session set: guessed
+    // listings now STAY in the pool (the map draws them as done pins, tappable
+    // → board) and the card cursor walks past them via isLiveGuessed.
+    setLiveGuessedZpids(new Set(liveGuessedZpidsRef.current));
     setView("live");
 
     // Neighborhoods span more zips than the single one the picker button carries
@@ -2736,15 +2807,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     })();
 
     const buildPool = (src) => {
-      const alreadyGuessed = liveGuessedZpidsRef.current;
       let pool = src.filter(isTrueActive);
       if (zipGroup) pool = pool.filter(l => zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)));
       // Property-type filter (multi-select; empty = all types)
       pool = pool.filter(l => fpTypeMatch(typeSel, l.propertyType));
-      // A listing you've already predicted is done — never re-serve it.
-      pool = pool.filter(l => !l.zpid || !alreadyGuessed.has(String(l.zpid)));
+      // NOTE: already-predicted listings are KEPT in the pool now — the map
+      // shows every active/pending listing with done-state pins (tap → board).
+      // The card cursor + liveRemaining skip them via isLiveGuessed instead.
       pool.sort(() => Math.random() - 0.5);
       return pool;
+    };
+    // Start the card cursor on the first listing you HAVEN'T called yet.
+    const firstUnguessedIdx = (pool) => {
+      const done = liveGuessedZpidsRef.current;
+      const i = pool.findIndex(l => !l.zpid || !done.has(String(l.zpid)));
+      return i >= 0 ? i : 0;
     };
     const prefetchFirst3 = (pool) => setTimeout(() => {
       const targets = pool.slice(0, 3).filter(l => l && l.zpid);
@@ -2757,6 +2834,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     if (listings.filter(isTrueActive).length > 0) {
       const pool = buildPool(listings);
       setLiveListings(pool);
+      setLiveIdx(firstUnguessedIdx(pool));
       prefetchFirst3(pool);
       return;
     }
@@ -2784,6 +2862,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
     const pool = buildPool(listings);
     setLiveListings(pool);
+    setLiveIdx(firstUnguessedIdx(pool));
     prefetchFirst3(pool);
   };
 
@@ -3131,6 +3210,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setShowMap(false);
   };
   const handleLiveMapSelect = (i) => {
+    const l = liveListings[i];
+    // Tapping a done pin opens that property's board (your call + The Field)
+    // instead of the guess card — you can't call the same home twice.
+    if (l && isLiveGuessed(l)) {
+      const pred = allPredictions.find(p =>
+        (p.zpid && String(p.zpid) === String(l.zpid)) ||
+        (p.address && l.address && p.address === l.address && p.zip === l.zip));
+      openPredictionBoard(pred || {
+        zpid: String(l.zpid), address: l.address, neighborhood: l.neighborhood,
+        city: l.city, state: l.state, zip: l.zip, beds: l.beds, baths: l.baths,
+        sqft: l.sqft, photo: l.photo, listPrice: l.listPrice,
+        guess: null, resolved: false, timestamp: 0,
+      });
+      return; // stay on the map — the board is an overlay
+    }
     setLiveIdx(i); setLivePrediction(null); setLiveGuessInput(""); setMlsExpanded(false);
     setLiveSearchListing(null); setLiveSearchAddr(""); setLiveSearchGuessInput(""); setLiveSearchError(null);
     setShowMap(false);
@@ -4209,20 +4303,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                       </div>
                     </div>
 
-                    {/* Recent Predictions */}
+                    {/* Predictions — every locked call, tap to open that
+                        property's board (your call + The Field) */}
                     {livePreds.length > 0 && (
                       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
-                        <OverlineLabel>RECENT PREDICTIONS</OverlineLabel>
+                        <OverlineLabel>YOUR PREDICTIONS</OverlineLabel>
+                        <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 6 }}>Tap a property to see everyone's calls</div>
                         <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                          {livePreds.slice(-5).reverse().map((pred, idx) => (
-                            <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.inputBg, borderRadius: 10 }}>
+                          {[...livePreds].reverse().map((pred, idx) => (
+                            <button key={idx} onClick={() => openPredictionBoard(pred)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.inputBg, borderRadius: 10, border: "none", cursor: "pointer", width: "100%", textAlign: "left" }}>
                               <img src={pred.photo || NO_PHOTO} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} onError={onPhotoError} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                  {resolveNeighborhood(pred)}
+                                  {pred.address || resolveNeighborhood(pred)}
                                 </div>
                                 <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>
-                                  {pred.beds}BR/{pred.baths}BA · {(pred.sqft || 0).toLocaleString()}sf
+                                  {pred.address ? `${resolveNeighborhood(pred)} · ` : ""}{pred.beds}BR/{pred.baths}BA · {(pred.sqft || 0).toLocaleString()}sf
                                 </div>
                               </div>
                               <div style={{ textAlign: "right" }}>
@@ -4231,7 +4327,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                                   {pred.resolved ? "RESOLVED" : "PENDING"}
                                 </div>
                               </div>
-                            </div>
+                              <Icon name="chevron-right" size={14} style={{ color: T.textTertiary, flexShrink: 0 }} />
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -4571,6 +4668,62 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
         );
       })()}
+
+      {/* ═══ PROPERTY BOARD — a past prediction, reopened from Stats/map ═══ */}
+      {boardProp && (
+        <div onClick={() => setBoardProp(null)} style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.9)", backdropFilter: "blur(16px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, animation: "ppFadeIn 0.25s ease", padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 20, overflow: "hidden", maxWidth: isDesktop ? 520 : 420, width: "100%", maxHeight: "88vh", overflowY: "auto", animation: "ppScaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}>
+            {boardProp.photo && <img src={boardProp.photo} alt="" style={{ width: "100%", height: isDesktop ? 200 : 150, objectFit: "cover", display: "block" }} onError={onPhotoError} />}
+            <div style={{ padding: "18px 20px 20px" }}>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: boardProp.resolved ? T.green : T.orange, marginBottom: 6 }}>
+                {boardProp.resolved ? "RESOLVED" : "PENDING SALE"}
+              </div>
+              <div style={{ fontSize: 19, fontWeight: 800, fontFamily: FONT, color: T.text }}>{boardProp.address || resolveNeighborhood(boardProp)}</div>
+              <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 3, marginBottom: 14 }}>
+                {resolveNeighborhood(boardProp)} · {boardProp.beds}BR/{boardProp.baths}BA · {(boardProp.sqft || 0).toLocaleString()}sf
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>List Price</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardProp.listPrice)}</div>
+                </div>
+                {/* guess is null when the pin was guessed on another device and
+                    the local prediction record doesn't exist — the board list
+                    below still shows your call via the server's `you` flag */}
+                {boardProp.guess ? (
+                  <div style={{ flex: 1, background: `${T.accent}12`, padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.accent}30` }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.accent }}>Your Call</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardProp.guess)}</div>
+                  </div>
+                ) : null}
+                {boardProp.resolved && boardProp.soldPrice ? (
+                  <div style={{ flex: 1, background: `${T.green}12`, padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.green}30` }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.green }}>Sold</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardProp.soldPrice)}</div>
+                  </div>
+                ) : null}
+              </div>
+              {boardProp.zpid
+                ? (renderCallsBoard(boardProp.listPrice) || (
+                    <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginBottom: 14 }}>
+                      {propCalls ? "Just your call on this one so far — send the link to friends." : "Loading the field…"}
+                    </div>
+                  ))
+                : (
+                  <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginBottom: 14 }}>
+                    This call was made before group scoreboards — the field can't be looked up for it.
+                  </div>
+                )}
+              {!boardProp.resolved && (
+                <button onClick={() => shareLiveChallenge(boardProp, boardProp)} style={{ width: "100%", padding: 13, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <Icon name="send" size={15} /> Challenge more friends
+                </button>
+              )}
+              <PillButton onClick={() => setBoardProp(null)} secondary>Close</PillButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ CHALLENGE RESULT ═══ */}
       {view === "challenge" && challengeResult && (
