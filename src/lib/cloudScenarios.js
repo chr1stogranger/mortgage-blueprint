@@ -195,7 +195,7 @@ export async function exportMyData(account) {
     account: {
       email: account.email,
       name: account.name,
-      created_via: 'RealStack Blueprint',
+      created_via: 'Mortgage Blueprint',
     },
     scenarios: scenarios || [],
   };

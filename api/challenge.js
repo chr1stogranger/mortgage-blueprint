@@ -17,8 +17,8 @@ export default function handler(req, res) {
 
   if (!c) {
     return sendOgPage(res, {
-      title: 'RealStack PricePoint — The Home Price Guessing Game',
-      description: 'Guess what real homes sold for. Daily challenges, streaks, and leaderboards on real sold listings.',
+      title: 'PricePoint — The Home Price Guessing Game',
+      description: 'Guess what real homes sold for. Daily challenges, streaks, and leaderboards on real sold listings. Powered by RealStack.',
       canonicalUrl: 'https://pricepoint.realstack.app/',
       redirectTo: '/',
     });
@@ -90,7 +90,7 @@ function sendOgPage(res, { title, description, canonicalUrl, redirectTo, image }
   <meta property="og:image" content="${esc(ogImageUrl)}" />
   ${isBrandCard ? '<meta property="og:image:width" content="1200" />\n  <meta property="og:image:height" content="630" />' : ''}
   <meta property="og:url" content="${canonicalUrl}" />
-  <meta property="og:site_name" content="RealStack PricePoint" />
+  <meta property="og:site_name" content="PricePoint" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />

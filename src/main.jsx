@@ -107,10 +107,10 @@ if (Capacitor.isNativePlatform()) {
 
 // ── Offline detection ──
 window.addEventListener('offline', () => {
-  document.title = '(Offline) RealStack Blueprint';
+  document.title = '(Offline) Mortgage Blueprint';
 });
 window.addEventListener('online', () => {
-  document.title = 'RealStack Blueprint';
+  document.title = 'Mortgage Blueprint';
 });
 
 createRoot(document.getElementById('root')).render(

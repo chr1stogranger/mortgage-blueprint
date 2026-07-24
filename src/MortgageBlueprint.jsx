@@ -6648,7 +6648,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {/* ═══ WELCOME TUTORIAL ═══ */}
   {showWelcome && consentGiven && !isLocked && (() => {
    const steps = [
-    { emoji: "home", title: "Welcome to RealStack Blueprint", body: "Your complete mortgage planning tool — designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
+    { emoji: "home", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool — designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
     { emoji: "", title: "How to Navigate", body: "Follow the sections from top to bottom — each one builds on the last:\n\nSetup — Enter property details\nCalculator — See your monthly payment\nCosts — Full closing cost breakdown\n Income → Debts → Assets — Your full financial picture\nQualify — Check if you're approved\nTax Savings → Amortization — See the long game", color: T.cyan },
     { emoji: "bar-chart", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios — try different prices, rates, or loan types — then compare them side-by-side on the Workspace tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch — it copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
     { emoji: "", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time — change anything and watch the whole picture update instantly.", color: T.green },
@@ -6982,8 +6982,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           textTransform: 'uppercase',
           letterSpacing: '2px',
           color: T.textTertiary,
+          marginBottom: 4
+        }}>MORTGAGE BLUEPRINT</div>
+        <div style={{
+          fontFamily: MONO,
+          fontSize: '0.55rem',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.15em',
+          color: T.textTertiary,
+          opacity: 0.75,
           marginBottom: 16
-        }}>REALSTACK BLUEPRINT</div>
+        }}>Powered by RealStack</div>
         <h2 style={{
           fontFamily: FONT,
           fontSize: 22,
@@ -8375,12 +8385,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
     {showPrivacy && (
      <div style={{ marginTop: 12, fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>
-      <div style={{ fontWeight: 700, fontSize: 14, color: T.text, marginBottom: 8 }}>Privacy Policy — RealStack Blueprint</div>
+      <div style={{ fontWeight: 700, fontSize: 14, color: T.text, marginBottom: 8 }}>Privacy Policy — Mortgage Blueprint</div>
       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 12 }}>Last updated: February 2026</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Storage:</strong> By default, everything you enter is stored locally on this device using browser storage and is not sent to our servers. If you create an account and turn on cloud sync, your blueprints are stored encrypted in our database so they can sync across your devices — you can export or delete them anytime from your account settings. Blueprints shared with you by a loan officer are stored securely so you can both work on them. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Tracking:</strong> RealStack Blueprint does not use cookies, analytics, or any third-party tracking. We do not collect, store, or sell your personal information.</div>
+      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Tracking:</strong> Mortgage Blueprint does not use cookies, analytics, or any third-party tracking. We do not collect, store, or sell your personal information.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>FRED API:</strong> If you enable live rate fetching, your device makes direct requests to the Federal Reserve Economic Data (FRED) API to retrieve current mortgage rates. No personal or financial data is included in these requests — only your API key and the rate series ID.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Accounts:</strong> RealStack Blueprint does not require account creation, login, or any personal identification to use.</div>
+      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Accounts:</strong> Mortgage Blueprint does not require account creation, login, or any personal identification to use.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Deletion:</strong> You can permanently delete all stored data at any time using the "Clear All Data" button in Settings.</div>
       <div><strong style={{ color: T.text }}>Contact:</strong> For questions about this privacy policy, contact Chris Granger (NMLS #952015).</div>
      </div>
@@ -8420,7 +8430,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      state remains for saved scenarios; the closing-date picker on the Costs tab
      supersedes COE Days as the user-facing control. */}
  <Card style={{ background: T.pillBg, marginTop: 8 }}>
-  <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>RealStack Blueprint v5 — 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
+  <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", color: T.textTertiary, marginBottom: 6 }}>Powered by RealStack</div>
+  <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Mortgage Blueprint v5 — 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
  </Card>
  {realtorPartner && (
   <Sec title="Realtor Partner Link">

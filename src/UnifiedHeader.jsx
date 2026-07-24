@@ -335,7 +335,7 @@ export default function UnifiedHeader({
             fontSize: isDesktop ? 16 : 14, fontWeight: 800,
             letterSpacing: "-0.03em", color: T.text,
             whiteSpace: "nowrap",
-          }}>Blueprint</span>
+          }}>{isDesktop ? "Mortgage Blueprint" : "Blueprint"}</span>
           {clientLabel && clientLabel.trim() && (
             <>
               <span style={{

@@ -1,4 +1,25 @@
-# RealStack Blueprint — repo-level Claude instructions
+# Mortgage Blueprint — repo-level Claude instructions
+
+## Product naming (adopted 2026-07-24)
+- Consumer products are product-first with a platform badge:
+  **Mortgage Blueprint — powered by RealStack** and
+  **PricePoint — powered by RealStack**. The LO console is
+  **RealStack Ops** and never takes the badge — Ops *is* the platform,
+  so "powered by" would be circular.
+- The badge appears **once per surface**, never inline in body copy.
+  Prose/`<title>`/OG use the em-dash form; UI chrome uses a `MONO`
+  uppercase microline (`POWERED BY REALSTACK`, ~10px, `0.15em`,
+  `T.textTertiary`) under the wordmark.
+- Full name on external surfaces (titles, OG, legal, PDF footers); short
+  name ("Blueprint") where space is tight — PWA `short_name`,
+  `apple-mobile-web-app-title` (iOS truncates ~12 chars), nav labels, and
+  the mobile `UnifiedHeader` wordmark (desktop shows the full name).
+- The RealStack shell drawer is the umbrella surface: it carries the
+  RealStack logo/wordmark and short product names in its nav. It gets
+  **no** badge — a platform doesn't badge its own products.
+- **"Homebase" is reserved** for a possible future borrower portal. Don't
+  use it as a product name; note that `loan-pipeline` already uses
+  `homebase*` as internal localStorage keys and a realtime topic.
 
 ## Brand (Grange kit, adopted 2026-07-17)
 - Grange blue `#3B6BF5` is the primary accent (`#2B4FCE` is the gradient

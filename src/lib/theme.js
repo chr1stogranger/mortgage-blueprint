@@ -1,6 +1,6 @@
 // src/lib/theme.js
 //
-// RealStack Blueprint theme tokens (CIO audit L-4, first step).
+// Mortgage Blueprint theme tokens (CIO audit L-4, first step).
 // Single in-repo source of truth for the DARK/LIGHT palettes — matches the
 // Brand Kit "Grange" system (adopted 2026-07-17, replacing indigo #6366F1):
 // Grange blue #3B6BF5 primary accent (#2B4FCE gradient partner ONLY — never
