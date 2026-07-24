@@ -1730,6 +1730,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [refiCurrentRate, setRefiCurrentRate] = useState(7);
  const [refiCurrentBalance, setRefiCurrentBalance] = useState(0);
  const [refiCurrentPayment, setRefiCurrentPayment] = useState(0);
+ // Statement split overrides (Christo 7.24): on an adjusted ARM the derived
+ // principal/interest split can't be trusted, so the two Current cells in the
+ // Monthly Payment comparison are lockable/editable. 0 = auto (derived).
+ const [refiCurPrinOverride, setRefiCurPrinOverride] = useState(0);
+ const [refiCurIntOverride, setRefiCurIntOverride] = useState(0);
  const [refiRemainingMonths, setRefiRemainingMonths] = useState(360);
  const [refiCashOut, setRefiCashOut] = useState(0);
  const [refiCurrentEscrow, setRefiCurrentEscrow] = useState(0);
@@ -1923,7 +1928,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   numBorrowers, borrowerNames,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
-  refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
+  refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, showRefi3, borrowerEmail,
   showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
@@ -2106,6 +2111,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiLastPaymentDate !== undefined) setRefiLastPaymentDate(s.refiLastPaymentDate);
   if (s.refiClosingPmtOverride !== undefined) setRefiClosingPmtOverride(s.refiClosingPmtOverride);
   if (s.refiPayoffFees !== undefined) setRefiPayoffFees(s.refiPayoffFees);
+  if (s.refiCurPrinOverride !== undefined) setRefiCurPrinOverride(s.refiCurPrinOverride);
+  if (s.refiCurIntOverride !== undefined) setRefiCurIntOverride(s.refiCurIntOverride);
   else if (s.refiCurrentLoanType === "ARM") setRefiCurrentRateType("Adjustable");
   if (s.refiCurrentLoanType === "ARM") setRefiCurrentLoanType("Conventional");
   // Escrow flags. New granular keys win; legacy single flags fan out to both
@@ -2414,7 +2421,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   incomes, otherIncome, otherIncome2, assets, creditScore, extraPayment, payExtra,
   hasSellProperty, ownsProperties, isRefi, firstTimeBuyer, loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, borrowerName, realtorName, reos,
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
-  refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
+  refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, borrowerEmail,
   darkMode, loaded, scenarioName]);
@@ -4696,10 +4703,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Statement P&I beats every estimate (Christo 7.24): an adjusted ARM's real
   // payment is whatever the servicer says it is — recast math only approximates
   // it. When the LO types the statement's Regular Monthly Payment, that number
-  // drives the payoff walk, savings, and the PDF; the principal/interest split
-  // still derives from balance × rate, which matches the statement once the
-  // balance and rate are the statement's own.
-  const refiEffPI = refiCurrentPayment > 0
+  // drives the payoff walk, savings, and the PDF.
+  const refiEffPIBase = refiCurrentPayment > 0
    ? refiCurrentPayment
    : refiOriginalAmount > 0 ? (armActive ? armSim.pi : refiCalcPI) : 0;
   // Statement balance is ground truth when the LO has it — the amortized
@@ -4713,11 +4718,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : refiCurrentEscrow;
   const refiCurMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.6 : 0);
   const refiCurMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.4 : 0);
+  // Current-month split, lockable (Christo 7.24). Auto: interest = balance ×
+  // rate, principal = payment − interest. A locked cell replaces its auto
+  // value, and once ANY cell is locked the effective P&I becomes the SUM of
+  // the two — so typing the statement's own Principal + Interest reproduces
+  // the statement's payment exactly and drives the payoff walk with it.
+  const refiCurIntThisMonth = refiCurIntOverride > 0 ? refiCurIntOverride : refiEffBalance * refiCurMr;
+  const refiCurPrinThisMonth = refiCurPrinOverride > 0 ? refiCurPrinOverride : Math.max(0, refiEffPIBase - refiCurIntThisMonth);
+  const refiEffPI = (refiCurPrinOverride > 0 || refiCurIntOverride > 0)
+   ? refiCurPrinThisMonth + refiCurIntThisMonth
+   : refiEffPIBase;
   // Per-component escrow: tax and insurance can be impounded independently on
   // each loan (Christo 2026-07-22).
   const refiCurTotalPmt = refiEffPI + (refiCurEscrowTax ? refiCurMonthlyTax : 0) + (refiCurEscrowIns ? refiCurMonthlyIns : 0) + refiCurrentMI;
-  const refiCurIntThisMonth = refiEffBalance * refiCurMr;
-  const refiCurPrinThisMonth = refiEffPI - refiCurIntThisMonth;
   const refiCurRemainingInt = (() => { if (!isRefi || refiEffPI <= 0) return 0; let bal = refiEffBalance, total = 0; for (let m = 0; m < refiEffRemaining && bal > 0; m++) { const intPmt = bal * refiCurMr; total += intPmt; bal -= (refiEffPI - intPmt); } return total; })();
   const refiCurTotalRemaining = refiCurRemainingInt + refiEffBalance;
   const refiCurTotalCostRemaining = refiEffPI * refiEffRemaining;
@@ -5187,7 +5200,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   incomes, otherIncome, otherIncome2, assets, payExtra, extraPayment, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride,
   isRefi, reos, refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees]);
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, refiCurPrinOverride, refiCurIntOverride]);
 
  // ── Refi title & escrow defaults, tiered on the new loan amount ──
  // The flat $2,400 escrow / $2,000 title defaults are purchase-shaped guesses.
@@ -5592,8 +5605,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     const curMI = refiCurrentMI;
     const newMI = calc.refiNewMI;
     const rows = [
-     { label: "Principal", cur: curPrin, nw: newPrin },
-     { label: "Interest", cur: curInt, nw: newInt },
+     // Current Principal + Interest are lockable/editable (Christo 7.24) —
+     // an adjusted ARM's split can't be derived reliably, so the LO can pin
+     // the statement's own numbers. Locking either makes the effective P&I
+     // the sum of the two (see calc).
+     { label: "Principal", cur: curPrin, nw: newPrin, edit: { override: refiCurPrinOverride, set: setRefiCurPrinOverride } },
+     { label: "Interest", cur: curInt, nw: newInt, edit: { override: refiCurIntOverride, set: setRefiCurIntOverride } },
      ...(refiCurEscrowTax || refiNewEscrowTax ? [
       { label: "Taxes", cur: refiCurEscrowTax ? curTax : 0, nw: refiNewEscrowTax ? newTax : 0, note: !refiNewEscrowTax ? "paid separately on new loan" : !refiCurEscrowTax ? "newly escrowed" : undefined },
      ] : refiAnnualTax > 0 ? [{ label: "Taxes", cur: curTax, nw: curTax, note: "paid separately" }] : []),
@@ -5610,7 +5627,29 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         {r.label}
         {r.note && <span style={{ fontSize: 9, color: T.orange, display: "block", marginTop: 1 }}>({r.note})</span>}
        </span>
-       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
+       {r.edit ? (
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+         <button
+          onClick={() => r.edit.set(r.edit.override > 0 ? 0 : Math.round(r.cur * 100) / 100)}
+          title={r.edit.override > 0 ? "Unlock — back to the calculated value" : "Lock to edit — pin the statement's number"}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "inline-flex" }}
+         >
+          <Icon name={r.edit.override > 0 ? "lock" : "unlock"} size={11} style={{ color: r.edit.override > 0 ? T.blue : T.textTertiary }} />
+         </button>
+         {r.edit.override > 0 ? (
+          <input
+           type="text" inputMode="decimal"
+           value={r.edit.override}
+           onChange={(e) => { const v = parseFloat(String(e.target.value).replace(/[^0-9.]/g, "")); r.edit.set(Number.isFinite(v) ? v : 0); }}
+           style={{ width: 76, textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text, background: T.inputBg, border: `1px solid ${T.blue}55`, borderRadius: 8, padding: "3px 6px", outline: "none" }}
+          />
+         ) : (
+          <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
+         )}
+        </span>
+       ) : (
+        <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(r.cur)}</span>
+       )}
        <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: T.blue }}>{fmt(r.nw)}</span>
        <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, fontSize: 12, color: delta < -0.5 ? T.green : delta > 0.5 ? T.red : T.textTertiary }}>
         {Math.abs(delta) < 0.5 ? "—" : (delta > 0 ? "+" : "") + fmt(delta)}
