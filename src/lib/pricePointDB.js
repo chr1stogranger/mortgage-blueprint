@@ -419,6 +419,28 @@ export async function fetchNotifications(playerId, all = false) {
   }
 }
 
+// ── Head-to-Head record sync (account, cross-device) ──
+export async function getServerH2H(playerId) {
+  if (!playerId) return null;
+  try {
+    const res = await fetch(apiUrl(`/api/notifications?action=h2h&playerId=${playerId}`), { headers: notifHeaders() });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return j?.h2h || null;
+  } catch { return null; }
+}
+
+export async function saveServerH2H(playerId, record) {
+  if (!playerId || !record) return;
+  try {
+    await fetch(apiUrl(`/api/notifications?action=h2h`), {
+      method: 'POST',
+      headers: notifHeaders(true),
+      body: JSON.stringify({ playerId, h2h: { wins: record.wins || 0, losses: record.losses || 0, ties: record.ties || 0 } }),
+    });
+  } catch { /* fire-and-forget */ }
+}
+
 /**
  * Mark notifications as read.
  */

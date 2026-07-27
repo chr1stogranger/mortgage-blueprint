@@ -12,6 +12,7 @@ import {
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
   getNotificationPreferences, updateNotificationPreferences,
+  getServerH2H, saveServerH2H,
 } from './lib/pricePointDB';
 import { onAuthStateChange } from './lib/supabaseClient';
 
@@ -2349,7 +2350,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       dailyNumber: challengeData.dailyNumber, timestamp: Date.now(), revealed: true, isDaily: false,
     });
     // Sold H2H settles instantly — closer accuracy wins.
-    setH2h(recordH2H(myAccuracy > challengeData.challengerAccuracy ? 'win' : myAccuracy < challengeData.challengerAccuracy ? 'loss' : 'tie'));
+    const h2hRec = recordH2H(myAccuracy > challengeData.challengerAccuracy ? 'win' : myAccuracy < challengeData.challengerAccuracy ? 'loss' : 'tie');
+    setH2h(h2hRec); saveServerH2H(playerId, h2hRec);
     setView("challenge"); // stay in challenge view to show result
     setAllResults(prev => [...prev, { guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)), revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now() }]);
 
@@ -3185,12 +3187,35 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         setUnreadCount(result.unreadCount || 0);
         // Settle any For Sale challenges whose homes just closed.
         const upd = settlePendingH2H(result.notifications);
-        if (upd) setH2h(upd);
+        if (upd) { setH2h(upd); saveServerH2H(playerId, upd); }
       }
     };
     poll();
     const interval = setInterval(poll, 60000); // poll every 60s
     return () => clearInterval(interval);
+  }, [playerId]);
+
+  // ── Head-to-Head: pull the account record and reconcile with this device ──
+  // The side with more decided games wins (so the count only grows); local
+  // pending For Sale challenges are kept (they're device-local until settled).
+  useEffect(() => {
+    if (!playerId) return;
+    let cancelled = false;
+    getServerH2H(playerId).then(server => {
+      if (cancelled || !server) return;
+      setH2h(local => {
+        const localTotal = (local.wins || 0) + (local.losses || 0) + (local.ties || 0);
+        const serverTotal = (server.wins || 0) + (server.losses || 0) + (server.ties || 0);
+        if (serverTotal > localTotal) {
+          const merged = { wins: server.wins || 0, losses: server.losses || 0, ties: server.ties || 0, pending: local.pending || [] };
+          writeH2H(merged);
+          return merged;
+        }
+        if (localTotal > serverTotal) saveServerH2H(playerId, local); // push this device up to the account
+        return local;
+      });
+    });
+    return () => { cancelled = true; };
   }, [playerId]);
 
   // ── Desktop sidebar tab sync ──
@@ -4852,6 +4877,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
                   {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells — and anyone else with the link can still jump in.
                 </div>
+                {(h2h.wins + h2h.losses + h2h.ties) > 0 && (
+                  <div style={{ textAlign: "center", fontSize: 12, fontFamily: FONT, color: T.textTertiary, marginBottom: 14 }}>
+                    Your record: <b><span style={{ color: T.green }}>{h2h.wins}</span><span style={{ color: T.textTertiary }}>–</span><span style={{ color: T.red }}>{h2h.losses}</span></b>{h2h.ties > 0 ? ` · ${h2h.ties} tie${h2h.ties === 1 ? "" : "s"}` : ""}
+                  </div>
+                )}
                 <button onClick={() => shareLiveChallenge(r, challengeData.listing)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
                   <Icon name="send" size={16} /> Challenge another friend
                 </button>

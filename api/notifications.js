@@ -72,6 +72,21 @@ export default async function handler(req, res) {
       }
     }
 
+    // GET /api/notifications?action=h2h&playerId=UUID — head-to-head W/L record
+    if (action === 'h2h') {
+      try {
+        const { data, error } = await supabase
+          .from('pp_players')
+          .select('h2h')
+          .eq('id', playerId)
+          .maybeSingle();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ h2h: data?.h2h || { wins: 0, losses: 0, ties: 0 } });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
     // GET /api/notifications?playerId=UUID&all=1  (default — fetch notifications)
     const { all } = req.query;
 
@@ -101,6 +116,25 @@ export default async function handler(req, res) {
 
   // ─── POST ───────────────────────────────────────────────────────────
   if (req.method === 'POST') {
+
+    // POST /api/notifications?action=h2h  { h2h:{wins,losses,ties} }
+    // Last-write-wins sync of the head-to-head record (client reconciles by
+    // adopting whichever side has more decided games, so this only grows).
+    if (action === 'h2h') {
+      const rec = (req.body && req.body.h2h) || {};
+      const clean = {
+        wins: Math.max(0, parseInt(rec.wins, 10) || 0),
+        losses: Math.max(0, parseInt(rec.losses, 10) || 0),
+        ties: Math.max(0, parseInt(rec.ties, 10) || 0),
+      };
+      try {
+        const { error } = await supabase.from('pp_players').update({ h2h: clean }).eq('id', playerId);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ ok: true, h2h: clean });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
+    }
 
     // POST /api/notifications?action=register  — register device token
     if (action === 'register') {
