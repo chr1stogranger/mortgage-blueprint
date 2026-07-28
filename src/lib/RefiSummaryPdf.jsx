@@ -250,8 +250,14 @@ export function RefiSummaryDoc(p) {
           <View style={s.col}>
             <View style={s.secHead}><Text style={s.secHeadText}>Net Cash in Hand</Text></View>
             <View style={s.line}>
-              <Text style={s.lineLabel}>Cash to close</Text>
-              <Text style={s.lineValue}>+/− {usd2(c.refiEstCashOut)}</Text>
+              {/* The sign lives in the number, not in a "+/−" prefix — that
+                  prefix printed "+/− -$8,537.56" on any negative figure, a
+                  double sign that reads as a typo. signed2 is what every other
+                  row in this file already uses; the label follows the sign the
+                  same way the Estimated Cash Out row above does, so a positive
+                  figure never sits under a "Cash to close" label. */}
+              <Text style={s.lineLabel}>{(c.refiEstCashOut || 0) >= 0 ? "Cash out at closing" : "Cash to close"}</Text>
+              <Text style={s.lineValue}>{signed2(c.refiEstCashOut)}</Text>
             </View>
             {skipRows.map(([l, v], i) => (
               <View key={i} style={s.line}>

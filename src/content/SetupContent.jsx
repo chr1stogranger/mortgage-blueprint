@@ -212,7 +212,7 @@ export default function SetupContent(props) {
           if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
           else if (creditScore >= 300) markTouched("fico-input-done");
         }}
-        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "normal", fontVariantNumeric: "tabular-nums" }} />
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
        <input type="range" min={300} max={850} step={5} value={creditScore || 650}

@@ -312,7 +312,7 @@ export default function QualifyContent(props) {
     <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="720"
      onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
      onBlur={() => { if (creditScore > 0 && creditScore < 300) setCreditScore(300); }}
-     style={{ flex: isDesktop ? "0 0 90px" : "0 0 62px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: isDesktop ? "10px 14px" : "10px 6px", color: T.text, fontSize: isDesktop ? 17 : 16, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "-0.02em" }} />
+     style={{ flex: isDesktop ? "0 0 90px" : "0 0 62px", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: isDesktop ? "10px 14px" : "10px 6px", color: T.text, fontSize: isDesktop ? 17 : 16, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "normal", fontVariantNumeric: "tabular-nums" }} />
     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
      <input type="range" min={300} max={850} step={1} value={creditScore || 650}
       onChange={e => setCreditScore(parseInt(e.target.value, 10))}
