@@ -4650,22 +4650,39 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // calculating correctly").
   const armActive = refiCurrentRateType === "Adjustable" && refiArmStartRate > 0;
   const refiCalcPI = calcPI(refiOriginalAmount, armActive ? refiArmStartRate : refiCurrentRate, refiOriginalTerm);
+  // The first payment is due the 1st of the SECOND month after closing — the
+  // closing month's interest is prepaid at the table, and payments run in
+  // arrears from there (close in January -> first payment March 1, covering
+  // February). Counting raw calendar months since closing therefore books one
+  // payment that has not been made, and the estimate lands exactly one
+  // principal reduction too low.
+  //
+  // Caught against Christo's own Fay statement (2026-07-28): closed Jan 2026,
+  // 7.126% on $1,162,500. Five payments (Mar–Jul) land at $1,157,797.24 — the
+  // statement's Outstanding Principal Balance to the cent, with payment 5's
+  // split ($951.72 / $6,881.04) matching its transaction line. The old count
+  // of six gave $1,156,840, low by exactly one $957 principal payment.
+  const REFI_FIRST_PMT_LAG = 1; // skipped months between closing and payment #1
   const refiMonthsElapsed = (() => {
    if (!refiClosedDate) return 0;
    const cd = new Date(refiClosedDate + "T00:00:00");
    if (isNaN(cd)) return 0;
    const now = new Date();
-   return Math.max(0, (now.getFullYear() - cd.getFullYear()) * 12 + (now.getMonth() - cd.getMonth()));
+   const cal = (now.getFullYear() - cd.getFullYear()) * 12 + (now.getMonth() - cd.getMonth());
+   return Math.max(0, cal - REFI_FIRST_PMT_LAG);
   })();
   const refiCalcRemainingMonths = Math.max(0, refiOrigNp - refiMonthsElapsed);
   // Months from close to the ARM adjustment (Infinity = never adjusted /
   // fixed loan) — the amortization switches rate & payment at this index.
+  // Indexed in PAYMENTS, not calendar months, so it carries the same
+  // first-payment lag: payment m is due at close + 1 + REFI_FIRST_PMT_LAG + m.
   const armAdjMonth = (() => {
    if (!armActive || !refiArmAdjustedDate || !refiClosedDate) return Infinity;
    const cd = new Date(refiClosedDate + "T00:00:00");
    const ad = new Date(refiArmAdjustedDate + "T00:00:00");
    if (isNaN(cd) || isNaN(ad)) return Infinity;
-   return Math.max(0, (ad.getFullYear() - cd.getFullYear()) * 12 + (ad.getMonth() - cd.getMonth()));
+   const cal = (ad.getFullYear() - cd.getFullYear()) * 12 + (ad.getMonth() - cd.getMonth());
+   return Math.max(0, cal - REFI_FIRST_PMT_LAG - 1);
   })();
   const armSim = (() => {
    if (refiOriginalAmount <= 0 || refiCalcPI <= 0) return { balance: 0, pi: refiCalcPI };
@@ -4719,8 +4736,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // The estimate box shows one number; this is the walk that produced it, so
   // the LO can reconcile it against the servicer's statement row by row. Same
   // recurrence as armSim (start rate → recast at the adjustment → extra
-  // principal every month), just recorded instead of collapsed. Payment #n is
-  // due the 1st of the month n months after close (interest in arrears).
+  // principal every month), just recorded instead of collapsed. Payment #1 is
+  // due the 1st of the SECOND month after close (see REFI_FIRST_PMT_LAG), and
+  // each row's interest is the month it covers, in arrears.
   const refiCurSchedule = (() => {
    if (refiOriginalAmount <= 0 || refiCalcPI <= 0 || !refiClosedDate) return [];
    const cd = new Date(refiClosedDate + "T00:00:00");
@@ -4740,7 +4758,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     const extra = Math.min(refiExtraPaid || 0, Math.max(0, bal - Math.max(0, pi - int)));
     const prin = Math.min(Math.max(0, pi - int), bal);
     bal = Math.max(0, bal - prin - extra);
-    const d = new Date(cd.getFullYear(), cd.getMonth() + m + 1, 1);
+    const d = new Date(cd.getFullYear(), cd.getMonth() + m + 1 + REFI_FIRST_PMT_LAG, 1);
     rows.push({
      m: m + 1,
      label: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
