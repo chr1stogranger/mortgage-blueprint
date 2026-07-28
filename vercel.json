@@ -23,8 +23,8 @@
     }
   ],
   "rewrites": [
-    { "source": "/privacy", "destination": "/api/privacy.html" },
-    { "source": "/terms", "destination": "/api/terms.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
