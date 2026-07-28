@@ -1,5 +1,5 @@
-import { FONT } from "../lib/fonts.js";
-import React from "react";
+import { FONT, MONO } from "../lib/fonts.js";
+import React, { useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
 
@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -61,6 +61,7 @@ export default function SetupContent(props) {
     refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate,
     refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance,
     refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment,
+    refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride,
     refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate, refiCurrentEscrow, setRefiCurrentEscrow,
     refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns,
     refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths,
@@ -69,6 +70,12 @@ export default function SetupContent(props) {
     refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3,
     hideHero = false,
   } = props;
+
+  // Current-loan amortization drawer — collapsed by default (it's a
+  // verification tool, not part of the entry flow) and non-persistent, same
+  // convention as the Monthly schedule in AmortContent.
+  const [showCurSchedule, setShowCurSchedule] = useState(false);
+  const [curSchedAll, setCurSchedAll] = useState(false);
 
   /* Property Location card.
      PURCHASE — a single ZIP input. City / County / State auto-populate from
@@ -590,6 +597,14 @@ export default function SetupContent(props) {
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Current Balance — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} sm tip="Outstanding principal from the most recent mortgage statement. When set, this overrides the auto-estimate and anchors the payoff calculation." />
     <Inp label="Current P&I — from statement" value={refiCurrentPayment} onChange={setRefiCurrentPayment} sm tip="The statement's Regular Monthly Payment (P&I only — no escrow). Overrides the estimated payment. Essential for an ARM that has already adjusted, where the recast math is only an approximation." />
+    {/* The statement's own principal/interest split (Christo 7.28). Deriving
+        it (interest = balance × rate) is only ever an approximation — the
+        servicer's split reflects the real accrual. Entering BOTH pins this
+        month's P&I to their sum, so the payoff walk and every savings figure
+        run off the statement instead of our estimate. Same state the lockable
+        cells on the Refi tab's Monthly Payment table write to. */}
+    <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} sm tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
+    <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} sm tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
     <div style={{ marginBottom: 6 }}>
      {/* Month only — the year is implied (a borrower 12+ months behind isn't
          getting a loan today). Auto-defaults from the calendar: last month, or
@@ -606,6 +621,21 @@ export default function SetupContent(props) {
      </select>
     </div>
    </div>
+   {/* Split confirmation. Once either half is pinned, the effective P&I is the
+       SUM of the two — so we say so out loud, and flag it when that sum
+       disagrees with the Regular Monthly Payment typed above (usually a typo,
+       or an escrow figure that slipped into the P&I field). */}
+   {(refiCurPrinOverride > 0 || refiCurIntOverride > 0) && (() => {
+    const sum = calc.refiCurPrinThisMonth + calc.refiCurIntThisMonth;
+    const mismatch = refiCurrentPayment > 0 && Math.abs(sum - refiCurrentPayment) > 1;
+    return (
+     <div style={{ fontSize: 11, marginTop: -4, marginBottom: 10, lineHeight: 1.5, color: mismatch ? T.orange : T.green, fontWeight: 600 }}>
+      {mismatch ? "! " : "✓ "}
+      Statement split: {fmt(calc.refiCurPrinThisMonth)} principal + {fmt(calc.refiCurIntThisMonth)} interest = <strong>{fmt(sum)}</strong> P&I{refiCurPrinOverride > 0 && refiCurIntOverride > 0 ? "" : " (the unentered half is derived)"}.
+      {mismatch && ` That's ${fmt(Math.abs(sum - refiCurrentPayment))} ${sum > refiCurrentPayment ? "above" : "below"} the ${fmt(refiCurrentPayment)} payment entered above — the split wins.`}
+     </div>
+    );
+   })()}
    {/* Closing-month payment question — when closing is after the grace day the
        borrower MUST make that month's payment before we can close, which drops
        the payoff. Auto-answered by the calendar; the LO can override. Only
@@ -636,6 +666,90 @@ export default function SetupContent(props) {
      </div>
     </div>
    )}
+   {/* ── Current loan amortization drawer (Christo 7.28) ──
+       The estimate box hands you one number; this is the month-by-month walk
+       that produced it, so the statement can be reconciled against the row
+       for today instead of taken on faith. Collapsed by default — it's a
+       verification tool, not part of the entry flow. */}
+   {calc.refiCurSchedule.length > 0 && (() => {
+    const sched = calc.refiCurSchedule;
+    const elapsed = calc.refiMonthsElapsed;
+    const hasExtra = sched.some(r => r.extra > 0);
+    // Default window: the year leading up to today plus a few months ahead —
+    // the rows an LO actually compares against a statement. "Show all" and
+    // the CSV cover full inspection.
+    const from = curSchedAll ? 0 : Math.max(0, elapsed - 12);
+    const to = curSchedAll ? sched.length : Math.min(sched.length, Math.max(18, elapsed + 6));
+    const visible = sched.slice(from, to);
+    const cols = hasExtra ? "0.5fr 0.8fr 1fr 1fr 1fr 0.8fr 1.2fr" : "0.5fr 0.8fr 1fr 1fr 1fr 1.2fr";
+    const delta = calc.refiStatementDelta;
+    return (
+     <div style={{ marginBottom: 14 }}>
+      <button
+       onClick={() => setShowCurSchedule(v => !v)}
+       style={{ width: "100%", padding: "10px 12px", background: showCurSchedule ? `${T.blue}12` : T.inputBg, border: `1px solid ${showCurSchedule ? `${T.blue}40` : T.inputBorder}`, borderRadius: 12, color: showCurSchedule ? T.blue : T.textSecondary, fontFamily: FONT, fontWeight: 600, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, textAlign: "left" }}
+      >
+       <span>Current Loan Amortization <span style={{ fontWeight: 500, color: T.textTertiary }}>· check our math against the statement</span></span>
+       <span style={{ fontSize: 14, lineHeight: 1 }}>{showCurSchedule ? "▴" : "▾"}</span>
+      </button>
+      {showCurSchedule && (
+       <div style={{ border: `1px solid ${T.separator}`, borderTop: "none", borderRadius: "0 0 12px 12px", padding: 12, marginTop: -2 }}>
+        {/* Reconciliation line — the whole point of the drawer. */}
+        <div style={{ fontSize: 11, lineHeight: 1.6, color: T.textSecondary, marginBottom: 10 }}>
+         After <strong>{elapsed}</strong> payment{elapsed === 1 ? "" : "s"} the schedule lands at <strong style={{ color: T.text }}>{fmt(calc.refiScheduleNowBal)}</strong>.
+         {delta == null ? " Enter the statement balance above to compare." : Math.abs(delta) < 1 ? " The statement matches it." : (
+          <span style={{ color: delta < 0 ? T.green : T.orange, fontWeight: 600 }}>
+           {" "}The statement says {fmt(refiCurrentBalance)} — {fmt(Math.abs(delta))} {delta < 0 ? "lower, so principal has been paid ahead" : "higher, so the assumptions are off (missed payments, a rate change, or a recast we don't know about)"}.
+          </span>
+         )}
+        </div>
+        <div style={{ overflowX: "auto" }}>
+         <div style={{ minWidth: hasExtra ? 400 : 350 }}>
+          <div style={{ display: "grid", gridTemplateColumns: cols, gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 600, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: MONO, letterSpacing: 0.4, textTransform: "uppercase" }}>
+           <span>#</span><span>Date</span><span style={{ textAlign: "right" }}>P&I</span><span style={{ textAlign: "right" }}>Interest</span><span style={{ textAlign: "right" }}>Principal</span>{hasExtra && <span style={{ textAlign: "right" }}>Extra</span>}<span style={{ textAlign: "right" }}>Balance</span>
+          </div>
+          {visible.map(r => (
+           <div key={r.m} style={{ display: "grid", gridTemplateColumns: cols, gap: 0, fontSize: 11, padding: "5px 0", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, background: r.isNow ? `${T.blue}12` : "transparent", opacity: r.isPast ? 1 : 0.55 }}>
+            <span style={{ color: T.textTertiary }}>{r.m}</span>
+            <span style={{ color: T.textSecondary }}>{r.label}{r.recast && <span style={{ color: T.orange, fontSize: 9, fontWeight: 700 }}> ▲</span>}</span>
+            <span style={{ textAlign: "right", fontWeight: 600 }}>{fmt(r.pi)}</span>
+            <span style={{ textAlign: "right", color: T.blue }}>{fmt(r.int)}</span>
+            <span style={{ textAlign: "right", color: T.green }}>{fmt(r.prin)}</span>
+            {hasExtra && <span style={{ textAlign: "right", color: T.orange }}>{r.extra > 0 ? fmt(r.extra) : "—"}</span>}
+            <span style={{ textAlign: "right", color: r.isNow ? T.text : T.textSecondary, fontWeight: r.isNow ? 700 : 500 }}>{fmt(r.bal)}</span>
+           </div>
+          ))}
+         </div>
+        </div>
+        <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
+         Highlighted row = today ({elapsed} payment{elapsed === 1 ? "" : "s"} in). Rows past it are projections at the current rate.
+         {sched.some(r => r.recast) && " ▲ marks the ARM recast."}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+         <button
+          onClick={() => setCurSchedAll(v => !v)}
+          style={{ flex: 1, padding: "8px 10px", background: `${T.blue}10`, border: `1px solid ${T.blue}30`, borderRadius: 10, color: T.blue, fontFamily: FONT, fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+         >
+          {curSchedAll ? `Collapse — show around today` : `Show all ${sched.length} payments`}
+         </button>
+         <button
+          onClick={() => {
+           const head = ["#", "Date", "P&I", "Interest", "Principal", "Extra", "Balance"];
+           const rows = [head, ...sched.map(r => [r.m, r.label, r.pi.toFixed(2), r.int.toFixed(2), r.prin.toFixed(2), r.extra.toFixed(2), r.bal.toFixed(2)])];
+           const blob = new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" });
+           const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `current-loan-amortization-${refiCurrentRate}pct.csv`; a.click();
+           URL.revokeObjectURL(a.href);
+          }}
+          style={{ padding: "8px 12px", background: "none", border: `1px solid ${T.separator}`, borderRadius: 10, color: T.textSecondary, fontFamily: FONT, fontWeight: 600, fontSize: 11, cursor: "pointer" }}
+         >
+          ⬇ CSV
+         </button>
+        </div>
+       </div>
+      )}
+     </div>
+    );
+   })()}
    {!refiClosedDate && !refiCurrentBalance && <Note color={T.orange}>Enter the close date above and we'll estimate the balance — or enter the statement balance directly.</Note>}
    {!refiClosedDate && (
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
