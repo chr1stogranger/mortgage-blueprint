@@ -8243,7 +8243,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 12 }}>
     <div>
      <div style={{ fontSize: 15, fontWeight: 600 }}>Animated background</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'} — blueprint house here, target in PricePoint, ribbons in Markets</div>
+     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'} — blueprint house here, target in PricePoint, stock line in Markets</div>
     </div>
     <button onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} style={{ padding: "6px 14px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, background: bgPaused ? T.tabActiveBg : "transparent", color: T.text, cursor: "pointer" }}>{bgPaused ? 'Resume' : 'Pause'}</button>
    </div>
