@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -63,6 +63,7 @@ export default function SetupContent(props) {
     refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment,
     refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride,
     refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure,
+    refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate,
     refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate, refiCurrentEscrow, setRefiCurrentEscrow,
     refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns,
     refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths,
@@ -686,10 +687,34 @@ export default function SetupContent(props) {
          payment, not the start-rate one (refiCalcPI). */}
      <div><div style={{ fontSize: 10, color: T.textTertiary }}>P&I Payment</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffPI)}</div></div>
      {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Months Elapsed</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{calc.refiMonthsElapsed}</div></div>}
-     {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Est. Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffBalance)}</div></div>}
-     {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>Remaining</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{calc.refiEffRemaining} mos</div></div>}
+     {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>{calc.refiFromStatement ? "Est. Balance" : "Estimated Loan Amount"}</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffBalance)}</div></div>}
+     {refiClosedDate && <div><div style={{ fontSize: 10, color: T.textTertiary }}>{calc.refiFromStatement ? "Remaining" : "Estimated Maturity Date"}</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{calc.refiFromStatement ? `${calc.refiEffRemaining} mos` : (calc.refiEffMaturity ? calc.refiEffMaturity.toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—")}</div></div>}
     </div>
    </div>)}
+   {/* Flow 2 reads its principal and interest OUT rather than in — there is no
+       statement to copy them from, so they're the month-1 split of the
+       reconstructed balance. Shown read-only so they can't be mistaken for
+       something the borrower told you (Christo 2026-07-28). */}
+   {!calc.refiFromStatement && calc.refiEffBalance > 0 && (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+     {[
+      { label: "Principal", note: "calculated", value: calc.refiCurPrinThisMonth },
+      { label: "Interest", note: "calculated", value: calc.refiCurIntThisMonth },
+     ].map(f => (
+      <div key={f.label}>
+       <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
+        {f.label} <span style={{ fontSize: 11, color: T.textTertiary }}>· {f.note}</span>
+       </div>
+       <div style={{ display: "flex", alignItems: "center", background: "transparent", border: `1px dashed ${T.inputBorder}`, borderRadius: 12, padding: "10px 12px" }}>
+        <span style={{ color: T.textTertiary, fontSize: 14, fontWeight: 600, marginRight: 4, fontFamily: FONT }}>$</span>
+        <span style={{ fontSize: 15, fontWeight: 700, fontFamily: FONT }}>
+         {(f.value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+       </div>
+      </div>
+     ))}
+    </div>
+   )}
    {/* The term solves itself (Christo 2026-07-28). Given the balance, the P&I
        split and the rate: n = -ln(1 - r*B/P) / ln(1+r) — no original amount,
        no funded date, no property lookup. When it disagrees with the closing
@@ -1008,6 +1033,79 @@ export default function SetupContent(props) {
      ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
     </div>
    )}
+   {/* ── Maturity, per the statement (Christo 2026-07-28) ──
+       A printed maturity date beats anything we derive: it already accounts
+       for modifications and recasts the closing-date estimate can't see. When
+       the statement doesn't carry one, we work backwards from the original
+       note instead — the same two fields Flow 2 asks for, surfaced here only
+       when they're actually needed. */}
+   {calc.refiFromStatement && (<>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "10px 0" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Does the statement include a maturity date?</span>
+     <YesNoSeg T={T}
+      value={refiHasMaturity === "" ? null : refiHasMaturity === "yes"}
+      onYes={() => setRefiHasMaturity("yes")}
+      onNo={() => setRefiHasMaturity("no")} />
+    </div>
+
+    {refiHasMaturity === "yes" && (
+     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Maturity date</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 340 }}>
+       <select value={refiMaturityDate ? refiMaturityDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiMaturityDate(""); return; } const y = refiMaturityDate ? refiMaturityDate.slice(0, 4) : String(new Date().getFullYear() + 25); setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+        <option value="">Month</option>
+        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+       </select>
+       <select value={refiMaturityDate ? refiMaturityDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiMaturityDate ? refiMaturityDate.slice(5, 7) : "01"; if (y) setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+        <option value="">Year</option>
+        {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() + i).map(y => <option key={y} value={y}>{y}</option>)}
+       </select>
+      </div>
+     </div>
+    )}
+
+    {refiHasMaturity === "no" && (
+     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+      <Note color={T.blue}>We can look up the original loan amount and funded date and work backwards.</Note>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+       <Inp label="Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} sm
+        tip="The original note amount, from the property profile or the recorded deed of trust." />
+       <div style={{ marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Funded</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+         <select value={refiClosedDate ? refiClosedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; const y = refiClosedDate ? refiClosedDate.slice(0, 4) : new Date().getFullYear(); if (m && y) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+          <option value="">Month</option>
+          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+         </select>
+         <select value={refiClosedDate ? refiClosedDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiClosedDate ? refiClosedDate.slice(5, 7) : "01"; if (y && m) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+          <option value="">Year</option>
+          {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+         </select>
+        </div>
+       </div>
+      </div>
+     </div>
+    )}
+
+    {/* What the answer buys us. */}
+    {(calc.refiEffMaturity || calc.refiSolvedTerm > 0) && (
+     <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 6 }}>That gives us</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+       <div>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>Maturity date</div>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>
+         {calc.refiEffMaturity ? calc.refiEffMaturity.toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—"}
+        </div>
+       </div>
+       <div>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>Total interest remaining</div>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiCurRemainingInt)}</div>
+       </div>
+      </div>
+     </div>
+    )}
+   </>)}
    {/* ── Other liens & history (Christo 2026-07-28) ──
        A second has to be subordinated or paid off, and that choice moves the
        new loan amount and the CLTV. Its RATE is what earns the question: the
