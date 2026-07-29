@@ -78,6 +78,11 @@ export default function SetupContent(props) {
   // Statements print cents, and the receipt is reconciled against one, so it
   // needs more precision than the app-wide dollar-rounded fmt().
   const money2 = (n) => (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Extra-payments switch. Derived from the amount rather than stored, so a
+  // scenario saved with extra principal reopens switched on; the latch only
+  // covers the moment between flipping it and typing a figure.
+  const [extraTouched, setExtraTouched] = useState(false);
+  const extraOn = refiExtraPaid > 0 || extraTouched;
   const [showCurSchedule, setShowCurSchedule] = useState(false);
   const [curSchedAll, setCurSchedAll] = useState(false);
 
@@ -493,13 +498,9 @@ export default function SetupContent(props) {
   </div>
  )}
 
- {/* ── The statement gate (Christo 2026-07-28) ──
-    Sits between Quick Start and Your Current Loan because it decides how
-    everything below gets captured: with the statement in hand we READ the
-    loan, without it we RECONSTRUCT it. null = unanswered, which is how every
-    scenario saved before today loads — and it falls through to the read
-    branch, which is exactly what the old single flow was. */}
- {isRefi && (
+ {/* ── Refi Sections (when applicable) ──
+    Refi Purpose moved up into the Quick Start card (2026-07-22). */}
+ {isRefi && <Sec title="Your Current Loan" hero>
   <Card style={{ marginTop: 12 }}>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
     <div style={{ flex: 1, minWidth: 180 }}>
@@ -520,11 +521,6 @@ export default function SetupContent(props) {
     />
    </div>
   </Card>
- )}
-
- {/* ── Refi Sections (when applicable) ──
-    Refi Purpose moved up into the Quick Start card (2026-07-22). */}
- {isRefi && <Sec title="Your Current Loan" hero>
   <Card>
    {/* Field order pairs the value with the note against it, then describes the
        note itself (Christo 2026-07-22):
@@ -588,63 +584,85 @@ export default function SetupContent(props) {
      </select>
     </div>
    </div>
-   {/* Extra payments live inline now — below Loan Closed In, right above the
-       auto-calc box they feed into (doc 7.23). */}
+   {/* ── Extra payments (Christo 2026-07-28) ──
+       Two columns matching the Amortization tab's control: the switch on the
+       left says whether there ARE extra payments, the amount sits beside it.
+       Cadence and the lump-sum date only appear once the switch is on, so the
+       off state is two tiles instead of a stack of questions. */}
    {refiClosedDate && (<>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 6 }}>Extra Payments</div>
-    <Note color={T.blue}>If the borrower has been making extra monthly principal payments, enter the amount here. This adjusts the estimated remaining balance.</Note>
-    {/* Cadence first (Christo 2026-07-28): a monthly extra needs only the
-        amount, but a lump sum needs a DATE — the same $20k in year two and
-        year six leave very different balances. */}
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>One time, or every month?</span>
-     <div style={{ display: "flex", gap: 5 }}>
-      {[["monthly", "Monthly"], ["once", "One time"]].map(([v, label]) => (
-       <button key={v} type="button" onClick={() => setRefiExtraCadence(v)}
-        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-         background: refiExtraCadence === v ? `${T.blue}22` : T.inputBg,
-         border: refiExtraCadence === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-         color: refiExtraCadence === v ? T.blue : T.textSecondary }}>
-        {label}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: extraOn ? 10 : 14 }}>
+     <Card pad={14} style={{ marginBottom: 0 }}>
+      <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>Extra Payments</div>
+      <div style={{ marginTop: 6 }}>
+       <button
+        type="button"
+        onClick={() => { if (extraOn) { setExtraTouched(false); setRefiExtraPaid(0); setRefiExtraOnceDate(""); } else { setExtraTouched(true); } }}
+        aria-pressed={extraOn}
+        title={extraOn ? "No extra principal payments" : "Borrower pays extra principal"}
+        style={{ width: 44, height: 26, borderRadius: 13, background: extraOn ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s", padding: 0 }}
+       >
+        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: extraOn ? 21 : 3, transition: "left 0.3s" }} />
        </button>
-      ))}
-     </div>
-    </div>
-    <Inp label={refiExtraCadence === "once" ? "Lump Sum Amount" : "Extra Monthly Principal"} value={refiExtraPaid} onChange={setRefiExtraPaid} />
-    {refiExtraCadence === "once" && (
-     <div style={{ marginBottom: 12 }}>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
-       When was it paid?
-       <InfoTip tip="A lump sum in year two leaves a very different balance than the same amount in year six, so the month it landed matters as much as the amount." />
-      </label>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-       <select value={refiExtraOnceDate ? refiExtraOnceDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiExtraOnceDate(""); return; } const y = refiExtraOnceDate ? refiExtraOnceDate.slice(0, 4) : String(new Date().getFullYear()); setRefiExtraOnceDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiExtraOnceDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-        <option value="">Month</option>
-        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-       </select>
-       <select value={refiExtraOnceDate ? refiExtraOnceDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiExtraOnceDate ? refiExtraOnceDate.slice(5, 7) : "01"; if (y) setRefiExtraOnceDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiExtraOnceDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-        <option value="">Year</option>
-        {Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
-       </select>
       </div>
-      {refiExtraPaid > 0 && !refiExtraOnceDate && (
-       <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 6 }}>
-        Pick the month it was paid — without it the lump sum isn't applied at all.
+     </Card>
+     {extraOn
+      ? <Inp label={refiExtraCadence === "once" ? "Lump Sum Amount" : "Extra Monthly Principal"} value={refiExtraPaid} onChange={setRefiExtraPaid} sm />
+      : <Card pad={14} style={{ marginBottom: 0, display: "flex", alignItems: "center" }}>
+         <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5 }}>
+          Minimum payments only. Switch on if the borrower has been paying extra principal — it moves the estimated balance.
+         </div>
+        </Card>}
+    </div>
+    {extraOn && (<>
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>One time, or every month?</span>
+      <div style={{ display: "flex", gap: 5 }}>
+       {[["monthly", "Monthly"], ["once", "One time"]].map(([v, label]) => (
+        <button key={v} type="button" onClick={() => setRefiExtraCadence(v)}
+         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: refiExtraCadence === v ? `${T.blue}22` : T.inputBg,
+          border: refiExtraCadence === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: refiExtraCadence === v ? T.blue : T.textSecondary }}>
+         {label}
+        </button>
+       ))}
+      </div>
+     </div>
+     {refiExtraCadence === "once" && (
+      <div style={{ marginBottom: 12 }}>
+       <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
+        When was it paid?
+        <InfoTip tip="A lump sum in year two leaves a very different balance than the same amount in year six, so the month it landed matters as much as the amount." />
+       </label>
+       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <select value={refiExtraOnceDate ? refiExtraOnceDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiExtraOnceDate(""); return; } const y = refiExtraOnceDate ? refiExtraOnceDate.slice(0, 4) : String(new Date().getFullYear()); setRefiExtraOnceDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiExtraOnceDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+         <option value="">Month</option>
+         {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+        </select>
+        <select value={refiExtraOnceDate ? refiExtraOnceDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiExtraOnceDate ? refiExtraOnceDate.slice(5, 7) : "01"; if (y) setRefiExtraOnceDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiExtraOnceDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+         <option value="">Year</option>
+         {Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
        </div>
-      )}
-     </div>
-    )}
-    {refiExtraPaid > 0 && refiOriginalAmount > 0 && (<div style={{ background: `${T.green}15`, borderRadius: 10, padding: 12, marginTop: 6, marginBottom: 14 }}>
-     <div style={{ fontSize: 11, fontWeight: 600, color: T.green, marginBottom: 4 }}>WITH EXTRA PAYMENTS</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Est. Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffBalance)}</div></div>
-      <div><div style={{ fontSize: 10, color: T.textTertiary }}>Min Payment Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiMinBalance)}</div></div>
-     </div>
-     <div style={{ borderTop: `1px solid ${T.green}33`, marginTop: 8, paddingTop: 8 }}>
-      <div style={{ fontSize: 10, color: T.textTertiary }}>Principal Paid Ahead</div>
-      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green }}>+{fmt(calc.refiMinBalance - calc.refiEffBalance)}</div>
-     </div>
-    </div>)}
+       {refiExtraPaid > 0 && !refiExtraOnceDate && (
+        <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 6 }}>
+         Pick the month it was paid — without it the lump sum isn't applied at all.
+        </div>
+       )}
+      </div>
+     )}
+     {refiExtraPaid > 0 && refiOriginalAmount > 0 && (<div style={{ background: `${T.green}15`, borderRadius: 10, padding: 12, marginTop: 6, marginBottom: 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: T.green, marginBottom: 4 }}>WITH EXTRA PAYMENTS</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+       <div><div style={{ fontSize: 10, color: T.textTertiary }}>Est. Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiEffBalance)}</div></div>
+       <div><div style={{ fontSize: 10, color: T.textTertiary }}>Min Payment Balance</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiMinBalance)}</div></div>
+      </div>
+      <div style={{ borderTop: `1px solid ${T.green}33`, marginTop: 8, paddingTop: 8 }}>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>Principal Paid Ahead</div>
+       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.green }}>+{fmt(calc.refiMinBalance - calc.refiEffBalance)}</div>
+      </div>
+     </div>)}
+    </>)}
    </>)}
    {refiOriginalAmount > 0 && refiCurrentRate > 0 && (<div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.blue, marginBottom: 6 }}>AUTO-CALCULATED</div>
@@ -690,15 +708,6 @@ export default function SetupContent(props) {
    {calc.refiFromStatement && (
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Inp label="Current Balance — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} sm tip="Outstanding principal from the most recent mortgage statement. When set, this overrides the auto-estimate and anchors the payoff calculation." />
-    <Inp label="Current P&I — from statement" value={refiCurrentPayment} onChange={setRefiCurrentPayment} sm tip="The statement's Regular Monthly Payment (P&I only — no escrow). Overrides the estimated payment. Essential for an ARM that has already adjusted, where the recast math is only an approximation." />
-    {/* The statement's own principal/interest split (Christo 7.28). Deriving
-        it (interest = balance × rate) is only ever an approximation — the
-        servicer's split reflects the real accrual. Entering BOTH pins this
-        month's P&I to their sum, so the payoff walk and every savings figure
-        run off the statement instead of our estimate. Same state the lockable
-        cells on the Refi tab's Monthly Payment table write to. */}
-    <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} sm tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
-    <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} sm tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
     <div style={{ marginBottom: 6 }}>
      {/* Month only — the year is implied (a borrower 12+ months behind isn't
          getting a loan today). Auto-defaults from the calendar: last month, or
@@ -714,6 +723,14 @@ export default function SetupContent(props) {
       {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
      </select>
     </div>
+    {/* The statement's own principal/interest split (Christo 7.28). Deriving
+        it (interest = balance × rate) is only ever an approximation — the
+        servicer's split reflects the real accrual. Entering BOTH pins this
+        month's P&I to their sum, so the payoff walk and every savings figure
+        run off the statement instead of our estimate. Same state the lockable
+        cells on the Refi tab's Monthly Payment table write to. */}
+    <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} sm tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
+    <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} sm tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
    </div>
    )}
    {!calc.refiFromStatement && (
@@ -723,21 +740,6 @@ export default function SetupContent(props) {
      replaces the estimate outright.
     </Note>
    )}
-   {/* Split confirmation. Once either half is pinned, the effective P&I is the
-       SUM of the two — so we say so out loud, and flag it when that sum
-       disagrees with the Regular Monthly Payment typed above (usually a typo,
-       or an escrow figure that slipped into the P&I field). */}
-   {(refiCurPrinOverride > 0 || refiCurIntOverride > 0) && (() => {
-    const sum = calc.refiCurPrinThisMonth + calc.refiCurIntThisMonth;
-    const mismatch = refiCurrentPayment > 0 && Math.abs(sum - refiCurrentPayment) > 1;
-    return (
-     <div style={{ fontSize: 11, marginTop: -4, marginBottom: 10, lineHeight: 1.5, color: mismatch ? T.orange : T.green, fontWeight: 600 }}>
-      {mismatch ? "! " : "✓ "}
-      Statement split: {fmt(calc.refiCurPrinThisMonth)} principal + {fmt(calc.refiCurIntThisMonth)} interest = <strong>{fmt(sum)}</strong> P&I{refiCurPrinOverride > 0 && refiCurIntOverride > 0 ? "" : " (the unentered half is derived)"}.
-      {mismatch && ` That's ${fmt(Math.abs(sum - refiCurrentPayment))} ${sum > refiCurrentPayment ? "above" : "below"} the ${fmt(refiCurrentPayment)} payment entered above — the split wins.`}
-     </div>
-    );
-   })()}
    {/* ── Payment receipt (Christo 2026-07-28) ──
        Mirrors the statement's "Explanation of Amount Due" so the LO reads down
        one column and down the other. The bolded Regular Monthly Payment is
