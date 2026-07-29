@@ -1005,6 +1005,12 @@ export default function SetupContent(props) {
     tip="Monthly mortgage insurance on the current loan, if any." />
    {/* No impounds means no escrow account, so the balance question is removed
        rather than asked and answered zero. */}
+   {calc.refiEscrowOn
+    ? <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm
+       tip="Money sitting in the escrow account — refunded after the old loan pays off. Printed on the statement, so read it rather than ask." />
+    : <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: 12 }}>
+       Nothing is impounded, so there's no escrow account and no balance to refund.
+      </div>}
    <div style={{ maxWidth: 320 }}>
     <div style={{ marginBottom: 6 }}>
      {/* Month only — the year is implied (a borrower 12+ months behind isn't
@@ -1022,12 +1028,6 @@ export default function SetupContent(props) {
      </select>
     </div>
    </div>
-   {calc.refiEscrowOn
-    ? <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm
-       tip="Money sitting in the escrow account — refunded after the old loan pays off. Printed on the statement, so read it rather than ask." />
-    : <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: 12 }}>
-       Nothing is impounded, so there's no escrow account and no balance to refund.
-      </div>}
    {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
      ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
