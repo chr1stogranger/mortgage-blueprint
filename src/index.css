@@ -47,6 +47,18 @@ h1 {
   line-height: 1.1;
 }
 
+/* Brand Kit: form controls do NOT inherit font properties from :root — every
+   browser resets them — so the tabular-figures rule above never reached a
+   single input, and typed digits rendered proportional while displayed ones
+   were tabular. Restate it here rather than inline on each of ~45 inputs,
+   which is what let the two drift apart in the first place (Christo
+   2026-07-28). */
+input,
+select,
+textarea {
+  font-variant-numeric: tabular-nums;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
