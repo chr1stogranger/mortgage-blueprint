@@ -500,7 +500,7 @@ export default function SetupContent(props) {
     scenario saved before today loads — and it falls through to the read
     branch, which is exactly what the old single flow was. */}
  {isRefi && (
-  <Card style={{ marginTop: 12, background: T.pillBg }}>
+  <Card style={{ marginTop: 12 }}>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
     <div style={{ flex: 1, minWidth: 180 }}>
      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.01em" }}>
@@ -524,7 +524,7 @@ export default function SetupContent(props) {
 
  {/* ── Refi Sections (when applicable) ──
     Refi Purpose moved up into the Quick Start card (2026-07-22). */}
- {isRefi && <Sec title="Your Current Loan">
+ {isRefi && <Sec title="Your Current Loan" hero>
   <Card>
    {/* Field order pairs the value with the note against it, then describes the
        note itself (Christo 2026-07-22):
