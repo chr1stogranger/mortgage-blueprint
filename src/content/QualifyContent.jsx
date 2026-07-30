@@ -2,6 +2,7 @@ import { FONT } from "../lib/fonts.js";
 import React from "react";
 import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
+import { getApplyUrl } from "../lib/applyUrl.js";
 // AMI lookup retained in src/data/caAmi.js for future re-enabling, but no
 // longer rendered in the Debt to Income Summary card.
 
@@ -350,7 +351,7 @@ export default function QualifyContent(props) {
    </div>
    <div style={{ fontSize: 14, color: T.textSecondary, marginTop: 6 }}>{isRefi ? "All 3 pillars cleared!" : "All 5 pillars cleared!"}</div>
    <div style={{ fontSize: 12, color: T.textTertiary, fontStyle: "italic", marginTop: 2 }}>Based on the information you provided.</div>
-   <button onClick={() => isRefi ? setTab("refi") : window.open("https://2179191.my1003app.com/952015/register", "_blank")}
+   <button onClick={() => isRefi ? setTab("refi") : (getApplyUrl() && window.open(getApplyUrl(), "_blank"))}
     style={{ marginTop: 16, padding: "12px 28px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT }}>{isRefi ? "View Refi Summary →" : "Get Pre-Approved →"}</div>
     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>{isRefi ? "See your savings breakdown" : "Complete my application to lock in your approval"}</div>
@@ -400,10 +401,12 @@ export default function QualifyContent(props) {
      </div>
     </div>
    </div>
-   <button onClick={() => window.open("https://2179191.my1003app.com/952015/register", "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+   {getApplyUrl() && (
+   <button onClick={() => window.open(getApplyUrl(), "_blank")} style={{ marginTop: 14, width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
     <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
    </button>
+   )}
   </Card>
  )}
  {calc.qualifyingIncome <= 0 && (

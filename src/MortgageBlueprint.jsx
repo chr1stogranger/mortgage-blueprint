@@ -16,6 +16,7 @@ import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT, tintOver, isTranslucentColor } from "./lib/theme.js";
 import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
+import { DEFAULT_APPLY_URL, getApplyUrl, applyHref } from "./lib/applyUrl.js";
 import Icon from "./Icon";
 import { apiUrl, WEB_ORIGIN } from "./apiBase";
 // ── Self-healing lazy loader (stale-deploy recovery) ──
@@ -606,8 +607,8 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
      {allGreen && <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 2, fontStyle: "italic" }}>Based on the information you provided.</div>}
     </div>
    </div>
-   {allGreen && (
-    <button onClick={() => window.open("https://2179191.my1003app.com/952015/register", "_blank")} style={{ marginTop: 4, width: "100%", maxWidth: 340, padding: "12px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
+   {allGreen && getApplyUrl() && (
+    <button onClick={() => window.open(getApplyUrl(), "_blank")} style={{ marginTop: 4, width: "100%", maxWidth: 340, padding: "12px 20px", background: "linear-gradient(135deg, #4a90d9, #3a7dc4)", border: "none", borderRadius: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(74,144,217,0.35)" }}>
      <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Get Pre-Approved →</div>
      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Complete my application to lock in your approval</div>
     </button>
@@ -1620,10 +1621,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // LO identity — device-level, seeded from bp_lo_info (survives scenario
  // switches and sync; "Set once — applies to all scenarios" for real now).
  const loInfoSaved = (() => { try { return JSON.parse(localStorage.getItem("bp_lo_info") || "{}"); } catch { return {}; } })();
+ // True only on the very first render of a fresh device (before the persist
+ // effect writes the defaults back) — the signal that identity was never
+ // customized here, so a signed-in LO should be seeded from their Ops profile.
+ const [loInfoWasEmpty] = useState(!loInfoSaved.loanOfficer && !loInfoSaved.loEmail);
  const [loanOfficer, setLoanOfficer] = useState(loInfoSaved.loanOfficer ?? "Chris Granger");
  const [loEmail, setLoEmail] = useState(loInfoSaved.loEmail ?? "cgranger@xperthomelending.com");
  const [loPhone, setLoPhone] = useState(loInfoSaved.loPhone ?? "(415) 987-8489");
  const [loNmls, setLoNmls] = useState(loInfoSaved.loNmls ?? "952015");
+ // Where "Get Pre-Approved" sends borrowers — each LO's own 1003 portal.
+ // Default stays Chris's portal so the public consumer app is unchanged.
+ const [applyUrl, setApplyUrl] = useState(loInfoSaved.applyUrl ?? DEFAULT_APPLY_URL);
  // Email signature (Christo 2026-07-05) — used at the bottom of worksheet
  // emails; device-persisted like Ops' signature (bp_email_signature).
  const [loSignature, setLoSignature] = useState(() => {
@@ -1641,8 +1649,52 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // (Effect must sit BELOW every const it references — TDZ in deps array
  //  crashed the 2026-07-05 deploy when it lived above companyName.)
  useEffect(() => {
-  try { localStorage.setItem("bp_lo_info", JSON.stringify({ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls })); } catch { /* private mode */ }
- }, [loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls]);
+  try { localStorage.setItem("bp_lo_info", JSON.stringify({ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, applyUrl })); } catch { /* private mode */ }
+ }, [loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls, applyUrl]);
+ // ── Seed LO identity from the signed-in team account (2026-07-29) ──
+ // A device belongs to whoever signed in last (bp_lo_info_owner). Rules:
+ //  · same owner signs in again → leave everything alone (manual edits win)
+ //  · no owner recorded but identity was customized → grandfather it to the
+ //    current signer (Chris's existing devices keep their branding)
+ //  · fresh device, or a DIFFERENT team member signs in → pull their
+ //    name/NMLS/phone/company from the Ops marketing profile + roster, and
+ //    clear the apply URL so borrowers are never sent to another LO's 1003.
+ useEffect(() => {
+  const email = (auth?.user?.email || "").toLowerCase();
+  if (!email || isBorrower || !isCloud) return;
+  let owner = "";
+  try { owner = (localStorage.getItem("bp_lo_info_owner") || "").toLowerCase(); } catch { /* private mode */ }
+  if (owner === email) return;
+  const claim = () => { try { localStorage.setItem("bp_lo_info_owner", email); } catch { /* private mode */ } };
+  if (!owner && !loInfoWasEmpty) { claim(); return; }
+  (async () => {
+   try {
+    const token = localStorage.getItem("bp_token") || "";
+    const base = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
+    const hdrs = { Authorization: `Bearer ${token}` };
+    const [pRes, lRes] = await Promise.all([
+     fetch(`${base}/api/pipeline-data?_route=marketing&kind=profiles`, { headers: hdrs }),
+     fetch(`${base}/api/pipeline-data?_route=marketing&kind=los`, { headers: hdrs }),
+    ]);
+    const profiles = pRes.ok ? await pRes.json() : [];
+    const roster = lRes.ok ? await lRes.json() : { los: [] };
+    const myName = (auth?.user?.name || "").trim().toLowerCase();
+    const prof = (Array.isArray(profiles) ? profiles : []).find((p) => (p.email || "").toLowerCase() === email) || null;
+    const row = (roster?.los || []).find((r) => r.email === email)
+     || (roster?.los || []).find((r) => (r.name || "").trim().toLowerCase() === myName)
+     || null;
+    setLoanOfficer(prof?.name || row?.name || auth?.user?.name || "");
+    setLoEmail(prof?.email || row?.email || email);
+    setLoPhone(prof?.phone || row?.phone || "");
+    setLoNmls(prof?.nmls || row?.nmls || "");
+    // Company: profile value if set (defaults to the brokerage in Ops);
+    // company NMLS is brokerage-wide, so it carries over for team LOs.
+    if (prof?.company) setCompanyName(prof.company);
+    setApplyUrl("");
+    claim();
+   } catch { /* offline — keep whatever the device had; retry next sign-in */ }
+  })();
+ }, [auth?.user?.email, isBorrower, isCloud]); // eslint-disable-line react-hooks/exhaustive-deps
  const [borrowerName, setBorrowerName] = useState("");
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
  const [fredApiKey, setFredApiKey] = useState("");
@@ -6815,18 +6867,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       ))}
      </div>
      {/* Sidebar Footer */}
-     {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && (
+     {appMode === "blueprint" && applyUrl && (!sidebarCollapsed || !isDesktop) && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
-       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+       <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 2px 10px ${T.green}30` }}>
         <Icon name="check-circle" size={14} />
         Get Pre-Approved
        </a>
       </div>
      )}
-     {sidebarCollapsed && isDesktop && appMode === "blueprint" && (
+     {sidebarCollapsed && isDesktop && appMode === "blueprint" && applyUrl && (
       <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
-       <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+       <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", cursor: "pointer", padding: "4px 0" }}>
         <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg, ${T.green}, #059669)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
          <Icon name="check-circle" size={14} color="#fff" />
@@ -7457,9 +7509,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    Select a borrower above to generate a shareable live link
   </div>
  )}
- {loanOfficer && (
+ {loanOfficer && applyUrl && (
   <div style={{ marginBottom: 16 }}>
-   <a href={`https://2179191.my1003app.com/952015/register${realtorPartnerSlug ? "?source=" + encodeURIComponent(realtorPartnerSlug) : ""}`} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+   <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
      Get Pre-Approved Now
    </a>
@@ -8591,6 +8643,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <Inp label="Company" value={companyName} onChange={setCompanyName} prefix="" type="text" />
     <Inp label="Company NMLS" value={companyNmls} onChange={setCompanyNmls} prefix="" type="text" />
    </div>
+   {/* Each LO's own 1003 portal — where every "Get Pre-Approved" button sends
+       borrowers. Blank hides those buttons entirely (better no CTA than the
+       wrong LO's application). */}
+   <Inp label="Application (1003) Link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
    {/* ── Email Signature (Christo 2026-07-05): matches Homebase/Ops — used
        at the bottom of worksheet emails sent from Blueprint. Device-level. ── */}
    <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
