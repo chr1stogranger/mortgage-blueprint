@@ -3425,6 +3425,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   includeFees,
   // Current-loan facts the fees worksheet never needed
   refiCurrentRate, refiOriginalTerm, refiClosedDate, refiEscrowBalance, refiCurrentMI,
+  refiSecondKind,
  });
  const renderRefiSummaryBlob = async (includeFees) => {
   const [{ pdf }, { RefiSummaryDoc }] = await Promise.all([
@@ -6026,6 +6027,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       { label: "Insurance", cur: refiCurEscrowIns ? curIns : 0, nw: refiNewEscrowIns ? newIns : 0, note: !refiNewEscrowIns ? "paid separately on new loan" : !refiCurEscrowIns ? "newly escrowed" : undefined },
      ] : refiAnnualIns > 0 ? [{ label: "Insurance", cur: curIns, nw: curIns, note: "paid separately" }] : []),
      { label: "MI/MIP", cur: curMI, nw: newMI },
+     // A paid-off second's payment sits on the CURRENT side and vanishes on
+     // the new. It takes the MI/MIP slot — the filter drops MI at $0, and
+     // PMI + HELOC together are near-impossible, so it's effectively
+     // either-or (Christo 2026-08-04).
+     ...(calc.refiSecondPmtSaved > 0 ? [{ label: refiSecondKind === "heloc" ? "HELOC Payment" : "2nd Lien Payment", cur: calc.refiSecondPmtSaved, nw: 0, note: "paid off at closing" }] : []),
     ].filter(r => r.cur > 0 || r.nw > 0 || r.note);
     return rows.map((r, i) => {
      const delta = r.nw - r.cur;
@@ -6068,11 +6074,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    })()}
    {/* Total row */}
    {(() => {
-    const totalDelta = calc.refiNewTotalPmt - calc.refiCurTotalPmt;
+    // Current side carries the retired second's payment so the column sums
+    // to what the borrower actually pays today.
+    const curTotalAll = calc.refiCurTotalPmt + (calc.refiSecondPmtSaved || 0);
+    const totalDelta = calc.refiNewTotalPmt - curTotalAll;
     return (
      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4, fontSize: 14 }}>
       <span style={{ fontWeight: 700 }}>Total Payment</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.refiCurTotalPmt)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(curTotalAll)}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(calc.refiNewTotalPmt)}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 13, color: totalDelta < -0.5 ? T.green : totalDelta > 0.5 ? T.red : T.textTertiary }}>
        {Math.abs(totalDelta) < 0.5 ? "—" : (totalDelta > 0 ? "+" : "") + fmt(totalDelta)}

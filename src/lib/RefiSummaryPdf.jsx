@@ -108,15 +108,20 @@ export function RefiSummaryDoc(p) {
   // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
   // over unchanged on a refi, so they cancel out of the savings math.
   const piMiSavings = (cur.prin + cur.int + cur.mi + secondPmt) - (nw.prin + nw.int + nw.mi);
+  // The retired second takes the PMI slot when there's no PMI — you'd almost
+  // never carry both, so it's either-or (Christo 2026-08-04). With PMI in
+  // play anyway, both rows print.
+  const pmiRow = ["PMI", usd2(cur.mi), usd2(nw.mi), signed2(nw.mi - cur.mi)];
+  const secondRow = [p.refiSecondKind === "heloc" ? "HELOC Payment" : "2nd Lien Payment", usd2(secondPmt), usd2(0), signed2(-secondPmt)];
+  const hasMi = cur.mi > 0 || nw.mi > 0;
   const rows1 = [
     ["Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
     ["Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
     ["Principal", usd2(cur.prin), usd2(nw.prin), signed2(nw.prin - cur.prin)],
     ["Interest", usd2(cur.int), usd2(nw.int), signed2(nw.int - cur.int)],
-    ...(secondPmt > 0 ? [["2nd Lien Payment", usd2(secondPmt), usd2(0), signed2(-secondPmt)]] : []),
     ["Taxes", usd2(cur.tax), usd2(nw.tax), signed2(nw.tax - cur.tax)],
     ["Insurance", usd2(cur.ins), usd2(nw.ins), signed2(nw.ins - cur.ins)],
-    ["PMI", usd2(cur.mi), usd2(nw.mi), signed2(nw.mi - cur.mi)],
+    ...(secondPmt > 0 ? (hasMi ? [pmiRow, secondRow] : [secondRow]) : [pmiRow]),
     ["HOA", usd2(cur.hoa), usd2(nw.hoa), signed2(nw.hoa - cur.hoa)],
   ];
 
@@ -195,7 +200,7 @@ export function RefiSummaryDoc(p) {
           <Text style={[s.cNum, s.bold, { color: savings >= 0 ? GREEN : RED }]}>{savings >= 0 ? usd2(savings) + " saved" : signed2(nw.total - cur.total)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0, marginTop: 3 }]}>
-          <Text style={[s.lineLabel, s.bold, { color: INK }]}>Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)</Text>
+          <Text style={[s.lineLabel, s.bold, { color: INK }]}>{secondPmt > 0 ? "Monthly Savings (P&I + MI + paid-off 2nd — taxes/ins/HOA unchanged)" : "Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)"}</Text>
           <Text style={[s.lineValue, s.bold, { color: piMiSavings >= 0 ? GREEN : RED }]}>{piMiSavings >= 0 ? usd2(piMiSavings) : signed2(-piMiSavings)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0 }]}>
