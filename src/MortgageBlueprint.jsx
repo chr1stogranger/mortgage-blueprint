@@ -2051,6 +2051,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   showProp19, prop19Eligibility, prop19OldTaxableValue, prop19OldSalePrice, prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate, prop19RateOverride,
   darkMode, themeMode,
  });
+ // The state a brand-new scenario starts from, captured once from the real
+ // useState defaults so it can never drift from them. A SAVED scenario carries
+ // every key, so loadState's `!== undefined` guards act as a full replace — but
+ // an Arive prefill is a PARTIAL object, and layering it onto whatever was open
+ // leaves the previous client's numbers standing in the imported file (Christo
+ // 2026-08-04: an Alameda refi imported showing the prior client's San
+ // Francisco address, their $1.6M home value and their $900K/5.625% ARM).
+ // Importers layer the prefill onto this instead of onto live state.
+ const blankStateRef = useRef(null);
+ if (blankStateRef.current === null) blankStateRef.current = getState();
  const loadState = (s) => {
   if (!s) return;
   if (s.salesPrice !== undefined) setSalesPrice(s.salesPrice);
@@ -2710,7 +2720,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // by borrower NUMBER, so a string row renders on no card at all) and against
   // any account-number field sneaking into a future payload.
   const basePrefill = normalizeArivePrefill(payload.prefill);
-  const prefill = asRefi ? toRefiPrefill(basePrefill) : basePrefill;
+  // Layer the (partial) Arive prefill onto a blank scenario, never onto the
+  // scenario that happens to be open — anything Arive doesn't send has to come
+  // back as a default, not as the last client's value. This object is both what
+  // loadState receives and what gets persisted as state_data, so reopening the
+  // imported scenario later behaves like any other saved one.
+  const prefill = { ...blankStateRef.current, ...(asRefi ? toRefiPrefill(basePrefill) : basePrefill) };
 
   // 1. Client record (POST dedupes by email and returns the existing row).
   //    Lead-stage Arive files (Application / Qualification / Pre-Approved)

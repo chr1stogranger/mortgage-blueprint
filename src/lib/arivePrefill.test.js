@@ -72,6 +72,33 @@ describe("normalizeArivePrefill", () => {
     expect(out.borrowerNames).toBeUndefined();
   });
 
+  it("mirrors refiHomeValue into salesPrice — the refi UI's Home Value field", () => {
+    const out = normalizeArivePrefill({ isRefi: true, refiHomeValue: 6000000, refiCurrentBalance: 1550021 });
+    expect(out.salesPrice).toBe(6000000);
+    expect(out.refiHomeValue).toBe(6000000);
+  });
+
+  it("never overwrites a salesPrice the payload already carries", () => {
+    const out = normalizeArivePrefill({ isRefi: true, refiHomeValue: 6000000, salesPrice: 5000000 });
+    expect(out.salesPrice).toBe(5000000);
+  });
+
+  it("leaves salesPrice alone on a purchase payload", () => {
+    const out = normalizeArivePrefill({ salesPrice: 800000, refiHomeValue: 6000000 });
+    expect(out.salesPrice).toBe(800000);
+  });
+
+  it("mirrors propertyAddress into addressInput — the box renders addressInput first", () => {
+    const out = normalizeArivePrefill({ propertyAddress: "700 Paru Street, Alameda, CA, 94501", propertyTBD: false });
+    expect(out.addressInput).toBe("700 Paru Street, Alameda, CA, 94501");
+  });
+
+  it("leaves a TBD payload with no address alone", () => {
+    const out = normalizeArivePrefill({ propertyZip: "94501", addressMode: "zip" });
+    expect(out.addressInput).toBeUndefined();
+    expect(out.propertyAddress).toBeUndefined();
+  });
+
   it("blanks asset last4 and scrubs digits from names", () => {
     const out = normalizeArivePrefill({
       assets: [{ bank: "Chase ****1234", last4: "1234", type: "Checking", value: 42000, owner: "Borrower" }],

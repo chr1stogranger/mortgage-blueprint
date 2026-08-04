@@ -145,6 +145,21 @@ export function normalizeArivePrefill(prefill) {
   if (Object.keys(names).length && pf.numBorrowers >= 2) pf.borrowerNames = names;
   else delete pf.borrowerNames;
 
+  // ── Field-name mismatches between the Ops payload and the refi UI ──
+  // Ops sends the property value as `refiHomeValue`, but SetupContent's refi
+  // "Home Value" input is bound to `salesPrice` (the refi flow reuses the
+  // purchase field under a different label). Without this the imported value
+  // never appears and the field keeps whatever was there before.
+  if (pf.isRefi && n(pf.refiHomeValue) > 0 && !(n(pf.salesPrice) > 0)) {
+    pf.salesPrice = n(pf.refiHomeValue);
+  }
+  // Likewise the address box renders `addressInput || propertyAddress`, and
+  // `addressInput` is the one that wins — so a prefill that sets only
+  // propertyAddress shows the previously typed address instead.
+  if (pf.propertyAddress && pf.addressInput === undefined) {
+    pf.addressInput = pf.propertyAddress;
+  }
+
   return pf;
 }
 
