@@ -3494,6 +3494,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ]);
   return pdf(React.createElement(RefiSummaryDoc, buildRefiSummaryProps(includeFees))).toBlob();
  };
+ // ── Live PDF preview pane state (Christo 2026-08-04) ──
+ // The Ops marketing-flyer pattern brought to the refi. The fingerprint memo
+ // and render effect live BELOW the calc definition (they read it).
+ const [refiPreviewOpen, setRefiPreviewOpen] = useState(false);
+ const [refiPreviewUrl, setRefiPreviewUrl] = useState("");
  // A deploy invalidates the old build's hashed chunk URLs, so a tab opened
  // before the deploy fails the dynamic import above with a fetch error —
  // that was every "Could not generate the PDF" report on deploy days. Reload
@@ -5676,6 +5681,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
   refiHasMaturity, refiMaturityDate]);
 
+ // ── Live PDF preview: re-render the actual Refi Summary as numbers settle ──
+ // Debounced — @react-pdf renders cost a few hundred ms, so wait for typing
+ // to stop. The fingerprint is the serialized PDF props: if nothing the PDF
+ // prints changed, no re-render.
+ const refiPreviewFingerprint = useMemo(() => {
+  if (!refiPreviewOpen || !isRefi) return "";
+  try { return JSON.stringify(buildRefiSummaryProps(false)); } catch { return ""; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [refiPreviewOpen, isRefi, calc, refiShowTaxIns, borrowerName, scenarioName]);
+ useEffect(() => {
+  if (!refiPreviewOpen || !isRefi || !refiPreviewFingerprint) return;
+  let stale = false;
+  const t = setTimeout(async () => {
+   try {
+    const blob = await renderRefiSummaryBlob(false);
+    if (stale) return;
+    const url = URL.createObjectURL(blob);
+    setRefiPreviewUrl(prev => { if (prev) { try { URL.revokeObjectURL(prev); } catch { /* ignore */ } } return url; });
+   } catch (e) { console.warn("[Blueprint] live preview render failed:", e?.message); }
+  }, 600);
+  return () => { stale = true; clearTimeout(t); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [refiPreviewOpen, isRefi, refiPreviewFingerprint]);
+
  // ── Refi title & escrow defaults, tiered on the new loan amount ──
  // The flat $2,400 escrow / $2,000 title defaults are purchase-shaped guesses.
  // A refi prices off a published tier table (src/data/titleEscrowFees.js), so
@@ -6036,9 +6065,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {[
     ["Loan Type", refiCurrentLoanType, loanType + (loanType === "VA" ? " - " + vaUsage : "")],
     ["Purpose", "—", refiPurpose],
-    // Current side = everything the new loan replaces (first + paid-off 2nd).
+    // Current side = everything the new loan replaces (first + paid-off 2nd),
+    // priced at the blended rate — the number the new rate has to beat.
     [calc.refiCurTotalDebt > calc.refiEffBalance ? "Loan Amount (1st + 2nd)" : "Loan Amount", fmt(calc.refiCurTotalDebt), fmt(calc.refiNewLoanAmt)],
-    ["Interest Rate", refiCurrentRate.toFixed(3) + "%", rate.toFixed(3) + "%"],
+    [calc.refiCurTotalDebt > calc.refiEffBalance ? "Blended Rate (1st + 2nd)" : "Interest Rate",
+     (calc.refiCurTotalDebt > calc.refiEffBalance && calc.refiBlendedRate > 0 ? calc.refiBlendedRate : refiCurrentRate).toFixed(3) + "%",
+     rate.toFixed(3) + "%"],
     ["Term", `${calc.refiEffRemaining} mos left`, `${term * 12} mos (${term}yr)`],
    ].map(([l, c, n], i) => (
     <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
@@ -6577,7 +6609,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <button onClick={() => setRefiImportError(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "4px 9px", fontFamily: FONT }}>✕</button>
    </div>
   )}
-  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block" }}>
+  {/* ── Floating live PDF preview (refi) — the Ops flyer pattern. Desktop only;
+      the main container below gets matching right padding so nothing hides. */}
+  {isRefi && refiPreviewOpen && isDesktop && (
+   <div style={{ position: "fixed", top: 70, right: 12, bottom: 12, width: 452, zIndex: 900, display: "flex", flexDirection: "column", background: T.card, border: `1px solid ${T.glassBorder || T.separator}`, borderRadius: 16, boxShadow: darkMode ? "0 12px 40px rgba(0,0,0,0.5)" : "0 12px 40px rgba(10,17,32,0.18)", overflow: "hidden" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px", borderBottom: `1px solid ${T.separator}`, flexShrink: 0 }}>
+     <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — Refi Summary</span>
+     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
+      <button onClick={() => setRefiPreviewOpen(false)} title="Close preview" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: 2, fontFamily: FONT }}>✕</button>
+     </div>
+    </div>
+    {refiPreviewUrl
+     ? <iframe title="Refi Summary live preview" src={`${refiPreviewUrl}#toolbar=0&navpanes=0&view=FitH`} style={{ flex: 1, border: "none", width: "100%", background: darkMode ? "#1b2233" : "#e8edf5" }} />
+     : <div style={{ flex: 1, display: "grid", placeItems: "center", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Rendering preview…</div>}
+   </div>
+  )}
+  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop) ? 476 : 0 }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
     input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }
@@ -7948,6 +7996,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiExtraPaid, setRefiExtraPaid,
    refiHomeValue, setRefiHomeValue,
    refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3,
+   refiPreviewOpen, setRefiPreviewOpen,
    /* Live rates */
    liveRates, fetchRates, ratesLoading, ratesError, fredApiKey,
    /* Helper lookups */
@@ -7995,7 +8044,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}

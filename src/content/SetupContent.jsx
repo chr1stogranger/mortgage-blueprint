@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3", "refiPreviewOpen", "setRefiPreviewOpen"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -62,7 +62,7 @@ export default function SetupContent(props) {
     refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance,
     refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment,
     refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride,
-    refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure,
+    refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiPreviewOpen, setRefiPreviewOpen,
     refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate,
     refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate, refiCurrentEscrow, setRefiCurrentEscrow,
     refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns,
@@ -518,6 +518,19 @@ export default function SetupContent(props) {
  {/* ── Refi Sections (when applicable) ──
     Refi Purpose moved up into the Quick Start card (2026-07-22). */}
  {isRefi && <Sec title="Your Current Loan" hero>
+  {/* Live PDF preview toggle — floats the actual Refi Summary alongside the
+      intake so the LO watches the deliverable build (Ops flyer pattern). */}
+  {isDesktop && !!setRefiPreviewOpen && (
+   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, marginBottom: -4 }}>
+    <button type="button" onClick={() => setRefiPreviewOpen(v => !v)}
+     style={{ padding: "6px 16px", borderRadius: 9999, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+      background: refiPreviewOpen ? `${T.blue}22` : T.inputBg,
+      border: refiPreviewOpen ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+      color: refiPreviewOpen ? T.blue : T.textSecondary }}>
+     {refiPreviewOpen ? "✕ Close live PDF preview" : "Live PDF preview"}
+    </button>
+   </div>
+  )}
   <Card style={{ marginTop: 12 }}>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
     <div style={{ flex: 1, minWidth: 180 }}>
@@ -539,23 +552,20 @@ export default function SetupContent(props) {
    </div>
   </Card>
   <Card>
-   {/* Field order pairs the value with the note against it, then describes the
-       note itself (Christo 2026-07-22):
-         Home Value        | Original Loan Amount
-         Current Loan Type | Fixed / Adjustable
-         Original Term     | Current Rate
-         Loan Closed In (month | year)
-       Fixed/Adjustable is its own field, NOT an entry in the type dropdown —
-       "an adjustable conventional note" is two facts, and an ARM is often the
-       whole reason for the refi. */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Current Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} sm req tip="The note rate today. On an adjusted ARM this is the rate it adjusted TO." />
-    <Inp label="Original Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} sm req />
-   </div>
+   {/* ── One column, line by line, in Christo's intake-sheet order (2026-08-04).
+       Flow 1 (statement in hand) reads the statement top to bottom. Flow 2
+       (no statement) works backwards from the original note with assumptions.
+       Loan type and fixed/adjustable aren't on the sheet but the math and the
+       PDFs need them, so they ride directly under the rate in both flows. */}
+   <Inp label="Current Interest Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} req tip="The note rate today. On an adjusted ARM this is the rate it adjusted TO." />
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
     <Sel label="Fixed / Adjustable" value={refiCurrentRateType} onChange={setRefiCurrentRateType} options={["Fixed", "Adjustable"]} tip="Whether the current note's rate is fixed or adjustable (ARM). An ARM about to reset is often the reason to refinance." />
    </div>
+   {!calc.refiFromStatement && (<>
+    <Inp label="Original Balance" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req
+     tip="The original note amount — look it up on the property profile (the recorded deed of trust amount)." />
+   </>)}
    {/* ARM history — the note starts at one rate and RECASTS at the adjustment
        (balance re-amortized over the remaining term at the new rate). Without
        these two facts the balance estimate amortizes at a single rate and is
@@ -584,11 +594,9 @@ export default function SetupContent(props) {
      </div>
     </>
    )}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm req tip="Without the original term there is nothing to amortize against — a 30 and a 15 diverge from the first payment." />
-   </div>
+   {!calc.refiFromStatement && (
    <div style={{ marginBottom: 14 }}>
-    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Closed In</label>
+    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Closed In <span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 400 }}>· from the property profile</span></label>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
      <select value={refiClosedDate ? refiClosedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; const y = refiClosedDate ? refiClosedDate.slice(0, 4) : new Date().getFullYear(); if (m && y) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
       <option value="">Month</option>
@@ -600,12 +608,16 @@ export default function SetupContent(props) {
      </select>
     </div>
    </div>
+   )}
+   {!calc.refiFromStatement && (
+    <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} req tip="Without the original term there is nothing to amortize against — a 30 and a 15 diverge from the first payment." />
+   )}
    {/* ── Extra payments (Christo 2026-07-28) ──
        Two columns matching the Amortization tab's control: the switch on the
        left says whether there ARE extra payments, the amount sits beside it.
        Cadence and the lump-sum date only appear once the switch is on, so the
        off state is two tiles instead of a stack of questions. */}
-   {refiClosedDate && (<>
+   {!calc.refiFromStatement && refiClosedDate && (<>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: extraOn ? 10 : 14 }}>
      <Card pad={14} style={{ marginBottom: 0 }}>
       <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>Extra Payments</div>
@@ -680,7 +692,7 @@ export default function SetupContent(props) {
      </div>)}
     </>)}
    </>)}
-   {refiOriginalAmount > 0 && refiCurrentRate > 0 && (<div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
+   {!calc.refiFromStatement && refiOriginalAmount > 0 && refiCurrentRate > 0 && (<div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.blue, marginBottom: 6 }}>AUTO-CALCULATED</div>
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
      {/* refiEffPI = today's payment — for an adjusted ARM that's the RECAST
@@ -720,7 +732,7 @@ export default function SetupContent(props) {
        no funded date, no property lookup. When it disagrees with the closing
        date by more than a couple of payments, that gap is the signature of a
        past modification or a recast. */}
-   {calc.refiSolvedTerm > 0 && calc.refiSolvedMaturity && (
+   {calc.refiFromStatement && calc.refiSolvedTerm > 0 && calc.refiSolvedMaturity && (
     <div style={{ fontSize: 11, marginTop: -8, marginBottom: 12, lineHeight: 1.6, color: T.textSecondary }}>
      Balance, payment and rate solve to <strong style={{ color: T.text }}>{calc.refiSolvedTerm}</strong> payments
      remaining — maturing {calc.refiSolvedMaturity.toLocaleDateString("en-US", { month: "short", year: "numeric" })}.
@@ -735,7 +747,7 @@ export default function SetupContent(props) {
    )}
    {/* The auto-estimate's blind spots, stated plainly: it assumes minimum
        payments at a constant rate. Statement figures below beat it. */}
-   {refiOriginalAmount > 0 && refiCurrentRate > 0 && refiClosedDate && (
+   {!calc.refiFromStatement && refiOriginalAmount > 0 && refiCurrentRate > 0 && refiClosedDate && (
     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: -8, marginBottom: 12, lineHeight: 1.5 }}>
      Estimate assumes minimum payments at {refiCurrentRateType === "Adjustable" ? "the rates entered above" : "the same rate"} since closing — it will be off for extra principal payments{refiCurrentRateType === "Adjustable" ? "" : " or an ARM that has adjusted"}. A statement balance below overrides it.
     </div>
@@ -745,19 +757,21 @@ export default function SetupContent(props) {
        (payments pay interest in ARREARS: a July 1 payment covers June).
        Hidden entirely in the reconstruct branch: there is no statement to read
        them off, and the calc ignores them there too (Christo 2026-07-28). */}
-   {calc.refiFromStatement && (
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-    <Inp label="Current Balance — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} sm tip="Outstanding principal from the most recent mortgage statement. When set, this overrides the auto-estimate and anchors the payoff calculation." />
+   {calc.refiFromStatement && (<>
+    <Inp label="Current Loan Amount — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Outstanding principal from the most recent mortgage statement. When set, this overrides any estimate and anchors the payoff calculation." />
     {/* The statement's own principal/interest split (Christo 7.28). Deriving
         it (interest = balance × rate) is only ever an approximation — the
         servicer's split reflects the real accrual. Entering BOTH pins this
         month's P&I to their sum, so the payoff walk and every savings figure
         run off the statement instead of our estimate. Same state the lockable
         cells on the Refi tab's Monthly Payment table write to. */}
-    <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} sm tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
-    <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} sm tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
-   </div>
-   )}
+    <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
+    <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
+   </>)}
+   {/* PMI sits after principal & interest in both flows — the statement's own
+       order, and the sheet's (Christo 2026-08-04). */}
+   <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI}
+    tip={calc.refiFromStatement ? "Monthly mortgage insurance on the current loan, straight off the statement. Zero if there is none." : "Monthly mortgage insurance on the current loan, if any — estimate it if unknown (FHA loans from the original amount, conventional from the LTV at closing)."} />
    {!calc.refiFromStatement && (
     <Note color={T.orange}>
      No statement, so the balance below is reconstructed from the closing date and rate. Everything it
@@ -911,57 +925,77 @@ export default function SetupContent(props) {
    {!refiClosedDate && (
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
    )}
-   {/* ── Escrow (Christo 2026-07-28) ──
-       Combined is what you type, because that's the single line every
-       statement prints ("Escrow (Taxes and Insurance)"). The split lives
-       behind a Split caret, matching the Principal & Interest disclosure on
-       the payment breakdown. Splitting is opt-in because the combined figure
-       is what the servicer COLLECTS — cushion and any shortage spread
-       included — so it isn't annual tax ÷ 12 + annual insurance ÷ 12, and
-       dividing it would import someone else's shortage into the new loan. */}
-   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-    <label style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-     Escrow (taxes and insurance)
-    </label>
-    <span
-     onClick={() => setRefiEscrowMode(refiEscrowMode === "split" ? "combined" : "split")}
-     title={refiEscrowMode === "split" ? "Hide the breakdown" : "Split into taxes and insurance"}
-     style={{ display: "inline-flex", alignItems: "center", gap: 3, cursor: "pointer", userSelect: "none" }}
-    >
-     <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT }}>Split</span>
-     <span style={{ fontSize: 10, color: T.blue, lineHeight: 1, transform: `translateY(-1px) rotate(${refiEscrowMode === "split" ? 180 : 0}deg)`, transition: "transform 0.2s" }}>▾</span>
-    </span>
-   </div>
-   <Inp label="" value={refiEscrowCombined} onChange={setRefiEscrowCombined}
-    tip="Copy the servicer's escrow line exactly as printed."
-    rightSlot={
-     <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-      {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
-       <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
-        style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-         background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
-         border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-         color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
-        {label}
-       </button>
-      ))}
-     </span>
-    } />
-
-   {refiEscrowMode === "split" && (
+   {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
+       One top-level question, then a per-component walk: are taxes included,
+       how much, is insurance included, how much — amounts entered monthly or
+       annual. Stored per component (refiCurEscrowTax/Ins + annual amounts);
+       answering here moves the calc to split mode. Flow 2 adds Unsure, which
+       the confidence readout picks up. A legacy combined servicer line stays
+       visible until the per-component answers replace it. */}
+   {(() => {
+    const escrowTop = refiEscrowUnsure === "unsure" ? "unsure"
+     : (refiCurEscrowTax || refiCurEscrowIns || (refiEscrowMode === "combined" && refiEscrowCombined > 0)) ? "yes" : "no";
+    const answerEscrow = (v) => {
+     setRefiEscrowUnsure(v === "unsure" ? "unsure" : "");
+     if (v === "yes") { setRefiEscrowMode("split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } }
+     if (v === "no") { setRefiEscrowMode("split"); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); }
+    };
+    const escrowOpts = calc.refiFromStatement ? [["yes", "Yes"], ["no", "No"]] : [["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]];
+    return (
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Taxes and/or insurance included in the payment?</span>
+      <div style={{ display: "flex", gap: 5 }}>
+       {escrowOpts.map(([v, label]) => (
+        <button key={v} type="button" onClick={() => answerEscrow(v)}
+         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: escrowTop === v ? `${T.blue}22` : T.inputBg,
+          border: escrowTop === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: escrowTop === v ? T.blue : T.textSecondary }}>
+         {label}
+        </button>
+       ))}
+      </div>
+     </div>
+    );
+   })()}
+   {refiEscrowUnsure === "unsure" && (
+    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 10 }}>
+     Marked unsure — it's flagged for verification below, and the current payment runs P&I-only until it's known.
+    </div>
+   )}
+   {refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || (refiEscrowMode === "combined" && refiEscrowCombined > 0)) && (
     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+     {refiEscrowMode === "combined" && refiEscrowCombined > 0 && (
+      <div style={{ paddingTop: 8 }}>
+       <Inp label="Escrow line — as printed on the statement" value={refiEscrowCombined} onChange={setRefiEscrowCombined}
+        tip="The servicer's single 'Escrow (Taxes and Insurance)' line — what they collect, cushion and shortage spread included. Answering the per-component questions below replaces it."
+        rightSlot={
+         <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+          {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+           <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
+            style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+             background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
+             border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+             color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
+            {label}
+           </button>
+          ))}
+         </span>
+        } />
+      </div>
+     )}
      {[
-      { key: "tax", label: "Taxes", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
+      { key: "tax", label: "Taxes", q: "Are taxes included?", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
         amt: refiAnnualTax, setAmt: setRefiAnnualTax,
         hint: "Prefilled from the county assessor once the address is known." },
-      { key: "ins", label: "Insurance", on: refiCurEscrowIns, setOn: setRefiCurEscrowIns,
+      { key: "ins", label: "Insurance", q: "Is insurance included?", on: refiCurEscrowIns, setOn: setRefiCurEscrowIns,
         amt: refiAnnualIns, setAmt: setRefiAnnualIns,
         hint: "The policy premium — carries over on a refi." },
      ].map(c => (
       <div key={c.key} style={{ paddingTop: 8 }}>
        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Is {c.label.toLowerCase()} included?</span>
-        <YesNoSeg T={T} value={c.on} onYes={() => c.setOn(true)} onNo={() => c.setOn(false)} />
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{c.q}</span>
+        <YesNoSeg T={T} value={c.on} onYes={() => { c.setOn(true); setRefiEscrowMode("split"); }} onNo={() => { c.setOn(false); setRefiEscrowMode("split"); }} />
        </div>
        {c.on && (() => {
         const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
@@ -991,18 +1025,13 @@ export default function SetupContent(props) {
       </div>
      ))}
      <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
-      These feed the NEW loan's impound. They aren't a division of the combined figure above — that one
-      carries cushion and any shortage spread, so splitting it would import the old servicer's shortage
-      into your quote. Also check they aren't bundling mortgage insurance into the escrow line; if they
-      are, it's already counted under MI/MIP.
+      These feed the NEW loan's impound. Enter the real annual tax bill and premium — not a division of
+      the servicer's escrow line, which carries cushion and any shortage spread; splitting that would
+      import the old servicer's shortage into your quote. Also check they aren't bundling mortgage
+      insurance into the escrow line; if they are, it's already counted under MI/MIP.
      </div>
     </div>
    )}
-   {/* PMI sits directly after escrow because that's the order the statement
-       lists them — Principal, Interest, Escrow, then MI — so the LO fills
-       straight down the page instead of bouncing around (Christo 7.28). */}
-   <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI} sm
-    tip="Monthly mortgage insurance on the current loan, if any." />
    {/* No impounds means no escrow account, so the balance question is removed
        rather than asked and answered zero. */}
    {calc.refiEscrowOn
@@ -1084,6 +1113,8 @@ export default function SetupContent(props) {
         </div>
        </div>
       </div>
+      <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm
+       tip="The note's original term — with the amount and funded date, the maturity falls out." />
      </div>
     )}
 
@@ -1245,36 +1276,14 @@ export default function SetupContent(props) {
      </div>
     )}
    </div>
-   {refiAnnualTax <= 0 && refiAnnualIns <= 0 && (
+   {/* The old standalone "Included in the current payment?" toggle section is
+       gone (2026-08-04) — it drove the SAME refiCurEscrowTax/Ins flags as the
+       taxes-and-insurance questions above, so it was the same question asked
+       twice. The combined-monthly fallback stays for when the amounts are
+       unknown but something is impounded. */}
+   {calc.refiEscrowOn && refiAnnualTax <= 0 && refiAnnualIns <= 0 && (
     <Inp label="Current Monthly Escrow (Tax+Ins)" value={refiCurrentEscrow} onChange={setRefiCurrentEscrow} tip="If you don't know the annual amounts, enter your combined monthly escrow here." />
    )}
-   {/* Escrow on the CURRENT loan, per component (Christo 2026-07-22): tax and
-       insurance can be impounded independently. The NEW loan's pair of
-       toggles lives on the payment donut (Monthly Payment section) and
-       defaults to whatever these are set to. */}
-   <div style={{ borderTop: `1px solid ${T.separator}`, paddingTop: 10, marginBottom: 10 }}>
-    <div style={{ fontSize: 14, color: T.text, marginBottom: 2 }}>Included in the current payment?</div>
-    <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8 }}>What the current loan escrows. The new loan's escrow is set on the payment donut and starts out matching this.</div>
-    {[
-     { key: "tax", label: "Property taxes", on: refiCurEscrowTax, set: setRefiCurEscrowTax,
-       hint: refiCurEscrowTax ? "Taxes included in today's payment" : "Taxes paid separately today" },
-     { key: "ins", label: "Homeowner's insurance", on: refiCurEscrowIns, set: setRefiCurEscrowIns,
-       hint: refiCurEscrowIns ? "Insurance included in today's payment" : "Insurance paid separately today" },
-    ].map(row => (
-     <div key={row.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-      <div>
-       <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{row.label}</div>
-       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 1 }}>{row.hint}</div>
-      </div>
-      <div
-       onClick={() => row.set(!row.on)}
-       style={{ width: 52, height: 30, borderRadius: 99, background: row.on ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}
-      >
-       <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: row.on ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-      </div>
-     </div>
-    ))}
-   </div>
    {/* Estimated closing date drives the skipped-payment count — it is a
        function of the calendar, not a choice, so the old dropdown is gone
        (Christo 2026-07-22): fund by the 15th → skip 2, after → skip 1. */}

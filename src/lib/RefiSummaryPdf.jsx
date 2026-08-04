@@ -94,8 +94,13 @@ export function RefiSummaryDoc(p) {
   // Tax/ins rows carry over unchanged, so the LO can hide them to cut noise
   // (Christo 2026-08-04). Totals follow the visible rows.
   const showTI = p.refiShowTaxIns !== false;
+  // Paying off a second: the current side is BOTH liens, so its rate is the
+  // blended rate — beating the first's rate alone understates the win
+  // (Christo 2026-08-04).
+  const secondInPayoff = (c.refiCurTotalDebt ?? 0) > (c.refiEffBalance || 0);
   const cur = {
-    loan: c.refiCurTotalDebt ?? (c.refiEffBalance || 0), rate: Number(p.refiCurrentRate) || 0,
+    loan: c.refiCurTotalDebt ?? (c.refiEffBalance || 0),
+    rate: secondInPayoff && c.refiBlendedRate > 0 ? c.refiBlendedRate : (Number(p.refiCurrentRate) || 0),
     prin: c.refiCurPrinThisMonth || 0, int: c.refiCurIntThisMonth || 0,
     tax: c.refiCurMonthlyTax || 0, ins: c.refiCurMonthlyIns || 0,
     mi: Number(p.refiCurrentMI) || 0, hoa: Number(p.hoa) || 0,
@@ -121,8 +126,8 @@ export function RefiSummaryDoc(p) {
   const secondRow = [p.refiSecondKind === "heloc" ? "HELOC Payment" : "2nd Lien Payment", usd2(secondPmt), usd2(0), signed2(-secondPmt)];
   const hasMi = cur.mi > 0 || nw.mi > 0;
   const rows1 = [
-    [(c.refiCurTotalDebt ?? 0) > (c.refiEffBalance || 0) ? "Loan Amount (1st + 2nd)" : "Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
-    ["Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
+    [secondInPayoff ? "Loan Amount (1st + 2nd)" : "Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
+    [secondInPayoff ? "Blended Rate (1st + 2nd)" : "Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
     ["Principal", usd2(cur.prin), usd2(nw.prin), signed2(nw.prin - cur.prin)],
     ["Interest", usd2(cur.int), usd2(nw.int), signed2(nw.int - cur.int)],
     ...(showTI ? [
