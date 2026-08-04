@@ -1693,7 +1693,7 @@ export default function CostsContent(props) {
         payoffs={calc.payoffAtClosing || 0}
         credits={calc.totalCredits || 0}
         newLoan={calc.refiNewLoanAmt || 0}
-        oldLoanPayoff={calc.refiPayoffAmount || 0}
+        oldLoanPayoff={calc.refiNetPayoff || 0}
         isRefi={isRefi}
       />
       </div>{/* end right column */}

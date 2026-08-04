@@ -86,12 +86,16 @@ export function RefiSummaryDoc(p) {
   const locLine = `${p.city || ""}${p.propertyState ? ", " + p.propertyState : ""}${p.propertyZip ? " " + p.propertyZip : ""}`;
 
   // ── Option 1 — monthly cash flow ──
+  // A second lien being paid off (2026-08-04): its payment sits on the CURRENT
+  // side and disappears on the new — so it joins the table, the total, and the
+  // verdict figure, keeping every column reconcilable.
+  const secondPmt = c.refiSecondPmtSaved || 0;
   const cur = {
     loan: c.refiEffBalance || 0, rate: Number(p.refiCurrentRate) || 0,
     prin: c.refiCurPrinThisMonth || 0, int: c.refiCurIntThisMonth || 0,
     tax: c.refiCurMonthlyTax || 0, ins: c.refiCurMonthlyIns || 0,
     mi: Number(p.refiCurrentMI) || 0, hoa: Number(p.hoa) || 0,
-    total: c.refiCurTotalPmt || 0,
+    total: (c.refiCurTotalPmt || 0) + secondPmt,
   };
   const nw = {
     loan: c.refiNewLoanAmt || 0, rate: Number(p.rate) || 0,
@@ -103,12 +107,13 @@ export function RefiSummaryDoc(p) {
   const savings = cur.total - nw.total; // positive = saving money
   // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
   // over unchanged on a refi, so they cancel out of the savings math.
-  const piMiSavings = (cur.prin + cur.int + cur.mi) - (nw.prin + nw.int + nw.mi);
+  const piMiSavings = (cur.prin + cur.int + cur.mi + secondPmt) - (nw.prin + nw.int + nw.mi);
   const rows1 = [
     ["Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
     ["Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
     ["Principal", usd2(cur.prin), usd2(nw.prin), signed2(nw.prin - cur.prin)],
     ["Interest", usd2(cur.int), usd2(nw.int), signed2(nw.int - cur.int)],
+    ...(secondPmt > 0 ? [["2nd Lien Payment", usd2(secondPmt), usd2(0), signed2(-secondPmt)]] : []),
     ["Taxes", usd2(cur.tax), usd2(nw.tax), signed2(nw.tax - cur.tax)],
     ["Insurance", usd2(cur.ins), usd2(nw.ins), signed2(nw.ins - cur.ins)],
     ["PMI", usd2(cur.mi), usd2(nw.mi), signed2(nw.mi - cur.mi)],

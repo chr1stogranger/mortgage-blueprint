@@ -116,6 +116,7 @@ export default function UnifiedHeader({
     if (key === "savings") {
       return { title: "Monthly Savings", section: "overview-payment", rows: [
         ["Current Payment", fmt(calc.refiCurTotalPmt)],
+        ...((calc.refiSecondPmtSaved || 0) > 0 ? [["2nd Lien Payment (retired)", fmt(calc.refiSecondPmtSaved)]] : []),
         ["New Payment", fmt(calc.refiNewTotalPmt)],
         ["__t", "Savings", `${fmt(Math.round(calc.refiMonthlyTotalSavings || 0))}/mo`],
         ...((calc.refiBreakevenMonths || 0) > 0 ? [["Breakeven", `${calc.refiBreakevenMonths} months`]] : []),
@@ -126,7 +127,8 @@ export default function UnifiedHeader({
         ["New Loan", fmt(calc.refiNetNewLoan)],
         ["Closing Costs", "−" + fmt(calc.refiNetClosingCosts)],
         ["Prepaids & Escrow", "−" + fmt(calc.refiNetPrepaids)],
-        ["Current Loan Payoff", "−" + fmt(calc.refiNetPayoff)],
+        ["Current Loan Payoff", "−" + fmt(calc.refiPayoffAmount)],
+        ...((calc.refiSecondPayoffAmt || 0) > 0 ? [["2nd Lien Payoff", "−" + fmt(calc.refiSecondPayoffAmt)]] : []),
         ...((calc.refiSkipPmtAmt || 0) > 0 ? [["Skipped Payments", "+" + fmt(calc.refiSkipPmtAmt)]] : []),
         ...((calc.refiEscrowRefund || 0) > 0 ? [["Escrow Refund", "+" + fmt(calc.refiEscrowRefund)]] : []),
         ["__t", "Net Cash", fmt(Math.round(calc.refiNetCashInHand || 0))],

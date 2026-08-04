@@ -3360,7 +3360,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (refiPurpose === "Cash-Out") ln("  Cash Out", fmt(refiCashOut));
    sep();
    lines.push("SAVINGS");
-   ln("  Monthly P&I Savings", fmt(c.refiMonthlySavings));
+   ln(c.refiSecondPmtSaved > 0 ? "  Monthly P&I + 2nd Lien Savings" : "  Monthly P&I Savings", fmt(c.refiMonthlySavings));
    ln("  Monthly Total Savings", fmt(c.refiMonthlyTotalSavings));
    ln("  Closing Costs", fmt(c.totalClosingCosts));
    ln("  Breakeven", c.refiBreakevenMonths + " months");
@@ -3370,7 +3370,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ln("  New Loan Amount", fmt(c.refiNetNewLoan));
    ln("  Closing Costs", "-" + fmt(c.refiNetClosingCosts));
    ln("  Prepaids & Escrow", "-" + fmt(c.refiNetPrepaids));
-   ln("  Current Loan Payoff", "-" + fmt(c.refiNetPayoff));
+   ln(c.refiSecondPayoffAmt > 0 ? "  Loan Payoffs (1st + 2nd)" : "  Current Loan Payoff", "-" + fmt(c.refiNetPayoff));
    ln("  Estimated Cash Out", fmt(c.refiEstCashOut));
    if (c.refiSkipPmtAmt > 0) ln("  Skip " + refiSkipMonths + " Payment(s)", "+" + fmt(c.refiSkipPmtAmt));
    if (c.refiEscrowRefund > 0) ln("  Escrow Balance Refund", "+" + fmt(c.refiEscrowRefund));
@@ -5172,7 +5172,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiPayoffDays = refiPayoff.days;
   const refiPayoffInterest = refiPayoff.interest;
   const refiPayoffAmount = refiPayoff.amount;
-  const refiAutoLoanAmt = refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut) : refiPayoffAmount;
+  // ── Second-lien payoff (the Mathias Masem case, 2026-08-04) ──
+  // When the plan is "pay off", the new first swallows the second's balance
+  // plus its own per-diem to closing — and the savings math gets credit for
+  // the payment that disappears. Interest bills in arrears on the second too,
+  // so assume it's paid through the 1st of the closing month.
+  const refiSecondPayoff = (() => {
+   if (refiSecondPlan !== "payoff" || refiSecondBal <= 0) return { perDiem: 0, days: 0, interest: 0, amount: 0 };
+   const monthStart = new Date(closingYear || new Date().getFullYear(), closingMonth - 1, 1);
+   const days = Math.max(0, Math.round((estCloseDateEarly - monthStart) / 86400000));
+   const perDiem = refiSecondBal * ((refiSecondRate || 0) / 100) / 365;
+   const interest = perDiem * days;
+   return { perDiem, days, interest, amount: refiSecondBal + interest };
+  })();
+  const refiSecondPayoffAmt = refiSecondPayoff.amount;
+  // The monthly carry the payoff eliminates — interest-only floor, same as
+  // refiSecondPmt. Subordinating keeps the payment, so it saves nothing.
+  const refiSecondPmtSaved = refiSecondPlan === "payoff" ? refiSecondPmt : 0;
+  const refiAutoLoanAmt = (refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut) : refiPayoffAmount) + refiSecondPayoffAmt;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   // Which rate sheet this loan prices off. Measures whichever loan actually
   // exists — the new refi loan, or the purchase loan.
@@ -5375,19 +5392,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiNewTotalInt = (() => { if (refiNewPi <= 0) return 0; let bal = refiNewLoanAmt, total = 0; for (let m = 0; m < np && bal > 0; m++) { const intPmt = bal * refiNewMr; total += intPmt; bal -= (refiNewPi - intPmt); } return total; })();
   const refiNewTotalCost = refiNewPi * np + totalClosingCosts;
   const refiNewLTV = refiHomeValue > 0 ? refiNewLoanAmt / refiHomeValue : 0;
-  const refiMonthlySavings = isRefi ? (refiEffPI - refiNewPi) : 0;
+  // A paid-off second's payment is part of what the borrower stops paying, so
+  // it joins the "current" side of every savings comparison (2026-08-04).
+  const refiMonthlySavings = isRefi ? ((refiEffPI + refiSecondPmtSaved) - refiNewPi) : 0;
   // Savings the borrower actually keeps: P&I + MI delta. Taxes, insurance and
   // HOA carry over unchanged on a refi, so they cancel out of the comparison
   // (doc 7.23) — and the number no longer swings with the escrow toggles.
-  const refiPiMiSavings = isRefi ? ((refiEffPI + (Number(refiCurrentMI) || 0)) - (refiNewPi + refiNewMI)) : 0;
-  const refiMonthlyTotalSavings = isRefi ? (refiCurTotalPmt - refiNewTotalPmt) : 0;
+  const refiPiMiSavings = isRefi ? ((refiEffPI + (Number(refiCurrentMI) || 0) + refiSecondPmtSaved) - (refiNewPi + refiNewMI)) : 0;
+  const refiMonthlyTotalSavings = isRefi ? ((refiCurTotalPmt + refiSecondPmtSaved) - refiNewTotalPmt) : 0;
   const refiIntSavings = refiCurRemainingInt - refiNewTotalInt;
   const refiBreakevenMonths = refiPiMiSavings > 0 ? Math.ceil(totalClosingCosts / refiPiMiSavings) : 0;
   // ── Net Cash Out ──
   const refiNetNewLoan = refiNewLoanAmt;
   const refiNetClosingCosts = totalClosingCosts;
   const refiNetPrepaids = totalPrepaidExp;
-  const refiNetPayoff = refiPayoffAmount;
+  const refiNetPayoff = refiPayoffAmount + refiSecondPayoffAmt;
   const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff;
   const refiSkipPmtAmt = refiCurTotalPmt * (refiSkipMonths || 0);
   const refiEscrowRefund = refiEscrowBalance || 0;
@@ -5545,6 +5564,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiSolvedTerm, refiSolvedMaturity,
    refiStatedMaturityMonths, refiEffMaturity,
    refiSecondBal, refiCLTV, refiBlendedRate, refiSecondPmt,
+   refiSecondPayoffAmt, refiSecondPayoffInterest: refiSecondPayoff.interest, refiSecondPayoffDays: refiSecondPayoff.days, refiSecondPmtSaved,
    refiPmiDropEligible, refiFromStatement, refiUnsure, refiHardFlags,
    refiBalanceSuspect, refiConfidence,
    refiExtraMonthly, refiExtraLump, refiLumpMonth,
@@ -5914,7 +5934,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Overview fold-in sections both render these.
  const renderRefiSummarySection = () => (<>
  <div style={{ marginTop: 20 }}>
-  <Hero value={fmt(Math.abs(calc.refiPiMiSavings))} label={calc.refiPiMiSavings >= 0 ? "Monthly P&I + MI Savings" : "Monthly P&I + MI Increase"} color={calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary} sub={calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiPiMiSavings <= 0 ? "No P&I + MI savings" : ""} />
+  <Hero value={fmt(Math.abs(calc.refiPiMiSavings))} label={(calc.refiPiMiSavings >= 0 ? "Monthly P&I + MI Savings" : "Monthly P&I + MI Increase") + (calc.refiSecondPmtSaved > 0 ? " (incl. 2nd lien)" : "")} color={calc.refiPiMiSavings > 0 ? T.green : calc.refiPiMiSavings < 0 ? T.red : T.textSecondary} sub={[calc.refiSecondPmtSaved > 0 ? `Retires the ${fmt(calc.refiSecondPmtSaved)}/mo second-lien payment` : "", calc.refiBreakevenMonths > 0 ? `Breakeven in ${calc.refiBreakevenMonths} months` : calc.refiPiMiSavings <= 0 ? "No P&I + MI savings" : ""].filter(Boolean).join(" · ")} />
  </div>
  {/* Refi Savings Summary PDF — the borrower-facing one-pager (Christo
      2026-07-22). Second button appends the fees worksheet as page 2. */}
@@ -6092,7 +6112,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <MRow label="Discount Points" value={fmt(calc.loan * discountPts / 100)} sub={discountPts > 0 ? `${discountPts} pts` : "none"} />
    {refiPurpose === "Cash-Out" && refiCashOut > 0 && <MRow label="Cash Proceeds" value={fmt(refiCashOut)} color={T.blue} />}
    <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 6, paddingTop: 6 }}>
-    <MRow label="P&I Monthly Savings" value={fmt(calc.refiMonthlySavings)} color={calc.refiMonthlySavings > 0 ? T.green : T.red} bold />
+    <MRow label={calc.refiSecondPmtSaved > 0 ? "P&I + 2nd Lien Monthly Savings" : "P&I Monthly Savings"} value={fmt(calc.refiMonthlySavings)} sub={calc.refiSecondPmtSaved > 0 ? `incl. ${fmt(calc.refiSecondPmtSaved)}/mo retired second-lien payment` : undefined} color={calc.refiMonthlySavings > 0 ? T.green : T.red} bold />
     <MRow label="Breakeven Period" value={calc.refiBreakevenMonths > 0 ? `${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs)` : "N/A"} bold />
    </div>
    {calc.refiBreakevenMonths > 0 && <div style={{ marginTop: 10 }}>
@@ -6124,7 +6144,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <MRow label="New Loan Amount" value={fmt(calc.refiNetNewLoan)} color={T.blue} />
    <MRow label="− Closing Costs" value={`-${fmt(calc.refiNetClosingCosts)}`} />
    <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
-   <MRow label="− Current Loan Payoff" value={`-${fmt(calc.refiNetPayoff)}`} />
+   <MRow label={calc.refiSecondPayoffAmt > 0 ? "− Loan Payoffs (1st + 2nd)" : "− Current Loan Payoff"} value={`-${fmt(calc.refiNetPayoff)}`} sub={calc.refiSecondPayoffAmt > 0 ? `${fmt(calc.refiPayoffAmount)} first + ${fmt(calc.refiSecondPayoffAmt)} second` : undefined} />
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label={calc.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close"} value={calc.refiEstCashOut >= 0 ? fmt(calc.refiEstCashOut) : fmt(Math.abs(calc.refiEstCashOut))} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
    </div>

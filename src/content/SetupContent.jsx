@@ -1160,7 +1160,7 @@ export default function SetupContent(props) {
        Together that's {fmt(calc.refiEffBalance + calc.refiSecondBal)} at a blended{" "}
        <strong>{calc.refiBlendedRate.toFixed(3)}%</strong>
        {refiSecondPlan === "payoff"
-        ? ` — paying the second off means the new first has to beat that blend, not the ${refiCurrentRate.toFixed(3)}% first alone.`
+        ? ` — paying the second off means the new first has to beat that blend, not the ${refiCurrentRate.toFixed(3)}% first alone. Its ${fmt(calc.refiSecondPayoffAmt)} payoff rolls into the new loan and its payment counts toward the savings.`
         : ` — subordinating leaves the ${(refiSecondRate || 0).toFixed(3)}% balance in place${refiSecondKind === "heloc" ? " and still floating." : "."}`}
        {refiHomeValue > 0 && ` CLTV ${(calc.refiCLTV * 100).toFixed(1)}%.`}
        {calc.refiSecondPmt > 0 && ` Carry is about ${fmt(calc.refiSecondPmt)}/mo${refiSecondKind === "heloc" ? " interest-only." : " minimum."}`}
@@ -1325,9 +1325,20 @@ export default function SetupContent(props) {
       <div style={{ marginBottom: -6 }}><Inp label="Payoff Fees" value={refiPayoffFees} onChange={setRefiPayoffFees} sm tip="Lender payoff fees — reconveyance, recording, doc prep, wire. Typically ~$300. Included in the payoff amount." /></div>
      </div>
      <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-      <div style={{ fontSize: 10, color: T.textTertiary }}>Payoff Amount</div>
+      <div style={{ fontSize: 10, color: T.textTertiary }}>{calc.refiSecondPayoffAmt > 0 ? "First Lien Payoff" : "Payoff Amount"}</div>
       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount)}</div>
      </div>
+     {/* The paid-off second rides along: balance + its own per-diem to closing. */}
+     {calc.refiSecondPayoffAmt > 0 && (<>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>+ {refiSecondKind === "heloc" ? "HELOC" : "Second"} Payoff{calc.refiSecondPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiSecondPayoffInterest)} interest, ${calc.refiSecondPayoffDays}d)` : ""}</div>
+       <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiSecondPayoffAmt)}</div>
+      </div>
+      <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+       <div style={{ fontSize: 10, color: T.textTertiary }}>Total Payoffs</div>
+       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt)}</div>
+      </div>
+     </>)}
     </div>
    )}
    {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}

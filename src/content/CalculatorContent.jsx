@@ -287,7 +287,7 @@ export default function CalculatorContent(props) {
          <Inp value={refiNewLoanAmtOverride || Math.round(calc.refiAutoLoanAmt || 0)} onChange={v => setRefiNewLoanAmtOverride(v)} prefix="$" />
          {(calc.refiPayoffAmount || 0) > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 11, color: T.textTertiary }}>
-           <span>Estimated payoff: {fmt(calc.refiPayoffAmount)}</span>
+           <span>Estimated payoff: {fmt((calc.refiPayoffAmount || 0) + (calc.refiSecondPayoffAmt || 0))}{(calc.refiSecondPayoffAmt || 0) > 0 ? " (incl. 2nd lien)" : ""}</span>
            {refiNewLoanAmtOverride > 0 && refiNewLoanAmtOverride !== Math.round(calc.refiAutoLoanAmt || 0) && (
             <button onClick={() => setRefiNewLoanAmtOverride(0)} style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺ Reset</button>
            )}
@@ -1397,7 +1397,7 @@ export default function CalculatorContent(props) {
     payoffs={calc.payoffAtClosing || 0}
     credits={calc.totalCredits || 0}
     newLoan={calc.refiNewLoanAmt || 0}
-    oldLoanPayoff={calc.refiPayoffAmount || 0}
+    oldLoanPayoff={calc.refiNetPayoff || 0}
     isRefi={isRefi}
    />
    </div>
