@@ -88,22 +88,28 @@ export function RefiSummaryDoc(p) {
   // ── Option 1 — monthly cash flow ──
   // A second lien being paid off (2026-08-04): its payment sits on the CURRENT
   // side and disappears on the new — so it joins the table, the total, and the
-  // verdict figure, keeping every column reconcilable.
+  // verdict figure, keeping every column reconcilable. The current LOAN AMOUNT
+  // is everything the new loan replaces: first balance + paid-off second.
   const secondPmt = c.refiSecondPmtSaved || 0;
+  // Tax/ins rows carry over unchanged, so the LO can hide them to cut noise
+  // (Christo 2026-08-04). Totals follow the visible rows.
+  const showTI = p.refiShowTaxIns !== false;
   const cur = {
-    loan: c.refiEffBalance || 0, rate: Number(p.refiCurrentRate) || 0,
+    loan: c.refiCurTotalDebt ?? (c.refiEffBalance || 0), rate: Number(p.refiCurrentRate) || 0,
     prin: c.refiCurPrinThisMonth || 0, int: c.refiCurIntThisMonth || 0,
     tax: c.refiCurMonthlyTax || 0, ins: c.refiCurMonthlyIns || 0,
     mi: Number(p.refiCurrentMI) || 0, hoa: Number(p.hoa) || 0,
-    total: (c.refiCurTotalPmt || 0) + secondPmt,
   };
+  cur.total = showTI
+    ? (c.refiCurTotalPmt || 0) + secondPmt
+    : (c.refiEffPI || 0) + cur.mi + secondPmt;
   const nw = {
     loan: c.refiNewLoanAmt || 0, rate: Number(p.rate) || 0,
     prin: c.refiNewPrinThisMonth || 0, int: c.refiNewIntThisMonth || 0,
     tax: c.refiNewMonthlyTax || 0, ins: c.refiNewMonthlyIns || 0,
     mi: c.refiNewMI || 0, hoa: Number(p.hoa) || 0,
-    total: c.refiNewTotalPmt || 0,
   };
+  nw.total = showTI ? (c.refiNewTotalPmt || 0) : (c.refiNewPi || 0) + nw.mi;
   const savings = cur.total - nw.total; // positive = saving money
   // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
   // over unchanged on a refi, so they cancel out of the savings math.
@@ -115,14 +121,16 @@ export function RefiSummaryDoc(p) {
   const secondRow = [p.refiSecondKind === "heloc" ? "HELOC Payment" : "2nd Lien Payment", usd2(secondPmt), usd2(0), signed2(-secondPmt)];
   const hasMi = cur.mi > 0 || nw.mi > 0;
   const rows1 = [
-    ["Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
+    [(c.refiCurTotalDebt ?? 0) > (c.refiEffBalance || 0) ? "Loan Amount (1st + 2nd)" : "Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
     ["Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
     ["Principal", usd2(cur.prin), usd2(nw.prin), signed2(nw.prin - cur.prin)],
     ["Interest", usd2(cur.int), usd2(nw.int), signed2(nw.int - cur.int)],
-    ["Taxes", usd2(cur.tax), usd2(nw.tax), signed2(nw.tax - cur.tax)],
-    ["Insurance", usd2(cur.ins), usd2(nw.ins), signed2(nw.ins - cur.ins)],
+    ...(showTI ? [
+      ["Taxes", usd2(cur.tax), usd2(nw.tax), signed2(nw.tax - cur.tax)],
+      ["Insurance", usd2(cur.ins), usd2(nw.ins), signed2(nw.ins - cur.ins)],
+    ] : []),
     ...(secondPmt > 0 ? (hasMi ? [pmiRow, secondRow] : [secondRow]) : [pmiRow]),
-    ["HOA", usd2(cur.hoa), usd2(nw.hoa), signed2(nw.hoa - cur.hoa)],
+    ...(showTI ? [["HOA", usd2(cur.hoa), usd2(nw.hoa), signed2(nw.hoa - cur.hoa)]] : []),
   ];
 
   // ── Option 2 — long term ──
@@ -194,7 +202,7 @@ export function RefiSummaryDoc(p) {
           </View>
         ))}
         <View style={s.trTotal}>
-          <Text style={[s.cLabel, s.bold, { color: INK }]}>Monthly Payment</Text>
+          <Text style={[s.cLabel, s.bold, { color: INK }]}>{showTI ? "Monthly Payment" : "Monthly P&I + MI"}</Text>
           <Text style={[s.cNum, s.bold]}>{usd2(cur.total)}</Text>
           <Text style={[s.cNum, s.bold]}>{usd2(nw.total)}</Text>
           <Text style={[s.cNum, s.bold, { color: savings >= 0 ? GREEN : RED }]}>{savings >= 0 ? usd2(savings) + " saved" : signed2(nw.total - cur.total)}</Text>

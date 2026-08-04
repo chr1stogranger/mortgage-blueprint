@@ -1185,6 +1185,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (last || first) return [last, first].filter(Boolean).join(', ');
   const name = (borrower.name || '').trim();
   if (!name) return 'Client';
+  // A name that already contains a comma is already "Last, First" — re-splitting
+  // it on spaces is how "Mathias, Masem," rendered as "Masem,, Mathias,"
+  // (Christo 2026-08-04). Just tidy the commas and keep the stored order.
+  if (name.includes(',')) return name.split(',').map(x => x.trim()).filter(Boolean).join(', ');
   const parts = name.split(/\s+/);
   if (parts.length === 1) return parts[0];
   return `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}`;
@@ -1262,12 +1266,36 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [bgPaused, setBgPaused] = useState(() => {
   try { return localStorage.getItem('bp_bg_paused') === '1'; } catch { return false; }
  });
+ // Refi analysis noise control (Christo 2026-08-04): taxes/insurance carry
+ // over unchanged on a refi, so their rows are often just noise in the
+ // comparison + PDF. Device-local presentation pref, not scenario data.
+ const [refiShowTaxIns, setRefiShowTaxIns] = useState(() => {
+  try { return localStorage.getItem('bp_refi_show_ti') !== '0'; } catch { return true; }
+ });
+ const toggleRefiShowTaxIns = () => setRefiShowTaxIns(v => {
+  const nv = !v;
+  try { localStorage.setItem('bp_refi_show_ti', nv ? '1' : '0'); } catch { /* ignore */ }
+  return nv;
+ });
  useEffect(() => {
   setDarkMode(themeMode === 'dark');
   // Persist on EVERY themeMode change (not just the header toggle) so a hard
   // refresh always restores the last-used mode. Default stays 'light'.
   try { localStorage.setItem('bp_theme_mode', themeMode); } catch {}
  }, [themeMode]);
+ // A ?theme= link is a one-shot hint, not a standing override (Christo
+ // 2026-08-04 — switching to light didn't survive a refresh because the URL
+ // kept re-forcing dark AND overwrote the saved preference). The initializer
+ // above has already consumed it; strip it so refresh uses the saved mode.
+ useEffect(() => {
+  try {
+   const url = new URL(window.location.href);
+   if (url.searchParams.has('theme')) {
+    url.searchParams.delete('theme');
+    window.history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash);
+   }
+  } catch { /* ignore */ }
+ }, []);
  const cycleTheme = () => {
   const next = themeMode === 'dark' ? 'light' : 'dark';
   setThemeMode(next);
@@ -2645,6 +2673,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // Local cleanup: drop from the list + recent shelf, clear the open file.
    setBorrowerList(prev => prev.filter(b => b.id !== id));
    try { removeBlueprintEntry?.(id); } catch(e) {}
+   // Don't let the refresh-restore reopen a deleted client.
+   try { const saved = JSON.parse(localStorage.getItem('bp_last_client') || 'null'); if (String(saved?.borrowerId) === String(id)) localStorage.removeItem('bp_last_client'); } catch { /* ignore */ }
    setActiveBorrower(null);
    setActiveScenarioId(null);
    setBorrowerScenarios([]);
@@ -2826,7 +2856,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
 
  // Open a client from the sidebar switcher → load their FIRST blueprint (auto-create if none).
- const openClient = async (entry) => {
+ // opts.preferScenarioId: reopen a specific scenario when we have one (the
+ // refresh-restore path) instead of defaulting to the newest.
+ const openClient = async (entry, opts = {}) => {
   if (!entry || entry.borrowerId == null) return;
   const b = borrowerList.find(x => x.id === entry.borrowerId) || { id: entry.borrowerId, name: entry.borrowerName, status: entry.status };
   setActiveBorrower(b);
@@ -2836,7 +2868,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const scens = await apiFetchScenarios(entry.borrowerId);
    setBorrowerScenarios(scens || []);
    if (scens && scens.length > 0) {
-    const s = scens[0];
+    const s = (opts.preferScenarioId && scens.find(x => x.id === opts.preferScenarioId)) || scens[0];
     if (s.state_data) loadState(s.state_data);
     setActiveScenarioId(s.id);
     setScenarioName(s.name || 'Scenario 1');
@@ -2849,6 +2881,32 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setBorrowerScenariosLoading(false);
  };
 
+ // ── Refresh keeps the open client (Christo 2026-08-04) ──
+ // "If I'm on Mathias Masem's page when I refresh, I want to stay on that
+ // page." Remember the open client + scenario on this device; the boot
+ // restore below reopens it once the borrower list lands. Device-local like
+ // the theme — never synced.
+ useEffect(() => {
+  if (!isCloud || isBorrower || !activeBorrower?.id) return;
+  try { localStorage.setItem('bp_last_client', JSON.stringify({ borrowerId: activeBorrower.id, scenarioId: activeScenarioId || null })); } catch { /* ignore */ }
+ }, [isCloud, isBorrower, activeBorrower?.id, activeScenarioId]);
+ const bootRestoreConsumedRef = useRef(false);
+ useEffect(() => {
+  if (bootRestoreConsumedRef.current) return;
+  if (!isCloud || isBorrower || !borrowerList.length) return;
+  bootRestoreConsumedRef.current = true;
+  // A ?client= deep link wins — its own effect handles it.
+  try { if (new URLSearchParams(window.location.search).get('client')) return; } catch { /* ignore */ }
+  if (activeBorrower?.id) return;                    // already in a file (import, share, …)
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('bp_last_client') || 'null'); } catch { /* ignore */ }
+  if (!saved?.borrowerId) return;
+  const b = borrowerList.find(x => String(x.id) === String(saved.borrowerId));
+  if (!b) return;                                    // deleted/archived — stay on the local file
+  openClient({ borrowerId: b.id, borrowerName: b.name, status: b.status }, { preferScenarioId: saved.scenarioId });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isCloud, isBorrower, borrowerList]);
+
  // Keep the free-text borrowerName in sync with the active client record for a
  // signed-in LO. loadState() sets borrowerName from each scenario's saved
  // state, and that value can drift between a client's scenarios (one scenario
@@ -2858,7 +2916,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // (no cloud) and the borrower-facing share view are left untouched. (2026-07-08)
  useEffect(() => {
   if (!isCloud || isBorrower) return;
-  const clientName = (activeBorrower?.name || "").trim();
+  // Tidy stray commas from the stored record ("Mathias, Masem," → "Mathias,
+  // Masem") so the header, Borrower Name field and PDFs never print doubles.
+  const clientName = (activeBorrower?.name || "").split(',').map(x => x.trim()).filter(Boolean).join(', ');
   if (!clientName) return;
   setBorrowerName(prev => (prev === clientName ? prev : clientName));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3425,7 +3485,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   includeFees,
   // Current-loan facts the fees worksheet never needed
   refiCurrentRate, refiOriginalTerm, refiClosedDate, refiEscrowBalance, refiCurrentMI,
-  refiSecondKind,
+  refiSecondKind, refiShowTaxIns,
  });
  const renderRefiSummaryBlob = async (includeFees) => {
   const [{ pdf }, { RefiSummaryDoc }] = await Promise.all([
@@ -5190,6 +5250,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // The monthly carry the payoff eliminates — interest-only floor, same as
   // refiSecondPmt. Subordinating keeps the payment, so it saves nothing.
   const refiSecondPmtSaved = refiSecondPlan === "payoff" ? refiSecondPmt : 0;
+  // What the new loan REPLACES: the first's balance plus the second being paid
+  // off. This is the "current loan amount" every comparison should print —
+  // first alone makes the new-loan delta look like fresh borrowing when it's
+  // really consolidation (Christo 2026-08-04).
+  const refiCurTotalDebt = refiEffBalance + (refiSecondPlan === "payoff" ? refiSecondBal : 0);
   const refiAutoLoanAmt = (refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut) : refiPayoffAmount) + refiSecondPayoffAmt;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   // Which rate sheet this loan prices off. Measures whichever loan actually
@@ -5565,7 +5630,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiSolvedTerm, refiSolvedMaturity,
    refiStatedMaturityMonths, refiEffMaturity,
    refiSecondBal, refiCLTV, refiBlendedRate, refiSecondPmt,
-   refiSecondPayoffAmt, refiSecondPayoffInterest: refiSecondPayoff.interest, refiSecondPayoffDays: refiSecondPayoff.days, refiSecondPmtSaved,
+   refiSecondPayoffAmt, refiSecondPayoffInterest: refiSecondPayoff.interest, refiSecondPayoffDays: refiSecondPayoff.days, refiSecondPmtSaved, refiCurTotalDebt,
    refiPmiDropEligible, refiFromStatement, refiUnsure, refiHardFlags,
    refiBalanceSuspect, refiConfidence,
    refiExtraMonthly, refiExtraLump, refiLumpMonth,
@@ -5971,7 +6036,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {[
     ["Loan Type", refiCurrentLoanType, loanType + (loanType === "VA" ? " - " + vaUsage : "")],
     ["Purpose", "—", refiPurpose],
-    ["Loan Amount", fmt(calc.refiEffBalance), fmt(calc.refiNewLoanAmt)],
+    // Current side = everything the new loan replaces (first + paid-off 2nd).
+    [calc.refiCurTotalDebt > calc.refiEffBalance ? "Loan Amount (1st + 2nd)" : "Loan Amount", fmt(calc.refiCurTotalDebt), fmt(calc.refiNewLoanAmt)],
     ["Interest Rate", refiCurrentRate.toFixed(3) + "%", rate.toFixed(3) + "%"],
     ["Term", `${calc.refiEffRemaining} mos left`, `${term * 12} mos (${term}yr)`],
    ].map(([l, c, n], i) => (
@@ -5983,8 +6049,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ))}
    {refiHomeValue > 0 && [
     ["Home Value", fmt(refiHomeValue), fmt(refiHomeValue)],
-    ["LTV", pct(calc.refiCurLTV, 1), pct(calc.refiNewLTV, 1)],
-    ["Equity", fmt(refiHomeValue - calc.refiEffBalance), fmt(refiHomeValue - calc.refiNewLoanAmt)],
+    // With a second being paid off, current LTV/equity count BOTH liens so the
+    // columns compare like against like.
+    ["LTV", pct(refiHomeValue > 0 ? calc.refiCurTotalDebt / refiHomeValue : 0, 1), pct(calc.refiNewLTV, 1)],
+    ["Equity", fmt(refiHomeValue - calc.refiCurTotalDebt), fmt(refiHomeValue - calc.refiNewLoanAmt)],
    ].map(([l, c, n], i) => (
     <div key={"ltv" + i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
      <span style={{ color: T.textSecondary }}>{l}</span>
@@ -5997,6 +6065,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  {/* Monthly Payment Comparison */}
  <Sec title="Monthly Payment">
   <Card>
+   {/* Noise control: tax/ins rows carry over unchanged, so they can be hidden
+       to keep the analysis (and the PDF) on the numbers that actually move. */}
+   <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+    <button onClick={toggleRefiShowTaxIns} style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", background: refiShowTaxIns ? T.pillBg : `${T.blue}18`, color: refiShowTaxIns ? T.textSecondary : T.blue, border: `1px solid ${refiShowTaxIns ? T.separator : T.blue + "55"}` }}>
+     {refiShowTaxIns ? "Hide taxes & insurance" : "Show taxes & insurance"}
+    </button>
+   </div>
    {/* Header */}
    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `2px solid ${T.separator}`, letterSpacing: 0.5 }}>
     <span></span><span style={{textAlign:"right"}}>Current</span><span style={{textAlign:"right"}}>New</span><span style={{textAlign:"right"}}>Delta</span>
@@ -6020,10 +6095,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      // the sum of the two (see calc).
      { label: "Principal", cur: curPrin, nw: newPrin, edit: { override: refiCurPrinOverride, set: setRefiCurPrinOverride } },
      { label: "Interest", cur: curInt, nw: newInt, edit: { override: refiCurIntOverride, set: setRefiCurIntOverride } },
-     ...(refiCurEscrowTax || refiNewEscrowTax ? [
+     ...(!refiShowTaxIns ? [] : refiCurEscrowTax || refiNewEscrowTax ? [
       { label: "Taxes", cur: refiCurEscrowTax ? curTax : 0, nw: refiNewEscrowTax ? newTax : 0, note: !refiNewEscrowTax ? "paid separately on new loan" : !refiCurEscrowTax ? "newly escrowed" : undefined },
      ] : refiAnnualTax > 0 ? [{ label: "Taxes", cur: curTax, nw: curTax, note: "paid separately" }] : []),
-     ...(refiCurEscrowIns || refiNewEscrowIns ? [
+     ...(!refiShowTaxIns ? [] : refiCurEscrowIns || refiNewEscrowIns ? [
       { label: "Insurance", cur: refiCurEscrowIns ? curIns : 0, nw: refiNewEscrowIns ? newIns : 0, note: !refiNewEscrowIns ? "paid separately on new loan" : !refiCurEscrowIns ? "newly escrowed" : undefined },
      ] : refiAnnualIns > 0 ? [{ label: "Insurance", cur: curIns, nw: curIns, note: "paid separately" }] : []),
      { label: "MI/MIP", cur: curMI, nw: newMI },
@@ -6075,25 +6150,34 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* Total row */}
    {(() => {
     // Current side carries the retired second's payment so the column sums
-    // to what the borrower actually pays today.
-    const curTotalAll = calc.refiCurTotalPmt + (calc.refiSecondPmtSaved || 0);
-    const totalDelta = calc.refiNewTotalPmt - curTotalAll;
+    // to what the borrower actually pays today. With tax/ins hidden, the
+    // totals drop to P&I + MI (+ 2nd) so the columns still sum on their face.
+    const curTotalAll = refiShowTaxIns
+     ? calc.refiCurTotalPmt + (calc.refiSecondPmtSaved || 0)
+     : calc.refiEffPI + (Number(refiCurrentMI) || 0) + (calc.refiSecondPmtSaved || 0);
+    const newTotalAll = refiShowTaxIns ? calc.refiNewTotalPmt : calc.refiNewPi + calc.refiNewMI;
+    const totalDelta = newTotalAll - curTotalAll;
     return (
      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderTop: `2px solid ${T.separator}`, marginTop: 4, fontSize: 14 }}>
-      <span style={{ fontWeight: 700 }}>Total Payment</span>
+      <span style={{ fontWeight: 700 }}>{refiShowTaxIns ? "Total Payment" : "Total P&I + MI"}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(curTotalAll)}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(calc.refiNewTotalPmt)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.blue }}>{fmt(newTotalAll)}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 13, color: totalDelta < -0.5 ? T.green : totalDelta > 0.5 ? T.red : T.textTertiary }}>
        {Math.abs(totalDelta) < 0.5 ? "—" : (totalDelta > 0 ? "+" : "") + fmt(totalDelta)}
       </span>
      </div>
     );
    })()}
-   {/* Savings card */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: "10px 0", marginTop: 4, background: calc.refiMonthlyTotalSavings > 0 ? T.successBg : calc.refiMonthlyTotalSavings < 0 ? T.errorBg : T.pillBg, borderRadius: 8, paddingLeft: 10, paddingRight: 10 }}>
-    <span style={{ fontWeight: 600, fontSize: 13, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>Monthly {calc.refiMonthlyTotalSavings >= 0 ? "Savings" : "Increase"}</span>
-    <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 16, color: calc.refiMonthlyTotalSavings > 0 ? T.green : T.red }}>{fmt(Math.abs(calc.refiMonthlyTotalSavings))}</span>
-   </div>
+   {/* Savings card — tracks the visible basis so it always matches the table above. */}
+   {(() => {
+    const sv = refiShowTaxIns ? calc.refiMonthlyTotalSavings : calc.refiPiMiSavings;
+    return (
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, padding: "10px 0", marginTop: 4, background: sv > 0 ? T.successBg : sv < 0 ? T.errorBg : T.pillBg, borderRadius: 8, paddingLeft: 10, paddingRight: 10 }}>
+      <span style={{ fontWeight: 600, fontSize: 13, color: sv > 0 ? T.green : T.red }}>Monthly {sv >= 0 ? "Savings" : "Increase"}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, fontSize: 16, color: sv > 0 ? T.green : T.red }}>{fmt(Math.abs(sv))}</span>
+     </div>
+    );
+   })()}
    {!(refiNewEscrowTax && refiNewEscrowIns) && (refiAnnualTax > 0 || refiAnnualIns > 0) && (
     <Note color={T.orange} style={{ marginTop: 8 }}>No escrow — tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
    )}
