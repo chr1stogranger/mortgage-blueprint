@@ -774,6 +774,126 @@ export default function SetupContent(props) {
        order, and the sheet's (Christo 2026-08-04). */}
    <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI}
     tip={calc.refiFromStatement ? "Monthly mortgage insurance on the current loan, straight off the statement. Zero if there is none." : "Monthly mortgage insurance on the current loan, if any — estimate it if unknown (FHA loans from the original amount, conventional from the LTV at closing)."} />
+   {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
+       One top-level question, then a per-component walk: are taxes included,
+       how much, is insurance included, how much — amounts entered monthly or
+       annual. Stored per component (refiCurEscrowTax/Ins + annual amounts);
+       answering here moves the calc to split mode. Flow 2 adds Unsure, which
+       the confidence readout picks up. A legacy combined servicer line stays
+       visible until the per-component answers replace it. */}
+   {(() => {
+    const escrowTop = refiEscrowUnsure === "unsure" ? "unsure"
+     : (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) ? "yes" : "no";
+    const answerEscrow = (v) => {
+     setRefiEscrowUnsure(v === "unsure" ? "unsure" : "");
+     // The combined line drives the CURRENT payment when present; the split
+     // amounts always feed the new loan's impound.
+     if (v === "yes") { setRefiEscrowMode(refiEscrowCombined > 0 ? "combined" : "split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } }
+     if (v === "no") { setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); }
+    };
+    const escrowOpts = calc.refiFromStatement ? [["yes", "Yes"], ["no", "No"]] : [["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]];
+    return (
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Taxes and/or insurance included in the payment?</span>
+      <div style={{ display: "flex", gap: 5 }}>
+       {escrowOpts.map(([v, label]) => (
+        <button key={v} type="button" onClick={() => answerEscrow(v)}
+         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: escrowTop === v ? `${T.blue}22` : T.inputBg,
+          border: escrowTop === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: escrowTop === v ? T.blue : T.textSecondary }}>
+         {label}
+        </button>
+       ))}
+      </div>
+     </div>
+    );
+   })()}
+   {refiEscrowUnsure === "unsure" && (
+    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 10 }}>
+     Marked unsure — it's flagged for verification below, and the current payment runs P&I-only until it's known.
+    </div>
+   )}
+   {refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) && (
+    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+     {/* The statement's own escrow bucket comes FIRST — every statement prints
+         one "Escrow (Taxes and Insurance)" line (Christo 2026-08-04). It
+         drives the CURRENT payment; the breakdown below feeds the new loan. */}
+     <div style={{ paddingTop: 8 }}>
+      <Inp label={calc.refiFromStatement ? "Escrow (Taxes and Insurance) — as printed on the statement" : "Escrow (Taxes and Insurance) — combined"}
+       value={refiEscrowCombined}
+       onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
+       tip="The single escrow line the statement prints — what the servicer collects, cushion and shortage spread included. It drives the CURRENT payment; the per-component breakdown below feeds the new loan's impound."
+       rightSlot={
+        <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+         {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
+           style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+            background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
+            border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+            color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
+           {label}
+          </button>
+         ))}
+        </span>
+       } />
+     </div>
+     {[
+      { key: "tax", label: "Taxes", q: "Are taxes included?", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
+        amt: refiAnnualTax, setAmt: setRefiAnnualTax,
+        hint: "Prefilled from the county assessor once the address is known." },
+      { key: "ins", label: "Insurance", q: "Is insurance included?", on: refiCurEscrowIns, setOn: setRefiCurEscrowIns,
+        amt: refiAnnualIns, setAmt: setRefiAnnualIns,
+        hint: "The policy premium — carries over on a refi." },
+     ].map(c => (
+      <div key={c.key} style={{ paddingTop: 8 }}>
+       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{c.q}</span>
+        <YesNoSeg T={T} value={c.on} onYes={() => c.setOn(true)} onNo={() => c.setOn(false)} />
+       </div>
+       {c.on && (() => {
+        const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
+        const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
+        const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
+        return (
+        <Inp label={`${c.label} amount`} value={shown} onChange={store} sm tip={c.hint}
+         rightSlot={
+          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => {
+            const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
+            const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
+            return (
+             <button key={v} type="button" onClick={() => setPer(v)}
+              style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+               background: per === v ? `${T.blue}22` : "transparent",
+               border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+               color: per === v ? T.blue : T.textTertiary }}>
+              {label}
+             </button>
+            );
+           })}
+          </span>
+         } />
+        );
+       })()}
+      </div>
+     ))}
+     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
+      These feed the NEW loan's impound. Enter the real annual tax bill and premium — not a division of
+      the servicer's escrow line, which carries cushion and any shortage spread; splitting that would
+      import the old servicer's shortage into your quote. Also check they aren't bundling mortgage
+      insurance into the escrow line; if they are, it's already counted under MI/MIP.
+     </div>
+    </div>
+   )}
+   {/* No impounds means no escrow account, so the balance question is removed
+       rather than asked and answered zero. */}
+   {calc.refiEscrowOn
+    ? <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm
+       tip="Money sitting in the escrow account — refunded after the old loan pays off. Printed on the statement, so read it rather than ask." />
+    : <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: 12 }}>
+       Nothing is impounded, so there's no escrow account and no balance to refund.
+      </div>}
    {!calc.refiFromStatement && (
     <Note color={T.orange}>
      No statement, so the balance below is reconstructed from the closing date and rate. Everything it
@@ -927,121 +1047,6 @@ export default function SetupContent(props) {
    {!refiClosedDate && (
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
    )}
-   {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
-       One top-level question, then a per-component walk: are taxes included,
-       how much, is insurance included, how much — amounts entered monthly or
-       annual. Stored per component (refiCurEscrowTax/Ins + annual amounts);
-       answering here moves the calc to split mode. Flow 2 adds Unsure, which
-       the confidence readout picks up. A legacy combined servicer line stays
-       visible until the per-component answers replace it. */}
-   {(() => {
-    const escrowTop = refiEscrowUnsure === "unsure" ? "unsure"
-     : (refiCurEscrowTax || refiCurEscrowIns || (refiEscrowMode === "combined" && refiEscrowCombined > 0)) ? "yes" : "no";
-    const answerEscrow = (v) => {
-     setRefiEscrowUnsure(v === "unsure" ? "unsure" : "");
-     if (v === "yes") { setRefiEscrowMode("split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } }
-     if (v === "no") { setRefiEscrowMode("split"); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); }
-    };
-    const escrowOpts = calc.refiFromStatement ? [["yes", "Yes"], ["no", "No"]] : [["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]];
-    return (
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
-      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Taxes and/or insurance included in the payment?</span>
-      <div style={{ display: "flex", gap: 5 }}>
-       {escrowOpts.map(([v, label]) => (
-        <button key={v} type="button" onClick={() => answerEscrow(v)}
-         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: escrowTop === v ? `${T.blue}22` : T.inputBg,
-          border: escrowTop === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: escrowTop === v ? T.blue : T.textSecondary }}>
-         {label}
-        </button>
-       ))}
-      </div>
-     </div>
-    );
-   })()}
-   {refiEscrowUnsure === "unsure" && (
-    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 10 }}>
-     Marked unsure — it's flagged for verification below, and the current payment runs P&I-only until it's known.
-    </div>
-   )}
-   {refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || (refiEscrowMode === "combined" && refiEscrowCombined > 0)) && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
-     {refiEscrowMode === "combined" && refiEscrowCombined > 0 && (
-      <div style={{ paddingTop: 8 }}>
-       <Inp label="Escrow line — as printed on the statement" value={refiEscrowCombined} onChange={setRefiEscrowCombined}
-        tip="The servicer's single 'Escrow (Taxes and Insurance)' line — what they collect, cushion and shortage spread included. Answering the per-component questions below replaces it."
-        rightSlot={
-         <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-          {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
-           <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
-            style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-             background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
-             border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-             color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
-            {label}
-           </button>
-          ))}
-         </span>
-        } />
-      </div>
-     )}
-     {[
-      { key: "tax", label: "Taxes", q: "Are taxes included?", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
-        amt: refiAnnualTax, setAmt: setRefiAnnualTax,
-        hint: "Prefilled from the county assessor once the address is known." },
-      { key: "ins", label: "Insurance", q: "Is insurance included?", on: refiCurEscrowIns, setOn: setRefiCurEscrowIns,
-        amt: refiAnnualIns, setAmt: setRefiAnnualIns,
-        hint: "The policy premium — carries over on a refi." },
-     ].map(c => (
-      <div key={c.key} style={{ paddingTop: 8 }}>
-       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{c.q}</span>
-        <YesNoSeg T={T} value={c.on} onYes={() => { c.setOn(true); setRefiEscrowMode("split"); }} onNo={() => { c.setOn(false); setRefiEscrowMode("split"); }} />
-       </div>
-       {c.on && (() => {
-        const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
-        const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
-        const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
-        return (
-        <Inp label={`${c.label} amount`} value={shown} onChange={store} sm tip={c.hint}
-         rightSlot={
-          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => {
-            const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
-            const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
-            return (
-             <button key={v} type="button" onClick={() => setPer(v)}
-              style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-               background: per === v ? `${T.blue}22` : "transparent",
-               border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-               color: per === v ? T.blue : T.textTertiary }}>
-              {label}
-             </button>
-            );
-           })}
-          </span>
-         } />
-        );
-       })()}
-      </div>
-     ))}
-     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
-      These feed the NEW loan's impound. Enter the real annual tax bill and premium — not a division of
-      the servicer's escrow line, which carries cushion and any shortage spread; splitting that would
-      import the old servicer's shortage into your quote. Also check they aren't bundling mortgage
-      insurance into the escrow line; if they are, it's already counted under MI/MIP.
-     </div>
-    </div>
-   )}
-   {/* No impounds means no escrow account, so the balance question is removed
-       rather than asked and answered zero. */}
-   {calc.refiEscrowOn
-    ? <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm
-       tip="Money sitting in the escrow account — refunded after the old loan pays off. Printed on the statement, so read it rather than ask." />
-    : <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: 12 }}>
-       Nothing is impounded, so there's no escrow account and no balance to refund.
-      </div>}
    <div style={{ maxWidth: 320 }}>
     <div style={{ marginBottom: 6 }}>
      {/* Month only — the year is implied (a borrower 12+ months behind isn't
