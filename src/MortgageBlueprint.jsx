@@ -3494,11 +3494,35 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ]);
   return pdf(React.createElement(RefiSummaryDoc, buildRefiSummaryProps(includeFees))).toBlob();
  };
- // ── Live PDF preview pane state (Christo 2026-08-04) ──
- // The Ops marketing-flyer pattern brought to the refi. The fingerprint memo
- // and render effect live BELOW the calc definition (they read it).
- const [refiPreviewOpen, setRefiPreviewOpen] = useState(false);
+ // ── Live PDF preview panel state (Christo 2026-08-04) ──
+ // A docked, resizable RIGHT panel (the Ops right-panel pattern) that opens
+ // automatically on a refi. Open state and width persist per device. The
+ // fingerprint memo and render effect live BELOW the calc definition.
+ const [refiPreviewOpen, setRefiPreviewOpen] = useState(() => {
+  try { return localStorage.getItem('bp_refi_preview_open') !== '0'; } catch { return true; }
+ });
+ useEffect(() => {
+  try { localStorage.setItem('bp_refi_preview_open', refiPreviewOpen ? '1' : '0'); } catch { /* ignore */ }
+ }, [refiPreviewOpen]);
  const [refiPreviewUrl, setRefiPreviewUrl] = useState("");
+ const [refiPreviewW, setRefiPreviewW] = useState(() => {
+  try { const w = parseInt(localStorage.getItem('bp_refi_preview_w'), 10); if (w >= 320 && w <= 900) return w; } catch { /* ignore */ }
+  return 480;
+ });
+ const [refiPreviewDragging, setRefiPreviewDragging] = useState(false);
+ const startRefiPreviewResize = (e) => {
+  e.preventDefault();
+  setRefiPreviewDragging(true);
+  const move = (ev) => setRefiPreviewW(Math.min(900, Math.max(320, window.innerWidth - ev.clientX)));
+  const up = () => {
+   setRefiPreviewDragging(false);
+   window.removeEventListener('pointermove', move);
+   window.removeEventListener('pointerup', up);
+   setRefiPreviewW(w => { try { localStorage.setItem('bp_refi_preview_w', String(w)); } catch { /* ignore */ } return w; });
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+ };
  // A deploy invalidates the old build's hashed chunk URLs, so a tab opened
  // before the deploy fails the dynamic import above with a fetch error —
  // that was every "Could not generate the PDF" report on deploy days. Reload
@@ -6609,11 +6633,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <button onClick={() => setRefiImportError(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "4px 9px", fontFamily: FONT }}>✕</button>
    </div>
   )}
-  {/* ── Floating live PDF preview (refi) — the Ops flyer pattern. Desktop only;
-      the main container below gets matching right padding so nothing hides. */}
+  {/* ── Docked live PDF preview — a resizable RIGHT panel, the Ops pattern
+      (Christo 2026-08-04). Flush to the edge, full height, drag the left rail
+      to resize; the main container gets matching right padding. Desktop only. */}
   {isRefi && refiPreviewOpen && isDesktop && (
-   <div style={{ position: "fixed", top: 70, right: 12, bottom: 12, width: 452, zIndex: 900, display: "flex", flexDirection: "column", background: T.card, border: `1px solid ${T.glassBorder || T.separator}`, borderRadius: 16, boxShadow: darkMode ? "0 12px 40px rgba(0,0,0,0.5)" : "0 12px 40px rgba(10,17,32,0.18)", overflow: "hidden" }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px", borderBottom: `1px solid ${T.separator}`, flexShrink: 0 }}>
+   <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: refiPreviewW, zIndex: 900, display: "flex", flexDirection: "column", background: T.card, borderLeft: `1px solid ${T.glassBorder || T.separator}`, boxShadow: darkMode ? "-8px 0 30px rgba(0,0,0,0.35)" : "-8px 0 30px rgba(10,17,32,0.10)", overflow: "hidden" }}>
+    {/* Resize rail */}
+    <div
+     onPointerDown={startRefiPreviewResize}
+     title="Drag to resize"
+     style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, cursor: "col-resize", zIndex: 2, background: refiPreviewDragging ? `${T.blue}33` : "transparent" }}
+    />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px 10px 18px", borderBottom: `1px solid ${T.separator}`, flexShrink: 0 }}>
      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — Refi Summary</span>
      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
@@ -6621,11 +6652,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     </div>
     {refiPreviewUrl
-     ? <iframe title="Refi Summary live preview" src={`${refiPreviewUrl}#toolbar=0&navpanes=0&view=FitH`} style={{ flex: 1, border: "none", width: "100%", background: darkMode ? "#1b2233" : "#e8edf5" }} />
+     ? <iframe title="Refi Summary live preview" src={`${refiPreviewUrl}#toolbar=0&navpanes=0&view=FitH`} style={{ flex: 1, border: "none", width: "100%", background: darkMode ? "#1b2233" : "#e8edf5", pointerEvents: refiPreviewDragging ? "none" : "auto" }} />
      : <div style={{ flex: 1, display: "grid", placeItems: "center", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Rendering preview…</div>}
    </div>
   )}
-  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop) ? 476 : 0 }}>
+  <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop) ? refiPreviewW : 0 }}>
    <style>{`html, body, #root { overflow-x: hidden !important; max-width: 100vw !important; width: 100% !important; -webkit-text-size-adjust: 100%; box-sizing: border-box !important; background: ${T.bg}; }
     *, *::before, *::after { box-sizing: border-box; }
     input::placeholder { color: rgba(255,255,255,0.15) !important; font-weight: 400 !important; }

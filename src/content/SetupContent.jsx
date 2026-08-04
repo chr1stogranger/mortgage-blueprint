@@ -558,6 +558,9 @@ export default function SetupContent(props) {
        Loan type and fixed/adjustable aren't on the sheet but the math and the
        PDFs need them, so they ride directly under the rate in both flows. */}
    <Inp label="Current Interest Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} req tip="The note rate today. On an adjusted ARM this is the rate it adjusted TO." />
+   {calc.refiFromStatement && (
+    <Inp label="Current Loan Amount — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Outstanding principal from the most recent mortgage statement. When set, this overrides any estimate and anchors the payoff calculation." />
+   )}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
     <Sel label="Fixed / Adjustable" value={refiCurrentRateType} onChange={setRefiCurrentRateType} options={["Fixed", "Adjustable"]} tip="Whether the current note's rate is fixed or adjustable (ARM). An ARM about to reset is often the reason to refinance." />
@@ -758,7 +761,6 @@ export default function SetupContent(props) {
        Hidden entirely in the reconstruct branch: there is no statement to read
        them off, and the calc ignores them there too (Christo 2026-07-28). */}
    {calc.refiFromStatement && (<>
-    <Inp label="Current Loan Amount — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Outstanding principal from the most recent mortgage statement. When set, this overrides any estimate and anchors the payoff calculation." />
     {/* The statement's own principal/interest split (Christo 7.28). Deriving
         it (interest = balance × rate) is only ever an approximation — the
         servicer's split reflects the real accrual. Entering BOTH pins this
