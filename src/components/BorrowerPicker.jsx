@@ -44,6 +44,7 @@ export default function BorrowerPicker({
   borrowers = [],
   activeBorrower = null,
   onSelect,
+  onOpenClient,
   onCreateNew,
   onImportArive,
   onSelectScenario,
