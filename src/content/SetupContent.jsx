@@ -259,6 +259,359 @@ export default function SetupContent(props) {
     </div>
   );
 
+  // ── Flow-1 question nodes (Christo 2026-08-04): every yes/no question in
+  // the current-loan walk rides together in Account Information, directly
+  // below Escrow Balance — prepay, taxes/ins, maturity, second lien,
+  // modified — while the amount sections sit in the statement's own order
+  // further down. Defined once so flow 1 and flow 2 place them differently.
+  // Top-level taxes/insurance question (+ unsure note).
+  const taxInsQuestionNode = (<>
+   {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
+       One top-level question, then a per-component walk: are taxes included,
+       how much, is insurance included, how much — amounts entered monthly or
+       annual. Stored per component (refiCurEscrowTax/Ins + annual amounts);
+       answering here moves the calc to split mode. Flow 2 adds Unsure, which
+       the confidence readout picks up. A legacy combined servicer line stays
+       visible until the per-component answers replace it. */}
+   {(() => {
+    const escrowTop = refiEscrowUnsure === "unsure" ? "unsure"
+     : (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) ? "yes" : "no";
+    const answerEscrow = (v) => {
+     setRefiEscrowUnsure(v === "unsure" ? "unsure" : "");
+     // The combined line drives the CURRENT payment when present; the split
+     // amounts always feed the new loan's impound.
+     if (v === "yes") { setRefiEscrowMode(refiEscrowCombined > 0 ? "combined" : "split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } }
+     if (v === "no") { setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); }
+    };
+    const escrowOpts = calc.refiFromStatement ? [["yes", "Yes"], ["no", "No"]] : [["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]];
+    return (
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Taxes and/or insurance included in the payment?</span>
+      <div style={{ display: "flex", gap: 5 }}>
+       {escrowOpts.map(([v, label]) => (
+        <button key={v} type="button" onClick={() => answerEscrow(v)}
+         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: escrowTop === v ? `${T.blue}22` : T.inputBg,
+          border: escrowTop === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: escrowTop === v ? T.blue : T.textSecondary }}>
+         {label}
+        </button>
+       ))}
+      </div>
+     </div>
+    );
+   })()}
+   {refiEscrowUnsure === "unsure" && (
+    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 10 }}>
+     Marked unsure — it's flagged for verification below, and the current payment runs P&I-only until it's known.
+    </div>
+   )}
+  </>);
+  // Per-component breakdown — renders only while the answer is Yes.
+  const taxInsBreakdownNode = (<>
+   {refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) && (
+    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+     {/* The statement's own escrow bucket comes FIRST — every statement prints
+         one "Escrow (Taxes and Insurance)" line (Christo 2026-08-04). It
+         drives the CURRENT payment; the breakdown below feeds the new loan. */}
+     {!calc.refiFromStatement && (
+     <div style={{ paddingTop: 8 }}>
+      <Inp label={calc.refiFromStatement ? "Escrow (Taxes and Insurance) — as printed on the statement" : "Escrow (Taxes and Insurance) — combined"}
+       value={refiEscrowCombined}
+       onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
+       tip="The single escrow line the statement prints — what the servicer collects, cushion and shortage spread included. It drives the CURRENT payment; the per-component breakdown below feeds the new loan's impound."
+       rightSlot={
+        <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+         {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
+           style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+            background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
+            border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+            color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
+           {label}
+          </button>
+         ))}
+        </span>
+       } />
+     </div>
+     )}
+     {[
+      { key: "tax", label: "Taxes", q: "Are taxes included?", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
+        amt: refiAnnualTax, setAmt: setRefiAnnualTax,
+        hint: "Prefilled from the county assessor once the address is known." },
+      { key: "ins", label: "Insurance", q: "Is insurance included?", on: refiCurEscrowIns, setOn: setRefiCurEscrowIns,
+        amt: refiAnnualIns, setAmt: setRefiAnnualIns,
+        hint: "The policy premium — carries over on a refi." },
+     ].map(c => (
+      <div key={c.key} style={{ paddingTop: 8 }}>
+       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{c.q}</span>
+        <YesNoSeg T={T} value={c.on} onYes={() => c.setOn(true)} onNo={() => c.setOn(false)} />
+       </div>
+       {c.on && (() => {
+        const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
+        const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
+        const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
+        return (
+        <Inp label={`${c.label} amount`} value={shown} onChange={store} sm tip={c.hint}
+         rightSlot={
+          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => {
+            const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
+            const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
+            return (
+             <button key={v} type="button" onClick={() => setPer(v)}
+              style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+               background: per === v ? `${T.blue}22` : "transparent",
+               border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+               color: per === v ? T.blue : T.textTertiary }}>
+              {label}
+             </button>
+            );
+           })}
+          </span>
+         } />
+        );
+       })()}
+      </div>
+     ))}
+     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
+      These feed the NEW loan's impound. Enter the real annual tax bill and premium — not a division of
+      the servicer's escrow line, which carries cushion and any shortage spread; splitting that would
+      import the old servicer's shortage into your quote. Also check they aren't bundling mortgage
+      insurance into the escrow line; if they are, it's already counted under MI/MIP.
+     </div>
+    </div>
+   )}
+  </>);
+  // Standalone annual amounts — renders only while the answer is No/Unsure.
+  const taxInsAmountsNoNode = (<>
+   {/* The amounts are needed EITHER WAY (Christo 2026-08-04): taxes and
+       insurance feed the NEW loan's payment breakdown and the true monthly
+       cost whether or not the current payment impounds them — so when the
+       answer above is No or Unsure, ask for the annual amounts on their own. */}
+   {!(refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0)) && (
+    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.separator}`, marginBottom: 12 }}>
+     {[
+      { key: "tax", label: "Property taxes — annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
+        hint: "Paid separately today, but the new loan still needs it — prefilled from the county assessor once the address is known." },
+      { key: "ins", label: "Homeowner's insurance — annual", amt: refiAnnualIns, setAmt: setRefiAnnualIns,
+        hint: "Paid separately today, but the policy carries over on a refi and rides in the true monthly cost." },
+     ].map(c => {
+      const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
+      const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
+      const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
+      const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
+      return (
+       <div key={c.key} style={{ paddingTop: 8 }}>
+        <Inp label={c.label} value={shown} onChange={store} sm tip={c.hint}
+         rightSlot={
+          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setPer(v)}
+             style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+              background: per === v ? `${T.blue}22` : "transparent",
+              border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+              color: per === v ? T.blue : T.textTertiary }}>
+             {label}
+            </button>
+           ))}
+          </span>
+         } />
+       </div>
+      );
+     })}
+     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
+      Not in the mortgage payment, but never optional — these drive the new loan's payment breakdown
+      and the true monthly cost either way.
+     </div>
+    </div>
+   )}
+  </>);
+  // Maturity question + branches (internally flow-1 gated).
+  const maturityQuestionNode = (<>
+   {/* ── Maturity, per the statement (Christo 2026-07-28) ──
+       A printed maturity date beats anything we derive: it already accounts
+       for modifications and recasts the closing-date estimate can't see. When
+       the statement doesn't carry one, we work backwards from the original
+       note instead — the same two fields Flow 2 asks for, surfaced here only
+       when they're actually needed. */}
+   {calc.refiFromStatement && (<>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "10px 0" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Does the statement include a maturity date?</span>
+     <YesNoSeg T={T}
+      value={refiHasMaturity === "" ? null : refiHasMaturity === "yes"}
+      onYes={() => setRefiHasMaturity("yes")}
+      onNo={() => setRefiHasMaturity("no")} />
+    </div>
+
+    {refiHasMaturity === "yes" && (
+     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Maturity date</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 340 }}>
+       <select value={refiMaturityDate ? refiMaturityDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiMaturityDate(""); return; } const y = refiMaturityDate ? refiMaturityDate.slice(0, 4) : String(new Date().getFullYear() + 25); setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+        <option value="">Month</option>
+        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+       </select>
+       <select value={refiMaturityDate ? refiMaturityDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiMaturityDate ? refiMaturityDate.slice(5, 7) : "01"; if (y) setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+        <option value="">Year</option>
+        {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() + i).map(y => <option key={y} value={y}>{y}</option>)}
+       </select>
+      </div>
+     </div>
+    )}
+
+    {refiHasMaturity === "no" && (
+     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+      <Note color={T.blue}>We can look up the original loan amount and funded date and work backwards.</Note>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+       <Inp label="Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} sm
+        tip="The original note amount, from the property profile or the recorded deed of trust." />
+       <div style={{ marginBottom: 6 }}>
+        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Funded</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+         <select value={refiClosedDate ? refiClosedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; const y = refiClosedDate ? refiClosedDate.slice(0, 4) : new Date().getFullYear(); if (m && y) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+          <option value="">Month</option>
+          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+         </select>
+         <select value={refiClosedDate ? refiClosedDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiClosedDate ? refiClosedDate.slice(5, 7) : "01"; if (y && m) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+          <option value="">Year</option>
+          {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
+         </select>
+        </div>
+       </div>
+      </div>
+      <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm
+       tip="The note's original term — with the amount and funded date, the maturity falls out." />
+     </div>
+    )}
+
+    {/* What the answer buys us. */}
+    {(calc.refiEffMaturity || calc.refiSolvedTerm > 0) && (
+     <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 6 }}>That gives us</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+       <div>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>Maturity date</div>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>
+         {calc.refiEffMaturity ? calc.refiEffMaturity.toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—"}
+        </div>
+       </div>
+       <div>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>Total interest remaining</div>
+        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiCurRemainingInt)}</div>
+       </div>
+      </div>
+     </div>
+    )}
+   </>)}
+  </>);
+  // Second mortgage / HELOC question + branch.
+  const secondLienNode = (<>
+   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+    <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Any second mortgage or HELOC?</span>
+    <YesNoSeg T={T} value={refiSecondLien} onYes={() => setRefiSecondLien(true)} onNo={() => setRefiSecondLien(false)} />
+   </div>
+   {refiSecondLien && (
+    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 10 }}>
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Which kind?</span>
+      <div style={{ display: "flex", gap: 5 }}>
+       {[["heloc", "HELOC"], ["closed", "Fixed second"]].map(([v, label]) => (
+        <button key={v} type="button" onClick={() => setRefiSecondKind(v)}
+         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: refiSecondKind === v ? `${T.blue}22` : T.inputBg,
+          border: refiSecondKind === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: refiSecondKind === v ? T.blue : T.textSecondary }}>
+         {label}
+        </button>
+       ))}
+      </div>
+     </div>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <Inp label="Second Balance" value={refiSecondBalance} onChange={setRefiSecondBalance} sm
+       tip={refiSecondKind === "heloc" ? "The drawn balance — not the credit limit." : "Remaining principal on the closed-end second."} />
+      <Inp label="Second Rate" value={refiSecondRate} onChange={setRefiSecondRate} prefix="" suffix="%" step={0.125} max={30} sm
+       tip={refiSecondKind === "heloc" ? "Usually prime plus a margin, so it moves — that variability is often the reason to consolidate." : "Fixed for the life of the second."} />
+     </div>
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Pay it off, or subordinate it?</span>
+      <div style={{ display: "flex", gap: 5 }}>
+       {[["sub", "Subordinate"], ["payoff", "Pay off"]].map(([v, label]) => (
+        <button key={v} type="button" onClick={() => setRefiSecondPlan(v)}
+         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: refiSecondPlan === v ? `${T.blue}22` : T.inputBg,
+          border: refiSecondPlan === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: refiSecondPlan === v ? T.blue : T.textSecondary }}>
+         {label}
+        </button>
+       ))}
+      </div>
+     </div>
+     {refiSecondBalance > 0 && calc.refiEffBalance > 0 && (
+      <Note color={T.blue}>
+       Together that's {fmt(calc.refiEffBalance + calc.refiSecondBal)} at a blended{" "}
+       <strong>{calc.refiBlendedRate.toFixed(3)}%</strong>
+       {refiSecondPlan === "payoff"
+        ? ` — paying the second off means the new first has to beat that blend, not the ${refiCurrentRate.toFixed(3)}% first alone. Its ${fmt(calc.refiSecondPayoffAmt)} payoff rolls into the new loan and its payment counts toward the savings.`
+        : ` — subordinating leaves the ${(refiSecondRate || 0).toFixed(3)}% balance in place${refiSecondKind === "heloc" ? " and still floating." : "."}`}
+       {refiHomeValue > 0 && ` CLTV ${(calc.refiCLTV * 100).toFixed(1)}%.`}
+       {calc.refiSecondPmt > 0 && ` Carry is about ${fmt(calc.refiSecondPmt)}/mo${refiSecondKind === "heloc" ? " interest-only." : " minimum."}`}
+      </Note>
+     )}
+    </div>
+   )}
+  </>);
+  const modifiedQuestionNode = (
+   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+    <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Ever modified, or in forbearance since origination?</span>
+    <div style={{ display: "flex", gap: 5 }}>
+     {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
+      <button key={v} type="button" onClick={() => setRefiModified(v)}
+       style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+        background: refiModified === v ? `${T.blue}22` : T.inputBg,
+        border: refiModified === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+        color: refiModified === v ? T.blue : T.textSecondary }}>
+       {label}
+      </button>
+     ))}
+    </div>
+   </div>
+  );
+  // Insurance effective (anniversary) date + renewal-window note.
+  const insEffectiveDateNode = (<>
+   {/* Insurance effective (anniversary) month — decides whether the 12-month
+       premium lands in the refi's closing costs. The policy carries over on a
+       refi, so it is only a cost of the refi when it renews at closing
+       (Christo 2026-07-22). calc.insRenewalAtClose does the window check. */}
+   <div style={{ marginBottom: 14 }}>
+    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
+     Insurance Effective Date
+     <InfoTip tip="The month your homeowner's policy renews each year. If it renews around your closing, the 12-month premium is due at closing and shows up in prepaids — otherwise you pay it on your normal schedule and it is NOT counted as a refi cost." />
+    </label>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+     <select value={insEffectiveDate ? insEffectiveDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setInsEffectiveDate(""); return; } const y = insEffectiveDate ? insEffectiveDate.slice(0, 4) : String(new Date().getFullYear()); setInsEffectiveDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: insEffectiveDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+      <option value="">Month</option>
+      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+     </select>
+     <select value={insEffectiveDate ? insEffectiveDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = insEffectiveDate ? insEffectiveDate.slice(5, 7) : "01"; if (y) setInsEffectiveDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: insEffectiveDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+      <option value="">Year</option>
+      {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + 1 - i).map(y => <option key={y} value={y}>{y}</option>)}
+     </select>
+    </div>
+    {insEffectiveDate && (
+     /* Escrowed = the timing question is a cash-to-close line item.
+        Non-escrowed = it's a docs condition, never a collection. */
+     <div style={{ fontSize: 11, fontWeight: 600, marginTop: 6, color: calc.insRenewalAtClose ? T.orange : T.green }}>
+      {calc.insRenewalAtClose
+       ? (calc.refiNewEscrowIns
+          ? `Renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} (≤60-day window) — 12-month premium (${fmt(refiAnnualIns || 0)}) collected at closing; escrow starts a fresh cycle`
+          : `Renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} — escrow waived, so nothing is collected. Docs condition: paid receipt for the renewal before docs.`)
+       : `Renews outside the 60-day window${calc.insRenewalDays != null ? ` (${calc.insRenewalDays} days after closing)` : ""} — premium not collected; ${calc.refiNewEscrowIns ? "funded through escrow reserves" : "borrower pays the carrier directly"}`}
+     </div>
+    )}
+   </div>
+  </>);
   return (<>
  {!hideHero && (
   <div style={{ marginTop: 12 }}>
@@ -619,6 +972,10 @@ export default function SetupContent(props) {
       ))}
      </div>
     </div>
+    {taxInsQuestionNode}
+    {maturityQuestionNode}
+    {secondLienNode}
+    {modifiedQuestionNode}
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
      Explanation of Amount Due
     </div>
@@ -799,160 +1156,32 @@ export default function SetupContent(props) {
         cells on the Refi tab's Monthly Payment table write to. */}
     <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
     <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
-   </>)}
-   {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
-       One top-level question, then a per-component walk: are taxes included,
-       how much, is insurance included, how much — amounts entered monthly or
-       annual. Stored per component (refiCurEscrowTax/Ins + annual amounts);
-       answering here moves the calc to split mode. Flow 2 adds Unsure, which
-       the confidence readout picks up. A legacy combined servicer line stays
-       visible until the per-component answers replace it. */}
-   {(() => {
-    const escrowTop = refiEscrowUnsure === "unsure" ? "unsure"
-     : (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) ? "yes" : "no";
-    const answerEscrow = (v) => {
-     setRefiEscrowUnsure(v === "unsure" ? "unsure" : "");
-     // The combined line drives the CURRENT payment when present; the split
-     // amounts always feed the new loan's impound.
-     if (v === "yes") { setRefiEscrowMode(refiEscrowCombined > 0 ? "combined" : "split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } }
-     if (v === "no") { setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); }
-    };
-    const escrowOpts = calc.refiFromStatement ? [["yes", "Yes"], ["no", "No"]] : [["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]];
-    return (
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
-      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Taxes and/or insurance included in the payment?</span>
-      <div style={{ display: "flex", gap: 5 }}>
-       {escrowOpts.map(([v, label]) => (
-        <button key={v} type="button" onClick={() => answerEscrow(v)}
-         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: escrowTop === v ? `${T.blue}22` : T.inputBg,
-          border: escrowTop === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: escrowTop === v ? T.blue : T.textSecondary }}>
+    {/* Every statement combines the escrow line items into ONE line —
+        "Escrow (Taxes and Insurance)" — so it's entered exactly there
+        (Christo 2026-08-04). Drives the CURRENT payment; the tax &
+        insurance section below the receipt feeds the new loan. */}
+    <Inp label="Escrow (Taxes and Insurance) — from statement" value={refiEscrowCombined}
+     onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
+     tip="The statement's single escrow line — what the servicer collects each month, cushion and shortage spread included. $0 when nothing is impounded."
+     rightSlot={
+      <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+       {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+        <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
+         style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+          background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
+          border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
          {label}
         </button>
        ))}
-      </div>
-     </div>
-    );
-   })()}
-   {refiEscrowUnsure === "unsure" && (
-    <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginBottom: 10 }}>
-     Marked unsure — it's flagged for verification below, and the current payment runs P&I-only until it's known.
-    </div>
-   )}
-   {refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
-     {/* The statement's own escrow bucket comes FIRST — every statement prints
-         one "Escrow (Taxes and Insurance)" line (Christo 2026-08-04). It
-         drives the CURRENT payment; the breakdown below feeds the new loan. */}
-     <div style={{ paddingTop: 8 }}>
-      <Inp label={calc.refiFromStatement ? "Escrow (Taxes and Insurance) — as printed on the statement" : "Escrow (Taxes and Insurance) — combined"}
-       value={refiEscrowCombined}
-       onChange={(v) => { setRefiEscrowCombined(v); setRefiEscrowMode((Number(v) || 0) > 0 ? "combined" : "split"); }}
-       tip="The single escrow line the statement prints — what the servicer collects, cushion and shortage spread included. It drives the CURRENT payment; the per-component breakdown below feeds the new loan's impound."
-       rightSlot={
-        <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-         {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
-          <button key={v} type="button" onClick={() => setRefiEscrowCombinedPeriod(v)}
-           style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-            background: refiEscrowCombinedPeriod === v ? `${T.blue}22` : "transparent",
-            border: refiEscrowCombinedPeriod === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-            color: refiEscrowCombinedPeriod === v ? T.blue : T.textTertiary }}>
-           {label}
-          </button>
-         ))}
-        </span>
-       } />
-     </div>
-     {[
-      { key: "tax", label: "Taxes", q: "Are taxes included?", on: refiCurEscrowTax, setOn: setRefiCurEscrowTax,
-        amt: refiAnnualTax, setAmt: setRefiAnnualTax,
-        hint: "Prefilled from the county assessor once the address is known." },
-      { key: "ins", label: "Insurance", q: "Is insurance included?", on: refiCurEscrowIns, setOn: setRefiCurEscrowIns,
-        amt: refiAnnualIns, setAmt: setRefiAnnualIns,
-        hint: "The policy premium — carries over on a refi." },
-     ].map(c => (
-      <div key={c.key} style={{ paddingTop: 8 }}>
-       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{c.q}</span>
-        <YesNoSeg T={T} value={c.on} onYes={() => c.setOn(true)} onNo={() => c.setOn(false)} />
-       </div>
-       {c.on && (() => {
-        const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
-        const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
-        const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
-        return (
-        <Inp label={`${c.label} amount`} value={shown} onChange={store} sm tip={c.hint}
-         rightSlot={
-          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => {
-            const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
-            const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
-            return (
-             <button key={v} type="button" onClick={() => setPer(v)}
-              style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-               background: per === v ? `${T.blue}22` : "transparent",
-               border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-               color: per === v ? T.blue : T.textTertiary }}>
-              {label}
-             </button>
-            );
-           })}
-          </span>
-         } />
-        );
-       })()}
-      </div>
-     ))}
-     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
-      These feed the NEW loan's impound. Enter the real annual tax bill and premium — not a division of
-      the servicer's escrow line, which carries cushion and any shortage spread; splitting that would
-      import the old servicer's shortage into your quote. Also check they aren't bundling mortgage
-      insurance into the escrow line; if they are, it's already counted under MI/MIP.
-     </div>
-    </div>
-   )}
-   {/* The amounts are needed EITHER WAY (Christo 2026-08-04): taxes and
-       insurance feed the NEW loan's payment breakdown and the true monthly
-       cost whether or not the current payment impounds them — so when the
-       answer above is No or Unsure, ask for the annual amounts on their own. */}
-   {!(refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0)) && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.separator}`, marginBottom: 12 }}>
-     {[
-      { key: "tax", label: "Property taxes — annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
-        hint: "Paid separately today, but the new loan still needs it — prefilled from the county assessor once the address is known." },
-      { key: "ins", label: "Homeowner's insurance — annual", amt: refiAnnualIns, setAmt: setRefiAnnualIns,
-        hint: "Paid separately today, but the policy carries over on a refi and rides in the true monthly cost." },
-     ].map(c => {
-      const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
-      const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
-      const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
-      const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
-      return (
-       <div key={c.key} style={{ paddingTop: 8 }}>
-        <Inp label={c.label} value={shown} onChange={store} sm tip={c.hint}
-         rightSlot={
-          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
-            <button key={v} type="button" onClick={() => setPer(v)}
-             style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-              background: per === v ? `${T.blue}22` : "transparent",
-              border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
-              color: per === v ? T.blue : T.textTertiary }}>
-             {label}
-            </button>
-           ))}
-          </span>
-         } />
-       </div>
-      );
-     })}
-     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
-      Not in the mortgage payment, but never optional — these drive the new loan's payment breakdown
-      and the true monthly cost either way.
-     </div>
-    </div>
-   )}
+      </span>
+     } />
+   </>)}
+   {!calc.refiFromStatement && (<>
+    {taxInsQuestionNode}
+    {taxInsBreakdownNode}
+    {taxInsAmountsNoNode}
+   </>)}
    {/* No impounds means no escrow account, so the balance question is removed
        rather than asked and answered zero. Flow 1 reads the balance in the
        Account Information section instead — the statement prints it there. */}
@@ -1001,6 +1230,14 @@ export default function SetupContent(props) {
      </div>
     </div>
    )}
+   {calc.refiFromStatement && (<>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
+     Current Property Taxes &amp; Insurance
+    </div>
+    {taxInsBreakdownNode}
+    {taxInsAmountsNoNode}
+    {insEffectiveDateNode}
+   </>)}
    {/* Closing-month payment question — when closing is after the grace day the
        borrower MUST make that month's payment before we can close, which drops
        the payoff. Auto-answered by the calendar; the LO can override. Only
@@ -1141,81 +1378,7 @@ export default function SetupContent(props) {
      ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
     </div>
    )}
-   {/* ── Maturity, per the statement (Christo 2026-07-28) ──
-       A printed maturity date beats anything we derive: it already accounts
-       for modifications and recasts the closing-date estimate can't see. When
-       the statement doesn't carry one, we work backwards from the original
-       note instead — the same two fields Flow 2 asks for, surfaced here only
-       when they're actually needed. */}
-   {calc.refiFromStatement && (<>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "10px 0" }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Does the statement include a maturity date?</span>
-     <YesNoSeg T={T}
-      value={refiHasMaturity === "" ? null : refiHasMaturity === "yes"}
-      onYes={() => setRefiHasMaturity("yes")}
-      onNo={() => setRefiHasMaturity("no")} />
-    </div>
-
-    {refiHasMaturity === "yes" && (
-     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Maturity date</label>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 340 }}>
-       <select value={refiMaturityDate ? refiMaturityDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiMaturityDate(""); return; } const y = refiMaturityDate ? refiMaturityDate.slice(0, 4) : String(new Date().getFullYear() + 25); setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-        <option value="">Month</option>
-        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-       </select>
-       <select value={refiMaturityDate ? refiMaturityDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiMaturityDate ? refiMaturityDate.slice(5, 7) : "01"; if (y) setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-        <option value="">Year</option>
-        {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() + i).map(y => <option key={y} value={y}>{y}</option>)}
-       </select>
-      </div>
-     </div>
-    )}
-
-    {refiHasMaturity === "no" && (
-     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
-      <Note color={T.blue}>We can look up the original loan amount and funded date and work backwards.</Note>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-       <Inp label="Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} sm
-        tip="The original note amount, from the property profile or the recorded deed of trust." />
-       <div style={{ marginBottom: 6 }}>
-        <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Funded</label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-         <select value={refiClosedDate ? refiClosedDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; const y = refiClosedDate ? refiClosedDate.slice(0, 4) : new Date().getFullYear(); if (m && y) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-          <option value="">Month</option>
-          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-         </select>
-         <select value={refiClosedDate ? refiClosedDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = refiClosedDate ? refiClosedDate.slice(5, 7) : "01"; if (y && m) setRefiClosedDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiClosedDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-          <option value="">Year</option>
-          {Array.from({ length: 41 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}
-         </select>
-        </div>
-       </div>
-      </div>
-      <Inp label="Original Term" value={refiOriginalTerm} onChange={setRefiOriginalTerm} prefix="" suffix="years" max={50} sm
-       tip="The note's original term — with the amount and funded date, the maturity falls out." />
-     </div>
-    )}
-
-    {/* What the answer buys us. */}
-    {(calc.refiEffMaturity || calc.refiSolvedTerm > 0) && (
-     <div style={{ background: `${T.blue}10`, borderRadius: 10, padding: 12, marginBottom: 14 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 6 }}>That gives us</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-       <div>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>Maturity date</div>
-        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>
-         {calc.refiEffMaturity ? calc.refiEffMaturity.toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—"}
-        </div>
-       </div>
-       <div>
-        <div style={{ fontSize: 10, color: T.textTertiary }}>Total interest remaining</div>
-        <div style={{ fontSize: 16, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiCurRemainingInt)}</div>
-       </div>
-      </div>
-     </div>
-    )}
-   </>)}
+   {!calc.refiFromStatement && (<>
    {/* ── Other liens & history (Christo 2026-07-28) ──
        A second has to be subordinated or paid off, and that choice moves the
        new loan amount and the CLTV. Its RATE is what earns the question: the
@@ -1225,59 +1388,7 @@ export default function SetupContent(props) {
    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
     Other Liens &amp; History
    </div>
-   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Any second mortgage or HELOC?</span>
-    <YesNoSeg T={T} value={refiSecondLien} onYes={() => setRefiSecondLien(true)} onNo={() => setRefiSecondLien(false)} />
-   </div>
-   {refiSecondLien && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 10 }}>
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
-      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Which kind?</span>
-      <div style={{ display: "flex", gap: 5 }}>
-       {[["heloc", "HELOC"], ["closed", "Fixed second"]].map(([v, label]) => (
-        <button key={v} type="button" onClick={() => setRefiSecondKind(v)}
-         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: refiSecondKind === v ? `${T.blue}22` : T.inputBg,
-          border: refiSecondKind === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: refiSecondKind === v ? T.blue : T.textSecondary }}>
-         {label}
-        </button>
-       ))}
-      </div>
-     </div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      <Inp label="Second Balance" value={refiSecondBalance} onChange={setRefiSecondBalance} sm
-       tip={refiSecondKind === "heloc" ? "The drawn balance — not the credit limit." : "Remaining principal on the closed-end second."} />
-      <Inp label="Second Rate" value={refiSecondRate} onChange={setRefiSecondRate} prefix="" suffix="%" step={0.125} max={30} sm
-       tip={refiSecondKind === "heloc" ? "Usually prime plus a margin, so it moves — that variability is often the reason to consolidate." : "Fixed for the life of the second."} />
-     </div>
-     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
-      <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Pay it off, or subordinate it?</span>
-      <div style={{ display: "flex", gap: 5 }}>
-       {[["sub", "Subordinate"], ["payoff", "Pay off"]].map(([v, label]) => (
-        <button key={v} type="button" onClick={() => setRefiSecondPlan(v)}
-         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: refiSecondPlan === v ? `${T.blue}22` : T.inputBg,
-          border: refiSecondPlan === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: refiSecondPlan === v ? T.blue : T.textSecondary }}>
-         {label}
-        </button>
-       ))}
-      </div>
-     </div>
-     {refiSecondBalance > 0 && calc.refiEffBalance > 0 && (
-      <Note color={T.blue}>
-       Together that's {fmt(calc.refiEffBalance + calc.refiSecondBal)} at a blended{" "}
-       <strong>{calc.refiBlendedRate.toFixed(3)}%</strong>
-       {refiSecondPlan === "payoff"
-        ? ` — paying the second off means the new first has to beat that blend, not the ${refiCurrentRate.toFixed(3)}% first alone. Its ${fmt(calc.refiSecondPayoffAmt)} payoff rolls into the new loan and its payment counts toward the savings.`
-        : ` — subordinating leaves the ${(refiSecondRate || 0).toFixed(3)}% balance in place${refiSecondKind === "heloc" ? " and still floating." : "."}`}
-       {refiHomeValue > 0 && ` CLTV ${(calc.refiCLTV * 100).toFixed(1)}%.`}
-       {calc.refiSecondPmt > 0 && ` Carry is about ${fmt(calc.refiSecondPmt)}/mo${refiSecondKind === "heloc" ? " interest-only." : " minimum."}`}
-      </Note>
-     )}
-    </div>
-   )}
+   {secondLienNode}
    {[
     { label: "Ever modified, or in forbearance since origination?", value: refiModified, set: setRefiModified },
     // Flow 1 asks prepayment penalty up in Account Information — the
@@ -1299,6 +1410,7 @@ export default function SetupContent(props) {
      </div>
     </div>
    ))}
+   </>)}
    {/* Confidence. Only things that undermine the NUMBER downgrade it — a
        modification breaks a reconstruction but a statement balance is still
        ground truth, and a prepayment penalty changes the deal's economics,
@@ -1326,37 +1438,7 @@ export default function SetupContent(props) {
      </div>
     </div>
    )}
-   {/* Insurance effective (anniversary) month — decides whether the 12-month
-       premium lands in the refi's closing costs. The policy carries over on a
-       refi, so it is only a cost of the refi when it renews at closing
-       (Christo 2026-07-22). calc.insRenewalAtClose does the window check. */}
-   <div style={{ marginBottom: 14 }}>
-    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
-     Insurance Effective Date
-     <InfoTip tip="The month your homeowner's policy renews each year. If it renews around your closing, the 12-month premium is due at closing and shows up in prepaids — otherwise you pay it on your normal schedule and it is NOT counted as a refi cost." />
-    </label>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-     <select value={insEffectiveDate ? insEffectiveDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setInsEffectiveDate(""); return; } const y = insEffectiveDate ? insEffectiveDate.slice(0, 4) : String(new Date().getFullYear()); setInsEffectiveDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: insEffectiveDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-      <option value="">Month</option>
-      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-     </select>
-     <select value={insEffectiveDate ? insEffectiveDate.slice(0, 4) : ""} onChange={e => { const y = e.target.value; const m = insEffectiveDate ? insEffectiveDate.slice(5, 7) : "01"; if (y) setInsEffectiveDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: insEffectiveDate ? T.text : T.textTertiary, fontSize: 15, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-      <option value="">Year</option>
-      {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + 1 - i).map(y => <option key={y} value={y}>{y}</option>)}
-     </select>
-    </div>
-    {insEffectiveDate && (
-     /* Escrowed = the timing question is a cash-to-close line item.
-        Non-escrowed = it's a docs condition, never a collection. */
-     <div style={{ fontSize: 11, fontWeight: 600, marginTop: 6, color: calc.insRenewalAtClose ? T.orange : T.green }}>
-      {calc.insRenewalAtClose
-       ? (calc.refiNewEscrowIns
-          ? `Renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} (≤60-day window) — 12-month premium (${fmt(refiAnnualIns || 0)}) collected at closing; escrow starts a fresh cycle`
-          : `Renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} — escrow waived, so nothing is collected. Docs condition: paid receipt for the renewal before docs.`)
-       : `Renews outside the 60-day window${calc.insRenewalDays != null ? ` (${calc.insRenewalDays} days after closing)` : ""} — premium not collected; ${calc.refiNewEscrowIns ? "funded through escrow reserves" : "borrower pays the carrier directly"}`}
-     </div>
-    )}
-   </div>
+   {!calc.refiFromStatement && insEffectiveDateNode}
    {/* The old standalone "Included in the current payment?" toggle section is
        gone (2026-08-04) — it drove the SAME refiCurEscrowTax/Ins flags as the
        taxes-and-insurance questions above, so it was the same question asked
