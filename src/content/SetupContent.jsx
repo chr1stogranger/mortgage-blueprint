@@ -447,6 +447,12 @@ export default function SetupContent(props) {
       onNo={() => setRefiHasMaturity("no")} />
     </div>
 
+   </>)}
+  </>);
+  // Maturity branches + THAT GIVES US — unlock in the original spot in the
+  // walk, not under the question (Christo 2026-08-04).
+  const maturityDetailNode = (<>
+   {calc.refiFromStatement && (<>
     {refiHasMaturity === "yes" && (
      <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
       <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Maturity date</label>
@@ -509,11 +515,14 @@ export default function SetupContent(props) {
    </>)}
   </>);
   // Second mortgage / HELOC question + branch.
-  const secondLienNode = (<>
+  const secondLienQuestionRow = (<>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Any second mortgage or HELOC?</span>
     <YesNoSeg T={T} value={refiSecondLien} onYes={() => setRefiSecondLien(true)} onNo={() => setRefiSecondLien(false)} />
    </div>
+  </>);
+  // Second-lien cells — unlock where the section originally lived.
+  const secondLienDetailNode = (<>
    {refiSecondLien && (
     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 10 }}>
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
@@ -564,6 +573,7 @@ export default function SetupContent(props) {
     </div>
    )}
   </>);
+  const secondLienNode = (<>{secondLienQuestionRow}{secondLienDetailNode}</>);
   const modifiedQuestionNode = (
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Ever modified, or in forbearance since origination?</span>
@@ -620,7 +630,7 @@ export default function SetupContent(props) {
   const closingPmtQuestionNode = (refiCurrentBalance > 0 && calc.refiMonthsToClose >= 1) ? (
    <div style={{ padding: "8px 0" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.text, display: "inline-flex", alignItems: "center", gap: 6 }}>
+     <span style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.01em", display: "inline-flex", alignItems: "center", gap: 6 }}>
       {["January","February","March","April","May","June","July","August","September","October","November","December"][(closingMonth - 1 + 12) % 12]} payment made before closing?
       {refiClosingPmtOverride == null && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
      </span>
@@ -955,15 +965,38 @@ export default function SetupContent(props) {
     />
    </div>
    {/* Every Yes/No in the walk rides here with the statement question,
-       above Account Information (Christo 2026-08-04). */}
+       above Account Information — Modules-card style: bold question, gray
+       subtitle, pills on the right (Christo 2026-08-04). Questions ONLY;
+       whatever a Yes unlocks appears in its original place in the walk. */}
    {calc.refiFromStatement && (<>
-    <div style={{ borderTop: `1px dashed ${T.separator}`, marginTop: 12 }} />
-    {prepayQuestionNode}
-    {taxInsQuestionNode}
-    {maturityQuestionNode}
-    {secondLienNode}
-    {modifiedQuestionNode}
-    {closingPmtQuestionNode}
+    {[
+     { t: "Prepayment penalty?", sub: "Printed in the statement's Account Information box.",
+       v: refiPrepayPenalty === "yes" ? true : refiPrepayPenalty === "no" ? false : null,
+       yes: () => setRefiPrepayPenalty("yes"), no: () => setRefiPrepayPenalty("no") },
+     { t: "Taxes and/or insurance included in the payment?", sub: "The statement's combined Escrow (Taxes and Insurance) line — entered below, where the statement prints it.",
+       v: refiEscrowUnsure === "unsure" ? null : (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0),
+       yes: () => { setRefiEscrowUnsure(""); setRefiEscrowMode(refiEscrowCombined > 0 ? "combined" : "split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } },
+       no: () => { setRefiEscrowUnsure(""); setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); } },
+     { t: "Does the statement include a maturity date?", sub: "If printed we use it as-is; if not, we work backwards from the original note below.",
+       v: refiHasMaturity === "" ? null : refiHasMaturity === "yes",
+       yes: () => setRefiHasMaturity("yes"), no: () => setRefiHasMaturity("no") },
+     { t: "Any second mortgage or HELOC?", sub: "A second lien changes the payoff, the blended rate, and the CLTV.",
+       v: refiSecondLien, yes: () => setRefiSecondLien(true), no: () => setRefiSecondLien(false) },
+     { t: "Ever modified, or in forbearance since origination?", sub: "A modification rewrites the terms, and seasoning rules may apply.",
+       v: refiModified === "yes" ? true : refiModified === "no" ? false : null,
+       yes: () => setRefiModified("yes"), no: () => setRefiModified("no") },
+    ].map((row) => (
+     <div key={row.t} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", padding: "12px 0 10px", borderTop: `1px solid ${T.separator}`, marginTop: 2 }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+       <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.01em" }}>{row.t}</div>
+       <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>{row.sub}</div>
+      </div>
+      <YesNoSeg T={T} value={row.v} onYes={row.yes} onNo={row.no} />
+     </div>
+    ))}
+    {closingPmtQuestionNode && (
+     <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 2 }}>{closingPmtQuestionNode}</div>
+    )}
    </>)}
   </Card>
   <Card>
@@ -1393,6 +1426,8 @@ export default function SetupContent(props) {
      ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
     </div>
    )}
+   {maturityDetailNode}
+   {calc.refiFromStatement && secondLienDetailNode}
    {!calc.refiFromStatement && (<>
    {/* ── Other liens & history (Christo 2026-07-28) ──
        A second has to be subordinated or paid off, and that choice moves the
