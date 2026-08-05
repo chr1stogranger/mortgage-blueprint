@@ -153,6 +153,14 @@ export function RefiSummaryDoc(p) {
     : null;
   const fewerPayments = Math.max(0, (accel.curPayoffMos || 0) - (accel.newPayoffMos || 0));
   const samePayment = (c.refiNewPi || 0) + Math.max(0, c.refiMonthlySavings || 0);
+  // Option 2's lifetime savings must price the SAME-PAYMENT plan — what the
+  // section is about — not the minimum-payment comparison (which goes negative
+  // whenever a short remaining term restarts at 360 and clamped to a useless
+  // $0, Christo 2026-08-04): current P&I × months left, minus the same
+  // payment carried for the accelerated payoff, minus the refi costs.
+  const accelLifetimeSavings = (accel.newPayoffMos > 0 && accel.curPayoffMos > 0 && c.refiEffPI > 0)
+    ? (c.refiEffPI * accel.curPayoffMos) - (samePayment * accel.newPayoffMos) - (c.totalClosingCosts || 0)
+    : 0;
 
   // ── Cash to close + net cash ──
   const skipRows = (() => {
@@ -240,8 +248,8 @@ export function RefiSummaryDoc(p) {
           </View>
         ))}
         <View style={s.lineTotal}>
-          <Text style={[s.lineLabel, s.bold, { color: INK }]}>Savings over the life of the loan</Text>
-          <Text style={[s.lineValue, s.bold, { color: GREEN }]}>{usd(Math.max(0, c.refiLifetimeSavings || 0))}</Text>
+          <Text style={[s.lineLabel, s.bold, { color: INK }]}>Savings over the life of the loan (same-payment plan)</Text>
+          <Text style={[s.lineValue, s.bold, { color: accelLifetimeSavings >= 0 ? GREEN : RED }]}>{accelLifetimeSavings !== 0 ? usd(accelLifetimeSavings) : "—"}</Text>
         </View>
         <Text style={s.note}>Option 3 is any blend of the two: bank part of the monthly savings, put the rest toward principal.</Text>
 
