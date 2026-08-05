@@ -156,10 +156,20 @@ export function RefiSummaryDoc(p) {
   // Option 2's lifetime savings must price the SAME-PAYMENT plan — what the
   // section is about — not the minimum-payment comparison (which goes negative
   // whenever a short remaining term restarts at 360 and clamped to a useless
-  // $0, Christo 2026-08-04): current P&I × months left, minus the same
-  // payment carried for the accelerated payoff, minus the refi costs.
+  // $0, Christo 2026-08-04).
+  //
+  // With a paid-off second (Christo 2026-08-05): the CURRENT plan's true cost
+  // is first P&I PLUS the second's carry every month — and because an
+  // interest-only HELOC never amortizes, its ENTIRE principal is still owed
+  // when the first pays off. Charge the current plan both (carry to the
+  // first's payoff, then the untouched balance as a lump — the floor; in
+  // reality the carry runs longer). The same-payment plan retires both liens,
+  // so the two columns both end debt-free.
   const accelLifetimeSavings = (accel.newPayoffMos > 0 && accel.curPayoffMos > 0 && c.refiEffPI > 0)
-    ? (c.refiEffPI * accel.curPayoffMos) - (samePayment * accel.newPayoffMos) - (c.totalClosingCosts || 0)
+    ? ((c.refiEffPI + secondPmt) * accel.curPayoffMos)
+      + (secondPmt > 0 ? (c.refiSecondBal || 0) : 0)
+      - (samePayment * accel.newPayoffMos)
+      - (c.totalClosingCosts || 0)
     : 0;
 
   // ── Cash to close + net cash ──
@@ -257,6 +267,9 @@ export function RefiSummaryDoc(p) {
           <Text style={[s.lineLabel, s.bold, { color: INK }]}>Savings over the life of the loan (same-payment plan)</Text>
           <Text style={[s.lineValue, s.bold, { color: accelLifetimeSavings >= 0 ? GREEN : RED }]}>{accelLifetimeSavings !== 0 ? usd(accelLifetimeSavings) : "—"}</Text>
         </View>
+        {secondPmt > 0 && (
+          <Text style={s.note}>Current plan priced honestly: first P&I plus the {usd2(secondPmt)}/mo second-lien carry — and an interest-only second never amortizes, so its full balance still comes due. The same-payment plan retires both liens.</Text>
+        )}
         <Text style={s.note}>Option 3 is any blend of the two: bank part of the monthly savings, put the rest toward principal.</Text>
 
         {/* ── Cash to Close Summary ── */}
