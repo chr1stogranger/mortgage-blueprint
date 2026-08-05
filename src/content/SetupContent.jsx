@@ -571,33 +571,6 @@ export default function SetupContent(props) {
     <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
     <Sel label="Fixed / Adjustable" value={refiCurrentRateType} onChange={setRefiCurrentRateType} options={["Fixed", "Adjustable"]} tip="Whether the current note's rate is fixed or adjustable (ARM). An ARM about to reset is often the reason to refinance." />
    </div>
-   {calc.refiFromStatement && (<>
-    {/* Prepayment penalty + escrow balance print in the SAME Account
-        Information box, so they're asked here — not three sections later. */}
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Prepayment penalty?</span>
-     <div style={{ display: "flex", gap: 5 }}>
-      {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
-       <button key={v} type="button" onClick={() => setRefiPrepayPenalty(v)}
-        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-         background: refiPrepayPenalty === v ? `${T.blue}22` : T.inputBg,
-         border: refiPrepayPenalty === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-         color: refiPrepayPenalty === v ? T.blue : T.textSecondary }}>
-        {label}
-       </button>
-      ))}
-     </div>
-    </div>
-    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
-     tip="As printed in Account Information. Money sitting in the escrow account — refunded after the old loan pays off. $0 when nothing is impounded." />
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
-     Explanation of Amount Due
-    </div>
-   </>)}
-   {!calc.refiFromStatement && (<>
-    <Inp label="Original Balance" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req
-     tip="The original note amount — look it up on the property profile (the recorded deed of trust amount)." />
-   </>)}
    {/* ARM history — the note starts at one rate and RECASTS at the adjustment
        (balance re-amortized over the remaining term at the new rate). Without
        these two facts the balance estimate amortizes at a single rate and is
@@ -626,6 +599,34 @@ export default function SetupContent(props) {
      </div>
     </>
    )}
+   {calc.refiFromStatement && (<>
+    {/* Escrow balance + prepayment penalty print in the SAME Account
+        Information box, so they're asked here — not three sections later.
+        Balance first, penalty second (Christo 2026-08-04). */}
+    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
+     tip="As printed in Account Information. Money sitting in the escrow account — refunded after the old loan pays off. $0 when nothing is impounded." />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Prepayment penalty?</span>
+     <div style={{ display: "flex", gap: 5 }}>
+      {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
+       <button key={v} type="button" onClick={() => setRefiPrepayPenalty(v)}
+        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+         background: refiPrepayPenalty === v ? `${T.blue}22` : T.inputBg,
+         border: refiPrepayPenalty === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+         color: refiPrepayPenalty === v ? T.blue : T.textSecondary }}>
+        {label}
+       </button>
+      ))}
+     </div>
+    </div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
+     Explanation of Amount Due
+    </div>
+   </>)}
+   {!calc.refiFromStatement && (<>
+    <Inp label="Original Balance" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req
+     tip="The original note amount — look it up on the property profile (the recorded deed of trust amount)." />
+   </>)}
    {!calc.refiFromStatement && (
    <div style={{ marginBottom: 14 }}>
     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Loan Closed In <span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 400 }}>· from the property profile</span></label>
