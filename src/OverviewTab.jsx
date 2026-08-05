@@ -177,7 +177,9 @@ export default function OverviewTab(props) {
           SECTION 2: MONTHLY PAYMENT (Calculator)
           ═══════════════════════════════════════ */}
       <SectionDivider T={T} />
-      <CollapsibleSection title="Monthly Payment" T={T} id="overview-payment" heroStyle={true}>
+      {/* Refi reads "New Loan" — this whole section IS the new loan being
+          built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
+      <CollapsibleSection title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} />
       </CollapsibleSection>
 

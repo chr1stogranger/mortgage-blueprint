@@ -283,7 +283,9 @@ export default function SetupContent(props) {
      if (v === "yes") { setRefiEscrowMode(refiEscrowCombined > 0 ? "combined" : "split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } }
      if (v === "no") { setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); }
     };
-    const escrowOpts = calc.refiFromStatement ? [["yes", "Yes"], ["no", "No"]] : [["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]];
+    // Yes/No only — Unsure cells retired across the walk (Christo 2026-08-04);
+    // legacy "unsure" values just render as unanswered.
+    const escrowOpts = [["yes", "Yes"], ["no", "No"]];
     return (
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
       <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Taxes and/or insurance included in the payment?</span>
@@ -566,7 +568,7 @@ export default function SetupContent(props) {
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Ever modified, or in forbearance since origination?</span>
     <div style={{ display: "flex", gap: 5 }}>
-     {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
+     {[["yes", "Yes"], ["no", "No"]].map(([v, label]) => (
       <button key={v} type="button" onClick={() => setRefiModified(v)}
        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
         background: refiModified === v ? `${T.blue}22` : T.inputBg,
@@ -611,6 +613,55 @@ export default function SetupContent(props) {
      </div>
     )}
    </div>
+  </>);
+  // Closing-month payment — a Yes/No like the rest of the cluster, AUTO from
+  // the calendar (grace-day rule) until the LO overrides; ↺ returns to auto
+  // (Christo 2026-08-04 — was a switch stranded below the receipt).
+  const closingPmtQuestionNode = (refiCurrentBalance > 0 && calc.refiMonthsToClose >= 1) ? (
+   <div style={{ padding: "8px 0" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text, display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {["January","February","March","April","May","June","July","August","September","October","November","December"][(closingMonth - 1 + 12) % 12]} payment made before closing?
+      {refiClosingPmtOverride == null && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
+     </span>
+     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+      {[[true, "Yes"], [false, "No"]].map(([v, label]) => (
+       <button key={label} type="button" onClick={() => setRefiClosingPmtOverride(v)}
+        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+         background: calc.refiAssumeClosingPmt === v ? `${T.blue}22` : T.inputBg,
+         border: calc.refiAssumeClosingPmt === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+         color: calc.refiAssumeClosingPmt === v ? T.blue : T.textSecondary }}>
+        {label}
+       </button>
+      ))}
+      {refiClosingPmtOverride != null && (
+       <button type="button" onClick={() => setRefiClosingPmtOverride(null)} title="Back to auto" style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺</button>
+      )}
+     </div>
+    </div>
+    <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, lineHeight: 1.5 }}>
+     {calc.refiAssumeClosingPmt
+      ? `Closing after the ${calc.refiGraceDay}th — this payment is due first, so we assume it's made. Payoff accrues ${calc.refiPayoffDays} days from ${calc.refiPayoffEffLabel}.`
+      : `Closing on/before the ${calc.refiGraceDay}th grace day — still within the window, so we don't assume it yet.`}
+    </div>
+   </div>
+  ) : null;
+  // Prepayment penalty — one of the cluster questions.
+  const prepayQuestionNode = (<>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Prepayment penalty?</span>
+     <div style={{ display: "flex", gap: 5 }}>
+      {[["yes", "Yes"], ["no", "No"]].map(([v, label]) => (
+       <button key={v} type="button" onClick={() => setRefiPrepayPenalty(v)}
+        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+         background: refiPrepayPenalty === v ? `${T.blue}22` : T.inputBg,
+         border: refiPrepayPenalty === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+         color: refiPrepayPenalty === v ? T.blue : T.textSecondary }}>
+        {label}
+       </button>
+      ))}
+     </div>
+    </div>
   </>);
   return (<>
  {!hideHero && (
@@ -903,6 +954,17 @@ export default function SetupContent(props) {
      onNo={() => setRefiHasStatement(false)}
     />
    </div>
+   {/* Every Yes/No in the walk rides here with the statement question,
+       above Account Information (Christo 2026-08-04). */}
+   {calc.refiFromStatement && (<>
+    <div style={{ borderTop: `1px dashed ${T.separator}`, marginTop: 12 }} />
+    {prepayQuestionNode}
+    {taxInsQuestionNode}
+    {maturityQuestionNode}
+    {secondLienNode}
+    {modifiedQuestionNode}
+    {closingPmtQuestionNode}
+   </>)}
   </Card>
   <Card>
    {/* ── One column, line by line, in the STATEMENT's own format (Christo
@@ -958,24 +1020,6 @@ export default function SetupContent(props) {
         Balance first, penalty second (Christo 2026-08-04). */}
     <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
      tip="As printed in Account Information. Money sitting in the escrow account — refunded after the old loan pays off. $0 when nothing is impounded." />
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Prepayment penalty?</span>
-     <div style={{ display: "flex", gap: 5 }}>
-      {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
-       <button key={v} type="button" onClick={() => setRefiPrepayPenalty(v)}
-        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-         background: refiPrepayPenalty === v ? `${T.blue}22` : T.inputBg,
-         border: refiPrepayPenalty === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-         color: refiPrepayPenalty === v ? T.blue : T.textSecondary }}>
-        {label}
-       </button>
-      ))}
-     </div>
-    </div>
-    {taxInsQuestionNode}
-    {maturityQuestionNode}
-    {secondLienNode}
-    {modifiedQuestionNode}
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
      Explanation of Amount Due
     </div>
@@ -1238,36 +1282,7 @@ export default function SetupContent(props) {
     {taxInsAmountsNoNode}
     {insEffectiveDateNode}
    </>)}
-   {/* Closing-month payment question — when closing is after the grace day the
-       borrower MUST make that month's payment before we can close, which drops
-       the payoff. Auto-answered by the calendar; the LO can override. Only
-       relevant once the closing month is after the last-payment month. */}
-   {refiCurrentBalance > 0 && calc.refiMonthsToClose >= 1 && (
-    <div style={{ background: `${T.blue}08`, border: `1px solid ${T.blue}22`, borderRadius: 10, padding: "10px 12px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text, display: "flex", alignItems: "center", gap: 6 }}>
-       {["January","February","March","April","May","June","July","August","September","October","November","December"][(closingMonth - 1 + 12) % 12]} payment made before closing?
-       {refiClosingPmtOverride == null && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
-      </div>
-      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, lineHeight: 1.5 }}>
-       {calc.refiAssumeClosingPmt
-        ? `Closing after the ${calc.refiGraceDay}th — this payment is due first, so we assume it's made. Payoff accrues ${calc.refiPayoffDays} days from ${calc.refiPayoffEffLabel}.`
-        : `Closing on/before the ${calc.refiGraceDay}th grace day — still within the window, so we don't assume it yet.`}
-      </div>
-     </div>
-     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-      <div
-       onClick={() => setRefiClosingPmtOverride(calc.refiAssumeClosingPmt ? false : true)}
-       style={{ width: 52, height: 30, borderRadius: 99, background: calc.refiAssumeClosingPmt ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s" }}
-      >
-       <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: calc.refiAssumeClosingPmt ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-      </div>
-      {refiClosingPmtOverride != null && (
-       <button onClick={() => setRefiClosingPmtOverride(null)} title="Back to auto" style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺</button>
-      )}
-     </div>
-    </div>
-   )}
+   {!calc.refiFromStatement && closingPmtQuestionNode}
    {/* ── Current loan amortization drawer (Christo 7.28) ──
        The estimate box hands you one number; this is the month-by-month walk
        that produced it, so the statement can be reconciled against the row
@@ -1398,7 +1413,7 @@ export default function SetupContent(props) {
     <div key={q.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0", borderTop: `1px dashed ${T.separator}` }}>
      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{q.label}</span>
      <div style={{ display: "flex", gap: 5 }}>
-      {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
+      {[["yes", "Yes"], ["no", "No"]].map(([v, label]) => (
        <button key={v} type="button" onClick={() => q.set(v)}
         style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
          background: q.value === v ? `${T.blue}22` : T.inputBg,
@@ -1513,7 +1528,15 @@ export default function SetupContent(props) {
      </>)}
     </div>
    )}
-   {refiPurpose === "Cash-Out" && <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut} />}
+   {/* Cash Out drives the AUTO new-loan amount (payoff + cash out). With a
+       manual New Loan Amount set it does nothing, so it yields to a note
+       instead of sitting there dead (Christo 2026-08-04). */}
+   {refiPurpose === "Cash-Out" && (
+    Math.abs((calc.refiNewLoanAmt || 0) - (calc.refiAutoLoanAmt || 0)) > 1
+     ? <Note color={T.blue}>New Loan Amount is set manually on the payment section, so the cash out falls out of the difference — see Estimated Cash Out under Net Cash Out.</Note>
+     : <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut}
+        tip="Rolls on top of the payoff to build the new loan amount. Setting New Loan Amount manually replaces this." />
+   )}
   </Card>
  </Sec>}
  {isRefi && (refiHomeValue > 0 || calc.refiEffBalance > 0) && <div style={{ background: `${T.green}10`, borderRadius: 12, padding: 14, marginBottom: 14 }}>

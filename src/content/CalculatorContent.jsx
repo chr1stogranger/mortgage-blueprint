@@ -763,6 +763,12 @@ export default function CalculatorContent(props) {
            }}>▾</span>
           </span>
          )}
+         {/* Assessed-estimate mode must be visible OUTSIDE the collapsed
+             popover — a stuck mode silently swapped the tax number
+             (Christo 2026-08-04). */}
+         {row.jumpTo === "tax" && isRefi && refiTaxAssessedMode && (
+          <span title="Estimated purchase-style — 'bought in the last year' mode. Open 'How it's calculated' to switch back to the actual bill." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Est · recent purchase</span>
+         )}
         </div>
         {row.editable
          ? <InlineEditValue value={row.value} onChange={row.onChange} T={T} />

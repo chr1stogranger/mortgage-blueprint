@@ -2259,7 +2259,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiClosedDate) setRefiClosedDate(s.refiClosedDate);
   if (s.refiExtraPaid !== undefined) setRefiExtraPaid(s.refiExtraPaid);
   if (s.refiAnnualTax !== undefined) setRefiAnnualTax(s.refiAnnualTax);
-  if (s.refiTaxAssessedMode !== undefined) setRefiTaxAssessedMode(s.refiTaxAssessedMode);
+  // Explicit reset when absent: scenarios saved before this key existed must
+  // NOT inherit the previous scenario's mode — a stuck "bought in the last
+  // year" silently swapped the new-loan tax from the real bill to the
+  // assessed estimate (Christo 2026-08-04, the $1,785 vs $1,355 mystery).
+  setRefiTaxAssessedMode(s.refiTaxAssessedMode !== undefined ? s.refiTaxAssessedMode : false);
   if (s.refiAnnualIns !== undefined) setRefiAnnualIns(s.refiAnnualIns);
   if (s.insEffectiveDate !== undefined) setInsEffectiveDate(s.insEffectiveDate);
   // refiCurrentRateType postdates scenarios that stored "ARM" as the loan
