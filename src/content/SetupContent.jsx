@@ -552,19 +552,48 @@ export default function SetupContent(props) {
    </div>
   </Card>
   <Card>
-   {/* ── One column, line by line, in Christo's intake-sheet order (2026-08-04).
-       Flow 1 (statement in hand) reads the statement top to bottom. Flow 2
-       (no statement) works backwards from the original note with assumptions.
-       Loan type and fixed/adjustable aren't on the sheet but the math and the
-       PDFs need them, so they ride directly under the rate in both flows. */}
+   {/* ── One column, line by line, in the STATEMENT's own format (Christo
+       2026-08-04): every servicer prints the same two boxes — Account
+       Information (outstanding principal, rate, prepayment penalty, escrow
+       balance) then Explanation of Amount Due (principal, interest, escrow,
+       mortgage insurance → Regular Monthly Payment) — so Flow 1 mirrors them
+       section for section. Flow 2 (no statement) works backwards from the
+       original note. Loan type and fixed/adjustable aren't printed in the box
+       but the math needs them, so they ride under the rate in both flows. */}
+   {calc.refiFromStatement && (<>
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>
+     Account Information
+    </div>
+    <Inp label="Outstanding Principal Balance" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Straight off the statement's Account Information box. Not the payoff amount — the payoff runs about a month of interest ahead; we calculate that below. When set, this anchors everything." />
+   </>)}
    <Inp label="Current Interest Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} req tip="The note rate today. On an adjusted ARM this is the rate it adjusted TO." />
-   {calc.refiFromStatement && (
-    <Inp label="Current Loan Amount — from statement" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Outstanding principal from the most recent mortgage statement. When set, this overrides any estimate and anchors the payoff calculation." />
-   )}
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
     <Sel label="Current Loan Type" value={refiCurrentLoanType} onChange={setRefiCurrentLoanType} options={["Conventional", "FHA", "VA", "Jumbo", "USDA"]} req />
     <Sel label="Fixed / Adjustable" value={refiCurrentRateType} onChange={setRefiCurrentRateType} options={["Fixed", "Adjustable"]} tip="Whether the current note's rate is fixed or adjustable (ARM). An ARM about to reset is often the reason to refinance." />
    </div>
+   {calc.refiFromStatement && (<>
+    {/* Prepayment penalty + escrow balance print in the SAME Account
+        Information box, so they're asked here — not three sections later. */}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Prepayment penalty?</span>
+     <div style={{ display: "flex", gap: 5 }}>
+      {[["yes", "Yes"], ["no", "No"], ["unsure", "Unsure"]].map(([v, label]) => (
+       <button key={v} type="button" onClick={() => setRefiPrepayPenalty(v)}
+        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+         background: refiPrepayPenalty === v ? `${T.blue}22` : T.inputBg,
+         border: refiPrepayPenalty === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+         color: refiPrepayPenalty === v ? T.blue : T.textSecondary }}>
+        {label}
+       </button>
+      ))}
+     </div>
+    </div>
+    <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
+     tip="As printed in Account Information. Money sitting in the escrow account — refunded after the old loan pays off. $0 when nothing is impounded." />
+    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
+     Explanation of Amount Due
+    </div>
+   </>)}
    {!calc.refiFromStatement && (<>
     <Inp label="Original Balance" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req
      tip="The original note amount — look it up on the property profile (the recorded deed of trust amount)." />
@@ -770,10 +799,6 @@ export default function SetupContent(props) {
     <Inp label="Principal — from statement" value={refiCurPrinOverride} onChange={setRefiCurPrinOverride} tip="This month's principal portion, straight off the statement. Leave at 0 to derive it (payment minus interest)." />
     <Inp label="Interest — from statement" value={refiCurIntOverride} onChange={setRefiCurIntOverride} tip="This month's interest portion, straight off the statement. Leave at 0 to derive it (balance × rate ÷ 12)." />
    </>)}
-   {/* PMI sits after principal & interest in both flows — the statement's own
-       order, and the sheet's (Christo 2026-08-04). */}
-   <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI}
-    tip={calc.refiFromStatement ? "Monthly mortgage insurance on the current loan, straight off the statement. Zero if there is none." : "Monthly mortgage insurance on the current loan, if any — estimate it if unknown (FHA loans from the original amount, conventional from the LTV at closing)."} />
    {/* ── Taxes & insurance, asked the way the sheet asks it (Christo 2026-08-04) ──
        One top-level question, then a per-component walk: are taxes included,
        how much, is insurance included, how much — amounts entered monthly or
@@ -887,13 +912,18 @@ export default function SetupContent(props) {
     </div>
    )}
    {/* No impounds means no escrow account, so the balance question is removed
-       rather than asked and answered zero. */}
-   {calc.refiEscrowOn
+       rather than asked and answered zero. Flow 1 reads the balance in the
+       Account Information section instead — the statement prints it there. */}
+   {!calc.refiFromStatement && (calc.refiEscrowOn
     ? <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance} sm
        tip="Money sitting in the escrow account — refunded after the old loan pays off. Printed on the statement, so read it rather than ask." />
     : <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: 12 }}>
        Nothing is impounded, so there's no escrow account and no balance to refund.
-      </div>}
+      </div>)}
+   {/* Mortgage insurance follows escrow — the statement's own line order in
+       Explanation of Amount Due (Christo 2026-08-04). */}
+   <Inp label="PMI / MIP" value={refiCurrentMI} onChange={setRefiCurrentMI}
+    tip={calc.refiFromStatement ? "The Mortgage Insurance line in Explanation of Amount Due. Zero if there is none." : "Monthly mortgage insurance on the current loan, if any — estimate it if unknown (FHA loans from the original amount, conventional from the LTV at closing)."} />
    {!calc.refiFromStatement && (
     <Note color={T.orange}>
      No statement, so the balance below is reconstructed from the closing date and rate. Everything it
@@ -1208,7 +1238,9 @@ export default function SetupContent(props) {
    )}
    {[
     { label: "Ever modified, or in forbearance since origination?", value: refiModified, set: setRefiModified },
-    { label: "Prepayment penalty on the current note?", value: refiPrepayPenalty, set: setRefiPrepayPenalty },
+    // Flow 1 asks prepayment penalty up in Account Information — the
+    // statement prints it there. Only the reconstruct flow asks it here.
+    ...(!calc.refiFromStatement ? [{ label: "Prepayment penalty on the current note?", value: refiPrepayPenalty, set: setRefiPrepayPenalty }] : []),
    ].map((q) => (
     <div key={q.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0", borderTop: `1px dashed ${T.separator}` }}>
      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>{q.label}</span>

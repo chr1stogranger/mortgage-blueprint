@@ -3506,14 +3506,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [refiPreviewOpen]);
  const [refiPreviewUrl, setRefiPreviewUrl] = useState("");
  const [refiPreviewW, setRefiPreviewW] = useState(() => {
-  try { const w = parseInt(localStorage.getItem('bp_refi_preview_w'), 10); if (w >= 320 && w <= 900) return w; } catch { /* ignore */ }
-  return 480;
+  try { const w = parseInt(localStorage.getItem('bp_refi_preview_w'), 10); if (w >= 420 && w <= 1500) return w; } catch { /* ignore */ }
+  // Default: fill the screen right of the form (the Ops marketing layout).
+  try { return Math.max(560, Math.round(window.innerWidth * 0.52)); } catch { return 640; }
  });
  const [refiPreviewDragging, setRefiPreviewDragging] = useState(false);
  const startRefiPreviewResize = (e) => {
   e.preventDefault();
   setRefiPreviewDragging(true);
-  const move = (ev) => setRefiPreviewW(Math.min(900, Math.max(320, window.innerWidth - ev.clientX)));
+  const move = (ev) => setRefiPreviewW(Math.min(1500, Math.max(420, window.innerWidth - ev.clientX)));
   const up = () => {
    setRefiPreviewDragging(false);
    window.removeEventListener('pointermove', move);
@@ -6637,23 +6638,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       (Christo 2026-08-04). Flush to the edge, full height, drag the left rail
       to resize; the main container gets matching right padding. Desktop only. */}
   {isRefi && refiPreviewOpen && isDesktop && (
-   <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: refiPreviewW, zIndex: 900, display: "flex", flexDirection: "column", background: T.card, borderLeft: `1px solid ${T.glassBorder || T.separator}`, boxShadow: darkMode ? "-8px 0 30px rgba(0,0,0,0.35)" : "-8px 0 30px rgba(10,17,32,0.10)", overflow: "hidden" }}>
+   <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: refiPreviewW, zIndex: 900, display: "flex", flexDirection: "column", background: darkMode ? "rgba(10,17,32,0.88)" : "rgba(240,246,252,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderLeft: `1px solid ${T.glassBorder || T.separator}`, boxShadow: darkMode ? "-8px 0 30px rgba(0,0,0,0.35)" : "-8px 0 30px rgba(10,17,32,0.10)", overflow: "hidden" }}>
     {/* Resize rail */}
     <div
      onPointerDown={startRefiPreviewResize}
      title="Drag to resize"
      style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, cursor: "col-resize", zIndex: 2, background: refiPreviewDragging ? `${T.blue}33` : "transparent" }}
     />
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px 10px 18px", borderBottom: `1px solid ${T.separator}`, flexShrink: 0 }}>
-     <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — Refi Summary</span>
+    {/* Microline header — the Ops marketing preview's exact vocabulary. */}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 16px 10px 20px", flexShrink: 0 }}>
+     <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — US Letter</span>
      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
       <button onClick={() => setRefiPreviewOpen(false)} title="Close preview" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: 2, fontFamily: FONT }}>✕</button>
      </div>
     </div>
-    {refiPreviewUrl
-     ? <iframe title="Refi Summary live preview" src={`${refiPreviewUrl}#toolbar=0&navpanes=0&view=FitH`} style={{ flex: 1, border: "none", width: "100%", background: darkMode ? "#1b2233" : "#e8edf5", pointerEvents: refiPreviewDragging ? "none" : "auto" }} />
-     : <div style={{ flex: 1, display: "grid", placeItems: "center", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Rendering preview…</div>}
+    {/* The letter itself — centered paper at true 8.5×11 proportions filling
+        the panel, like the Ops flyer preview. */}
+    <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "4px 20px 20px" }}>
+     {refiPreviewUrl
+      ? <div style={{ aspectRatio: "8.5 / 11", maxWidth: "100%", maxHeight: "100%", width: "100%", margin: "0 auto", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.separator}`, boxShadow: darkMode ? "0 16px 50px rgba(0,0,0,0.5)" : "0 16px 50px rgba(10,17,32,0.18)", background: "#fff" }}>
+         <iframe title="Refi Summary live preview" src={`${refiPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`} style={{ width: "100%", height: "100%", border: "none", background: "#fff", pointerEvents: refiPreviewDragging ? "none" : "auto" }} />
+        </div>
+      : <div style={{ alignSelf: "center", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Rendering preview…</div>}
+    </div>
    </div>
   )}
   <div style={{ minHeight: "100vh", background: "transparent", position: "relative", zIndex: 1, color: T.text, fontFamily: FONT, width: "100%", overflowX: "clip", boxSizing: "border-box", display: isDesktop ? "flex" : "block", paddingRight: (isRefi && refiPreviewOpen && isDesktop) ? refiPreviewW : 0 }}>
