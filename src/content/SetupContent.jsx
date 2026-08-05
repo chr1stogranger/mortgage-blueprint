@@ -963,18 +963,18 @@ export default function SetupContent(props) {
        whatever a Yes unlocks appears in its original place in the walk. */}
    {calc.refiFromStatement && (<>
     {[
-     { t: "Prepayment penalty?", sub: "Printed in the statement's Account Information box.",
-       v: refiPrepayPenalty === "yes" ? true : refiPrepayPenalty === "no" ? false : null,
-       yes: () => setRefiPrepayPenalty("yes"), no: () => setRefiPrepayPenalty("no") },
      { t: "Taxes and/or insurance included in the payment?", sub: "The statement's combined Escrow (Taxes and Insurance) line — entered below, where the statement prints it.",
        v: refiEscrowUnsure === "unsure" ? null : (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0),
        yes: () => { setRefiEscrowUnsure(""); setRefiEscrowMode(refiEscrowCombined > 0 ? "combined" : "split"); if (!refiCurEscrowTax && !refiCurEscrowIns) { setRefiCurEscrowTax(true); setRefiCurEscrowIns(true); } },
        no: () => { setRefiEscrowUnsure(""); setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); } },
+     { t: "Any second mortgage or HELOC?", sub: "A second lien changes the payoff, the blended rate, and the CLTV.",
+       v: refiSecondLien, yes: () => setRefiSecondLien(true), no: () => setRefiSecondLien(false) },
      { t: "Does the statement include a maturity date?", sub: "If printed we use it as-is; if not, we work backwards from the original note below.",
        v: refiHasMaturity === "" ? null : refiHasMaturity === "yes",
        yes: () => setRefiHasMaturity("yes"), no: () => setRefiHasMaturity("no") },
-     { t: "Any second mortgage or HELOC?", sub: "A second lien changes the payoff, the blended rate, and the CLTV.",
-       v: refiSecondLien, yes: () => setRefiSecondLien(true), no: () => setRefiSecondLien(false) },
+     { t: "Prepayment penalty?", sub: "Printed in the statement's Account Information box.",
+       v: refiPrepayPenalty === "yes" ? true : refiPrepayPenalty === "no" ? false : null,
+       yes: () => setRefiPrepayPenalty("yes"), no: () => setRefiPrepayPenalty("no") },
      { t: "Ever modified, or in forbearance since origination?", sub: "A modification rewrites the terms, and seasoning rules may apply.",
        v: refiModified === "yes" ? true : refiModified === "no" ? false : null,
        yes: () => setRefiModified("yes"), no: () => setRefiModified("no") },
@@ -987,6 +987,36 @@ export default function SetupContent(props) {
       <YesNoSeg T={T} value={row.v} onYes={row.yes} onNo={row.no} />
      </div>
     ))}
+    {/* Timing questions ride in the cluster too (Christo 2026-08-04):
+        last payment + closing date + the closing-month payment. */}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", padding: "12px 0 10px", borderTop: `1px solid ${T.separator}`, marginTop: 2 }}>
+     <div style={{ flex: 1, minWidth: 200 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.01em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+       Last payment made
+       {!refiLastPaymentDate && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
+      </div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>We assume last month — or this month once past the 15th. Override if the statement says otherwise.</div>
+     </div>
+     <select value={(refiLastPaymentDate || calc.refiLastPaymentEff || "").slice(5, 7)} onChange={e => { const m = e.target.value; if (!m) { setRefiLastPaymentDate(""); return; } const now = new Date(); const y = Number(m) > now.getMonth() + 1 ? now.getFullYear() - 1 : now.getFullYear(); setRefiLastPaymentDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, boxSizing: "border-box", height: 40, padding: "8px 12px", color: T.text, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: 170 }}>
+      <option value="">Auto</option>
+      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+     </select>
+    </div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", padding: "12px 0 10px", borderTop: `1px solid ${T.separator}`, marginTop: 2 }}>
+     <div style={{ flex: 1, minWidth: 200 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.01em" }}>Estimated closing date</div>
+      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, lineHeight: 1.4 }}>Drives prepaid interest, payoff per-diem days, and how many payments get skipped.</div>
+     </div>
+     <input
+      type="date"
+      value={`${closingYear || new Date().getFullYear()}-${String(closingMonth).padStart(2, "0")}-${String(closingDay).padStart(2, "0")}`}
+      onChange={e => {
+       const [y, m, d] = e.target.value.split("-").map(Number);
+       if (y && m && d) { setClosingYear(y); setClosingMonth(m); setClosingDay(d); }
+      }}
+      style={{ width: 170, boxSizing: "border-box", height: 40, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "11px 14px", color: T.text, fontSize: 14, outline: "none", fontFamily: FONT }}
+     />
+    </div>
     {closingPmtQuestionNode && (
      <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 2 }}>{closingPmtQuestionNode}</div>
     )}
@@ -1479,33 +1509,7 @@ export default function SetupContent(props) {
    {/* Both cells share a fixed-height label row and identical control heights
        so the date input and the pill sit on the same baseline (doc 7.23) —
        the explainer caption moved below the grid so it can't push the pill up. */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, alignItems: "start" }}>
-    <div>
-     <div style={{ display: "flex", alignItems: "center", gap: 6, height: 22, marginBottom: 6, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-      Last Payment Made
-      {!refiLastPaymentDate && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
-      <InfoTip tip="The month of the most recent payment made. We assume last month — or this month once you're past the 15th. Override if the statement says otherwise." />
-     </div>
-     <select value={(refiLastPaymentDate || calc.refiLastPaymentEff || "").slice(5, 7)} onChange={e => { const m = e.target.value; if (!m) { setRefiLastPaymentDate(""); return; } const now = new Date(); const y = Number(m) > now.getMonth() + 1 ? now.getFullYear() - 1 : now.getFullYear(); setRefiLastPaymentDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, boxSizing: "border-box", height: 44, padding: "10px 12px", color: T.text, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-      <option value="">Auto</option>
-      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-     </select>
-    </div>
-    <div>
-     <div style={{ display: "flex", alignItems: "center", height: 22, marginBottom: 6, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-      Estimated Closing Date
-      <InfoTip tip="When the refi is expected to fund. Drives prepaid interest, the insurance-renewal window, payoff per-diem days, and how many payments get skipped." />
-     </div>
-     <input
-      type="date"
-      value={`${closingYear || new Date().getFullYear()}-${String(closingMonth).padStart(2, "0")}-${String(closingDay).padStart(2, "0")}`}
-      onChange={e => {
-       const [y, m, d] = e.target.value.split("-").map(Number);
-       if (y && m && d) { setClosingYear(y); setClosingMonth(m); setClosingDay(d); }
-      }}
-      style={{ width: "100%", boxSizing: "border-box", height: 44, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "11px 14px", color: T.text, fontSize: 14, outline: "none", fontFamily: FONT }}
-     />
-    </div>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
     <div>
      <div style={{ display: "flex", alignItems: "center", height: 22, marginBottom: 6, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>Skipped Payments</div>
      <div style={{ display: "flex", alignItems: "center", gap: 8, boxSizing: "border-box", height: 44, background: T.pillBg, borderRadius: 12, border: "1px solid transparent", padding: "0 14px" }}>
