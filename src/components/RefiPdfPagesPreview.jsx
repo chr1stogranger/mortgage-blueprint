@@ -10,11 +10,11 @@ import React, { useEffect, useRef } from "react";
  * the preview panel is actually open. Rendering is debounced because a resize
  * drag fires width changes continuously and a full page raster costs ~100ms.
  */
-export default function RefiPdfPagesPreview({ url, width, darkMode }) {
+export default function RefiPdfPagesPreview({ blob, width, darkMode }) {
   const boxRef = useRef(null);
   const renderIdRef = useRef(0);
   useEffect(() => {
-    if (!url || !width || width < 100) return undefined;
+    if (!blob || !width || width < 100) return undefined;
     const myId = ++renderIdRef.current;
     const t = setTimeout(async () => {
       try {
@@ -23,7 +23,10 @@ export default function RefiPdfPagesPreview({ url, width, darkMode }) {
           const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
           pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
         }
-        const doc = await pdfjs.getDocument(url).promise;
+        // Raw bytes, not a blob: URL — the production CSP's connect-src does
+        // not allow blob: fetches, so pdfjs's worker gets a response of 0 when
+        // handed a URL. Bytes sidestep the fetch entirely.
+        const doc = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
         if (myId !== renderIdRef.current) { doc.destroy?.(); return; }
         const box = boxRef.current;
         if (!box) { doc.destroy?.(); return; }
@@ -60,6 +63,6 @@ export default function RefiPdfPagesPreview({ url, width, darkMode }) {
       }
     }, 200);
     return () => clearTimeout(t);
-  }, [url, width, darkMode]);
+  }, [blob, width, darkMode]);
   return <div ref={boxRef} />;
 }

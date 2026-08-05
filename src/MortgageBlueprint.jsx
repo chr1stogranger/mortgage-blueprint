@@ -3505,7 +3505,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   try { localStorage.setItem('bp_refi_preview_open', refiPreviewOpen ? '1' : '0'); } catch { /* ignore */ }
  }, [refiPreviewOpen]);
- const [refiPreviewUrl, setRefiPreviewUrl] = useState("");
+ const [refiPreviewBlob, setRefiPreviewBlob] = useState(null);
  const [refiPreviewW, setRefiPreviewW] = useState(() => {
   try { const w = parseInt(localStorage.getItem('bp_refi_preview_w'), 10); if (w >= 420 && w <= 1500) return w; } catch { /* ignore */ }
   // Default: fill the screen right of the form (the Ops marketing layout).
@@ -5723,8 +5723,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    try {
     const blob = await renderRefiSummaryBlob(false);
     if (stale) return;
-    const url = URL.createObjectURL(blob);
-    setRefiPreviewUrl(prev => { if (prev) { try { URL.revokeObjectURL(prev); } catch { /* ignore */ } } return url; });
+    // The blob object itself, never a blob: URL — the prod CSP's connect-src
+    // has no blob:, so anything that must FETCH the URL (pdfjs's worker)
+    // would be refused. Bytes travel by value instead.
+    setRefiPreviewBlob(blob);
    } catch (e) { console.warn("[Blueprint] live preview render failed:", e?.message); }
   }, 600);
   return () => { stale = true; clearTimeout(t); };
@@ -6658,8 +6660,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         (no browser viewer chrome), always filling the panel's width and
         rescaling as the rail drags, exactly like the Ops flyer preview. */}
     <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 20px 24px" }}>
-     {refiPreviewUrl
-      ? <RefiPdfPagesPreview url={refiPreviewUrl} width={refiPreviewW - 47} darkMode={darkMode} />
+     {refiPreviewBlob
+      ? <RefiPdfPagesPreview blob={refiPreviewBlob} width={refiPreviewW - 47} darkMode={darkMode} />
       : <div style={{ display: "grid", placeItems: "center", height: "100%", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Rendering preview…</div>}
     </div>
    </div>
