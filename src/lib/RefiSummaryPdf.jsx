@@ -184,7 +184,10 @@ export function RefiSummaryDoc(p) {
     // window is always the tail of [closing month, closing month + 1].
     const base = Number(p.closingMonth) || (new Date().getMonth() + 1);
     const first = base + (2 - Math.min(2, n));
-    return Array.from({ length: n }, (_, i) => [`Skip ${monthName(first + i)} Payment`, c.refiCurTotalPmt]);
+    // A paid-off second stops billing at closing too — the skipped months
+    // skip the WHOLE outlay, not just the first mortgage (Christo 2026-08-05).
+    const perMonth = c.refiCurTotalPmt + (c.refiSecondPmtSaved || 0);
+    return Array.from({ length: n }, (_, i) => [`Skip ${monthName(first + i)} Payment`, perMonth]);
   })();
 
   return (

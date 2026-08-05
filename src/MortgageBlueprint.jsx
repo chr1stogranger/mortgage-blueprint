@@ -2074,7 +2074,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   propertyAddress, propertyTBD, propertyZip, propertyCounty, addressMode, addressInput,
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
-  refiClosedDate, refiExtraPaid, refiAnnualTax, refiTaxAssessedMode, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, showRefi3, borrowerEmail,
+  refiClosedDate, refiExtraPaid, refiAnnualTax, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, refiPayoffFees, showRefi3, borrowerEmail,
   refiHasStatement, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
@@ -2259,11 +2259,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiClosedDate) setRefiClosedDate(s.refiClosedDate);
   if (s.refiExtraPaid !== undefined) setRefiExtraPaid(s.refiExtraPaid);
   if (s.refiAnnualTax !== undefined) setRefiAnnualTax(s.refiAnnualTax);
-  // Explicit reset when absent: scenarios saved before this key existed must
-  // NOT inherit the previous scenario's mode — a stuck "bought in the last
-  // year" silently swapped the new-loan tax from the real bill to the
-  // assessed estimate (Christo 2026-08-04, the $1,785 vs $1,355 mystery).
-  setRefiTaxAssessedMode(s.refiTaxAssessedMode !== undefined ? s.refiTaxAssessedMode : false);
+  // SESSION-ONLY, always reset (Christo 2026-08-05): a stuck "bought in the
+  // last year" silently swapped the new-loan tax off the real bill TWICE —
+  // once by cross-scenario bleed, once by that bleed getting autosaved into
+  // the scenario itself. New taxes must equal current taxes on every load;
+  // the recent-purchase mode is a deliberate in-session flip, never stored.
+  setRefiTaxAssessedMode(false);
   if (s.refiAnnualIns !== undefined) setRefiAnnualIns(s.refiAnnualIns);
   if (s.insEffectiveDate !== undefined) setInsEffectiveDate(s.insEffectiveDate);
   // refiCurrentRateType postdates scenarios that stored "ARM" as the loan
@@ -5517,7 +5518,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiNetPrepaids = totalPrepaidExp;
   const refiNetPayoff = refiPayoffAmount + refiSecondPayoffAmt;
   const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff;
-  const refiSkipPmtAmt = refiCurTotalPmt * (refiSkipMonths || 0);
+  // The skipped months skip the WHOLE outlay: when the second is being paid
+  // off at closing, its carry stops too (Christo 2026-08-05).
+  const refiSkipPmtAmt = (refiCurTotalPmt + refiSecondPmtSaved) * (refiSkipMonths || 0);
   const refiEscrowRefund = refiEscrowBalance || 0;
   const refiNetCashInHand = refiEstCashOut + refiSkipPmtAmt + refiEscrowRefund;
   // ── Cost of Waiting Matrix ──
@@ -6315,7 +6318,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
    {(calc.refiSkipPmtAmt > 0 || calc.refiEscrowRefund > 0) && <>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginTop: 16, marginBottom: 10, textTransform: "uppercase" }}>Money Back in Your Pocket</div>
-    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt)}/mo`} />}
+    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt + calc.refiSecondPmtSaved)}/mo${calc.refiSecondPmtSaved > 0 ? " incl. 2nd" : ""}`} />}
     {calc.refiEscrowRefund > 0 && <MRow label="Current Escrow Balance Refund" value={`+${fmt(calc.refiEscrowRefund)}`} color={T.green} />}
    </>}
    <div style={{ marginTop: 12, padding: "14px 16px", background: calc.refiNetCashInHand >= 0 ? T.successBg : T.errorBg, borderRadius: 14 }}>
