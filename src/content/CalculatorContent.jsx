@@ -129,8 +129,34 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
 }
 
 export default function CalculatorContent(props) {
+  // Payment-donut slot width — the ring scales to whatever room the card
+  // leaves it (the live-preview panel can squeeze the column well under the
+  // ring's old fixed 280px, Christo 2026-08-04).
+  const donutSlotRef = useRef(null);
+  const [donutSlotW, setDonutSlotW] = useState(0);
+  // Re-measure after EVERY commit (guarded setState, so no loop): the row
+  // resizes when the preview panel opens/closes/drags, and all of those are
+  // React state changes that re-render this tree — a mount-time
+  // ResizeObserver missed them when the node identity changed. A window
+  // resize listener covers pure viewport changes.
+  React.useEffect(() => {
+    const el = donutSlotRef.current;
+    if (!el) return;
+    const w = Math.floor(el.clientWidth);
+    setDonutSlotW(prev => (Math.abs(prev - w) > 1 ? w : prev));
+  });
+  React.useEffect(() => {
+    const onResize = () => {
+      const el = donutSlotRef.current;
+      if (!el) return;
+      const w = Math.floor(el.clientWidth);
+      setDonutSlotW(prev => (Math.abs(prev - w) > 1 ? w : prev));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "refiNewEscrowTax", "setRefiNewEscrowTax", "refiNewEscrowIns", "setRefiNewEscrowIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
+  if (import.meta.env.DEV) devCheckProps("CalculatorContent", props, ["T", "isDesktop", "calc", "fmt", "fmt2", "pct", "changedFields", "paySegs", "salesPrice", "setSalesPrice", "city", "taxState", "isRefi", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "firstTimeBuyer", "includeEscrow", "setIncludeEscrow", "loanPurpose", "setLoanPurpose", "refiCurrentRate", "rate", "setRate", "term", "setTerm", "refiPurpose", "refiCashOut", "refiNewLoanAmtOverride", "setRefiNewLoanAmtOverride", "isPulse", "markTouched", "fetchRates", "ratesLoading", "ratesError", "liveRates", "fredApiKey", "userLoanTypeRef", "setAutoJumboSwitch", "autoJumboSwitch", "LOAN_TYPES", "vaUsage", "setVaUsage", "VA_USAGE", "getHighBalLimit", "UNIT_COUNT", "propType", "setPropType", "PROP_TYPES", "subjectRentalIncome", "setSubjectRentalIncome", "appreciationRate", "setAppreciationRate", "propertyState", "setPropertyState", "setCity", "propertyCounty", "setPropertyCounty", "STATE_NAMES_PROP", "CITY_NAMES", "STATE_CITIES", "propTaxMode", "STATE_PROPERTY_TAX_RATES", "taxRateLocked", "setTaxRateLocked", "taxExemptionLocked", "setTaxExemptionLocked", "taxBaseRateOverride", "setTaxBaseRateOverride", "propTaxExpanded", "setPropTaxExpanded", "fixedAssessments", "setFixedAssessments", "CITY_TAX_RATES", "taxExemptionOverride", "setTaxExemptionOverride", "propTaxCustomize", "setPropTaxCustomize", "pmiRateLocked", "setPmiRateLocked", "pmiRateOverride", "setPmiRateOverride", "pmiChartOverrides", "setPmiChartOverrides", "annualIns", "setAnnualIns", "setRefiAnnualIns", "refiAnnualTax", "setRefiAnnualTax", "refiTaxAssessedMode", "setRefiTaxAssessedMode", "refiNewEscrowTax", "setRefiNewEscrowTax", "refiNewEscrowIns", "setRefiNewEscrowIns", "hoa", "setHoa", "buydownType", "setBuydownType", "buydownPaidBy", "setBuydownPaidBy", "underwritingFee", "processingFee", "propertyZip", "setPropertyZip", "creditScore", "StopLight", "handlePillarClick", "allGood", "someGood", "refiPillarCount", "purchPillarCount", "refiLtvCheck", "PayRing", "Card", "Inp", "Sel", "Note", "SearchSelect", "InfoTip", "Icon", "GuidedNextButton", "ClusterContinue"]);
   const {
   T, isDesktop, calc, fmt, fmt2, pct,
   changedFields, paySegs,
@@ -165,7 +191,7 @@ export default function CalculatorContent(props) {
   pmiRateLocked, setPmiRateLocked,
   pmiRateOverride, setPmiRateOverride,
   pmiChartOverrides, setPmiChartOverrides,
-  annualIns, setAnnualIns, setRefiAnnualIns,
+  annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode,
   refiNewEscrowTax, setRefiNewEscrowTax, refiNewEscrowIns, setRefiNewEscrowIns,
   hoa, setHoa,
   buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy,
@@ -534,12 +560,13 @@ export default function CalculatorContent(props) {
         component) and sits in the lower-left corner of the donut card.
         The donut centers itself in the area to the right of the legend.
         On mobile we collapse to: donut centered, legend below (centered). */}
-    <div style={isDesktop
+    {(() => { const sideBySide = isDesktop && (donutSlotW === 0 || donutSlotW >= 340); return (
+    <div ref={donutSlotRef} style={sideBySide
      ? { display: "flex", alignItems: "stretch", gap: 8, marginTop: 4 }
      : { display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 4 }
     }>
-     {/* Legend — vertical stack, bottom-aligned (desktop) / centered (mobile) */}
-     <div style={isDesktop
+     {/* Legend — vertical stack, bottom-aligned (side-by-side) / centered (stacked) */}
+     <div style={sideBySide
       ? { flex: "0 0 auto", display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 6, paddingBottom: 8 }
       : { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, order: 2 }
      }>
@@ -551,14 +578,22 @@ export default function CalculatorContent(props) {
        </div>
       ))}
      </div>
-     {/* Donut — centered in the remaining horizontal space */}
-     <div style={isDesktop
-      ? { flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }
-      : { display: "flex", justifyContent: "center", order: 1 }
+     {/* Donut — centered, and SIZED to the room the card actually leaves it:
+         with the live-preview panel squeezing the column, a fixed 280px ring
+         overflowed the card (Christo 2026-08-04). The row is measured; when
+         it's too narrow for legend + ring side by side, the layout stacks
+         (mobile-style) and the ring scales to the row. */}
+     <div style={sideBySide
+      ? { flex: 1, minWidth: 0, display: "flex", justifyContent: "center", alignItems: "center" }
+      : { display: "flex", justifyContent: "center", order: 1, alignSelf: "stretch", minWidth: 0 }
      }>
-      <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? 280 : 200} hideLegend />
+      <PayRing segments={paySegs} total={calc.displayPayment}
+       size={sideBySide
+        ? Math.max(170, Math.min(280, (donutSlotW || 999) - 170))
+        : Math.max(100, Math.min(isDesktop ? 280 : 200, (donutSlotW || 999) - 16))} hideLegend />
      </div>
     </div>
+    ); })()}
    </div>
 
    {/* Escrow warning notes (live below the donut). */}
@@ -803,8 +838,56 @@ export default function CalculatorContent(props) {
           setTaxExemptionOverride(ip ? 7000 : 0);
          }
         };
+        // ── Refi tax basis (Christo 2026-08-04) ── the county already
+        // reassessed at their purchase, so for a refi the ACTUAL annual bill
+        // ÷ 12 is the number — the assessed-value walk below only applies
+        // when they bought within the last year and the reassessment hasn't
+        // landed yet (then it's estimated purchase-style off today's value).
+        const refiBillMode = isRefi && !refiTaxAssessedMode;
+        const modePills = isRefi && (
+         <div style={{ display: "flex", gap: 5, marginBottom: 6, flexWrap: "wrap" }}>
+          {[[false, "Already reassessed — use the bill"], [true, "Bought in the last year"]].map(([v, label]) => (
+           <button key={String(v)} type="button" onClick={() => setRefiTaxAssessedMode(v)}
+            style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+             background: refiTaxAssessedMode === v ? `${T.blue}22` : T.inputBg,
+             border: refiTaxAssessedMode === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+             color: refiTaxAssessedMode === v ? T.blue : T.textSecondary }}>
+            {label}
+           </button>
+          ))}
+         </div>
+        );
+        if (refiBillMode) {
+         return (
+          <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
+           {modePills}
+           <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
+            <div style={trStyle}>
+             <span style={labStyle}>Annual tax bill <InfoTip text="From the county bill or the Setup tab's taxes amount — the county already reassessed at their purchase, so this is the real number, no estimating." /></span>
+             <MiniEdit value={refiAnnualTax || 0} onChange={setRefiAnnualTax} prefix="$" suffix="/yr" T={T} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
+             <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Monthly (÷ 12)</span>
+             <span style={{ fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt2((refiAnnualTax || 0) / 12)}</span>
+            </div>
+            {!(refiAnnualTax > 0) && (
+             <div style={{ fontSize: 10, color: T.orange, marginTop: 6, lineHeight: 1.4 }}>
+              No bill entered yet — using the assessed-value estimate until one lands here or on the Setup tab.
+             </div>
+            )}
+           </div>
+          </div>
+         );
+        }
         return (
         <div style={{ marginLeft: 14, marginRight: 0, padding: "4px 0 8px" }}>
+         {modePills}
+         {isRefi && (
+          <div style={{ fontSize: 10, color: T.textTertiary, margin: "0 0 6px", lineHeight: 1.4 }}>
+           Bought within the last year — the reassessment hasn't landed, so the new bill is estimated
+           purchase-style from today's value.
+          </div>
+         )}
          <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
           <div style={trStyle}>
            <span style={labStyle}>Home Value</span>

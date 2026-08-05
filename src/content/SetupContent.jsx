@@ -911,6 +911,47 @@ export default function SetupContent(props) {
      </div>
     </div>
    )}
+   {/* The amounts are needed EITHER WAY (Christo 2026-08-04): taxes and
+       insurance feed the NEW loan's payment breakdown and the true monthly
+       cost whether or not the current payment impounds them — so when the
+       answer above is No or Unsure, ask for the annual amounts on their own. */}
+   {!(refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0)) && (
+    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.separator}`, marginBottom: 12 }}>
+     {[
+      { key: "tax", label: "Property taxes — annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
+        hint: "Paid separately today, but the new loan still needs it — prefilled from the county assessor once the address is known." },
+      { key: "ins", label: "Homeowner's insurance — annual", amt: refiAnnualIns, setAmt: setRefiAnnualIns,
+        hint: "Paid separately today, but the policy carries over on a refi and rides in the true monthly cost." },
+     ].map(c => {
+      const per = c.key === "tax" ? refiTaxPeriod : refiInsPeriod;
+      const setPer = c.key === "tax" ? setRefiTaxPeriod : setRefiInsPeriod;
+      const shown = per === "mo" ? Math.round((c.amt / 12) * 100) / 100 : c.amt;
+      const store = (v) => c.setAmt(per === "mo" ? (Number(v) || 0) * 12 : (Number(v) || 0));
+      return (
+       <div key={c.key} style={{ paddingTop: 8 }}>
+        <Inp label={c.label} value={shown} onChange={store} sm tip={c.hint}
+         rightSlot={
+          <span style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+           {[["mo", "Monthly"], ["yr", "Annual"]].map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setPer(v)}
+             style={{ padding: "3px 9px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+              background: per === v ? `${T.blue}22` : "transparent",
+              border: per === v ? `1px solid ${T.blue}` : `1px solid ${T.separator}`,
+              color: per === v ? T.blue : T.textTertiary }}>
+             {label}
+            </button>
+           ))}
+          </span>
+         } />
+       </div>
+      );
+     })}
+     <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, paddingTop: 8 }}>
+      Not in the mortgage payment, but never optional — these drive the new loan's payment breakdown
+      and the true monthly cost either way.
+     </div>
+    </div>
+   )}
    {/* No impounds means no escrow account, so the balance question is removed
        rather than asked and answered zero. Flow 1 reads the balance in the
        Account Information section instead — the statement prints it there. */}
