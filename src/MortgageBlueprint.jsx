@@ -7329,7 +7329,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    onClose={() => setShowWorksheetModal(false)}
    T={T}
    docKind={isRefi ? "refi" : "fees"}
-   buildWorksheetProps={isRefi ? () => buildRefiSummaryProps(true) : buildWorksheetProps}
+   buildWorksheetProps={isRefi ? (opts) => buildRefiSummaryProps(opts?.includeFees !== false) : buildWorksheetProps}
    defaultTo={borrowerEmail}
    defaultSubject={isRefi ? `Your Refinance Savings Summary — ${scenarioName}` : `Your Purchase Fees Worksheet — ${scenarioName}`}
    defaultBody={buildWorksheetEmailBody()}

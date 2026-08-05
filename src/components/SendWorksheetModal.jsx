@@ -84,6 +84,8 @@ export default function SendWorksheetModal({
   const [phase, setPhase] = useState("idle"); // idle | sending | sent | error
   const [error, setError] = useState(null);
   const [ccRealtor, setCcRealtor] = useState(false); // off by default — LO opts in per send
+  // Refi only: whether page 2 (the closing-costs / fees worksheet) rides along.
+  const [includeFees, setIncludeFees] = useState(true);
   const linked = !!getStoredGmailToken();
 
   // Re-seed fields each time the modal opens (scenario may have changed).
@@ -95,10 +97,14 @@ export default function SendWorksheetModal({
       setPhase("idle");
       setError(null);
       setCcRealtor(false);
+      setIncludeFees(true);
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const emailValid = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()), [to]);
+  // Multiple borrowers: comma/semicolon-separated addresses, all must parse
+  // (Christo 2026-08-05).
+  const recipients = useMemo(() => to.split(/[,;]+/).map((x) => x.trim()).filter(Boolean), [to]);
+  const emailValid = useMemo(() => recipients.length > 0 && recipients.every((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r)), [recipients]);
   const fileName = worksheetFileName(borrowerName, scenarioName, docKind);
 
   if (!open) return null;
@@ -114,13 +120,13 @@ export default function SendWorksheetModal({
     setPhase("sending");
     setError(null);
     try {
-      const blob = await renderWorksheetBlob(buildWorksheetProps(), docKind);
+      const blob = await renderWorksheetBlob(buildWorksheetProps({ includeFees }), docKind);
       const contentBase64 = await blobToBase64(blob);
       if (contentBase64.length > MAX_B64_CHARS) {
         throw new Error("The PDF is too large to attach — use Download and send it manually.");
       }
       const payload = {
-        to: to.trim(),
+        to: recipients.join(", "),
         subject: subject.trim() || "Your Fees Worksheet",
         htmlBody: bodyToHtml(body) + (signatureHtml ? `<div style="height:16px"></div>${signatureHtml}` : ""),
         fromName: loanOfficer || undefined,
@@ -129,7 +135,7 @@ export default function SendWorksheetModal({
         attachments: [{ filename: fileName, mimeType: "application/pdf", contentBase64 }],
         // Best-effort send log (written server-side to Supabase; see Ops gmail.js)
         log: {
-          borrowerEmail: to.trim(),
+          borrowerEmail: recipients.join(", "),
           borrowerName: logMeta?.borrowerName || borrowerName || "",
           scenarioName: logMeta?.scenarioName || scenarioName || "",
           loEmail: loEmail || "",
@@ -183,7 +189,10 @@ export default function SendWorksheetModal({
 
         <div style={{ marginBottom: 10 }}>
           <label style={labelStyle}>To</label>
-          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="borrower@email.com" style={inputStyle} inputMode="email" autoCapitalize="none" />
+          <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="borrower@email.com, co-borrower@email.com" style={inputStyle} inputMode="email" autoCapitalize="none" />
+          {recipients.length > 1 && emailValid && (
+            <div style={{ fontSize: 11.5, color: T.textTertiary, marginTop: 4, fontFamily: FONT }}>✓ Sending to {recipients.length} recipients</div>
+          )}
         </div>
         <div style={{ marginBottom: 10 }}>
           <label style={labelStyle}>Subject</label>
@@ -209,6 +218,18 @@ export default function SendWorksheetModal({
             <div style={{ fontSize: 11.5, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "5px 12px" }}>
               BCC: {loEmail}
             </div>
+          )}
+          {docKind === "refi" && (
+            <button onClick={() => setIncludeFees(!includeFees)} title={includeFees ? "Attach the summary only" : "Attach the closing costs page too"}
+              style={{
+                fontSize: 11.5, fontFamily: FONT, cursor: "pointer",
+                color: includeFees ? T.blue : T.textTertiary,
+                background: includeFees ? `${T.blue}14` : "transparent",
+                border: `1px ${includeFees ? "solid" : "dashed"} ${includeFees ? `${T.blue}50` : T.separator}`,
+                borderRadius: 9999, padding: "5px 12px",
+              }}>
+              {includeFees ? "✓ " : "+ "}Closing costs page
+            </button>
           )}
           {realtorPartner?.email && (
             <button onClick={() => setCcRealtor(!ccRealtor)} title={ccRealtor ? "Remove realtor from CC" : "CC the realtor on this email"}
