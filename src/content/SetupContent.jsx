@@ -312,7 +312,7 @@ export default function SetupContent(props) {
   // Per-component breakdown — renders only while the answer is Yes.
   const taxInsBreakdownNode = (<>
    {refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0) && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+    <div style={{ marginBottom: 12 }}>
      {/* The statement's own escrow bucket comes FIRST — every statement prints
          one "Escrow (Taxes and Insurance)" line (Christo 2026-08-04). It
          drives the CURRENT payment; the breakdown below feeds the new loan. */}
@@ -393,7 +393,7 @@ export default function SetupContent(props) {
        cost whether or not the current payment impounds them — so when the
        answer above is No or Unsure, ask for the annual amounts on their own. */}
    {!(refiEscrowUnsure !== "unsure" && (refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombined > 0)) && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.separator}`, marginBottom: 12 }}>
+    <div style={{ marginBottom: 12 }}>
      {[
       { key: "tax", label: "Property taxes — annual", amt: refiAnnualTax, setAmt: setRefiAnnualTax,
         hint: "Paid separately today, but the new loan still needs it — prefilled from the county assessor once the address is known." },
@@ -454,7 +454,7 @@ export default function SetupContent(props) {
   const maturityDetailNode = (<>
    {calc.refiFromStatement && (<>
     {refiHasMaturity === "yes" && (
-     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+     <div style={{ marginBottom: 12 }}>
       <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Maturity date</label>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 340 }}>
        <select value={refiMaturityDate ? refiMaturityDate.slice(5, 7) : ""} onChange={e => { const m = e.target.value; if (!m) { setRefiMaturityDate(""); return; } const y = refiMaturityDate ? refiMaturityDate.slice(0, 4) : String(new Date().getFullYear() + 25); setRefiMaturityDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: refiMaturityDate ? T.text : T.textTertiary, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
@@ -470,7 +470,7 @@ export default function SetupContent(props) {
     )}
 
     {refiHasMaturity === "no" && (
-     <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 12 }}>
+     <div style={{ marginBottom: 12 }}>
       <Note color={T.blue}>We can look up the original loan amount and funded date and work backwards.</Note>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
        <Inp label="Loan Amount" value={refiOriginalAmount} onChange={setRefiOriginalAmount} sm
@@ -634,16 +634,9 @@ export default function SetupContent(props) {
       {["January","February","March","April","May","June","July","August","September","October","November","December"][(closingMonth - 1 + 12) % 12]} payment made before closing?
       {refiClosingPmtOverride == null && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
      </span>
-     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-      {[[true, "Yes"], [false, "No"]].map(([v, label]) => (
-       <button key={label} type="button" onClick={() => setRefiClosingPmtOverride(v)}
-        style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-         background: calc.refiAssumeClosingPmt === v ? `${T.blue}22` : T.inputBg,
-         border: calc.refiAssumeClosingPmt === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-         color: calc.refiAssumeClosingPmt === v ? T.blue : T.textSecondary }}>
-        {label}
-       </button>
-      ))}
+     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      {/* Same YesNoSeg as every other cluster row (Christo 2026-08-04). */}
+      <YesNoSeg T={T} value={calc.refiAssumeClosingPmt} onYes={() => setRefiClosingPmtOverride(true)} onNo={() => setRefiClosingPmtOverride(false)} />
       {refiClosingPmtOverride != null && (
        <button type="button" onClick={() => setRefiClosingPmtOverride(null)} title="Back to auto" style={{ background: "none", border: "none", color: T.blue, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: FONT }}>↺</button>
       )}
