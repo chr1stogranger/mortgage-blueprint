@@ -1404,23 +1404,6 @@ export default function SetupContent(props) {
    {!refiClosedDate && (
     <Inp label="Remaining Months (manual)" value={refiRemainingMonths} onChange={setRefiRemainingMonths} prefix="" suffix="mos" />
    )}
-   <div style={{ maxWidth: 320 }}>
-    <div style={{ marginBottom: 6 }}>
-     {/* Month only — the year is implied (a borrower 12+ months behind isn't
-         getting a loan today). Auto-defaults from the calendar: last month, or
-         this month once past the 15th (doc 7.23). Picking a month later than
-         the current one means the most recent PAST occurrence — last year. */}
-     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>
-      Last Payment Made
-      {!refiLastPaymentDate && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px", marginLeft: 6, verticalAlign: "middle" }}>AUTO</span>}
-      <InfoTip tip="The month of the most recent payment made. We assume last month — or this month once you're past the 15th. Override if the statement says otherwise." />
-     </label>
-     <select value={(refiLastPaymentDate || calc.refiLastPaymentEff || "").slice(5, 7)} onChange={e => { const m = e.target.value; if (!m) { setRefiLastPaymentDate(""); return; } const now = new Date(); const y = Number(m) > now.getMonth() + 1 ? now.getFullYear() - 1 : now.getFullYear(); setRefiLastPaymentDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "10px 12px", color: T.text, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
-      <option value="">Auto</option>
-      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
-     </select>
-    </div>
-   </div>
    {(refiAnnualTax > 0 || refiAnnualIns > 0) && (
     <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -4, marginBottom: 10 }}>
      ✓ Monthly: {refiAnnualTax > 0 ? `Tax ${fmt(refiAnnualTax / 12)}` : ""}{refiAnnualTax > 0 && refiAnnualIns > 0 ? " + " : ""}{refiAnnualIns > 0 ? `Ins ${fmt(refiAnnualIns / 12)}` : ""} = {fmt((refiAnnualTax + refiAnnualIns) / 12)}/mo
@@ -1503,7 +1486,18 @@ export default function SetupContent(props) {
    {/* Both cells share a fixed-height label row and identical control heights
        so the date input and the pill sit on the same baseline (doc 7.23) —
        the explainer caption moved below the grid so it can't push the pill up. */}
-   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
+   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, alignItems: "start" }}>
+    <div>
+     <div style={{ display: "flex", alignItems: "center", gap: 6, height: 22, marginBottom: 6, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+      Last Payment Made
+      {!refiLastPaymentDate && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: T.blue, background: `${T.blue}14`, border: `1px solid ${T.blue}30`, borderRadius: 9999, padding: "1px 6px" }}>AUTO</span>}
+      <InfoTip tip="The month of the most recent payment made. We assume last month — or this month once you're past the 15th. Override if the statement says otherwise." />
+     </div>
+     <select value={(refiLastPaymentDate || calc.refiLastPaymentEff || "").slice(5, 7)} onChange={e => { const m = e.target.value; if (!m) { setRefiLastPaymentDate(""); return; } const now = new Date(); const y = Number(m) > now.getMonth() + 1 ? now.getFullYear() - 1 : now.getFullYear(); setRefiLastPaymentDate(`${y}-${m}-01`); }} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, boxSizing: "border-box", height: 44, padding: "10px 12px", color: T.text, fontSize: 13, fontWeight: 500, outline: "none", fontFamily: FONT, width: "100%" }}>
+      <option value="">Auto</option>
+      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((mo, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{mo}</option>)}
+     </select>
+    </div>
     <div>
      <div style={{ display: "flex", alignItems: "center", height: 22, marginBottom: 6, fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
       Estimated Closing Date
