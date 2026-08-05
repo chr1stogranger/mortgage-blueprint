@@ -166,9 +166,15 @@ export function RefiSummaryDoc(p) {
   const skipRows = (() => {
     const n = Number(p.refiSkipMonths) || 0;
     if (n <= 0 || !(c.refiCurTotalPmt > 0)) return [];
-    // Skipped payments start the month AFTER closing.
+    // Which months get skipped (Christo 2026-08-04): closing early in the
+    // month (2 skips) means the CLOSING month's own payment is the first one
+    // skipped — close Sept 5 and you skip September AND October, not
+    // October/November. Closing after the grace day (1 skip) made the
+    // closing-month payment, so only the next month is skipped. The skipped
+    // window is always the tail of [closing month, closing month + 1].
     const base = Number(p.closingMonth) || (new Date().getMonth() + 1);
-    return Array.from({ length: n }, (_, i) => [`Skip ${monthName(base + 1 + i)} Payment`, c.refiCurTotalPmt]);
+    const first = base + (2 - Math.min(2, n));
+    return Array.from({ length: n }, (_, i) => [`Skip ${monthName(first + i)} Payment`, c.refiCurTotalPmt]);
   })();
 
   return (
