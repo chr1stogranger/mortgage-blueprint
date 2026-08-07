@@ -5766,21 +5766,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   if (!stmtAvailable || !refiPreviewOpen || !isRefi || !isDesktop) return;
   if (stmtDoc.status !== 'idle') return;
-  let stale = false;
+  // Staleness is judged against the scenario, NOT this effect's lifetime: the
+  // setStmtDoc('loading') below re-runs this effect (status is a dep), and an
+  // effect-scoped stale flag would cancel our own in-flight fetch.
+  const sid = activeScenarioId;
   setStmtDoc({ status: 'loading', blob: null, type: '' });
   (async () => {
    try {
-    const r = await fetchStatementBlob(activeScenarioId);
-    if (stale) return;
+    const r = await fetchStatementBlob(sid);
+    if (stmtScenarioRef.current !== sid) return;
     if (r) setStmtDoc({ status: 'ready', blob: r.blob, type: r.contentType });
     else setStmtDoc({ status: 'none', blob: null, type: '' });
    } catch (e) {
-    if (stale) return;
+    if (stmtScenarioRef.current !== sid) return;
     console.warn('[Blueprint] statement fetch failed:', e.message);
     setStmtDoc({ status: 'error', blob: null, type: '' });
    }
   })();
-  return () => { stale = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [stmtAvailable, refiPreviewOpen, isRefi, isDesktop, stmtDoc.status, activeScenarioId]);
 
