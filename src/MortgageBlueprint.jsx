@@ -2637,10 +2637,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeClientEntry(borrower)); }
    } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
   },
-  onCreateNew: (prefillName) => {
-   setCreateClientPrefill(prefillName || "");
-   setCreateClientOpen(true);
-  },
   onImportArive: (prefillQuery) => {
    setImportArivePrefill(prefillQuery || "");
    setImportAriveOpen(true);
@@ -6920,9 +6916,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          onOpenClient: borrowerPickerCallbacks.onOpenClient,
          onSelectScenario: borrowerPickerCallbacks.onSelectScenario,
          onAutoCreateScenario: borrowerPickerCallbacks.onAutoCreateScenario,
-         onCreateNew: borrowerPickerCallbacks.onCreateNew,
          onImportArive: borrowerPickerCallbacks.onImportArive,
          onRenameClient: handleRenameClient,
+         isDesktop,
         }}
        />
       )}

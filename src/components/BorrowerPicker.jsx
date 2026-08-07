@@ -1,15 +1,15 @@
-import { FONT } from "../lib/fonts.js";
+import { FONT, MONO } from "../lib/fonts.js";
 /**
- * BorrowerPicker — Two-step search to find/add a client and open a blueprint.
+ * BorrowerPicker — type-ahead search to find a client and open a blueprint.
  *
- * Step 1: type-ahead search across all clients (or "+ New Client").
- * Step 2: pick one of that client's blueprints (or auto-create / "New Blueprint").
+ * Step 1: search across all clients; a row click opens that client's most-recent
+ * loan directly. "Import from Arive" is the bottom action row. (Creating a new
+ * client lives in the + button in the app header — this picker is a finder.)
+ * Step 2 (legacy fallback): pick one of the client's blueprints.
  *
- * Pinned + recent blueprints now live in the left-panel SidebarSwitcher, so this
- * component is purely the "find or add" entry. It renders as a dropdown under its
- * trigger on desktop, and as a full-height slide-in drawer on mobile (isDesktop=false).
- * Embedded in the sidebar, it's run in drawer mode so search has room regardless of
- * the narrow rail width.
+ * Desktop: an anchored dropdown popover, portaled to document.body so it
+ * escapes the sidebar rail's overflow clipping — styled like the Ops global
+ * search dropdown. Mobile (isDesktop=false): full-height slide-in drawer.
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -18,7 +18,7 @@ import Icon from '../Icon';
 
 
 const STATUS_COLORS = {
-  lead: '#d98a0b',
+  lead: '#8b7bf0', // purple — matches SidebarSwitcher / Pipeline lead convention
   active: '#3B6BF5',
   pre_approved: '#3B6BF5',
   in_escrow: '#8b7bf0',
@@ -45,7 +45,6 @@ export default function BorrowerPicker({
   activeBorrower = null,
   onSelect,
   onOpenClient,
-  onCreateNew,
   onImportArive,
   onSelectScenario,
   onAutoCreateScenario,
@@ -61,7 +60,9 @@ export default function BorrowerPicker({
   const [search, setSearch] = useState('');
   const [highlightIdx, setHighlightIdx] = useState(0);
   const [pendingBorrower, setPendingBorrower] = useState(null);
+  const [anchorRect, setAnchorRect] = useState(null);
   const containerRef = useRef(null);
+  const popoverRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
@@ -86,6 +87,9 @@ export default function BorrowerPicker({
         );
       })
     : borrowers;
+  // Defensive render cap — the list is ~10-20 clients today, but never let a
+  // huge roster stall the dropdown. Keyboard nav walks the visible rows.
+  const visible = filtered.slice(0, 50);
 
   const closePicker = useCallback(() => {
     setIsOpen(false);
@@ -95,18 +99,32 @@ export default function BorrowerPicker({
     setHighlightIdx(0);
   }, []);
 
+  // Anchor the desktop popover to the trigger. Measured once per open — the
+  // popover covers the trigger, and any outside interaction closes it, so no
+  // scroll/resize tracking is needed.
+  const openPicker = () => {
+    if (isDesktop && containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      setAnchorRect({ top: r.top, left: r.left, width: r.width });
+    }
+    setIsOpen(true);
+  };
+
   useEffect(() => { setHighlightIdx(0); }, [search, step]);
 
-  // Outside-click-to-close only applies to the desktop dropdown, which renders
-  // inside containerRef. In drawer mode the panel is portaled to document.body
-  // (outside containerRef), so this handler would fire on EVERY click inside the
-  // drawer — closing it on mousedown before a row's click could register (that
-  // was the "clicking a client does nothing" bug). The drawer dismisses itself
-  // via its overlay's onClick instead, so we skip the document handler there.
+  // Outside-click-to-close only applies to the desktop popover. The popover is
+  // portaled to document.body, so containerRef.contains() alone would treat
+  // every click INSIDE it as outside and close before a row's click registers
+  // (that was the drawer's "clicking a client does nothing" bug) — so a click
+  // counts as inside when either the trigger or the popover contains it. Rows
+  // additionally activate on mousedown+preventDefault, like the Ops dropdown.
+  // The mobile drawer dismisses via its overlay's onClick instead.
   useEffect(() => {
     if (!isOpen || !isDesktop) return;
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) closePicker();
+      const inTrigger = containerRef.current && containerRef.current.contains(e.target);
+      const inPopover = popoverRef.current && popoverRef.current.contains(e.target);
+      if (!inTrigger && !inPopover) closePicker();
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -161,10 +179,10 @@ export default function BorrowerPicker({
     closePicker();
   };
 
-  const handleCreateNew = () => {
+  const handleImportArive = () => {
     const q = search.trim();
     closePicker();
-    if (onCreateNew) onCreateNew(q);
+    if (onImportArive) onImportArive(q);
   };
 
   const handleClear = (e) => {
@@ -194,13 +212,14 @@ export default function BorrowerPicker({
       }
       return;
     }
-    const total = filtered.length + 1;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx((p) => (p + 1) % total); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx((p) => (p - 1 + total) % total); }
+    // Last keyboard slot is the Import from Arive row (when wired).
+    const total = visible.length + (onImportArive ? 1 : 0);
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (total) setHighlightIdx((p) => (p + 1) % total); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); if (total) setHighlightIdx((p) => (p - 1 + total) % total); }
     else if (e.key === 'Enter') {
       e.preventDefault();
-      if (highlightIdx === filtered.length) handleCreateNew();
-      else if (filtered[highlightIdx]) handleSelectBorrower(filtered[highlightIdx]);
+      if (highlightIdx < visible.length && visible[highlightIdx]) handleSelectBorrower(visible[highlightIdx]);
+      else if (onImportArive && highlightIdx === visible.length) handleImportArive();
     } else if (e.key === 'Escape') {
       closePicker();
     }
@@ -223,7 +242,7 @@ export default function BorrowerPicker({
             </span>
           </div>
 
-          {filtered.map((b, i) => {
+          {visible.map((b, i) => {
             const isHighlighted = i === highlightIdx;
             const isActive = activeBorrower?.id === b.id;
             const statusColor = STATUS_COLORS[b.status] || textTer;
@@ -231,45 +250,32 @@ export default function BorrowerPicker({
             return (
               <div
                 key={b.id}
-                onClick={() => handleSelectBorrower(b)}
+                onMouseDown={(e) => { e.preventDefault(); handleSelectBorrower(b); }}
                 onMouseEnter={() => setHighlightIdx(i)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                  borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s',
                   background: isHighlighted ? hoverBg : isActive ? `${accent}08` : 'transparent',
-                  cursor: 'pointer', borderBottom: `1px solid ${border}`,
-                  borderLeft: isActive ? `3px solid ${accent}` : '3px solid transparent',
-                  transition: 'background 0.1s',
                 }}
               >
-                <div style={{
-                  width: 32, height: 32, borderRadius: '50%', background: `${statusColor}15`,
-                  border: `2px solid ${statusColor}40`, display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: statusColor }}>
-                    {(b.name || '?')[0].toUpperCase()}
-                  </span>
-                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{b.name || 'Unnamed'}</span>
-                    {statusLabel && (
-                      <span style={{
-                        fontSize: 9, fontWeight: 600, color: statusColor, background: `${statusColor}12`,
-                        padding: '1px 5px', borderRadius: 4, fontFamily: FONT,
-                        textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0,
-                      }}>{statusLabel}</span>
-                    )}
-                  </div>
                   <div style={{
-                    fontSize: 11, color: textTer, fontFamily: FONT, marginTop: 1,
+                    fontSize: 13, fontWeight: 600, color: text, fontFamily: FONT,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{b.name || 'Unnamed'}</div>
+                  <div style={{
+                    fontSize: 10.5, color: textTer, fontFamily: FONT,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>{b.email || b.phone || 'No contact info'}</div>
                 </div>
-                <Icon name="chevron-right" size={14} color={textTer} />
+                {statusLabel && (
+                  <span style={{
+                    flexShrink: 0, fontFamily: MONO, fontSize: 9, fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: 0.6,
+                    color: statusColor, background: `${statusColor}16`,
+                    borderRadius: 9999, padding: '2px 7px',
+                  }}>{statusLabel}</span>
+                )}
               </div>
             );
           })}
@@ -277,51 +283,29 @@ export default function BorrowerPicker({
           {searching && filtered.length === 0 && (
             <div style={{ padding: '16px 12px', textAlign: 'center', fontSize: 12, color: textTer, fontFamily: FONT }}>
               No clients matching "{search}"
-            </div>
-          )}
-
-          <div
-            onClick={handleCreateNew}
-            onMouseEnter={() => setHighlightIdx(filtered.length)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '12px',
-              background: highlightIdx === filtered.length ? hoverBg : 'transparent',
-              cursor: 'pointer', borderTop: `1px solid ${border}`, transition: 'background 0.1s',
-            }}
-          >
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%', background: `${accent}10`,
-              border: `2px dashed ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon name="plus" size={14} color={accent} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: accent, fontFamily: FONT }}>New Client</div>
-              <div style={{ fontSize: 10, color: textTer, fontFamily: FONT }}>
-                {search ? `Create "${search}"` : 'Add a new client'}
+              <div style={{ marginTop: 4, fontSize: 11 }}>
+                Add them with the + button in the top-right.
               </div>
             </div>
-          </div>
+          )}
 
           {/* Import from Arive — build the client from an existing Arive file,
               prepopulated (numbers, property, FICO, deal team). */}
           {onImportArive && (
             <div
-              onClick={() => { const q = search.trim(); closePicker(); onImportArive(q); }}
+              onMouseDown={(e) => { e.preventDefault(); handleImportArive(); }}
+              onMouseEnter={() => setHighlightIdx(visible.length)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '12px',
-                cursor: 'pointer', borderTop: `1px solid ${border}`, transition: 'background 0.1s',
+                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s',
+                background: highlightIdx === visible.length ? hoverBg : 'transparent',
+                borderTop: `1px solid ${border}`, marginTop: 4,
               }}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: '50%', background: `${accent}10`,
-                border: `2px dashed ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Icon name="download" size={14} color={accent} />
-              </div>
-              <div>
+              <Icon name="download" size={14} color={accent} />
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: accent, fontFamily: FONT }}>Import from Arive</div>
-                <div style={{ fontSize: 10, color: textTer, fontFamily: FONT }}>
+                <div style={{ fontSize: 10.5, color: textTer, fontFamily: FONT }}>
                   Build from an existing Arive file — prepopulated
                 </div>
               </div>
@@ -477,7 +461,7 @@ export default function BorrowerPicker({
 
   const renderTrigger = () => (
     <div
-      onClick={() => setIsOpen(true)}
+      onClick={openPicker}
       style={{
         display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: bg,
         border: `1px solid ${activeBorrower ? accent + '40' : border}`,
@@ -524,12 +508,6 @@ export default function BorrowerPicker({
     </div>
   );
 
-  const desktopDropdownStyle = {
-    position: 'absolute', top: '100%', left: 0, right: 0, background: card,
-    border: `1px solid ${accent}40`, borderTop: 'none', borderRadius: '0 0 10px 10px',
-    maxHeight: 420, overflowY: 'auto', zIndex: 200, boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
-  };
-
   return (
     <div
       ref={containerRef}
@@ -539,15 +517,30 @@ export default function BorrowerPicker({
         width: isDesktop ? undefined : '100%',
       }}
     >
-      {(!isOpen || !isDesktop) && renderTrigger()}
+      {renderTrigger()}
 
-      {isOpen && isDesktop && (
-        <>
-          {renderOpenHeader(true)}
-          <div ref={listRef} onKeyDown={handleKeyDown} style={desktopDropdownStyle}>
+      {/* Desktop popover — portaled to document.body and fixed at the trigger's
+          measured rect, so the sidebar rail's overflowY:auto can't clip it and
+          zIndex 1001 clears the UnifiedHeader (900). It opens covering the
+          trigger, Ops-dropdown style. */}
+      {isOpen && isDesktop && anchorRect && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          style={{
+            position: 'fixed', top: anchorRect.top, left: anchorRect.left,
+            width: Math.max(anchorRect.width, 320),
+            maxHeight: Math.min(420, window.innerHeight - anchorRect.top - 24),
+            zIndex: 1001, background: card, border: `1px solid ${border}`,
+            borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}
+        >
+          {renderOpenHeader(false)}
+          <div ref={listRef} onKeyDown={handleKeyDown} style={{ flex: 1, overflowY: 'auto', padding: 4 }}>
             {renderBody()}
           </div>
-        </>
+        </div>,
+        document.body
       )}
 
       {/* Drawer is portaled to document.body so it escapes the left sidebar's
@@ -566,7 +559,7 @@ export default function BorrowerPicker({
             }}
           >
             {renderOpenHeader(false)}
-            <div ref={listRef} onKeyDown={handleKeyDown} style={{ flex: 1, overflowY: 'auto' }}>
+            <div ref={listRef} onKeyDown={handleKeyDown} style={{ flex: 1, overflowY: 'auto', padding: 4 }}>
               {renderBody()}
             </div>
           </div>

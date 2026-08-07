@@ -4,7 +4,8 @@ import { FONT, MONO } from "../lib/fonts.js";
  * below the Settings tab (LO view only).
  *
  * Layout (mirrors the Cowork left panel):
- *   1. "Find or add client" entry  — opens BorrowerPicker (drawer mode)
+ *   1. "Find or add client" entry  — opens BorrowerPicker (anchored dropdown
+ *      on desktop, drawer on mobile)
  *   2. Pinned blueprints           — starred, stable order
  *   3. Recent blueprints           — last 15 opened/edited, newest first
  *
@@ -124,7 +125,7 @@ export default function SidebarSwitcher({
     <div style={{ paddingTop: 2 }}>
       {/* Find / add client */}
       <div style={{ padding: '0 12px 8px' }}>
-        <BorrowerPicker {...borrowerProps} isDesktop={false} T={T} />
+        <BorrowerPicker {...borrowerProps} T={T} />
       </div>
 
       {pinned.length > 0 && (
