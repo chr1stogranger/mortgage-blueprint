@@ -85,6 +85,7 @@ import {
   updateScenario as apiUpdateScenario, deleteScenarioAPI,
   fetchBorrowerPrefill,
   searchAriveLoans, fetchAriveImport, fetchDealTeam, saveDealTeam,
+  fetchStatementBlob, uploadStatement, deleteStatement,
 } from "./api";
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
@@ -3512,6 +3513,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { localStorage.setItem('bp_refi_preview_open', refiPreviewOpen ? '1' : '0'); } catch { /* ignore */ }
  }, [refiPreviewOpen]);
  const [refiPreviewBlob, setRefiPreviewBlob] = useState(null);
+ // Summary ⇄ Statement toggle. The uploaded mortgage statement is stored per
+ // scenario (private Supabase Storage via the Ops API) and lazily fetched the
+ // first time the panel needs it for the active scenario.
+ const [refiPreviewTab, setRefiPreviewTab] = useState('summary');
+ const [stmtDoc, setStmtDoc] = useState({ status: 'idle', blob: null, type: '' }); // idle|loading|none|ready|uploading|error
+ const stmtScenarioRef = useRef(null);
+ const stmtFileInputRef = useRef(null);
  const [refiPreviewW, setRefiPreviewW] = useState(() => {
   try { const w = parseInt(localStorage.getItem('bp_refi_preview_w'), 10); if (w >= 420 && w <= 1500) return w; } catch { /* ignore */ }
   // Default: fill the screen right of the form (the Ops marketing layout).
@@ -5744,6 +5752,109 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [refiPreviewOpen, isRefi, refiPreviewFingerprint]);
 
+ // ── Mortgage statement: per-scenario document behind the preview toggle ──
+ // LO-only and cloud-only (a local scenario has no id to key the storage on).
+ const stmtAvailable = isCloud && !isBorrower && !!activeScenarioId;
+ useEffect(() => {
+  // Scenario switched: whatever we held belongs to the old loan.
+  if (stmtScenarioRef.current !== activeScenarioId) {
+   stmtScenarioRef.current = activeScenarioId;
+   setStmtDoc({ status: 'idle', blob: null, type: '' });
+   setRefiPreviewTab('summary');
+  }
+ }, [activeScenarioId]);
+ useEffect(() => {
+  if (!stmtAvailable || !refiPreviewOpen || !isRefi || !isDesktop) return;
+  if (stmtDoc.status !== 'idle') return;
+  let stale = false;
+  setStmtDoc({ status: 'loading', blob: null, type: '' });
+  (async () => {
+   try {
+    const r = await fetchStatementBlob(activeScenarioId);
+    if (stale) return;
+    if (r) setStmtDoc({ status: 'ready', blob: r.blob, type: r.contentType });
+    else setStmtDoc({ status: 'none', blob: null, type: '' });
+   } catch (e) {
+    if (stale) return;
+    console.warn('[Blueprint] statement fetch failed:', e.message);
+    setStmtDoc({ status: 'error', blob: null, type: '' });
+   }
+  })();
+  return () => { stale = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [stmtAvailable, refiPreviewOpen, isRefi, isDesktop, stmtDoc.status, activeScenarioId]);
+
+ // Downscale/compress a photographed statement so it clears the API's body
+ // cap; PDFs pass through untouched (typical statements are a few hundred KB).
+ const compressStatementImage = async (file) => {
+  const bmp = await createImageBitmap(file);
+  const maxDim = 2000;
+  const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  for (const q of [0.85, 0.7, 0.55]) {
+   const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', q));
+   if (blob && blob.size <= 1_300_000) return blob;
+  }
+  throw new Error('Photo could not be compressed enough — try a PDF export instead.');
+ };
+
+ const handleStatementFile = async (file) => {
+  if (!file || !stmtAvailable) return;
+  const prev = stmtDoc;
+  try {
+   let blob = file;
+   let type = file.type;
+   if (type === 'application/pdf') {
+    if (file.size > 1_450_000) {
+     throw new Error(`PDF is ${(file.size / 1e6).toFixed(1)}MB — statements must stay under 1.4MB. Re-export or print-to-PDF usually shrinks it.`);
+    }
+   } else if (/^image\//.test(type)) {
+    blob = await compressStatementImage(file);
+    type = 'image/jpeg';
+   } else {
+    throw new Error('Only PDF or photo (JPEG/PNG/WebP) statements are supported.');
+   }
+   setStmtDoc({ status: 'uploading', blob: null, type: '' });
+   const b64 = await new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(',')[1] || '');
+    fr.onerror = () => reject(new Error('Could not read the file'));
+    fr.readAsDataURL(blob);
+   });
+   await uploadStatement(activeScenarioId, type, b64);
+   setStmtDoc({ status: 'ready', blob, type });
+   setRefiPreviewTab('statement');
+  } catch (e) {
+   console.warn('[Blueprint] statement upload failed:', e.message);
+   alert(`Statement upload failed: ${e.message}`);
+   setStmtDoc(prev.status === 'ready' ? prev : { status: 'none', blob: null, type: '' });
+  }
+ };
+
+ // Photographed statements render as an <img> (CSP allows img-src blob:).
+ const stmtImgUrl = useMemo(
+  () => (stmtDoc.status === 'ready' && stmtDoc.type !== 'application/pdf' && stmtDoc.blob)
+   ? URL.createObjectURL(stmtDoc.blob) : null,
+  [stmtDoc]
+ );
+ useEffect(() => () => { if (stmtImgUrl) URL.revokeObjectURL(stmtImgUrl); }, [stmtImgUrl]);
+
+ const handleStatementRemove = async () => {
+  if (!stmtAvailable || stmtDoc.status !== 'ready') return;
+  if (!window.confirm('Remove this statement from the blueprint?')) return;
+  const prev = stmtDoc;
+  setStmtDoc({ status: 'none', blob: null, type: '' });
+  setRefiPreviewTab('summary');
+  try { await deleteStatement(activeScenarioId); }
+  catch (e) {
+   console.warn('[Blueprint] statement delete failed:', e.message);
+   setStmtDoc(prev);
+  }
+ };
+
  // ── Refi title & escrow defaults, tiered on the new loan amount ──
  // The flat $2,400 escrow / $2,000 title defaults are purchase-shaped guesses.
  // A refi prices off a published tier table (src/data/titleEscrowFees.js), so
@@ -6659,19 +6770,95 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      title="Drag to resize"
      style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 7, cursor: "col-resize", zIndex: 2, background: refiPreviewDragging ? `${T.blue}33` : "transparent" }}
     />
-    {/* Microline header — the Ops marketing preview's exact vocabulary. */}
+    {/* Microline header — the Ops marketing preview's exact vocabulary. With a
+        cloud scenario, the left microline becomes the Summary ⇄ Statement
+        toggle so the actual mortgage statement can sit beside the numbers. */}
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 16px 8px 20px", flexShrink: 0 }}>
-     <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — US Letter</span>
+     {stmtAvailable ? (
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+       {[['summary', 'Summary'], ['statement', 'Statement']].map(([k, label]) => (
+        <button key={k} onClick={() => setRefiPreviewTab(k)} style={{
+         background: refiPreviewTab === k ? `${T.blue}1f` : "none",
+         border: `1px solid ${refiPreviewTab === k ? T.blue : T.separator}`,
+         borderRadius: 9999, color: refiPreviewTab === k ? T.blue : T.textTertiary,
+         cursor: "pointer", fontSize: 10, fontWeight: 700, fontFamily: MONO,
+         letterSpacing: 1.2, textTransform: "uppercase", padding: "3px 11px",
+        }}>{label}</button>
+       ))}
+      </div>
+     ) : (
+      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — US Letter</span>
+     )}
      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
+      {refiPreviewTab === 'statement' && stmtAvailable && stmtDoc.status === 'ready' && (
+       <>
+        <button onClick={() => stmtFileInputRef.current?.click()} title="Upload a different statement" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Replace</button>
+        <button onClick={handleStatementRemove} title="Remove the statement" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Remove</button>
+       </>
+      )}
+      {(refiPreviewTab !== 'statement' || !stmtAvailable) && (
+       <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
+      )}
       <button onClick={() => setRefiPreviewOpen(false)} title="Close preview" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: 2, fontFamily: FONT }}>✕</button>
      </div>
     </div>
+    {/* Hidden picker for statement upload/replace (PDF or photo). */}
+    {stmtAvailable && (
+     <input
+      ref={stmtFileInputRef}
+      type="file"
+      accept="application/pdf,image/*"
+      style={{ display: "none" }}
+      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleStatementFile(f); }}
+     />
+    )}
     {/* The letter itself — white paper pages rasterized straight from the PDF
         (no browser viewer chrome), always filling the panel's width and
         rescaling as the rail drags, exactly like the Ops flyer preview. */}
     <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 20px 24px" }}>
-     {refiPreviewBlob
+     {refiPreviewTab === 'statement' && stmtAvailable ? (
+      stmtDoc.status === 'ready' ? (
+       stmtDoc.type === 'application/pdf'
+        ? <RefiPdfPagesPreview blob={stmtDoc.blob} width={refiPreviewW - 47} darkMode={darkMode} />
+        : (
+         <div style={{ background: "#fff", borderRadius: 10, overflow: "hidden", boxShadow: darkMode ? "0 16px 50px rgba(0,0,0,0.5)" : "0 16px 50px rgba(10,17,32,0.18)" }}>
+          <img src={stmtImgUrl} alt="Mortgage statement" style={{ width: "100%", display: "block" }} />
+         </div>
+        )
+      ) : stmtDoc.status === 'loading' || stmtDoc.status === 'uploading' ? (
+       <div style={{ display: "grid", placeItems: "center", height: "100%", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>
+        {stmtDoc.status === 'uploading' ? 'Uploading statement…' : 'Loading statement…'}
+       </div>
+      ) : stmtDoc.status === 'error' ? (
+       <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
+        <div style={{ textAlign: "center", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>
+         Couldn't load the statement.
+         <div style={{ marginTop: 8 }}>
+          <button onClick={() => setStmtDoc({ status: 'idle', blob: null, type: '' })} style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 11, fontWeight: 600, padding: "4px 12px", fontFamily: FONT }}>Retry</button>
+         </div>
+        </div>
+       </div>
+      ) : (
+       <div style={{ display: "grid", placeItems: "center", height: "100%" }}>
+        <div
+         onClick={() => stmtFileInputRef.current?.click()}
+         style={{
+          border: `2px dashed ${T.separator}`, borderRadius: 14, padding: "36px 32px",
+          textAlign: "center", cursor: "pointer", maxWidth: 340,
+         }}
+        >
+         <Icon name="file-text" size={26} color={T.blue} />
+         <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, marginTop: 10 }}>Upload mortgage statement</div>
+         <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, lineHeight: 1.5 }}>
+          PDF or photo, up to ~1.4MB. It stays with this blueprint, and you can flip between it and the savings summary.
+         </div>
+         <div style={{ marginTop: 14 }}>
+          <span style={{ background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontSize: 11, fontWeight: 600, padding: "6px 16px", fontFamily: FONT }}>Choose file</span>
+         </div>
+        </div>
+       </div>
+      )
+     ) : refiPreviewBlob
       ? <RefiPdfPagesPreview blob={refiPreviewBlob} width={refiPreviewW - 47} darkMode={darkMode} />
       : <div style={{ display: "grid", placeItems: "center", height: "100%", color: T.textTertiary, fontSize: 12, fontFamily: FONT }}>Rendering preview…</div>}
     </div>

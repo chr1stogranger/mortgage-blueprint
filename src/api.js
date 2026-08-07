@@ -294,6 +294,38 @@ export async function fetchAriveImport(loanId) {
   return authFetch(`/api/arive?action=blueprint-import&id=${encodeURIComponent(loanId)}`, { method: 'POST' });
 }
 
+// ─── Mortgage statement (LO only) — one document per scenario ───────────────
+// Stored in a private Supabase Storage bucket via the Ops API; powers the
+// live-preview panel's Summary ⇄ Statement toggle.
+
+// Returns { blob, contentType } or null when no statement has been uploaded.
+export async function fetchStatementBlob(scenarioId) {
+  const token = getToken();
+  if (!token) throw new Error('Not authenticated');
+  const res = await fetch(`${API_BASE}/api/statements?scenario_id=${encodeURIComponent(scenarioId)}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (res.status === 401) {
+    localStorage.removeItem('bp_token');
+    throw new Error('Session expired — please sign in again');
+  }
+  if (!res.ok) throw new Error(`Statement fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return { blob, contentType: res.headers.get('Content-Type') || 'application/pdf' };
+}
+
+export async function uploadStatement(scenarioId, contentType, dataBase64) {
+  return authFetch('/api/statements', {
+    method: 'POST',
+    body: { scenario_id: scenarioId, content_type: contentType, data_base64: dataBase64 },
+  });
+}
+
+export async function deleteStatement(scenarioId) {
+  return authFetch('/api/statements', { method: 'DELETE', body: { scenario_id: scenarioId } });
+}
+
 // ─── Auth helpers ───────────────────────────────────────────────────────────
 
 export function isAuthenticated() {
