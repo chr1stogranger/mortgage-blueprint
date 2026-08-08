@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3", "refiPreviewOpen", "setRefiPreviewOpen"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiSecondPmtOverride", "setRefiSecondPmtOverride", "refiThirdLien", "setRefiThirdLien", "refiThirdKind", "setRefiThirdKind", "refiThirdBalance", "setRefiThirdBalance", "refiThirdRate", "setRefiThirdRate", "refiThirdPlan", "setRefiThirdPlan", "refiThirdPmtOverride", "setRefiThirdPmtOverride", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3", "refiPreviewOpen", "setRefiPreviewOpen"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -62,7 +62,7 @@ export default function SetupContent(props) {
     refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance,
     refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment,
     refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride,
-    refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiPreviewOpen, setRefiPreviewOpen,
+    refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiPreviewOpen, setRefiPreviewOpen,
     refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate,
     refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate, refiCurrentEscrow, setRefiCurrentEscrow,
     refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns,
@@ -522,52 +522,87 @@ export default function SetupContent(props) {
    </div>
   </>);
   // Second-lien cells — unlock where the section originally lived.
-  const secondLienDetailNode = (<>
-   {refiSecondLien && (
-    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 10 }}>
+  // One reusable cluster per junior lien (2026-08-07): CalHFA stacks are
+  // routinely 1st + MyHome 2nd (1% simple, deferred — no payment) + ZIP 3rd
+  // (0%, deferred). "Deferred (DPA)" kind autos the payment to $0; the payment
+  // field itself is editable on every kind (0 sticks — null means auto).
+  const lienCluster = ({ ord, kind, setKind, balance, setBalance, rate, setRate, plan, setPlan, pmtOverride, setPmtOverride, pmtAuto, pmt }) => (
+    <>
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Which kind?</span>
       <div style={{ display: "flex", gap: 5 }}>
-       {[["heloc", "HELOC"], ["closed", "Fixed second"]].map(([v, label]) => (
-        <button key={v} type="button" onClick={() => setRefiSecondKind(v)}
+       {[["heloc", "HELOC"], ["closed", `Fixed ${ord}`], ["deferred", "Deferred (DPA)"]].map(([v, label]) => (
+        <button key={v} type="button" onClick={() => setKind(v)}
          style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: refiSecondKind === v ? `${T.blue}22` : T.inputBg,
-          border: refiSecondKind === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: refiSecondKind === v ? T.blue : T.textSecondary }}>
+          background: kind === v ? `${T.blue}22` : T.inputBg,
+          border: kind === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: kind === v ? T.blue : T.textSecondary }}>
          {label}
         </button>
        ))}
       </div>
      </div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      <Inp label="Second Balance" value={refiSecondBalance} onChange={setRefiSecondBalance} sm
-       tip={refiSecondKind === "heloc" ? "The drawn balance — not the credit limit." : "Remaining principal on the closed-end second."} />
-      <Inp label="Second Rate" value={refiSecondRate} onChange={setRefiSecondRate} prefix="" suffix="%" step={0.125} max={30} sm
-       tip={refiSecondKind === "heloc" ? "Usually prime plus a margin, so it moves — that variability is often the reason to consolidate." : "Fixed for the life of the second."} />
+      <Inp label={`${ord[0].toUpperCase() + ord.slice(1)} Balance`} value={balance} onChange={setBalance} sm
+       tip={kind === "heloc" ? "The drawn balance — not the credit limit."
+          : kind === "deferred" ? "The payoff balance from the servicer — for CalHFA MyHome include the accrued simple interest."
+          : `Remaining principal on the closed-end ${ord}.`} />
+      <Inp label={`${ord[0].toUpperCase() + ord.slice(1)} Rate`} value={rate} onChange={setRate} prefix="" suffix="%" step={0.125} max={30} sm
+       tip={kind === "heloc" ? "Usually prime plus a margin, so it moves — that variability is often the reason to consolidate."
+          : kind === "deferred" ? "The note rate — CalHFA MyHome is 1% simple; ZIP is 0%. No payments either way."
+          : `Fixed for the life of the ${ord}.`} />
+     </div>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "end" }}>
+      <Inp label={`${ord[0].toUpperCase() + ord.slice(1)} Payment`} value={pmtOverride ?? Math.round(pmt * 100) / 100} onChange={setPmtOverride} suffix="/mo" sm
+       tip="What the borrower actually pays monthly. Deferred DPA liens (CalHFA MyHome, ZIP) bill nothing — that's $0, and $0 sticks." />
+      <div style={{ fontSize: 10, color: T.textTertiary, paddingBottom: 10, lineHeight: 1.4 }}>
+       {pmtOverride == null
+        ? (kind === "deferred" ? "Auto: no payment — deferred lien." : `Auto: interest-only floor${pmtAuto > 0 ? ` (${fmt(pmtAuto)}/mo)` : ""}.`)
+        : (<span onClick={() => setPmtOverride(null)} style={{ cursor: "pointer", textDecoration: "underline" }}>
+           Pinned — reset to auto{kind === "deferred" ? " ($0, deferred)" : pmtAuto > 0 ? ` (${fmt(pmtAuto)}/mo)` : ""}
+          </span>)}
+      </div>
      </div>
      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
       <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary }}>Pay it off, or subordinate it?</span>
       <div style={{ display: "flex", gap: 5 }}>
        {[["sub", "Subordinate"], ["payoff", "Pay off"]].map(([v, label]) => (
-        <button key={v} type="button" onClick={() => setRefiSecondPlan(v)}
+        <button key={v} type="button" onClick={() => setPlan(v)}
          style={{ padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          background: refiSecondPlan === v ? `${T.blue}22` : T.inputBg,
-          border: refiSecondPlan === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
-          color: refiSecondPlan === v ? T.blue : T.textSecondary }}>
+          background: plan === v ? `${T.blue}22` : T.inputBg,
+          border: plan === v ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
+          color: plan === v ? T.blue : T.textSecondary }}>
          {label}
         </button>
        ))}
       </div>
      </div>
+    </>
+  );
+  const secondLienDetailNode = (<>
+   {refiSecondLien && (
+    <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 10 }}>
+     {lienCluster({ ord: "second", kind: refiSecondKind, setKind: setRefiSecondKind, balance: refiSecondBalance, setBalance: setRefiSecondBalance, rate: refiSecondRate, setRate: setRefiSecondRate, plan: refiSecondPlan, setPlan: setRefiSecondPlan, pmtOverride: refiSecondPmtOverride, setPmtOverride: setRefiSecondPmtOverride, pmtAuto: calc.refiSecondPmtAuto || 0, pmt: calc.refiSecondPmt || 0 })}
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>A third lien behind that?</span>
+      <YesNoSeg T={T} value={refiThirdLien} onYes={() => setRefiThirdLien(true)} onNo={() => setRefiThirdLien(false)} />
+     </div>
+     {refiThirdLien && (
+      <div style={{ marginLeft: 12, paddingLeft: 12, borderLeft: `2px solid ${T.blue}33`, marginBottom: 6 }}>
+       {lienCluster({ ord: "third", kind: refiThirdKind, setKind: setRefiThirdKind, balance: refiThirdBalance, setBalance: setRefiThirdBalance, rate: refiThirdRate, setRate: setRefiThirdRate, plan: refiThirdPlan, setPlan: setRefiThirdPlan, pmtOverride: refiThirdPmtOverride, setPmtOverride: setRefiThirdPmtOverride, pmtAuto: calc.refiThirdPmtAuto || 0, pmt: calc.refiThirdPmt || 0 })}
+      </div>
+     )}
      {refiSecondBalance > 0 && calc.refiEffBalance > 0 && (
       <Note color={T.blue}>
-       Together that's {fmt(calc.refiEffBalance + calc.refiSecondBal)} at a blended{" "}
+       Together that's {fmt(calc.refiEffBalance + calc.refiSecondBal + (calc.refiThirdBal || 0))} at a blended{" "}
        <strong>{calc.refiBlendedRate.toFixed(3)}%</strong>
        {refiSecondPlan === "payoff"
-        ? ` — paying the second off means the new first has to beat that blend, not the ${refiCurrentRate.toFixed(3)}% first alone. Its ${fmt(calc.refiSecondPayoffAmt)} payoff rolls into the new loan and its payment counts toward the savings.`
+        ? ` — paying the ${calc.refiThirdBal > 0 ? "juniors" : "second"} off means the new first has to beat that blend, not the ${refiCurrentRate.toFixed(3)}% first alone. ${fmt(calc.refiSecondPayoffAmt + (calc.refiThirdPayoffAmt || 0))} of payoffs roll into the new loan and any payments count toward the savings.`
         : ` — subordinating leaves the ${(refiSecondRate || 0).toFixed(3)}% balance in place${refiSecondKind === "heloc" ? " and still floating." : "."}`}
        {refiHomeValue > 0 && ` CLTV ${(calc.refiCLTV * 100).toFixed(1)}%.`}
-       {calc.refiSecondPmt > 0 && ` Carry is about ${fmt(calc.refiSecondPmt)}/mo${refiSecondKind === "heloc" ? " interest-only." : " minimum."}`}
+       {calc.refiLienPmtCur > 0
+        ? ` Carry is about ${fmt(calc.refiLienPmtCur)}/mo${refiSecondKind === "heloc" ? " interest-only." : " minimum."}`
+        : ` No monthly payments on the junior lien${calc.refiThirdBal > 0 ? "s" : ""} — the balance${calc.refiThirdBal > 0 ? "s" : ""} come${calc.refiThirdBal > 0 ? "" : "s"} due at payoff, sale, or refinance.`}
       </Note>
      )}
     </div>
@@ -1538,18 +1573,26 @@ export default function SetupContent(props) {
       <div style={{ marginBottom: -6 }}><Inp label="Payoff Fees" value={refiPayoffFees} onChange={setRefiPayoffFees} sm tip="Lender payoff fees — reconveyance, recording, doc prep, wire. Typically ~$300. Included in the payoff amount." /></div>
      </div>
      <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-      <div style={{ fontSize: 10, color: T.textTertiary }}>{calc.refiSecondPayoffAmt > 0 ? "First Lien Payoff" : "Payoff Amount"}</div>
+      <div style={{ fontSize: 10, color: T.textTertiary }}>{(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0) ? "First Lien Payoff" : "Payoff Amount"}</div>
       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount)}</div>
      </div>
-     {/* The paid-off second rides along: balance + its own per-diem to closing. */}
-     {calc.refiSecondPayoffAmt > 0 && (<>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
-       <div style={{ fontSize: 10, color: T.textTertiary }}>+ {refiSecondKind === "heloc" ? "HELOC" : "Second"} Payoff{calc.refiSecondPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiSecondPayoffInterest)} interest, ${calc.refiSecondPayoffDays}d)` : ""}</div>
-       <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiSecondPayoffAmt)}</div>
-      </div>
+     {/* Paid-off juniors ride along: balance + each one's per-diem to closing. */}
+     {(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0) && (<>
+      {calc.refiSecondPayoffAmt > 0 && (
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>+ {refiSecondKind === "heloc" ? "HELOC" : "Second"} Payoff{calc.refiSecondPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiSecondPayoffInterest)} interest, ${calc.refiSecondPayoffDays}d)` : ""}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiSecondPayoffAmt)}</div>
+       </div>
+      )}
+      {calc.refiThirdPayoffAmt > 0 && (
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>+ Third Payoff{calc.refiThirdPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiThirdPayoffInterest)} interest, ${calc.refiThirdPayoffDays}d)` : ""}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiThirdPayoffAmt)}</div>
+       </div>
+      )}
       <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
        <div style={{ fontSize: 10, color: T.textTertiary }}>Total Payoffs</div>
-       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt)}</div>
+       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt + (calc.refiThirdPayoffAmt || 0))}</div>
       </div>
      </>)}
     </div>

@@ -307,6 +307,7 @@ export function FeesWorksheetPage(p) {
               <Box title="Estimated Monthly Payment" grow>
                 <Row label="Current Total Payment" value={c.refiCurTotalPmt} />
                 {(c.refiSecondPmtSaved || 0) >= 0.5 && <Row label="2nd Lien Payment (paid off)" value={c.refiSecondPmtSaved} />}
+                {(c.refiThirdPmtSaved || 0) >= 0.5 && <Row label="3rd Lien Payment (paid off)" value={c.refiThirdPmtSaved} />}
                 <Row label="New Principal & Interest" value={c.refiNewPi} />
                 {c.refiNewMonthlyTax >= 0.5 && <Row label="New Property Taxes" value={c.refiNewMonthlyTax} />}
                 {c.refiNewMonthlyIns >= 0.5 && <Row label="New Insurance" value={c.refiNewMonthlyIns} />}
@@ -345,7 +346,7 @@ export function FeesWorksheetPage(p) {
                 <Row label="New Loan Amount" value={c.refiNetNewLoan} />
                 <Row label="Closing Costs" value={-(c.refiNetClosingCosts || 0)} />
                 <Row label="Prepaids & Escrow" value={-(c.refiNetPrepaids || 0)} />
-                <Row label={(c.refiSecondPayoffAmt || 0) >= 0.5 ? "Loan Payoffs (1st + 2nd)" : "Current Loan Payoff"} value={-(c.refiNetPayoff || 0)} />
+                <Row label={((c.refiSecondPayoffAmt || 0) >= 0.5 || (c.refiThirdPayoffAmt || 0) >= 0.5) ? `Loan Payoffs (${c.refiLienLabel || "1st + 2nd"})` : "Current Loan Payoff"} value={-(c.refiNetPayoff || 0)} />
                 <Row
                   label={c.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Cash to Close"}
                   value={Math.abs(c.refiEstCashOut || 0)}

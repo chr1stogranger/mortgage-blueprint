@@ -86,11 +86,17 @@ export function RefiSummaryDoc(p) {
   const locLine = `${p.city || ""}${p.propertyState ? ", " + p.propertyState : ""}${p.propertyZip ? " " + p.propertyZip : ""}`;
 
   // ── Option 1 — monthly cash flow ──
-  // A second lien being paid off (2026-08-04): its payment sits on the CURRENT
-  // side and disappears on the new — so it joins the table, the total, and the
-  // verdict figure, keeping every column reconcilable. The current LOAN AMOUNT
-  // is everything the new loan replaces: first balance + paid-off second.
-  const secondPmt = c.refiSecondPmtSaved || 0;
+  // Junior liens being paid off (2026-08-04, third lien 2026-08-07): each
+  // one's payment sits on the CURRENT side and disappears on the new — a
+  // subordinated lien's payment stays on BOTH sides — so they join the table,
+  // the total, and the verdict figure, keeping every column reconcilable. The
+  // current LOAN AMOUNT is everything the new loan replaces: first balance +
+  // every paid-off junior. Deferred DPA liens (CalHFA MyHome / ZIP) print at
+  // $0/$0 — no payment, but the client sees the lien is handled.
+  const lienPmtSaved = c.refiLienPmtSaved || 0;
+  const lienPmtCur = c.refiLienPmtCur || 0;
+  const lienPmtNew = c.refiLienPmtNew || 0;
+  const liens = c.refiLiens || [];
   // Tax/ins rows carry over unchanged, so the LO can hide them to cut noise
   // (Christo 2026-08-04). Totals follow the visible rows.
   const showTI = p.refiShowTaxIns !== false;
@@ -106,35 +112,42 @@ export function RefiSummaryDoc(p) {
     mi: Number(p.refiCurrentMI) || 0, hoa: Number(p.hoa) || 0,
   };
   cur.total = showTI
-    ? (c.refiCurTotalPmt || 0) + secondPmt
-    : (c.refiEffPI || 0) + cur.mi + secondPmt;
+    ? (c.refiCurTotalPmt || 0) + lienPmtCur
+    : (c.refiEffPI || 0) + cur.mi + lienPmtCur;
   const nw = {
     loan: c.refiNewLoanAmt || 0, rate: Number(p.rate) || 0,
     prin: c.refiNewPrinThisMonth || 0, int: c.refiNewIntThisMonth || 0,
     tax: c.refiNewMonthlyTax || 0, ins: c.refiNewMonthlyIns || 0,
     mi: c.refiNewMI || 0, hoa: Number(p.hoa) || 0,
   };
-  nw.total = showTI ? (c.refiNewTotalPmt || 0) : (c.refiNewPi || 0) + nw.mi;
+  nw.total = (showTI ? (c.refiNewTotalPmt || 0) : (c.refiNewPi || 0) + nw.mi) + lienPmtNew;
   const savings = cur.total - nw.total; // positive = saving money
   // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
   // over unchanged on a refi, so they cancel out of the savings math.
-  const piMiSavings = (cur.prin + cur.int + cur.mi + secondPmt) - (nw.prin + nw.int + nw.mi);
-  // The retired second takes the PMI slot when there's no PMI — you'd almost
-  // never carry both, so it's either-or (Christo 2026-08-04). With PMI in
-  // play anyway, both rows print.
+  const piMiSavings = (cur.prin + cur.int + cur.mi + lienPmtSaved) - (nw.prin + nw.int + nw.mi);
+  // Retired liens take the PMI slot when there's no PMI — you'd almost never
+  // carry both, so it's either-or (Christo 2026-08-04). With PMI in play
+  // anyway, every row prints.
   const pmiRow = ["PMI", usd2(cur.mi), usd2(nw.mi), signed2(nw.mi - cur.mi)];
-  const secondRow = [p.refiSecondKind === "heloc" ? "HELOC Payment" : "2nd Lien Payment", usd2(secondPmt), usd2(0), signed2(-secondPmt)];
+  const lienRows = liens.map((L) => {
+    const nwPmt = L.plan === "payoff" ? 0 : L.pmt;
+    const label = L.pos === "2nd"
+      ? (L.kind === "heloc" ? "HELOC Payment" : "2nd Lien Payment")
+      : "3rd Lien Payment";
+    return [label, usd2(L.pmt), usd2(nwPmt), signed2(nwPmt - L.pmt)];
+  });
   const hasMi = cur.mi > 0 || nw.mi > 0;
+  const lienLabel = c.refiLienLabel || "1st + 2nd";
   const rows1 = [
-    [secondInPayoff ? "Loan Amount (1st + 2nd)" : "Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
-    [secondInPayoff ? "Blended Rate (1st + 2nd)" : "Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
+    [secondInPayoff ? `Loan Amount (${lienLabel})` : "Loan Amount", usd2(cur.loan), usd2(nw.loan), signed2(nw.loan - cur.loan)],
+    [secondInPayoff ? `Blended Rate (${lienLabel})` : "Rate", cur.rate.toFixed(3) + "%", nw.rate.toFixed(3) + "%", (nw.rate - cur.rate > 0 ? "+" : "") + (nw.rate - cur.rate).toFixed(3) + "%"],
     ["Principal", usd2(cur.prin), usd2(nw.prin), signed2(nw.prin - cur.prin)],
     ["Interest", usd2(cur.int), usd2(nw.int), signed2(nw.int - cur.int)],
     ...(showTI ? [
       ["Taxes", usd2(cur.tax), usd2(nw.tax), signed2(nw.tax - cur.tax)],
       ["Insurance", usd2(cur.ins), usd2(nw.ins), signed2(nw.ins - cur.ins)],
     ] : []),
-    ...(secondPmt > 0 ? (hasMi ? [pmiRow, secondRow] : [secondRow]) : [pmiRow]),
+    ...(lienRows.length ? (hasMi ? [pmiRow, ...lienRows] : lienRows) : [pmiRow]),
     ...(showTI ? [["HOA", usd2(cur.hoa), usd2(nw.hoa), signed2(nw.hoa - cur.hoa)]] : []),
   ];
 
@@ -165,9 +178,11 @@ export function RefiSummaryDoc(p) {
   // first's payoff, then the untouched balance as a lump — the floor; in
   // reality the carry runs longer). The same-payment plan retires both liens,
   // so the two columns both end debt-free.
+  // Retired-lien balances count whether or not they billed monthly — a
+  // deferred CalHFA/ZIP lien's balance still comes due on the current plan.
   const accelLifetimeSavings = (accel.newPayoffMos > 0 && accel.curPayoffMos > 0 && c.refiEffPI > 0)
-    ? ((c.refiEffPI + secondPmt) * accel.curPayoffMos)
-      + (secondPmt > 0 ? (c.refiSecondBal || 0) : 0)
+    ? ((c.refiEffPI + lienPmtSaved) * accel.curPayoffMos)
+      + (c.refiLienPayoffBalTotal || 0)
       - (samePayment * accel.newPayoffMos)
       - (c.totalClosingCosts || 0)
     : 0;
@@ -186,7 +201,7 @@ export function RefiSummaryDoc(p) {
     const first = base + (2 - Math.min(2, n));
     // A paid-off second stops billing at closing too — the skipped months
     // skip the WHOLE outlay, not just the first mortgage (Christo 2026-08-05).
-    const perMonth = c.refiCurTotalPmt + (c.refiSecondPmtSaved || 0);
+    const perMonth = c.refiCurTotalPmt + (c.refiLienPmtSaved || 0);
     return Array.from({ length: n }, (_, i) => [`Skip ${monthName(first + i)} Payment`, perMonth]);
   })();
 
@@ -240,7 +255,7 @@ export function RefiSummaryDoc(p) {
           <Text style={[s.cNum, s.bold, { color: savings >= 0 ? GREEN : RED }]}>{savings >= 0 ? usd2(savings) + " saved" : signed2(nw.total - cur.total)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0, marginTop: 3 }]}>
-          <Text style={[s.lineLabel, s.bold, { color: INK }]}>{secondPmt > 0 ? "Monthly Savings (P&I + MI + paid-off 2nd — taxes/ins/HOA unchanged)" : "Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)"}</Text>
+          <Text style={[s.lineLabel, s.bold, { color: INK }]}>{lienPmtSaved > 0 ? "Monthly Savings (P&I + MI + paid-off liens — taxes/ins/HOA unchanged)" : "Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)"}</Text>
           <Text style={[s.lineValue, s.bold, { color: piMiSavings >= 0 ? GREEN : RED }]}>{piMiSavings >= 0 ? usd2(piMiSavings) : signed2(-piMiSavings)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0 }]}>
@@ -270,8 +285,11 @@ export function RefiSummaryDoc(p) {
           <Text style={[s.lineLabel, s.bold, { color: INK }]}>Savings over the life of the loan (same-payment plan)</Text>
           <Text style={[s.lineValue, s.bold, { color: accelLifetimeSavings >= 0 ? GREEN : RED }]}>{accelLifetimeSavings !== 0 ? usd(accelLifetimeSavings) : "—"}</Text>
         </View>
-        {secondPmt > 0 && (
-          <Text style={s.note}>Current plan priced honestly: first P&I plus the {usd2(secondPmt)}/mo second-lien carry — and an interest-only second never amortizes, so its full balance still comes due. The same-payment plan retires both liens.</Text>
+        {lienPmtSaved > 0 && (
+          <Text style={s.note}>Current plan priced honestly: first P&I plus the {usd2(lienPmtSaved)}/mo junior-lien carry — and an interest-only lien never amortizes, so its full balance still comes due. The same-payment plan retires every lien.</Text>
+        )}
+        {lienPmtSaved === 0 && (c.refiLienPayoffBalTotal || 0) > 0 && (
+          <Text style={s.note}>The junior lien{liens.length > 1 ? "s carry" : " carries"} no monthly payment, but {usd(c.refiLienPayoffBalTotal)} still comes due at payoff, sale, or refinance — the refinance retires {liens.length > 1 ? "them" : "it"} at closing.</Text>
         )}
         <Text style={s.note}>Option 3 is any blend of the two: bank part of the monthly savings, put the rest toward principal.</Text>
 
