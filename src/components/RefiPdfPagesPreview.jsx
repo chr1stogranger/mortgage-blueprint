@@ -1,5 +1,30 @@
 import React, { useEffect, useRef } from "react";
 
+// One PDFWorker shared by every render. getDocument() otherwise spawns a
+// fresh dedicated worker per call, and doc.destroy() on a superseded render
+// terminates it — often while its ~1MB module script is still downloading,
+// which Chrome logs as net::ERR_FAILED on pdf.worker.min-*.mjs. A worker
+// passed in via getDocument({ worker }) is NOT owned by the loading task, so
+// doc.destroy() tears down only that document's transport and the worker
+// stays warm for the next render.
+let pdfjsModulePromise = null;
+let sharedWorker = null;
+async function loadPdfjsWithWorker() {
+  pdfjsModulePromise ||= (async () => {
+    const pdfjs = await import("pdfjs-dist");
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+      pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+    }
+    return pdfjs;
+  })();
+  const pdfjs = await pdfjsModulePromise;
+  if (!sharedWorker || sharedWorker.destroyed) {
+    sharedWorker = new pdfjs.PDFWorker({ name: "refi-preview" });
+  }
+  return { pdfjs, worker: sharedWorker };
+}
+
 /**
  * RefiPdfPagesPreview — renders a PDF blob as white "paper" pages on canvas,
  * the way the Ops marketing flyer preview presents its letter: no browser
@@ -18,15 +43,11 @@ export default function RefiPdfPagesPreview({ blob, width, darkMode }) {
     const myId = ++renderIdRef.current;
     const t = setTimeout(async () => {
       try {
-        const pdfjs = await import("pdfjs-dist");
-        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-          const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
-          pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
-        }
+        const { pdfjs, worker } = await loadPdfjsWithWorker();
         // Raw bytes, not a blob: URL — the production CSP's connect-src does
         // not allow blob: fetches, so pdfjs's worker gets a response of 0 when
         // handed a URL. Bytes sidestep the fetch entirely.
-        const doc = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+        const doc = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), worker }).promise;
         if (myId !== renderIdRef.current) { doc.destroy?.(); return; }
         const box = boxRef.current;
         if (!box) { doc.destroy?.(); return; }

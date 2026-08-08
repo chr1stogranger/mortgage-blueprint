@@ -69,7 +69,7 @@ export default defineConfig({
         // Cache JS, CSS, and assets — but NOT index.html
         // index.html must always be fetched fresh from the server so that
         // security headers (CSP, HSTS, etc.) are never served from stale cache
-        globPatterns: ['**/*.{js,css,ico,png,svg,woff,woff2}'],
+        globPatterns: ['**/*.{js,mjs,css,ico,png,svg,woff,woff2}'],
         // Ensure index.html is always fetched from network
         navigateFallback: null,
         // Purge precaches left behind by OLD service-worker versions.
