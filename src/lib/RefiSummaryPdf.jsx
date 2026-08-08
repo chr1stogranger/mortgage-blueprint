@@ -153,6 +153,13 @@ export function RefiSummaryDoc(p) {
 
   // ── Option 2 — long term ──
   const maturity = (() => {
+    // The app's effective maturity first — it prefers a stated/manual maturity
+    // date, which survives modifications and recasts that closed-date + term
+    // cannot see (the sheet printed Jul 2050 while the app honored the
+    // statement's Jun 2054 — Christo 2026-08-08). Closed + term is only the
+    // fallback.
+    const eff = c.refiEffMaturity ? new Date(c.refiEffMaturity) : null;
+    if (eff && !isNaN(eff)) return eff.toLocaleDateString("en-US", { year: "numeric", month: "short" });
     if (!p.refiClosedDate) return null;
     const [y, m] = String(p.refiClosedDate).split("-").map(Number);
     if (!y || !m) return null;
