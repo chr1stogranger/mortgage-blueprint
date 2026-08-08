@@ -5503,7 +5503,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiNewMonthlyTax = (!refiTaxAssessedMode && refiAnnualTax > 0) ? refiAnnualTax / 12 : yearlyTax / 12;
   const refiNewMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (salesPrice * 0.0035 / 12);
   const refiNewEscrow = refiNewMonthlyTax + refiNewMonthlyIns;
-  const refiNewMI = (() => { if (refiHomeValue <= 0) return monthlyMI; const ltv = refiNewLoanAmt / refiHomeValue; if (loanType === "Conventional" && ltv <= 0.80) return 0; return monthlyMI; })();
+  // MI on a refi must price off the ACTUAL new loan and its LTV — monthlyMI
+  // upstream is charged on the purchase-shaped baseLoan (homeValue×(1−downPct)),
+  // meaningless here (same root cause as the auto-Jumbo bug). The old code only
+  // zeroed it at ≤80% LTV and otherwise kept the wrong basis. Rate precedence
+  // matches the purchase path: unlocked custom rate → LO chart override →
+  // Radian matrix / HUD schedule.
+  const refiMiRate = (() => {
+   if (refiHomeValue <= 0 || refiNewLoanAmt <= 0) return 0;
+   const rLtv = refiNewLoanAmt / refiHomeValue;
+   if (loanType === "Conventional") {
+    if (rLtv <= 0.80) return 0;
+    const bktPct = rLtv * 100;
+    const bkt = bktPct > 95 ? 97 : bktPct > 90 ? 95 : bktPct > 85 ? 90 : 85;
+    const chart = pmiChartOverrides && pmiChartOverrides[bkt] > 0 ? pmiChartOverrides[bkt] / 100 : 0;
+    const auto = chart || getPMIRate(rLtv, creditScore);
+    return (!pmiRateLocked && pmiRateOverride > 0) ? pmiRateOverride / 100 : auto;
+   }
+   if (loanType === "FHA") return getFHAMipRate(refiNewLoanAmt, rLtv);
+   if (loanType === "USDA") return 0.0035;
+   return 0; // VA / Jumbo carry no monthly MI
+  })();
+  const refiNewMI = refiHomeValue <= 0 ? monthlyMI : (refiNewLoanAmt * refiMiRate) / 12;
   const refiNewEscrowPortion = (refiNewEscrowTax ? refiNewMonthlyTax : 0) + (refiNewEscrowIns ? refiNewMonthlyIns : 0);
   const refiNewTotalPmt = refiNewPi + refiNewEscrowPortion + refiNewMI;
   const refiNewIntThisMonth = refiNewLoanAmt * refiNewMr;
@@ -5696,7 +5717,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiGraceDay, refiClosingPmtDue, refiAssumeClosingPmt, refiMonthsToClose, refiPaymentsBeforeClose, refiPayoffEffLabel: refiPayoff.effLabel,
    refiNewMonthlyTax, refiNewMonthlyIns,
    refiCurRemainingInt, refiCurTotalRemaining, refiCurTotalCostRemaining, refiCurLTV,
-   refiAutoLoanAmt, refiNewLoanAmt, refiNewPi, refiNewEscrow, refiNewMI, refiNewTotalPmt,
+   refiAutoLoanAmt, refiNewLoanAmt, refiNewPi, refiNewEscrow, refiNewMI, refiMiRate, refiNewTotalPmt,
    refiNewIntThisMonth, refiNewPrinThisMonth, refiNewTotalInt, refiNewTotalCost, refiNewLTV,
    refiMonthlySavings, refiPiMiSavings, refiMonthlyTotalSavings, refiIntSavings,
    refiBreakevenMonths, refiLifetimeSavings, refiAmortCompare, refiLastPaymentEff,

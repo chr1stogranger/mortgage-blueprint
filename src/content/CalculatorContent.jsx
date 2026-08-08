@@ -242,7 +242,13 @@ export default function CalculatorContent(props) {
   const miLabel = loanType === "FHA" ? "Mortgage Insurance Premium (MIP)"
                 : loanType === "VA"  ? "VA Funding Fee"
                 : "Private Mortgage Insurance (PMI)";
-  const monthlyMI = calc.monthlyMI || 0;
+  // On a refi these must come from the NEW loan (refiNewLoanAmt / refiNewLTV /
+  // refiMiRate / refiNewMI) — calc.baseLoan/ltv/pmiRate/monthlyMI are
+  // purchase-shaped and wrong there, same story as the dispPI note below.
+  const miLoan = isRefi ? (calc.refiNewLoanAmt || 0) : (calc.baseLoan || calc.loan);
+  const miLtv = isRefi ? (calc.refiNewLTV || 0) : (calc.ltv || 0);
+  const miRate = isRefi ? (calc.refiMiRate || 0) : (calc.pmiRate || 0);
+  const monthlyMI = isRefi ? (calc.refiNewMI || 0) : (calc.monthlyMI || 0);
 
   // Temporary buydown (B2): hide the row entirely when there's no loan/term
   // to model (matches how sibling rows guard on their inputs).
@@ -250,7 +256,7 @@ export default function CalculatorContent(props) {
   const miZeroReason = monthlyMI === 0 ? (
     loanType === "VA" ? "No monthly MI on VA loans (one-time funding fee applies at close)."
     : loanType === "Jumbo" ? "Jumbo loans typically do not carry PMI."
-    : calc.ltv <= 0.80 ? `Your LTV of ${pct(calc.ltv, 1)} is at or below 80% — no PMI required.`
+    : miLtv <= 0.80 ? `Your LTV of ${pct(miLtv, 1)} is at or below 80% — no PMI required.`
     : "Not required for this scenario."
   ) : null;
 
@@ -953,9 +959,9 @@ export default function CalculatorContent(props) {
           )}
           {loanType === "FHA" ? [
            ["Home Value",       fmt(salesPrice)],
-           ["Base Loan Amount", fmt(calc.baseLoan)],
-           ["LTV",              pct(calc.ltv, 1)],
-           ["FHA MIP Rate",     `${((calc.fhaMipRate || 0) * 100).toFixed(3)}%`],
+           ["Base Loan Amount", fmt(miLoan)],
+           ["LTV",              pct(miLtv, 1)],
+           ["FHA MIP Rate",     `${(((isRefi ? miRate : calc.fhaMipRate) || 0) * 100).toFixed(3)}%`],
            ["Annual MIP",       fmt(monthlyMI * 12)],
           ].map(([label, value], k) => (
            <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${T.separator}` }}>
@@ -971,7 +977,7 @@ export default function CalculatorContent(props) {
            const togglePmiLock = () => {
             if (pmiRateLocked) {
              setPmiRateLocked(false);
-             if (pmiRateOverride === 0) setPmiRateOverride(parseFloat(((calc.pmiRate || calc.autoPmiRate || 0) * 100).toFixed(3)));
+             if (pmiRateOverride === 0) setPmiRateOverride(parseFloat(((miRate || calc.autoPmiRate || 0) * 100).toFixed(3)));
             } else {
              setPmiRateLocked(true);
              setPmiRateOverride(0); // snap back to the matrix/chart rate
@@ -980,8 +986,8 @@ export default function CalculatorContent(props) {
            return (
             <>
              {[["Home Value", fmt(salesPrice)],
-               ["Loan Amount", fmt(calc.baseLoan || calc.loan)],
-               ["LTV", pct(calc.ltv, 1)],
+               ["Loan Amount", fmt(miLoan)],
+               ["LTV", pct(miLtv, 1)],
                ["Credit Score", creditScore > 0 ? String(creditScore) : "—"],
              ].map(([label, value], k) => (
               <div key={k} style={trStyle}>
@@ -998,7 +1004,7 @@ export default function CalculatorContent(props) {
                </button>
               </span>
               {pmiRateLocked
-               ? <span style={valStyle}>{((calc.pmiRate || 0) * 100).toFixed(3)}%</span>
+               ? <span style={valStyle}>{(miRate * 100).toFixed(3)}%</span>
                : <MiniEdit value={pmiRateOverride} onChange={setPmiRateOverride} suffix="%" T={T} />}
              </div>
              <div style={trStyle}>
