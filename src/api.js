@@ -294,36 +294,52 @@ export async function fetchAriveImport(loanId) {
   return authFetch(`/api/arive?action=blueprint-import&id=${encodeURIComponent(loanId)}`, { method: 'POST' });
 }
 
-// ─── Mortgage statement (LO only) — one document per scenario ───────────────
-// Stored in a private Supabase Storage bucket via the Ops API; powers the
-// live-preview panel's Summary ⇄ Statement toggle.
+// ─── Mortgage statements (LO only) — documents per scenario ────────────────
+// Stored in a private Supabase Storage bucket via the Ops API. Files move
+// DIRECTLY between the browser and storage over short-lived signed URLs (the
+// API only mints them), so statement size isn't limited by API body caps.
 
-// Returns { blob, contentType } or null when no statement has been uploaded.
-export async function fetchStatementBlob(scenarioId) {
-  const token = getToken();
-  if (!token) throw new Error('Not authenticated');
-  const res = await fetch(`${API_BASE}/api/statements?scenario_id=${encodeURIComponent(scenarioId)}`, {
-    headers: { 'Authorization': `Bearer ${token}` },
+export async function listStatements(scenarioId) {
+  const r = await authFetch(`/api/statements?scenario_id=${encodeURIComponent(scenarioId)}&list=1`);
+  return r.docs || [];
+}
+
+// Two-step upload: authenticated sign, then a direct PUT to storage.
+export async function signStatementUpload(scenarioId, filename, contentType, size) {
+  return authFetch('/api/statements', {
+    method: 'POST',
+    body: { action: 'sign-upload', scenario_id: scenarioId, filename, content_type: contentType, size },
   });
-  if (res.status === 404) return null;
-  if (res.status === 401) {
-    localStorage.removeItem('bp_token');
-    throw new Error('Session expired — please sign in again');
-  }
-  if (!res.ok) throw new Error(`Statement fetch failed: ${res.status}`);
+}
+
+export async function putStatementToSignedUrl(uploadUrl, blob, contentType) {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: blob,
+  });
+  if (!res.ok) throw new Error(`Upload to storage failed: ${res.status}`);
+}
+
+// Returns { blob, contentType } for one document via a signed download URL.
+export async function fetchStatementDoc(scenarioId, docId) {
+  const { url } = await authFetch(
+    `/api/statements?scenario_id=${encodeURIComponent(scenarioId)}&doc=${encodeURIComponent(docId)}&sign=1`
+  );
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Statement download failed: ${res.status}`);
   const blob = await res.blob();
   return { blob, contentType: res.headers.get('Content-Type') || 'application/pdf' };
 }
 
-export async function uploadStatement(scenarioId, contentType, dataBase64) {
-  return authFetch('/api/statements', {
-    method: 'POST',
-    body: { scenario_id: scenarioId, content_type: contentType, data_base64: dataBase64 },
-  });
+export async function deleteStatementDoc(scenarioId, docId) {
+  return authFetch('/api/statements', { method: 'DELETE', body: { scenario_id: scenarioId, doc: docId } });
 }
 
-export async function deleteStatement(scenarioId) {
-  return authFetch('/api/statements', { method: 'DELETE', body: { scenario_id: scenarioId } });
+// Claude reads every uploaded statement and returns the refi current-loan
+// fields. Slow (up to ~2 minutes with several documents).
+export async function extractStatements(scenarioId) {
+  return authFetch('/api/statements', { method: 'POST', body: { action: 'extract', scenario_id: scenarioId } });
 }
 
 // ─── Auth helpers ───────────────────────────────────────────────────────────
