@@ -5125,7 +5125,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ? (refiEscrowCombined || 0) / (refiEscrowCombinedPeriod === "mo" ? 1 : 12)
    : 0;
   const refiEscrowOn = refiCurEscrowTax || refiCurEscrowIns || refiEscrowCombinedMo > 0;
-  const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : refiCurrentEscrow;
+  // With no annual bills, fall back to whichever escrow figure exists — the
+  // per-component monthly or, in combined mode, the statement's single line —
+  // so the tax/ins split rows never print $0 against a nonzero collection.
+  const refiCurEscrowEffective = (refiAnnualTax > 0 || refiAnnualIns > 0) ? (refiAnnualTax + refiAnnualIns) / 12 : (refiCurrentEscrow || refiEscrowCombinedMo);
   const refiCurMonthlyTax = refiAnnualTax > 0 ? refiAnnualTax / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.6 : 0);
   const refiCurMonthlyIns = refiAnnualIns > 0 ? refiAnnualIns / 12 : (refiCurEscrowEffective > 0 ? refiCurEscrowEffective * 0.4 : 0);
   // Current-month split, lockable (Christo 7.24). Auto: interest = balance ×
@@ -5145,6 +5148,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ? refiEscrowCombinedMo
    : (refiCurEscrowTax ? refiCurMonthlyTax : 0) + (refiCurEscrowIns ? refiCurMonthlyIns : 0);
   const refiCurTotalPmt = refiEffPI + refiCurEscrowMo + refiCurrentMI;
+  // ── Comparison basis (Christo 2026-08-14) ──
+  // refiCurTotalPmt is the STATEMENT total: in combined mode its escrow is the
+  // servicer's COLLECTION line, cushion and shortage spread included. Setting
+  // that against the new loan's bills-built escrow printed a "Monthly Payment
+  // saved" hundreds above the P&I+MI verdict with nothing in the table rows to
+  // account for it (the $733-vs-$471 riddle). Every Current-vs-New comparison
+  // prices the current side's taxes and insurance at the same bills the new
+  // side uses; the collection figure keeps driving the payment receipt,
+  // skipped payments, and net-cash math, where real outlay is the point.
+  const refiCurCmpEscrowMo = refiEscrowMode === "combined"
+   ? refiCurMonthlyTax + refiCurMonthlyIns
+   : refiCurEscrowMo;
+  const refiCurCmpTotalPmt = refiEffPI + refiCurCmpEscrowMo + refiCurrentMI;
   // ── The payment receipt (Christo 2026-07-28) ──
   // Mirrors the statement's "Explanation of Amount Due" so the LO reads down
   // one column and down the other. The statement's bolded Regular Monthly
@@ -5597,7 +5613,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // HOA carry over unchanged on a refi, so they cancel out of the comparison
   // (doc 7.23) — and the number no longer swings with the escrow toggles.
   const refiPiMiSavings = isRefi ? ((refiEffPI + (Number(refiCurrentMI) || 0) + refiLienPmtSaved) - (refiNewPi + refiNewMI)) : 0;
-  const refiMonthlyTotalSavings = isRefi ? ((refiCurTotalPmt + refiLienPmtSaved) - refiNewTotalPmt) : 0;
+  // Bills basis on the current side (see refiCurCmpTotalPmt) so this equals
+  // refiPiMiSavings whenever taxes/insurance genuinely carry over unchanged.
+  const refiMonthlyTotalSavings = isRefi ? ((refiCurCmpTotalPmt + refiLienPmtSaved) - refiNewTotalPmt) : 0;
   const refiIntSavings = refiCurRemainingInt - refiNewTotalInt;
   const refiBreakevenMonths = refiPiMiSavings > 0 ? Math.ceil(totalClosingCosts / refiPiMiSavings) : 0;
   // ── Net Cash Out ──
@@ -5771,8 +5789,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiBalanceSuspect, refiConfidence,
    refiExtraMonthly, refiExtraLump, refiLumpMonth,
    refiEffPI, refiEffBalance, refiEffRemaining,
-   refiCurMr, refiCurTotalPmt, refiCurIntThisMonth, refiCurPrinThisMonth,
-   refiCurMonthlyTax, refiCurMonthlyIns, refiCurEscrowEffective,
+   refiCurMr, refiCurTotalPmt, refiCurCmpEscrowMo, refiCurCmpTotalPmt, refiCurIntThisMonth, refiCurPrinThisMonth,
+   refiCurMonthlyTax, refiCurMonthlyIns, refiCurEscrowEffective, refiCurrentMI: Number(refiCurrentMI) || 0,
    refiPayoffPerDiem, refiPayoffDays, refiPayoffInterest, refiPayoffAmount, refiPayoffBalance, armActive, armAdjMonth,
    refiGraceDay, refiClosingPmtDue, refiAssumeClosingPmt, refiMonthsToClose, refiPaymentsBeforeClose, refiPayoffEffLabel: refiPayoff.effLabel,
    refiNewMonthlyTax, refiNewMonthlyIns,
@@ -6530,8 +6548,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // what the borrower actually pays today; the new side keeps subordinated
     // liens' payments (they continue billing). With tax/ins hidden, the totals
     // drop to P&I + MI (+ liens) so the columns still sum on their face.
+    // Comparison basis: bills, not the servicer's escrow collection — so this
+    // total foots against the tax/ins rows printed above it.
     const curTotalAll = (refiShowTaxIns
-     ? calc.refiCurTotalPmt
+     ? calc.refiCurCmpTotalPmt
      : calc.refiEffPI + (Number(refiCurrentMI) || 0)) + (calc.refiLienPmtCur || 0);
     const newTotalAll = (refiShowTaxIns ? calc.refiNewTotalPmt : calc.refiNewPi + calc.refiNewMI) + (calc.refiLienPmtNew || 0);
     const totalDelta = newTotalAll - curTotalAll;

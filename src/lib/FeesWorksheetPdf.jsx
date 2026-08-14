@@ -305,7 +305,10 @@ export function FeesWorksheetPage(p) {
               </Box>
             ) : (
               <Box title="Estimated Monthly Payment" grow>
-                <Row label="Current Total Payment" value={c.refiCurTotalPmt} />
+                {/* Comparison basis (2026-08-14): bills, not the servicer's
+                    escrow collection, so Current − New = Monthly Savings on
+                    this card's own face. */}
+                <Row label="Current Total Payment" value={c.refiCurCmpTotalPmt} />
                 {(c.refiSecondPmtSaved || 0) >= 0.5 && <Row label="2nd Lien Payment (paid off)" value={c.refiSecondPmtSaved} />}
                 {(c.refiThirdPmtSaved || 0) >= 0.5 && <Row label="3rd Lien Payment (paid off)" value={c.refiThirdPmtSaved} />}
                 <Row label="New Principal & Interest" value={c.refiNewPi} />

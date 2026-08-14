@@ -111,16 +111,21 @@ export function RefiSummaryDoc(p) {
     tax: c.refiCurMonthlyTax || 0, ins: c.refiCurMonthlyIns || 0,
     mi: Number(p.refiCurrentMI) || 0, hoa: Number(p.hoa) || 0,
   };
-  cur.total = showTI
-    ? (c.refiCurTotalPmt || 0) + lienPmtCur
-    : (c.refiEffPI || 0) + cur.mi + lienPmtCur;
+  // Each total is the sum of the rows printed above it — nothing else
+  // (Christo 2026-08-14). refiCurTotalPmt carries the servicer's escrow
+  // COLLECTION (cushion + shortage spread in combined mode), which is not what
+  // the Taxes/Insurance rows print — using it made "Monthly Payment saved"
+  // disagree with the P&I+MI verdict by an invisible $262/mo, and neither
+  // total counted the HOA row both columns print. A client footing a column
+  // with a calculator now lands exactly on the total.
+  cur.total = cur.prin + cur.int + cur.mi + lienPmtCur + (showTI ? cur.tax + cur.ins + cur.hoa : 0);
   const nw = {
     loan: c.refiNewLoanAmt || 0, rate: Number(p.rate) || 0,
     prin: c.refiNewPrinThisMonth || 0, int: c.refiNewIntThisMonth || 0,
     tax: c.refiNewMonthlyTax || 0, ins: c.refiNewMonthlyIns || 0,
     mi: c.refiNewMI || 0, hoa: Number(p.hoa) || 0,
   };
-  nw.total = (showTI ? (c.refiNewTotalPmt || 0) : (c.refiNewPi || 0) + nw.mi) + lienPmtNew;
+  nw.total = nw.prin + nw.int + nw.mi + lienPmtNew + (showTI ? nw.tax + nw.ins + nw.hoa : 0);
   const savings = cur.total - nw.total; // positive = saving money
   // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
   // over unchanged on a refi, so they cancel out of the savings math.
