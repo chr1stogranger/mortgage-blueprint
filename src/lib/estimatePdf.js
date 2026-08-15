@@ -109,7 +109,11 @@ export function generateEstimateHtml({
    html += pmtRow4("Interest", c.refiCurIntThisMonth, c.refiNewIntThisMonth);
    if (c.refiNewMonthlyTax > 0) html += pmtRow4("Taxes", c.refiCurMonthlyTax, c.refiNewMonthlyTax);
    if (c.refiNewMonthlyIns > 0) html += pmtRow4("Insurance", c.refiCurMonthlyIns, c.refiNewMonthlyIns);
-   html += pmtRow4("Total Payment", c.refiCurTotalPmt, c.refiNewTotalPmt, true);
+   if ((c.refiCurrentMI || 0) >= 0.5 || (c.refiNewMI || 0) >= 0.5) html += pmtRow4("Mortgage Insurance", c.refiCurrentMI || 0, c.refiNewMI || 0);
+   // Comparison basis: the current side's escrow at the same bills the new
+   // side uses (refiCurCmpTotalPmt), so the Total row foots against the rows
+   // above it instead of smuggling in the servicer's escrow collection.
+   html += pmtRow4("Total Payment", c.refiCurCmpTotalPmt, c.refiNewTotalPmt, true);
    html += '<tr style="background:#f0fdf4"><td colspan="3" style="padding:10px 16px;font-size:13px;font-weight:700;color:#16a34a">Monthly Savings</td><td style="padding:10px 16px;text-align:right;font-size:13px;font-weight:700;color:#16a34a;font-family:system-ui">' + fmt(c.refiMonthlyTotalSavings) + '</td></tr>';
    html += '</table>';
    html += `<table>${hdr("Savings Analysis")}${row("Monthly P&I Savings",fmt(c.refiMonthlySavings),false,c.refiMonthlySavings>0?"#16a34a":"#dc2626")}${row("Estimated Closing Costs",fmt(c.totalClosingCosts))}${row("Months to Breakeven",c.refiBreakevenMonths+" months")}${row("Lifetime Interest Savings",fmt(c.refiIntSavings),true,"#16a34a")}</table>`;

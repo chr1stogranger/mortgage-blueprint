@@ -12,6 +12,7 @@ const refiCalc = {
   // current side
   refiEffBalance: 787158, refiCurPrinThisMonth: 788.5, refiCurIntThisMonth: 4268.04,
   refiCurMonthlyTax: 1136.84, refiCurMonthlyIns: 200, refiCurTotalPmt: 6393.39,
+  refiCurCmpTotalPmt: 6393.39,
   // new side
   refiNewLoanAmt: 793251, refiNewPi: 4755.94, refiNewPrinThisMonth: 789.69,
   refiNewIntThisMonth: 3966.25, refiNewMonthlyTax: 1136.84, refiNewMonthlyIns: 200,

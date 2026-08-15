@@ -115,7 +115,9 @@ export default function UnifiedHeader({
     }
     if (key === "savings") {
       return { title: "Monthly Savings", section: "overview-payment", rows: [
-        ["Current Payment", fmt(calc.refiCurTotalPmt)],
+        // Comparison basis: bills-priced current total (refiCurCmpTotalPmt),
+        // so Current − New lands exactly on the Savings line below.
+        ["Current Payment", fmt(calc.refiCurCmpTotalPmt)],
         ...((calc.refiSecondPmtSaved || 0) > 0 ? [["2nd Lien Payment (retired)", fmt(calc.refiSecondPmtSaved)]] : []),
         ...((calc.refiThirdPmtSaved || 0) > 0 ? [["3rd Lien Payment (retired)", fmt(calc.refiThirdPmtSaved)]] : []),
         ["New Payment", fmt(calc.refiNewTotalPmt)],

@@ -409,7 +409,9 @@ export default function CalculatorContent(props) {
      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
       <div style={{ textAlign: "center" }}>
        <div style={{ fontSize: 10, color: T.textTertiary, marginBottom: 2 }}>Current</div>
-       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurTotalPmt)}</div>
+       {/* Bills-basis total (refiCurCmpTotalPmt) so Current − New matches the
+           P&I+MI verdict below whenever taxes/ins really carry over. */}
+       <div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.red }}>{fmt(calc.refiCurCmpTotalPmt)}</div>
        <div style={{ fontSize: 10, color: T.textTertiary }}>{refiCurrentRate}% · {calc.refiEffRemaining} mos left</div>
       </div>
       <div style={{ fontSize: 20, color: T.green }}>→</div>

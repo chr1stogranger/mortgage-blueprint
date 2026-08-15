@@ -47,7 +47,7 @@ describe("FeesWorksheetDoc", () => {
     const refiCalc = {
       ...baseCalc,
       refiNewLoanAmt: 650000, refiNewPi: 4100, refiNewTotalPmt: 5500,
-      refiCurTotalPmt: 6100, refiNewMonthlyTax: 900, refiNewMonthlyIns: 120,
+      refiCurTotalPmt: 6100, refiCurCmpTotalPmt: 6100, refiNewMonthlyTax: 900, refiNewMonthlyIns: 120,
       refiNewMI: 0, refiMonthlyTotalSavings: 600, refiNetNewLoan: 650000,
       refiNetClosingCosts: 8000, refiNetPrepaids: 3000, refiNetPayoff: 600000,
       refiEstCashOut: 39000, refiSkipPmtAmt: 0, refiEscrowRefund: 0,
