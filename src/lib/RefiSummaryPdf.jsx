@@ -97,6 +97,11 @@ export function RefiSummaryDoc(p) {
   const lienPmtCur = c.refiLienPmtCur || 0;
   const lienPmtNew = c.refiLienPmtNew || 0;
   const liens = c.refiLiens || [];
+  // Consolidated consumer debts (2026-08-25): same treatment as paid-off
+  // liens — their payments sit on the CURRENT side and vanish on the new.
+  const paidDebts = c.refiPaidDebts || [];
+  const debtPmtSaved = c.refiDebtPmtSaved || 0;
+  const retiredPmtSaved = lienPmtSaved + debtPmtSaved;
   // Tax/ins rows carry over unchanged, so the LO can hide them to cut noise
   // (Christo 2026-08-04). Totals follow the visible rows.
   const showTI = p.refiShowTaxIns !== false;
@@ -118,7 +123,7 @@ export function RefiSummaryDoc(p) {
   // disagree with the P&I+MI verdict by an invisible $262/mo, and neither
   // total counted the HOA row both columns print. A client footing a column
   // with a calculator now lands exactly on the total.
-  cur.total = cur.prin + cur.int + cur.mi + lienPmtCur + (showTI ? cur.tax + cur.ins + cur.hoa : 0);
+  cur.total = cur.prin + cur.int + cur.mi + lienPmtCur + debtPmtSaved + (showTI ? cur.tax + cur.ins + cur.hoa : 0);
   const nw = {
     loan: c.refiNewLoanAmt || 0, rate: Number(p.rate) || 0,
     prin: c.refiNewPrinThisMonth || 0, int: c.refiNewIntThisMonth || 0,
@@ -129,7 +134,7 @@ export function RefiSummaryDoc(p) {
   const savings = cur.total - nw.total; // positive = saving money
   // The verdict figure is P&I + MI only (doc 7.23) — taxes/insurance/HOA carry
   // over unchanged on a refi, so they cancel out of the savings math.
-  const piMiSavings = (cur.prin + cur.int + cur.mi + lienPmtSaved) - (nw.prin + nw.int + nw.mi);
+  const piMiSavings = (cur.prin + cur.int + cur.mi + lienPmtSaved + debtPmtSaved) - (nw.prin + nw.int + nw.mi);
   // Retired liens take the PMI slot when there's no PMI — you'd almost never
   // carry both, so it's either-or (Christo 2026-08-04). With PMI in play
   // anyway, every row prints.
@@ -153,6 +158,9 @@ export function RefiSummaryDoc(p) {
       ["Insurance", usd2(cur.ins), usd2(nw.ins), signed2(nw.ins - cur.ins)],
     ] : []),
     ...(lienRows.length ? (hasMi ? [pmiRow, ...lienRows] : lienRows) : [pmiRow]),
+    // Consolidated debts — one aggregate row at the bottom, per Christo
+    // 2026-08-25: today's payments vs $0 after the refi retires them.
+    ...(paidDebts.length ? [[`Other Debts (${paidDebts.length} paid off)`, usd2(debtPmtSaved), usd2(0), signed2(-debtPmtSaved)]] : []),
     ...(showTI ? [["HOA", usd2(cur.hoa), usd2(nw.hoa), signed2(nw.hoa - cur.hoa)]] : []),
   ];
 
@@ -192,9 +200,13 @@ export function RefiSummaryDoc(p) {
   // so the two columns both end debt-free.
   // Retired-lien balances count whether or not they billed monthly — a
   // deferred CalHFA/ZIP lien's balance still comes due on the current plan.
+  // Consolidated consumer debts get the same floor: their carry rides the
+  // current plan (revolving minimums barely amortize) and their balances
+  // are owed either way.
   const accelLifetimeSavings = (accel.newPayoffMos > 0 && accel.curPayoffMos > 0 && c.refiEffPI > 0)
-    ? ((c.refiEffPI + lienPmtSaved) * accel.curPayoffMos)
+    ? ((c.refiEffPI + lienPmtSaved + debtPmtSaved) * accel.curPayoffMos)
       + (c.refiLienPayoffBalTotal || 0)
+      + (c.refiDebtBalTotal || 0)
       - (samePayment * accel.newPayoffMos)
       - (c.totalClosingCosts || 0)
     : 0;
@@ -267,7 +279,7 @@ export function RefiSummaryDoc(p) {
           <Text style={[s.cNum, s.bold, { color: savings >= 0 ? GREEN : RED }]}>{savings >= 0 ? usd2(savings) + " saved" : signed2(nw.total - cur.total)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0, marginTop: 3 }]}>
-          <Text style={[s.lineLabel, s.bold, { color: INK }]}>{lienPmtSaved > 0 ? "Monthly Savings (P&I + MI + paid-off liens — taxes/ins/HOA unchanged)" : "Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)"}</Text>
+          <Text style={[s.lineLabel, s.bold, { color: INK }]}>{retiredPmtSaved > 0 ? "Monthly Savings (P&I + MI + retired debts — taxes/ins/HOA unchanged)" : "Monthly Savings (P&I + MI — taxes/ins/HOA unchanged)"}</Text>
           <Text style={[s.lineValue, s.bold, { color: piMiSavings >= 0 ? GREEN : RED }]}>{piMiSavings >= 0 ? usd2(piMiSavings) : signed2(-piMiSavings)}</Text>
         </View>
         <View style={[s.line, { borderBottomWidth: 0 }]}>

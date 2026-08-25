@@ -131,8 +131,9 @@ export default function DebtsSheet({
                 <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 8, lineHeight: 1.4 }}>Add properties on the REO tab to link this debt and avoid counting the payment twice in DTI.</div>
               )}
               {d.linkedReoId && <div style={{ fontSize: 11, color: T.blue, marginBottom: 8, fontWeight: 500 }}>{"\u2713"} Linked to REO — payment handled via 75% rental offset in DTI, not counted as standalone debt.</div>}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 <Inp label="Balance" value={d.balance} onChange={v => (d.linkedReoId && (d.type === "Mortgage" || d.type === "HELOC")) ? syncDebtBalance(d.id, v) : updateDebt(d.id, "balance", v)} sm req />
+                <Inp label="Rate" value={d.rate} onChange={v => updateDebt(d.id, "rate", v)} prefix="" suffix="%" step={0.01} sm />
                 <Inp label="Monthly Pmt" value={d.monthly} onChange={v => (d.linkedReoId && (d.type === "Mortgage" || d.type === "HELOC")) ? syncDebtPayment(d.id, v) : updateDebt(d.id, "monthly", v)} sm req />
               </div>
               <Sel label="Payoff at Close?" value={d.payoff} onChange={v => updateDebt(d.id, "payoff", v)} options={PAYOFF_OPTIONS} sm tip="'At Escrow' pays off this debt using closing funds — removes the payment from DTI but adds the balance to cash needed. 'Omit' excludes it entirely." />

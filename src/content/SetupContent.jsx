@@ -36,7 +36,7 @@ function YesNoSeg({ T, value, onYes, onNo }) {
 
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiSecondPmtOverride", "setRefiSecondPmtOverride", "refiThirdLien", "setRefiThirdLien", "refiThirdKind", "setRefiThirdKind", "refiThirdBalance", "setRefiThirdBalance", "refiThirdRate", "setRefiThirdRate", "refiThirdPlan", "setRefiThirdPlan", "refiThirdPmtOverride", "setRefiThirdPmtOverride", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3", "refiPreviewOpen", "setRefiPreviewOpen"]);
+  if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiSecondPmtOverride", "setRefiSecondPmtOverride", "refiThirdLien", "setRefiThirdLien", "refiThirdKind", "setRefiThirdKind", "refiThirdBalance", "setRefiThirdBalance", "refiThirdRate", "setRefiThirdRate", "refiThirdPlan", "setRefiThirdPlan", "refiThirdPmtOverride", "setRefiThirdPmtOverride", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3", "refiPreviewOpen", "setRefiPreviewOpen", "refiPayoffDebts", "setRefiPayoffDebts", "debts", "debtFree"]);
   const {
     T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode,
     loanType, setLoanType, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity,
@@ -70,6 +70,7 @@ export default function SetupContent(props) {
     refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid,
     refiHomeValue, setRefiHomeValue,
     refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3,
+    refiPayoffDebts, setRefiPayoffDebts, debts, debtFree,
     hideHero = false,
   } = props;
 
@@ -1573,11 +1574,11 @@ export default function SetupContent(props) {
       <div style={{ marginBottom: -6 }}><Inp label="Payoff Fees" value={refiPayoffFees} onChange={setRefiPayoffFees} sm tip="Lender payoff fees — reconveyance, recording, doc prep, wire. Typically ~$300. Included in the payoff amount." /></div>
      </div>
      <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-      <div style={{ fontSize: 10, color: T.textTertiary }}>{(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0) ? "First Lien Payoff" : "Payoff Amount"}</div>
+      <div style={{ fontSize: 10, color: T.textTertiary }}>{(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? "First Lien Payoff" : "Payoff Amount"}</div>
       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount)}</div>
      </div>
-     {/* Paid-off juniors ride along: balance + each one's per-diem to closing. */}
-     {(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0) && (<>
+     {/* Paid-off juniors + consolidated debts ride along: balance + per-diem. */}
+     {(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) && (<>
       {calc.refiSecondPayoffAmt > 0 && (
        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
         <div style={{ fontSize: 10, color: T.textTertiary }}>+ {refiSecondKind === "heloc" ? "HELOC" : "Second"} Payoff{calc.refiSecondPayoffInterest > 0 ? ` (incl. ${fmt(calc.refiSecondPayoffInterest)} interest, ${calc.refiSecondPayoffDays}d)` : ""}</div>
@@ -1590,21 +1591,83 @@ export default function SetupContent(props) {
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiThirdPayoffAmt)}</div>
        </div>
       )}
+      {calc.refiDebtPayoffTotal > 0 && (
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: T.textTertiary }}>+ Other Debt Payoffs ({(calc.refiPaidDebts || []).length} debt{(calc.refiPaidDebts || []).length === 1 ? "" : "s"})</div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.refiDebtPayoffTotal)}</div>
+       </div>
+      )}
       <div style={{ borderTop: `1px solid ${T.blue}33`, marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
        <div style={{ fontSize: 10, color: T.textTertiary }}>Total Payoffs</div>
-       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt + (calc.refiThirdPayoffAmt || 0))}</div>
+       <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{fmt(calc.refiPayoffAmount + calc.refiSecondPayoffAmt + (calc.refiThirdPayoffAmt || 0) + (calc.refiDebtPayoffTotal || 0))}</div>
       </div>
      </>)}
     </div>
    )}
-   {/* Cash Out drives the AUTO new-loan amount (payoff + cash out). With a
-       manual New Loan Amount set it does nothing, so it yields to a note
-       instead of sitting there dead (Christo 2026-08-04). */}
+   {/* Debt consolidation — the other half of a cash-out (Christo 2026-08-25).
+       The debts LIVE on the Debts tab (single source of truth); this lens
+       lists the non-mortgage ones and flips each one's "Payoff at Close?"
+       flag. Marked debts roll their payoff into the new loan and their
+       retired payment onto the current side of every savings comparison. */}
+   {refiPurpose === "Cash-Out" && (<>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Paying off any other non-mortgage debt?</span>
+     <YesNoSeg T={T} value={refiPayoffDebts} onYes={() => setRefiPayoffDebts(true)} onNo={() => setRefiPayoffDebts(false)} />
+    </div>
+    {refiPayoffDebts === true && (() => {
+     const consumerDebts = (debts || []).filter(d => d.type !== "Mortgage" && d.type !== "HELOC");
+     const CONSUMER_TYPES = ["Revolving", "Student Loan", "Auto Loan", "Auto Lease", "Installment", "Collection", "Other"];
+     return (
+      <div style={{ background: `${T.blue}08`, border: `1px solid ${T.blue}22`, borderRadius: 12, padding: "10px 12px", marginBottom: 12 }}>
+       {debtFree ? (
+        <Note color={T.orange}>The Debts tab says debt-free — turn that off there to consolidate debts here.</Note>
+       ) : (<>
+        <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginBottom: consumerDebts.length ? 8 : 4 }}>
+         Balance, rate and payment drive the consolidation math — the balance rolls into the new loan, the payment joins the savings. These are the same debts as the Debts tab.
+        </div>
+        {consumerDebts.map((d) => {
+         const on = d.payoff === "Yes - at Escrow";
+         return (
+          <div key={d.id} style={{ padding: "8px 0", borderBottom: `1px solid ${T.separator}` }}>
+           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <button onClick={() => calc.updateDebt(d.id, "payoff", on ? "No" : "Yes - at Escrow")} style={{
+             padding: "5px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT, transition: "all 0.2s",
+             background: on ? `${T.green}18` : T.inputBg, color: on ? T.green : T.textSecondary,
+             border: on ? `1.5px solid ${T.green}` : `1px solid ${T.separator}`,
+            }}>{on ? "✓ Paying off" : "Pay off with refi"}</button>
+            <button onClick={() => calc.removeDebt(d.id)} style={{ background: "none", border: "none", color: T.red, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Remove</button>
+           </div>
+           <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 8 }}>
+            <TextInp label="Creditor" value={d.name} onChange={(v) => calc.updateDebt(d.id, "name", v)} sm />
+            <Sel label="Type" value={d.type} onChange={(v) => calc.updateDebt(d.id, "type", v)} options={CONSUMER_TYPES} sm />
+           </div>
+           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <Inp label="Balance" value={d.balance} onChange={(v) => calc.updateDebt(d.id, "balance", v)} sm />
+            <Inp label="Rate" value={d.rate} onChange={(v) => calc.updateDebt(d.id, "rate", v)} prefix="" suffix="%" step={0.01} sm />
+            <Inp label="Monthly Pmt" value={d.monthly} onChange={(v) => calc.updateDebt(d.id, "monthly", v)} sm />
+           </div>
+          </div>
+         );
+        })}
+        <button onClick={() => calc.addDebt("Revolving", { payoff: "Yes - at Escrow" })} style={{ width: "100%", padding: 10, marginTop: 8, background: `${T.blue}12`, border: `1px dashed ${T.blue}44`, borderRadius: 10, color: T.blue, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>+ Add a debt to pay off</button>
+        {calc.refiDebtPayoffTotal > 0 && (
+         <div style={{ marginTop: 8, padding: "8px 10px", background: `${T.green}10`, borderRadius: 10, fontSize: 11, color: T.green, fontWeight: 600, lineHeight: 1.5 }}>
+          Rolling {fmt(calc.refiDebtPayoffTotal)} of debt into the new loan{calc.refiDebtPmtSaved > 0 ? ` — retiring ${fmt(calc.refiDebtPmtSaved)}/mo in payments` : ""}.
+         </div>
+        )}
+       </>)}
+      </div>
+     );
+    })()}
+   </>)}
+   {/* Cash Out drives the AUTO new-loan amount (payoff + debts + cash out).
+       With a manual New Loan Amount set it does nothing, so it yields to a
+       note instead of sitting there dead (Christo 2026-08-04). */}
    {refiPurpose === "Cash-Out" && (
     Math.abs((calc.refiNewLoanAmt || 0) - (calc.refiAutoLoanAmt || 0)) > 1
      ? <Note color={T.blue}>New Loan Amount is set manually on the payment section, so the cash out falls out of the difference — see Estimated Cash Out under Net Cash Out.</Note>
      : <Inp label="Cash Out Amount" value={refiCashOut} onChange={setRefiCashOut}
-        tip="Rolls on top of the payoff to build the new loan amount. Setting New Loan Amount manually replaces this." />
+        tip="Cash in hand on top of the payoffs (including any debts being consolidated). Setting New Loan Amount manually replaces this." />
    )}
   </Card>
  </Sec>}

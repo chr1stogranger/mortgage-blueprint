@@ -1928,6 +1928,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [refiThirdRate, setRefiThirdRate] = useState(0);
  const [refiThirdPlan, setRefiThirdPlan] = useState("payoff");    // sub | payoff
  const [refiThirdPmtOverride, setRefiThirdPmtOverride] = useState(null);
+ // Cash-out debt consolidation — "Paying off any other non-mortgage debt?"
+ // null = unanswered. Yes surfaces the Debts-tab liabilities in the refi
+ // setup; any debt marked "Yes - at Escrow" rolls its payoff into the new
+ // loan and its retired payment onto the current side of every comparison.
+ const [refiPayoffDebts, setRefiPayoffDebts] = useState(null);
  // History flags — "" (unanswered) | yes | no | unsure.
  const [refiModified, setRefiModified] = useState("");
  const [refiPrepayPenalty, setRefiPrepayPenalty] = useState("");
@@ -2092,7 +2097,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
-  refiHasMaturity, refiMaturityDate,
+  refiHasMaturity, refiMaturityDate, refiPayoffDebts,
   showInvestor, showRentVsBuy, invMonthlyRent, invVacancy, invMgmt, invMaintPct, invCapEx, invRentGrowth, invHoldYears, invSellerComm, invSellClosing,
   rbCurrentRent, rbRentGrowth, rbInvestReturn,
   showProp19, prop19Eligibility, prop19OldTaxableValue, prop19OldSalePrice, prop19TransfersUsed, prop19SaleDate, prop19PurchaseDate, prop19RateOverride,
@@ -2317,6 +2322,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setRefiThirdRate(s.refiThirdRate !== undefined ? s.refiThirdRate : 0);
   setRefiThirdPlan(s.refiThirdPlan !== undefined ? s.refiThirdPlan : "payoff");
   setRefiThirdPmtOverride(s.refiThirdPmtOverride !== undefined ? s.refiThirdPmtOverride : null);
+  // Same explicit-default rule: carrying the previous scenario's answer over
+  // would silently roll one client's debts into another client's loan.
+  setRefiPayoffDebts(s.refiPayoffDebts !== undefined ? s.refiPayoffDebts : null);
   if (s.refiModified !== undefined) setRefiModified(s.refiModified);
   if (s.refiPrepayPenalty !== undefined) setRefiPrepayPenalty(s.refiPrepayPenalty);
   if (s.refiExtraCadence !== undefined) setRefiExtraCadence(s.refiExtraCadence);
@@ -2635,6 +2643,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiCurrentRate, refiCurrentBalance, refiCurrentPayment, refiCurPrinOverride, refiCurIntOverride, refiRemainingMonths, refiCashOut,
   refiCurrentEscrow, refiCurrentMI, refiCurrentLoanType, refiHomeValue, refiOriginalAmount, refiOriginalTerm, refiPurpose,
   refiClosedDate, refiExtraPaid, refiAnnualTax, refiTaxAssessedMode, refiAnnualIns, refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiEscrowBalance, refiSkipMonths, refiNewLoanAmtOverride, insEffectiveDate, refiCurrentRateType, refiArmStartRate, refiArmAdjustedDate, refiLastPaymentDate, refiClosingPmtOverride, borrowerEmail,
+  // These were missing from the autosave deps — a lien-only (or statement/
+  // maturity-only) edit never triggered a save until some other field moved.
+  refiHasStatement, refiEscrowMode, refiEscrowCombined, refiEscrowCombinedPeriod,
+  refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
+  refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
+  refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
+  refiHasMaturity, refiMaturityDate, refiPayoffFees, refiPayoffDebts, showRefi3, debtFree,
   darkMode, loaded, scenarioName]);
  // ── Blueprint switcher (left panel): client callbacks + open helper ──
  const borrowerPickerCallbacks = {
@@ -3451,7 +3466,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (refiPurpose === "Cash-Out") ln("  Cash Out", fmt(refiCashOut));
    sep();
    lines.push("SAVINGS");
-   ln(c.refiLienPmtSaved > 0 ? "  Monthly P&I + Lien Savings" : "  Monthly P&I Savings", fmt(c.refiMonthlySavings));
+   ln((c.refiLienPmtSaved > 0 || c.refiDebtPmtSaved > 0) ? "  Monthly P&I + Debt Savings" : "  Monthly P&I Savings", fmt(c.refiMonthlySavings));
+   if (c.refiDebtPmtSaved > 0) ln("  Debt Payments Retired", fmt(c.refiDebtPmtSaved) + "/mo");
    ln("  Monthly Total Savings", fmt(c.refiMonthlyTotalSavings));
    ln("  Closing Costs", fmt(c.totalClosingCosts));
    ln("  Breakeven", c.refiBreakevenMonths + " months");
@@ -3461,7 +3477,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    ln("  New Loan Amount", fmt(c.refiNetNewLoan));
    ln("  Closing Costs", "-" + fmt(c.refiNetClosingCosts));
    ln("  Prepaids & Escrow", "-" + fmt(c.refiNetPrepaids));
-   ln((c.refiSecondPayoffAmt > 0 || c.refiThirdPayoffAmt > 0) ? `  Loan Payoffs (${c.refiLienLabel})` : "  Current Loan Payoff", "-" + fmt(c.refiNetPayoff));
+   ln((c.refiSecondPayoffAmt > 0 || c.refiThirdPayoffAmt > 0 || c.refiDebtPayoffTotal > 0) ? `  Payoffs (${c.refiLienLabel})` : "  Current Loan Payoff", "-" + fmt(c.refiNetPayoff));
    ln("  Estimated Cash Out", fmt(c.refiEstCashOut));
    if (c.refiSkipPmtAmt > 0) ln("  Skip " + refiSkipMonths + " Payment(s)", "+" + fmt(c.refiSkipPmtAmt));
    if (c.refiEscrowRefund > 0) ln("  Escrow Balance Refund", "+" + fmt(c.refiEscrowRefund));
@@ -4903,12 +4919,30 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const remainingValue = Math.max(0, (a.value || 0) - (a.forClosing || 0));
    return s + (remainingValue * rf);
   }, 0);
-  const addDebt = (type) => setDebts(prev => [...prev, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }]);
+  const addDebt = (type, extra) => setDebts(prev => [...prev, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "", ...extra }]);
   const updateDebt = (id, f, v) => setDebts(prev => prev.map(d => d.id === id ? { ...d, [f]: v } : d));
   const removeDebt = (id) => setDebts(prev => prev.filter(d => d.id !== id));
   const qualifyingDebts = debtFree ? [] : debts.filter(d => d.payoff !== "Yes - at Escrow" && d.payoff !== "Yes - POC" && d.payoff !== "Omit" && !reoLinkedDebtIds.has(d.id));
   const totalMonthlyDebts = qualifyingDebts.reduce((s, d) => s + (d.monthly || 0), 0);
-  const payoffAtClosing = debtFree ? 0 : debts.filter(d => d.payoff === "Yes - at Escrow").reduce((s, d) => s + (d.balance || 0), 0);
+  // ── Non-mortgage debts paid off through a cash-out refi (2026-08-25) ──
+  // Debt consolidation is half the reason cash-out refis happen. The Debts
+  // tab stays the single source of truth: on a cash-out refi where the LO
+  // answered Yes to "paying off any other non-mortgage debt?", every debt
+  // marked "Yes - at Escrow" rolls its payoff into the new loan and its
+  // retired payment onto the CURRENT side of the cash-flow comparison.
+  // Mortgage/HELOC-type debts are excluded — subject-property liens are the
+  // 2nd/3rd lien model's job, other properties' liens are REO territory.
+  const refiPaidDebts = (isRefi && refiPurpose === "Cash-Out" && refiPayoffDebts === true && !debtFree)
+   ? debts.filter(d => d.payoff === "Yes - at Escrow" && d.type !== "Mortgage" && d.type !== "HELOC" && !reoLinkedDebtIds.has(d.id))
+   : [];
+  const refiPaidDebtIds = new Set(refiPaidDebts.map(d => d.id));
+  const refiDebtPayoffTotal = refiPaidDebts.reduce((s, d) => s + (Number(d.payoffAmount) || Number(d.balance) || 0), 0);
+  const refiDebtPmtSaved = refiPaidDebts.reduce((s, d) => s + (Number(d.monthly) || 0), 0);
+  const refiDebtBalTotal = refiPaidDebts.reduce((s, d) => s + (Number(d.balance) || 0), 0);
+  // Debts financed through the refi are NOT cash due at closing — they live in
+  // the refi payoff walk instead. Payoff honors the per-debt payoffAmount when
+  // one is entered (the Debts tab already did; this used to read balance only).
+  const payoffAtClosing = debtFree ? 0 : debts.filter(d => d.payoff === "Yes - at Escrow" && !refiPaidDebtIds.has(d.id)).reduce((s, d) => s + (Number(d.payoffAmount) || Number(d.balance) || 0), 0);
   // For investment properties, 75% rent offsets housing payment in DTI
   const effectiveHousingForDTI = isInvestment ? Math.max(0, housingPayment - subjectRent75) : housingPayment;
   const totalPayment = effectiveHousingForDTI + totalMonthlyDebts + reoNegativeDebt;
@@ -5211,9 +5245,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiSecondBal = refiSecondLien ? (refiSecondBalance || 0) : 0;
   const refiThirdBal = refiSecondLien && refiThirdLien ? (refiThirdBalance || 0) : 0;
   const refiCLTV = refiHomeValue > 0 ? (refiEffBalance + refiSecondBal + refiThirdBal) / refiHomeValue : 0;
-  const refiBlendedRate = ((refiSecondBal > 0 || refiThirdBal > 0) && refiEffBalance > 0)
-   ? (refiEffBalance * refiCurrentRate + refiSecondBal * (refiSecondRate || 0) + refiThirdBal * (refiThirdRate || 0))
-     / (refiEffBalance + refiSecondBal + refiThirdBal)
+  // Blended rate weighs every balance the refi retires — liens AND consumer
+  // debts being consolidated. A 24% card balance in the blend is exactly the
+  // story a debt-consolidation refi tells: the new rate has to beat the
+  // blended cost of everything, not the first's rate alone.
+  const refiBlendedRate = ((refiSecondBal > 0 || refiThirdBal > 0 || refiDebtBalTotal > 0) && refiEffBalance > 0)
+   ? (refiEffBalance * refiCurrentRate + refiSecondBal * (refiSecondRate || 0) + refiThirdBal * (refiThirdRate || 0)
+      + refiPaidDebts.reduce((s, d) => s + (Number(d.balance) || 0) * (Number(d.rate) || 0), 0))
+     / (refiEffBalance + refiSecondBal + refiThirdBal + refiDebtBalTotal)
    : refiCurrentRate;
   // A HELOC in its draw period bills interest only; a closed-end second
   // amortizes, but we don't ask its term, so interest-only is the floor.
@@ -5370,16 +5409,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // being paid off. This is the "current loan amount" every comparison should
   // print — first alone makes the new-loan delta look like fresh borrowing
   // when it's really consolidation (Christo 2026-08-04).
-  const refiCurTotalDebt = refiEffBalance + refiLienPayoffBalTotal;
-  // "(1st + 2nd + 3rd)" label for every payoff-labeled surface.
-  const refiLienLabel = ["1st", refiSecondPayoffAmt > 0 && "2nd", refiThirdPayoffAmt > 0 && "3rd"].filter(Boolean).join(" + ");
+  // Secured debt only — the honest numerator for current LTV/equity rows.
+  const refiCurSecuredDebt = refiEffBalance + refiLienPayoffBalTotal;
+  // Consumer debts being consolidated join the "what the new loan replaces"
+  // total (they're unsecured, so they stay OUT of refiCurSecuredDebt/LTV).
+  const refiCurTotalDebt = refiCurSecuredDebt + refiDebtBalTotal;
+  // "(1st + 2nd + 3rd + Debts)" label for every payoff-labeled surface.
+  const refiLienLabel = ["1st", refiSecondPayoffAmt > 0 && "2nd", refiThirdPayoffAmt > 0 && "3rd", refiDebtPayoffTotal > 0 && "Debts"].filter(Boolean).join(" + ");
   // Per-lien display array — every surface (table, PDFs, header) maps this
   // instead of hand-rolling second/third pairs.
   const refiLiens = [
    refiSecondBal > 0 && { pos: "2nd", kind: refiSecondKind, bal: refiSecondBal, rate: refiSecondRate || 0, pmt: refiSecondPmt, pmtAuto: refiSecondPmtAuto, plan: refiSecondPlan, payoffAmt: refiSecondPayoffAmt, payoffInterest: refiSecondPayoff.interest, payoffDays: refiSecondPayoff.days, pmtSaved: refiSecondPmtSaved },
    refiThirdBal > 0 && { pos: "3rd", kind: refiThirdKind, bal: refiThirdBal, rate: refiThirdRate || 0, pmt: refiThirdPmt, pmtAuto: refiThirdPmtAuto, plan: refiThirdPlan, payoffAmt: refiThirdPayoffAmt, payoffInterest: refiThirdPayoff.interest, payoffDays: refiThirdPayoff.days, pmtSaved: refiThirdPmtSaved },
   ].filter(Boolean);
-  const refiAutoLoanAmt = (refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut) : refiPayoffAmount) + refiSecondPayoffAmt + refiThirdPayoffAmt;
+  // Cash-out builds the loan as payoff + consolidated debts + cash in hand —
+  // refiCashOut stays "extra cash beyond the debt payoffs".
+  const refiAutoLoanAmt = (refiPurpose === "Cash-Out" ? (refiPayoffAmount + refiCashOut + refiDebtPayoffTotal) : refiPayoffAmount) + refiSecondPayoffAmt + refiThirdPayoffAmt;
   const refiNewLoanAmt = refiNewLoanAmtOverride > 0 ? refiNewLoanAmtOverride : refiAutoLoanAmt;
   // Which rate sheet this loan prices off. Measures whichever loan actually
   // exists — the new refi loan, or the purchase loan.
@@ -5608,25 +5653,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const refiNewLTV = refiHomeValue > 0 ? refiNewLoanAmt / refiHomeValue : 0;
   // A paid-off second's payment is part of what the borrower stops paying, so
   // it joins the "current" side of every savings comparison (2026-08-04).
-  const refiMonthlySavings = isRefi ? ((refiEffPI + refiLienPmtSaved) - refiNewPi) : 0;
+  const refiMonthlySavings = isRefi ? ((refiEffPI + refiLienPmtSaved + refiDebtPmtSaved) - refiNewPi) : 0;
   // Savings the borrower actually keeps: P&I + MI delta. Taxes, insurance and
   // HOA carry over unchanged on a refi, so they cancel out of the comparison
   // (doc 7.23) — and the number no longer swings with the escrow toggles.
-  const refiPiMiSavings = isRefi ? ((refiEffPI + (Number(refiCurrentMI) || 0) + refiLienPmtSaved) - (refiNewPi + refiNewMI)) : 0;
+  // Consolidated debts' retired payments join the current side, same as
+  // paid-off liens — that's the whole consolidation story.
+  const refiPiMiSavings = isRefi ? ((refiEffPI + (Number(refiCurrentMI) || 0) + refiLienPmtSaved + refiDebtPmtSaved) - (refiNewPi + refiNewMI)) : 0;
   // Bills basis on the current side (see refiCurCmpTotalPmt) so this equals
   // refiPiMiSavings whenever taxes/insurance genuinely carry over unchanged.
-  const refiMonthlyTotalSavings = isRefi ? ((refiCurCmpTotalPmt + refiLienPmtSaved) - refiNewTotalPmt) : 0;
+  const refiMonthlyTotalSavings = isRefi ? ((refiCurCmpTotalPmt + refiLienPmtSaved + refiDebtPmtSaved) - refiNewTotalPmt) : 0;
   const refiIntSavings = refiCurRemainingInt - refiNewTotalInt;
   const refiBreakevenMonths = refiPiMiSavings > 0 ? Math.ceil(totalClosingCosts / refiPiMiSavings) : 0;
   // ── Net Cash Out ──
   const refiNetNewLoan = refiNewLoanAmt;
   const refiNetClosingCosts = totalClosingCosts;
   const refiNetPrepaids = totalPrepaidExp;
-  const refiNetPayoff = refiPayoffAmount + refiSecondPayoffAmt + refiThirdPayoffAmt;
+  const refiNetPayoff = refiPayoffAmount + refiSecondPayoffAmt + refiThirdPayoffAmt + refiDebtPayoffTotal;
   const refiEstCashOut = refiNetNewLoan - refiNetClosingCosts - refiNetPrepaids - refiNetPayoff;
-  // The skipped months skip the WHOLE outlay: when the second is being paid
-  // off at closing, its carry stops too (Christo 2026-08-05).
-  const refiSkipPmtAmt = (refiCurTotalPmt + refiLienPmtSaved) * (refiSkipMonths || 0);
+  // The skipped months skip the WHOLE outlay: when the second (or a
+  // consolidated consumer debt) is being paid off at closing, its carry
+  // stops too (Christo 2026-08-05).
+  const refiSkipPmtAmt = (refiCurTotalPmt + refiLienPmtSaved + refiDebtPmtSaved) * (refiSkipMonths || 0);
   const refiEscrowRefund = refiEscrowBalance || 0;
   const refiNetCashInHand = refiEstCashOut + refiSkipPmtAmt + refiEscrowRefund;
   // ── Cost of Waiting Matrix ──
@@ -5785,6 +5833,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiSecondPayoffAmt, refiSecondPayoffInterest: refiSecondPayoff.interest, refiSecondPayoffDays: refiSecondPayoff.days, refiSecondPmtSaved, refiCurTotalDebt,
    refiThirdBal, refiThirdPmt, refiThirdPmtAuto, refiSecondPmtAuto, refiThirdPayoffAmt, refiThirdPayoffInterest: refiThirdPayoff.interest, refiThirdPayoffDays: refiThirdPayoff.days, refiThirdPmtSaved,
    refiLienPmtSaved, refiLienPmtCur, refiLienPmtNew, refiLienPayoffBalTotal, refiLienLabel, refiLiens,
+   refiPaidDebts, refiDebtPayoffTotal, refiDebtPmtSaved, refiDebtBalTotal, refiCurSecuredDebt,
    refiPmiDropEligible, refiFromStatement, refiUnsure, refiHardFlags,
    refiBalanceSuspect, refiConfidence,
    refiExtraMonthly, refiExtraLump, refiLumpMonth,
@@ -5829,7 +5878,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiSecondLien, refiSecondKind, refiSecondBalance, refiSecondRate, refiSecondPlan, refiSecondPmtOverride,
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
-  refiHasMaturity, refiMaturityDate]);
+  refiHasMaturity, refiMaturityDate, refiPayoffDebts, debtFree]);
 
  // ── Live PDF preview: re-render the actual Refi Summary as numbers settle ──
  // Debounced — @react-pdf renders cost a few hundred ms, so wait for typing
@@ -6428,8 +6477,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     ["Home Value", fmt(refiHomeValue), fmt(refiHomeValue)],
     // With a second being paid off, current LTV/equity count BOTH liens so the
     // columns compare like against like.
-    ["LTV", pct(refiHomeValue > 0 ? calc.refiCurTotalDebt / refiHomeValue : 0, 1), pct(calc.refiNewLTV, 1)],
-    ["Equity", fmt(refiHomeValue - calc.refiCurTotalDebt), fmt(refiHomeValue - calc.refiNewLoanAmt)],
+    // Secured debt only — consolidated credit cards aren't liens, so they
+    // don't belong in the current LTV/equity numerator.
+    ["LTV", pct(refiHomeValue > 0 ? calc.refiCurSecuredDebt / refiHomeValue : 0, 1), pct(calc.refiNewLTV, 1)],
+    ["Equity", fmt(refiHomeValue - calc.refiCurSecuredDebt), fmt(refiHomeValue - calc.refiNewLoanAmt)],
    ].map(([l, c, n], i) => (
     <div key={"ltv" + i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0, padding: "8px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
      <span style={{ color: T.textSecondary }}>{l}</span>
@@ -6498,6 +6549,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ? { nullable: true, override: refiSecondPmtOverride, set: setRefiSecondPmtOverride }
        : { nullable: true, override: refiThirdPmtOverride, set: setRefiThirdPmtOverride },
      })),
+     // Consolidated consumer debts — one aggregate row at the bottom
+     // (Christo 2026-08-25): the payments they're making today vs $0 after
+     // the refi pays them off. THE debt-consolidation line.
+     ...((calc.refiPaidDebts || []).length > 0 ? [{
+      label: "Other Debts",
+      cur: calc.refiDebtPmtSaved,
+      nw: 0,
+      note: `${calc.refiPaidDebts.length} debt${calc.refiPaidDebts.length === 1 ? "" : "s"} paid off at closing`,
+     }] : []),
     ].filter(r => r.cur > 0 || r.nw > 0 || r.note);
     return rows.map((r, i) => {
      const delta = r.nw - r.cur;
@@ -6552,7 +6612,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // total foots against the tax/ins rows printed above it.
     const curTotalAll = (refiShowTaxIns
      ? calc.refiCurCmpTotalPmt
-     : calc.refiEffPI + (Number(refiCurrentMI) || 0)) + (calc.refiLienPmtCur || 0);
+     : calc.refiEffPI + (Number(refiCurrentMI) || 0)) + (calc.refiLienPmtCur || 0) + (calc.refiDebtPmtSaved || 0);
     const newTotalAll = (refiShowTaxIns ? calc.refiNewTotalPmt : calc.refiNewPi + calc.refiNewMI) + (calc.refiLienPmtNew || 0);
     const totalDelta = newTotalAll - curTotalAll;
     return (
@@ -6635,13 +6695,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <MRow label="New Loan Amount" value={fmt(calc.refiNetNewLoan)} color={T.blue} />
    <MRow label="− Closing Costs" value={`-${fmt(calc.refiNetClosingCosts)}`} />
    <MRow label="− Prepaids & Escrow" value={`-${fmt(calc.refiNetPrepaids)}`} />
-   <MRow label={(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0) ? `− Loan Payoffs (${calc.refiLienLabel})` : "− Current Loan Payoff"} value={`-${fmt(calc.refiNetPayoff)}`} sub={(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0) ? [`${fmt(calc.refiPayoffAmount)} first`, calc.refiSecondPayoffAmt > 0 && `${fmt(calc.refiSecondPayoffAmt)} second`, calc.refiThirdPayoffAmt > 0 && `${fmt(calc.refiThirdPayoffAmt)} third`].filter(Boolean).join(" + ") : undefined} />
+   <MRow label={(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? `− Payoffs (${calc.refiLienLabel})` : "− Current Loan Payoff"} value={`-${fmt(calc.refiNetPayoff)}`} sub={(calc.refiSecondPayoffAmt > 0 || calc.refiThirdPayoffAmt > 0 || calc.refiDebtPayoffTotal > 0) ? [`${fmt(calc.refiPayoffAmount)} first`, calc.refiSecondPayoffAmt > 0 && `${fmt(calc.refiSecondPayoffAmt)} second`, calc.refiThirdPayoffAmt > 0 && `${fmt(calc.refiThirdPayoffAmt)} third`, calc.refiDebtPayoffTotal > 0 && `${fmt(calc.refiDebtPayoffTotal)} debts`].filter(Boolean).join(" + ") : undefined} />
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label={calc.refiEstCashOut >= 0 ? "Estimated Cash Out" : "Estimated Cash to Close"} value={calc.refiEstCashOut >= 0 ? fmt(calc.refiEstCashOut) : fmt(Math.abs(calc.refiEstCashOut))} color={calc.refiEstCashOut >= 0 ? T.green : T.red} bold />
    </div>
    {(calc.refiSkipPmtAmt > 0 || calc.refiEscrowRefund > 0) && <>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, letterSpacing: 1, marginTop: 16, marginBottom: 10, textTransform: "uppercase" }}>Money Back in Your Pocket</div>
-    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt + calc.refiLienPmtSaved)}/mo${calc.refiLienPmtSaved > 0 ? " incl. liens" : ""}`} />}
+    {calc.refiSkipPmtAmt > 0 && <MRow label={`Skip ${refiSkipMonths} Payment${refiSkipMonths > 1 ? "s" : ""}`} value={`+${fmt(calc.refiSkipPmtAmt)}`} color={T.green} sub={`${refiSkipMonths} × ${fmt(calc.refiCurTotalPmt + calc.refiLienPmtSaved + calc.refiDebtPmtSaved)}/mo${calc.refiLienPmtSaved > 0 || calc.refiDebtPmtSaved > 0 ? " incl. paid-off debts" : ""}`} />}
     {calc.refiEscrowRefund > 0 && <MRow label="Current Escrow Balance Refund" value={`+${fmt(calc.refiEscrowRefund)}`} color={T.green} />}
    </>}
    <div style={{ marginTop: 12, padding: "14px 16px", background: calc.refiNetCashInHand >= 0 ? T.successBg : T.errorBg, borderRadius: 14 }}>
@@ -8507,6 +8567,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    refiHomeValue, setRefiHomeValue,
    refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3,
    refiPreviewOpen, setRefiPreviewOpen,
+   refiPayoffDebts, setRefiPayoffDebts,
    /* Live rates */
    liveRates, fetchRates, ratesLoading, ratesError, fredApiKey,
    /* Helper lookups */
@@ -8534,7 +8595,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
  <BottomSheet isOpen={sheetContent === "debts"} onClose={() => setSheetContent(null)} title="Debts & Liabilities" T={T}>
   <DebtsSheet
-   debts={debts} addDebt={(type) => setDebts(prev => [...prev, { id: Date.now(), name: "", type, borrower: "Joint", balance: 0, monthly: 0, rate: 0, months: 0, payoff: "No", payoffAmount: 0, linkedReoId: "" }])}
+   debts={debts} addDebt={calc.addDebt}
    updateDebt={(id, f, v) => setDebts(prev => prev.map(d => d.id === id ? { ...d, [f]: v } : d))}
    removeDebt={(id) => setDebts(prev => prev.filter(d => d.id !== id))}
    debtFree={debtFree} setDebtFree={setDebtFree}
@@ -8554,7 +8615,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </BottomSheet>
 </Suspense>
 {/* ═══ SETUP (Redesigned) ═══ */}
-{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen}} />}
+{tab === "setup" && <SetupContent {...{T, isRefi, setIsRefi, salesPrice, setSalesPrice, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, propType, setPropType, loanPurpose, setLoanPurpose, propertyState, setPropertyState, propertyCounty, setPropertyCounty, city, setCity, propertyZip, setPropertyZip, propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete, annualIns, setAnnualIns, hoa, setHoa, rate, setRate, term, setTerm, creditScore, setCreditScore, married, setMarried, firstTimeBuyer, setFirstTimeBuyer, refiPurpose, setRefiPurpose, taxState, scenarioName, ownsProperties, setOwnsProperties, hasSellProperty, setHasSellProperty, showInvestor, setShowInvestor, showRentVsBuy, setShowRentVsBuy, showProp19, setShowProp19, skillLevel, onToggleSkillLevel: () => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided'), Inp, Sel, SearchSelect, Note, Hero, Card, InfoTip, gameMode, TAB_PROGRESSION, completedTabs, isTabFieldsComplete, markTouched, isPulse, calc, fmt, CITY_NAMES, STATE_NAMES_PROP, STATE_CITIES, SKILL_PRESETS, FILING_STATUSES, showCompareHint, setShowCompareHint, setTab, scenarioList, isDesktop, darkMode, propTaxMode, getTTCitiesForState, getTTForCity, COUNTY_AMI, lookupZip, Icon, TextInp, FieldLabel, Sec, GuidedNextButton, refiCurrentLoanType, setRefiCurrentLoanType, refiCurrentRateType, setRefiCurrentRateType, refiArmStartRate, setRefiArmStartRate, refiArmAdjustedDate, setRefiArmAdjustedDate, refiLastPaymentDate, setRefiLastPaymentDate, refiClosingPmtOverride, setRefiClosingPmtOverride, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, refiOriginalAmount, setRefiOriginalAmount, refiOriginalTerm, setRefiOriginalTerm, refiCurrentRate, setRefiCurrentRate, refiClosedDate, setRefiClosedDate, refiCurrentBalance, setRefiCurrentBalance, refiRemainingMonths, setRefiRemainingMonths, refiCurrentPayment, setRefiCurrentPayment, refiCurPrinOverride, setRefiCurPrinOverride, refiCurIntOverride, setRefiCurIntOverride, refiHasStatement, setRefiHasStatement, refiEscrowMode, setRefiEscrowMode, refiEscrowCombined, setRefiEscrowCombined, refiEscrowCombinedPeriod, setRefiEscrowCombinedPeriod, refiSecondLien, setRefiSecondLien, refiSecondKind, setRefiSecondKind, refiSecondBalance, setRefiSecondBalance, refiSecondRate, setRefiSecondRate, refiSecondPlan, setRefiSecondPlan, refiSecondPmtOverride, setRefiSecondPmtOverride, refiThirdLien, setRefiThirdLien, refiThirdKind, setRefiThirdKind, refiThirdBalance, setRefiThirdBalance, refiThirdRate, setRefiThirdRate, refiThirdPlan, setRefiThirdPlan, refiThirdPmtOverride, setRefiThirdPmtOverride, refiModified, setRefiModified, refiPrepayPenalty, setRefiPrepayPenalty, refiExtraCadence, setRefiExtraCadence, refiExtraOnceDate, setRefiExtraOnceDate, refiEscrowUnsure, setRefiEscrowUnsure, refiHasMaturity, setRefiHasMaturity, refiMaturityDate, setRefiMaturityDate, refiAnnualTax, setRefiAnnualTax, refiAnnualIns, setRefiAnnualIns, insEffectiveDate, setInsEffectiveDate: setInsEffectiveDateManual, refiCurrentEscrow, setRefiCurrentEscrow, refiCurEscrowTax, setRefiCurEscrowTax, refiCurEscrowIns, setRefiCurEscrowIns, refiEscrowBalance, setRefiEscrowBalance, refiSkipMonths, setRefiSkipMonths, refiCurrentMI, setRefiCurrentMI, refiCashOut, setRefiCashOut, refiExtraPaid, setRefiExtraPaid, refiHomeValue, setRefiHomeValue, refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3, ClusterContinue, refiPreviewOpen, setRefiPreviewOpen, refiPayoffDebts, setRefiPayoffDebts, debts, debtFree}} />}
 {/* ═══ REFI SUMMARY ═══ */}
 {tab === "refi" && renderRefiSummarySection()}
 {/* ═══ 3-POINT REFI TEST ═══ */}
