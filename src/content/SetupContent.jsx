@@ -1005,6 +1005,13 @@ export default function SetupContent(props) {
        no: () => { setRefiEscrowUnsure(""); setRefiEscrowMode("split"); setRefiEscrowCombined(0); setRefiCurEscrowTax(false); setRefiCurEscrowIns(false); } },
      { t: "Any second mortgage or HELOC?", sub: "A second lien changes the payoff, the blended rate, and the CLTV.",
        v: refiSecondLien, yes: () => setRefiSecondLien(true), no: () => setRefiSecondLien(false) },
+     // Cash-out only — consolidation is half the reason cash-outs happen
+     // (Christo 2026-08-25). A Yes unlocks the debt list further down the
+     // walk, next to the Cash Out Amount.
+     ...(refiPurpose === "Cash-Out" ? [
+      { t: "Paying off any other non-mortgage debt?", sub: "Credit cards, student loans, autos — their balances roll into the new loan and the retired payments join the savings.",
+        v: refiPayoffDebts, yes: () => setRefiPayoffDebts(true), no: () => setRefiPayoffDebts(false) },
+     ] : []),
      { t: "Does the statement include a maturity date?", sub: "If printed we use it as-is; if not, we work backwards from the original note below.",
        v: refiHasMaturity === "" ? null : refiHasMaturity === "yes",
        yes: () => setRefiHasMaturity("yes"), no: () => setRefiHasMaturity("no") },
@@ -1610,10 +1617,14 @@ export default function SetupContent(props) {
        flag. Marked debts roll their payoff into the new loan and their
        retired payment onto the current side of every savings comparison. */}
    {refiPurpose === "Cash-Out" && (<>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
-     <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Paying off any other non-mortgage debt?</span>
-     <YesNoSeg T={T} value={refiPayoffDebts} onYes={() => setRefiPayoffDebts(true)} onNo={() => setRefiPayoffDebts(false)} />
-    </div>
+    {/* Statement flow asks this up in the question cluster; the walk keeps
+        the row only when there's no cluster to carry it. */}
+    {!calc.refiFromStatement && (
+     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "8px 0" }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>Paying off any other non-mortgage debt?</span>
+      <YesNoSeg T={T} value={refiPayoffDebts} onYes={() => setRefiPayoffDebts(true)} onNo={() => setRefiPayoffDebts(false)} />
+     </div>
+    )}
     {refiPayoffDebts === true && (() => {
      const consumerDebts = (debts || []).filter(d => d.type !== "Mortgage" && d.type !== "HELOC");
      const CONSUMER_TYPES = ["Revolving", "Student Loan", "Auto Loan", "Auto Lease", "Installment", "Collection", "Other"];
