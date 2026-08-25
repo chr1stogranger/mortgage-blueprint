@@ -4,7 +4,9 @@ import { enrichPoolRow } from './_enrich.js';
 // Raise the function budget: this cron now resolves predictions AND runs the
 // nightly Free Play photo backfill (folded in here to stay under the Hobby plan's
 // 12-serverless-function limit — a standalone cron-enrich would be a 13th function).
-export const config = { maxDuration: 60 };
+// 300s (Pro tier) — 60s died with ~85 unresolved predictions at one sequential
+// RapidAPI fetch per zpid.
+export const config = { maxDuration: 300 };
 
 // CORS configuration
 const ALLOWED_ORIGINS = [
@@ -127,17 +129,21 @@ async function fetchPropertyDetails(zpid) {
     throw new Error('RAPIDAPI_KEY missing');
   }
 
+  // /property-details is the path this host actually serves (same one
+  // propertydetails.js and _enrich.js use). The original /property?zpid=
+  // 404'd on every call, so no prediction ever resolved.
+  const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
   const options = {
     method: 'GET',
     headers: {
       'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-      'X-RapidAPI-Host': 'real-time-real-estate-data.p.rapidapi.com',
+      'X-RapidAPI-Host': apiHost,
     },
   };
 
   try {
     const response = await fetch(
-      `https://real-time-real-estate-data.p.rapidapi.com/property?zpid=${zpid}`,
+      `https://${apiHost}/property-details?zpid=${zpid}`,
       options
     );
 
