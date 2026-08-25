@@ -1,9 +1,15 @@
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  test: {
+    // Parallel Claude sessions leave git worktrees under .claude/worktrees/;
+    // their duplicated test files resolve assets from the wrong root and fail.
+    exclude: [...configDefaults.exclude, '**/.claude/**'],
+  },
   build: {
     // ── Performance: code splitting + minification ──
     target: 'es2020',
