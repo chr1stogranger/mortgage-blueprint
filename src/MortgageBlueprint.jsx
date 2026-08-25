@@ -1916,7 +1916,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [refiSecondKind, setRefiSecondKind] = useState("heloc");   // heloc | closed
  const [refiSecondBalance, setRefiSecondBalance] = useState(0);
  const [refiSecondRate, setRefiSecondRate] = useState(0);
- const [refiSecondPlan, setRefiSecondPlan] = useState("sub");     // sub | payoff
+ // Default "payoff", matching the third lien: a refi that leaves a junior
+ // lien subordinated is the exception, not the rule (Christo 2026-08-25).
+ const [refiSecondPlan, setRefiSecondPlan] = useState("payoff");  // sub | payoff
  // Payment overrides: null = auto (interest-only floor); any number — INCLUDING
  // 0 — is the lien's real payment. 0 is common, not an edge case: deferred DPA
  // seconds/thirds carry no monthly payment at all (Christo 2026-08-07).
@@ -2311,7 +2313,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.refiSecondKind !== undefined) setRefiSecondKind(s.refiSecondKind);
   if (s.refiSecondBalance !== undefined) setRefiSecondBalance(s.refiSecondBalance);
   if (s.refiSecondRate !== undefined) setRefiSecondRate(s.refiSecondRate);
-  if (s.refiSecondPlan !== undefined) setRefiSecondPlan(s.refiSecondPlan);
+  // Explicit default (like the third lien below): a save without the key
+  // must not inherit the previous scenario's plan.
+  setRefiSecondPlan(s.refiSecondPlan !== undefined ? s.refiSecondPlan : "payoff");
   // New lien fields default explicitly instead of following the `!== undefined`
   // pattern above: a scenario saved before 2026-08-07 has none of them, and
   // keeping the PREVIOUS scenario's third lien alive would invent debt.
