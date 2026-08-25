@@ -190,9 +190,9 @@ async function processBatch(zpids, supabase) {
       const soldDate = soldEvent.soldDate;
 
       // Get all unresolved predictions for this zpid
-      const { data: predictions, error: selectError } = await supabase
+      const { data: allPredictions, error: selectError } = await supabase
         .from('pp_predictions')
-        .select('id, player_id, predicted_price, list_price, address')
+        .select('id, player_id, predicted_price, list_price, address, predicted_at')
         .eq('zpid', zpid)
         .eq('resolved', false);
 
@@ -201,7 +201,19 @@ async function processBatch(zpids, supabase) {
         continue;
       }
 
-      if (!predictions || predictions.length === 0) {
+      // Only score predictions made ON OR BEFORE the sold date — an active
+      // listing's priceHistory still carries its PREVIOUS sale, and scoring
+      // against that resolves a call the moment it's made (found 2026-08-25:
+      // a fresh call on an active $945k listing "resolved" against the home's
+      // 2021 $780k sale). A prediction that postdates the newest Sold event
+      // is waiting on the NEXT close — leave it unresolved.
+      const soldDay = String(soldDate).slice(0, 10);
+      const predictions = (allPredictions || []).filter((p) => {
+        if (!p.predicted_at) return true; // legacy rows: no timestamp to gate on
+        return new Date(p.predicted_at).toISOString().slice(0, 10) <= soldDay;
+      });
+
+      if (predictions.length === 0) {
         continue;
       }
 
@@ -418,6 +430,62 @@ export default async function handler(req, res) {
       return res.status(200).json({ mode: 'check', ok: errors.length === 0, unresolved, tables, errors, timestamp: new Date().toISOString() });
     }
 
+    // ── Repair pass (?repair=1) ──
+    // Un-resolves predictions that were scored against a sale PREDATING the
+    // prediction (the active-listing/previous-sale bug above), and deletes
+    // their wrong notifications before delivery picks them up (queue rows
+    // cascade off the notification). Scans resolutions from the last 48h.
+    if (String(req.query.repair) === '1') {
+      const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+      const { data: recent, error: repErr } = await supabase
+        .from('pp_predictions')
+        .select('id, player_id, zpid, predicted_at, sold_price')
+        .eq('resolved', true)
+        .gte('resolved_at', cutoff);
+      if (repErr) return res.status(500).json({ error: repErr.message });
+
+      const byZpid = {};
+      for (const p of (recent || [])) (byZpid[p.zpid] = byZpid[p.zpid] || []).push(p);
+
+      let unresolvedAgain = 0, kept = 0, notifsDeleted = 0;
+      const reverted = [];
+      for (const [zpid, preds] of Object.entries(byZpid)) {
+        const propertyData = await fetchPropertyDetails(zpid);
+        const soldEvent = propertyData ? extractSoldEvent(propertyData.priceHistory) : null;
+        const soldDay = soldEvent ? String(soldEvent.soldDate).slice(0, 10) : null;
+        for (const p of preds) {
+          const predDay = p.predicted_at ? new Date(p.predicted_at).toISOString().slice(0, 10) : null;
+          // Valid only when a Sold event exists on/after the prediction date.
+          // No predicted_at (legacy) → keep; refetch failure → keep (do not
+          // destroy resolutions on a flaky fetch).
+          const valid = !predDay || (propertyData && soldDay && predDay <= soldDay);
+          if (valid) { kept++; continue; }
+
+          const { error: unErr } = await supabase
+            .from('pp_predictions')
+            .update({ resolved: false, sold_price: null, pct_off: null, resolved_at: null })
+            .eq('id', p.id);
+          if (unErr) { console.error(`[CronResolve] repair un-resolve failed for ${p.id}: ${unErr.message}`); continue; }
+          unresolvedAgain++;
+          reverted.push({ zpid, predictionId: p.id, wrongSoldPrice: p.sold_price });
+
+          const { data: badNotifs } = await supabase
+            .from('pp_notifications')
+            .select('id')
+            .eq('player_id', p.player_id)
+            .eq('type', 'prediction_resolved')
+            .gte('created_at', cutoff)
+            .filter('payload->>zpid', 'eq', String(zpid));
+          for (const n of (badNotifs || [])) {
+            const { error: delErr } = await supabase.from('pp_notifications').delete().eq('id', n.id);
+            if (!delErr) notifsDeleted++;
+          }
+        }
+      }
+      console.error(`[CronResolve] repair: kept=${kept} unresolvedAgain=${unresolvedAgain} notifsDeleted=${notifsDeleted}`);
+      return res.status(200).json({ mode: 'repair', kept, unresolvedAgain, notifsDeleted, reverted, timestamp: new Date().toISOString() });
+    }
+
     // Get distinct zpids with unresolved predictions
     const { data: predictions, error: selectError } = await supabase
       .from('pp_predictions')
@@ -490,9 +558,9 @@ export default async function handler(req, res) {
     let deliver = null;
     if (allResults.queued > 0) {
       try {
-        const host = process.env.VERCEL_URL || 'blueprint.realstack.app';
-        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
-        const r = await fetch(`${baseUrl}/api/cron-deliver`, {
+        // Canonical domain, NOT VERCEL_URL — the per-deployment URL sits
+        // behind Vercel deployment protection, which eats the call.
+        const r = await fetch(`https://blueprint.realstack.app/api/cron-deliver`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${cronSecret}` },
         });
