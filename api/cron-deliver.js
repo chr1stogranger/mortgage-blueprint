@@ -9,6 +9,7 @@
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER — Twilio (SMS)
 
 import { createClient } from '@supabase/supabase-js';
+import webpush from 'web-push';
 
 const ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",
@@ -56,14 +57,52 @@ function buildEmailHtml(notification) {
 </div></body></html>`;
 }
 
-// ── Push via FCM legacy HTTP API ──
+// ── Push: web (VAPID web-push) + native (FCM legacy HTTP API) ──
+// Web tokens are JSON.stringify'd PushSubscription objects registered by
+// src/lib/pushNotifications.js; the payload shape matches public/push-sw.js.
+// Returns deadTokens (gone subscriptions, HTTP 404/410) for the caller to prune.
+function vapidConfigured() {
+  return !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+}
+
 async function deliverPush(notification, deviceTokens) {
+  if (!deviceTokens || deviceTokens.length === 0) return { sent: 0, failed: 0, deadTokens: [], error: "No device tokens" };
+
   const fcmKey = process.env.FCM_SERVER_KEY;
-  if (!fcmKey) return { sent: 0, failed: 0, error: "FCM_SERVER_KEY not configured" };
-  if (!deviceTokens || deviceTokens.length === 0) return { sent: 0, failed: 0, error: "No device tokens" };
+  if (vapidConfigured()) {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT || "mailto:blueprint@realstack.app",
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+  }
 
   let sent = 0, failed = 0;
+  const deadTokens = [];
+  let lastError = null;
+
   for (const dt of deviceTokens) {
+    if (dt.platform === "web") {
+      if (!vapidConfigured()) { failed++; lastError = "VAPID keys not configured"; continue; }
+      try {
+        const subscription = JSON.parse(dt.token);
+        await webpush.sendNotification(subscription, JSON.stringify({
+          title: notification.title,
+          body: notification.body,
+          data: { type: notification.type, url: "/?v=pricepoint", payload: notification.payload || {} },
+        }));
+        sent++;
+      } catch (e) {
+        failed++;
+        // 404/410 = the browser dropped the subscription — prune the row.
+        if (e.statusCode === 404 || e.statusCode === 410) deadTokens.push(dt);
+        else lastError = `web-push ${e.statusCode || e.message}`;
+      }
+      continue;
+    }
+
+    // Native ios/android tokens go through FCM.
+    if (!fcmKey) { failed++; lastError = "FCM_SERVER_KEY not configured"; continue; }
     try {
       const resp = await fetch("https://fcm.googleapis.com/fcm/send", {
         method: "POST",
@@ -74,10 +113,10 @@ async function deliverPush(notification, deviceTokens) {
           data: { type: notification.type, payload: JSON.stringify(notification.payload || {}) },
         }),
       });
-      if (resp.ok) sent++; else failed++;
-    } catch { failed++; }
+      if (resp.ok) sent++; else { failed++; lastError = `FCM ${resp.status}`; }
+    } catch (e) { failed++; lastError = e.message; }
   }
-  return { sent, failed, error: failed > 0 ? "Partial FCM failures" : null };
+  return { sent, failed, deadTokens, error: sent === 0 ? (lastError || "No deliverable tokens") : null };
 }
 
 // ── Email via Resend API ──
@@ -214,6 +253,10 @@ export default async function handler(req, res) {
         if (result.sent > 0) stats.push += result.sent;
         if (result.error) deliveryError = result.error;
         if (result.sent === 0) failCount++;
+        // Prune subscriptions the browser has dropped (web-push 404/410).
+        for (const dead of (result.deadTokens || [])) {
+          await supabase.from("pp_device_tokens").delete().eq("player_id", player.id).eq("token", dead.token);
+        }
       } else if (item.channel === "email") {
         const result = await deliverEmail(notif, player.email);
         if (result.success) stats.email++;

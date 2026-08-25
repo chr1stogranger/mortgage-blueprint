@@ -72,6 +72,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Web-push handlers live in public/push-sw.js — generateSW can't emit
+        // them itself, so they're imported into the generated worker.
+        importScripts: ['push-sw.js'],
         // Cache JS, CSS, and assets — but NOT index.html
         // index.html must always be fetched fresh from the server so that
         // security headers (CSP, HSTS, etc.) are never served from stale cache

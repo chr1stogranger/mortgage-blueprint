@@ -15,6 +15,7 @@ import {
   getServerH2H, saveServerH2H,
 } from './lib/pricePointDB';
 import { onAuthStateChange } from './lib/supabaseClient';
+import { pushSupported, enablePush, disablePush } from './lib/pushNotifications';
 
 // ── Map view (A4) — lazy-loaded so mapbox-gl (~1.5 MB) ships in its own
 // chunk, fetched only the first time a player opens the List | Map toggle.
@@ -1495,6 +1496,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
   const [notifEmailInput, setNotifEmailInput] = useState('');
   const [notifPhoneInput, setNotifPhoneInput] = useState('');
+  // Payoff-loop capture card (live/H2H reveals): email input + save state.
+  const [captureEmail, setCaptureEmail] = useState('');
+  const [captureState, setCaptureState] = useState('idle'); // idle | saving | saved | denied
   // ── Admin: "Run resolve now" (hidden from normal users) ──
   // Sticky per-browser: visit .../pricepoint?admin=1 once and the admin tools
   // stay visible on this device. Regular visitors never set the flag.
@@ -1638,6 +1642,65 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  // ── Payoff-loop capture ──
+  // A live call's payoff arrives AFTER the player leaves — when the home
+  // closes. Link-invited friends default to every channel off, so "we'll tell
+  // you who won" is only true if they happen to come back. Shown on the
+  // live/H2H reveals and the pending-sale board until a channel is on.
+  const renderNotifyCapture = () => {
+    if (!playerId) return null;
+    if (captureState === 'saved') return (
+      <div style={{ padding: "12px 14px", background: `${T.green}12`, border: `1px solid ${T.green}30`, borderRadius: 14, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <Icon name="bell" size={14} style={{ color: T.green, flexShrink: 0 }} />
+        <div style={{ fontSize: 12, color: T.text, fontFamily: FONT }}>You're set — we'll ping you the moment it closes.</div>
+      </div>
+    );
+    if (notifPrefs.push_enabled || notifPrefs.email_enabled || notifPrefs.sms_enabled) return null;
+    const saveEmail = async () => {
+      const em = captureEmail.trim();
+      if (!em || !em.includes('@') || captureState === 'saving') return;
+      setCaptureState('saving');
+      const r = await updateNotificationPreferences(playerId, { email_enabled: true, email: em });
+      if (r) {
+        setNotifPrefs(p => ({ ...p, email_enabled: true, email: em }));
+        setNotifEmailInput(em);
+        setCaptureState('saved');
+      } else setCaptureState('idle');
+    };
+    return (
+      <div style={{ padding: 14, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 14, marginBottom: 14, textAlign: "left" }}>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>Get the result</div>
+        <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.45, marginBottom: 10 }}>
+          {captureState === 'denied'
+            ? "Notifications are blocked for this site — leave an email instead and we'll send the result."
+            : "This settles when the sale closes. We'll tell you how your call did."}
+        </div>
+        {pushSupported() && captureState !== 'denied' && (
+          <button onClick={async () => {
+            const r = await enablePush(playerId);
+            if (r.ok) { setNotifPrefs(p => ({ ...p, push_enabled: true })); setCaptureState('saved'); }
+            else if (r.reason === 'denied') setCaptureState('denied');
+          }} style={{ width: "100%", padding: 11, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            <Icon name="bell" size={14} /> Notify me when it sells
+          </button>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="email" placeholder="your@email.com" value={captureEmail}
+            onChange={e => setCaptureEmail(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') saveEmail(); }}
+            onFocus={e => e.target.style.borderColor = T.accent}
+            onBlur={e => e.target.style.borderColor = T.cardBorder}
+            style={{ flex: 1, minWidth: 0, padding: "10px 14px", fontSize: 13, fontFamily: FONT, background: T.card, color: T.text, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, outline: "none" }}
+          />
+          <button onClick={saveEmail} disabled={captureState === 'saving'} style={{ padding: "10px 18px", borderRadius: 9999, border: `1px solid ${T.accent}55`, background: `${T.accent}18`, color: T.accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}>
+            {captureState === 'saving' ? "Saving…" : "Email me"}
+          </button>
+        </div>
       </div>
     );
   };
@@ -3195,6 +3258,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return () => clearInterval(interval);
   }, [playerId]);
 
+  // Load notification prefs up front (not just when Settings opens) — the
+  // reveal-screen capture card needs to know whether a channel is already on.
+  useEffect(() => {
+    if (!playerId) return;
+    getNotificationPreferences(playerId).then(prefs => {
+      if (prefs) {
+        setNotifPrefs(prefs);
+        setNotifEmailInput(prefs.email || '');
+        setNotifPhoneInput(prefs.phone || '');
+      }
+    });
+  }, [playerId]);
+
   // ── Head-to-Head: pull the account record and reconcile with this device ──
   // The side with more decided games wins (so the count only grows); local
   // pending For Sale challenges are kept (they're device-local until settled).
@@ -4615,6 +4691,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                       : "You're the first call on this one. Send it to friends — closest to the sold price wins. We'll notify you when it closes."}
                   </div>
                 </div>
+                {renderNotifyCapture()}
                 <button onClick={() => shareLiveChallenge(livePrediction, liveListings[liveIdx])} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
                   <Icon name="send" size={16} /> Challenge a Friend
                 </button>
@@ -4827,6 +4904,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     This call was made before group scoreboards — the field can't be looked up for it.
                   </div>
                 )}
+              {!boardProp.resolved && renderNotifyCapture()}
               {!boardProp.resolved && (
                 <button onClick={() => shareLiveChallenge(boardProp, boardProp)} style={{ width: "100%", padding: 13, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   <Icon name="send" size={15} /> Challenge more friends
@@ -4877,6 +4955,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
                   {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells — and anyone else with the link can still jump in.
                 </div>
+                {renderNotifyCapture()}
                 {(h2h.wins + h2h.losses + h2h.ties) > 0 && (
                   <div style={{ textAlign: "center", fontSize: 12, fontFamily: FONT, color: T.textTertiary, marginBottom: 14 }}>
                     Your record: <b><span style={{ color: T.green }}>{h2h.wins}</span><span style={{ color: T.textTertiary }}>–</span><span style={{ color: T.red }}>{h2h.losses}</span></b>{h2h.ties > 0 ? ` · ${h2h.ties} tie${h2h.ties === 1 ? "" : "s"}` : ""}
@@ -5507,15 +5586,39 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             )}
 
-            {/* Toggle: Push (future — when app is installed) */}
+            {/* Toggle: Push (web push — iOS Safari needs the installed PWA) */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: T.textTertiary, fontFamily: FONT }}>Push Notifications</div>
-                <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>Coming with the app</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: pushSupported() ? T.text : T.textTertiary, fontFamily: FONT }}>Push Notifications</div>
+                {!pushSupported() && (
+                  <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>On iPhone: add Blueprint to your Home Screen first</div>
+                )}
               </div>
-              <div style={{
-                width: 44, height: 24, borderRadius: 12, background: T.inputBg, opacity: 0.5,
-              }} />
+              {pushSupported() ? (
+                <button onClick={async () => {
+                  if (notifPrefs.push_enabled) {
+                    setNotifPrefs(p => ({ ...p, push_enabled: false }));
+                    await disablePush(playerId);
+                    await updateNotificationPreferences(playerId, { push_enabled: false });
+                  } else {
+                    const r = await enablePush(playerId); // registers token; server flips push_enabled
+                    if (r.ok) setNotifPrefs(p => ({ ...p, push_enabled: true }));
+                  }
+                }} style={{
+                  width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                  background: notifPrefs.push_enabled ? (T.green || "#12a150") : T.inputBg,
+                  position: "relative", transition: "background 0.2s",
+                }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 9, background: "#fff",
+                    position: "absolute", top: 3,
+                    left: notifPrefs.push_enabled ? 23 : 3,
+                    transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  }} />
+                </button>
+              ) : (
+                <div style={{ width: 44, height: 24, borderRadius: 12, background: T.inputBg, opacity: 0.5 }} />
+              )}
             </div>
 
             <button onClick={() => setShowNotifSettings(false)} style={{

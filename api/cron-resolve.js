@@ -271,7 +271,11 @@ async function processBatch(zpids, supabase) {
         continue;
       }
 
-      // For each notification, create queue entries per enabled channel
+      // For each notification, create queue entries per enabled channel.
+      // No 'in_app' rows: migration 010's channel CHECK only allows
+      // push/email/sms, and an in_app row would poison the whole batched
+      // insert — in-app delivery is just the pp_notifications row itself,
+      // which the client polls directly.
       const queueEntries = [];
 
       for (const notif of notifications) {
@@ -287,56 +291,38 @@ async function processBatch(zpids, supabase) {
           continue;
         }
 
-        // Always add in-app notification
-        queueEntries.push({
-          notification_id: notif.id,
-          player_id: notif.player_id,
-          channel: 'in_app',
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-        });
-
-        // Add push notification if enabled
-        if (playerPrefs?.push_enabled) {
-          queueEntries.push({
-            notification_id: notif.id,
-            player_id: notif.player_id,
-            channel: 'push',
-            status: 'pending',
-          });
-        }
-
-        // Add email notification if enabled
-        if (playerPrefs?.email_enabled) {
-          queueEntries.push({
-            notification_id: notif.id,
-            player_id: notif.player_id,
-            channel: 'email',
-            status: 'pending',
-          });
-        }
-
-        // Add SMS notification if enabled
-        if (playerPrefs?.sms_enabled) {
-          queueEntries.push({
-            notification_id: notif.id,
-            player_id: notif.player_id,
-            channel: 'sms',
-            status: 'pending',
-          });
+        for (const channel of ['push', 'email', 'sms']) {
+          if (playerPrefs?.[`${channel}_enabled`]) {
+            queueEntries.push({
+              notification_id: notif.id,
+              player_id: notif.player_id,
+              channel,
+              status: 'pending',
+            });
+          }
         }
       }
 
-      // Insert all queue entries in batch
+      // Insert all queue entries in batch. The live table may still be on
+      // migration 010, which has no player_id column — strip and retry on
+      // PGRST204 rather than losing the queue rows (cron-deliver resolves the
+      // player via notification_id anyway).
       if (queueEntries.length > 0) {
-        const { error: queueError } = await supabase
+        let { error: queueError } = await supabase
           .from('pp_notification_queue')
           .insert(queueEntries);
+
+        if (queueError && queueError.code === 'PGRST204') {
+          ({ error: queueError } = await supabase
+            .from('pp_notification_queue')
+            .insert(queueEntries.map(({ player_id, ...rest }) => rest)));
+        }
 
         if (queueError) {
           results.errors.push(`Failed to insert queue entries for zpid ${zpid}: ${queueError.message}`);
           continue;
         }
+        results.queued = (results.queued || 0) + queueEntries.length;
       }
 
       results.resolved += 1;
@@ -470,6 +456,7 @@ export default async function handler(req, res) {
     const allResults = {
       resolved: 0,
       checked: 0,
+      queued: 0,
       errors: [],
       resolvedPredictions: [],
     };
@@ -485,8 +472,28 @@ export default async function handler(req, res) {
         const batchResults = await processBatch(chunk, supabase);
 
         allResults.resolved += batchResults.resolved;
+        allResults.queued += batchResults.queued || 0;
         allResults.errors.push(...batchResults.errors);
         allResults.resolvedPredictions.push(...batchResults.resolvedPredictions);
+      }
+    }
+
+    // Chain-fire delivery so the payoff notification lands minutes after the
+    // sale resolves instead of at the next 9:00 UTC cron-deliver run. Best
+    // effort — the daily cron still sweeps anything this misses.
+    let deliver = null;
+    if (allResults.queued > 0) {
+      try {
+        const host = process.env.VERCEL_URL || 'blueprint.realstack.app';
+        const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+        const r = await fetch(`${baseUrl}/api/cron-deliver`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${cronSecret}` },
+        });
+        deliver = await r.json();
+        console.error(`[CronResolve] chained deliver: ${JSON.stringify(deliver)}`);
+      } catch (err) {
+        console.error(`[CronResolve] chained deliver failed: ${err.message}`);
       }
     }
 
@@ -510,8 +517,10 @@ export default async function handler(req, res) {
     return res.status(200).json({
       resolved: allResults.resolved,
       checked: allResults.checked,
+      queued: allResults.queued,
       errors: allResults.errors,
       resolvedPredictions: allResults.resolvedPredictions,
+      deliver,
       enrich,
       freshSearch,
       timestamp: new Date().toISOString(),

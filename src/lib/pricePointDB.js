@@ -465,8 +465,39 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
   }
 }
 
-// registerDeviceToken / unregisterDeviceToken removed — push tokens were never
-// wired up (no call sites). Re-add from git history if native push ships.
+/**
+ * Register a push device token (web push subscription JSON, or a native
+ * FCM/APNs token). The server auto-enables push_enabled for the player.
+ */
+export async function registerDeviceToken(playerId, token, platform) {
+  if (!playerId || !token) return false;
+  try {
+    const res = await fetch(apiUrl('/api/notifications?action=register'), {
+      method: 'POST',
+      headers: notifHeaders(true),
+      body: JSON.stringify({ playerId, token, platform }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[PricePointDB] registerDeviceToken error:', err.message);
+    return false;
+  }
+}
+
+export async function unregisterDeviceToken(playerId, token) {
+  if (!playerId || !token) return false;
+  try {
+    const res = await fetch(apiUrl('/api/notifications'), {
+      method: 'DELETE',
+      headers: notifHeaders(true),
+      body: JSON.stringify({ playerId, token }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('[PricePointDB] unregisterDeviceToken error:', err.message);
+    return false;
+  }
+}
 
 /**
  * Get notification preferences for a player.
@@ -474,7 +505,8 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
 export async function getNotificationPreferences(playerId) {
   if (!playerId) return null;
   try {
-    const res = await fetch(apiUrl(`/api/notifications?action=preferences&playerId=${playerId}`));
+    // notifHeaders is required — /api/notifications 403s without x-device-id.
+    const res = await fetch(apiUrl(`/api/notifications?action=preferences&playerId=${playerId}`), { headers: notifHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -491,7 +523,7 @@ export async function updateNotificationPreferences(playerId, prefs) {
   try {
     const res = await fetch(apiUrl('/api/notifications'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: notifHeaders(true),
       body: JSON.stringify({ playerId, ...prefs }),
     });
     if (!res.ok) return null;
