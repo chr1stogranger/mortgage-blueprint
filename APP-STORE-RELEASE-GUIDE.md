@@ -2,8 +2,8 @@
 
 Last updated: 2026-08-25. Reusable every release — just bump the version numbers.
 
-**Current live version:** 1.3 (build 5)
-**This release:** **1.4 (build 6)**  ← use these two numbers in Step 6
+**Current live version:** 1.4 (build 7) — submitted 2026-08-25, MANUAL release: click "Release This Version" after approval
+**Next release:** 1.5 (build 8) — bump both before archiving
 
 > ✅ For the 1.4 release, Phase 1 (npm build + cap sync) is ALREADY DONE, and the
 > version is ALREADY SET to 1.4 / build 6 in the Xcode project. You only need to
