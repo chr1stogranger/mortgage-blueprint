@@ -10,7 +10,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  * indigo #3B6BF5 accent, no emojis.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { signInWithMagicLink, signInWithGoogle, verifyEmailCode } from '../lib/supabaseClient';
 import { exportMyData } from '../lib/cloudScenarios';
 
@@ -39,6 +39,19 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
   const [deleteText, setDeleteText] = useState('');
   const [exportCount, setExportCount] = useState(null);
   const [resetMsg, setResetMsg] = useState('');
+
+  // Close the sheet the moment a sign-in that started here completes (email
+  // code or the Google round-trip) — landing on "My Account" mid-flow feels
+  // like a detour. Opening the sheet while ALREADY signed in stays open.
+  const wasSignedOutRef = useRef(false);
+  useEffect(() => {
+    if (!open) { wasSignedOutRef.current = false; return; }
+    if (!isSignedIn) { wasSignedOutRef.current = true; return; }
+    if (wasSignedOutRef.current) {
+      wasSignedOutRef.current = false;
+      onClose();
+    }
+  }, [open, isSignedIn, onClose]);
 
   if (!open) return null;
 
@@ -96,9 +109,9 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
     setError('');
     try {
       await verifyEmailCode(email, code);
-      // Auth state change flips the sheet to the signed-in view via accountHook.
       setPhase('main');
       setCode('');
+      onClose(); // signed in — dismiss, don't detour through "My Account"
     } catch (e2) {
       setError(e2.message || 'That code didn’t work — check for a newer email');
     }
