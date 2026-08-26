@@ -7278,7 +7278,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      width: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 270),
      minWidth: !isDesktop ? 280 : (sidebarCollapsed ? 56 : 270),
      height: "100vh", position: "fixed", top: 0, left: 0,
-     background: darkMode ? "#0d0d0f" : "#FAFAFA",
+     background: darkMode ? "#0d0d0f" : "#FFFFFF",
      borderRight: `1px solid ${T.separator}`,
      boxShadow: !isDesktop ? "0 0 32px rgba(0,0,0,0.35)" : "none",
      display: "flex", flexDirection: "column",
