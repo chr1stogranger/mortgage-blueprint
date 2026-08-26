@@ -2,7 +2,10 @@
   RealStack Blueprint — Supabase Auth "Confirm signup" template
   Paste into: Supabase Dashboard → Authentication → Emails → Templates → Confirm signup
   Subject line to set: Confirm your RealStack Blueprint account
-  Supabase variables used: {{ .ConfirmationURL }}
+  Supabase variables used: {{ .Token }} ONLY — deliberately NO {{ .ConfirmationURL }}.
+  Why: one-time links get pre-fetched (consumed) by email security scanners
+  (Google Workspace link protection), which kills the token AND the code within
+  seconds of delivery. Code-only emails leave nothing to consume. Diagnosed 2026-08-26.
 -->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#050505;margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <tr>
@@ -25,15 +28,21 @@
           <td style="padding:24px 32px 8px;">
             <h1 style="font-size:22px;font-weight:700;color:#EDEDED;letter-spacing:-0.03em;margin:0 0 12px;text-align:center;">Confirm your account</h1>
             <p style="font-size:15px;color:#A1A1A1;line-height:1.6;margin:0 0 28px;text-align:center;">
-              Tap below to confirm your email and unlock cloud sync &mdash; your mortgage blueprints, backed up and available on every device.
+              Enter this code where you signed up to confirm your email and unlock cloud sync &mdash; your mortgage blueprints, backed up and available on every device.
             </p>
           </td>
         </tr>
-        <!-- CTA -->
+        <!-- One-time code — the only credential in this email (no confirm link:
+             scanners pre-click links and burn the token) -->
         <tr>
           <td align="center" style="padding:0 32px 8px;">
-            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#6366F1,#3B82F6);color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;border-radius:9999px;box-shadow:0 4px 16px rgba(99,102,241,0.3);">
-              Confirm &amp; get started
+            <div style="display:inline-block;padding:16px 34px;background:#121212;border:1px solid rgba(255,255,255,0.12);border-radius:14px;font-size:32px;font-weight:700;letter-spacing:8px;color:#EDEDED;">{{ .Token }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px 32px 0;">
+            <a href="https://blueprint.realstack.app" style="display:inline-block;padding:12px 30px;background:linear-gradient(135deg,#6366F1,#3B82F6);color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:9999px;">
+              Open my Blueprint
             </a>
           </td>
         </tr>

@@ -322,7 +322,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             </button>
           </form>
           <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.6 }}>
-            Enter the code from the email, or tap the link in it — either signs you in.
+            Enter the code from the email to finish signing in.
           </div>
           {error && (
             <div style={{
