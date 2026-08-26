@@ -2688,9 +2688,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    try {
     let prefillState = {};
     try { const r = await fetchBorrowerPrefill(borrower.id); if (r?.prefill) prefillState = r.prefill; } catch {}
-    const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: prefillState, calc_summary: {} });
+    // A new blueprint starts from blank defaults + any Ops prefill — never from
+    // whatever scenario happened to be open. Before this, a no-prefill create
+    // skipped loadState entirely, so the previous client's numbers stayed on
+    // screen and the autosave cloned them into the new file (Christo
+    // 2026-08-25: new client opened with Mathias Masem's whole blueprint).
+    const freshState = { ...blankStateRef.current, ...prefillState };
+    // No prefilled rate → leave the key off so the rate lock stays open and
+    // live rates can populate the new file (same rule loadState applies).
+    if (prefillState.rate === undefined) delete freshState.rate;
+    const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: freshState, calc_summary: {} });
     const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
-    if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeClientEntry(borrower)); }
+    if (s?.id) { loadState(freshState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(freshState, null); setBorrowerScenarios([s]); recordRecentBlueprint(makeClientEntry(borrower)); }
    } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
   },
   onImportArive: (prefillQuery) => {
@@ -7742,9 +7751,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       try {
        let prefillState = {};
        try { const r = await fetchBorrowerPrefill(borrower.id); if (r?.prefill) prefillState = r.prefill; } catch {}
-       const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: prefillState, calc_summary: {} });
+       // Blank slate + prefill, same as the main picker's implementation above
+       // — a new blueprint must never inherit the open scenario's numbers.
+       const freshState = { ...blankStateRef.current, ...prefillState };
+       if (prefillState.rate === undefined) delete freshState.rate;
+       const newScenario = await apiCreateScenario({ borrower_id: borrower.id, name: 'Scenario 1', type: 'purchase', state_data: freshState, calc_summary: {} });
        const s = Array.isArray(newScenario) ? newScenario[0] : newScenario;
-       if (s?.id) { if (Object.keys(prefillState).length > 0) loadState(prefillState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(prefillState, null); setBorrowerScenarios([s]); }
+       if (s?.id) { loadState(freshState); setActiveScenarioId(s.id); setScenarioName(s.name || 'Scenario 1'); sync.initSync(freshState, null); setBorrowerScenarios([s]); }
       } catch (err) { console.warn('[Blueprint] Failed to auto-create scenario:', err.message); }
      },
      onCreateNew: (prefillName) => {
