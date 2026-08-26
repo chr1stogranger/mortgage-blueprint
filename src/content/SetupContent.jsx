@@ -12,7 +12,7 @@ import { devCheckProps } from "../lib/devPropCheck.js";
 function YesNoSeg({ T, value, onYes, onNo }) {
   const baseBtn = (active) => ({
     padding: "5px 18px",
-    background: active ? `${T.blue}22` : T.inputBg,
+    background: active ? `${T.blue}22` : T.card,
     border: active ? `2px solid ${T.blue}` : `1px solid ${T.separator}`,
     borderRadius: 8,
     color: active ? T.blue : T.textSecondary,

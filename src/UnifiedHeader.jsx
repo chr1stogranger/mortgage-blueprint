@@ -284,7 +284,7 @@ export default function UnifiedHeader({
       left: isBorrower ? 0 : sidebarW,
       right: 0,
       zIndex: 900,
-      background: darkMode ? "rgba(5,5,5,0.92)" : "rgba(255,255,255,0.97)",
+      background: darkMode ? "rgba(5,5,5,0.92)" : "#FFFFFF",
       backdropFilter: "blur(20px) saturate(180%)",
       WebkitBackdropFilter: "blur(20px) saturate(180%)",
       borderBottom: `1px solid ${T.separator}`,
