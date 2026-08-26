@@ -7955,7 +7955,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
     </div>
     {loEmail && <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 12, padding: "8px 12px", background: T.pillBg, borderRadius: 8 }}>
-     BCC: {loEmail} <span style={{ fontSize: 11 }}>(you\'ll get a copy)</span>
+     BCC: {loEmail} <span style={{ fontSize: 11 }}>(you'll get a copy)</span>
     </div>}
     {!loEmail && <Note color={T.orange}>Add your email in Settings → Team to auto-BCC yourself.</Note>}
     {/* ── Static summary row: Email Summary + Save PDF ── */}
