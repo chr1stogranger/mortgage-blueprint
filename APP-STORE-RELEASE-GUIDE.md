@@ -1,12 +1,12 @@
 # Mortgage Blueprint — App Store Update Guide (Dummy-Proof)
 
-Last updated: 2026-07-14. Reusable every release — just bump the version numbers.
+Last updated: 2026-08-25. Reusable every release — just bump the version numbers.
 
-**Current live version:** 1.2 (build 4)
-**This release:** **1.3 (build 5)**  ← use these two numbers in Step 6
+**Current live version:** 1.3 (build 5)
+**This release:** **1.4 (build 6)**  ← use these two numbers in Step 6
 
-> ✅ For the 1.3 release, Phase 1 (npm build + cap sync) is ALREADY DONE, and the
-> version is ALREADY SET to 1.3 / build 5 in the Xcode project. You only need to
+> ✅ For the 1.4 release, Phase 1 (npm build + cap sync) is ALREADY DONE, and the
+> version is ALREADY SET to 1.4 / build 6 in the Xcode project. You only need to
 > run `npx cap open ios` (Phase 1, last step) and then do Phases 2–4.
 
 > Why a new binary at all? The iOS app ships the web code *bundled inside it*
