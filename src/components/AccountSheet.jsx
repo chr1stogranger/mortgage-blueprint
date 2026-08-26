@@ -11,7 +11,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  */
 
 import { useState } from 'react';
-import { signInWithMagicLink, signInWithGoogle } from '../lib/supabaseClient';
+import { signInWithMagicLink, signInWithGoogle, verifyEmailCode } from '../lib/supabaseClient';
 import { exportMyData } from '../lib/cloudScenarios';
 
 
@@ -31,6 +31,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
   } = accountHook;
 
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [consented, setConsented] = useState(false);
   const [phase, setPhase] = useState('main'); // main | magic-sent | delete-confirm
   const [busy, setBusy] = useState(false);
@@ -84,6 +85,22 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
       setPhase('magic-sent');
     } catch (e2) {
       setError(e2.message || 'Could not send sign-in link');
+    }
+    setBusy(false);
+  }
+
+  async function handleVerifyCode(e) {
+    e.preventDefault();
+    if (code.trim().length < 6 || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await verifyEmailCode(email, code);
+      // Auth state change flips the sheet to the signed-in view via accountHook.
+      setPhase('main');
+      setCode('');
+    } catch (e2) {
+      setError(e2.message || 'That code didn’t work — check for a newer email');
     }
     setBusy(false);
   }
@@ -203,13 +220,41 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <div style={{ fontSize: 16, fontWeight: 700, color: textColor, marginBottom: 8 }}>Check your email</div>
             <div style={{ fontSize: 14, color: secondary, lineHeight: 1.6 }}>
-              We sent a sign-in link to
+              We sent a sign-in code to
             </div>
             <div style={{ fontFamily: FONT, fontSize: 14, color: accent, margin: '8px 0 16px' }}>{email}</div>
-            <div style={{ fontSize: 12, color: tertiary, lineHeight: 1.6 }}>
-              The link brings you right back here, signed in. You can close this window.
+            <form onSubmit={handleVerifyCode}>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+                placeholder="6-digit code"
+                style={{
+                  width: '100%', padding: '12px 16px', boxSizing: 'border-box',
+                  background: inputBg, color: textColor,
+                  border: `1px solid ${T?.separator || 'rgba(255,255,255,0.12)'}`,
+                  borderRadius: 12, fontSize: 18, fontFamily: FONT, outline: 'none',
+                  marginBottom: 10, textAlign: 'center', letterSpacing: '0.35em',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={code.trim().length < 6 || busy}
+                style={pill(
+                  code.trim().length >= 6 && !busy ? 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' : 'rgba(59,107,245,0.2)',
+                  '#fff'
+                )}
+              >
+                {busy ? 'Verifying…' : 'Verify code'}
+              </button>
+            </form>
+            <div style={{ fontSize: 12, color: tertiary, lineHeight: 1.6, marginTop: 14 }}>
+              Enter the 6-digit code from the email, or tap the link in it — either signs you in.
             </div>
-            <button onClick={() => setPhase('main')} style={{ ...pill('transparent', secondary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}` }), marginTop: 20 }}>
+            <button onClick={() => { setPhase('main'); setCode(''); }} style={{ ...pill('transparent', secondary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}` }), marginTop: 16 }}>
               Back
             </button>
           </div>

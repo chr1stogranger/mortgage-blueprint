@@ -14,9 +14,27 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// ── Native (Capacitor) redirect targets ──
+// Inside the native shell window.location.origin is https://localhost, which
+// is useless as an OAuth/email redirect: Supabase's allowlist rejects it and
+// falls back to the Site URL. Native Google OAuth round-trips through the
+// system browser and returns via the deep-link scheme below (registered in
+// ios/App/App/Info.plist CFBundleURLTypes and the Android intent-filter, and
+// it must be allowlisted in Supabase → Auth → URL Configuration). Magic-link
+// emails sent from native redirect to the public web origin as a fallback —
+// the primary native path is the 6-digit code (verifyEmailCode).
+const IS_NATIVE = Capacitor.isNativePlatform();
+const WEB_ORIGIN = 'https://blueprint.realstack.app';
+const NATIVE_AUTH_CALLBACK = 'com.xperthome.mortgageblueprint://auth-callback';
+
+function redirectOrigin() {
+  return IS_NATIVE ? WEB_ORIGIN : window.location.origin;
+}
 
 // ── Device identity header ──
 // Same localStorage key PricePoint's getDeviceId() uses (pricePointDB.js).
@@ -106,7 +124,7 @@ export async function signInWithMagicLink(email, { shareToken = null, name = '' 
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Sync is not configured');
 
-  const redirectTo = new URL(window.location.origin);
+  const redirectTo = new URL(redirectOrigin());
   if (shareToken) redirectTo.searchParams.set('share', shareToken);
 
   const { error } = await supabase.auth.signInWithOtp({
@@ -121,14 +139,51 @@ export async function signInWithMagicLink(email, { shareToken = null, name = '' 
 }
 
 /**
- * Google OAuth sign-in (full redirect flow — works in PWA and Capacitor
- * via the configured redirect URLs).
+ * Complete magic-link sign-in with the 6-digit code from the email instead of
+ * tapping the link. This is the PRIMARY path in the native app (the emailed
+ * link opens Safari/the web app, not the native shell) and works cross-device
+ * everywhere else. Requires the magic-link email template to render {{ .Token }}.
+ */
+export async function verifyEmailCode(email, code) {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Sync is not configured');
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: code.trim(),
+    type: 'email',
+  });
+  if (error) throw new Error(error.message);
+  return data?.session || null;
+}
+
+/**
+ * Google OAuth sign-in.
+ * Web/PWA: full-page redirect flow, unchanged.
+ * Native: Google refuses OAuth inside embedded webviews (403
+ * disallowed_useragent), so the flow opens in the system browser
+ * (SFSafariViewController / Custom Tab) and returns through the deep link
+ * handled by initNativeAuthDeepLinks().
  */
 export async function signInWithGoogle({ shareToken = null } = {}) {
   const supabase = getSupabaseClient();
   if (!supabase) throw new Error('Sync is not configured');
 
-  const redirectTo = new URL(window.location.origin);
+  if (IS_NATIVE) {
+    // shareToken is intentionally not threaded through the deep link — the
+    // native app keeps it in memory and proceeds via onAuthStateChange
+    // without a page reload.
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: NATIVE_AUTH_CALLBACK, skipBrowserRedirect: true },
+    });
+    if (error) throw new Error(error.message);
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: data.url });
+    return;
+  }
+
+  const redirectTo = new URL(redirectOrigin());
   if (shareToken) redirectTo.searchParams.set('share', shareToken);
 
   const { error } = await supabase.auth.signInWithOAuth({
@@ -136,6 +191,39 @@ export async function signInWithGoogle({ shareToken = null } = {}) {
     options: { redirectTo: redirectTo.toString() },
   });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Native-only: catch the OAuth deep-link callback and hydrate the session.
+ * Implicit flow puts the tokens in the URL fragment of the callback URL.
+ * Called once at startup from main.jsx inside the Capacitor-native block.
+ */
+export async function initNativeAuthDeepLinks() {
+  if (!IS_NATIVE) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  const { App } = await import('@capacitor/app');
+  App.addListener('appUrlOpen', async ({ url }) => {
+    if (!url || !url.startsWith(NATIVE_AUTH_CALLBACK)) return;
+
+    // Dismiss the in-app browser sheet (no-op where unsupported).
+    import('@capacitor/browser')
+      .then(({ Browser }) => Browser.close())
+      .catch(() => { /* noop */ });
+
+    const params = new URLSearchParams(url.split('#')[1] || '');
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (error) console.warn('[Auth] Deep-link setSession failed:', error.message);
+    } else {
+      const query = new URLSearchParams(url.split('?')[1]?.split('#')[0] || '');
+      const desc = params.get('error_description') || query.get('error_description');
+      if (desc) console.warn('[Auth] OAuth callback error:', desc);
+    }
+  });
 }
 
 export async function signOut() {

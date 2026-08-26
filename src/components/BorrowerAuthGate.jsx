@@ -21,6 +21,7 @@ import {
   onAuthStateChange,
   signInWithMagicLink,
   signInWithGoogle,
+  verifyEmailCode,
   fetchMyAccount,
 } from '../lib/supabaseClient';
 
@@ -93,6 +94,8 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
   const [borrowerName, setBorrowerName] = useState('');
   const [sending, setSending] = useState(false);
   const [showMagicLink, setShowMagicLink] = useState(false);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const proceedingRef = useRef(false);
 
   // ── Step 1: Splash → Check existing Supabase session ────────────────────
@@ -158,6 +161,21 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
       setError(err.message || 'Could not send magic link');
     }
     setSending(false);
+  }
+
+  // ── Magic Link: verify the emailed 6-digit code (in-app, no redirect) ────
+  async function handleVerifyCode(e) {
+    e.preventDefault();
+    if (code.trim().length < 6 || verifying) return;
+    setVerifying(true);
+    setError('');
+    try {
+      await verifyEmailCode(email, code);
+      // onAuthStateChange fires with the new session and proceeds.
+    } catch (err) {
+      setError(err.message || 'That code didn’t work — check for a newer email');
+    }
+    setVerifying(false);
   }
 
   // ── Load shared data and proceed ─────────────────────────────────────────
@@ -266,16 +284,57 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             Check your email
           </div>
           <div style={{ fontSize: 15, color: T.textSecondary, lineHeight: 1.6, marginBottom: 6 }}>
-            We sent a sign-in link to
+            We sent a sign-in code to
           </div>
           <div style={{ fontSize: 15, fontWeight: 600, color: T.accent, fontFamily: FONT, marginBottom: 20 }}>
             {email}
           </div>
+          <form onSubmit={handleVerifyCode} style={{ marginBottom: 16 }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+              placeholder="6-digit code"
+              autoFocus
+              style={{
+                width: '100%', padding: '13px 16px', boxSizing: 'border-box',
+                background: T.inputBg, color: T.text,
+                border: `1px solid ${T.inputBorder}`, borderRadius: 12,
+                fontSize: 18, fontFamily: FONT, outline: 'none',
+                marginBottom: 10, textAlign: 'center', letterSpacing: '0.35em',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={code.trim().length < 6 || verifying}
+              style={{
+                width: '100%', padding: '13px 20px',
+                background: code.trim().length >= 6 && !verifying ? 'linear-gradient(135deg, #3B6BF5, #2B4FCE)' : 'rgba(59,107,245,0.2)',
+                color: '#fff', border: 'none', borderRadius: 9999,
+                fontSize: 15, fontWeight: 600, cursor: code.trim().length >= 6 && !verifying ? 'pointer' : 'default',
+                fontFamily: FONT,
+              }}
+            >
+              {verifying ? 'Verifying...' : 'Verify code'}
+            </button>
+          </form>
           <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.6 }}>
-            Click the link in your email to access your Blueprint. You can close this tab — the link will bring you right back.
+            Enter the 6-digit code from the email, or tap the link in it — either signs you in.
           </div>
+          {error && (
+            <div style={{
+              marginTop: 14, padding: '10px 14px',
+              background: 'rgba(229,72,77,0.08)', border: '1px solid rgba(229,72,77,0.2)',
+              borderRadius: 10, color: T.red, fontSize: 13, textAlign: 'center',
+            }}>
+              {error}
+            </div>
+          )}
           <button
-            onClick={() => { setPhase('auth'); setError(''); }}
+            onClick={() => { setPhase('auth'); setError(''); setCode(''); }}
             style={{
               marginTop: 28, padding: '10px 20px',
               background: 'none', border: `1px solid ${T.cardBorder}`,

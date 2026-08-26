@@ -103,6 +103,13 @@ if (Capacitor.isNativePlatform()) {
   }).catch(() => {
     // Status bar plugin not available — running on web, ignore
   });
+
+  // Google OAuth round-trips through the system browser and re-enters the
+  // app via the com.xperthome.mortgageblueprint:// deep link — this listener
+  // turns that callback into a Supabase session.
+  import('./lib/supabaseClient.js')
+    .then(({ initNativeAuthDeepLinks }) => initNativeAuthDeepLinks())
+    .catch(() => { /* noop */ });
 }
 
 // ── Offline detection ──
