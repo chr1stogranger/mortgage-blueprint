@@ -705,19 +705,21 @@ function PayRing({ segments, total, size, hideLegend }) {
 function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
  const [name, setName] = useState(initialName || "");
  const [email, setEmail] = useState("");
+ const [phone, setPhone] = useState("");
  const [addToCrm, setAddToCrm] = useState(true);
  const [busy, setBusy] = useState(false);
  const [err, setErr] = useState(null);
  React.useEffect(() => {
-  if (open) { setName(initialName || ""); setEmail(""); setAddToCrm(true); setBusy(false); setErr(null); }
+  if (open) { setName(initialName || ""); setEmail(""); setPhone(""); setAddToCrm(true); setBusy(false); setErr(null); }
  }, [open, initialName]);
  if (!open) return null;
  const emailOk = !email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
- const canCreate = name.trim().length > 0 && emailOk && !busy;
+ const phoneOk = !phone.trim() || phone.replace(/\D/g, "").length >= 10;
+ const canCreate = name.trim().length > 0 && emailOk && phoneOk && !busy;
  const inputStyle = { width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT };
  return (
-  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => !busy && onClose()}>
-   <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 460, width: "100%", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
+  <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => !busy && onClose()}>
+   <div style={{ background: T.card, borderRadius: 20, maxWidth: 460, width: "100%", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
      <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Create New Client</div>
      <button onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
@@ -725,7 +727,9 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
     <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Client Name</label>
     <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Homebuyer" style={{ ...inputStyle, marginBottom: 12 }} />
     <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Email <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional — enables live links & worksheet sends)</span></label>
-    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@email.com" inputMode="email" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 14, borderColor: emailOk ? T.inputBorder : T.red }} />
+    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@email.com" inputMode="email" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 12, borderColor: emailOk ? T.inputBorder : T.red }} />
+    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Phone <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional — lets you text their live link)</span></label>
+    <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(510) 555-0123" inputMode="tel" style={{ ...inputStyle, marginBottom: 14, borderColor: phoneOk ? T.inputBorder : T.red }} />
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 16px", gap: 10 }}>
      <div>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Add to CRM</div>
@@ -739,7 +743,7 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
     <button disabled={!canCreate}
      onClick={async () => {
       setBusy(true); setErr(null);
-      try { await onCreate({ name: name.trim(), email: email.trim(), addToCrm }); onClose(); }
+      try { await onCreate({ name: name.trim(), email: email.trim(), phone: phone.trim(), addToCrm }); onClose(); }
       catch (e) { setErr(e.message || "Could not create client"); setBusy(false); }
      }}
      style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: canCreate ? "linear-gradient(135deg, #3B6BF5, #2B4FCE)" : T.pillBg, color: canCreate ? "#fff" : T.textTertiary, fontWeight: 700, fontSize: 15, cursor: canCreate ? "pointer" : "default", fontFamily: FONT, boxShadow: canCreate ? "0 0 20px rgba(59,107,245,0.3)" : "none" }}>
@@ -1730,6 +1734,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // FRED API key: Set via Settings UI, localStorage, or window.__FRED_API_KEY__ (set in main.jsx from Vite env var)
  const [fredApiKey, setFredApiKey] = useState("");
  const [borrowerEmail, setBorrowerEmail] = useState("");
+ // Share-modal phone (Christo 2026-08-25): feeds the Text Live Link sms: send.
+ // Ephemeral like the live-link banners — re-seeded from the open client's row
+ // every time the share modal opens, so a stale number never follows a client
+ // switch. Not part of getState/loadState.
+ const [borrowerPhone, setBorrowerPhone] = useState("");
  const [showEmailModal, setShowEmailModal] = useState(false);
  const [showWorksheetModal, setShowWorksheetModal] = useState(false); // Fees Worksheet preview → Gmail send (LO)
  const [showBorrowerSend, setShowBorrowerSend] = useState(false); // "Email me this worksheet" (borrower/local via Resend)
@@ -1751,8 +1760,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!showEmailModal) {
    setLiveLinkError(null);
    setLiveLinkToast(null);
+  } else {
+   // Re-seed the phone from the open client on every open — never let a
+   // previous client's number linger into a text send for the next one.
+   setBorrowerPhone(activeBorrower?.phone || "");
   }
- }, [showEmailModal]);
+ }, [showEmailModal]); // eslint-disable-line react-hooks/exhaustive-deps
  const [realtorName, setRealtorName] = useState("");
  const [reos, setReos] = useState([]);
  const [showInvestor, setShowInvestor] = useState(false);
@@ -2891,9 +2904,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
  // Create a client from the Create New sheet: name + optional email +
  // Add-to-CRM tag (source: blueprint-crm — the Homebase sync reads this).
- const handleCreateClient = async ({ name, email, addToCrm }) => {
+ const handleCreateClient = async ({ name, email, phone, addToCrm }) => {
   const payload = { name, status: 'active', source: addToCrm ? 'blueprint-crm' : 'blueprint' };
   if (email) payload.email = email;
+  if (phone) payload.phone = phone;
   const result = await createBorrower(payload);
   const newB = result?.[0] || result;
   if (!newB?.id) throw new Error('Create failed — try again');
@@ -3768,7 +3782,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // calculator state as a scenario tied to that borrower, then either copies
  // the share URL or opens a pre-filled mailto. The borrower's `share_token`
  // is server-minted (DB default) — we never compose tokens client-side.
- // Action: 'copy' | 'email'.
+ // Action: 'copy' | 'email' | 'text'.
+ // 'text' opens Messages via an sms: URI with the share URL pre-filled — the
+ // send itself stays in the LO's hands (no Twilio/A2P infra, no server send).
  const handleSendLiveLink = async (action) => {
   setLiveLinkError(null);
   setLiveLinkToast(null);
@@ -3777,7 +3793,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setLiveLinkError("Sign in to send a live link. The Email Summary, Save PDF, and Copy to Clipboard options below still work.");
    return;
   }
-  if (!borrowerEmail || !borrowerEmail.trim()) {
+  if (action === "text") {
+   // Text needs a phone; it needs an email only when there's no open client
+   // row to hang the scenario on.
+   if (borrowerPhone.replace(/\D/g, "").length < 10) {
+    setLiveLinkError("Add a client phone number to text the link.");
+    return;
+   }
+   if ((!borrowerEmail || !borrowerEmail.trim()) && !activeBorrower?.id) {
+    setLiveLinkError("Add a client email (or open an existing client) so the link has a client record to live on.");
+    return;
+   }
+  } else if (!borrowerEmail || !borrowerEmail.trim()) {
    setLiveLinkError("Add a borrower email before sending a live link.");
    return;
   }
@@ -3788,8 +3815,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // (b) otherwise create — the Ops endpoint dedupes on email server-side
    //     and returns the existing row with `_deduplicated: true`
    let borrower = null;
-   const modalEmail = borrowerEmail.trim().toLowerCase();
+   const modalEmail = (borrowerEmail || "").trim().toLowerCase();
    if (activeBorrower?.email && activeBorrower.email.trim().toLowerCase() === modalEmail) {
+    borrower = activeBorrower;
+   } else if (action === "text" && !modalEmail && activeBorrower?.id) {
+    // Text-only send with the email box blank: the open client is the target.
     borrower = activeBorrower;
    } else {
     const result = await createBorrower({
@@ -3801,6 +3831,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
    if (!borrower?.id) {
     throw new Error("Couldn't resolve a borrower row");
+   }
+   // Texting with a number the row doesn't have yet? Save it so next time
+   // the phone is pre-filled (best-effort — a failure must not block the send).
+   const phoneClean = borrowerPhone.trim();
+   if (action === "text" && phoneClean && phoneClean !== (borrower.phone || "")) {
+    try { await updateBorrower({ id: borrower.id, phone: phoneClean }); borrower = { ...borrower, phone: phoneClean }; } catch { /* non-fatal */ }
    }
    // ── Step 2: Defensive re-fetch to guarantee share_token visibility ─────
    // The dedup endpoint spreads `existing[0]` so it should already include
@@ -3851,6 +3887,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     });
     window.open(mailto, "_self");
     setLiveLinkToast("Email opened in your mail app");
+   } else if (action === "text") {
+    const digits = phoneClean.replace(/[^\d+]/g, "");
+    const firstName = (borrowerName || borrower.name || "").trim().split(/\s+/)[0] || "";
+    const smsBody = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint — it updates as we fine-tune your numbers: ${shareUrl}`;
+    // `?&body=` is the one separator BOTH iOS and Android honor in sms: URIs.
+    window.open(`sms:${digits}?&body=${encodeURIComponent(smsBody)}`, "_self");
+    setLiveLinkToast("Messages opened with the link");
    }
    // ── Step 5: Lift the resolved borrower into session state so the rest
    // of the UI (BorrowerPicker, in-pane Copy Link button) reflects it ─────
@@ -7901,9 +7944,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <input value={borrowerName} onChange={e => setBorrowerName(e.target.value)} placeholder="Client's full name"
       style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
     </div>
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 12 }}>
      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Borrower Email</label>
      <input value={borrowerEmail} onChange={e => setBorrowerEmail(e.target.value)} placeholder="borrower@email.com"
+      style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
+    </div>
+    <div style={{ marginBottom: 16 }}>
+     <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Borrower Phone <span style={{ fontWeight: 400, color: T.textTertiary }}>(for Text Link)</span></label>
+     <input value={borrowerPhone} onChange={e => setBorrowerPhone(e.target.value)} placeholder="(510) 555-0123" inputMode="tel"
       style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT }} />
     </div>
     {loEmail && <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 12, padding: "8px 12px", background: T.pillBg, borderRadius: 8 }}>
@@ -7936,41 +7984,60 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         share URL by email or clipboard. The borrower clicks the link, signs
         in via magic-link, and lands inside Blueprint pre-filled — every
         change they make round-trips back to Ops where the LO can see it. */}
-    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
      <button
       disabled={liveLinkSending || !borrowerEmail || !isCloud}
       onClick={() => handleSendLiveLink('email')}
       style={{
-       flex: 1, padding: 16,
+       flex: 1, padding: "16px 8px",
        background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)',
        border: 'none', borderRadius: 14, color: '#fff',
-       fontWeight: 700, fontSize: 15,
+       fontWeight: 700, fontSize: 14,
        cursor: (liveLinkSending || !borrowerEmail || !isCloud) ? 'not-allowed' : 'pointer',
        fontFamily: FONT,
-       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
        opacity: (liveLinkSending || !borrowerEmail || !isCloud) ? 0.5 : 1,
        boxShadow: (liveLinkSending || !borrowerEmail || !isCloud) ? 'none' : '0 4px 14px rgba(59,107,245,0.3)',
       }}
      >
       <Icon name="mail" size={14} />
-      {liveLinkSending ? 'Sending…' : 'Email Live Link'}
+      {liveLinkSending ? 'Sending…' : 'Email Link'}
+     </button>
+     {/* Text Link: opens Messages with the share URL pre-filled (sms: URI) —
+         the LO reviews and hits send themselves; nothing is sent server-side. */}
+     <button
+      disabled={liveLinkSending || borrowerPhone.replace(/\D/g, "").length < 10 || !isCloud}
+      onClick={() => handleSendLiveLink('text')}
+      style={{
+       flex: 1, padding: "16px 8px",
+       background: `${T.green}12`, border: `1px solid ${T.green}30`,
+       borderRadius: 14, color: T.green,
+       fontWeight: 700, fontSize: 14,
+       cursor: (liveLinkSending || borrowerPhone.replace(/\D/g, "").length < 10 || !isCloud) ? 'not-allowed' : 'pointer',
+       fontFamily: FONT,
+       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+       opacity: (liveLinkSending || borrowerPhone.replace(/\D/g, "").length < 10 || !isCloud) ? 0.5 : 1,
+      }}
+     >
+      <Icon name="phone" size={14} />
+      Text Link
      </button>
      <button
       disabled={liveLinkSending || !isCloud}
       onClick={() => handleSendLiveLink('copy')}
       style={{
-       flex: 1, padding: 16,
+       flex: 1, padding: "16px 8px",
        background: `${T.blue}12`, border: `1px solid ${T.blue}30`,
        borderRadius: 14, color: T.blue,
-       fontWeight: 700, fontSize: 15,
+       fontWeight: 700, fontSize: 14,
        cursor: (liveLinkSending || !isCloud) ? 'not-allowed' : 'pointer',
        fontFamily: FONT,
-       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
        opacity: (liveLinkSending || !isCloud) ? 0.5 : 1,
       }}
      >
       <Icon name="link" size={14} />
-      Copy Live Link
+      Copy Link
      </button>
     </div>
     {/* ── Passive disabled-state hint ──
@@ -7987,7 +8054,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      }}>
       {!isCloud
        ? "Sign in to send a live link. The Email Summary, Save PDF, and Copy to Clipboard options below still work."
-       : "Add a borrower email above to enable live-link send."}
+       : "Add a borrower email above to email the live link — or a phone number to text it."}
      </div>
     )}
     {liveLinkError && (
