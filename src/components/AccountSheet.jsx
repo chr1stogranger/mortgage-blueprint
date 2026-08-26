@@ -228,10 +228,10 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={10}
                 value={code}
                 onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
-                placeholder="6-digit code"
+                placeholder="Code from email"
                 style={{
                   width: '100%', padding: '12px 16px', boxSizing: 'border-box',
                   background: inputBg, color: textColor,
@@ -252,7 +252,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
               </button>
             </form>
             <div style={{ fontSize: 12, color: tertiary, lineHeight: 1.6, marginTop: 14 }}>
-              Enter the 6-digit code from the email, or tap the link in it — either signs you in.
+              Enter the code from the email, or tap the link in it — either signs you in.
             </div>
             <button onClick={() => { setPhase('main'); setCode(''); }} style={{ ...pill('transparent', secondary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}` }), marginTop: 16 }}>
               Back

@@ -163,7 +163,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
     setSending(false);
   }
 
-  // ── Magic Link: verify the emailed 6-digit code (in-app, no redirect) ────
+  // ── Magic Link: verify the emailed one-time code (in-app, no redirect) ────
   async function handleVerifyCode(e) {
     e.preventDefault();
     if (code.trim().length < 6 || verifying) return;
@@ -294,10 +294,10 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={10}
               value={code}
               onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
-              placeholder="6-digit code"
+              placeholder="Code from email"
               autoFocus
               style={{
                 width: '100%', padding: '13px 16px', boxSizing: 'border-box',
@@ -322,7 +322,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
             </button>
           </form>
           <div style={{ fontSize: 13, color: T.textTertiary, lineHeight: 1.6 }}>
-            Enter the 6-digit code from the email, or tap the link in it — either signs you in.
+            Enter the code from the email, or tap the link in it — either signs you in.
           </div>
           {error && (
             <div style={{

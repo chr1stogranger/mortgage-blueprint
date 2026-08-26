@@ -3,7 +3,7 @@
   Paste into: Supabase Dashboard → Authentication → Emails → Templates → Magic Link
   Subject line to set: Your RealStack Blueprint sign-in link
   Supabase variables used: {{ .ConfirmationURL }}, {{ .Token }}
-  ({{ .Token }} is the 6-digit code the iPhone/Android app asks for — the
+  ({{ .Token }} is the one-time code the iPhone/Android app asks for — the
   emailed link opens the web app, so the native app signs in by code instead.)
 -->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#050505;margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -51,7 +51,7 @@
         <tr>
           <td style="padding:24px 32px 0;">
             <p style="font-size:12px;color:#666666;line-height:1.6;margin:0;text-align:center;">
-              If you didn't request this, you can safely ignore this email — no one can sign in without this link.
+              If you didn't request this, you can safely ignore this email &mdash; no one can sign in without this link.
             </p>
           </td>
         </tr>
@@ -61,12 +61,12 @@
         <tr>
           <td style="padding:20px 32px 36px;text-align:center;">
             <p style="font-size:12px;color:#A1A1A1;line-height:1.7;margin:0;">
-              Chris Granger · Licensed Mortgage Broker · NMLS #952015<br>
-              Xpert Home Lending, Inc. · NMLS #2179191
+              Chris Granger &middot; Licensed Mortgage Broker &middot; NMLS #952015<br>
+              Xpert Home Lending, Inc. &middot; NMLS #2179191
             </p>
             <p style="font-size:11px;color:#666666;margin:12px 0 0;">
               <a href="https://blueprint.realstack.app/privacy" style="color:#6366F1;text-decoration:none;">Privacy</a>
-              &nbsp;·&nbsp;
+              &nbsp;&middot;&nbsp;
               <a href="https://blueprint.realstack.app/terms" style="color:#6366F1;text-decoration:none;">Terms</a>
             </p>
           </td>
