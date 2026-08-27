@@ -135,7 +135,7 @@ class ShareFlowErrorBoundary extends Component {
               Try Again
             </button>
             <div style={{ marginTop: 16, fontSize: 13, color: T.textSecondary }}>
-              Need help? Email <a href="mailto:chr1stogranger@gmail.com" style={{ color: T.accent }}>chr1stogranger@gmail.com</a>
+              Need help? Email <a href="mailto:chris@chrisgrangermortgage.com" style={{ color: T.accent }}>chris@chrisgrangermortgage.com</a>
             </div>
           </div>
         </div>
@@ -256,7 +256,7 @@ function ShareExpiredScreen() {
           <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 4 }}>Chris Granger</div>
           <div style={{ fontSize: 13, color: T.textSecondary }}>NMLS #952015</div>
           <div style={{ display: 'flex', gap: 12, marginTop: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="mailto:chr1stogranger@gmail.com" style={{ padding: '8px 16px', borderRadius: 9999, background: T.accent, color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
+            <a href="mailto:chris@chrisgrangermortgage.com" style={{ padding: '8px 16px', borderRadius: 9999, background: T.accent, color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
               Email
             </a>
             <a href="tel:4159878489" style={{ padding: '8px 16px', borderRadius: 9999, background: 'transparent', color: T.accent, textDecoration: 'none', fontSize: 13, fontWeight: 600, border: `1px solid ${T.accent}` }}>

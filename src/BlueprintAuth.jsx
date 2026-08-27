@@ -21,11 +21,14 @@ const ALLOWED_EMAILS = [
   "chr1stogranger@gmail.com",
   "cgranger@xperthomelending.com",
   "chrisgrangermortgage@gmail.com",
+  "chris@chrisgrangermortgage.com",
   "pnoerr@xperthomelending.com",
   "peternoerrmortgage@gmail.com",
   "gina@tsdmtg.com",
   "myprocess@tsdmtg.com",
   "gmcnavarro0637@gmail.com",
+  "gina@chrisgrangermortgage.com",
+  "kaitlyn@chrisgrangermortgage.com",
 ];
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
