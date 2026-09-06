@@ -1,5 +1,5 @@
 import { FONT } from "./lib/fonts.js";
-import React, { useState } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { WEB_ORIGIN } from "./apiBase";
@@ -277,8 +277,27 @@ export default function UnifiedHeader({
     )}
   </>);
 
+  // Publish the header's real rendered height as a CSS var so the content
+  // spacer in MortgageBlueprint can match it exactly. The mobile stats strip
+  // is content-sized (label + value + padding + safe-area), so a hard-coded
+  // spacer drifted and the first line of every tab slid under the header.
+  const headerRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof document === "undefined") return;
+    const publish = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      if (h > 0) document.documentElement.style.setProperty("--bp-header-h", `${h}px`);
+    };
+    publish();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div style={{
+    <div ref={headerRef} style={{
       position: "fixed",
       top: 0,
       left: isBorrower ? 0 : sidebarW,
