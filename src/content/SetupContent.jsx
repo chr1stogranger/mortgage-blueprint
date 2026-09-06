@@ -769,9 +769,14 @@ export default function SetupContent(props) {
     <div data-field="transaction-type" className={isPulse("transaction-type")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-      {[["Purchase", false], ["Refinance", true]].map(([label, val]) => (
-       <button key={label} onClick={() => { setIsRefi(val); markTouched("transaction-type-done"); }} style={{ padding: "9px 0", background: isRefi === val ? `${T.blue}22` : T.inputBg, border: isRefi === val ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: isRefi === val ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
-      ))}
+      {[["Purchase", false], ["Refinance", true]].map(([label, val]) => {
+       // isRefi starts as null; every calc treats null as a purchase, so
+       // Purchase is shown selected until the user picks Refinance.
+       const on = isRefi === val || (isRefi === null && val === false);
+       return (
+       <button key={label} aria-pressed={on} onClick={() => { setIsRefi(val); markTouched("transaction-type-done"); }} style={{ padding: "9px 0", background: on ? `${T.blue}22` : T.inputBg, border: on ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: on ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+       );
+      })}
      </div>
     </div>
 
