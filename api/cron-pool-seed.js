@@ -38,10 +38,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // Build absolute URL for the internal fetch. Vercel sets VERCEL_URL to the
-  // deployment hostname; fall back to the canonical alias.
-  const host = process.env.VERCEL_URL || 'blueprint.realstack.app';
-  const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+  // Build absolute URL for the internal fetch. Use the canonical domain, NOT
+  // VERCEL_URL: the per-deployment URL sits behind Vercel deployment
+  // protection, which returns an HTML SSO page instead of JSON.
+  const baseUrl = 'https://blueprint.realstack.app';
 
   // Fire all market pumps in parallel — each takes ~10s on a cold pool, and
   // we want to stay well inside Vercel's function timeout.

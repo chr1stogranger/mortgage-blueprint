@@ -66,8 +66,10 @@ const PUMP_MARKETS = [
 async function runFreshSearchPump() {
   const secret = process.env.CRON_SECRET;
   if (!secret) return { skipped: 'no_cron_secret' };
-  const host = process.env.VERCEL_URL || 'blueprint.realstack.app';
-  const baseUrl = host.startsWith('http') ? host : `https://${host}`;
+  // Canonical domain, NOT VERCEL_URL. The per-deployment URL sits behind
+  // Vercel deployment protection, which returns an HTML SSO page instead of
+  // JSON ("Unexpected token '<'" in the cron logs).
+  const baseUrl = 'https://blueprint.realstack.app';
   const results = await Promise.all(PUMP_MARKETS.map(async (market) => {
     const t0 = Date.now();
     try {
