@@ -132,13 +132,14 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
       const { borrower: b } = await createClient(payload);
       setBorrower(b);
       setMessage([
-        `Hi ${firstName || "there"} — I've set up a personalized mortgage Blueprint for you. Feel free to explore it: adjust the numbers, compare scenarios, and see what your payment really looks like. You can also download the app to keep it on your phone.`,
+        `Hi ${firstName || "there"}, I've set up a personalized mortgage Blueprint for you. Feel free to explore it: adjust the numbers, compare scenarios, and see what your payment really looks like. You can also download the app to keep it on your phone.`,
         "",
-        `— ${loInfo.loanOfficer || "Your loan officer"}`,
+        `Talk soon,`,
+        `${loInfo.loanOfficer || "Your loan officer"}`,
       ].join("\n"));
       setPhase("email");
     } catch (e) {
-      setError(e?.message || "Import failed — try again.");
+      setError(e?.message || "Import failed. Try again.");
       setPhase("confirm");
     }
   };
@@ -282,7 +283,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
             </div>
             <div style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "6px 14px 8px", marginBottom: 16 }}>
               {detailRow("Client", payload.borrower.name)}
-              {detailRow("Email", payload.borrower.email || "— none on file —")}
+              {detailRow("Email", payload.borrower.email || "none on file")}
               {detailRow("Phone", payload.borrower.phone)}
               {detailRow(pf.isRefi ? "Home value" : "Price", price ? fmtMoney(price) : null)}
               {detailRow("Loan", loanBits)}
@@ -323,7 +324,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
             <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginBottom: 12, lineHeight: 1.5 }}>
               {emailValid
                 ? `A branded email with your message and their personal Blueprint link goes to ${clientEmail}. Nothing sends until you hit the button.`
-                : "This client has no email on the Arive file — open their Blueprint and add one, then send the link from the share menu."}
+                : "This client has no email on the Arive file. Open their Blueprint and add one, then send the link from the share menu."}
             </div>
             <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={7}
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5, minHeight: 130, marginBottom: 10 }} />

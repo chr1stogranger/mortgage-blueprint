@@ -173,7 +173,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
       await verifyEmailCode(email, code);
       // onAuthStateChange fires with the new session and proceeds.
     } catch (err) {
-      setError(err.message || 'That code didn’t work — check for a newer email');
+      setError(err.message || 'That code didn’t work. Check for a newer email');
     }
     setVerifying(false);
   }

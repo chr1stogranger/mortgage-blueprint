@@ -86,7 +86,7 @@ export default function NetPaymentLadder({
         <Deduct
           label="Rental Income"
           value={rentCredit}
-          note={`Full gross rent — what actually lands in your account. Lenders count only 75% (${fmt(rentCredit * 0.75)}) when qualifying you for the loan, but that haircut is an underwriting rule, not an expense. Vacancy and upkeep will still take a bite out of this.`}
+          note={`Full gross rent: what actually lands in your account. Lenders count only 75% (${fmt(rentCredit * 0.75)}) when qualifying you for the loan, but that haircut is an underwriting rule, not an expense. Vacancy and upkeep will still take a bite out of this.`}
         />
         <Subtotal label="Net Payment" value={calc.netPayment} tint={T.blue} />
       </>)}

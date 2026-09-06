@@ -97,7 +97,7 @@ export default function SchedEInputs({
           T={T}
           label="Rented share of property"
           hint={usingDefaultShare
-            ? `Defaulted from unit count. Property tax, insurance and mortgage interest split here — ${sharePct}% to Schedule E, ${100 - sharePct}% itemized on Schedule A. Adjust if the units aren't equal size (an ADU rarely is).`
+            ? `Defaulted from unit count. Property tax, insurance and mortgage interest split here: ${sharePct}% to Schedule E, ${100 - sharePct}% itemized on Schedule A. Adjust if the units aren't equal size (an ADU rarely is).`
             : `Overriding the ${calc.defaultRentalSharePct}% unit-count default. ${sharePct}% of tax, insurance and interest goes to Schedule E; ${100 - sharePct}% stays on Schedule A.`}
         >
           <PctStepper value={sharePct} onChange={setRentalSharePctOverride} T={T} min={0} max={100} step={5} />
@@ -146,7 +146,7 @@ export default function SchedEInputs({
         </div>
         <div style={{ fontSize: 11, color: usingDefaultSplit ? T.orange : T.textTertiary, marginTop: 8, lineHeight: 1.55, fontFamily: FONT, fontWeight: usingDefaultSplit ? 600 : 400 }}>
           {usingDefaultSplit
-            ? "Placeholder 50/50 split — no assessed values entered yet. Pull the real numbers off the tax bill before relying on this depreciation figure."
+            ? "Placeholder 50/50 split, no assessed values entered yet. Pull the real numbers off the tax bill before relying on this depreciation figure."
             : `From the assessment: ${fmt(assessedImprovements)} improvements ÷ ${fmt(calc.assessedTotal)} total.${sharePct < 100 ? ` Depreciating only the ${sharePct}% rented share.` : ""}`}
         </div>
       </div>

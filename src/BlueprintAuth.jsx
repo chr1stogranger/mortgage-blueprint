@@ -181,7 +181,7 @@ export default function BlueprintAuth({ children }) {
             if (data.user) userData = { ...userData, ...data.user };
           }
         } else if (res.status === 403 || res.status === 401) {
-          setError("Access denied. This account is not on the team — contact Christo to get added.");
+          setError("Access denied. This account is not on the team. Contact Christo to get added.");
           return;
         }
       } catch { /* network trouble — legacy fallback below */ }

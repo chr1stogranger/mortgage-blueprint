@@ -123,7 +123,7 @@ export default function SendWorksheetModal({
       const blob = await renderWorksheetBlob(buildWorksheetProps({ includeFees }), docKind);
       const contentBase64 = await blobToBase64(blob);
       if (contentBase64.length > MAX_B64_CHARS) {
-        throw new Error("The PDF is too large to attach — use Download and send it manually.");
+        throw new Error("The PDF is too large to attach. Use Download and send it manually.");
       }
       const payload = {
         to: recipients.join(", "),
@@ -319,7 +319,7 @@ export function BorrowerSendModal({
     try {
       const blob = await renderWorksheetBlob(buildWorksheetProps(), docKind);
       const contentBase64 = await blobToBase64(blob);
-      if (contentBase64.length > MAX_B64_CHARS) throw new Error("PDF too large — use Save PDF instead.");
+      if (contentBase64.length > MAX_B64_CHARS) throw new Error("PDF too large. Use Save PDF instead.");
       // Routed through collab.js (Vercel Hobby 12-function cap — no new api file)
       const res = await fetch(`${API_BASE}/api/collab?resource=worksheet-send`, {
         method: "POST",
@@ -356,7 +356,7 @@ export function BorrowerSendModal({
             style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
         </div>
         <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14, fontFamily: FONT }}>
-          Get the full fees worksheet PDF for this scenario in your inbox{loanOfficer ? ` — prepared by ${loanOfficer}` : ""}.
+          Get the full fees worksheet PDF for this scenario in your inbox{loanOfficer ? `, prepared by ${loanOfficer}` : ""}.
         </div>
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="you@email.com" inputMode="email" autoCapitalize="none"
           style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, marginBottom: 12 }} />

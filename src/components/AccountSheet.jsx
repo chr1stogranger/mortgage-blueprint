@@ -113,7 +113,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
       setCode('');
       onClose(); // signed in — dismiss, don't detour through "My Account"
     } catch (e2) {
-      setError(e2.message || 'That code didn’t work — check for a newer email');
+      setError(e2.message || 'That code didn’t work. Check for a newer email');
     }
     setBusy(false);
   }

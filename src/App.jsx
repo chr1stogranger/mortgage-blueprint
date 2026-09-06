@@ -68,7 +68,7 @@ function ClaimBanner({ sessionToken, shareToken }) {
       ) : (
         <>
           <span style={{ fontSize: 13, color: '#A1A1A1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {state === 'error' ? 'Could not save — try again' : 'Keep a copy of this blueprint?'}
+            {state === 'error' ? 'Could not save. Try again' : 'Keep a copy of this blueprint?'}
           </span>
           <button
             onClick={claim}
