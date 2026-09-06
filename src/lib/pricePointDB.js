@@ -100,7 +100,7 @@ export async function getPlayer(playerId) {
  */
 export async function fetchDaily(marketId) {
   try {
-    const res = await fetch(apiUrl(`/api/pp-daily?market=${marketId}`));
+    const res = await fetch(apiUrl(`/api/pp-daily?market=${marketId}`), { headers: await notifHeaders() });
     if (!res.ok) {
       console.error('[PricePointDB] fetchDaily HTTP error:', res.status);
       return null;
@@ -400,8 +400,10 @@ export async function getLeaderboard(marketId, mode = 'daily', period = 'all', l
 // /api/notifications enforces device ownership (CIO re-audit C-1) — send the
 // same device id the Supabase client uses so the server can verify the caller
 // owns the player row. JSON helper merges Content-Type when a body is sent.
-function notifHeaders(withJson = false) {
-  const h = { 'x-device-id': getDeviceId() };
+// Signed-in players also carry the Supabase bearer so the server resolves
+// ownership through the account link instead of the device id.
+async function notifHeaders(withJson = false) {
+  const h = { 'x-device-id': getDeviceId(), ...(await authHeader()) };
   if (withJson) h['Content-Type'] = 'application/json';
   return h;
 }
@@ -410,7 +412,7 @@ export async function fetchNotifications(playerId, all = false) {
   if (!playerId) return { notifications: [], unreadCount: 0 };
   try {
     const url = apiUrl(`/api/notifications?playerId=${playerId}${all ? '&all=1' : ''}`);
-    const res = await fetch(url, { headers: notifHeaders() });
+    const res = await fetch(url, { headers: await notifHeaders() });
     if (!res.ok) return { notifications: [], unreadCount: 0 };
     return await res.json();
   } catch (err) {
@@ -423,7 +425,7 @@ export async function fetchNotifications(playerId, all = false) {
 export async function getServerH2H(playerId) {
   if (!playerId) return null;
   try {
-    const res = await fetch(apiUrl(`/api/notifications?action=h2h&playerId=${playerId}`), { headers: notifHeaders() });
+    const res = await fetch(apiUrl(`/api/notifications?action=h2h&playerId=${playerId}`), { headers: await notifHeaders() });
     if (!res.ok) return null;
     const j = await res.json();
     return j?.h2h || null;
@@ -435,7 +437,7 @@ export async function saveServerH2H(playerId, record) {
   try {
     await fetch(apiUrl(`/api/notifications?action=h2h`), {
       method: 'POST',
-      headers: notifHeaders(true),
+      headers: await notifHeaders(true),
       body: JSON.stringify({ playerId, h2h: { wins: record.wins || 0, losses: record.losses || 0, ties: record.ties || 0 } }),
     });
   } catch { /* fire-and-forget */ }
@@ -455,7 +457,7 @@ export async function markNotificationsRead(playerId, notificationIds = null) {
     }
     const res = await fetch(apiUrl('/api/notifications'), {
       method: 'POST',
-      headers: notifHeaders(true),
+      headers: await notifHeaders(true),
       body: JSON.stringify(body),
     });
     return res.ok;
@@ -474,7 +476,7 @@ export async function registerDeviceToken(playerId, token, platform) {
   try {
     const res = await fetch(apiUrl('/api/notifications?action=register'), {
       method: 'POST',
-      headers: notifHeaders(true),
+      headers: await notifHeaders(true),
       body: JSON.stringify({ playerId, token, platform }),
     });
     return res.ok;
@@ -489,7 +491,7 @@ export async function unregisterDeviceToken(playerId, token) {
   try {
     const res = await fetch(apiUrl('/api/notifications'), {
       method: 'DELETE',
-      headers: notifHeaders(true),
+      headers: await notifHeaders(true),
       body: JSON.stringify({ playerId, token }),
     });
     return res.ok;
@@ -506,7 +508,7 @@ export async function getNotificationPreferences(playerId) {
   if (!playerId) return null;
   try {
     // notifHeaders is required — /api/notifications 403s without x-device-id.
-    const res = await fetch(apiUrl(`/api/notifications?action=preferences&playerId=${playerId}`), { headers: notifHeaders() });
+    const res = await fetch(apiUrl(`/api/notifications?action=preferences&playerId=${playerId}`), { headers: await notifHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -523,7 +525,7 @@ export async function updateNotificationPreferences(playerId, prefs) {
   try {
     const res = await fetch(apiUrl('/api/notifications'), {
       method: 'PUT',
-      headers: notifHeaders(true),
+      headers: await notifHeaders(true),
       body: JSON.stringify({ playerId, ...prefs }),
     });
     if (!res.ok) return null;

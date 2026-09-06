@@ -4,7 +4,7 @@
 // GET /api/pp-daily?market=sf
 //   â Returns today's daily challenge (without sold_price)
 //
-// GET /api/pp-daily?market=sf&reveal=true&player=<uuid>
+// GET /api/pp-daily?market=sf&reveal=true  (identity via Authorization: Bearer or x-device-id header)
 //   â Returns daily WITH sold_price (only if player has already guessed)
 //
 // Fetches property details DIRECTLY from RapidAPI (no serverless-to-serverless call)
@@ -332,6 +332,35 @@ const MARKETS = {
 // ââ In-memory cache for seeded dailies (survives warm starts) ââ
 const dailyCache = new Map();
 
+
+// ── Auth-aware player lookup (same pattern as pp-guess.js) ───────────────────
+// Signed-in users resolve to their ACCOUNT player (auth_user_id); guests
+// resolve by the x-device-id header. The ?player= query param is ignored so a
+// caller cannot reveal another player's answer by pasting their UUID.
+async function lookupPlayerId(supabase, req) {
+  const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (bearer) {
+    try {
+      const { data, error } = await supabase.auth.getUser(bearer);
+      if (!error && data?.user?.id) {
+        const { data: canon } = await supabase
+          .from('pp_players').select('id')
+          .eq('auth_user_id', data.user.id)
+          .order('created_at', { ascending: true })
+          .limit(1).maybeSingle();
+        if (canon?.id) return canon.id;
+      }
+    } catch (e) {
+      console.error('[pp-daily] auth lookup failed (device fallback):', e.message);
+    }
+  }
+  const deviceId = String(req.headers['x-device-id'] || '').trim();
+  if (!deviceId) return null;
+  const { data: row } = await supabase
+    .from('pp_players').select('id').eq('device_id', deviceId).maybeSingle();
+  return row?.id || null;
+}
+
 export default async function handler(req, res) {
   // Scoped CORS + rate limit (replaces the old wildcard — this route touches
   // both RapidAPI and Supabase, so it must not be callable from any website).
@@ -340,7 +369,7 @@ export default async function handler(req, res) {
 
   const marketId = (req.query.market || 'sf').toLowerCase();
   const reveal = req.query.reveal === 'true';
-  const playerId = req.query.player || null;
+  let playerId = null; // resolved below, only when reveal is requested
   const today = getTodayDate();
   const dailyNumber = getDailyNumber(marketId);
 
@@ -572,6 +601,7 @@ export default async function handler(req, res) {
     };
 
     // Only include sold_price if player has already guessed
+    if (reveal) playerId = await lookupPlayerId(supabase, req);
     if (reveal && playerId) {
       const { data: existingGuess } = await supabase
         .from('pp_guesses')
@@ -585,8 +615,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // CDN cache: 1 hour (daily doesn't change within a day)
-    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600');
+    // CDN cache: 1 hour (daily doesn't change within a day). Reveal responses
+    // are per-player (identity comes from headers, not the URL), so they must
+    // never be shared through the CDN.
+    if (reveal) res.setHeader('Cache-Control', 'private, no-store');
+    else res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600');
     return res.status(200).json(response);
 
   } catch (err) {

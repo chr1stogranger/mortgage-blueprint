@@ -16,16 +16,39 @@ function getSupabaseAdmin() {
 // header (same identity migration 011's RLS policies use). The web client
 // sends this header on every notifications call (src/lib/pricePointDB.js).
 // Returns true if ownership is verified (or there's nothing to verify yet).
-async function ownsPlayer(supabase, playerId, deviceId) {
-  if (!deviceId) return false;
+async function ownsPlayer(supabase, playerId, deviceId, authUserId) {
+  if (!deviceId && !authUserId) return false;
   const { data, error } = await supabase
     .from('pp_players')
-    .select('device_id')
+    .select('device_id, auth_user_id')
     .eq('id', playerId)
     .single();
   if (error || !data) return false;
+  // Signed-in callers prove ownership through their account link; anonymous
+  // device players fall back to the x-device-id header.
+  if (authUserId) return data.auth_user_id === authUserId;
   return data.device_id === deviceId;
 }
+
+// Resolve the Supabase user from Authorization: Bearer <jwt> (same
+// auth.getUser pattern as pp-player.js). Returns null for guests.
+async function authUserIdFromBearer(supabase, req) {
+  const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!bearer) return null;
+  try {
+    const { data, error } = await supabase.auth.getUser(bearer);
+    if (!error && data?.user?.id) return data.user.id;
+  } catch (e) {
+    console.error('[notifications] auth lookup failed (device fallback):', e.message);
+  }
+  return null;
+}
+
+// Contact validation for the preferences PUT.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[0-9+\-\s()]*$/;
+const isValidEmail = (v) => v === '' || (v.length <= 254 && EMAIL_RE.test(v));
+const isValidPhone = (v) => v === '' || (v.length <= 20 && PHONE_RE.test(v));
 
 export default async function handler(req, res) {
   // Scoped CORS (now incl. Capacitor native origins) + rate limit.
@@ -39,12 +62,15 @@ export default async function handler(req, res) {
 
   const action = req.query.action || '';
   const deviceId = req.headers['x-device-id'] || '';
+  // Signed-in callers are identified by their bearer token; when present the
+  // device header is not consulted for ownership.
+  const authUserId = await authUserIdFromBearer(supabase, req);
 
   // Every operation is scoped to a playerId — resolve it (query for GET, body
   // otherwise) and verify the caller owns it before doing anything.
   const playerId = req.query.playerId || (req.body && req.body.playerId) || '';
   if (!playerId) return res.status(400).json({ error: 'playerId is required' });
-  if (!(await ownsPlayer(supabase, playerId, deviceId))) {
+  if (!(await ownsPlayer(supabase, playerId, deviceId, authUserId))) {
     return res.status(403).json({ error: 'Not authorized for this player' });
   }
 
@@ -218,8 +244,16 @@ export default async function handler(req, res) {
       if (typeof push_enabled === 'boolean') updateData.push_enabled = push_enabled;
       if (typeof email_enabled === 'boolean') updateData.email_enabled = email_enabled;
       if (typeof sms_enabled === 'boolean') updateData.sms_enabled = sms_enabled;
-      if (typeof email === 'string') updateData.email = email;
-      if (typeof phone === 'string') updateData.phone = phone;
+      if (typeof email === 'string') {
+        const v = email.trim();
+        if (!isValidEmail(v)) return res.status(400).json({ error: 'That email does not look right.' });
+        updateData.email = v;
+      }
+      if (typeof phone === 'string') {
+        const v = phone.trim();
+        if (!isValidPhone(v)) return res.status(400).json({ error: 'That phone number does not look right.' });
+        updateData.phone = v;
+      }
 
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ error: 'At least one preference field is required' });
