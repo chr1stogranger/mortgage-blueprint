@@ -639,7 +639,7 @@ function FeeRow({
         gap: 10,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3, flexWrap: "wrap", rowGap: 2 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", fontSize: 13, color: bold ? T.text : T.textSecondary, fontWeight: bold ? 700 : 500, lineHeight: 1.3, flexWrap: "wrap", rowGap: 2, minWidth: 0, flex: 1 }}>
             <span>{label}</span>
             {sub && <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 6, fontFamily: FONT }}>{sub}</span>}
             {/* prefixEditor name kept for backwards compat, but it now renders AFTER the
@@ -655,13 +655,16 @@ function FeeRow({
               </span>
             )}
             {calc && (
+              /* Wrapping allowed (was nowrap): at 375px the escrow reserve
+                 math strings ran under the AUTO pill and amount column. */
               <span style={{
                 color: T.textTertiary,
                 fontSize: 11,
                 marginLeft: 8,
                 fontFamily: FONT,
                 fontWeight: 500,
-                whiteSpace: "nowrap",
+                minWidth: 0,
+                overflowWrap: "anywhere",
               }}>
                 · {calc}
               </span>
@@ -676,7 +679,7 @@ function FeeRow({
             <div style={{ display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0 }}>{inlineEditor}</div>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 6, marginLeft: 6 }}>
           {autoBadge && <AutoBadge />}
           {showInlineNumberInput ? (
             <DashedInline value={value} onChange={onChange} prefix={prefix} suffix={suffix} max={max} />
