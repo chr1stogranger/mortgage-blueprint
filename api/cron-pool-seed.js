@@ -36,7 +36,7 @@ const MARKETS_TO_SEED = [
 ];
 
 // Allow longer execution — each market pages the search endpoint.
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
   // Vercel cron sends Authorization: Bearer <CRON_SECRET>
