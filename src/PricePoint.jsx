@@ -1914,6 +1914,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Derived ──
   const dailyNumber = getDailyNumber();
+  // Display-only counter. The server numbers dailies from the 2026-03-25
+  // launch (+1); the client counter above counts from 2026-01-01 and keys
+  // local routing/state, so it stays as is. Show the server's number when
+  // we have it so the header, share text, and cron logs all agree.
+  const displayDailyNumber = supabaseDaily?.dailyNumber ?? dailyNumber;
   // Canonical daily: prefer the server's challenge (same property for every device
   // in this market) and fall back to the client-hash pick only if the API failed.
   // The server response already uses the client listing shape (yearBuilt, listPrice,
@@ -2441,7 +2446,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const token = encodeChallenge({
       listing, result,
       mode: isDaily ? 'daily' : 'freeplay',
-      dailyNumber: isDaily ? dailyNumber : 0,
+      dailyNumber: isDaily ? displayDailyNumber : 0,
       locationLabel: locationLabel || market?.label || '',
     });
     const url = buildChallengeUrl(token);
@@ -2594,7 +2599,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const accuracy = (100 - result.pctOff).toFixed(1);
     const bars = result.pctOff <= 2 ? "|||||" : result.pctOff <= 5 ? "||||." : result.pctOff <= 10 ? "|||.." : result.pctOff <= 20 ? "||..." : "|....";
     const text = [
-      `PricePoint Daily #${result.dailyNumber} — ${locationLabel || result.city}`,
+      `PricePoint Daily #${result.dailyNumber === dailyNumber ? displayDailyNumber : result.dailyNumber} · ${locationLabel || result.city}`,
       `${result.neighborhood} · ${result.beds}BR/${result.baths}BA · ${(result.sqft || 0).toLocaleString()}sf`,
       `[${bars}] ${accuracy}% accuracy`,
       streak > 1 ? `${streak} day streak` : "",
@@ -4097,7 +4102,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {view === "daily" && !dailyProperty && (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppFadeIn 0.3s ease" }}>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{displayDailyNumber}</div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>{locationLabel || market?.label || "Your Market"}</div>
           </div>
           <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 640, margin: "0 auto" } : {}) }}>
@@ -4124,7 +4129,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{dailyNumber}</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{displayDailyNumber}</div>
               <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
