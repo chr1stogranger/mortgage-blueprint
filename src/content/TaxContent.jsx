@@ -8,7 +8,7 @@ import PassiveLossNote from "../components/PassiveLossNote";
 
 export default function TaxContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
-  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "assessedLand", "setAssessedLand", "assessedImprovements", "setAssessedImprovements", "rentalSharePctOverride", "setRentalSharePctOverride", "schedEVacancyPct", "setSchedEVacancyPct", "schedEMgmtPct", "setSchedEMgmtPct", "propType", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "GuidedNextButton"]);
+  if (import.meta.env.DEV) devCheckProps("TaxContent", props, ["T", "isDesktop", "calc", "fmt", "loanPurpose", "subjectRentalIncome", "appreciationRate", "setAppreciationRate", "assessedLand", "setAssessedLand", "assessedImprovements", "setAssessedImprovements", "rentalSharePctOverride", "setRentalSharePctOverride", "schedEVacancyPct", "setSchedEVacancyPct", "schedEMgmtPct", "setSchedEMgmtPct", "propType", "married", "setMarried", "FILING_STATUSES", "taxState", "setTaxState", "STATE_NAMES", "STATE_TAX", "FED_BRACKETS", "FED_STD_DEDUCTION", "showFedBrackets", "setShowFedBrackets", "showStateBrackets", "setShowStateBrackets", "isPulse", "markTouched", "setTab", "Hero", "Card", "Sec", "Inp", "Sel", "Note", "MRow", "InfoTip", "GuidedNextButton"]);
   const {
   T, isDesktop, calc, fmt,
   loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate,
@@ -21,7 +21,7 @@ export default function TaxContent(props) {
   showFedBrackets, setShowFedBrackets,
   showStateBrackets, setShowStateBrackets,
   isPulse, markTouched, setTab,
-  Hero, Card, Sec, Inp, Sel, Note, MRow,
+  Hero, Card, Sec, Inp, Sel, Note, MRow, InfoTip,
   GuidedNextButton,
 } = props;
 
@@ -147,8 +147,13 @@ export default function TaxContent(props) {
 
  // Federal Before/After
  const fedBrackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
- const fedDeductionAfter = Math.max(calc.fedItemized, calc.fedStdDeduction);
- const fedTaxableBefore = Math.max(0, calc.yearlyInc - calc.fedStdDeduction);
+ // Renting side: MAX(standard, capped state income tax). A California earner
+ // with big state income tax already itemizes before buying (sheet parity,
+ // 2026-08-13), so the before-owning deduction is not automatically standard.
+ const fedDeductionBefore = calc.fedDeductionBefore ?? calc.fedStdDeduction;
+ const fedRenterItemizes = fedDeductionBefore > calc.fedStdDeduction;
+ const fedDeductionAfter = calc.fedDeductionAfter ?? Math.max(calc.fedItemized, calc.fedStdDeduction);
+ const fedTaxableBefore = Math.max(0, calc.yearlyInc - fedDeductionBefore);
  const fedTaxableAfter = Math.max(0, calc.yearlyInc - fedDeductionAfter);
  const fedBefore = taxByBracket(fedTaxableBefore, fedBrackets);
  const fedAfter = taxByBracket(fedTaxableAfter, fedBrackets);
@@ -188,6 +193,22 @@ export default function TaxContent(props) {
  const mStateSav = stateSav / 12;
 
  const FILING_LABELS = { Single: "Single", MFJ: "Married, Joint", MFS: "Married, Separate", HOH: "Head of Household" };
+ const hasStateIncomeTax = stateInfo.type !== "none";
+ const saltIsCapped = (calc.saltUncapped || 0) > (calc.saltCap || 0);
+ const saltPhasing = calc.yearlyInc > (married === "MFS" ? 252500 : 505000);
+ const fmtCap = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(n % 1000000 ? 2 : 0)}M` : `$${Math.round(n / 1000)}K`;
+ const stateCapLabel = calc.stMortIntLimit && calc.stMortIntLimit !== calc.mortIntDeductLimit ? ` / ${fmtCap(calc.stMortIntLimit)} (${taxState})` : "";
+ // Hover notes: the client-facing explainers from the Aug 13, 2026 sheet
+ // ("Blueprint — Cell Notes Reference"), lightly adapted to the app's inputs.
+ const TIPS = {
+  saltCap: `The IRS limits how much state and local tax (SALT) you can deduct on your federal return. For 2026 the cap is $40,400, but it shrinks for high earners: above $505,000 of income the cap drops 30 cents for every extra dollar earned, down to a floor of $10,000. That is why this number changes when you change income. ${taxState === "California" ? "California has no SALT cap on its own return." : "State returns are not subject to this cap."}`,
+  saltBucket: `SALT = property tax + state income tax, added together and capped as one bucket on your federal return. This is why buying a home does not always add a full property-tax deduction: if your state income tax already fills the cap, property tax adds little or nothing federally. The ${taxState} column has no cap: property tax is deductible in full, but a state never lets you deduct its own income tax against itself, hence "n/a".`,
+  mortInt: `Federal law only lets you deduct interest on the first $750,000 of mortgage debt. If your loan is larger the deduction is prorated: on an $800,000 loan you can deduct 750/800ths of the interest you paid.${taxState === "California" ? " California is more generous and allows interest on up to $1M of debt, so the State column can be higher than the Federal one." : ""}`,
+  propTaxValue: `The real federal tax benefit of your property tax AFTER the SALT cap. At higher incomes this can read $0, meaning state income tax alone already fills the cap, so property tax adds no federal benefit. You still get the ${taxState} benefit either way. This is the honest number most calculators overstate.`,
+  bestDeduction: `Even as a renter you do not automatically take the standard deduction. A ${taxState} earner with big state income tax may already itemize before buying. This picks whichever is larger, the standard deduction or your capped state income tax, so the rent-vs-buy comparison is fair. If this number is bigger than the standard deduction, buying helps you LESS than naive calculators claim.`,
+  filing: `Switches the whole section between filing statuses: standard deductions (federal and ${taxState}), both bracket tables, and the SALT and mortgage-interest caps. Married, Separate uses half caps.`,
+  effective: `Effective rate = total tax divided by total income, the average across all brackets, not your top bracket. Owning lowers your effective rate because deductions shrink taxable income. Your marginal bracket (the rate on your next dollar) is usually higher than this.`,
+ };
 
  return (<div style={{ marginTop: 20 }}>
 
@@ -195,6 +216,7 @@ export default function TaxContent(props) {
   {/* "Year 1": interest is computed on the full starting balance, so savings
       decline slightly each year as the loan amortizes (audit M-5). */}
   <Hero value={fmt(calc.totalTaxSavings)} label="Year-1 Tax Savings" color={T.green} sub={`${fmt(calc.monthlyTaxSavings)}/mo · first-year estimate`} />
+  <Note>Estimates only, for planning. Assumes W2-type income, no AMT, and no California mental health tax on taxable income over $1M. Federal figures are 2026 (IRS Rev. Proc. 2025-32){calc.stateTaxYear ? `; ${taxState} figures are ${calc.stateTaxYear}, the latest published` : ""}. Confirm with your CPA.</Note>
 
   {/* 2. Educational example: how write-offs work (hardcoded teaching numbers) */}
   <Sec title="Example: How Tax Write-offs Work">
@@ -267,7 +289,7 @@ export default function TaxContent(props) {
     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 4, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
      <span></span>
      <span style={{ textAlign: "right" }}></span>
-     <span style={{ gridColumn: "3 / 5", textAlign: "center", fontStyle: "italic", color: T.blue }}>2018 Tax Law Caps applied →</span>
+     <span style={{ gridColumn: "3 / 5", textAlign: "center", fontStyle: "italic", color: T.blue }}>SALT / Interest Caps applied →</span>
     </div>
     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, fontSize: isDesktop ? 11 : 9.5, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: isDesktop ? 1 : 0.5, textTransform: "uppercase", alignItems: "end" }}>
      {/* Narrow screens: smaller tracking plus column gap so AMOUNT / FEDERAL /
@@ -277,25 +299,47 @@ export default function TaxContent(props) {
      <span style={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>Federal</span>
      <span style={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>{taxState}</span>
     </div>
+    {/* SALT breakout (sheet parity, 2026-08-13): property tax and state income
+        tax are separate lines, then ONE capped SALT subtotal. The state column
+        never deducts the state's own income tax, hence "n/a". */}
     {[
-     { label: "Property Taxes Paid (1 year)", amount: calc.yearlyTax, fed: calc.fedPropTax, state: calc.schedATax ?? calc.yearlyTax },
-     { label: "Mortgage Interest Paid (1 year)", amount: calc.yearlyMortInt || 0, fed: calc.fedMortInt, state: calc.stateMortInt },
-    ].map((row, i) => (
-     <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
-      <span style={{ color: T.textSecondary }}>{row.label}</span>
+     { label: "Property Taxes Paid (1 year)", amount: calc.yearlyTax, fed: calc.fedPropTax, state: calc.schedATax ?? calc.yearlyTax, indent: hasStateIncomeTax },
+     hasStateIncomeTax && { label: `${taxState} Income Tax (renting)`, amount: calc.stateIncomeTax || 0, fed: calc.fedStateIncomeTax || 0, state: "n/a", indent: true },
+     hasStateIncomeTax && { label: "Total State & Local Tax (SALT)", tip: TIPS.saltBucket, amount: calc.saltUncapped || 0, fed: calc.fedSalt ?? calc.fedPropTax, fedCapped: saltIsCapped, state: calc.schedATax ?? calc.yearlyTax, subtotal: true },
+     { label: "Mortgage Interest Paid (1 year)", tip: TIPS.mortInt, amount: calc.yearlyMortInt || 0, fed: calc.fedMortInt, state: calc.stateMortInt },
+    ].filter(Boolean).map((row, i) => (
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, padding: row.indent ? "7px 0" : "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: row.indent ? 12 : 13, background: row.subtotal ? `${T.blue}08` : "transparent" }}>
+      <span style={{ color: row.subtotal ? T.text : T.textSecondary, fontWeight: row.subtotal ? 600 : 400, paddingLeft: row.indent ? 12 : 0, display: "flex", alignItems: "center", minWidth: 0 }}>{row.label}{row.tip && InfoTip && <InfoTip text={row.tip} />}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.amount)}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.fed)}</span>
-      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.state)}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: row.fedCapped ? T.orange : "inherit" }}>{fmt(row.fed)}{row.fedCapped ? " ↓" : ""}</span>
+      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600, color: row.state === "n/a" ? T.textTertiary : "inherit" }}>{row.state === "n/a" ? "n/a" : fmt(row.state)}</span>
      </div>
     ))}
     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, padding: "12px 0 4px", fontSize: 14 }}>
      <span style={{ color: T.text, fontWeight: 700 }}>Total</span>
-     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.yearlyTax + (calc.yearlyMortInt || 0))}</span>
+     <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt((hasStateIncomeTax ? (calc.saltUncapped || 0) : calc.yearlyTax) + (calc.yearlyMortInt || 0))}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.fedItemized)}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.stateItemized)}</span>
     </div>
     {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this: only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is federally deductible.</Note>}
-    <Note color={T.blue}>SALT cap (Federal): {fmt(calc.saltCap)} · Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
+    {saltIsCapped && <Note color={T.orange}>Your SALT bucket ({fmt(calc.saltUncapped)}) exceeds the federal cap. Only {fmt(calc.fedSalt)} counts federally{calc.fedPropTax <= 0 ? ", and state income tax alone fills it, so your property tax adds no federal deduction" : ""}. {taxState} still allows the full property tax.</Note>}
+    <Note color={T.blue}>
+     <span style={{ display: "inline-flex", alignItems: "center" }}>SALT cap (Federal): {fmt(calc.saltCap)}{InfoTip && <InfoTip text={TIPS.saltCap} />}</span>
+     {saltPhasing ? ` (phasing out: income above ${married === "MFS" ? "$252,500" : "$505,000"}, floor ${married === "MFS" ? "$5,000" : "$10,000"})` : ` (phases out above ${married === "MFS" ? "$252,500" : "$505,000"} of income, floor ${married === "MFS" ? "$5,000" : "$10,000"})`}
+     {" · Mortgage interest cap: "}{married === "MFS" ? "$375K" : "$750K"} loan (Fed){stateCapLabel}.
+    </Note>
+    {calc.yearlyInc > 0 && hasStateIncomeTax && (
+     <div style={{ marginTop: 10, padding: "10px 12px", background: `${calc.propTaxFedValue > 0 ? T.green : T.orange}10`, borderRadius: 10, border: `1px solid ${calc.propTaxFedValue > 0 ? T.green : T.orange}22`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <div style={{ minWidth: 0 }}>
+       <div style={{ fontSize: 11, color: T.textSecondary, display: "flex", alignItems: "center" }}>Federal value of your property tax{InfoTip && <InfoTip text={TIPS.propTaxValue} />}</div>
+       <div style={{ fontSize: 18, fontWeight: 800, color: calc.propTaxFedValue > 0 ? T.green : T.orange, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(calc.propTaxFedValue || 0)}</div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+       <div style={{ fontSize: 11, color: T.textSecondary }}>Monthly</div>
+       <div style={{ fontSize: 16, fontWeight: 700, color: calc.propTaxFedValue > 0 ? T.green : T.orange, fontFamily: FONT }}>{fmt(calc.propTaxFedValueMonthly || 0)}/mo</div>
+      </div>
+     </div>
+    )}
    </Card>
   </Sec>
 
@@ -311,7 +355,7 @@ export default function TaxContent(props) {
      ))}
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10 }}>
-     Affects standard deduction, tax brackets, and SALT cap. Married Filing Jointly typically gets the largest deductions.
+     Affects the standard deductions (federal and {taxState}), both bracket tables, and the SALT and mortgage-interest caps. Married Filing Jointly typically gets the largest deductions; Married, Separate uses half caps.
     </div>
    </Card>
   </Sec>
@@ -322,14 +366,14 @@ export default function TaxContent(props) {
     <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } : { display: "flex", flexDirection: "column", gap: 12 }}>
      {/* Federal card */}
      <Card>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal Tax Savings: Before & After</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal (2026) Tax Savings: Before & After</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
        <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
         <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1: Before Owning</div>
         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
-        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
-        <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textSecondary }}>−{fmt(calc.fedStdDeduction)}</div>
+        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4, display: "flex", alignItems: "center", flexWrap: "wrap" }}>{fedRenterItemizes ? `Best Deduction (itemized: ${taxState} tax)` : "Best Deduction (standard)"}{InfoTip && <InfoTip text={TIPS.bestDeduction} />}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textSecondary }}>−{fmt(fedDeductionBefore)}</div>
         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.orange}22` }}>Est. Taxable</div>
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(fedTaxableBefore)}</div>
        </div>
@@ -387,7 +431,7 @@ export default function TaxContent(props) {
 
      {/* State card */}
      <Card>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState} Tax Savings: Before & After</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState}{calc.stateTaxYear ? ` (${calc.stateTaxYear})` : ""} Tax Savings: Before & After</div>
       {stateInfo.type === "none" ? (
        <div style={{ padding: "20px 12px", textAlign: "center" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 4 }}>{taxState} has no state income tax</div>
@@ -476,7 +520,7 @@ export default function TaxContent(props) {
    <Sec title="Effective Tax Rates">
     <Card>
      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
-      <span></span>
+      <span style={{ display: "flex", alignItems: "center", textTransform: "none", letterSpacing: 0 }}>{InfoTip && <InfoTip text={TIPS.effective} />}</span>
       <span style={{ textAlign: "right" }}>Federal</span>
       <span style={{ textAlign: "right" }}>{taxState}</span>
       <span style={{ textAlign: "right" }}>Combined</span>

@@ -5570,6 +5570,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    totalTaxSavings, fedDelta, fedItemizes, stateDelta, stateItemizes,
    fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
    fedTaxableBeforeDelta, stTaxableBeforeDelta,
+   stateIncomeTax, fedStateIncomeTax, saltUncapped, fedSalt, fedDeductionBefore, fedDeductionAfter,
+   propTaxFedValue, propTaxFedValueMonthly, stMortIntLimit, stateDeductibleLoanPct, stateTaxYear,
   } = computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate, schedAShare: personalUseShare });
   const monthlyTaxSavings = totalTaxSavings / 12;
   // ── Net-payment ladder — SINGLE SOURCE OF TRUTH ──
@@ -5848,6 +5850,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    stateTaxBefore, stateTaxAfter, stateSavings, totalTaxSavings, monthlyTaxSavings,
    fedDelta, fedItemizes, stateDelta, stateItemizes, fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,
    fedTaxableBeforeDelta, stTaxableBeforeDelta,
+   stateIncomeTax, fedStateIncomeTax, saltUncapped, fedSalt, fedDeductionBefore, fedDeductionAfter,
+   propTaxFedValue, propTaxFedValueMonthly, stMortIntLimit, stateDeductibleLoanPct, stateTaxYear,
    ladderRentCredit, netPayment, ladderTaxSavings, afterTaxPayment, monthlyPrinReduction, monthlyAppreciation, adjustedHousingExpense, netPostSaleExpense,
    schedEGrossIncome, schedEDepreciation, schedEMgmt, schedECashExpenses, schedETotalExpenses, schedENetIncome, schedECashFlow,
    schedEGrossRent, schedEVacancy, schedETax, schedEIns, schedEHoa, schedEMI, schedEInterest,
@@ -8266,7 +8270,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ QUALIFY ═══ */}
 {tab === "qualify" && <QualifyContent {...{T, isDesktop, calc, fmt, pct, isRefi, loanType, firstTimeBuyer, downPct, setDownPct, creditScore, setCreditScore, refiPurpose, refiLtvCheck, allGood, someGood, refiPillarCount, purchPillarCount, setTab, handlePillarClick, isPulse, isTabUnlocked, affordIncome, affordDebts, affordDown, affordTerm, affordRate, affordLoanType, affordTargetDTI, setAffordTargetDTI, debts, debtFree, salesPrice, setSalesPrice, rate, setRate, term, setTerm, setLoanType, userLoanTypeRef, setAutoJumboSwitch, confirmAffordApply, setConfirmAffordApply, getHighBalLimit: getCountyHighBal, propType, incomes, subjectRentalIncome, otherIncome, otherIncome2, reos, propertyCounty, propertyState, StopLight, Card, Sec, Inp, Note, Progress, Hero, MRow, GuidedNextButton}} />}
 {/* ═══ TAX SAVINGS / SCHEDULE E ═══ */}
-{tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
+{tab === "tax" && <TaxContent {...{T, isDesktop, calc, fmt, loanPurpose, subjectRentalIncome, appreciationRate, setAppreciationRate, assessedLand, setAssessedLand, assessedImprovements, setAssessedImprovements, rentalSharePctOverride, setRentalSharePctOverride, schedEVacancyPct, setSchedEVacancyPct, schedEMgmtPct, setSchedEMgmtPct, propType, married, setMarried, FILING_STATUSES, taxState, setTaxState, STATE_NAMES, STATE_TAX, FED_BRACKETS, FED_STD_DEDUCTION, showFedBrackets, setShowFedBrackets, showStateBrackets, setShowStateBrackets, isPulse, markTouched, setTab, Hero, Card, Sec, Inp, Sel, Note, MRow, InfoTip, GuidedNextButton}} />}
 {/* ═══ CALIFORNIA PROP 19 TRANSFER ═══ */}
 {tab === "prop19" && <Prop19Content {...{T, isDesktop, fmt, prop19, prop19Eligibility, setProp19Eligibility, prop19OldTaxableValue, setProp19OldTaxableValue, prop19OldSalePrice, setProp19OldSalePrice, prop19SaleDate, setProp19SaleDate, prop19PurchaseDate, setProp19PurchaseDate, prop19TransfersUsed, setProp19TransfersUsed, city, propertyCounty, prop19RateOverride, setProp19RateOverride, fixedAssessments, setFixedAssessments, Hero, Card, Sec, Inp, Note, MRow}} />}
 {/* ═══ SELLER NET ═══ */}

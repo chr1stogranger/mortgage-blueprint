@@ -45,9 +45,16 @@ export const STATE_TAX = {
  "Arizona": { type:"flat", rate:0.025 },
  "Arkansas": { type:"progressive", std:{s:2340,m:4680,h:2340},
   s:B([[4300,0.02],[8500,0.04],[Infinity,0.044]]), m:B([[4300,0.02],[8500,0.04],[Infinity,0.044]]) },
- "California": { type:"progressive", std:{s:5363,m:10726,h:10726},
-  s:B([[10756,0.01],[25499,0.02],[40245,0.04],[55865,0.06],[70605,0.08],[360658,0.093],[432787,0.103],[721314,0.113],[Infinity,0.123]]),
-  m:B([[21513,0.01],[50998,0.02],[80490,0.04],[111732,0.06],[141212,0.08],[721318,0.093],[865574,0.103],[1442628,0.113],[Infinity,0.123]]) },
+ // California — 2025 tax year (latest official, FTB Tax News Oct 2025; 2026
+ // publishes late 2026). MFJ bounds are exactly 2× single. Std deduction
+ // $5,706 / $11,412 (the old $10,726 MFJ was 2023 vintage). mortIntLimit: CA
+ // never conformed to TCJA, so interest on up to $1M of acquisition debt stays
+ // deductible on the CA return. Not modeled: the 1% Mental Health Services Tax
+ // on taxable income over $1M. Refresh every January — see the Aug 13, 2026
+ // "Blueprint Tax Section — Recap FINAL" doc for the maintenance checklist.
+ "California": { type:"progressive", year:2025, std:{s:5706,m:11412,h:11412}, mortIntLimit:1000000,
+  s:B([[11079,0.01],[26264,0.02],[41452,0.04],[57542,0.06],[72724,0.08],[371479,0.093],[445771,0.103],[742953,0.113],[Infinity,0.123]]),
+  m:B([[22158,0.01],[52528,0.02],[82904,0.04],[115084,0.06],[145448,0.08],[742958,0.093],[891542,0.103],[1485906,0.113],[Infinity,0.123]]) },
  "Colorado": { type:"flat", rate:0.044 },
  "Connecticut": { type:"progressive", std:{s:0,m:0,h:0},
   s:B([[10000,0.03],[50000,0.05],[100000,0.055],[200000,0.06],[250000,0.065],[500000,0.069],[Infinity,0.0699]]),
@@ -419,6 +426,24 @@ export function progressiveTax(taxableIncome, brackets) {
  * 2026 SALT cap/phase-out. IMPORTANT: interest is YEAR-1 interest on the full
  * balance (loan × rate) — a first-year estimate, not a lifetime average.
  *
+ * Mirrors the "Analysis of Tax Savings" section of the TEMPLATE - Blueprint
+ * sheet as finalized 2026-08-13 (Recap FINAL doc):
+ *  - SALT is ONE federal bucket: property tax + state income tax, capped
+ *    together. The state-income-tax half uses the RENTING-side figure (the
+ *    sheet's parked refinement would use the owning-side one; difference is
+ *    marginal and the simpler version is easier to explain on a screen share).
+ *  - The renter does not automatically take the standard deduction. A
+ *    high-tax-state earner may already itemize on state income tax alone, so
+ *    the "before" deduction is MAX(standard, MIN(state income tax, SALT cap)).
+ *    Ignoring this overstates the benefit of owning.
+ *  - The state return has no SALT cap and does not allow deducting the
+ *    state's own income tax, so the state itemized total is property tax +
+ *    mortgage interest (capped at the state's own debt limit when it has one,
+ *    e.g. California $1M).
+ *  - propTaxFedValue is the federal tax actually saved by the property tax
+ *    AFTER the SALT cap — the honest number most calculators overstate. At high
+ *    incomes state income tax alone fills the cap and this reads $0.
+ *
  * @param {object} p
  * @param {number} p.yearlyInc  gross annual income ($)
  * @param {"Single"|"MFJ"|"MFS"|"HOH"} p.married filing status
@@ -448,8 +473,9 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
   const stStdKey = married === "MFJ" ? "m" : married === "HOH" ? "h" : "s";
   const stStdDeduction = stInfo.std ? (stInfo.std[stStdKey] || stInfo.std.s || 0) : 0;
   const stFlatRate = stInfo.rate || 0;
-  // 2026 SALT cap: $40,400 base ($20,200 MFS)
-  // Phase-out: above $505K MAGI, cap reduces by 30% of excess, floor $10,000 ($5,000 MFS)
+  // 2026 SALT cap: $40,400 base ($20,200 MFS) — IRS Rev. Proc. 2025-32.
+  // Phase-out: above $505K MAGI, cap reduces by 30% of excess, floor $10,000 ($5,000 MFS).
+  // MAINTENANCE (every January): 2027–2029 index ~+1%/yr; 2030 reverts to a flat $10,000.
   const saltBase = married === "MFS" ? 20200 : 40400;
   const saltFloor = married === "MFS" ? 5000 : 10000;
   const saltPhaseoutStart = married === "MFS" ? 252500 : 505000;
@@ -459,19 +485,19 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
   // Only the personal-use portion is itemized, and the SALT cap applies to that
   // portion alone — the rental share leaves via Schedule E, which SALT doesn't cap.
   const schedATax = yearlyTax * share;
-  const fedPropTax = Math.min(schedATax, saltCap);
   const mortIntDeductLimit = married === "MFS" ? 375000 : 750000;
   const deductibleLoanPct = loan > 0 ? Math.min(1, mortIntDeductLimit / loan) : 1;
   const totalMortInt = loan * (rate / 100);
   const schedAMortInt = totalMortInt * share;
   const fedMortInt = schedAMortInt * deductibleLoanPct;
-  const fedItemized = fedPropTax + fedMortInt;
-  const stateMortInt = schedAMortInt;
+  // State return: no SALT cap, property tax in full, mortgage interest up to the
+  // state's own debt limit (California $1M; states without one follow the
+  // federal $750K). The state's own income tax is never deductible against itself.
+  const stMortIntLimit = stInfo.mortIntLimit ? (married === "MFS" ? stInfo.mortIntLimit / 2 : stInfo.mortIntLimit) : mortIntDeductLimit;
+  const stateDeductibleLoanPct = loan > 0 ? Math.min(1, stMortIntLimit / loan) : 1;
+  const stateMortInt = schedAMortInt * stateDeductibleLoanPct;
   const stateItemized = schedATax + stateMortInt;
-  const fedTaxableIncome = yearlyInc - Math.max(fedStdDeduction, fedItemized);
-  const fedTaxBefore = progressiveTax(yearlyInc - fedStdDeduction, fedBrackets);
-  const fedTaxAfter = progressiveTax(fedTaxableIncome, fedBrackets);
-  const fedSavings = fedTaxBefore - fedTaxAfter;
+  // ── State tax first: the renting-side state income tax feeds the federal SALT bucket ──
   let stateTaxBefore = 0, stateTaxAfter = 0;
   if (stInfo.type === "flat") {
    const surtax = stInfo.surtax || null;
@@ -484,9 +510,34 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
    stateTaxAfter = progressiveTax(stTaxableIncome, stBrackets);
   }
   const stateSavings = stateTaxBefore - stateTaxAfter;
+  // ── Federal SALT bucket: property tax + state income tax, capped as one ──
+  // DO NOT REMOVE THE MIN. At moderate incomes the cap doesn't bind so it looks
+  // redundant; at $550K single it snaps a $60K+ bucket down to $26,900.
+  const stateIncomeTax = Math.max(0, stateTaxBefore);
+  const saltUncapped = schedATax + stateIncomeTax;
+  const fedSalt = Math.min(saltUncapped, saltCap);
+  // State income tax fills the bucket first; property tax gets whatever room is
+  // left. fedPropTax is therefore the property-tax share that actually counts.
+  const fedStateIncomeTax = Math.min(stateIncomeTax, saltCap);
+  const fedPropTax = Math.max(0, fedSalt - fedStateIncomeTax);
+  const fedItemized = fedSalt + fedMortInt;
+  // "Best Deduction (Renting)": a renter with big state income tax may already
+  // itemize, so the before-owning side is not automatically the standard deduction.
+  const fedDeductionBefore = Math.max(fedStdDeduction, fedStateIncomeTax);
+  const fedDeductionAfter = Math.max(fedStdDeduction, fedItemized);
+  const fedTaxableIncome = yearlyInc - fedDeductionAfter;
+  const fedTaxBefore = progressiveTax(yearlyInc - fedDeductionBefore, fedBrackets);
+  const fedTaxAfter = progressiveTax(fedTaxableIncome, fedBrackets);
+  const fedSavings = fedTaxBefore - fedTaxAfter;
+  // Federal value of the property tax after the SALT cap: owning-side tax with
+  // the property tax in the bucket vs. without it (exact bracket walk, not a
+  // single marginal rate). Reads $0 when state income tax alone fills the cap.
+  const fedTaxNoPropTax = progressiveTax(yearlyInc - Math.max(fedStdDeduction, fedStateIncomeTax + fedMortInt), fedBrackets);
+  const propTaxFedValue = Math.max(0, fedTaxNoPropTax - fedTaxAfter);
+  const propTaxFedValueMonthly = propTaxFedValue / 12;
   const totalTaxSavings = Math.max(0, fedSavings) + Math.max(0, stateSavings);
   // ── Delta Analysis (Chris's CPA explanation) ──
-  const fedDelta = Math.max(0, fedItemized - fedStdDeduction);
+  const fedDelta = Math.max(0, fedItemized - fedDeductionBefore);
   const fedItemizes = fedItemized > fedStdDeduction;
   const stateDelta = Math.max(0, stateItemized - stStdDeduction);
   const stateItemizes = stateItemized > stStdDeduction;
@@ -509,7 +560,7 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
    }
    return result;
   };
-  const fedTaxableBeforeDelta = Math.max(0, yearlyInc - fedStdDeduction);
+  const fedTaxableBeforeDelta = Math.max(0, yearlyInc - fedDeductionBefore);
   const fedWaterfall = bracketWaterfall(fedTaxableBeforeDelta, fedDelta, fedBrackets);
   const stTaxableBeforeDelta = Math.max(0, yearlyInc - stStdDeduction);
   const stWaterfall = stInfo.type === "progressive" ? bracketWaterfall(stTaxableBeforeDelta, stateDelta, stBrackets) : [];
@@ -521,6 +572,10 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
    fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit,
    totalMortInt, deductibleLoanPct, fedMortInt, fedItemized, stateMortInt, stateItemized,
    schedATax, schedAMortInt, schedAShare: share,
+   // SALT breakout + renting-side deduction (sheet parity, 2026-08-13)
+   stateIncomeTax, fedStateIncomeTax, saltUncapped, fedSalt, fedDeductionBefore, fedDeductionAfter,
+   propTaxFedValue, propTaxFedValueMonthly, stMortIntLimit, stateDeductibleLoanPct,
+   stateTaxYear: stInfo.year || null,
    fedTaxBefore, fedTaxAfter, fedSavings, stateTaxBefore, stateTaxAfter, stateSavings,
    totalTaxSavings, fedDelta, fedItemizes, stateDelta, stateItemizes,
    fedWaterfall, stWaterfall, fedTopRate, stTopRate, combinedTopRate,

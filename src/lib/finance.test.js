@@ -113,6 +113,57 @@ describe("computeTaxSavings", () => {
     const t = computeTaxSavings({ yearlyInc: 0, married: "Single", taxState: "California", yearlyTax: 0, loan: 0, rate: 0 });
     expect(t.totalTaxSavings).toBeGreaterThanOrEqual(0);
   });
+
+  // ── Sheet parity — "Blueprint Tax Section — Recap FINAL (Aug 13, 2026)" ──
+  // Known-good checksums from the TEMPLATE - Blueprint sheet after the SALT
+  // rebuild: federal on 2026 figures, California on 2025 FTB figures. The sheet's
+  // scenario back-solves to a $750K loan at 6.5% with $13,642/yr property tax.
+  const SHEET = { taxState: "California", yearlyTax: 13642, loan: 750000, rate: 6.5 };
+  it("Single $250K: renting side already itemizes on CA income tax (sheet checksums)", () => {
+    const t = computeTaxSavings({ ...SHEET, yearlyInc: 250000, married: "Single" });
+    expect(t.stStdDeduction).toBe(5706);
+    expect(t.stateTaxBefore).toBeCloseTo(19158, -1);          // CA renting tax
+    expect(t.fedDeductionBefore).toBeCloseTo(19158, -1);      // beats the $16,100 standard deduction
+    expect(t.fedTaxBefore).toBeCloseTo(50326, -1);            // Federal renting
+    expect(t.fedTaxAfter).toBeCloseTo(33025, -1);             // Federal owning
+    expect(t.fedSavings).toBeCloseTo(17300, -1);              // $1,442/mo
+    expect(t.saltCap).toBe(40400);
+    expect(t.fedSalt).toBeCloseTo(13642 + 19158, -1);         // cap not binding
+    expect(t.propTaxFedValue).toBeCloseTo(3274, -1);          // $273/mo
+  });
+  it("MFJ $250K: standard deduction beats capped SALT on the renting side (sheet checksums)", () => {
+    const t = computeTaxSavings({ ...SHEET, yearlyInc: 250000, married: "MFJ" });
+    expect(t.stStdDeduction).toBe(11412);
+    expect(t.stateTaxBefore).toBeCloseTo(15066, -1);          // hand-verified vs FTB Schedule Y
+    expect(t.fedDeductionBefore).toBe(32200);                 // Best Deduction (Renting) = standard
+    expect(t.fedSavings).toBeCloseTo(10085, -1);              // $840/mo
+  });
+  it("Single $550K stress test: SALT cap phases out and property tax adds $0 federally", () => {
+    const t = computeTaxSavings({ ...SHEET, yearlyInc: 550000, married: "Single" });
+    expect(t.saltCap).toBe(26900);                            // 40,400 − 0.30 × 45,000
+    expect(t.fedSalt).toBe(26900);                            // MIN snaps the bucket to the cap
+    expect(t.saltUncapped).toBeGreaterThan(60000);
+    expect(t.propTaxFedValue).toBe(0);                        // state income tax alone fills the cap
+    expect(t.fedPropTax).toBe(0);
+  });
+  it("SALT cap floors at $10,000 and MFS gets half of everything", () => {
+    const t = computeTaxSavings({ ...SHEET, yearlyInc: 2000000, married: "Single" });
+    expect(t.saltCap).toBe(10000);
+    const m = computeTaxSavings({ ...SHEET, yearlyInc: 300000, married: "MFS" });
+    expect(m.saltCap).toBe(20200 - 0.3 * (300000 - 252500));
+    expect(m.mortIntDeductLimit).toBe(375000);
+    expect(m.stMortIntLimit).toBe(500000);
+  });
+  it("California allows interest on $1M of debt where federal stops at $750K", () => {
+    const t = computeTaxSavings({ ...SHEET, yearlyInc: 300000, married: "MFJ", loan: 1200000 });
+    expect(t.deductibleLoanPct).toBeCloseTo(750000 / 1200000, 10);
+    expect(t.stateDeductibleLoanPct).toBeCloseTo(1000000 / 1200000, 10);
+    expect(t.stateMortInt).toBeGreaterThan(t.fedMortInt);
+    const tx = computeTaxSavings({ ...SHEET, taxState: "Texas", yearlyInc: 300000, married: "MFJ" });
+    expect(tx.stateIncomeTax).toBe(0);                        // no-tax state: SALT is property tax only
+    expect(tx.fedSalt).toBe(13642);
+    expect(tx.fedDeductionBefore).toBe(32200);
+  });
 });
 
 // ── 7+8. Prop 19 — basis transfer rules ──────────────────────────────────────
