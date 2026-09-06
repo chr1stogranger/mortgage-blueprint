@@ -95,7 +95,11 @@ export default async function handler(req, res) {
     const url = `${baseUrl}/api/pricepoint?city=${encodeURIComponent(market)}&state=CA&fresh=1`;
     const t0 = Date.now();
     try {
-      const r = await fetch(url, { method: 'GET' });
+      // Forward the cron secret: pricepoint ignores fresh=1 for unprivileged callers.
+      const r = await fetch(url, {
+        method: 'GET',
+        headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+      });
       const j = await r.json();
       return {
         market: `${market} (pricepoint warm)`,
