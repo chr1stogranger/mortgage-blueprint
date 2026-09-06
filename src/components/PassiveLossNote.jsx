@@ -65,13 +65,13 @@ export default function PassiveLossNote({ T, fmt, calc, compact = false }) {
           <>Your estimated income of {fmt(magi)} is below the {fmt(start)} phase-out, so the full {fmt(maxAllow)} allowance is available (active participation required). </>
         )}
         {suspended > 0 && (
-          <>The suspended {fmt(suspended)} isn&rsquo;t lost — it carries forward indefinitely and releases against future rental income, or in full when you sell in a taxable disposition.</>
+          <>The suspended {fmt(suspended)} isn&rsquo;t lost: it carries forward indefinitely and releases against future rental income, or in full when you sell in a taxable disposition.</>
         )}
       </div>
 
       {!compact && (
         <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6, marginTop: 8, fontFamily: FONT }}>
-          Income here is an estimate from qualifying income — true MAGI for this test has add-backs and is figured before the passive loss itself. The allowance also requires active participation (approving tenants, setting rents) and at least 10% ownership. Real-estate-professional status can take rentals out of the passive rules entirely, but it&rsquo;s a facts-and-circumstances test — ask your CPA rather than assuming it.
+          Income here is an estimate from qualifying income. True MAGI for this test has add-backs and is figured before the passive loss itself. The allowance also requires active participation (approving tenants, setting rents) and at least 10% ownership. Real-estate-professional status can take rentals out of the passive rules entirely, but it&rsquo;s a facts-and-circumstances test. Ask your CPA rather than assuming it.
         </div>
       )}
     </div>

@@ -306,7 +306,7 @@ export default function BorrowerPicker({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: accent, fontFamily: FONT }}>Import from Arive</div>
                 <div style={{ fontSize: 10.5, color: textTer, fontFamily: FONT }}>
-                  Build from an existing Arive file — prepopulated
+                  Build from an existing Arive file, prepopulated
                 </div>
               </div>
             </div>
@@ -374,7 +374,7 @@ export default function BorrowerPicker({
 
               {scenarios.length === 0 && (
                 <div style={{ padding: '16px 12px', textAlign: 'center', fontSize: 12, color: textTer }}>
-                  No blueprints yet — creating one now...
+                  No blueprints yet. Creating one now...
                 </div>
               )}
 

@@ -40,7 +40,7 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
     debounceRef.current = setTimeout(() => {
       searchArive(q)
         .then((d) => { if (seq === seqRef.current) { setResults(d.results || []); setSearching(false); } })
-        .catch(() => { if (seq === seqRef.current) { setErr("Arive search failed — try again."); setSearching(false); } });
+        .catch(() => { if (seq === seqRef.current) { setErr("Arive search failed. Try again."); setSearching(false); } });
     }, 500);
     return () => debounceRef.current && clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,7 +61,7 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
           <button aria-label="Close" onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
         </div>
         <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginBottom: 14, lineHeight: 1.5 }}>
-          Pull an existing Arive file into Blueprint — client, numbers, property, and deal team come prepopulated.
+          Pull an existing Arive file into Blueprint. Client, numbers, property, and deal team come prepopulated.
         </div>
         <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search Arive by borrower, email, or property…" style={{ ...inputStyle, marginBottom: 12 }} />
 
@@ -78,7 +78,7 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
             </div>
           )}
           {!searching && results && results.map((r) => (
-            <div key={r.id} onClick={() => { if (busy) return; setImportingId(r.id); setErr(null); onImport(r).catch((e) => { setErr(e?.message || "Import failed — try again."); setImportingId(null); }); }}
+            <div key={r.id} onClick={() => { if (busy) return; setImportingId(r.id); setErr(null); onImport(r).catch((e) => { setErr(e?.message || "Import failed. Try again."); setImportingId(null); }); }}
               style={{
                 display: "flex", alignItems: "center", gap: 10, padding: "12px 12px", marginBottom: 8,
                 background: T.inputBg, borderRadius: 12, border: `1px solid ${importingId === r.id ? T.blue : T.inputBorder}`,

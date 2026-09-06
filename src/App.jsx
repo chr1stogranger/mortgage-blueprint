@@ -63,7 +63,7 @@ function ClaimBanner({ sessionToken, shareToken }) {
     }}>
       {state === 'done' ? (
         <span style={{ fontSize: 13, color: '#12a150', fontWeight: 600, padding: '4px 8px' }}>
-          Saved to your account — it's yours now, on every device
+          Saved to your account. It's yours now, on every device
         </span>
       ) : (
         <>

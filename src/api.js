@@ -29,7 +29,7 @@ async function authFetch(path, options = {}) {
   if (res.status === 401) {
     // Token expired — clear and signal re-auth needed
     localStorage.removeItem('bp_token');
-    throw new Error('Session expired — please sign in again');
+    throw new Error('Session expired. Please sign in again');
   }
 
   if (!res.ok) {

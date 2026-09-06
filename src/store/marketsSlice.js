@@ -465,7 +465,7 @@ export const sellShares = createAsyncThunk(
     }
 
     if (market.status === MARKET_STATUS.CLOSED) {
-      return rejectWithValue({ code: 'MARKET_CLOSED', message: 'Cannot sell — market has already closed.' });
+      return rejectWithValue({ code: 'MARKET_CLOSED', message: 'Cannot sell. Market has already closed.' });
     }
 
     const positionKey = `${marketId}_${bucketId}`;

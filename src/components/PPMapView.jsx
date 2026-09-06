@@ -51,7 +51,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
       });
     } catch (e) {
       // Old devices without WebGL: quiet warn, hand control back to the list.
-      console.warn("[PPMapView] Map init failed (WebGL unavailable?) — falling back to list.", e);
+      console.warn("[PPMapView] Map init failed (WebGL unavailable?): falling back to list.", e);
       if (onUnsupportedRef.current) onUnsupportedRef.current();
       return undefined;
     }
@@ -202,7 +202,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
           position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
           background: T.card, color: T.textSecondary, fontFamily: FONT, fontSize: 14, textAlign: "center", padding: 20,
         }}>
-          No mappable listings in this pool — switch back to the list.
+          No mappable listings in this pool. Switch back to the list.
         </div>
       )}
     </div>

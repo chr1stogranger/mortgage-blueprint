@@ -267,7 +267,7 @@ export default function SendWorksheetModal({
 
         {gmailSendAvailable() && !linked && phase !== "sent" && (
           <div style={{ fontSize: 11.5, color: T.textTertiary, textAlign: "center", marginTop: 10, fontFamily: FONT }}>
-            A Google window will ask permission to send email on your behalf — one time per browser.
+            A Google window will ask permission to send email on your behalf. One time per browser.
           </div>
         )}
         {onFallbackMailto && phase !== "sent" && (
@@ -362,7 +362,7 @@ export function BorrowerSendModal({
           style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT, marginBottom: 12 }} />
         {phase === "error" && <div style={{ fontSize: 13, color: T.red, fontWeight: 600, marginBottom: 10 }}>{error}</div>}
         {phase === "sent" ? (
-          <div style={{ textAlign: "center", padding: "12px 0", fontSize: 15, fontWeight: 700, color: T.green || "#12a150", fontFamily: FONT }}>✓ Sent — check your inbox</div>
+          <div style={{ textAlign: "center", padding: "12px 0", fontSize: 15, fontWeight: 700, color: T.green || "#12a150", fontFamily: FONT }}>✓ Sent: check your inbox</div>
         ) : (
           <button onClick={handleSend} disabled={!emailValid || phase === "sending"}
             style={{ width: "100%", padding: 15, border: "none", borderRadius: 9999, background: !emailValid ? T.pillBg : "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: !emailValid ? T.textTertiary : "#fff", fontWeight: 700, fontSize: 15, cursor: !emailValid || phase === "sending" ? "default" : "pointer", fontFamily: FONT, boxShadow: emailValid ? "0 0 20px rgba(59,107,245,0.3)" : "none" }}>

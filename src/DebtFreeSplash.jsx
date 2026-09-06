@@ -158,7 +158,7 @@ export default function DebtFreeSplash({ T, linkedValues }) {
           textAlign: "left",
         }}>
           <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>
-            You'll own your {fmt(propertyValue)} home free and clear — no monthly mortgage payment, just taxes, insurance, and HOA.
+            You'll own your {fmt(propertyValue)} home free and clear. No monthly mortgage payment, just taxes, insurance, and HOA.
           </div>
         </div>
       )}

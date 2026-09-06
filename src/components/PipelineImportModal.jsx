@@ -278,7 +278,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
         {(phase === "confirm" || phase === "creating") && payload && (
           <>
             <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginBottom: 12, lineHeight: 1.5 }}>
-              This creates a Blueprint client with a scenario prefilled from the Arive file — contact, property, loan terms, credit score, and whatever income, assets, and debts the file already has.{" "}
+              This creates a Blueprint client with a scenario prefilled from the Arive file. Contact, property, loan terms, credit score, and whatever income, assets, and debts the file already has.{" "}
               <span style={{ color: T.textSecondary, fontWeight: 600 }}>SSNs, birthdates, and account numbers never come over.</span>
             </div>
             <div style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "6px 14px 8px", marginBottom: 16 }}>
@@ -349,7 +349,7 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
 
         {phase === "sent" && (
           <div style={{ textAlign: "center", padding: "20px 0", fontSize: 15, fontWeight: 700, color: T.green || "#12a150", fontFamily: FONT }}>
-            Sent — {firstName || "the client"} has their Blueprint
+            Sent: {firstName || "the client"} has their Blueprint
           </div>
         )}
       </div>

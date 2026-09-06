@@ -108,7 +108,7 @@ export default function SchedEInputs({
       <div style={{ padding: "12px 0 4px" }}>
         <div style={{ fontSize: 13, color: T.text, fontWeight: 600, fontFamily: FONT }}>Assessed values (from the tax bill)</div>
         <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 3, lineHeight: 1.5, fontFamily: FONT }}>
-          Land is never depreciable. Enter both figures from the county assessment — only their <em>ratio</em> is used, applied to the purchase price.
+          Land is never depreciable. Enter both figures from the county assessment. Only their <em>ratio</em> is used, applied to the purchase price.
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingBottom: 10, borderBottom: `1px solid ${T.separator}` }}>
@@ -162,7 +162,7 @@ export default function SchedEInputs({
       </div>
 
       <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6, marginTop: 12, fontFamily: FONT }}>
-        Straight-line over 27.5 years, the residential rental schedule. Depreciation is recaptured on sale — this models the holding period only. Not tax advice.
+        Straight-line over 27.5 years, the residential rental schedule. Depreciation is recaptured on sale. This models the holding period only. Not tax advice.
       </div>
     </div>
   );

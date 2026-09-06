@@ -226,7 +226,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <PaneInp label="Original Purchase Price" value={costBasis} onChange={setCostBasis} glow />
-          <PaneInp label="Improvements" value={improvements} onChange={setImprovements} tip={"Capital improvements increase your cost basis, reducing taxable gain.\n\nIncludes: kitchen/bath remodel, new roof, room addition, HVAC, solar panels, hardscaping, new windows, seismic retrofit.\n\nDoes NOT include: painting, repairs, maintenance, appliance replacement, landscaping upkeep.\n\nIf unsure, $0 is safe — you'll just have a slightly higher taxable gain. Ask your CPA for exact amounts."} />
+          <PaneInp label="Improvements" value={improvements} onChange={setImprovements} tip={"Capital improvements increase your cost basis, reducing taxable gain.\n\nIncludes: kitchen/bath remodel, new roof, room addition, HVAC, solar panels, hardscaping, new windows, seismic retrofit.\n\nDoes NOT include: painting, repairs, maintenance, appliance replacement, landscaping upkeep.\n\nIf unsure, $0 is safe. You'll just have a slightly higher taxable gain. Ask your CPA for exact amounts."} />
         </div>
         {/* Q1: §121 qualifying question + Filing Status */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "end" }}>
@@ -290,7 +290,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
         )}
         {!primaryRes && (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: T.warningBg, marginTop: 2, marginBottom: 4, fontSize: 10, color: T.orange, fontWeight: 600 }}>
-            No §121 exclusion — full gain is taxable at {holdingYears >= 1 ? "long-term capital gains" : "ordinary income (short-term)"} rates
+            No §121 exclusion: full gain is taxable at {holdingYears >= 1 ? "long-term capital gains" : "ordinary income (short-term)"} rates
           </div>
         )}
         {/* Result — inline */}
@@ -303,7 +303,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
           </div>
         ) : calc.grossGain > 0 ? (
           <div style={{ padding: "6px 8px", borderRadius: 8, background: T.successBg, marginTop: 4, fontSize: 10, color: T.green, fontWeight: 600, textAlign: "center" }}>
-            Entire gain excluded — no capital gains tax owed
+            Entire gain excluded: no capital gains tax owed
           </div>
         ) : null}
       </PaneCard>

@@ -76,7 +76,7 @@ export default function NetPaymentLadder({
       </div>
       {!includeEscrow && (
         <div style={{ fontSize: 11, color: T.textTertiary, padding: "6px 0 0", lineHeight: 1.5, fontFamily: FONT }}>
-          Your loan has no escrow account, but tax and insurance are still monthly cost — the ladder starts from the full payment.
+          Your loan has no escrow account, but tax and insurance are still monthly cost. The ladder starts from the full payment.
         </div>
       )}
 
@@ -98,7 +98,7 @@ export default function NetPaymentLadder({
       </>)}
       {calc.isInvestment && (
         <div style={{ fontSize: 11, color: T.textTertiary, padding: "10px 0 0 16px", lineHeight: 1.6, fontFamily: FONT }}>
-          Tax savings aren't shown here — an investment property deducts through Schedule E, not the itemized primary-residence deductions. See the Schedule E pro forma in Tax Savings.
+          Tax savings aren't shown here. An investment property deducts through Schedule E, not the itemized primary-residence deductions. See the Schedule E pro forma in Tax Savings.
         </div>
       )}
 
@@ -130,7 +130,7 @@ export default function NetPaymentLadder({
 
       {netCost < 0 && (
         <div style={{ fontSize: compact ? 11 : 12, color: T.green, fontWeight: 600, lineHeight: 1.6, marginTop: 8, fontFamily: FONT }}>
-          Negative means the property builds wealth faster than it costs to own — rent, tax savings, equity and appreciation together more than cover the payment.
+          Negative means the property builds wealth faster than it costs to own. Rent, tax savings, equity and appreciation together more than cover the payment.
         </div>
       )}
 

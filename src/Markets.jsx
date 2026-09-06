@@ -369,7 +369,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 background: 'transparent', color: '#e5484d', fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              Yes — I have insider info
+              Yes, I have insider info
             </button>
             <button
               onClick={() => handleBuyConfirm(false)}
@@ -379,7 +379,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              No — Proceed
+              No, proceed
             </button>
           </div>
           <button
@@ -971,7 +971,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                     <div style={{ fontSize: 14, color: T.textSecondary, marginTop: 4 }}>
                       Sold for <span style={{ fontWeight: 700, color: T.text, fontFamily: FONT }}>{fmtK(lastPrediction.soldPrice)}</span>
                       {lastPrediction.reward > 0 && (
-                        <span style={{ fontWeight: 700, color: '#12a150' }}> — +{fmt(lastPrediction.reward)} earned</span>
+                        <span style={{ fontWeight: 700, color: '#12a150' }}> · +{fmt(lastPrediction.reward)} earned</span>
                       )}
                     </div>
                     {lastPrediction.correct && practiceStats.currentStreak > 1 && (

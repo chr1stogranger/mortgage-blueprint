@@ -170,7 +170,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
         {!isSignedIn && phase === 'main' && (
           <>
             <div style={{ fontSize: 14, color: secondary, lineHeight: 1.6, marginBottom: 20 }}>
-              Create a free account to keep your blueprints backed up and in sync on every device. No account needed to keep using the calculator — everything stays on this device.
+              Create a free account to keep your blueprints backed up and in sync on every device. No account needed to keep using the calculator. Everything stays on this device.
             </div>
 
             <button onClick={handleGoogle} style={pill('#fff', '#3c4043', { border: '1px solid #dadce0' })}>
