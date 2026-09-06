@@ -225,6 +225,9 @@ export default function TaxContent(props) {
       <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$17,500</div>
      </div>
     </div>
+    {typeof window !== "undefined" && window.innerWidth < 480 && (
+     <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 6, textAlign: "right" }}>Swipe to see more →</div>
+    )}
     <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 12, lineHeight: 1.6, fontStyle: "italic" }}>
      Same income, but Year 2 has $30K in write-offs. That extra deduction lowers taxable income — and saves $7,500 in taxes at the 25% bracket.
     </div>
@@ -234,29 +237,31 @@ export default function TaxContent(props) {
   {/* 3. Write-Offs Due to Home Ownership */}
   <Sec title="Write-Offs Due to Home Ownership">
    <Card>
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 4, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 4, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
      <span></span>
      <span style={{ textAlign: "right" }}></span>
      <span style={{ gridColumn: "3 / 5", textAlign: "center", fontStyle: "italic", color: T.blue }}>2018 Tax Law Caps applied →</span>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, fontSize: 11, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, fontSize: isDesktop ? 11 : 9.5, color: T.textTertiary, fontWeight: 700, paddingBottom: 8, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: isDesktop ? 1 : 0.5, textTransform: "uppercase", alignItems: "end" }}>
+     {/* Narrow screens: smaller tracking plus column gap so AMOUNT / FEDERAL /
+         CALIFORNIA stop running together; long state names may wrap. */}
      <span>Item</span>
-     <span style={{ textAlign: "right" }}>Amount</span>
-     <span style={{ textAlign: "right" }}>Federal</span>
-     <span style={{ textAlign: "right" }}>{taxState}</span>
+     <span style={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>Amount</span>
+     <span style={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>Federal</span>
+     <span style={{ textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>{taxState}</span>
     </div>
     {[
      { label: "Property Taxes Paid (1 year)", amount: calc.yearlyTax, fed: calc.fedPropTax, state: calc.schedATax ?? calc.yearlyTax },
      { label: "Mortgage Interest Paid (1 year)", amount: calc.yearlyMortInt || 0, fed: calc.fedMortInt, state: calc.stateMortInt },
     ].map((row, i) => (
-     <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
+     <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, padding: "10px 0", borderBottom: `1px solid ${T.separator}`, fontSize: 13 }}>
       <span style={{ color: T.textSecondary }}>{row.label}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.amount)}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.fed)}</span>
       <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>{fmt(row.state)}</span>
      </div>
     ))}
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 0, padding: "12px 0 4px", fontSize: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", columnGap: 8, padding: "12px 0 4px", fontSize: 14 }}>
      <span style={{ color: T.text, fontWeight: 700 }}>Total</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700 }}>{fmt(calc.yearlyTax + (calc.yearlyMortInt || 0))}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.fedItemized)}</span>
