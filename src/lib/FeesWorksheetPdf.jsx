@@ -5,7 +5,7 @@
 // pricing engines produce, skinned with RealStack branding (Grange blue
 // accent, Inter tabular figures). Handles BOTH purchase and refinance scenarios.
 //
-// Contract mirrors lib/estimatePdf.js: a pure module — every input arrives
+// Contract: a pure module — every input arrives
 // explicitly via props; nothing reads component state. The heavy library is
 // only ever loaded through renderWorksheetBlob()'s dynamic import, so the
 // main bundle does not grow.

@@ -3,8 +3,8 @@ import React from "react";
 import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { getApplyUrl } from "../lib/applyUrl.js";
-// AMI lookup retained in src/data/caAmi.js for future re-enabling, but no
-// longer rendered in the Debt to Income Summary card.
+// AMI lookup is no longer rendered in the Debt to Income Summary card. The
+// old src/data/caAmi.js table was removed (recover from git history if needed).
 
 
 // ─────────────────────────────────────────────────────────────────────────
