@@ -132,7 +132,7 @@ function EmptySlot({ T, role, candidates, onPick, onManual }) {
           }} style={{ width: "100%", background: T.inputBg, borderRadius: 10, border: `1px solid ${T.inputBorder}`, padding: "11px 12px", color: T.text, fontSize: 14, fontWeight: 500, outline: "none", cursor: "pointer", fontFamily: FONT, WebkitAppearance: "none", marginBottom: 8 }}>
             <option value="" disabled>Choose from your contacts…</option>
             {candidates.map((c, i) => (
-              <option key={i} value={i}>{c.name}{c.company ? ` — ${c.company}` : ""}</option>
+              <option key={i} value={i}>{c.name}{c.company ? ` (${c.company})` : ""}</option>
             ))}
           </select>
           <button onClick={() => setManual(true)} style={{ background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT, padding: 0 }}>
@@ -268,7 +268,7 @@ export default function TeamContent({
   // ── Arive auto-fill (fills empty slots only) ──
   const runAriveFill = async () => {
     const email = activeBorrower?.email;
-    if (!email) { setAriveState("error"); setAriveMsg("This client has no email on file — add one first."); return; }
+    if (!email) { setAriveState("error"); setAriveMsg("This client has no email on file. Add one first."); return; }
     setAriveState("loading"); setAriveMsg("");
     try {
       const data = await fetchAriveDealTeam(email);
@@ -312,9 +312,9 @@ export default function TeamContent({
       setAriveState("done");
       setAriveMsg(filled > 0
         ? `Filled ${filled} contact${filled === 1 ? "" : "s"} from Arive${data.loan?.lender ? ` (${data.loan.lender} file)` : ""}.`
-        : "Arive loan found, but every slot is already filled — nothing overwritten.");
+        : "Arive loan found, but every slot is already filled. Nothing overwritten.");
     } catch {
-      setAriveState("error"); setAriveMsg("Couldn't reach Arive — try again in a minute.");
+      setAriveState("error"); setAriveMsg("Couldn't reach Arive: try again in a minute.");
     }
   };
 
@@ -362,7 +362,7 @@ export default function TeamContent({
     const visible = order.map(r => ({ role: r, entry: getEntry(r) })).filter(x => x.entry);
     return (
       <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
-        <Hero value="Your Deal Team" label="The people working on your home loan — one tap to reach any of them" />
+        <Hero value="Your Deal Team" label="The people working on your home loan. One tap to reach any of them" />
         {visible.length === 0 ? (
           <Card>
             <div style={{ textAlign: "center", padding: "24px 8px", color: T.textSecondary, fontFamily: FONT, fontSize: 14, lineHeight: 1.6 }}>
@@ -383,17 +383,17 @@ export default function TeamContent({
   if (!isCloud || !borrowerId) {
     return (
       <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
-        <Hero value="Deal Team" label="Who's working this deal — borrowers, agents, escrow, title, insurance" />
+        <Hero value="Deal Team" label="Who's working this deal. Borrowers, agents, escrow, title, insurance" />
         <Note>Open a cloud client (sign in and pick a client) to build their deal team.</Note>
       </div>
     );
   }
 
-  const statusText = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed — retrying on next change" : "";
+  const statusText = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Save failed: retrying on next change" : "";
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", paddingTop: 10 }}>
-      <Hero value="Deal Team" label={`Everyone working ${activeBorrower?.name ? `${activeBorrower.name}'s` : "this"} deal — shared with Ops and visible in the client's blueprint`} />
+      <Hero value="Deal Team" label={`Everyone working ${activeBorrower?.name ? `${activeBorrower.name}'s` : "this"} deal: shared with Ops and visible in the client's blueprint`} />
 
       {/* Arive auto-fill + save status row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
@@ -471,7 +471,7 @@ export default function TeamContent({
               <TextInp label="Phone" value={getEntry("coborrower")?.phone || ""} placeholder="(555) 555-5555" inputMode="tel"
                 onChange={v => setRoleEntry("coborrower", { ...(getEntry("coborrower") || {}), phone: v }, getEntry("coborrower")?.source || "manual")} sm />
               <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginTop: 6, lineHeight: 1.5 }}>
-                The co-borrower email links their sign-in to this blueprint — they'll co-edit the same file.
+                The co-borrower email links their sign-in to this blueprint. They'll co-edit the same file.
               </div>
             </Card>
           </Sec>

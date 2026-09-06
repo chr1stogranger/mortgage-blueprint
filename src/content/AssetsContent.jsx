@@ -303,7 +303,7 @@ export default function AssetsContent(props) {
             </div>
             <Progress value={totalForClosing} max={calc.cashToClose} color={totalForClosing >= calc.cashToClose ? T.green : T.orange} height={10} />
             <div style={{ fontSize: 11, color: closingDiff >= 0 ? T.green : T.orange, fontWeight: 500, marginTop: 6 }}>
-              {closingDiff >= 0 ? `✓ Funded — ${fmt(closingDiff)} surplus` : `Need ${fmt(Math.abs(closingDiff))} more`}
+              {closingDiff >= 0 ? `✓ Funded: ${fmt(closingDiff)} surplus` : `Need ${fmt(Math.abs(closingDiff))} more`}
             </div>
           </Card>
 
@@ -326,14 +326,14 @@ export default function AssetsContent(props) {
             </div>
             <Progress value={totalReserves} max={calc.reservesReq} color={totalReserves >= calc.reservesReq ? T.green : T.orange} height={10} />
             <div style={{ fontSize: 11, color: reservesDiff >= 0 ? T.green : T.orange, fontWeight: 500, marginTop: 6 }}>
-              {reservesDiff >= 0 ? `✓ Funded — ${fmt(reservesDiff)} surplus` : `Need ${fmt(Math.abs(reservesDiff))} more`}
+              {reservesDiff >= 0 ? `✓ Funded: ${fmt(reservesDiff)} surplus` : `Need ${fmt(Math.abs(reservesDiff))} more`}
             </div>
           </Card>
         </div>
 
         <Note color={T.blue}>
           {loanType === "Jumbo"
-            ? "Jumbo: Reserves factor varies by account type — Checking/Saving 100%, Stocks/Bonds 70%, Retirement 60%, Gift 0%."
+            ? "Jumbo: Reserves factor varies by account type. Checking/Saving 100%, Stocks/Bonds 70%, Retirement 60%, Gift 0%."
             : `${loanType}: All qualifying assets count at 100% toward reserves (Gift excluded).`}
         </Note>
         <div style={{ textAlign: "center", marginTop: 8, marginBottom: 4 }}>

@@ -292,7 +292,7 @@ export default function DebtsContent(props) {
         {/* When debt-free, hide the body and show a clean message */}
         {debtFree && (
           <div style={{ padding: "28px 16px", textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: T.green, marginBottom: 4 }}>No consumer debt — more buying power</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.green, marginBottom: 4 }}>No consumer debt: more buying power</div>
             <div style={{ fontSize: 12, color: T.textSecondary }}>Click the Debt-Free pill above to add debts.</div>
           </div>
         )}
@@ -412,7 +412,7 @@ export default function DebtsContent(props) {
                                 const newBalTotal = otherLinkedNew.reduce((s, dd) => s + (Number(dd.balance) || 0), 0) + balN;
                                 setReos(prev => prev.map(r => r.id === Number(v) ? { ...r, payment: newTotal, mortgageBalance: newBalTotal } : r));
                               }
-                            }} options={[{ value: "", label: "— Not linked —" }, ...reos.map((r, i) => ({ value: String(r.id), label: r.address || `Property ${i + 1}` }))]} sm />
+                            }} options={[{ value: "", label: "Not linked" }, ...reos.map((r, i) => ({ value: String(r.id), label: r.address || `Property ${i + 1}` }))]} sm />
                           ) : ownsProperties ? (
                             <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.4 }}>
                               Add properties on the REO tab to link this debt.
@@ -424,7 +424,7 @@ export default function DebtsContent(props) {
                           )}
                           {d.linkedReoId && (
                             <div style={{ fontSize: 11, color: ACCENT, marginTop: 6, fontWeight: 500, lineHeight: 1.4 }}>
-                              Linked to REO — payment handled via 75% rental offset in DTI, not counted as standalone debt.
+                              Linked to REO: payment handled via 75% rental offset in DTI, not counted as standalone debt.
                             </div>
                           )}
                         </div>
@@ -538,7 +538,7 @@ export default function DebtsContent(props) {
                         <Inp label="Payoff Amount" value={d.payoffAmount || 0} onChange={v => calc.updateDebt(d.id, "payoffAmount", v)} sm tip={`Leave 0 to use full balance (${fmt(bal)})`} />
                       )}
                       {needsLinkUI && reos.length > 0 && (
-                        <Sel label="Linked REO Property" value={d.linkedReoId || ""} onChange={v => calc.updateDebt(d.id, "linkedReoId", v)} options={[{ value: "", label: "— Not linked —" }, ...reos.map((r, i) => ({ value: String(r.id), label: r.address || `Property ${i + 1}` }))]} sm />
+                        <Sel label="Linked REO Property" value={d.linkedReoId || ""} onChange={v => calc.updateDebt(d.id, "linkedReoId", v)} options={[{ value: "", label: "Not linked" }, ...reos.map((r, i) => ({ value: String(r.id), label: r.address || `Property ${i + 1}` }))]} sm />
                       )}
                       <button onClick={() => calc.removeDebt(d.id)} style={{
                         marginTop: 8, padding: "8px 14px", borderRadius: 9999,
@@ -628,7 +628,7 @@ export default function DebtsContent(props) {
               </div>
               <Progress value={dti} max={maxDti} color={dtiOk ? T.green : T.red} height={10} />
               <div style={{ fontSize: 11, color: dtiOk ? T.green : T.red, fontWeight: 500, marginTop: 6 }}>
-                {dtiOk ? `✓ Within limits — ${fmt(income * maxDti - housing - monthlyDebts)}/mo headroom` : `Above max — reduce debts or increase income`}
+                {dtiOk ? `✓ Within limits: ${fmt(income * maxDti - housing - monthlyDebts)}/mo headroom` : `Above max: reduce debts or increase income`}
               </div>
             </>) : (
               <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, paddingTop: 6, borderTop: `1px solid ${T.separator}`, marginTop: 8 }}>

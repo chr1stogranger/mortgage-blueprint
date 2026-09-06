@@ -134,7 +134,7 @@ export default function AmortContent(props) {
       }}
      >
       {showAllMonthly
-       ? `Collapse — show first ${MONTHLY_COLLAPSED_ROWS} months`
+       ? `Collapse to first ${MONTHLY_COLLAPSED_ROWS} months`
        : `Show all ${totalMonths} months · ${hiddenCount} more`}
       <span style={{ fontSize: 14, lineHeight: 1 }}>{showAllMonthly ? "▴" : "▾"}</span>
      </button>

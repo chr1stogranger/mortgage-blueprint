@@ -16,7 +16,7 @@ function TitleEscrowScheduleNote({ T, fmt, loanAmount, state }) {
   if (!applies) {
     return (
       <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, padding: "6px 2px 2px", lineHeight: 1.5 }}>
-        Estimated fees — no tiered schedule on file for {state || "this state"}, so these are flat defaults. Confirm with your title rep.
+        Estimated fees: no tiered schedule on file for {state || "this state"}, so these are flat defaults. Confirm with your title rep.
       </div>
     );
   }
@@ -25,12 +25,12 @@ function TitleEscrowScheduleNote({ T, fmt, loanAmount, state }) {
     <div style={{ padding: "4px 2px 2px" }}>
       <div onClick={() => setOpen(o => !o)} style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer", color: T.blue, fontSize: 11, fontWeight: 600, fontFamily: FONT }}>
         <Icon name={open ? "chevron-down" : "chevron-right"} size={12} />
-        Estimated fees — how the tiers work
+        Estimated fees: how the tiers work
       </div>
       {current && (
         <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 3, lineHeight: 1.5 }}>
           {current.overCap
-            ? `Loan is above the ${fmt(5000000)} top tier — the policy adds $500 per additional $1M.`
+            ? `Loan is above the ${fmt(5000000)} top tier: the policy adds $500 per additional $1M.`
             : `A ${fmt(Math.round(loanAmount || 0))} loan falls in the "up to ${fmt(current.tier)}" bracket.`}
         </div>
       )}
@@ -452,9 +452,9 @@ const FEE_CATALOG = {
     { label: "Survey Fee", amount: 400 },
     { label: "Pest Inspection", amount: 150 },
     { label: "Attorney Fee", amount: 750 },
-    { label: "Title — Endorsement Fee", amount: 100 },
-    { label: "Title — Mobile Notary Fee", amount: 175 },
-    { label: "Title — Recording Service Fee", amount: 17 },
+    { label: "Title: Endorsement Fee", amount: 100 },
+    { label: "Title: Mobile Notary Fee", amount: 175 },
+    { label: "Title: Recording Service Fee", amount: 17 },
   ],
   E: [
     { label: "State Tax / Stamps", amount: 0 },
@@ -1044,7 +1044,7 @@ export default function CostsContent(props) {
           onChange={(v) => updateCustomFee(f.id, v)}
           onDelete={() => removeCustomFee(f.id)}
           alwaysEdit={!!opts.alwaysEdit}
-          explainer={section === "CR" ? "Custom credit added by your LO — reduces cash to close" : "Custom fee added by your LO"} />
+          explainer={section === "CR" ? "Custom credit added by your LO. Reduces cash to close" : "Custom fee added by your LO"} />
       ))}
       <AddFeeControl
         section={section}
@@ -1169,7 +1169,7 @@ export default function CostsContent(props) {
           }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 6, fontFamily: FONT }}>What are closing costs?</div>
             <div style={{ fontSize: 13, lineHeight: 1.55, color: T.textSecondary, fontFamily: FONT }}>
-              These are one-time fees to set up your loan — lender charges, title &amp; escrow, government taxes, and prepaid items like interest and insurance. They run about <strong style={{ color: T.text }}>{costPct.toFixed(1)}%</strong> of the price (<strong style={{ color: T.text }}>{fmt2(allCosts)}</strong> here), and they're <strong style={{ color: T.text }}>separate from your down payment</strong>. Tap a section below to see the line items, then continue.
+              These are one-time fees to set up your loan. Lender charges, title &amp; escrow, government taxes, and prepaid items like interest and insurance. They run about <strong style={{ color: T.text }}>{costPct.toFixed(1)}%</strong> of the price (<strong style={{ color: T.text }}>{fmt2(allCosts)}</strong> here), and they're <strong style={{ color: T.text }}>separate from your down payment</strong>. Tap a section below to see the line items, then continue.
             </div>
           </div>
         );
@@ -1200,7 +1200,7 @@ export default function CostsContent(props) {
               ? `${Math.abs(discountPts)}% × ${fmt(calc.loan)} = ${discountPts < 0 ? "−" : ""}${fmt2(Math.abs(calc.pointsCost))}`
               : undefined}
             explainer={discountPts < 0
-              ? "Negative — lender credits go to your closing costs (often in exchange for a slightly higher rate)"
+              ? "Negative: lender credits go to your closing costs (often in exchange for a slightly higher rate)"
               : (discountPts > 0
                 ? "1 point = 1% of loan, typically lowers rate ~0.25%"
                 : "Buy down the rate by paying points upfront, or go negative for a lender credit")}
@@ -1245,7 +1245,7 @@ export default function CostsContent(props) {
               {/* Both refi title/escrow charges, tiered on the new loan amount.
                   Was a single flat "Title / Escrow Flat Fee" that never moved
                   with the loan (Christo 2026-07-22). */}
-              <FeeRow label="Title Insurance — Lender's Policy" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Insures the lender's lien position. A refi needs a new loan policy; your owner's policy carries over." />
+              <FeeRow label="Title Insurance: Lender's Policy" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Insures the lender's lien position. A refi needs a new loan policy; your owner's policy carries over." />
               <FeeRow label="Escrow / Settlement Fee" value={escrowFee} onChange={setEscrowFee} hidden={isHidden("escrowFee")} onDelete={() => deleteBuiltin("escrowFee")} explainer="Basic residential loan escrow services for a single-loan refinance." />
               <TitleEscrowScheduleNote T={T} fmt={fmt} loanAmount={calc.refiNewLoanAmt} state={propertyState} />
             </>
@@ -1314,7 +1314,7 @@ export default function CostsContent(props) {
                   onChange={setTransferTaxCity}
                   options={getTTCitiesForState(propertyState).map(c => ({ value: c, label: c === "Not listed" ? "Not listed" : `${c} ($${getTTForCity(c, salesPrice).rate}/$1K)` }))}
                   sm
-                  tip="City transfer tax — varies by city."
+                  tip="City transfer tax: varies by city."
                 />
               </div>
             ) : null;
@@ -1331,7 +1331,7 @@ export default function CostsContent(props) {
                 inlineEditor={cityDropdown}
                 explainer={isRefi
                   ? "No transfer tax on refinances in California"
-                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100% — toggle Seller above. " : ""}$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt2(cityFullTax)} → buyer ${citySharePct}% = ${fmt2(calc.buyerCityTT)}`}
+                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100%. Toggle Seller above. " : ""}$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt2(cityFullTax)} → buyer ${citySharePct}% = ${fmt2(calc.buyerCityTT)}`}
               />
               {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
               {countyRate > 0 && (
@@ -1356,7 +1356,7 @@ export default function CostsContent(props) {
         {/* H. Other — the very bottom of the left column (Christo 2026-07-05). */}
         {!isRefi && (
           <LetterSection letter="H" title="Other" total={fmt2(otherCostsTotal)} lockable>
-            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} hidden={isHidden("ownersTitleIns")} onDelete={() => deleteBuiltin("ownersTitleIns")} explainer="Optional — protects buyer's ownership rights from title defects" />
+            <FeeRow label="Owner's Title Insurance" value={ownersTitleIns} onChange={setOwnersTitleIns} hidden={isHidden("ownersTitleIns")} onDelete={() => deleteBuiltin("ownersTitleIns")} explainer="Optional: protects buyer's ownership rights from title defects" />
             <FeeRow label="Home Warranty"           value={homeWarranty}   onChange={setHomeWarranty}   hidden={isHidden("homeWarranty")} onDelete={() => deleteBuiltin("homeWarranty")} explainer="One-year coverage on major home systems" />
             {hoa > 0 && (
               <FeeRow
@@ -1493,7 +1493,7 @@ export default function CostsContent(props) {
               );
             })()}
             calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day`}
-            explainer="Interest from your closing date through end of month — pick the closing date and everything recalculates. First payment is the 1st of the second month after closing: the prepaid interest covers your closing month, the next month's interest accrues, and it's paid in arrears with that first payment."
+            explainer="Interest from your closing date through end of month. Pick the closing date and everything recalculates. First payment is the 1st of the second month after closing: the prepaid interest covers your closing month, the next month's interest accrues, and it's paid in arrears with that first payment."
           />
 
           {/* 2. Homeowner's Insurance Premium.
@@ -1508,9 +1508,9 @@ export default function CostsContent(props) {
             readOnly
             autoBadge
             note={!isRefi ? undefined
-              : calc.prepaidIns > 0 ? `Policy renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"} — premium collected at closing; escrow starts a fresh 12-month cycle.`
-              : calc.insDocCondition ? "Escrow waived and the policy renews near closing — nothing collected; paid receipt for the renewal is a docs condition."
-              : "Policy renews outside the 60-day window — nothing collected at closing."}
+              : calc.prepaidIns > 0 ? `Policy renews ${calc.insRenewalDays != null ? `${calc.insRenewalDays} days after closing` : "near closing"}: premium collected at closing; escrow starts a fresh 12-month cycle.`
+              : calc.insDocCondition ? "Escrow waived and the policy renews near closing. Nothing collected; paid receipt for the renewal is a docs condition."
+              : "Policy renews outside the 60-day window. Nothing collected at closing."}
             explainer={isRefi
               ? "On a refinance the existing policy carries over. The 12-month premium is only collected at closing when the new loan escrows insurance and the policy renews within about 60 days of closing. Set the effective date in Setup."
               : "First-year homeowner's insurance, calculated from monthly insurance × 12. Edit the monthly amount in the Setup tab."}
@@ -1518,7 +1518,7 @@ export default function CostsContent(props) {
 
           {/* 3. Property Taxes — Installment (hidden by default; revealed when section unlocked) */}
           <FeeRow
-            label="Property Taxes — Installment"
+            label="Property Taxes: Installment"
             value={propertyTaxesInstallment}
             onChange={setPropertyTaxesInstallment}
             hideWhenLockedAndZero
@@ -1530,7 +1530,7 @@ export default function CostsContent(props) {
               + the word "Reimbursement" makes the credit nature clear without needing
               a negative-sign workaround in the editor. */}
           <FeeRow
-            label="Property Taxes — Sellers Prorated Reimbursement"
+            label="Property Taxes: Sellers Prorated Reimbursement"
             value={sellersProratedTaxCredit}
             onChange={setSellersProratedTaxCredit}
             hideWhenLockedAndZero
@@ -1547,7 +1547,7 @@ export default function CostsContent(props) {
               value={0}
               readOnly
               autoBadge
-              explainer="Upfront MI premium (FHA/USDA only — conv. MI is monthly)"
+              explainer="Upfront MI premium (FHA/USDA only; Conv. MI is monthly)"
             />
           )}
         </LetterSection>
@@ -1559,7 +1559,7 @@ export default function CostsContent(props) {
         <LetterSection letter="G" title="Initial Escrow Payment at Closing">
           {!gEscTax && !gEscIns ? (
             <div style={{ padding: "8px 0", fontSize: 12, color: T.textSecondary }}>
-              Escrow waived — taxes and insurance paid separately by borrower.
+              Escrow waived: taxes and insurance paid separately by borrower.
             </div>
           ) : (
             <>
@@ -1573,7 +1573,7 @@ export default function CostsContent(props) {
                 explainer="Cushion held by lender for upcoming insurance payments"
               />
               ) : (
-              <div style={{ padding: "6px 0", fontSize: 11, color: T.textTertiary }}>Insurance not escrowed — borrower pays the carrier directly.</div>
+              <div style={{ padding: "6px 0", fontSize: 11, color: T.textTertiary }}>Insurance not escrowed: borrower pays the carrier directly.</div>
               )}
               {gEscTax ? (
               <FeeRow
@@ -1585,7 +1585,7 @@ export default function CostsContent(props) {
                 explainer="Cushion for upcoming property tax bills"
               />
               ) : (
-              <div style={{ padding: "6px 0", fontSize: 11, color: T.textTertiary }}>Taxes not escrowed — borrower pays the county directly.</div>
+              <div style={{ padding: "6px 0", fontSize: 11, color: T.textTertiary }}>Taxes not escrowed: borrower pays the county directly.</div>
               )}
               {/* Escrow Calendar — chevron expander showing 12-month forward projection.
                   Sits BETWEEN the reserves and the toggle so the toggle stays last. */}
@@ -1634,8 +1634,8 @@ export default function CostsContent(props) {
           explainer={!isRefi && salesPrice > 0
             ? `${emdLocked
                 ? `${emdPct}% × ${fmt(salesPrice)} = ${fmt2(calc.emdAmt)}`
-                : `Flat amount: ${fmt2(calc.emdAmt)}`}${emdPaid ? " — paid to escrow, credited" : " — not yet paid ($0 credited)"}. 3% is standard in CA; unlock to enter a flat dollar amount.`
-            : "Deposit — only credited toward cash to close once paid to escrow."}
+                : `Flat amount: ${fmt2(calc.emdAmt)}`}${emdPaid ? ", paid to escrow and credited" : ", not yet paid ($0 credited)"}. 3% is standard in CA; unlock to enter a flat dollar amount.`
+            : "Deposit only credited toward cash to close once paid to escrow."}
           inlineEditor={!isRefi ? (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
               <button aria-label={emdLocked ? "Unlock and edit" : "Lock value"} type="button"
@@ -1673,7 +1673,7 @@ export default function CostsContent(props) {
         )}
         <FeeRow label="Lender Credits"    value={lenderCredit}  onChange={setLenderCredit}  alwaysEdit
           hidden={isHidden("lenderCredit")} onDelete={() => deleteBuiltin("lenderCredit")}
-          explainer="Credit from lender — often in exchange for a slightly higher rate" />
+          explainer="Credit from lender: often in exchange for a slightly higher rate" />
         <FeeRow label="Adjustments and Other Credits" value={0} readOnly autoBadge
           explainer="Other credits or adjustments at closing" />
         <FeeRow label="Subordinate Financing" value={0} readOnly
@@ -1716,7 +1716,7 @@ export default function CostsContent(props) {
             <div style={{ fontSize: 13, fontWeight: 700, color: T.blue, marginBottom: 8 }}>When Is My First Payment?</div>
             <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
               <div style={{ marginBottom: 6 }}>You close on <strong>{shortMos[cm]} {closingDay}</strong>. Per-diem interest is collected from closing day through the end of {monthNames[cm]}: <strong>{calc.autoPrepaidDays} days</strong> of prepaid interest.</div>
-              <div style={{ marginBottom: 6 }}>You have <strong>no mortgage payment in {skipMo}</strong> — your first full month of ownership.</div>
+              <div style={{ marginBottom: 6 }}>You have <strong>no mortgage payment in {skipMo}</strong>: your first full month of ownership.</div>
               <div style={{ marginBottom: 6 }}>Your first payment is due <strong>{firstPmtMo} 1st</strong>, and isn't considered late until after <strong>{firstPmtMo} 15th</strong>.</div>
               <div style={{ background: `${T.green}12`, borderRadius: 8, padding: "8px 10px", marginTop: 8 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: T.green }}>That's ~{closingDay <= 15 ? "1.5 to 2" : "1 to 1.5"} months with no mortgage payment after closing!</span>

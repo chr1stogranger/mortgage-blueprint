@@ -51,7 +51,7 @@ export default function Prop19Content(props) {
       ))}
      </div>
      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 8, lineHeight: 1.5 }}>
-      Informational only — we don't gate the calculator on this. Disaster path requires a declared wildfire or governor-declared disaster.
+      Informational only: we don't gate the calculator on this. Disaster path requires a declared wildfire or governor-declared disaster.
      </div>
     </Card>
    </Sec>
@@ -74,7 +74,7 @@ export default function Prop19Content(props) {
    </Sec>
    <Sec title="Your Original Home">
     <Card>
-     <Inp label="Current taxable value (from tax bill)" value={prop19OldTaxableValue} onChange={setProp19OldTaxableValue} tip="Your Prop 13 assessed value — check your most recent property-tax bill." />
+     <Inp label="Current taxable value (from tax bill)" value={prop19OldTaxableValue} onChange={setProp19OldTaxableValue} tip="Your Prop 13 assessed value. Check your most recent property-tax bill." />
      <Inp label="Sale price" value={prop19OldSalePrice} onChange={setProp19OldSalePrice} tip="What the outgoing home sold for (or will sell for)." />
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
       <div>
@@ -99,7 +99,7 @@ export default function Prop19Content(props) {
       County rate comes from the zip you entered in Setup. Leave override at 0 to use it automatically.
      </div>
      <div style={{ height: 1, background: T.separator, margin: "12px 0" }} />
-     <Inp label="Fixed assessments (annual)" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} tip="Mello-Roos, bonds, parcel taxes, special districts. Check your county tax bill — these are flat dollar amounts that don't vary with property value." />
+     <Inp label="Fixed assessments (annual)" value={fixedAssessments} onChange={setFixedAssessments} prefix="$" suffix="/yr" max={50000} tip="Mello-Roos, bonds, parcel taxes, special districts. Check your county tax bill. These are flat dollar amounts that don't vary with property value." />
      <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, lineHeight: 1.5 }}>
       Added to both With and Without Prop 19 totals (the assessments follow the new home, not the transfer).
      </div>
@@ -119,7 +119,7 @@ export default function Prop19Content(props) {
    )}
    <Sec title="With Prop 19 transfer">
     <Card>
-     <MRow label="New taxable value" value={fmt(prop19.newTaxableValue)} sub={prop19.sameOrLower ? "Replacement ≤ original sale — full base transferred" : "Replacement > original sale — base + excess"} />
+     <MRow label="New taxable value" value={fmt(prop19.newTaxableValue)} sub={prop19.sameOrLower ? "Replacement ≤ original sale. Full base transferred" : "Replacement > original sale: base + excess"} />
      <MRow label="Effective rate" value={`${(prop19.countyRate * 100).toFixed(3)}%`} />
      <MRow label="Annual property tax" value={fmt(prop19.prop19BaseTax)} />
      <MRow label="Fixed assessments" value={fmt(prop19.fixedAssessments)} indent sub="Mello-Roos / bonds / special" />

@@ -127,7 +127,7 @@ export default function ReoContent(props) {
             padding: "10px 16px",
             fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
             textTransform: "uppercase", fontFamily: FONT,
-          }}>Real Estate Owned — Income Analysis</div>
+          }}>Real Estate Owned: Income Analysis</div>
           <div style={{ padding: "28px 16px", textAlign: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 4 }}>No properties added yet</div>
             <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 14, lineHeight: 1.5 }}>
@@ -162,7 +162,7 @@ export default function ReoContent(props) {
           textTransform: "uppercase", fontFamily: FONT,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <span>Real Estate Owned — Income Analysis</span>
+          <span>Real Estate Owned: Income Analysis</span>
           <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
             {fmt(totals.value)} total value
           </span>
@@ -265,7 +265,7 @@ export default function ReoContent(props) {
                       )}
                       {c.linked.map(d => (
                         <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", fontSize: 12, color: T.textSecondary }}>
-                          <span>{d.type}{d.name ? ` — ${d.name}` : ""} · <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(d.monthly)}/mo</span></span>
+                          <span>{d.type}{d.name ? `: ${d.name}` : ""} · <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(d.monthly)}/mo</span></span>
                           <button onClick={() => calc.updateDebt(d.id, "linkedReoId", "")} style={{
                             background: `${T.red}15`, border: "none", borderRadius: 6, padding: "3px 8px",
                             fontSize: 10, color: T.red, cursor: "pointer", fontWeight: 700, fontFamily: FONT,
@@ -281,7 +281,7 @@ export default function ReoContent(props) {
                             <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, marginBottom: 4 }}>Available to link:</div>
                             {unlinkable.map(d => (
                               <div key={d.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", fontSize: 12, color: T.textSecondary }}>
-                                <span>{d.type}{d.name ? ` — ${d.name}` : ""} · <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(d.monthly)}/mo</span></span>
+                                <span>{d.type}{d.name ? `: ${d.name}` : ""} · <span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(d.monthly)}/mo</span></span>
                                 <button onClick={() => calc.updateDebt(d.id, "linkedReoId", reoIdStr)} style={{
                                   background: `${ACCENT}20`, border: "none", borderRadius: 6, padding: "3px 8px",
                                   fontSize: 10, color: ACCENT, cursor: "pointer", fontWeight: 700, fontFamily: FONT,
@@ -457,13 +457,13 @@ export default function ReoContent(props) {
           const reo = reos.find(r => String(r.id) === sellLinkedReoId);
           return reo ? (
             <div style={{ fontSize: 11, color: T.green, marginTop: 4, fontWeight: 500 }}>
-              ✓ Seller Net unlocked — linked to {reo.address || "selected property"}
+              ✓ Seller Net unlocked. Linked to {reo.address || "selected property"}
             </div>
           ) : null;
         })()}
         {hasSellProperty && !sellLinkedReoId && (
           <div style={{ fontSize: 11, color: T.green, marginTop: 4, fontWeight: 500 }}>
-            ✓ Seller Net unlocked — manual entry mode
+            ✓ Seller Net unlocked. Manual entry mode
           </div>
         )}
 

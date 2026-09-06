@@ -127,7 +127,7 @@ export default function RentVsBuyContent(props) {
    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7 }}>
     <p style={{ margin: "0 0 10px 0" }}>Rent increases by ~{rbRentGrowth}% per year. Your {fmt(rbCurrentRent)}/mo rent becomes <strong>{fmt(Math.round(rbCurrentRent * Math.pow(1 + rbRentGrowth / 100, 10)))}/mo in 10 years</strong> and <strong>{fmt(Math.round(rbCurrentRent * Math.pow(1 + rbRentGrowth / 100, 30)))}/mo in 30 years</strong>.</p>
     <p style={{ margin: "0 0 10px 0" }}>Meanwhile, a fixed-rate mortgage payment of {fmt(calc.pi)}/mo <strong>never changes</strong> for 30 years.</p>
-    <p style={{ margin: 0 }}>Over 30 years, you'll pay <strong>{fmt(Math.round(rbCalc.data.reduce((s, d) => s + d.annualRentCost, 0)))}</strong> in total rent — and own nothing. Or you'll pay into a home that could be worth <strong>{fmt(rbCalc.yr30.homeVal || 0)}</strong>.</p>
+    <p style={{ margin: 0 }}>Over 30 years, you'll pay <strong>{fmt(Math.round(rbCalc.data.reduce((s, d) => s + d.annualRentCost, 0)))}</strong> in total rent, and own nothing. Or you'll pay into a home that could be worth <strong>{fmt(rbCalc.yr30.homeVal || 0)}</strong>.</p>
    </div>
   </Card>
  </Sec>

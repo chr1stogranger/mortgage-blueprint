@@ -33,7 +33,7 @@ export default function TaxContent(props) {
   <Card pad={20}>
    <div style={{ textAlign: "center", padding: "30px 20px" }}>
     <div style={{ fontSize: 40, marginBottom: 12 }}></div>
-    <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Second Home — No Additional Tax Benefit</div>
+    <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Second Home: No Additional Tax Benefit</div>
     <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, maxWidth: 480, margin: "0 auto" }}>
      Second homes do not qualify for the same tax deductions as a primary residence. Mortgage interest may still be deductible if your total mortgage debt (primary + second home) is under the {married === "MFS" ? "$375K" : "$750K"} TCJA cap, but property taxes are subject to the {married === "MFS" ? "$20,200" : "$40,400"} SALT cap across all properties combined.
     </div>
@@ -41,7 +41,7 @@ export default function TaxContent(props) {
      If you rent the property out for more than 14 days/year, it becomes a rental property and IRS rules change significantly. Consult your CPA for your specific situation.
     </div>
     <div style={{ marginTop: 20, padding: "10px 14px", background: `${T.orange}08`, borderRadius: 10, border: `1px solid ${T.orange}18` }}>
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is general information only — not tax advice. Tax situations vary. Please confirm with your CPA or tax professional.</div>
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, lineHeight: 1.6 }}>This is general information only, not tax advice. Tax situations vary. Please confirm with your CPA or tax professional.</div>
     </div>
    </div>
   </Card>
@@ -51,7 +51,7 @@ export default function TaxContent(props) {
  <div style={{ marginTop: 20 }}>
   <div style={isDesktop ? { display: "flex", gap: 24, alignItems: "flex-start" } : {}}>
   <div style={isDesktop ? { position: "sticky", top: 90, width: "50%", flexShrink: 0, maxHeight: "calc(100vh - 110px)", overflowY: "auto" } : {}}>
-   <Hero value={fmt(calc.schedENetIncome)} label="Schedule E — Net Rental Income" color={calc.schedENetIncome >= 0 ? T.green : T.red} sub={`${fmt(calc.schedENetIncome / 12)}/mo`} />
+   <Hero value={fmt(calc.schedENetIncome)} label="Schedule E: Net Rental Income" color={calc.schedENetIncome >= 0 ? T.green : T.red} sub={`${fmt(calc.schedENetIncome / 12)}/mo`} />
    <Card pad={14} style={{ marginTop: 16 }}>
     <div style={{ fontSize: 11, color: T.textTertiary }}>Annual Cash Flow</div>
     <div style={{ fontSize: 24, fontWeight: 700, fontFamily: FONT, letterSpacing: "-0.03em", color: calc.schedECashFlow >= 0 ? T.green : T.red }}>{fmt(calc.schedECashFlow)}<span style={{ fontSize: 13, color: T.textTertiary }}>/yr</span></div>
@@ -88,12 +88,12 @@ export default function TaxContent(props) {
      </div>
      {/* Expenses */}
      <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Deductible Expenses</div>
-     <MRow label="Mortgage Interest (Yr 1)" value={fmt(calc.schedEInterest)} tip={calc.rentalSharePct < 100 ? `${calc.rentalSharePct}% of ${fmt(calc.yearlyMortInt)} — the rented share. The other ${100 - calc.rentalSharePct}% is itemized on Schedule A.` : undefined} />
-     <MRow label="Property Tax" value={fmt(calc.schedETax)} tip={calc.rentalSharePct < 100 ? `${calc.rentalSharePct}% of ${fmt(calc.yearlyTax)} — the rented share. The rest goes on Schedule A, where the SALT cap applies.` : undefined} />
+     <MRow label="Mortgage Interest (Yr 1)" value={fmt(calc.schedEInterest)} tip={calc.rentalSharePct < 100 ? `${calc.rentalSharePct}% of ${fmt(calc.yearlyMortInt)}: the rented share. The other ${100 - calc.rentalSharePct}% is itemized on Schedule A.` : undefined} />
+     <MRow label="Property Tax" value={fmt(calc.schedETax)} tip={calc.rentalSharePct < 100 ? `${calc.rentalSharePct}% of ${fmt(calc.yearlyTax)}: the rented share. The rest goes on Schedule A, where the SALT cap applies.` : undefined} />
      <MRow label="Insurance" value={fmt(calc.schedEIns)} />
      {calc.schedEHoa > 0 && <MRow label="HOA" value={fmt(calc.schedEHoa)} />}
      {calc.schedEMI > 0 && <MRow label="Mortgage Insurance" value={fmt(calc.schedEMI)} />}
-     <MRow label="Depreciation (27.5 yr)" value={fmt(calc.schedEDepreciation)} tip={`Land is never depreciable. Improvement ratio ${Math.round((calc.improvementPct||0)*100)}% ${calc.assessedTotal > 0 ? "from the assessed values you entered" : "(placeholder 50/50 — enter assessed values)"}, applied to the purchase price${calc.rentalSharePct < 100 ? `, then the ${calc.rentalSharePct}% rented share` : ""} ÷ 27.5 years.`} />
+     <MRow label="Depreciation (27.5 yr)" value={fmt(calc.schedEDepreciation)} tip={`Land is never depreciable. Improvement ratio ${Math.round((calc.improvementPct||0)*100)}% ${calc.assessedTotal > 0 ? "from the assessed values you entered" : "(placeholder 50/50: enter assessed values)"}, applied to the purchase price${calc.rentalSharePct < 100 ? `, then the ${calc.rentalSharePct}% rented share` : ""} ÷ 27.5 years.`} />
      <MRow label={`Mgmt & Maintenance (${schedEMgmtPct}%)`} value={fmt(calc.schedEMgmt)} />
      <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8, marginBottom: 16 }}>
       <MRow label="Total Expenses" value={fmt(calc.schedETotalExpenses)} bold />
@@ -103,7 +103,7 @@ export default function TaxContent(props) {
       <MRow label="Net Rental Income (Loss)" value={fmt(calc.schedENetIncome)} color={calc.schedENetIncome < 0 ? T.green : T.text} bold />
       {calc.schedENetIncome < 0 && (
        <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, marginTop: 8 }}>
-        Depreciation is a non-cash deduction, so a paper loss can sit alongside positive cash flow. Whether the loss is usable <em>this year</em> is a separate question — §469 below.
+        Depreciation is a non-cash deduction, so a paper loss can sit alongside positive cash flow. Whether the loss is usable <em>this year</em> is a separate question. §469 below.
        </div>
       )}
       <PassiveLossNote T={T} fmt={fmt} calc={calc} />
@@ -119,7 +119,7 @@ export default function TaxContent(props) {
       <MRow label="Annual Cash Flow" value={fmt(calc.schedECashFlow)} color={calc.schedECashFlow >= 0 ? T.green : T.red} bold />
      </div>
      <div style={{ marginTop: 12, fontSize: 11, color: T.textTertiary, lineHeight: 1.6 }}>
-      Cash flow is what you actually receive. Schedule E net income includes non-cash deductions (depreciation) that create a "paper loss" for tax purposes — so you can have positive cash flow and a tax loss simultaneously.
+      Cash flow is what you actually receive. Schedule E net income includes non-cash deductions (depreciation) that create a "paper loss" for tax purposes, so you can have positive cash flow and a tax loss simultaneously.
      </div>
     </Card>
    </Sec>
@@ -267,7 +267,7 @@ export default function TaxContent(props) {
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.fedItemized)}</span>
      <span style={{ textAlign: "right", fontFamily: FONT, fontWeight: 700, color: T.green }}>{fmt(calc.stateItemized)}</span>
     </div>
-    {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this — only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is federally deductible.</Note>}
+    {calc.deductibleLoanPct < 1 && <Note color={T.orange}>Federal mortgage interest limited to first {married === "MFS" ? "$375K" : "$750K"} of loan balance. Your loan ({fmt(calc.loan)}) exceeds this: only {(calc.deductibleLoanPct * 100).toFixed(1)}% of interest is federally deductible.</Note>}
     <Note color={T.blue}>SALT cap (Federal): {fmt(calc.saltCap)} · Mortgage interest cap: {married === "MFS" ? "$375K" : "$750K"} loan balance (TCJA).</Note>
    </Card>
   </Sec>
@@ -291,14 +291,14 @@ export default function TaxContent(props) {
 
   {/* 5. Tax Savings — Before vs After (Federal | State side-by-side) */}
   {calc.yearlyInc > 0 ? (
-   <Sec title="Tax Savings — Before vs After">
+   <Sec title="Tax Savings: Before vs After">
     <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } : { display: "flex", flexDirection: "column", gap: 12 }}>
      {/* Federal card */}
      <Card>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal Tax Savings — Before & After</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal Tax Savings: Before & After</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
        <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
-        <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
+        <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1: Before Owning</div>
         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
@@ -307,7 +307,7 @@ export default function TaxContent(props) {
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(fedTaxableBefore)}</div>
        </div>
        <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.green}22` }}>
-        <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
+        <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2: After Owning</div>
         <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
         <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
         <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>{calc.fedItemizes ? "Itemized Deduction" : "Standard Deduction"}</div>
@@ -360,7 +360,7 @@ export default function TaxContent(props) {
 
      {/* State card */}
      <Card>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState} Tax Savings — Before & After</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState} Tax Savings: Before & After</div>
       {stateInfo.type === "none" ? (
        <div style={{ padding: "20px 12px", textAlign: "center" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.blue, marginBottom: 4 }}>{taxState} has no state income tax</div>
@@ -369,7 +369,7 @@ export default function TaxContent(props) {
       ) : (<>
        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
         <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
-         <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1 — Before Owning</div>
+         <div style={{ fontSize: 10, color: T.orange, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 1: Before Owning</div>
          <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
          <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>Standard Deduction</div>
@@ -378,7 +378,7 @@ export default function TaxContent(props) {
          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.text }}>{fmt(stateTaxableBefore)}</div>
         </div>
         <div style={{ background: `${T.green}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.green}22` }}>
-         <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2 — After Owning</div>
+         <div style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Year 2: After Owning</div>
          <div style={{ fontSize: 11, color: T.textSecondary }}>Income</div>
          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.yearlyInc)}</div>
          <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 4 }}>{calc.stateItemizes ? "Itemized Deduction" : "Standard Deduction"}</div>
@@ -492,7 +492,7 @@ export default function TaxContent(props) {
       Schedule A above, the rented share runs through Schedule E here. Nothing
       is deducted twice — one apportionment drives both (Christo 2026-07-21). */}
   {calc.rentalSharePct > 0 && subjectRentalIncome > 0 && (
-   <Sec title="Schedule E — Rented Portion">
+   <Sec title="Schedule E: Rented Portion">
     <Card>
      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 6 }}>
       You occupy part of this {propType === "Single Family with ADU" ? "property" : propType.toLowerCase()} and rent the rest, so it files on both schedules.
@@ -533,7 +533,7 @@ export default function TaxContent(props) {
       <MRow label="Net Rental Income (Loss)" value={fmt(calc.schedENetIncome)} color={calc.schedENetIncome < 0 ? T.green : T.text} bold />
       {calc.schedENetIncome < 0 && (
        <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6, marginTop: 8 }}>
-        Depreciation is a non-cash deduction, so a paper loss can sit alongside positive cash flow. Whether it&rsquo;s usable <em>this year</em> is a separate question — §469 below.
+        Depreciation is a non-cash deduction, so a paper loss can sit alongside positive cash flow. Whether it&rsquo;s usable <em>this year</em> is a separate question. §469 below.
        </div>
       )}
       <PassiveLossNote T={T} fmt={fmt} calc={calc} />
@@ -544,7 +544,7 @@ export default function TaxContent(props) {
          isn't personal use of the rental unit. §469 is what actually limits the
          loss, and it's covered above. (Corrected 2026-07-21.) */}
      <Note color={T.orange}>
-      Each unit is normally its own dwelling unit, so occupying one doesn&rsquo;t trigger the §280A vacation-home limits — but that turns on the units being genuinely separate, and depreciation is recaptured on sale. Have your CPA confirm the allocation method and the unit treatment before filing.
+      Each unit is normally its own dwelling unit, so occupying one doesn&rsquo;t trigger the §280A vacation-home limits, but that turns on the units being genuinely separate, and depreciation is recaptured on sale. Have your CPA confirm the allocation method and the unit treatment before filing.
      </Note>
     </Card>
    </Sec>

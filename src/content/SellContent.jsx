@@ -35,7 +35,7 @@ export default function SellContent(props) {
  <div style={isDesktop ? { marginBottom: 16 } : { marginTop: 20, marginBottom: 16 }}>
   {(() => {
    const linkedReo = sellLinkedReoId ? reos.find(r => String(r.id) === sellLinkedReoId) : null;
-   return <Hero value={fmt(calc.sellNetAfterTax)} label={linkedReo ? `Net Proceeds — ${linkedReo.address || "Linked Property"}` : "Net After Tax"} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} sub={calc.sellTotalCapGainsTax > 0 ? `${fmt(calc.sellTotalCapGainsTax)} est. capital gains tax` : "No capital gains tax"} />;
+   return <Hero value={fmt(calc.sellNetAfterTax)} label={linkedReo ? `Net Proceeds: ${linkedReo.address || "Linked Property"}` : "Net After Tax"} color={calc.sellNetAfterTax >= 0 ? T.green : T.red} sub={calc.sellTotalCapGainsTax > 0 ? `${fmt(calc.sellTotalCapGainsTax)} est. capital gains tax` : "No capital gains tax"} />;
   })()}
  </div>
  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, margin: "0 0 16px 0" }}>
@@ -82,7 +82,7 @@ export default function SellContent(props) {
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total Est. Tax" value={fmt(calc.sellTotalCapGainsTax)} color={T.red} bold />
    </div>
-   <Note color={T.orange}>This is an estimate only — not tax advice. Consult a CPA for your specific situation. Depreciation recapture, installment sales, 1031 exchanges, and AMT may apply.</Note>
+   <Note color={T.orange}>This is an estimate only, not tax advice. Consult a CPA for your specific situation. Depreciation recapture, installment sales, 1031 exchanges, and AMT may apply.</Note>
   </Card>
  </Sec>}
  </div>{/* end seller net left column */}
@@ -105,7 +105,7 @@ export default function SellContent(props) {
        else setSellPrimaryRes(false);
       }
      }
-    }} options={[{value: "", label: "— Manual entry —"}, ...reos.map(r => ({value: String(r.id), label: r.address || `Property (${fmt(r.value)})`}))]} tip="Select an existing property to auto-fill sale price, mortgage payoff, and residence status from your REO data." />
+    }} options={[{value: "", label: "Manual entry"}, ...reos.map(r => ({value: String(r.id), label: r.address || `Property (${fmt(r.value)})`}))]} tip="Select an existing property to auto-fill sale price, mortgage payoff, and residence status from your REO data." />
    )}
    {sellLinkedReoId && (() => {
     const reo = reos.find(r => String(r.id) === sellLinkedReoId);

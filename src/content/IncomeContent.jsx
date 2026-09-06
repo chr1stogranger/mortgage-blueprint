@@ -385,7 +385,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           borderRadius: 6, fontSize: 10, lineHeight: 1.4,
           fontFamily: FONT,
         }}>
-          <strong>Declining income</strong> · {py2Year} ({fmt(inc.py2)}) → {py1Year} ({fmt(inc.py1)}). Per Fannie/Freddie, qualifying income falls back to the most recent year only — 2-yr methods collapse to 1-yr.
+          <strong>Declining income</strong> · {py2Year} ({fmt(inc.py2)}) → {py1Year} ({fmt(inc.py1)}). Per Fannie/Freddie, qualifying income falls back to the most recent year only. 2-yr methods collapse to 1-yr.
         </div>
       )}
 
@@ -1514,8 +1514,8 @@ export default function IncomeContent(props) {
         <Progress value={backDTI} max={backMax} color={backOk ? T.green : T.red} height={10} />
         <div style={{ fontSize: 11, color: backOk ? T.green : T.red, fontWeight: 500, marginTop: 6 }}>
           {backOk
-            ? `✓ Within limits — ${fmt(monthlyIncome * backMax - housing - totalDebts - reoExtra)}/mo headroom`
-            : `Above ${loanType} max — reduce debts or increase income`}
+            ? `✓ Within limits: ${fmt(monthlyIncome * backMax - housing - totalDebts - reoExtra)}/mo headroom`
+            : `Above ${loanType} max: reduce debts or increase income`}
         </div>
       </>) : (
         <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}` }}>

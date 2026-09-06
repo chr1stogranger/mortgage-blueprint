@@ -256,7 +256,7 @@ export default function CalculatorContent(props) {
   const miZeroReason = monthlyMI === 0 ? (
     loanType === "VA" ? "No monthly MI on VA loans (one-time funding fee applies at close)."
     : loanType === "Jumbo" ? "Jumbo loans typically do not carry PMI."
-    : miLtv <= 0.80 ? `Your LTV of ${pct(miLtv, 1)} is at or below 80% — no PMI required.`
+    : miLtv <= 0.80 ? `Your LTV of ${pct(miLtv, 1)} is at or below 80%. No PMI required.`
     : "Not required for this scenario."
   ) : null;
 
@@ -391,7 +391,7 @@ export default function CalculatorContent(props) {
         })()}
        </>)}
       </div>
-      {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}% — need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
+      {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}%. Need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
       {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
       </>)}
      </Card>
@@ -428,12 +428,12 @@ export default function CalculatorContent(props) {
       <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.green}10`, borderRadius: 10 }}>
        <span style={{ fontSize: 14, fontWeight: 700, color: T.green }}>{fmt(calc.refiPiMiSavings)}/mo savings</span>
        {calc.refiBreakevenMonths > 0 && <span style={{ fontSize: 11, color: T.textTertiary, marginLeft: 8 }}>· breakeven {calc.refiBreakevenMonths} mos</span>}
-       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI — taxes, insurance & HOA carry over unchanged.</div>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
       </div>
      ) : calc.refiPiMiSavings < 0 ? (
       <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
        <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiPiMiSavings))}/mo higher</span>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI — taxes, insurance & HOA carry over unchanged.</div>
+       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
       </div>
      ) : null}
     </div>
@@ -468,7 +468,7 @@ export default function CalculatorContent(props) {
    <div style={{ fontSize: 11, color: T.orange, lineHeight: 1.4 }}>
     {/* Quote the SAME figure the switch tested — the refi loan amount on a
         refi, the purchase loan amount otherwise. */}
-    <strong>Auto-switched to Jumbo</strong> — loan amount ({fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))}) exceeds the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` for ${propType.toLowerCase()} properties` : ""}. Jumbo requires 20% down, 700+ FICO, and max 43–50% DTI.
+    <strong>Auto-switched to Jumbo</strong>: loan amount ({fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))}) exceeds the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` for ${propType.toLowerCase()} properties` : ""}. Jumbo requires 20% down, 700+ FICO, and max 43–50% DTI.
     <span onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }} style={{ color: T.blue, cursor: "pointer", fontWeight: 600, marginLeft: 4 }}>Override →</span>
    </div>
   </div>
@@ -559,7 +559,7 @@ export default function CalculatorContent(props) {
        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
         Include Escrow (Tax &amp; Ins)
        </span>
-       <Knob on={includeEscrow} title={escrowLocked ? `${loanType} loans require escrow — cannot be toggled off` : (includeEscrow ? "Escrow ON — Tax + Insurance included" : "Escrow OFF — Tax + Insurance shown separately")} onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }} />
+       <Knob on={includeEscrow} title={escrowLocked ? `${loanType} loans require escrow: cannot be toggled off` : (includeEscrow ? "Escrow ON: Tax + Insurance included" : "Escrow OFF: Tax + Insurance shown separately")} onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }} />
       </div>
      );
     })()}
@@ -605,8 +605,8 @@ export default function CalculatorContent(props) {
    </div>
 
    {/* Escrow warning notes (live below the donut). */}
-   {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts — this cannot be toggled off.</Note>}
-   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>{!escTax && !escIns ? "Escrow OFF — Tax + Ins" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} ({fmt(excludedEscrowAmt)}/mo) paid separately</div>}
+   {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts. This cannot be toggled off.</Note>}
+   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>{!escTax && !escIns ? "Escrow OFF: Tax + Ins" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} ({fmt(excludedEscrowAmt)}/mo) paid separately</div>}
 
    </div>{/* end row 1 (left) */}
 
@@ -623,7 +623,7 @@ export default function CalculatorContent(props) {
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
-     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance — includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
+     { l: "Refi Costs", v: fmt(calc.totalClosingCosts), c: T.green, tip: "Total closing costs for your refinance. Includes lender fees, title, appraisal, and government fees. No down payment or transfer tax on a refi." }
     ] : [
      // Subtitle keeps showing financed fees when there are any (that's the more
      // urgent fact), otherwise the loan category. The tip carries the actual
@@ -633,14 +633,14 @@ export default function CalculatorContent(props) {
        s: calc.fhaUp > 0 ? `incl ${fmt(calc.fhaUp)} UFMIP` : calc.vaFundingFee > 0 ? `incl ${fmt(calc.vaFundingFee)} VA FF` : calc.loanCategory,
        limits: true,
        tip: `Your total loan amount = purchase price minus down payment, plus any financed fees (like FHA UFMIP or VA Funding Fee).\n\n`
-        + `${calc.limitYear} FHFA limits — ${calc.countyLimit?.assumedCeiling ? "county not set, showing the national maximum" : `${propertyCounty || calc.countyLimit?.county || "this county"}${calc.countyLimit?.state ? ", " + calc.countyLimit.state : ""}`} (${UNIT_COUNT[propType] || 1}-unit):\n`
+        + `${calc.limitYear} FHFA limits: ${calc.countyLimit?.assumedCeiling ? "county not set, showing the national maximum" : `${propertyCounty || calc.countyLimit?.county || "this county"}${calc.countyLimit?.state ? ", " + calc.countyLimit.state : ""}`} (${UNIT_COUNT[propType] || 1}-unit):\n`
         + `• Conforming up to ${fmt(calc.confLimit)}\n• High balance up to ${fmt(calc.highBalLimit)}\n• Above that = Jumbo\n`
         + (calc.countyLimit?.assumedCeiling
-            ? `\nSet the county to get its real high-balance limit — most counties are well below the national maximum (Sonoma CA is ${fmt(897000)}, King WA ${fmt(1063750)}).`
+            ? `\nSet the county to get its real high-balance limit. Most counties are well below the national maximum (Sonoma CA is ${fmt(897000)}, King WA ${fmt(1063750)}).`
             : calc.highBalLimit === calc.confLimit
-              ? `\nThis county has no high-balance tier — it goes straight from conforming to jumbo.`
+              ? `\nThis county has no high-balance tier. It goes straight from conforming to jumbo.`
               : ``) },
-     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio — your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
+     { l: "LTV", v: pct(calc.ltv, 0), c: T.orange, s: `${downPct}% down`, tip: "Loan-to-Value ratio: your loan amount divided by the home's value. Below 80% LTV (20%+ down) = no PMI on conventional loans." },
      { l: "Cash to Close", v: fmt(calc.cashToClose), c: T.green, tip: "Total cash you need at closing = down payment + closing costs + prepaids – any credits (seller, lender, realtor)." }
     // marginBottom:0 overrides Card's baked-in 12px. Inside a grid cell that
     // margin is phantom height — it kept these cards 12px short of their row
@@ -746,7 +746,7 @@ export default function CalculatorContent(props) {
          <span style={{ width: 8, height: 8, borderRadius: 4, background: row.pi ? `linear-gradient(90deg, ${T.cyan || T.blue} 50%, ${T.blue} 50%)` : row.color, flexShrink: 0, opacity: row.excluded ? 0.4 : 1 }} />
          <span style={{ fontSize: 13, color: row.excluded ? T.textTertiary : T.textSecondary, fontFamily: FONT }}>{row.label}</span>
          {row.excluded && (
-          <span title="Not escrowed — you pay this yourself. Underwriting still counts it in your DTI." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Not escrowed</span>
+          <span title="Not escrowed. You pay this yourself. Underwriting still counts it in your DTI." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Not escrowed</span>
          )}
          {onToggle && (
           <span
@@ -775,7 +775,7 @@ export default function CalculatorContent(props) {
              popover — a stuck mode silently swapped the tax number
              (Christo 2026-08-04). */}
          {row.jumpTo === "tax" && isRefi && refiTaxAssessedMode && (
-          <span title="Estimated purchase-style — 'bought in the last year' mode. Open 'How it's calculated' to switch back to the actual bill." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Est · recent purchase</span>
+          <span title="Estimated purchase-style ('bought in the last year' mode). Open 'How it's calculated' to switch back to the actual bill." style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.orange, background: `${T.orange}18`, border: `1px solid ${T.orange}38`, borderRadius: 99, padding: "1px 7px", fontFamily: FONT, whiteSpace: "nowrap" }}>Est · recent purchase</span>
          )}
         </div>
         {row.editable
@@ -811,7 +811,7 @@ export default function CalculatorContent(props) {
           <div style={{ background: T.bg, borderRadius: 12, padding: "8px 12px 10px" }}>
            {subRow(T.cyan || T.blue, "Principal", prin)}
            {subRow(T.blue, "Interest", intr)}
-           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 6, lineHeight: 1.4 }}>First payment. Each month a little more goes to principal and less to interest — see the full amortization schedule for the trend.</div>
+           <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 6, lineHeight: 1.4 }}>First payment. Each month a little more goes to principal and less to interest. See the full amortization schedule for the trend.</div>
           </div>
          </div>
         );
@@ -860,7 +860,7 @@ export default function CalculatorContent(props) {
         const refiBillMode = isRefi && !refiTaxAssessedMode;
         const modePills = isRefi && (
          <div style={{ display: "flex", gap: 5, marginBottom: 6, flexWrap: "wrap" }}>
-          {[[false, "Already reassessed — use the bill"], [true, "Bought in the last year"]].map(([v, label]) => (
+          {[[false, "Already reassessed: use the bill"], [true, "Bought in the last year"]].map(([v, label]) => (
            <button key={String(v)} type="button" onClick={() => setRefiTaxAssessedMode(v)}
             style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 10, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
              background: refiTaxAssessedMode === v ? `${T.blue}22` : T.inputBg,
@@ -877,7 +877,7 @@ export default function CalculatorContent(props) {
            {modePills}
            <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
             <div style={trStyle}>
-             <span style={labStyle}>Annual tax bill <InfoTip text="From the county bill or the Setup tab's taxes amount — the county already reassessed at their purchase, so this is the real number, no estimating." /></span>
+             <span style={labStyle}>Annual tax bill <InfoTip text="From the county bill or the Setup tab's taxes amount. The county already reassessed at their purchase, so this is the real number, no estimating." /></span>
              <MiniEdit value={refiAnnualTax || 0} onChange={setRefiAnnualTax} prefix="$" suffix="/yr" T={T} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 2px", borderTop: `2px solid ${T.separator}`, marginTop: 2 }}>
@@ -886,7 +886,7 @@ export default function CalculatorContent(props) {
             </div>
             {!(refiAnnualTax > 0) && (
              <div style={{ fontSize: 10, color: T.orange, marginTop: 6, lineHeight: 1.4 }}>
-              No bill entered yet — using the assessed-value estimate until one lands here or on the Setup tab.
+              No bill entered yet. Using the assessed-value estimate until one lands here or on the Setup tab.
              </div>
             )}
            </div>
@@ -898,7 +898,7 @@ export default function CalculatorContent(props) {
          {modePills}
          {isRefi && (
           <div style={{ fontSize: 10, color: T.textTertiary, margin: "0 0 6px", lineHeight: 1.4 }}>
-           Bought within the last year — the reassessment hasn't landed, so the new bill is estimated
+           Bought within the last year. The reassessment hasn't landed, so the new bill is estimated
            purchase-style from today's value.
           </div>
          )}
@@ -1141,7 +1141,7 @@ export default function CalculatorContent(props) {
            <>
             {clamped && (
              <div style={{ fontSize: 11, color: T.orange, background: `${T.orange}12`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, lineHeight: 1.4, fontFamily: FONT }}>
-              The note rate is lower than the buydown reduction — early-year rates are clamped at 0%. Double-check this structure with the lender.
+              The note rate is lower than the buydown reduction. Early-year rates are clamped at 0%. Double-check this structure with the lender.
              </div>
             )}
             {/* Year table — dense data, solid card (not glass) */}
@@ -1177,7 +1177,7 @@ export default function CalculatorContent(props) {
              {buydownPaidBy === "borrower"
               ? "Paid by the borrower at closing. Qualification uses the note rate."
               : `Typically funded by a ${buydownPaidBy} credit at closing. Qualification uses the note rate.`}
-             {" "}Shown for planning — not deducted from cash to close here.
+             {" "}Shown for planning, not deducted from cash to close here.
             </div>
            </>
           )}
@@ -1448,7 +1448,7 @@ export default function CalculatorContent(props) {
         <div
          key={i}
          onClick={() => handlePillarClick && handlePillarClick(c.label)}
-         title={`${c.label}: ${c.sub} — click for details`}
+         title={`${c.label}: ${c.sub}. Click for details`}
          style={{
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
           padding: "12px 4px", minHeight: 92, background: T.card, borderRadius: 12,
@@ -1520,8 +1520,8 @@ export default function CalculatorContent(props) {
     tip={loanPurpose === "Purchase Investment"
      ? "Expected gross monthly rent. Lenders use 75% of this to offset your PITIA (housing payment) for DTI qualification. If 75% of rent exceeds PITIA, the excess counts as income."
      : isAdu
-     ? "Expected gross rent from the accessory dwelling unit. You still occupy the main house, so this stays a primary residence — lenders add 75% of the ADU rent as qualifying income. Confirm your loan program allows ADU income; agency rules vary."
-     : `Total rent from the ${rentalUnits} ${unitWord} you won't live in. You occupy one unit, so this is still a primary residence — lenders add 75% of this as qualifying income on top of your regular employment income.`
+     ? "Expected gross rent from the accessory dwelling unit. You still occupy the main house, so this stays a primary residence. Lenders add 75% of the ADU rent as qualifying income. Confirm your loan program allows ADU income; agency rules vary."
+     : `Total rent from the ${rentalUnits} ${unitWord} you won't live in. You occupy one unit, so this is still a primary residence. Lenders add 75% of this as qualifying income on top of your regular employment income.`
     } />
    {subjectRentalIncome > 0 && (
     <div style={{ background: tintOver(`${T.green}08`, T.cardGlass), borderRadius: 10, padding: "10px 14px", marginTop: -4, border: `1px solid ${T.green}18` }}>
@@ -1529,8 +1529,8 @@ export default function CalculatorContent(props) {
       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
        <strong style={{ color: T.green }}>75% of rent: {fmt(subjectRentalIncome * 0.75)}/mo</strong>
        {calc.subjectRent75 >= calc.housingPayment
-        ? <span> — exceeds PITIA ({fmt(calc.housingPayment)}). Net <strong style={{ color: T.green }}>{fmt(calc.subjectRent75 - calc.housingPayment)}</strong> added as qualifying income.</span>
-        : <span> — offsets PITIA ({fmt(calc.housingPayment)}) by {fmt(calc.subjectRent75)}. Net housing cost for DTI: <strong>{fmt(calc.effectiveHousingForDTI)}/mo</strong></span>
+        ? <span>. Exceeds PITIA ({fmt(calc.housingPayment)}). Net <strong style={{ color: T.green }}>{fmt(calc.subjectRent75 - calc.housingPayment)}</strong> added as qualifying income.</span>
+        : <span>. Offsets PITIA ({fmt(calc.housingPayment)}) by {fmt(calc.subjectRent75)}. Net housing cost for DTI: <strong>{fmt(calc.effectiveHousingForDTI)}/mo</strong></span>
        }
       </div>
      ) : (
@@ -1539,7 +1539,7 @@ export default function CalculatorContent(props) {
            what the borrower actually banks. Spelled out so neither reads as
            a typo of the other (Christo 2026-07-21). */}
        <strong style={{ color: T.green }}>Qualifying: 75% of rent = {fmt(subjectRentalIncome * 0.75)}/mo</strong>
-       <span> — total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong>.</span>
+       <span>. Total qualifying income becomes <strong>{fmt(calc.qualifyingIncome)}/mo</strong>.</span>
        <br />
        <strong style={{ color: T.green }}>Cash flow: the full {fmt(subjectRentalIncome)}/mo</strong>
        <span> comes in, dropping your net payment to <strong>{fmt(calc.netPayment)}/mo</strong> (see Advanced under Payment Breakdown).</span>
