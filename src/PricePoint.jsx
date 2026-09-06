@@ -1536,14 +1536,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (!r.ok) { setResolveMsg(`✕ ${j?.error || `HTTP ${r.status}`}`); return; }
       // Guard against a non-JSON 200 (e.g. an HTML fallback) reading as "clean".
       if (!j || (j.errors === undefined && j.ok === undefined)) {
-        setResolveMsg(`⚠️ Unexpected response (HTTP ${r.status}) — is the endpoint deployed?`);
+        setResolveMsg(`Unexpected response (HTTP ${r.status}). Is the endpoint deployed?`);
         return;
       }
       const errs = Array.isArray(j.errors) ? j.errors.length : 0;
       const waiting = j.unresolved != null ? ` ${j.unresolved} prediction(s) waiting to resolve.` : '';
       setResolveMsg(errs === 0
-        ? `✅ Pipeline healthy — every table/column present, 0 errors.${waiting}`
-        : `⚠️ ${errs} issue(s): ${JSON.stringify(j.errors).slice(0, 220)}`);
+        ? `✓ Pipeline healthy: every table/column present, 0 errors.${waiting}`
+        : `✕ ${errs} issue(s): ${JSON.stringify(j.errors).slice(0, 220)}`);
     } catch (e) {
       setResolveMsg(`✕ ${e?.message || 'request failed'}`);
     }

@@ -765,7 +765,7 @@ export default function SetupContent(props) {
      </div>
      {!skillLevel && (
       <div style={{ marginTop: 6, padding: "6px 10px", background: `${T.blue}08`, border: `1px dashed ${T.blue}30`, borderRadius: 8, fontSize: 11, color: T.blue, textAlign: "center" }}>
-       ☝ Select your experience level
+       Select your experience level
       </div>
      )}
     </div>
