@@ -435,7 +435,10 @@ export function progressiveTax(taxableIncome, brackets) {
  * @returns {object} every intermediate + totalTaxSavings (≥ 0)
  */
 export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loan, rate, schedAShare = 1 }) {
-  const share = Math.max(0, Math.min(1, Number(schedAShare) ?? 1));
+  // Number(x) never yields null/undefined, so `?? 1` was a no-op; NaN must be
+  // caught explicitly or it poisons every downstream figure.
+  const shareNum = Number(schedAShare);
+  const share = Number.isFinite(shareNum) ? Math.max(0, Math.min(1, shareNum)) : 1;
   const fedBrackets = FED_BRACKETS[married] || FED_BRACKETS.Single;
   const fedStdDeduction = FED_STD_DEDUCTION[married] || FED_STD_DEDUCTION.Single;
   const stInfo = STATE_TAX[taxState] || { type: "none" };
