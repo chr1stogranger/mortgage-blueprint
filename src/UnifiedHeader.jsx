@@ -236,17 +236,20 @@ export default function UnifiedHeader({
   );
 
   // ── Stat cell (responsive sizing) ──
+  // Under 380px the five uppercase labels plus their carets overflow the
+  // strip, so step the label down and drop the caret glyph.
+  const isNarrow = !isDesktop && typeof window !== "undefined" && window.innerWidth < 380;
   const Stat = ({ label, value, color, statKey }) => (
     <div
       onClick={statKey ? (e) => { const r = e.currentTarget.getBoundingClientRect(); setStatPop(pv => pv && pv.key === statKey ? null : { key: statKey, x: r.left + r.width / 2, y: r.bottom }); } : undefined}
       style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1, cursor: statKey ? "pointer" : "default", borderRadius: 8, padding: "2px 0", background: (statPop && statPop.key === statKey) ? T.pillBg : "transparent", transition: "background 0.15s" }}
     >
       <div style={{
-        fontSize: isDesktop ? 10 : 9, color: T.textTertiary, fontWeight: 600,
+        fontSize: isDesktop ? 10 : isNarrow ? "0.55rem" : 9, color: T.textTertiary, fontWeight: 600,
         letterSpacing: 1.2, fontFamily: FONT, textTransform: "uppercase",
         marginBottom: isDesktop ? 3 : 2, whiteSpace: "nowrap", textAlign: "center",
         display: "flex", alignItems: "center", gap: 3,
-      }}>{label}{statKey && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
+      }}>{label}{statKey && !isNarrow && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
       <div style={{
         fontSize: isDesktop ? 17 : 13, fontWeight: 700,
         color: color || T.text, fontFamily: FONT,
@@ -514,7 +517,8 @@ export default function UnifiedHeader({
           justifyContent: "space-around",
           padding: "4px 14px 6px",
           borderTop: `1px solid ${T.separator}`,
-          gap: 2,
+          // 10px keeps "CASH CLOSE" and "PAYMENT" from touching at 375px.
+          columnGap: 10,
         }}>
           {statRow}
           {qualBadge}
