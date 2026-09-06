@@ -1526,7 +1526,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     try {
       // Fast schema smoke test — NOT the full resolve (that also backfills photos
       // + pulls fresh listings and can exceed the gateway timeout → 504).
-      const r = await fetch(apiUrl(`/api/cron-resolve?check=1&secret=${encodeURIComponent(secret)}`));
+      // Secret travels in the Authorization header, never the URL (URLs land in logs).
+      const r = await fetch(apiUrl('/api/cron-resolve?check=1'), { headers: { Authorization: `Bearer ${secret}` } });
       const j = await r.json().catch(() => null);
       if (r.status === 401) {
         try { sessionStorage.removeItem('pp_cron_secret'); } catch {}
