@@ -1530,10 +1530,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const j = await r.json().catch(() => null);
       if (r.status === 401) {
         try { sessionStorage.removeItem('pp_cron_secret'); } catch {}
-        setResolveMsg('❌ Wrong secret — cleared it. Tap the button again to re-enter.');
+        setResolveMsg('✕ Wrong secret — cleared it. Tap the button again to re-enter.');
         return;
       }
-      if (!r.ok) { setResolveMsg(`❌ ${j?.error || `HTTP ${r.status}`}`); return; }
+      if (!r.ok) { setResolveMsg(`✕ ${j?.error || `HTTP ${r.status}`}`); return; }
       // Guard against a non-JSON 200 (e.g. an HTML fallback) reading as "clean".
       if (!j || (j.errors === undefined && j.ok === undefined)) {
         setResolveMsg(`⚠️ Unexpected response (HTTP ${r.status}) — is the endpoint deployed?`);
@@ -1545,7 +1545,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         ? `✅ Pipeline healthy — every table/column present, 0 errors.${waiting}`
         : `⚠️ ${errs} issue(s): ${JSON.stringify(j.errors).slice(0, 220)}`);
     } catch (e) {
-      setResolveMsg(`❌ ${e?.message || 'request failed'}`);
+      setResolveMsg(`✕ ${e?.message || 'request failed'}`);
     }
   };
 
