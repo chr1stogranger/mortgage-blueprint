@@ -135,7 +135,7 @@ export default function NetPaymentLadder({
       )}
 
       <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.6, marginTop: 10, fontFamily: FONT }}>
-        Year-1 estimate. Tax savings decline as the loan amortizes, principal reduction grows, and appreciation is a projection — not a guarantee. Not tax advice.
+        Year-1 estimate. Tax savings decline as the loan amortizes, principal reduction grows, and appreciation is a projection, not a guarantee. Not tax advice.
       </div>
     </div>
   );

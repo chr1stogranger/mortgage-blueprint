@@ -7814,22 +7814,22 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <div style={{ background: T.pillBg, borderRadius: 14, padding: 14, marginBottom: 16, fontSize: 12, color: T.textSecondary, lineHeight: 1.8 }}>
      <div style={{ marginBottom: 6 }}><strong>Data stays on this device</strong> unless you sign in and turn on cloud sync</div>
      <div style={{ marginBottom: 6 }}><strong>Privacy Mode</strong> available to mask sensitive numbers</div>
-     <div style={{ marginBottom: 6 }}><strong>Emailed summaries</strong> are not encrypted — use caution</div>
+     <div style={{ marginBottom: 6 }}><strong>Emailed summaries</strong> are not encrypted, so use caution</div>
      <div style={{ marginBottom: 6 }}> <strong>You can delete all data</strong> at any time in Settings</div>
-     <div><strong>Not a commitment to lend</strong> — estimates only</div>
+     <div><strong>Not a commitment to lend.</strong> Estimates only</div>
     </div>
     <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 16 }}>
      Chris Granger Mortgage · NMLS #952015
     </div>
     <button onClick={handleConsent} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
-     I Understand — Continue
+     I Understand. Continue
     </button>
    </div>
   </div>}
   {/* ═══ WELCOME TUTORIAL ═══ */}
   {showWelcome && consentGiven && !isLocked && (() => {
    const steps = [
-    { emoji: "home", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool — designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
+    { emoji: "home", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool, designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
     { emoji: "", title: "How to Navigate", body: "Follow the sections from top to bottom — each one builds on the last:\n\nSetup — Enter property details\nCalculator — See your monthly payment\nCosts — Full closing cost breakdown\n Income → Debts → Assets — Your full financial picture\nQualify — Check if you're approved\nTax Savings → Amortization — See the long game", color: T.cyan },
     { emoji: "bar-chart", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios — try different prices, rates, or loan types — then compare them side-by-side on the Workspace tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch — it copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
     { emoji: "", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time — change anything and watch the whole picture update instantly.", color: T.green },
@@ -8218,7 +8218,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
             { level: 'guided', title: 'First-Time Buyer', desc: 'Walk me through it step by step', icon: '\u2302' },
-            { level: 'standard', title: 'I Know the Basics', desc: "Give me full access \u2014 I'll explore on my own", icon: '\u25C8' },
+            { level: 'standard', title: 'I Know the Basics', desc: "Give me full access. I'll explore on my own", icon: '\u25C8' },
           ].map(opt => (
             <button
               key={opt.level}
@@ -9216,7 +9216,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <div style={{ flex: 1 }}>
        <div style={{ fontSize: 15, fontWeight: 600, color: name === scenarioName ? T.blue : T.text }}>{name}</div>
-       {name === scenarioName ? <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active — editing this one</div> : <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Tap to switch</div>}
+       {name === scenarioName ? <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active. Editing this one</div> : <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Tap to switch</div>}
       </div>
       {name === scenarioName && (
        <div style={{ display: "flex", gap: 6 }}>
