@@ -148,6 +148,9 @@ export default function SetupContent(props) {
          value={propertyZip || ""}
          onChange={v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
          type="text"
+         inputMode="numeric"
+         pattern="[0-9]*"
+         autoComplete="postal-code"
          placeholder="94501"
          sm
          req
@@ -186,6 +189,9 @@ export default function SetupContent(props) {
        value={propertyZip || ""}
        onChange={v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
        type="text"
+       inputMode="numeric"
+       pattern="[0-9]*"
+       autoComplete="postal-code"
        placeholder="94501"
        sm
        req
