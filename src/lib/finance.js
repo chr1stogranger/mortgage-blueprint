@@ -545,12 +545,12 @@ export function computeTaxSavings({ yearlyInc, married, taxState, yearlyTax, loa
  * @param {number} p.pi        monthly P&I payment ($)
  * @param {number} p.extra     extra principal per month ($, 0 if none)
  * @param {Date}   p.closeDate closing date (first payment = 2 months after)
- * @param {Date}   [p.now]     "today" for lastPayDate (defaults to new Date())
+ * @param {Date}   [p.now]     unused, kept for call-site compatibility (lastPayDate now anchors on firstPayDate)
  * @returns {{amortSchedule:object[], amortStandard:object[], totalIntWithExtra:number,
  *  totalIntStandard:number, yearlyData:object[], intSaved:number, monthsSaved:number,
  *  lastPayDate:Date|null, firstPayDate:Date}}
  */
-export function buildAmortization({ loan, mr, np, pi, extra, closeDate, now }) {
+export function buildAmortization({ loan, mr, np, pi, extra, closeDate, now: _now }) {
   const amortSchedule = [], amortStandard = [];
   let bal = loan, stdBal = loan;
   let totalIntWithExtra = 0, totalIntStandard = 0;
@@ -563,9 +563,10 @@ export function buildAmortization({ loan, mr, np, pi, extra, closeDate, now }) {
   }
   const intSaved = totalIntStandard - totalIntWithExtra;
   const monthsSaved = amortStandard.length - amortSchedule.length;
-  const today = now || new Date();
-  const lastPayDate = amortSchedule.length > 0 ? new Date(today.getFullYear(), today.getMonth() + amortSchedule.length, 1) : null;
+  // Last payment = first payment month + (payments - 1). Anchoring on "today"
+  // drifted the payoff date by however far closing sits from the current month.
   const firstPayDate = new Date(closeDate.getFullYear(), closeDate.getMonth() + 2, 1);
+  const lastPayDate = amortSchedule.length > 0 ? new Date(firstPayDate.getFullYear(), firstPayDate.getMonth() + amortSchedule.length - 1, 1) : null;
   return { amortSchedule, amortStandard, totalIntWithExtra, totalIntStandard, yearlyData, intSaved, monthsSaved, lastPayDate, firstPayDate };
 }
 
