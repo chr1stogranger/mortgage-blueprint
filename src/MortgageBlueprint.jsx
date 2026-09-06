@@ -84,7 +84,7 @@ const REALTOR_PARTNERS = {
   dre: "0XXXXXXX",
   photo: "",
   farmZip: "94122",
-  bio: "San Francisco specialist — Sunset, Richmond, & Parkside",
+  bio: "San Francisco specialist: Sunset, Richmond, & Parkside",
  },
  // ── Add new realtors below ──
  // janedoe: {
@@ -629,7 +629,7 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
        <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}</span>
       </div>
       <div style={{ flex: 1 }}>
-       <div style={{ fontSize: 14, fontWeight: 700, color, display: "flex", alignItems: "center", gap: 6 }}>{c.icon && <Icon name={c.icon} size={16} />} {c.fullLabel || c.label} — {statusText}</div>
+       <div style={{ fontSize: 14, fontWeight: 700, color, display: "flex", alignItems: "center", gap: 6 }}>{c.icon && <Icon name={c.icon} size={16} />} {c.fullLabel || c.label}: {statusText}</div>
        <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>{c.detail}</div>
       </div>
      </div>
@@ -701,9 +701,9 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
     </div>
     <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Client Name</label>
     <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Homebuyer" style={{ ...inputStyle, marginBottom: 12 }} />
-    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Email <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional — enables live links & worksheet sends)</span></label>
+    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Email <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional: enables live links & worksheet sends)</span></label>
     <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@email.com" inputMode="email" autoCapitalize="none" style={{ ...inputStyle, marginBottom: 12, borderColor: emailOk ? T.inputBorder : T.red }} />
-    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Phone <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional — lets you text their live link)</span></label>
+    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Phone <span style={{ fontWeight: 400, color: T.textTertiary }}>(optional: lets you text their live link)</span></label>
     <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(510) 555-0123" inputMode="tel" style={{ ...inputStyle, marginBottom: 14, borderColor: phoneOk ? T.inputBorder : T.red }} />
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 16px", gap: 10 }}>
      <div>
@@ -889,7 +889,7 @@ const COURSE_CHAPTERS = [
  // ── PHASE 1: THE FOUNDATION ──
  { id: 1, phase: 1, phaseLabel: "The Foundation", title: "Your Monthly Payment", icon: "home", housePart: "foundation",
   tabLink: "calc", tabLabel: "Calculator",
-  lesson: "Every mortgage payment has 4 parts — we call it PITI:\n\n**Principal** — the chunk that actually pays down your loan balance. This is the equity-building part.\n\n**Interest** — the cost of borrowing money. This is the lender's profit. Early in the loan, most of your payment goes here.\n\n**Taxes** — your annual property tax divided by 12. In California, it's roughly 1.1–1.25% of your home's value.\n\n**Insurance** — homeowners insurance protects your home against fire, theft, and disasters. Lenders require it.\n\nOn a $800K home with 20% down at 6.5%, your P&I alone is about $4,043/mo. Add taxes (~$833) and insurance (~$125), and your total PITI is roughly $5,000/mo.\n\nThe key insight: **your rate matters more than your price.** A 0.5% rate difference on a $640K loan = $200/month — that's $72,000 over 30 years.",
+  lesson: "Every mortgage payment has 4 parts. We call it PITI:\n\n**Principal**: the chunk that actually pays down your loan balance. This is the equity-building part.\n\n**Interest**: the cost of borrowing money. This is the lender's profit. Early in the loan, most of your payment goes here.\n\n**Taxes**: your annual property tax divided by 12. In California, it's roughly 1.1–1.25% of your home's value.\n\n**Insurance**: homeowners insurance protects your home against fire, theft, and disasters. Lenders require it.\n\nOn a $800K home with 20% down at 6.5%, your P&I alone is about $4,043/mo. Add taxes (~$833) and insurance (~$125), and your total PITI is roughly $5,000/mo.\n\nThe key insight: **your rate matters more than your price.** A 0.5% rate difference on a $640K loan = $200/month. That's $72,000 over 30 years.",
   quiz: [
    { q: "What does PITI stand for?", opts: ["Price, Interest, Tax, Insurance", "Principal, Interest, Taxes, Insurance", "Payment, Income, Tax, Investment", "Principal, Income, Taxes, Insurance"], a: 1 },
    { q: "Early in your loan, most of your payment goes toward:", opts: ["Principal (equity building)", "Interest (lender's profit)", "Property taxes", "Insurance"], a: 1 },
@@ -897,7 +897,7 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 2, phase: 1, phaseLabel: "The Foundation", title: "Down Payment Decoded", icon: "dollar", housePart: "walls_lower",
   tabLink: "calc", tabLabel: "Calculator",
-  lesson: "Your down payment is the cash you bring to the table. It determines your loan amount, your monthly payment, and whether you'll pay mortgage insurance.\n\n**Minimum down payments by loan type:**\n• Conventional: 5% (or 3% for first-time buyers)\n• FHA: 3.5% with 580+ credit\n• VA: 0% — the only true zero-down option\n• Jumbo: 20% typically required\n\n**The 20% myth:** You do NOT need 20% down to buy a home. Most first-time buyers put down 3.5–10%. The trade-off? You'll pay mortgage insurance (PMI or MIP) until you reach 20% equity.\n\n**PMI costs:** Conventional PMI runs about 0.5% of your loan annually. On a $640K loan, that's ~$267/month. FHA MIP is 0.55% annually but lasts the life of the loan — meaning you'd need to refinance to remove it.\n\n**The real question:** How much should you put down? More down = lower payment, but you also want cash reserves. Don't drain your savings just to avoid PMI — having 3–6 months of reserves after closing is more important.",
+  lesson: "Your down payment is the cash you bring to the table. It determines your loan amount, your monthly payment, and whether you'll pay mortgage insurance.\n\n**Minimum down payments by loan type:**\n• Conventional: 5% (or 3% for first-time buyers)\n• FHA: 3.5% with 580+ credit\n• VA: 0%: the only true zero-down option\n• Jumbo: 20% typically required\n\n**The 20% myth:** You do NOT need 20% down to buy a home. Most first-time buyers put down 3.5–10%. The trade-off? You'll pay mortgage insurance (PMI or MIP) until you reach 20% equity.\n\n**PMI costs:** Conventional PMI runs about 0.5% of your loan annually. On a $640K loan, that's ~$267/month. FHA MIP is 0.55% annually but lasts the life of the loan, meaning you'd need to refinance to remove it.\n\n**The real question:** How much should you put down? More down = lower payment, but you also want cash reserves. Don't drain your savings just to avoid PMI. Having 3–6 months of reserves after closing is more important.",
   quiz: [
    { q: "What is the minimum down payment for a VA loan?", opts: ["3.5%", "5%", "0%", "10%"], a: 2 },
    { q: "FHA mortgage insurance (MIP) lasts:", opts: ["Until you reach 20% equity", "5 years", "The life of the loan", "Until you refinance automatically"], a: 2 },
@@ -905,7 +905,7 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 3, phase: 1, phaseLabel: "The Foundation", title: "Closing Costs Explained", icon: "clipboard", housePart: "foundation_done",
   tabLink: "costs", tabLabel: "Costs",
-  lesson: "Closing costs are the fees you pay to finalize your mortgage — typically 2–3% of the loan amount. They cover everything from the appraisal to title insurance.\n\n**Common closing costs:**\n• Origination fee (lender fee): 0–1% of loan\n• Appraisal: $500–800\n• Title insurance: ~$1,500–3,000\n• Escrow fee: ~$2,000–3,500\n• Recording fees: ~$100–200\n• Transfer tax: varies wildly by city (Oakland charges 1.5%!)\n\n**Prepaids (not fees, but due at closing):**\n• Prepaid interest: daily interest from closing to month-end\n• Escrow setup: 2–8 months of taxes & insurance held by servicer\n• Homeowners insurance: first year premium upfront\n\n**Ways to reduce closing costs:**\n• Negotiate seller credits (seller pays part of your costs)\n• Lender credits (slightly higher rate = lender covers costs)\n• Shop title & escrow — these are negotiable!\n\n**Cash to close = Down payment + Closing costs + Prepaids – Credits – EMD**\n\nThis is the real number that matters — not just the down payment.",
+  lesson: "Closing costs are the fees you pay to finalize your mortgage, typically 2–3% of the loan amount. They cover everything from the appraisal to title insurance.\n\n**Common closing costs:**\n• Origination fee (lender fee): 0–1% of loan\n• Appraisal: $500–800\n• Title insurance: ~$1,500–3,000\n• Escrow fee: ~$2,000–3,500\n• Recording fees: ~$100–200\n• Transfer tax: varies wildly by city (Oakland charges 1.5%!)\n\n**Prepaids (not fees, but due at closing):**\n• Prepaid interest: daily interest from closing to month-end\n• Escrow setup: 2–8 months of taxes & insurance held by servicer\n• Homeowners insurance: first year premium upfront\n\n**Ways to reduce closing costs:**\n• Negotiate seller credits (seller pays part of your costs)\n• Lender credits (slightly higher rate = lender covers costs)\n• Shop title & escrow. These are negotiable!\n\n**Cash to close = Down payment + Closing costs + Prepaids – Credits – EMD**\n\nThis is the real number that matters, not just the down payment.",
   quiz: [
    { q: "Typical closing costs run approximately:", opts: ["0.5–1% of loan amount", "2–3% of loan amount", "5–7% of loan amount", "10% of purchase price"], a: 1 },
    { q: "A seller credit means:", opts: ["The seller lowers the price", "The seller pays some of your closing costs", "You get a tax deduction", "The seller pays your down payment"], a: 1 },
@@ -914,7 +914,7 @@ const COURSE_CHAPTERS = [
  // ── PHASE 2: THE FRAME ──
  { id: 4, phase: 2, phaseLabel: "The Frame", title: "Credit: Your Financial GPA", icon: "bar-chart", housePart: "frame_floor",
   tabLink: "qualify", tabLabel: "Qualify",
-  lesson: "Your credit score is the single most influential factor in your mortgage rate. Think of it as your financial GPA — it tells lenders how reliable you are with borrowed money.\n\n**Credit score tiers:**\n• 740+ → Best rates (\"top tier\" pricing)\n• 700–739 → Great rates, small adjustments\n• 660–699 → Good rates, moderate adjustments\n• 620–659 → Conventional minimum, higher rates\n• 580–619 → FHA territory only\n• Below 580 → Very limited options\n\n**What makes up your score:**\n• 35% — Payment history (never miss a payment!)\n• 30% — Credit utilization (keep cards under 30%)\n• 15% — Length of credit history\n• 10% — Credit mix (cards + installment loans)\n• 10% — New credit inquiries\n\n**Quick wins before applying:**\n• Pay down credit card balances below 10% of limits\n• Don't open new accounts in the 6 months before applying\n• Don't close old cards — history length matters\n• Dispute any errors on your report (free at annualcreditreport.com)\n\nA 40-point FICO improvement can save you 0.25–0.50% on your rate — that's tens of thousands over the life of the loan.",
+  lesson: "Your credit score is the single most influential factor in your mortgage rate. Think of it as your financial GPA. It tells lenders how reliable you are with borrowed money.\n\n**Credit score tiers:**\n• 740+ → Best rates (\"top tier\" pricing)\n• 700–739 → Great rates, small adjustments\n• 660–699 → Good rates, moderate adjustments\n• 620–659 → Conventional minimum, higher rates\n• 580–619 → FHA territory only\n• Below 580 → Very limited options\n\n**What makes up your score:**\n• 35%: Payment history (never miss a payment!)\n• 30%: Credit utilization (keep cards under 30%)\n• 15%: Length of credit history\n• 10%: Credit mix (cards + installment loans)\n• 10%: New credit inquiries\n\n**Quick wins before applying:**\n• Pay down credit card balances below 10% of limits\n• Don't open new accounts in the 6 months before applying\n• Don't close old cards. History length matters\n• Dispute any errors on your report (free at annualcreditreport.com)\n\nA 40-point FICO improvement can save you 0.25–0.50% on your rate. That's tens of thousands over the life of the loan.",
   quiz: [
    { q: "What FICO score unlocks the best mortgage rates?", opts: ["620+", "680+", "740+", "800+"], a: 2 },
    { q: "The largest factor in your credit score is:", opts: ["Credit utilization (30%)", "Payment history (35%)", "Length of history (15%)", "Credit mix (10%)"], a: 1 },
@@ -930,7 +930,7 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 6, phase: 2, phaseLabel: "The Frame", title: "Assets & Reserves", icon: "landmark", housePart: "frame_roof",
   tabLink: "assets", tabLabel: "Assets",
-  lesson: "Assets and reserves are the cash and savings you have — both to close the deal and as a safety net after closing.\n\n**Cash to close** = your down payment + closing costs + prepaids – credits. This comes from your liquid assets.\n\n**Reserves** = the savings you keep AFTER closing. Lenders want to see you won't be broke on day one of homeownership.\n\n**Reserve requirements:**\n• Conventional: 2–3 months of PITI\n• FHA: 2–3 months of PITI\n• VA: 2–3 months of PITI\n• Jumbo: 12+ months of PITI\n\n**What counts as reserves:**\n• Checking & savings accounts (100%)\n• 401(k), IRA, retirement (60% of vested balance)\n• Stocks & investments (70% of value)\n• Gift funds for down payment (with proper documentation)\n\n**What does NOT count:**\n• Cash in a safe (can't document it)\n• Borrowed money (unless gift documented properly)\n• Crypto (most lenders still won't accept it)\n\n**The 3-month rule:** Large deposits in the last 2–3 months will need to be \"sourced\" — you'll need to show where the money came from. This is anti-money-laundering compliance, not personal judgment.",
+  lesson: "Assets and reserves are the cash and savings you have. Both to close the deal and as a safety net after closing.\n\n**Cash to close** = your down payment + closing costs + prepaids – credits. This comes from your liquid assets.\n\n**Reserves** = the savings you keep AFTER closing. Lenders want to see you won't be broke on day one of homeownership.\n\n**Reserve requirements:**\n• Conventional: 2–3 months of PITI\n• FHA: 2–3 months of PITI\n• VA: 2–3 months of PITI\n• Jumbo: 12+ months of PITI\n\n**What counts as reserves:**\n• Checking & savings accounts (100%)\n• 401(k), IRA, retirement (60% of vested balance)\n• Stocks & investments (70% of value)\n• Gift funds for down payment (with proper documentation)\n\n**What does NOT count:**\n• Cash in a safe (can't document it)\n• Borrowed money (unless gift documented properly)\n• Crypto (most lenders still won't accept it)\n\n**The 3-month rule:** Large deposits in the last 2–3 months will need to be \"sourced\". You'll need to show where the money came from. This is anti-money-laundering compliance, not personal judgment.",
   quiz: [
    { q: "Jumbo loans typically require how many months of reserves?", opts: ["2–3 months", "6 months", "12+ months", "No reserves needed"], a: 2 },
    { q: "A $100K 401(k) counts as ___ in reserves:", opts: ["$100,000", "$70,000", "$60,000", "$50,000"], a: 2 },
@@ -938,7 +938,7 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 7, phase: 2, phaseLabel: "The Frame", title: "Loan Programs", icon: "file", housePart: "windows_doors",
   tabLink: "qualify", tabLabel: "Qualify",
-  lesson: "Choosing the right loan program is like choosing the right tool for the job. Each has different rules, rates, and benefits.\n\n**Conventional** — The workhorse. Best rates for 740+ FICO and 20%+ down. Conforming limit: $832,750 (higher in expensive areas). PMI drops off at 80% LTV.\n\n**FHA** — The starter. 3.5% down, 580 FICO minimum. Government-backed with mortgage insurance for life. Great for lower credit scores or limited savings. FHA duplex is a powerful house-hacking move.\n\n**VA** — The best loan in America. 0% down, no PMI, lower rates, up to 60% DTI. For veterans and active-duty only. VA funding fee (1.25–3.3%) can be rolled in. Disabled vets are exempt.\n\n**Jumbo** — For loan amounts above conforming limits. Higher rates, 700+ FICO, 20% down, max 43–50% DTI. Stricter on reserves (12+ months).\n\n**USDA** — Zero down for rural and suburban areas. Income limits apply. Not just farms — many suburban towns qualify.\n\n**The real play:** Don't just pick the program with the lowest down payment. Compare total cost over the first 5 years: payment + MI + fees. Sometimes 5% down conventional beats 3.5% FHA because of the MIP difference.",
+  lesson: "Choosing the right loan program is like choosing the right tool for the job. Each has different rules, rates, and benefits.\n\n**Conventional**: The workhorse. Best rates for 740+ FICO and 20%+ down. Conforming limit: $832,750 (higher in expensive areas). PMI drops off at 80% LTV.\n\n**FHA**: The starter. 3.5% down, 580 FICO minimum. Government-backed with mortgage insurance for life. Great for lower credit scores or limited savings. FHA duplex is a powerful house-hacking move.\n\n**VA**: The best loan in America. 0% down, no PMI, lower rates, up to 60% DTI. For veterans and active-duty only. VA funding fee (1.25–3.3%) can be rolled in. Disabled vets are exempt.\n\n**Jumbo**: For loan amounts above conforming limits. Higher rates, 700+ FICO, 20% down, max 43–50% DTI. Stricter on reserves (12+ months).\n\n**USDA**: Zero down for rural and suburban areas. Income limits apply. Not just farms: many suburban towns qualify.\n\n**The real play:** Don't just pick the program with the lowest down payment. Compare total cost over the first 5 years: payment + MI + fees. Sometimes 5% down conventional beats 3.5% FHA because of the MIP difference.",
   quiz: [
    { q: "Which loan program has no mortgage insurance and 0% down?", opts: ["FHA", "Conventional", "VA", "USDA"], a: 2 },
    { q: "FHA mortgage insurance lasts:", opts: ["Until 80% LTV", "5 years", "The life of the loan", "Until the first refinance"], a: 2 },
@@ -947,7 +947,7 @@ const COURSE_CHAPTERS = [
  // ── PHASE 3: THE FINISH ──
  { id: 8, phase: 3, phaseLabel: "The Finish", title: "Tax Savings & Deductions", icon: "file", housePart: "siding",
   tabLink: "tax", tabLabel: "Tax Savings",
-  lesson: "Homeownership comes with real tax benefits that renters don't get. Understanding them changes the true \"cost\" of owning.\n\n**Mortgage Interest Deduction:** You can deduct interest paid on up to $750K of mortgage debt ($375K if married filing separately). On a $640K loan at 6.5%, that's ~$41K in year-one interest — a significant deduction.\n\n**Property Tax Deduction:** Deductible up to the SALT cap of $40,400 (as of 2026, phases down for MAGI above $505K). Combined with state income tax, this cap matters in high-tax states like California.\n\n**How it actually saves you money:**\nYour tax savings = (mortgage interest + property tax deduction) × your marginal tax rate.\n\nIf you're in the 24% federal bracket + 9.3% CA state bracket, your effective rate is ~33%. A $41K interest deduction saves you about $13,500 in taxes in year one.\n\n**The net cost of homeownership:** Monthly payment $5,000 minus ~$1,125/mo in tax savings = effective cost of $3,875/mo. Compare THAT number to your rent, not the full payment.\n\n**Standard deduction note:** You only benefit if your itemized deductions exceed the standard deduction ($32,200 MFJ in 2026). Most homeowners in expensive markets will itemize.",
+  lesson: "Homeownership comes with real tax benefits that renters don't get. Understanding them changes the true \"cost\" of owning.\n\n**Mortgage Interest Deduction:** You can deduct interest paid on up to $750K of mortgage debt ($375K if married filing separately). On a $640K loan at 6.5%, that's ~$41K in year-one interest. A significant deduction.\n\n**Property Tax Deduction:** Deductible up to the SALT cap of $40,400 (as of 2026, phases down for MAGI above $505K). Combined with state income tax, this cap matters in high-tax states like California.\n\n**How it actually saves you money:**\nYour tax savings = (mortgage interest + property tax deduction) × your marginal tax rate.\n\nIf you're in the 24% federal bracket + 9.3% CA state bracket, your effective rate is ~33%. A $41K interest deduction saves you about $13,500 in taxes in year one.\n\n**The net cost of homeownership:** Monthly payment $5,000 minus ~$1,125/mo in tax savings = effective cost of $3,875/mo. Compare THAT number to your rent, not the full payment.\n\n**Standard deduction note:** You only benefit if your itemized deductions exceed the standard deduction ($32,200 MFJ in 2026). Most homeowners in expensive markets will itemize.",
   quiz: [
    { q: "The mortgage interest deduction limit for MFJ is:", opts: ["$500,000", "$750,000", "$1,000,000", "Unlimited"], a: 1 },
    { q: "To benefit from mortgage interest deduction, you must:", opts: ["Own for at least 5 years", "Put 20% down", "Itemize deductions exceeding the standard deduction", "Have an FHA loan"], a: 2 },
@@ -955,7 +955,7 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 9, phase: 3, phaseLabel: "The Finish", title: "Amortization & Equity", icon: "trending-up", housePart: "roof_shingles",
   tabLink: "amort", tabLabel: "Amortization",
-  lesson: "Amortization is how your loan balance decreases over time. Understanding it reveals the hidden wealth-building engine inside every mortgage.\n\n**How it works:** Early payments are mostly interest. Over time, more goes to principal. On a $640K loan at 6.5%:\n• Year 1: ~$10K to principal, ~$41K to interest\n• Year 15: ~$22K to principal, ~$22K to interest (the crossover!)\n• Year 30: ~$47K to principal, ~$3K to interest\n\n**Equity = what you own.** It grows two ways:\n1. Principal paydown (forced savings — happens automatically)\n2. Appreciation (market value increases — historically 3–5%/year)\n\nOn a $1M home with 20% down: after 7 years at 3% appreciation, your home is worth ~$1.23M. Your loan balance dropped to ~$550K. Your equity: ~$680K from a $200K investment. That's leverage.\n\n**Extra payments are powerful:** Adding just $200/month to a $640K loan at 6.5% saves ~$115K in interest and pays off 4+ years early. The Amortization tab in your calculator shows this side-by-side.\n\n**The refinance ladder:** Every time rates drop 0.5%+, refinance and keep the same payment. You'll shave years off your loan while locking in savings.",
+  lesson: "Amortization is how your loan balance decreases over time. Understanding it reveals the hidden wealth-building engine inside every mortgage.\n\n**How it works:** Early payments are mostly interest. Over time, more goes to principal. On a $640K loan at 6.5%:\n• Year 1: ~$10K to principal, ~$41K to interest\n• Year 15: ~$22K to principal, ~$22K to interest (the crossover!)\n• Year 30: ~$47K to principal, ~$3K to interest\n\n**Equity = what you own.** It grows two ways:\n1. Principal paydown (forced savings. Happens automatically)\n2. Appreciation (market value increases. Historically 3–5%/year)\n\nOn a $1M home with 20% down: after 7 years at 3% appreciation, your home is worth ~$1.23M. Your loan balance dropped to ~$550K. Your equity: ~$680K from a $200K investment. That's leverage.\n\n**Extra payments are powerful:** Adding just $200/month to a $640K loan at 6.5% saves ~$115K in interest and pays off 4+ years early. The Amortization tab in your calculator shows this side-by-side.\n\n**The refinance ladder:** Every time rates drop 0.5%+, refinance and keep the same payment. You'll shave years off your loan while locking in savings.",
   quiz: [
    { q: "In a 30-year mortgage, the 'crossover point' where more goes to principal than interest is around:", opts: ["Year 5", "Year 10", "Year 15", "Year 25"], a: 2 },
    { q: "Home equity grows through:", opts: ["Principal paydown only", "Appreciation only", "Both principal paydown and appreciation", "Tax deductions"], a: 2 },
@@ -963,11 +963,11 @@ const COURSE_CHAPTERS = [
   ]},
  { id: 10, phase: 3, phaseLabel: "The Finish", title: "The Big Picture", icon: "home", housePart: "complete",
   tabLink: "qualify", tabLabel: "Qualify",
-  lesson: "You've learned the pieces. Now let's put it all together — because buying a home isn't just a transaction, it's a wealth-building strategy.\n\n**The true cost of homeownership (monthly):**\nPITI + HOA + maintenance (~1%/year) – tax savings – principal paydown = actual cost.\n\nWhen you subtract tax savings and principal paydown, the effective cost of owning is often LESS than renting the same home — especially after 3–5 years.\n\n**Affordability is personal.** The lender's max DTI isn't YOUR comfort zone. Use the Afford tab to find the purchase price that fits your real budget, not just what you qualify for.\n\n**The wealth equation over 7 years on a $1M home:**\n• Down payment: $200K\n• Appreciation (3%/yr): +$230K\n• Principal paydown: +$90K\n• Tax savings: +$60K\n• Total return: ~$380K on $200K invested = 90% total return\n\n**The homeownership advantage:**\n• Leverage (control $1M asset with $200K)\n• Forced savings (principal paydown happens automatically)\n• Tax benefits (interest + property tax deductions)\n• Inflation hedge (your payment is fixed, rent rises)\n• Generational wealth (your biggest asset grows tax-advantaged)\n\nYou didn't just learn about mortgages — you learned how to build wealth. Now go use the tools. You're ready. ",
+  lesson: "You've learned the pieces. Now let's put it all together, because buying a home isn't just a transaction, it's a wealth-building strategy.\n\n**The true cost of homeownership (monthly):**\nPITI + HOA + maintenance (~1%/year) – tax savings – principal paydown = actual cost.\n\nWhen you subtract tax savings and principal paydown, the effective cost of owning is often LESS than renting the same home, especially after 3–5 years.\n\n**Affordability is personal.** The lender's max DTI isn't YOUR comfort zone. Use the Afford tab to find the purchase price that fits your real budget, not just what you qualify for.\n\n**The wealth equation over 7 years on a $1M home:**\n• Down payment: $200K\n• Appreciation (3%/yr): +$230K\n• Principal paydown: +$90K\n• Tax savings: +$60K\n• Total return: ~$380K on $200K invested = 90% total return\n\n**The homeownership advantage:**\n• Leverage (control $1M asset with $200K)\n• Forced savings (principal paydown happens automatically)\n• Tax benefits (interest + property tax deductions)\n• Inflation hedge (your payment is fixed, rent rises)\n• Generational wealth (your biggest asset grows tax-advantaged)\n\nYou didn't just learn about mortgages. You learned how to build wealth. Now go use the tools. You're ready. ",
   quiz: [
    { q: "The true monthly cost of homeownership should factor in:", opts: ["Just PITI", "PITI + maintenance", "PITI + maintenance – tax savings – principal paydown", "Just the mortgage payment"], a: 2 },
    { q: "A fixed mortgage payment protects you from:", opts: ["Property tax increases", "Rising insurance costs", "Rising rent (inflation hedge)", "HOA increases"], a: 2 },
-   { q: "The biggest advantage of homeownership is:", opts: ["Never paying rent again", "Getting a tax write-off", "Leverage — controlling a large asset with a smaller investment", "Having a garage"], a: 2 },
+   { q: "The biggest advantage of homeownership is:", opts: ["Never paying rent again", "Getting a tax write-off", "Leverage: controlling a large asset with a smaller investment", "Having a garage"], a: 2 },
   ]},
 ];
 const PHASE_INFO = [
@@ -1017,10 +1017,10 @@ const SKILL_PRESETS = {
 const TOGGLE_DESCRIPTIONS = {
  firstTimeBuyer: { on: "Enables 3% down conventional (income limits apply). Also unlocks Rent vs Buy analysis.", off: "Standard down payment minimums (5% conv, 3.5% FHA, 0% VA)." },
  ownsProperties: { on: "Opens the REO (Real Estate Owned) tab to track existing properties, rental income, and reserve requirements.", off: "No existing properties to report." },
- hasSellProperty: { on: "Opens the Seller Net tab — calculates your net proceeds, capital gains tax, and how sale funds apply to your new purchase.", off: "Not selling a property as part of this transaction." },
+ hasSellProperty: { on: "Opens the Seller Net tab. Calculates your net proceeds, capital gains tax, and how sale funds apply to your new purchase.", off: "Not selling a property as part of this transaction." },
  showInvestor: { on: "Opens the Investor tab with NOI, Cap Rate, Cash-on-Cash, DSCR, and IRR analysis for rental properties.", off: "Standard primary/second home analysis only." },
- showProp19: { on: "Opens the Prop 19 tab — estimate your transferred property-tax base if you're 55+, disabled, or a disaster victim buying a replacement home in California.", off: "Standard full-reassessment property tax only." },
- showRefi3: { on: "Shows the 3-Point Refi Test tab — rate drop, breakeven, and payoff acceleration checks.", off: "Hides the 3-Point Test tab for this scenario." },
+ showProp19: { on: "Opens the Prop 19 tab. Estimate your transferred property-tax base if you're 55+, disabled, or a disaster victim buying a replacement home in California.", off: "Standard full-reassessment property tax only." },
+ showRefi3: { on: "Shows the 3-Point Refi Test tab. Rate drop, breakeven, and payoff acceleration checks.", off: "Hides the 3-Point Test tab for this scenario." },
 };
 
 // ═══ WORKSPACE HOST ═══
@@ -2894,7 +2894,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (phone) payload.phone = phone;
   const result = await createBorrower(payload);
   const newB = result?.[0] || result;
-  if (!newB?.id) throw new Error('Create failed — try again');
+  if (!newB?.id) throw new Error('Create failed. Try again');
   setBorrowerList(prev => [...prev, newB]);
   setActiveBorrower(newB);
   setActiveScenarioId(null);
@@ -3441,7 +3441,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const ln = (t, v) => lines.push(`${t}: ${v || ""}`);
   const sep = () => lines.push("─".repeat(40));
   lines.push(isRefi ? "REFINANCE ESTIMATE" : "PURCHASE ESTIMATE");
-  lines.push("FOR ILLUSTRATIVE PURPOSES ONLY — NOT AN OFFICIAL QUOTE");
+  lines.push("FOR ILLUSTRATIVE PURPOSES ONLY. NOT AN OFFICIAL QUOTE");
   lines.push(`Scenario: ${scenarioName}`);
   if (borrowerName) lines.push(`Prepared for: ${borrowerName}`);
   lines.push(`Prepared by: ${loanOfficer || "Loan Officer"}${loNmls ? " · NMLS #" + loNmls : ""}`);
@@ -3591,11 +3591,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const handlePdfError = (e) => {
   console.error("Refi summary PDF failed:", e);
   if (/dynamically imported module|Loading chunk|Importing a module script failed|Failed to fetch/i.test(String(e?.message || e))) {
-   alert("Blueprint just updated — reloading to grab the new version, then try again.");
+   alert("Blueprint just updated: reloading to grab the new version, then try again.");
    window.location.reload();
    return;
   }
-  alert("Could not generate the PDF — try again.");
+  alert("Could not generate the PDF. Try again.");
  };
  // Open the summary in a tab (browser PDF viewer = preview + its own print).
  const openRefiSummaryPdf = async (autoPrint) => {
@@ -3620,7 +3620,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   else handleDownloadWorksheet();
  };
  const handleEmailSummary = () => {
-  const subject = encodeURIComponent(`${isRefi ? "Refinance" : "Purchase"} Estimate — ${scenarioName}`);
+  const subject = encodeURIComponent(`${isRefi ? "Refinance" : "Purchase"} Estimate: ${scenarioName}`);
   const body = encodeURIComponent(generateSummaryText());
   const to = encodeURIComponent(borrowerEmail || "");
   const bccParam = loEmail ? `&bcc=${encodeURIComponent(loEmail)}` : "";
@@ -3674,7 +3674,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const lines = [
    firstName ? `Hi ${firstName},` : "Hi there,",
    "",
-   "Attached is your personalized fees worksheet — the full picture of this scenario on one page.",
+   "Attached is your personalized fees worksheet. The full picture of this scenario on one page.",
    "",
    "The headlines:",
    `• Total monthly payment: ${fmt(isRefi ? calc.refiNewTotalPmt : calc.housingPayment)}`,
@@ -3690,13 +3690,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     ? [
        "Next steps:",
        "1. Ask any questions.",
-       "2. Confirm you'd like to move forward — if the rates are still available, we'll lock it in and get rolling.",
+       "2. Confirm you'd like to move forward. If the rates are still available, we'll lock it in and get rolling.",
        "",
        "Once we lock, expect to close within 25–30 days. Please respond to any requests ASAP so we don't lose the deal.",
        "",
        "Take a look at the numbers and let me know if you want me to lock it in.",
       ]
-    : ["Look it over and reply with any questions — happy to walk through it together."]),
+    : ["Look it over and reply with any questions. Happy to walk through it together."]),
    "",
    // HTML signatures are appended as rendered HTML at send time (see
    // SendWorksheetModal signatureHtml) — keep them out of the text body.
@@ -3726,7 +3726,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const handleDownloadWorksheet = () => {
   downloadWorksheetPdf(buildWorksheetProps(), scenarioName, borrowerName).catch((e) => {
    console.error("Worksheet download failed:", e);
-   alert("Could not generate the PDF — please try again.");
+   alert("Could not generate the PDF. Please try again.");
   });
  };
  // ── Live-link mailto builder ──
@@ -3735,9 +3735,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // input already filled in. Subject mirrors the existing handleEmailSummary
  // shape so brokers' inboxes thread cleanly.
  const buildLiveLinkMailto = ({ to, name, url, lo, isRefiFlag, scenario }) => {
-  const subject = encodeURIComponent(`Your ${isRefiFlag ? "Refinance" : "Purchase"} Blueprint — ${scenario}`);
+  const subject = encodeURIComponent(`Your ${isRefiFlag ? "Refinance" : "Purchase"} Blueprint: ${scenario}`);
   const greeting = name ? `Hi ${name},` : "Hi there,";
-  const signerLine = `— ${loanOfficer || "Your loan officer"}${companyName ? ` · ${companyName}` : ""}`;
+  const signerLine = `${loanOfficer || "Your loan officer"}${companyName ? ` · ${companyName}` : ""}`;
   const nmlsLine = companyNmls ? `NMLS #${companyNmls}` : "";
   const phoneLine = loPhone || "";
   const emailLine = lo || "";
@@ -3745,7 +3745,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    [
     greeting,
     "",
-    "I built out a live mortgage scenario for you. Click the link below to view it — you'll get a quick sign-in code by email, then everything will be pre-filled and ready to explore. You can adjust numbers and I'll see your changes on my end.",
+    "I built out a live mortgage scenario for you. Click the link below to view it. You'll get a quick sign-in code by email, then everything will be pre-filled and ready to explore. You can adjust numbers and I'll see your changes on my end.",
     "",
     url,
     "",
@@ -3831,7 +3831,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (fresh) borrower = fresh;
    }
    if (!borrower.share_token) {
-    setLiveLinkError("Couldn't generate a share link — contact support so we can backfill this borrower's token.");
+    setLiveLinkError("Couldn't generate a share link. Contact support so we can backfill this borrower's token.");
     setLiveLinkSending(false);
     return;
    }
@@ -3874,7 +3874,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    } else if (action === "text") {
     const digits = phoneClean.replace(/[^\d+]/g, "");
     const firstName = (borrowerName || borrower.name || "").trim().split(/\s+/)[0] || "";
-    const smsBody = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint — it updates as we fine-tune your numbers: ${shareUrl}`;
+    const smsBody = `Hi${firstName ? ` ${firstName}` : ""}! Here's your live Mortgage Blueprint. It updates as we fine-tune your numbers: ${shareUrl}`;
     // `?&body=` is the one separator BOTH iOS and Android honor in sms: URIs.
     window.open(`sms:${digits}?&body=${encodeURIComponent(smsBody)}`, "_self");
     setLiveLinkToast("Messages opened with the link");
@@ -3891,7 +3891,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setShowEmailModal(false);
   } catch (err) {
    console.warn("[Blueprint] handleSendLiveLink failed:", err);
-   setLiveLinkError(err?.message || "Couldn't generate a share link — please check your connection and try again.");
+   setLiveLinkError(err?.message || "Couldn't generate a share link. Please check your connection and try again.");
   } finally {
    setLiveLinkSending(false);
   }
@@ -3967,7 +3967,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }
   } catch(e) { if (import.meta.env.DEV) console.log("Proxy fetch failed:", e.message); }
   // Both sources failed.
-  setRatesError("Could not fetch rates — try again in a moment");
+  setRatesError("Could not fetch rates. Try again in a moment");
   setRatesLoading(false);
  };
 
@@ -4287,7 +4287,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       transition: "background 0.2s ease",
      }}
     >
-     <span>{label || "Looks good — continue"}</span>
+     <span>{label || "Looks good: continue"}</span>
      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>
     </button>
    </div>
@@ -4778,8 +4778,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (unknownCounty && r.highBalance === r.conforming) {
    return { ...r, highBalance: r.ceiling, assumedCeiling: true,
             source: propertyState === "Connecticut"
-             ? "national ceiling assumed — FHFA publishes CT by planning region"
-             : "national ceiling assumed — county not set" };
+             ? "national ceiling assumed: FHFA publishes CT by planning region"
+             : "national ceiling assumed: county not set" };
   }
   return { ...r, assumedCeiling: false };
  }, [propertyState, propertyCounty]);
@@ -5243,8 +5243,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (refiEscrowMode === "combined") {
     if (refiEscrowCombinedMo > 0) rows.push({ label: "Escrow (taxes and insurance)", amt: refiEscrowCombinedMo });
    } else {
-    if (refiCurEscrowTax && refiCurMonthlyTax > 0) rows.push({ label: "Escrow — taxes", amt: refiCurMonthlyTax });
-    if (refiCurEscrowIns && refiCurMonthlyIns > 0) rows.push({ label: "Escrow — insurance", amt: refiCurMonthlyIns });
+    if (refiCurEscrowTax && refiCurMonthlyTax > 0) rows.push({ label: "Escrow: taxes", amt: refiCurMonthlyTax });
+    if (refiCurEscrowIns && refiCurMonthlyIns > 0) rows.push({ label: "Escrow: insurance", amt: refiCurMonthlyIns });
    }
    return rows;
   })();
@@ -5328,10 +5328,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const f = [];
    if (refiModified === "yes") {
     f.push(refiFromStatement
-     ? "The loan has been modified — the statement balance still stands, but the original terms no longer describe it and seasoning rules may apply."
-     : "The loan has been modified — the payment, rate and term all moved, so this reconstructed balance can't be trusted. Get the statement.");
+     ? "The loan has been modified. The statement balance still stands, but the original terms no longer describe it and seasoning rules may apply."
+     : "The loan has been modified. The payment, rate and term all moved, so this reconstructed balance can't be trusted. Get the statement.");
    }
-   if (refiPrepayPenalty === "yes") f.push("There's a prepayment penalty — price it into the breakeven before quoting savings.");
+   if (refiPrepayPenalty === "yes") f.push("There's a prepayment penalty. Price it into the breakeven before quoting savings.");
    if (armActive && !refiFromStatement) f.push("Reconstructing an ARM: the balance amortizes at the start rate, then recasts at the adjustment. Treat it as directional until a statement confirms it.");
    return f;
   })();
@@ -6008,7 +6008,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', q));
    if (blob && blob.size <= 5_000_000) return blob;
   }
-  throw new Error('Photo could not be compressed enough — try a PDF export instead.');
+  throw new Error('Photo could not be compressed enough. Try a PDF export instead.');
  };
 
  const handleStatementFile = async (file) => {
@@ -6019,7 +6019,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    let name = file.name || 'statement';
    if (type === 'application/pdf') {
     if (file.size > 10_000_000) {
-     throw new Error(`PDF is ${(file.size / 1e6).toFixed(1)}MB — statements must stay under 10MB.`);
+     throw new Error(`PDF is ${(file.size / 1e6).toFixed(1)}MB: statements must stay under 10MB.`);
     }
    } else if (/^image\//.test(type)) {
     if (file.size > 5_000_000 || !['image/jpeg', 'image/png', 'image/webp'].includes(type)) {
@@ -6110,7 +6110,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     if (num(s.interest_rate_pct) && s.interest_rate_pct < 25) { setRefiSecondRate(s.interest_rate_pct); lines.push(`2nd lien rate ${s.interest_rate_pct}%`); }
    }
    if (!lines.length) {
-    setStmtFill({ lines: [], notes: extraction?.notes || 'Nothing readable was found on the statement — fields were left untouched.' });
+    setStmtFill({ lines: [], notes: extraction?.notes || 'Nothing readable was found on the statement. Fields were left untouched.' });
    } else {
     setStmtFill({ lines, notes: extraction?.notes || '' });
    }
@@ -6388,14 +6388,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   { v: calc.refiNewMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: "Mortgage insurance on your new refinanced loan. Drops off at 80% LTV for conventional loans." },
   { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues remain the same after refinancing." },
  ] : [
-  { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal", tip: "The portion of your payment that reduces your loan balance. This is equity you're building — like a forced savings account." },
-  { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest", tip: "The cost of borrowing money — this is the lender's profit. Early in the loan, most of your payment goes here. As you pay down the balance, this shrinks." },
+  { v: calc.monthlyPrinReduction, c: T.cyan, l: "Principal", tip: "The portion of your payment that reduces your loan balance. This is equity you're building, like a forced savings account." },
+  { v: calc.pi - calc.monthlyPrinReduction, c: T.blue, l: "Interest", tip: "The cost of borrowing money. This is the lender's profit. Early in the loan, most of your payment goes here. As you pay down the balance, this shrinks." },
   ...(includeEscrow ? [{ v: calc.monthlyTax, c: T.orange, l: "Tax", tip: "Your annual property tax divided by 12 and collected monthly by your lender. In California, property tax is typically 1.1–1.25% of your home's assessed value." }, { v: calc.ins, c: T.green, l: "Insurance", tip: "Homeowner's insurance protects your home against fire, theft, and natural disasters. Lenders require it. Typical cost: $1,200–$3,000/year depending on location and coverage." }] : []),
-  { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. The annual rate runs 0.50%–0.75% of the base loan amount depending on loan size and LTV (HUD schedule). FHA MIP lasts the life of the loan unless LTV is 90% or below at origination — you'd otherwise need to refinance to remove it." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
-  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues — a monthly fee for shared amenities and maintenance in condos, townhomes, and planned communities. Covers things like landscaping, pool, gym, exterior maintenance, and building insurance." },
+  { v: calc.monthlyMI, c: T.red, l: loanType === "FHA" ? "MIP" : "PMI", tip: loanType === "FHA" ? "Mortgage Insurance Premium (MIP) is required on all FHA loans regardless of down payment. The annual rate runs 0.50%–0.75% of the base loan amount depending on loan size and LTV (HUD schedule). FHA MIP lasts the life of the loan unless LTV is 90% or below at origination. You'd otherwise need to refinance to remove it." : "Private Mortgage Insurance (PMI) is required on conventional loans with less than 20% down. It protects the lender if you default. PMI automatically drops off when you reach 20% equity." },
+  { v: hoa, c: T.purple, l: "HOA", tip: "Homeowner's Association dues: a monthly fee for shared amenities and maintenance in condos, townhomes, and planned communities. Covers things like landscaping, pool, gym, exterior maintenance, and building insurance." },
  ];
  const TAB_DESC = {
-  setup: "Start here — enter the subject property address and zip code to auto-fill tax rates and transfer taxes, then set your borrower profile.",
+  setup: "Start here: enter the subject property address and zip code to auto-fill tax rates and transfer taxes, then set your borrower profile.",
   calc: "Your core mortgage calculator. Enter purchase price, rate, and terms to see your monthly payment breakdown and loan details.",
   costs: "Full closing cost breakdown: lender fees, title, escrow, transfer taxes, prepaids, and credits. This is your total cash needed.",
   qualify: "The 5-pillar qualification check: FICO, down payment, DTI, cash to close, and reserves. All 5 must clear for pre-approval.",
@@ -6574,8 +6574,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       cur: L.pmt,
       nw: L.plan === "payoff" ? 0 : L.pmt,
       note: L.plan === "payoff"
-       ? (L.kind === "deferred" && L.pmt === 0 ? "no payment — paid off at closing" : "paid off at closing")
-       : "subordinated — payment continues",
+       ? (L.kind === "deferred" && L.pmt === 0 ? "no payment: paid off at closing" : "paid off at closing")
+       : "subordinated: payment continues",
       edit: L.pos === "2nd"
        ? { nullable: true, override: refiSecondPmtOverride, set: setRefiSecondPmtOverride }
        : { nullable: true, override: refiThirdPmtOverride, set: setRefiThirdPmtOverride },
@@ -6606,7 +6606,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         <span style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
          <button aria-label={manual ? "Use calculated value" : "Edit value"}
           onClick={() => r.edit.set(manual ? (r.edit.nullable ? null : 0) : Math.round(r.cur * 100) / 100)}
-          title={manual ? "Unlock — back to the calculated value" : "Lock to edit — pin the statement's number"}
+          title={manual ? "Unlock: back to the calculated value" : "Lock to edit: pin the statement's number"}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "inline-flex" }}
          >
           <Icon name={manual ? "lock" : "unlock"} size={11} style={{ color: manual ? T.blue : T.textTertiary }} />
@@ -6668,7 +6668,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     );
    })()}
    {!(refiNewEscrowTax && refiNewEscrowIns) && (refiAnnualTax > 0 || refiAnnualIns > 0) && (
-    <Note color={T.orange} style={{ marginTop: 8 }}>No escrow — tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
+    <Note color={T.orange} style={{ marginTop: 8 }}>No escrow: tax ({fmt(calc.refiCurMonthlyTax)}/mo) and insurance ({fmt(calc.refiCurMonthlyIns)}/mo) paid separately on both current and new loan. Total: {fmt(calc.refiCurMonthlyTax + calc.refiCurMonthlyIns)}/mo outside of your mortgage payment.</Note>
    )}
   </Card>
  </Sec>
@@ -6683,7 +6683,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Interest Savings" value={fmt(calc.refiIntSavings)} color={calc.refiIntSavings > 0 ? T.green : T.red} bold />
-    {calc.refiIntSavings < 0 && <Note color={T.orange} style={{ marginTop: 6 }}>New loan pays more total interest — often due to longer term or cash-out. Monthly savings may still justify it.</Note>}
+    {calc.refiIntSavings < 0 && <Note color={T.orange} style={{ marginTop: 6 }}>New loan pays more total interest. Often due to longer term or cash-out. Monthly savings may still justify it.</Note>}
    </div>
   </Card>
  </Sec>
@@ -6801,7 +6801,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <span style={{ fontSize: 28 }}>{calc.refiTestScore === 3 ? "●" : calc.refiTestScore >= 2 ? "●" : "●"}</span>
    <div>
     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: calc.refiTestScore === 3 ? T.green : calc.refiTestScore >= 2 ? T.orange : T.red }}>{calc.refiTestScore} / 3</div>
-    <div style={{ fontSize: 11, color: T.textTertiary }}>{calc.refiTestScore === 3 ? "ALL CLEAR — Refi makes sense!" : calc.refiTestScore === 2 ? "Close — worth discussing" : calc.refiTestScore === 1 ? "Proceed with caution" : "Refi may not be advisable"}</div>
+    <div style={{ fontSize: 11, color: T.textTertiary }}>{calc.refiTestScore === 3 ? "ALL CLEAR: Refi makes sense!" : calc.refiTestScore === 2 ? "Close: worth discussing" : calc.refiTestScore === 1 ? "Proceed with caution" : "Refi may not be advisable"}</div>
    </div>
   </div>
  </div>
@@ -6816,19 +6816,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <RefiTestLight
     passed={calc.refiTest2Pass}
     label="2. Breakeven Under 2 Years"
-    detail={calc.refiTest2Pass !== null ? (calc.refiBreakevenMonths > 0 ? `Breakeven: ${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs) ${calc.refiTest2Pass ? "✓" : "— too long"}` : "No monthly savings to break even") : "Need monthly savings to calculate"}
+    detail={calc.refiTest2Pass !== null ? (calc.refiBreakevenMonths > 0 ? `Breakeven: ${calc.refiBreakevenMonths} months (${(calc.refiBreakevenMonths / 12).toFixed(1)} yrs) ${calc.refiTest2Pass ? "✓" : "✕ too long"}` : "No monthly savings to break even") : "Need monthly savings to calculate"}
    />
    <div style={{ borderBottom: "none" }}>
     <RefiTestLight
      passed={calc.refiTest3Pass}
      label="3. Accelerated Payoff (1+ Year Faster)"
-     detail={calc.refiTest3Pass !== null ? `Reinvesting ${fmt(calc.refiMonthlySavings)}/mo savings: new loan pays off in ${calc.refiAccelPayoff.newPayoffMos} mos vs current ${calc.refiAccelPayoff.curPayoffMos} mos = ${calc.refiAccelPayoff.yearsFaster.toFixed(1)} years faster ${calc.refiTest3Pass ? "✓" : "— not enough"}` : "Need monthly savings to calculate"}
+     detail={calc.refiTest3Pass !== null ? `Reinvesting ${fmt(calc.refiMonthlySavings)}/mo savings: new loan pays off in ${calc.refiAccelPayoff.newPayoffMos} mos vs current ${calc.refiAccelPayoff.curPayoffMos} mos = ${calc.refiAccelPayoff.yearsFaster.toFixed(1)} years faster ${calc.refiTest3Pass ? "✓" : "✕ not enough"}` : "Need monthly savings to calculate"}
     />
    </div>
   </Card>
  </Sec>
  {/* Detailed explanation cards */}
- <Sec title="Test 1 — Rate">
+ <Sec title="Test 1: Rate">
   <Card>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
     <div><div style={{ fontSize: 11, color: T.textTertiary }}>Current Rate</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{refiCurrentRate.toFixed(3)}%</div></div>
@@ -6838,7 +6838,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <Note color={calc.refiTest1Pass ? T.green : T.orange}>A minimum 0.50% rate drop ensures enough savings to justify closing costs and reset the amortization clock.</Note>
   </Card>
  </Sec>
- <Sec title="Test 2 — Breakeven">
+ <Sec title="Test 2: Breakeven">
   <Card>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, textAlign: "center" }}>
     <div><div style={{ fontSize: 11, color: T.textTertiary }}>Closing Costs</div><div style={{ fontSize: 20, fontWeight: 700, fontFamily: FONT }}>{fmt(calc.totalClosingCosts)}</div></div>
@@ -6857,7 +6857,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <Note color={calc.refiTest2Pass ? T.green : T.orange}>Under 2 years means you recoup closing costs quickly. If you plan to stay shorter than the breakeven period, the refi doesn't pay for itself.</Note>
   </Card>
  </Sec>
- <Sec title="Test 3 — Accelerated Payoff">
+ <Sec title="Test 3: Accelerated Payoff">
   <Card>
    {calc.refiMonthlySavings > 0 ? <>
     <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 10 }}>If you take your <strong style={{ color: T.green }}>{fmt(calc.refiMonthlySavings)}/mo</strong> savings and apply it as extra principal:</div>
@@ -6866,12 +6866,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div><div style={{ fontSize: 11, color: T.textTertiary }}>New + Extra</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: T.blue }}>{calc.refiAccelPayoff.newPayoffMos}<span style={{ fontSize: 12 }}> mos</span></div><div style={{ fontSize: 11, color: T.textTertiary }}>{(calc.refiAccelPayoff.newPayoffMos / 12).toFixed(1)} yrs</div></div>
      <div><div style={{ fontSize: 11, color: T.textTertiary }}>Faster By</div><div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: calc.refiAccelPayoff.yearsFaster >= 1 ? T.green : T.red }}>{calc.refiAccelPayoff.yearsFaster.toFixed(1)}<span style={{ fontSize: 12 }}> yrs</span></div></div>
     </div>
-    <Note color={calc.refiTest3Pass ? T.green : T.orange}>{calc.refiTest3Pass ? "Reinvesting savings accelerates payoff by 1+ year — the refi creates real wealth." : "Savings don't accelerate payoff enough. Consider if other benefits (cash flow, dropping MI) still make it worthwhile."}</Note>
+    <Note color={calc.refiTest3Pass ? T.green : T.orange}>{calc.refiTest3Pass ? "Reinvesting savings accelerates payoff by 1+ year. The refi creates real wealth." : "Savings don't accelerate payoff enough. Consider if other benefits (cash flow, dropping MI) still make it worthwhile."}</Note>
    </> : <Note color={T.orange}>No monthly savings to reinvest. This test requires a lower P&I payment on the new loan.</Note>}
   </Card>
  </Sec>
  <Card style={{ marginTop: 8, background: T.pillBg }}>
-  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.6, textAlign: "center" }}>The 3-Point Refi Test is a framework by Three Point Thursday. Not all 3 points need to pass — but if they do, the refi is a no-brainer.</div>
+  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.6, textAlign: "center" }}>The 3-Point Refi Test is a framework by Three Point Thursday. Not all 3 points need to pass, but if they do, the refi is a no-brainer.</div>
  </Card>
  {/* ── Cost of Waiting / Breakeven Analysis ── */}
  {calc.refiPiMiSavings > 0 && calc.refiCostOfWaiting.length > 0 && (
@@ -7062,7 +7062,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
    }}>
     <Icon name="alert-triangle" size={15} />
-    <span style={{ flex: 1 }}>Refi import failed — {refiImportError}. Nothing was prefilled; build the refi manually.</span>
+    <span style={{ flex: 1 }}>Refi import failed: {refiImportError}. Nothing was prefilled; build the refi manually.</span>
     <button aria-label="Dismiss" onClick={() => setRefiImportError(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "4px 9px", fontFamily: FONT }}>✕</button>
    </div>
   )}
@@ -7094,7 +7094,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ))}
       </div>
      ) : (
-      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview — US Letter</span>
+      <span style={{ fontSize: 10, fontWeight: 700, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", color: T.textTertiary }}>Live Preview: US Letter</span>
      )}
      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {refiPreviewTab === 'statement' && stmtAvailable && stmtDocs.docs.length > 0 && (
@@ -7162,7 +7162,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        )}
        {stmtBusy === 'extracting' && (
         <div style={{ background: T.card, border: `1px solid ${T.separator}`, borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 11, color: T.textSecondary, fontFamily: FONT }}>
-         Reading the statement{stmtDocs.docs.length > 1 ? 's' : ''} — this can take a minute or two…
+         Reading the statement{stmtDocs.docs.length > 1 ? 's' : ''}: this can take a minute or two…
         </div>
        )}
        {stmtDocs.status === 'ready' && stmtDocs.docs.length > 0 ? (
@@ -7211,7 +7211,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
           <Icon name="file-text" size={26} color={T.blue} />
           <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, marginTop: 10 }}>Upload mortgage statements</div>
           <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, lineHeight: 1.5 }}>
-           PDF or photo, up to 10MB each — add every statement on the deal (first lien, HELOC, second). They stay with this blueprint, and Autofill reads them into the current-loan fields.
+           PDF or photo, up to 10MB each. Add every statement on the deal (first lien, HELOC, second). They stay with this blueprint, and Autofill reads them into the current-loan fields.
           </div>
           <div style={{ marginTop: 14 }}>
            <span style={{ background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontSize: 11, fontWeight: 600, padding: "6px 16px", fontFamily: FONT }}>Choose file</span>
@@ -7765,7 +7765,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     T={T} darkMode={darkMode}
    />
   )}
-  {isOffline && <div style={{ background: '#d98a0b22', border: '1px solid #d98a0b44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#d98a0b', textAlign: 'center' }}>You're offline — some features may be unavailable</div>}
+  {isOffline && <div style={{ background: '#d98a0b22', border: '1px solid #d98a0b44', borderRadius: 8, padding: '8px 16px', margin: '8px 16px 0', fontSize: 12, color: '#d98a0b', textAlign: 'center' }}>You're offline: some features may be unavailable</div>}
   {/* ── Borrower mode header bar (removed 2026-05-12) ──
       Was a gradient pill reading "Your Blueprint · PREPARED FOR <name>"
       shown when isBorrower. UnifiedHeader now renders for borrowers too
@@ -7805,10 +7805,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {showWelcome && consentGiven && !isLocked && (() => {
    const steps = [
     { emoji: "home", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool, designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
-    { emoji: "", title: "How to Navigate", body: "Follow the sections from top to bottom — each one builds on the last:\n\nSetup — Enter property details\nCalculator — See your monthly payment\nCosts — Full closing cost breakdown\n Income → Debts → Assets — Your full financial picture\nQualify — Check if you're approved\nTax Savings → Amortization — See the long game", color: T.cyan },
-    { emoji: "bar-chart", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios — try different prices, rates, or loan types — then compare them side-by-side on the Workspace tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch — it copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
-    { emoji: "", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time — change anything and watch the whole picture update instantly.", color: T.green },
-    { emoji: "target", title: "Bonus: PricePoint", body: "Think you know your local market? PricePoint pulls real listings from your area and challenges you to guess the price.\n\nSwipe through photos, read the MLS description, and lock in your guess — then see how close you were. Earn XP, level up from Studio Condo to Mega Mansion, and unlock achievement badges along the way.\n\nFind it in the top-left corner of the app.", color: T.purple },
+    { emoji: "", title: "How to Navigate", body: "Follow the sections from top to bottom. Each one builds on the last:\n\nSetup: Enter property details\nCalculator: See your monthly payment\nCosts: Full closing cost breakdown\nIncome → Debts → Assets: Your full financial picture\nQualify: Check if you're approved\nTax Savings → Amortization: See the long game", color: T.cyan },
+    { emoji: "bar-chart", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios. Try different prices, rates, or loan types, then compare them side-by-side on the Workspace tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch. It copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
+    { emoji: "", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time. Change anything and watch the whole picture update instantly.", color: T.green },
+    { emoji: "target", title: "Bonus: PricePoint", body: "Think you know your local market? PricePoint pulls real listings from your area and challenges you to guess the price.\n\nSwipe through photos, read the MLS description, and lock in your guess, then see how close you were. Earn XP, level up from Studio Condo to Mega Mansion, and unlock achievement badges along the way.\n\nFind it in the top-left corner of the app.", color: T.purple },
    ];
    const step = steps[welcomeStep];
    return (
@@ -7882,7 +7882,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    docKind={isRefi ? "refi" : "fees"}
    buildWorksheetProps={isRefi ? (opts) => buildRefiSummaryProps(opts?.includeFees !== false) : buildWorksheetProps}
    defaultTo={borrowerEmail}
-   defaultSubject={isRefi ? `Your Refinance Savings Summary — ${scenarioName}` : `Your Purchase Fees Worksheet — ${scenarioName}`}
+   defaultSubject={isRefi ? `Your Refinance Savings Summary: ${scenarioName}` : `Your Purchase Fees Worksheet: ${scenarioName}`}
    defaultBody={buildWorksheetEmailBody()}
    loEmail={loEmail}
    loanOfficer={loanOfficer}
@@ -8044,7 +8044,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      }}>
       {!isCloud
        ? "Sign in to send a live link. The Email Summary, Save PDF, and Copy to Clipboard options below still work."
-       : "Add a borrower email above to email the live link — or a phone number to text it."}
+       : "Add a borrower email above to email the live link, or a phone number to text it."}
      </div>
     )}
     {liveLinkError && (
@@ -8376,7 +8376,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ borderTop: `2px solid ${T.separator}`, marginTop: 8, paddingTop: 8 }}>
     <MRow label="Total" value={fmt(calc.displayPayment)} bold />
    </div>
-   {!includeEscrow && <Note color={T.orange} strong>Escrow OFF — Tax ({fmt(calc.monthlyTax)}) + Ins ({fmt(calc.ins)}) = {fmt(calc.escrowAmount)}/mo paid separately · Full PITI: {fmt(calc.housingPayment)}</Note>}
+   {!includeEscrow && <Note color={T.orange} strong>Escrow OFF: Tax ({fmt(calc.monthlyTax)}) + Ins ({fmt(calc.ins)}) = {fmt(calc.escrowAmount)}/mo paid separately · Full PITI: {fmt(calc.housingPayment)}</Note>}
   </Card>
  </Sec>
  <Sec title="Qualification">
@@ -8427,7 +8427,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     lockableSections={{
      incomes: { label: 'Income', description: 'Annual income, sources, and frequency' },
      debts: { label: 'Debts', description: 'Monthly debts, car payments, student loans' },
-     creditScore: { label: 'Credit Score', description: 'FICO score — verified from credit pull' },
+     creditScore: { label: 'Credit Score', description: 'FICO score: verified from credit pull' },
      assets: { label: 'Assets', description: 'Bank balances, retirement, gift funds' },
      employmentInfo: { label: 'Employment', description: 'Employer, years at job, title' },
     }}
@@ -8915,7 +8915,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </Card>
     </Sec>
     {/* Quiz */}
-    <Sec title={done ? "Quiz " : "Quiz — Pass to Build"}>
+    <Sec title={done ? "Quiz " : "Quiz: Pass to Build"}>
      <Card>
       {ch.quiz.map((q, qi) => {
        const answered = courseQuizAnswers[qi] !== undefined;
@@ -8965,7 +8965,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          </button>
         </>) : (<>
          <div style={{ fontSize: 32, marginBottom: 8 }}></div>
-         <div style={{ fontSize: 16, fontWeight: 700, color: T.red, fontFamily: FONT }}>Not Quite — Try Again</div>
+         <div style={{ fontSize: 16, fontWeight: 700, color: T.red, fontFamily: FONT }}>Not Quite: Try Again</div>
          <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 4, marginBottom: 12 }}>Review the lesson and fix the red answers.</div>
          <button onClick={() => { setCourseQuizAnswers({}); setCourseQuizSubmitted(false); }}
           style={{ padding: "12px 28px", borderRadius: 12, border: "none", fontSize: 15, fontWeight: 600, fontFamily: FONT, cursor: "pointer", background: T.blue, color: "#FFF" }}>
@@ -8976,7 +8976,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       )}
       {done && (
        <div style={{ marginTop: 12, textAlign: "center", padding: 12, borderRadius: 12, background: `${T.green}10` }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: T.green }}>Chapter completed — house piece built!</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.green }}>Chapter completed: house piece built!</div>
        </div>
       )}
      </Card>
@@ -9008,34 +9008,34 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
  {courseView === "library" && (<>
   <Card pad={14} style={{ marginTop: 12 }}>
-   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Bite-sized mortgage education from <strong style={{ color: T.text }}>Three Point Thursday</strong> — the weekly newsletter that breaks down complex mortgage topics into 3 actionable points.</div>
+   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Bite-sized mortgage education from <strong style={{ color: T.text }}>Three Point Thursday</strong>: the weekly newsletter that breaks down complex mortgage topics into 3 actionable points.</div>
   </Card>
   {[
    { cat: "Getting Started", items: [
-    { title: "The 5 Pillars of Qualifying", icon: "", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO) — Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment — VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI) — Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close — Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves — Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
-    { title: "How Mortgage Rates Work", icon: "trending-up", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow — usually within days." },
-    { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into — and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket — saving you thousands over the life of the loan." },
+    { title: "The 5 Pillars of Qualifying", icon: "", desc: "What lenders really look at before saying yes", body: "Every mortgage approval comes down to 5 pillars:\n\n1. Credit Score (FICO): Minimum 580 for FHA, 620 for Conventional, 700 for Jumbo. A 740+ score unlocks the best pricing tiers.\n\n2. Down Payment: VA: 0%, FHA: 3.5%, Conventional: 3% (first-time buyer, conforming, ≤100% AMI) or 5%. Jumbo: 20%.\n\n3. Debt-to-Income Ratio (DTI): Your total monthly debts divided by gross monthly income. Max DTI varies: Conventional 50%, FHA 57% (but also checks Housing-to-Income at 47%), VA 60%, Jumbo 43–50%.\n\n4. Cash to Close: Down payment + closing costs + prepaids – credits. You need to show you have enough liquid funds.\n\n5. Reserves: Most lenders want 6 months of mortgage payments in savings after closing. Reserves can include 401(k), stocks, and savings." },
+    { title: "How Mortgage Rates Work", icon: "trending-up", desc: "Rates follow the 10-Year Treasury, not the Fed", body: "A common misconception: the Fed controls mortgage rates. They don't.\n\nMortgage rates are tied to the 10-Year Treasury yield. When inflation cools, bond markets relax, yields drop, and mortgage rates usually follow.\n\nThe Fed Funds Rate directly affects HELOCs and adjustable-rate products (tied to Prime), but fixed mortgage rates move independently based on bond market sentiment, inflation data (CPI), and economic outlook.\n\nKey signals to watch: CPI reports (monthly), Fed meetings (8x/year), and the 10-Year Treasury yield (daily). When the 10-Year drops, expect mortgage rates to follow, usually within days." },
+    { title: "Conforming vs High Balance vs Jumbo", icon: "bar-chart", desc: "Loan limits determine your pricing and guidelines", body: "Your loan amount determines which \"bucket\" you fall into, and that changes everything about your rate, down payment, and qualification.\n\nConforming: Up to $832,750 (2025). Best rates, most flexible guidelines, lowest down payments.\n\nHigh Balance: $832,751 – $1,249,125. Slightly higher rates, still conventional guidelines.\n\nJumbo: Above $1,249,125. Higher rates, 700+ FICO typically required, 10–20% down, stricter DTI (43% max), and more reserves needed.\n\nWhy it matters: If your loan amount is just above a limit, even a small increase in down payment can drop you into a better bucket. Saving you thousands over the life of the loan." },
    ]},
    { cat: "Loan Programs", items: [
-    { title: "VA Loans: The Best Loan in America", icon: "", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment — Buy a home with nothing down.\n• No PMI — Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates — VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits — With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI — Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
-    { title: "FHA Loans & The FHA Duplex", icon: "home", desc: "3.5% down, 580 FICO — and a house-hacking cheat code", body: "FHA loans are government-backed mortgages designed for buyers who need a lower barrier to entry: 3.5% down with a 580+ credit score.\n\nThe trade-off: FHA requires both upfront (1.75%) and monthly mortgage insurance (MIP) for the life of the loan. If you put 20%+ down, conventional is usually the better play.\n\nThe Power Move — FHA Duplex:\nBuy a duplex with 3.5% down, live in one unit, rent the other. A $1M duplex requires just $35K down. If rent covers $2,000/mo of your $7,500 payment, your net housing cost is $5,500 — for a million-dollar income-producing asset.\n\nFHA duplex limits are higher than single-family: up to $1,032,650 (standard) or $1,548,975 (high-cost areas like the Bay Area).\n\nOccupancy rule: You must live in one unit for at least 12 months. After that, you can move out and keep it as an investment." },
-    { title: "ARMs: Lower Rates for Strategic Buyers", icon: "", desc: "~0.50% lower starting rate — but have a game plan", body: "An Adjustable-Rate Mortgage (ARM) gives you a lower starting rate — typically about 0.50% below a 30-year fixed. On a $600K loan, that can save ~$300+/month.\n\nHow it works: Your rate is fixed for an initial period (3, 5, 7, or 10 years), then adjusts annually based on market conditions.\n\nARMs make sense when you:\n• Plan to sell before the adjustment period\n• Expect to refinance when rates drop\n• Want to maximize cash flow in the short term\n\nARMs do NOT make sense when:\n• This is your forever home\n• You have no exit strategy\n• You can't absorb a potential payment increase\n\nAvailable on Conventional, FHA, and VA loans. Always have a game plan before going adjustable." },
-    { title: "1% Down Programs", icon: "info", desc: "Bring 1%, get a 2% grant — 3% total down from you", body: "Some lenders offer programs where you bring just 1% down and receive a 2% grant — giving you 3% total down payment with only 1% out of pocket. The grant does not need to be repaid.\n\nWho qualifies:\n• First-time homebuyers\n• Income caps apply (varies by area — check AMI limits)\n• Must be a primary residence\n• Conforming loan amounts\n\nThis is one of the most powerful affordability tools available right now for buyers who have income but limited savings." },
+    { title: "VA Loans: The Best Loan in America", icon: "", desc: "0% down, no PMI, lower rates, no loan limits", body: "If you're a veteran or active-duty service member, the VA loan is hands down the best mortgage product available.\n\n• 0% Down Payment. Buy a home with nothing down.\n• No PMI: Save hundreds per month vs. FHA or Conventional with <20% down.\n• Lower Rates: VA rates are typically 0.25–0.50% lower than conventional.\n• No Loan Limits. With full entitlement and no active VA loans, there's no cap from the VA. Many lenders go up to $4,000,000.\n• Lenient DTI: Up to 60% DTI allowed.\n• Min 580 FICO.\n\nThe VA Funding Fee (1.25–3.3% depending on use) can be rolled into the loan. Disabled veterans are exempt.\n\nMyth-busting: Sellers used to avoid VA offers. With longer days on market and softened competition, that's changing fast." },
+    { title: "FHA Loans & The FHA Duplex", icon: "home", desc: "3.5% down, 580 FICO, and a house-hacking cheat code", body: "FHA loans are government-backed mortgages designed for buyers who need a lower barrier to entry: 3.5% down with a 580+ credit score.\n\nThe trade-off: FHA requires both upfront (1.75%) and monthly mortgage insurance (MIP) for the life of the loan. If you put 20%+ down, conventional is usually the better play.\n\nThe Power Move: FHA Duplex:\nBuy a duplex with 3.5% down, live in one unit, rent the other. A $1M duplex requires just $35K down. If rent covers $2,000/mo of your $7,500 payment, your net housing cost is $5,500. For a million-dollar income-producing asset.\n\nFHA duplex limits are higher than single-family: up to $1,032,650 (standard) or $1,548,975 (high-cost areas like the Bay Area).\n\nOccupancy rule: You must live in one unit for at least 12 months. After that, you can move out and keep it as an investment." },
+    { title: "ARMs: Lower Rates for Strategic Buyers", icon: "", desc: "~0.50% lower starting rate, but have a game plan", body: "An Adjustable-Rate Mortgage (ARM) gives you a lower starting rate, typically about 0.50% below a 30-year fixed. On a $600K loan, that can save ~$300+/month.\n\nHow it works: Your rate is fixed for an initial period (3, 5, 7, or 10 years), then adjusts annually based on market conditions.\n\nARMs make sense when you:\n• Plan to sell before the adjustment period\n• Expect to refinance when rates drop\n• Want to maximize cash flow in the short term\n\nARMs do NOT make sense when:\n• This is your forever home\n• You have no exit strategy\n• You can't absorb a potential payment increase\n\nAvailable on Conventional, FHA, and VA loans. Always have a game plan before going adjustable." },
+    { title: "1% Down Programs", icon: "info", desc: "Bring 1%, get a 2% grant. 3% total down from you", body: "Some lenders offer programs where you bring just 1% down and receive a 2% grant. Giving you 3% total down payment with only 1% out of pocket. The grant does not need to be repaid.\n\nWho qualifies:\n• First-time homebuyers\n• Income caps apply (varies by area. Check AMI limits)\n• Must be a primary residence\n• Conforming loan amounts\n\nThis is one of the most powerful affordability tools available right now for buyers who have income but limited savings." },
    ]},
    { cat: "Refinancing", items: [
-    { title: "The 3-Point Refi Test", icon: "", desc: "Only refinance if it passes all 3 checkpoints", body: "Before refinancing, run every scenario through the 3-Point Refi Test. Only move forward if the new loan:\n\n1. Saves at least 0.500% on your rate OR $300+/month on your payment\n2. Requires no points (keep upfront costs low)\n3. Shaves 1+ year off your loan if you keep the same monthly payment\n\nIf it checks all three boxes: it's a no-brainer.\n\nThink of refinancing like rock climbing down the mountain. Every time you can lock in a lower rate and shave 0.500% off your loan — clip in. Secure the savings. Then keep climbing down." },
-    { title: "Rate & Term vs Cash-Out Refi", icon: "banknote", desc: "Different purposes, different rules, different rates", body: "Rate & Term Refi: You're refinancing to get a better rate, shorter term, or both. Small cash out is allowed (greater of $2,000 or 1% of loan amount). This gets the best pricing.\n\nCash-Out Refi: You're pulling equity from your home — to pay off debt, fund renovations, or invest. Higher rate (typically +0.25–0.50%) but more flexibility.\n\nKey refi facts:\n• You can refinance every 6 months (start the process around month 4)\n• Choose any term from 8–30 years — no need to reset to 30\n• You'll skip 1–2 mortgage payments at closing\n• You'll get an escrow refund from your old lender\n• Your payoff will be higher than your balance (lenders collect interest in arrears)\n\nNet Cash Out = Refi proceeds + skipped payments + escrow refund" },
-    { title: "How to Remove PMI", icon: "", desc: "Ditch the training wheels and save hundreds per month", body: "If you didn't put 20% down, you're likely paying Private Mortgage Insurance (PMI). It protects the lender, not you — and you want to remove it ASAP.\n\nWhen can you remove PMI?\n• Automatically removed at 78% LTV (based on original purchase price)\n• Request removal at 80% LTV (also based on original price)\n• Loan is 2+ years old: remove at 75% LTV using current appraised value\n• Loan is 5+ years old: remove at 80% LTV using current appraised value\n\nSteps: Contact your servicer, submit a written request with your loan number, may need an appraisal, and must show on-time payment history.\n\nImportant: FHA mortgage insurance (MIP) lasts for the life of the loan. The only way to remove FHA MIP is to refinance into a conventional loan once you have 20%+ equity." },
+    { title: "The 3-Point Refi Test", icon: "", desc: "Only refinance if it passes all 3 checkpoints", body: "Before refinancing, run every scenario through the 3-Point Refi Test. Only move forward if the new loan:\n\n1. Saves at least 0.500% on your rate OR $300+/month on your payment\n2. Requires no points (keep upfront costs low)\n3. Shaves 1+ year off your loan if you keep the same monthly payment\n\nIf it checks all three boxes: it's a no-brainer.\n\nThink of refinancing like rock climbing down the mountain. Every time you can lock in a lower rate and shave 0.500% off your loan. Clip in. Secure the savings. Then keep climbing down." },
+    { title: "Rate & Term vs Cash-Out Refi", icon: "banknote", desc: "Different purposes, different rules, different rates", body: "Rate & Term Refi: You're refinancing to get a better rate, shorter term, or both. Small cash out is allowed (greater of $2,000 or 1% of loan amount). This gets the best pricing.\n\nCash-Out Refi: You're pulling equity from your home. To pay off debt, fund renovations, or invest. Higher rate (typically +0.25–0.50%) but more flexibility.\n\nKey refi facts:\n• You can refinance every 6 months (start the process around month 4)\n• Choose any term from 8–30 years. No need to reset to 30\n• You'll skip 1–2 mortgage payments at closing\n• You'll get an escrow refund from your old lender\n• Your payoff will be higher than your balance (lenders collect interest in arrears)\n\nNet Cash Out = Refi proceeds + skipped payments + escrow refund" },
+    { title: "How to Remove PMI", icon: "", desc: "Ditch the training wheels and save hundreds per month", body: "If you didn't put 20% down, you're likely paying Private Mortgage Insurance (PMI). It protects the lender, not you, and you want to remove it ASAP.\n\nWhen can you remove PMI?\n• Automatically removed at 78% LTV (based on original purchase price)\n• Request removal at 80% LTV (also based on original price)\n• Loan is 2+ years old: remove at 75% LTV using current appraised value\n• Loan is 5+ years old: remove at 80% LTV using current appraised value\n\nSteps: Contact your servicer, submit a written request with your loan number, may need an appraisal, and must show on-time payment history.\n\nImportant: FHA mortgage insurance (MIP) lasts for the life of the loan. The only way to remove FHA MIP is to refinance into a conventional loan once you have 20%+ equity." },
    ]},
    { cat: "Strategy & Wealth", items: [
-    { title: "Buying Before Selling", icon: "home", desc: "Three financing structures to move up without moving twice", body: "The classic dilemma: you need to sell your current home to buy the next one. Here are three ways to buy first:\n\nOption 1 — Conventional Loan: Works if you can qualify carrying two mortgage payments AND have cash for the down payment. Best pricing, but only fits a small slice of buyers.\n\nOption 2 — Bridge Loan: Short-term (6–12 months) using your current home's equity. No sale contingency, you move once. But they're pricey: ~10% interest + 2–3 points, often $30–40K+ all-in.\n\nOption 3 — Conventional-Bridge Hybrid (the sweet spot): Conventional pricing with bridge-like flexibility. You can exclude your current mortgage from qualifying if you have 30%+ equity in your departing home AND it's listed on the MLS.\n\nDown payment solutions: 401(k) loan (repaid after sale), gift funds, HELOC on departing home, or a 60-day retirement rollover." },
-    { title: "HELOCs: Your Rich Grandma", icon: "landmark", desc: "A safety net that costs nothing when unused", body: "A Home Equity Line of Credit (HELOC) is a revolving credit line secured by your home's equity. It costs nothing when unused and gives you fast, low-cost access to cash.\n\nBest uses:\n• Buy before you sell — use as a built-in bridge for your next down payment\n• Emergency cushion — job change, medical bills, unexpected repairs\n• Home improvements — kitchen remodel, ADU, solar (interest may be tax-deductible)\n• Tax & business flexibility — cover quarterly taxes or smooth out self-employment cash flow\n\nHELOC rates are tied to Prime (Fed Funds Rate + 3%), so they move with Fed decisions.\n\nPro tip: Open a HELOC BEFORE you need one. When you actually need it, it's usually too late to get one quickly. For HELOCs, going direct to a bank or credit union is typically best — smaller regional banks often offer the best speed and service." },
-    { title: "Mortgage Points: Pay or Skip?", icon: "diamond", desc: "When buying down your rate makes sense — and when it doesn't", body: "Mortgage points (discount points) are prepaid interest. You pay upfront at closing in exchange for a permanently lower rate. 1 point = 1% of your loan amount.\n\nExample on a $600K loan:\n• Paying 1 point ($6,000) might save ~$148/month\n• Breakeven: ~40 months (just over 3 years)\n• After breakeven, you're saving every month\n\nPay points when: You'll keep the loan 5+ years and want the lowest possible payment.\n\nSkip points (or take lender credit) when: You plan to refinance, sell, or move in a few years. A lender credit gives you money toward closing costs in exchange for a slightly higher rate.\n\nTaking a lender credit vs paying 1 point = a $12,000 swing in upfront costs on a $600K loan.\n\nTax note: Points paid on a purchase may be tax-deductible in the year you close. Check with your CPA." },
-    { title: "Lowkey Homebuying Season", icon: "target", desc: "The Black Friday of housing that most buyers miss", body: "Spring and summer are the typical homebuying seasons. But deal hunters should circle November through February — Lowkey Homebuying SZN.\n\nWhy it works:\n• Less competition — many buyers pause for the holidays\n• More motivated sellers — winter listings usually mean sellers need to move, not just want to. Carrying costs add up, and that's your leverage.\n• Real-time inspections — rainy season gives you an instant reality check on roofs, drainage, and leaks\n\nIf you could wait until spring, you would — but so would the seller. That mismatch is your opportunity." },
+    { title: "Buying Before Selling", icon: "home", desc: "Three financing structures to move up without moving twice", body: "The classic dilemma: you need to sell your current home to buy the next one. Here are three ways to buy first:\n\nOption 1: Conventional Loan: Works if you can qualify carrying two mortgage payments AND have cash for the down payment. Best pricing, but only fits a small slice of buyers.\n\nOption 2: Bridge Loan: Short-term (6–12 months) using your current home's equity. No sale contingency, you move once. But they're pricey: ~10% interest + 2–3 points, often $30–40K+ all-in.\n\nOption 3: Conventional-Bridge Hybrid (the sweet spot): Conventional pricing with bridge-like flexibility. You can exclude your current mortgage from qualifying if you have 30%+ equity in your departing home AND it's listed on the MLS.\n\nDown payment solutions: 401(k) loan (repaid after sale), gift funds, HELOC on departing home, or a 60-day retirement rollover." },
+    { title: "HELOCs: Your Rich Grandma", icon: "landmark", desc: "A safety net that costs nothing when unused", body: "A Home Equity Line of Credit (HELOC) is a revolving credit line secured by your home's equity. It costs nothing when unused and gives you fast, low-cost access to cash.\n\nBest uses:\n• Buy before you sell. Use as a built-in bridge for your next down payment\n• Emergency cushion. Job change, medical bills, unexpected repairs\n• Home improvements. Kitchen remodel, ADU, solar (interest may be tax-deductible)\n• Tax & business flexibility. Cover quarterly taxes or smooth out self-employment cash flow\n\nHELOC rates are tied to Prime (Fed Funds Rate + 3%), so they move with Fed decisions.\n\nPro tip: Open a HELOC BEFORE you need one. When you actually need it, it's usually too late to get one quickly. For HELOCs, going direct to a bank or credit union is typically best. Smaller regional banks often offer the best speed and service." },
+    { title: "Mortgage Points: Pay or Skip?", icon: "diamond", desc: "When buying down your rate makes sense, and when it doesn't", body: "Mortgage points (discount points) are prepaid interest. You pay upfront at closing in exchange for a permanently lower rate. 1 point = 1% of your loan amount.\n\nExample on a $600K loan:\n• Paying 1 point ($6,000) might save ~$148/month\n• Breakeven: ~40 months (just over 3 years)\n• After breakeven, you're saving every month\n\nPay points when: You'll keep the loan 5+ years and want the lowest possible payment.\n\nSkip points (or take lender credit) when: You plan to refinance, sell, or move in a few years. A lender credit gives you money toward closing costs in exchange for a slightly higher rate.\n\nTaking a lender credit vs paying 1 point = a $12,000 swing in upfront costs on a $600K loan.\n\nTax note: Points paid on a purchase may be tax-deductible in the year you close. Check with your CPA." },
+    { title: "Lowkey Homebuying Season", icon: "target", desc: "The Black Friday of housing that most buyers miss", body: "Spring and summer are the typical homebuying seasons. But deal hunters should circle November through February. Lowkey Homebuying SZN.\n\nWhy it works:\n• Less competition: many buyers pause for the holidays\n• More motivated sellers. Winter listings usually mean sellers need to move, not just want to. Carrying costs add up, and that's your leverage.\n• Real-time inspections: rainy season gives you an instant reality check on roofs, drainage, and leaks\n\nIf you could wait until spring, you would, but so would the seller. That mismatch is your opportunity." },
    ]},
    { cat: "Investor Corner", items: [
     { title: "Fix & Flip Loans", icon: "", desc: "Short-term, asset-based loans for buy-renovate-resell", body: "Fix & Flip loans are short-term (6–18 months), interest-only loans for investors looking to buy, renovate, and resell.\n\nKey features:\n• Asset-based: approval is based on After-Repair Value (ARV), not your income or credit\n• Fast closings: often 5–7 days\n• Lenders typically fund 75–90% of purchase + 100% of rehab, capped at 75% of ARV\n\nThe 70% Rule: Don't pay more than 70% of ARV minus repair costs. If ARV = $1,000,000 and reno = $100,000, cap your purchase at $600,000.\n\nWhat lenders want to see: A detailed scope of work, realistic timeline, contractor bids, and your experience level.\n\nFirst-time flipper? Start small, partner with an experienced contractor, and expect the unexpected." },
-    { title: "House Hacking with FHA", icon: "key", desc: "Live in one unit, rent the other — build wealth from day one", body: "House hacking means buying a multi-unit property, living in one unit, and renting the others to offset your mortgage.\n\nWith an FHA loan, you can buy a duplex with just 3.5% down. The rental income from the other unit can dramatically reduce your effective housing cost.\n\nThe math: $1M duplex → $35K down → $7,500/mo PITI. Rent the other unit for $2,000/mo → your net cost is $5,500/mo for a million-dollar appreciating, income-producing asset.\n\nAfter 12 months of occupancy, you can move out and keep it as a full rental property. Then repeat with your next primary residence.\n\nThis is one of the most reliable paths to building a real estate portfolio starting from scratch." },
+    { title: "House Hacking with FHA", icon: "key", desc: "Live in one unit, rent the other. Build wealth from day one", body: "House hacking means buying a multi-unit property, living in one unit, and renting the others to offset your mortgage.\n\nWith an FHA loan, you can buy a duplex with just 3.5% down. The rental income from the other unit can dramatically reduce your effective housing cost.\n\nThe math: $1M duplex → $35K down → $7,500/mo PITI. Rent the other unit for $2,000/mo → your net cost is $5,500/mo for a million-dollar appreciating, income-producing asset.\n\nAfter 12 months of occupancy, you can move out and keep it as a full rental property. Then repeat with your next primary residence.\n\nThis is one of the most reliable paths to building a real estate portfolio starting from scratch." },
    ]},
   ].map((section, si) => <LearnSec key={si} cat={section.cat} items={section.items} />)}
  </>)}
@@ -9064,19 +9064,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ["Max DTI / HTI", "DTI: 57%\nHTI: 47%", "FHA looks at both total DTI (all debts) and Housing-to-Income ratio (housing payment only). HTI max of 47% is the more common limiting factor."],
        ["Reserves", "0–1 month", "Rarely required for 1–2 unit primary. 3–4 unit = 3 months."],
        ["Mortgage Insurance", "Upfront: 1.75% (financed)\nMonthly: varies by LTV & loan amt", "MIP rate depends on loan amount and down payment:\n• ≤$726,200 & >95% LTV: 0.55%/yr (life of loan)\n• ≤$726,200 & 90.01–95% LTV: 0.50% (life of loan)\n• ≤$726,200 & ≤90% LTV: 0.50% (11 years)\n• >$726,200 & >95% LTV: 0.75% (life of loan)\n• >$726,200 & 90.01–95% LTV: 0.70% (life of loan)\n• >$726,200 & ≤90% LTV: 0.70% (11 years)"],
-       ["Loan Limits (2026)", `1-unit: ${fmt(832750)}\n2-unit: ${fmt(1066250)}`, "FHA floor = conforming limit. Higher in high-cost areas (ceiling = 150% of conforming). FHA duplex limits are generous — great for house-hacking."],
+       ["Loan Limits (2026)", `1-unit: ${fmt(832750)}\n2-unit: ${fmt(1066250)}`, "FHA floor = conforming limit. Higher in high-cost areas (ceiling = 150% of conforming). FHA duplex limits are generous. Great for house-hacking."],
        ["Occupancy", "Primary residence only", "Must occupy within 60 days. 12-month occupancy requirement."],
       ]},
     { name: "VA", sub: "Veterans & Active Duty", icon: "", active: loanType === "VA",
       rows: [
        ["Min Down Payment", "0%", "True zero down. For veterans, active duty, National Guard, reservists, and surviving spouses."],
-       ["Min FICO", "580", "VA has no official minimum — most lenders overlay at 580–620."],
+       ["Min FICO", "580", "VA has no official minimum. Most lenders overlay at 580–620."],
        ["Max DTI", "60%", "Most flexible DTI of any program. VA also uses residual income analysis."],
        ["Reserves", "None required", "Standard purchases. Lender may require reserves above $1M or for lower FICO."],
-       ["Mortgage Insurance", "None — No PMI ever", "VA Funding Fee (1.25–3.3%) can be financed. First use 0% down = 2.15%. Waived if 10%+ disability."],
+       ["Mortgage Insurance", "None: No PMI ever", "VA Funding Fee (1.25–3.3%) can be financed. First use 0% down = 2.15%. Waived if 10%+ disability."],
        ["Loan Limits", "No limit (full entitlement)", "No VA cap with full entitlement. Lenders may cap at $2–4M."],
        ["Occupancy", "Primary residence only", "Must certify intent to occupy. Refi to conventional to convert to rental."],
-       ["Residual Income", "Required", "Leftover monthly income after all obligations — varies by region and family size."],
+       ["Residual Income", "Required", "Leftover monthly income after all obligations. Varies by region and family size."],
       ]},
     { name: "Jumbo", sub: "Non-Conforming", icon: "diamond", active: loanType === "Jumbo",
       rows: [
@@ -9086,7 +9086,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        ["Reserves", "6–12 months PITI", "6 months minimum, 12 preferred. Liquid reserves are critical."],
        ["PMI", "Required if <20% down", "Jumbo PMI is more expensive than conforming. Most put 20%+ down to avoid."],
        ["Loan Limits (2026)", `Above ${fmt(calc.highBalLimit)}`, "Anything above the 2026 high-balance limit for your county."],
-       ["Occupancy", "Primary, 2nd Home, Investment", "Investment Jumbo available — typically 25–30% down with 12+ months reserves."],
+       ["Occupancy", "Primary, 2nd Home, Investment", "Investment Jumbo available, typically 25–30% down with 12+ months reserves."],
        ["Asset Docs", "Full verification", "Manual underwriting. Expect large deposit explanations, full sourcing, business docs if self-employed."],
       ]},
    ];
@@ -9289,7 +9289,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ borderTop: `1px solid ${T.green}22`, marginTop: 12, paddingTop: 10 }}>
       <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6, textAlign: "center" }}>
        <strong style={{ color: T.green }}>{lowest.name}</strong> saves <strong style={{ color: T.green }}>{fmt(diff)}/mo</strong> ({fmt(diff * 12)}/yr) over <strong>{highest.name}</strong>
-       {diff * 360 > 1000 && <span> — that's <strong style={{ color: T.green }}>{fmt(diff * 360)}</strong> over 30 years</span>}
+       {diff * 360 > 1000 && <span>. That's <strong style={{ color: T.green }}>{fmt(diff * 360)}</strong> over 30 years</span>}
       </div>
      </div>
     )}
@@ -9468,7 +9468,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
     <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>Email Signature</div>
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 8, fontFamily: FONT }}>
-     Appears at the bottom of worksheet emails. Plain text works, or paste your <strong>HTML signature</strong> (Gmail → Settings → copy your signature's HTML) for full formatting — same as Ops. Leave blank to use your name, company, NMLS, and phone from above.
+     Appears at the bottom of worksheet emails. Plain text works, or paste your <strong>HTML signature</strong> (Gmail → Settings → copy your signature's HTML) for full formatting: same as Ops. Leave blank to use your name, company, NMLS, and phone from above.
     </div>
     <textarea
      value={loSignature}
@@ -9480,7 +9480,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     />
     {loSigIsHtml && (
      <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 6 }}>Preview — how it renders in emails</div>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 6 }}>Preview: how it renders in emails</div>
       <div style={{ background: "#fff", border: `1px solid ${T.inputBorder}`, borderRadius: 12, padding: "12px 14px", color: "#171717", overflowX: "auto" }}
        dangerouslySetInnerHTML={{ __html: loSignature }} />
      </div>
@@ -9507,7 +9507,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
     {feeDefaultsSavedAt && (
      <div style={{ fontSize: 11, color: T.green, marginTop: 8, fontFamily: FONT }}>
-      ✓ Defaults saved {new Date(feeDefaultsSavedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} — applied to every new scenario on this device
+      ✓ Defaults saved {new Date(feeDefaultsSavedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}: applied to every new scenario on this device
      </div>
     )}
    </div>
@@ -9559,7 +9559,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
        <div style={{ width: 10, height: 10, borderRadius: "50%", background: T.green }} />
-       <span style={{ fontSize: 13, color: T.green, fontWeight: 600 }}>PIN active — auto-locks after {autoLockMin} min</span>
+       <span style={{ fontSize: 13, color: T.green, fontWeight: 600 }}>PIN active: auto-locks after {autoLockMin} min</span>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
        {[2,5,10].map(m => (
@@ -9580,11 +9580,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
     {showPrivacy && (
      <div style={{ marginTop: 12, fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>
-      <div style={{ fontWeight: 700, fontSize: 14, color: T.text, marginBottom: 8 }}>Privacy Policy — Mortgage Blueprint</div>
+      <div style={{ fontWeight: 700, fontSize: 14, color: T.text, marginBottom: 8 }}>Privacy Policy: Mortgage Blueprint</div>
       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 12 }}>Last updated: February 2026</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Storage:</strong> By default, everything you enter is stored locally on this device using browser storage and is not sent to our servers. If you create an account and turn on cloud sync, your blueprints are stored encrypted in our database so they can sync across your devices — you can export or delete them anytime from your account settings. Blueprints shared with you by a loan officer are stored securely so you can both work on them. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
+      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Storage:</strong> By default, everything you enter is stored locally on this device using browser storage and is not sent to our servers. If you create an account and turn on cloud sync, your blueprints are stored encrypted in our database so they can sync across your devices. You can export or delete them anytime from your account settings. Blueprints shared with you by a loan officer are stored securely so you can both work on them. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.blue }}>Privacy Policy</a>.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Tracking:</strong> Mortgage Blueprint does not use cookies, analytics, or any third-party tracking. We do not collect, store, or sell your personal information.</div>
-      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>FRED API:</strong> If you enable live rate fetching, your device makes direct requests to the Federal Reserve Economic Data (FRED) API to retrieve current mortgage rates. No personal or financial data is included in these requests — only your API key and the rate series ID.</div>
+      <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>FRED API:</strong> If you enable live rate fetching, your device makes direct requests to the Federal Reserve Economic Data (FRED) API to retrieve current mortgage rates. No personal or financial data is included in these requests. Only your API key and the rate series ID.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>No Accounts:</strong> Mortgage Blueprint does not require account creation, login, or any personal identification to use.</div>
       <div style={{ marginBottom: 10 }}><strong style={{ color: T.text }}>Data Deletion:</strong> You can permanently delete all stored data at any time using the "Clear All Data" button in Settings.</div>
       <div><strong style={{ color: T.text }}>Contact:</strong> For questions about this privacy policy, contact Chris Granger (NMLS #952015).</div>
@@ -9626,7 +9626,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      supersedes COE Days as the user-facing control. */}
  <Card style={{ background: T.pillBg, marginTop: 8 }}>
   <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.15em", color: T.textTertiary, marginBottom: 6 }}>Powered by RealStack</div>
-  <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Mortgage Blueprint v5 — 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
+  <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Mortgage Blueprint v5: 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
  </Card>
  {realtorPartner && (
   <Sec title="Realtor Partner Link">
@@ -9644,7 +9644,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       <div style={{ fontSize: 11, color: T.textTertiary }}>{realtorPartner.title}{realtorPartner.brokerage ? ` · ${realtorPartner.brokerage}` : ""}{realtorPartner.dre ? ` · DRE #${realtorPartner.dre}` : ""}</div>
      </div>
     </div>
-    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5 }}>This app was shared via <strong>{realtorPartner.name}</strong>'s partner link. Source tracking is active — all pre-approval clicks attribute to <strong>{realtorPartnerSlug}</strong>.</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5 }}>This app was shared via <strong>{realtorPartner.name}</strong>'s partner link. Source tracking is active. All pre-approval clicks attribute to <strong>{realtorPartnerSlug}</strong>.</div>
    </Card>
   </Sec>
  )}
