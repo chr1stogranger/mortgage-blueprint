@@ -1,20 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
-import SetupContent from "./content/SetupContent";
-import IncomeContent from "./content/IncomeContent";
-import AssetsContent from "./content/AssetsContent";
-import DebtsContent from "./content/DebtsContent";
-import ReoContent from "./content/ReoContent";
-import AmortContent from "./content/AmortContent";
-import SellContent from "./content/SellContent";
-import RentVsBuyContent from "./content/RentVsBuyContent";
-import InvestContent from "./content/InvestContent";
-import CostsContent from "./content/CostsContent";
-import CalculatorContent from "./content/CalculatorContent";
-import QualifyContent from "./content/QualifyContent";
-import TaxContent from "./content/TaxContent";
-import Prop19Content from "./content/Prop19Content";
+import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content } from "./content/index.js";
 
 
 /* ─── Collapsible section wrapper ─── */
@@ -93,6 +80,7 @@ export default function OverviewTab(props) {
   // double-counted it and left a large white gap at the top of the Overview.
   // (Christo 2026-05-27.)
   return (
+    <Suspense fallback={null}>
     <div style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
       {/* Blueprint reference eyebrow — quiet overline at the very top of the
           page, like the loan number printed atop a loan file. */}
@@ -373,5 +361,6 @@ export default function OverviewTab(props) {
         )}
       </div>
     </div>
+    </Suspense>
   );
 }

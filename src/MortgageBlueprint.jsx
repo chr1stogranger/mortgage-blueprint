@@ -1,6 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import AppBackground from "./components/AppBackground.jsx";
-import React, { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback, Suspense } from "react";
+import { lazyWithRetry } from "./lib/lazyWithRetry.js";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
 // THE FINANCIAL ENGINE — all money formulas live in lib/finance.js (audit M-1).
 // Pure, unit-tested (src/lib/finance.test.js). Change formulas THERE, not here.
@@ -28,25 +29,7 @@ import { apiUrl, WEB_ORIGIN } from "./apiBase";
 // to pull the fresh index.html + current chunk hashes. A sessionStorage flag
 // prevents an infinite reload loop; a successful load clears the flag so a
 // future deploy can self-heal too.
-function lazyWithRetry(factory) {
-  const KEY = "rs-chunk-reloaded";
-  return lazy(() =>
-    factory()
-      .then((mod) => { try { sessionStorage.removeItem(KEY); } catch { /* ignore */ } return mod; })
-      .catch((err) => {
-        const msg = (err && err.message) || "";
-        const isChunkError = /dynamically imported module|Importing a module script failed|Failed to fetch|error loading dynamically/i.test(msg);
-        try {
-          if (isChunkError && !sessionStorage.getItem(KEY)) {
-            sessionStorage.setItem(KEY, "1");
-            window.location.reload();
-            return new Promise(() => {}); // never resolves — the reload takes over
-          }
-        } catch { /* ignore */ }
-        throw err;
-      })
-  );
-}
+// lazyWithRetry lives in ./lib/lazyWithRetry.js so content/index.js can share it.
 
 // Lazy load heavy components for faster initial page load
 const PricePoint = lazyWithRetry(() => import("./PricePoint"));
@@ -60,21 +43,7 @@ const LoPipelinePanel = lazyWithRetry(() => import("./components/LoPipelinePanel
 const IncomeSheet = lazyWithRetry(() => import("./IncomeSheet"));
 const DebtsSheet = lazyWithRetry(() => import("./DebtsSheet"));
 const AssetsSheet = lazyWithRetry(() => import("./AssetsSheet"));
-import SetupContent from "./content/SetupContent";
-import IncomeContent from "./content/IncomeContent";
-import AssetsContent from "./content/AssetsContent";
-import DebtsContent from "./content/DebtsContent";
-import ReoContent from "./content/ReoContent";
-import AmortContent from "./content/AmortContent";
-import SellContent from "./content/SellContent";
-import RentVsBuyContent from "./content/RentVsBuyContent";
-import InvestContent from "./content/InvestContent";
-import CostsContent from "./content/CostsContent";
-import CalculatorContent from "./content/CalculatorContent";
-import QualifyContent from "./content/QualifyContent";
-import TaxContent from "./content/TaxContent";
-import Prop19Content from "./content/Prop19Content";
-import TeamContent from "./content/TeamContent";
+import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, TeamContent } from "./content/index.js";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
@@ -8274,6 +8243,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ paddingTop: isDesktop ? "var(--bp-header-h, 96px)" : "var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px)))" }} />
    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
+<Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
@@ -8715,6 +8685,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {tab === "invest" && <InvestContent {...{T, isDesktop, calc, fmt, invCalc, invMonthlyRent, setInvMonthlyRent, invVacancy, setInvVacancy, invRentGrowth, setInvRentGrowth, invMgmt, setInvMgmt, invMaintPct, setInvMaintPct, invCapEx, setInvCapEx, hoa, invHoldYears, setInvHoldYears, invSellerComm, setInvSellerComm, invSellClosing, setInvSellClosing, appreciationRate, setAppreciationRate, Hero, Card, Sec, Inp, MRow, GuidedNextButton}} />}
 {/* ═══ RENT VS BUY ═══ */}
 {tab === "rentvbuy" && <RentVsBuyContent {...{T, isDesktop, calc, fmt, rbCalc, rbCurrentRent, setRbCurrentRent, rbRentGrowth, setRbRentGrowth, rbInvestReturn, setRbInvestReturn, Hero, Card, Sec, Inp, Note, MRow, GuidedNextButton}} />}
+</Suspense>
 {/* ═══ LEARNING CENTER ═══ */}
 {tab === "learn" && (<>
  <div style={{ marginTop: 20 }}>
