@@ -320,7 +320,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
           position: "sticky", top: 0, zIndex: 20, background: T.headerBg,
           backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
         }}>
-          <button onClick={closeWorkspace} style={{
+          <button aria-label="Back" onClick={closeWorkspace} style={{
             background: "none", border: "none", padding: "10px", cursor: "pointer",
             color: T.textTertiary, display: "flex", alignItems: "center",
           }}>

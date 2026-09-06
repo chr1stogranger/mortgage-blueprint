@@ -693,7 +693,7 @@ function FeeRow({
             }}>{displayVal}</div>
           )}
           {onDelete && (alwaysEdit || sectionUnlocked) && (
-            <button type="button" onClick={onDelete} title="Remove this fee"
+            <button aria-label="Remove this fee" type="button" onClick={onDelete} title="Remove this fee"
               style={{ background: "transparent", border: "none", cursor: "pointer", color: T.textTertiary, fontSize: 13, lineHeight: 1, padding: "2px 2px" }}>
               ✕
             </button>
@@ -1638,7 +1638,7 @@ export default function CostsContent(props) {
             : "Deposit — only credited toward cash to close once paid to escrow."}
           inlineEditor={!isRefi ? (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <button type="button"
+              <button aria-label={emdLocked ? "Unlock and edit" : "Lock value"} type="button"
                 onClick={() => {
                   if (emdLocked) { setEmdLocked(false); if (!emdFlat && calc.emdAmt > 0) setEmdFlat(Math.round(calc.emdAmt)); }
                   else setEmdLocked(true);

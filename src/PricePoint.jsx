@@ -1335,8 +1335,8 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
       {/* Prev / Next arrows */}
       {count > 1 && (
         <>
-          <button onClick={() => go("prev")} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-left" size={16} /></button>
-          <button onClick={() => go("next")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-right" size={16} /></button>
+          <button aria-label="Previous photo" onClick={() => go("prev")} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-left" size={16} /></button>
+          <button aria-label="Next photo" onClick={() => go("next")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.45)", border: "none", color: "#fff", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}><Icon name="chevron-right" size={16} /></button>
         </>
       )}
       {/* Dot indicators */}
@@ -5424,7 +5424,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     cursor: "pointer", fontFamily: FONT,
                   }}>Mark all read</button>
                 )}
-                <button onClick={async () => {
+                <button aria-label="Notification settings" onClick={async () => {
                   setShowNotifDrawer(false);
                   const prefs = await getNotificationPreferences(playerId);
                   if (prefs) { setNotifPrefs(prefs); setNotifEmailInput(prefs.email || ''); setNotifPhoneInput(prefs.phone || ''); }

@@ -163,7 +163,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
           <div style={{ fontSize: 18, fontWeight: 700, color: textColor, letterSpacing: '-0.03em' }}>
             {isSignedIn ? 'My Account' : 'Save your Blueprint'}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: tertiary, fontSize: 18, cursor: 'pointer', padding: 4 }}>✕</button>
+          <button aria-label="Close" onClick={onClose} style={{ background: 'none', border: 'none', color: tertiary, fontSize: 18, cursor: 'pointer', padding: 4 }}>✕</button>
         </div>
 
         {/* ── SIGNED OUT ── */}

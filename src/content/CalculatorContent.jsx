@@ -827,7 +827,7 @@ export default function CalculatorContent(props) {
         const labStyle = { fontSize: 12, color: T.textSecondary, display: "inline-flex", alignItems: "center", gap: 5 };
         const valStyle = { fontSize: 12, fontWeight: 500, fontFamily: FONT, color: T.text };
         const LockBtn = ({ locked, onClick }) => (
-         <button onClick={onClick} title={locked ? "Unlock to edit" : "Lock to auto-sync"}
+         <button aria-label={locked ? "Unlock and edit" : "Lock value"} onClick={onClick} title={locked ? "Unlock to edit" : "Lock to auto-sync"}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" }}>
           <Icon name={locked ? "lock" : "unlock"} size={12} style={{ color: locked ? T.textTertiary : T.blue }} />
          </button>
@@ -1000,7 +1000,7 @@ export default function CalculatorContent(props) {
              <div style={trStyle}>
               <span style={labStyle}>
                PMI Rate ({pmiRateLocked ? "Radian matrix" : "custom"})
-               <button onClick={togglePmiLock} title={pmiRateLocked ? "Unlock to edit" : "Lock to auto-sync"}
+               <button aria-label={pmiRateLocked ? "Unlock and edit" : "Lock value"} onClick={togglePmiLock} title={pmiRateLocked ? "Unlock to edit" : "Lock to auto-sync"}
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" }}>
                 <Icon name={pmiRateLocked ? "lock" : "unlock"} size={12} style={{ color: pmiRateLocked ? T.textTertiary : T.blue }} />
                </button>

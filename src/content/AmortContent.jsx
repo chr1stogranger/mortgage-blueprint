@@ -171,9 +171,9 @@ export default function AmortContent(props) {
      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <span style={{ fontSize: 11, color: T.textSecondary }}>Appreciation</span>
       <div style={{ display: "flex", alignItems: "center", background: T.bgAccent, borderRadius: 8, overflow: "hidden" }}>
-       <button onClick={() => setAppreciationRate(Math.max(0, (appreciationRate || 3) - 0.5))} style={{ background: "none", border: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "4px 8px", fontFamily: FONT }}>−</button>
+       <button aria-label="Lower appreciation rate" onClick={() => setAppreciationRate(Math.max(0, (appreciationRate || 3) - 0.5))} style={{ background: "none", border: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "4px 8px", fontFamily: FONT }}>−</button>
        <span style={{ fontSize: 13, fontWeight: 700, color: T.green, minWidth: 36, textAlign: "center", fontFamily: FONT }}>{appreciationRate || 3}%</span>
-       <button onClick={() => setAppreciationRate(Math.min(15, (appreciationRate || 3) + 0.5))} style={{ background: "none", border: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "4px 8px", fontFamily: FONT }}>+</button>
+       <button aria-label="Raise appreciation rate" onClick={() => setAppreciationRate(Math.min(15, (appreciationRate || 3) + 0.5))} style={{ background: "none", border: "none", color: T.textSecondary, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "4px 8px", fontFamily: FONT }}>+</button>
       </div>
      </div>
     </div>

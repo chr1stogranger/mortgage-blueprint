@@ -183,7 +183,7 @@ export default function SendWorksheetModal({
         onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Email Fees Worksheet</div>
-          <button onClick={() => phase !== "sending" && onClose(false)}
+          <button aria-label="Close" onClick={() => phase !== "sending" && onClose(false)}
             style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
         </div>
 
@@ -352,7 +352,7 @@ export function BorrowerSendModal({
       <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 460, width: "100%", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Email Me This Worksheet</div>
-          <button onClick={() => phase !== "sending" && onClose(false)}
+          <button aria-label="Close" onClick={() => phase !== "sending" && onClose(false)}
             style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
         </div>
         <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, marginBottom: 14, fontFamily: FONT }}>

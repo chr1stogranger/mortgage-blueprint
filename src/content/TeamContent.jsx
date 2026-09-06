@@ -120,7 +120,7 @@ function EmptySlot({ T, role, candidates, onPick, onManual }) {
     <div style={{ background: T.card, border: `1px solid ${T.blue}50`, borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>Add {ROLE_LABEL[role]}</span>
-        <button onClick={() => { setOpen(false); setManual(false); }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4 }}>
+        <button aria-label="Close" onClick={() => { setOpen(false); setManual(false); }} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4 }}>
           <Icon name="x" size={15} />
         </button>
       </div>
@@ -438,7 +438,7 @@ export default function TeamContent({
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{activeBorrower?.name || "—"}</div>
                   {onRenameClient && !isBorrower && activeBorrower?.id && (
-                    <button
+                    <button aria-label="Rename client"
                       onClick={() => { setNameDraft(activeBorrower?.name || ""); setEditingName(true); }}
                       title="Rename client"
                       style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 8, cursor: "pointer", color: T.blue, flexShrink: 0, padding: 0 }}

@@ -536,7 +536,7 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
                 {activeMarket.city} · {fmtK(activeMarket.listPrice)} list · {activeMarket.beds}bd/{activeMarket.baths}ba
               </div>
             </div>
-            <button
+            <button aria-label="Close trading panel"
               onClick={() => dispatch(closeTradingPanel())}
               style={{
                 background: T.pillBg, border: 'none', borderRadius: 10,

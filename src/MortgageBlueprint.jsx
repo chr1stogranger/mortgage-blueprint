@@ -1,6 +1,6 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import AppBackground from "./components/AppBackground.jsx";
-import React, { useState, useMemo, useRef, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback, useId, Suspense } from "react";
 import { lazyWithRetry } from "./lib/lazyWithRetry.js";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
 // THE FINANCIAL ENGINE — all money formulas live in lib/finance.js (audit M-1).
@@ -390,13 +390,17 @@ function InfoTip({ text }) {
   )}
  </span>);
 }
-function FieldLabel({ label, tip, req, filled }) {
+// htmlFor (optional) ties the visible label to its control for screen readers
+// and click-to-focus. Inp/Sel/TextInp pass a useId()-generated id.
+function FieldLabel({ label, tip, req, filled, htmlFor }) {
  if (!label) return null;
- return (<div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</div>);
+ const Tag = htmlFor ? "label" : "div";
+ return (<Tag htmlFor={htmlFor} style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</Tag>);
 }
 function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder, readOnly, rightSlot, inputMode, pattern, autoComplete }) {
  const [focused, setFocused] = useState(false);
  const [editStr, setEditStr] = useState(null);
+ const inputId = useId();
  const inputRef = useRef(null);
  const cursorRef = useRef(null);
  const debounceRef = useRef(null);
@@ -413,10 +417,10 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
  useEffect(() => { if (!focused && wasFocused.current && inputRef.current && document.activeElement !== inputRef.current) { inputRef.current.focus(); } }, [value]);
  useEffect(() => { return () => { if (debounceRef.current) clearTimeout(debounceRef.current); }; }, []);
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
-  <FieldLabel label={label} tip={tip} req={req} filled={filled} />
+  <FieldLabel label={label} tip={tip} req={req} filled={filled} htmlFor={inputId} />
   <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 12, padding: sm ? "10px 12px" : "12px 14px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT }}>{prefix}</span>}
-   <input ref={inputRef} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
+   <input ref={inputRef} id={inputId} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
     placeholder={placeholder || ""}
     /* No negative tracking on numerals. -0.02em is display-headline styling;
        at 15px it computes to -0.3px and closes the gap between a digit and
@@ -431,18 +435,20 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
  </div>);
 }
 function Sel({ label, value, onChange, options, sm, tip, req }) {
+ const selId = useId();
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
-  <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} />
-  <select value={value} onChange={e => onChange(e.target.value)}
+  <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} htmlFor={selId} />
+  <select id={selId} value={value} onChange={e => onChange(e.target.value)}
    style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, fontWeight: 500, outline: "none", cursor: "pointer", fontFamily: FONT, WebkitAppearance: "none" }}>
    {options.map(o => <option key={typeof o === "string" ? o : o.value} value={typeof o === "string" ? o : o.value}>{typeof o === "string" ? o : o.label}</option>)}
   </select>
  </div>);
 }
 function TextInp({ label, value, onChange, placeholder, sm, tip, req, inputMode, pattern }) {
+ const textId = useId();
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
-  <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} />
-  <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+  <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} htmlFor={textId} />
+  <input id={textId} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
    inputMode={inputMode} pattern={pattern}
    style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, outline: "none", fontFamily: FONT }} />
  </div>);
@@ -691,7 +697,7 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
    <div style={{ background: T.card, borderRadius: 20, maxWidth: 460, width: "100%", padding: "20px 18px 24px", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }} onClick={(e) => e.stopPropagation()}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
      <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text }}>Create New Client</div>
-     <button onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
+     <button aria-label="Close" onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
     </div>
     <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5, fontFamily: FONT }}>Client Name</label>
     <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Homebuyer" style={{ ...inputStyle, marginBottom: 12 }} />
@@ -6598,7 +6604,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        </span>
        {r.edit ? (
         <span style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-         <button
+         <button aria-label={manual ? "Use calculated value" : "Edit value"}
           onClick={() => r.edit.set(manual ? (r.edit.nullable ? null : 0) : Math.round(r.cur * 100) / 100)}
           title={manual ? "Unlock — back to the calculated value" : "Lock to edit — pin the statement's number"}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "inline-flex" }}
@@ -7057,7 +7063,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    }}>
     <Icon name="alert-triangle" size={15} />
     <span style={{ flex: 1 }}>Refi import failed — {refiImportError}. Nothing was prefilled; build the refi manually.</span>
-    <button onClick={() => setRefiImportError(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "4px 9px", fontFamily: FONT }}>✕</button>
+    <button aria-label="Dismiss" onClick={() => setRefiImportError(null)} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 8, color: "#fff", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "4px 9px", fontFamily: FONT }}>✕</button>
    </div>
   )}
   {/* ── Docked live PDF preview — a resizable RIGHT panel, the Ops pattern
@@ -7101,7 +7107,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       {(refiPreviewTab !== 'statement' || !stmtAvailable) && (
        <button onClick={() => openRefiSummaryPdf(false)} title="Open in a new tab" style={{ background: "none", border: `1px solid ${T.separator}`, borderRadius: 9999, color: T.textSecondary, cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "3px 10px", fontFamily: FONT }}>Open ↗</button>
       )}
-      <button onClick={() => setRefiPreviewOpen(false)} title="Close preview" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: 2, fontFamily: FONT }}>✕</button>
+      <button aria-label="Close preview" onClick={() => setRefiPreviewOpen(false)} title="Close preview" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 15, lineHeight: 1, padding: 2, fontFamily: FONT }}>✕</button>
      </div>
     </div>
     {/* Statement chips — flip between the blueprint's documents (e.g. first
@@ -7310,7 +7316,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      {/* Mobile-only dark/light toggle — sits to the left of the close X,
          matching the desktop sidebar's monochrome sun/moon icon. */}
      {!isDesktop && (
-      <button onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      <button aria-label={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
        style={{
         position: "absolute", top: 12, right: 48, zIndex: 1,
         background: "transparent", border: "none", cursor: "pointer",
@@ -7366,10 +7372,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         {/* Collapse is a desktop-only affordance; on mobile the drawer just closes. */}
         {isDesktop && (
          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <button onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+          <button aria-label={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={cycleTheme} title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
            <Icon name={themeMode === 'dark' ? "sun" : "moon"} size={16} />
           </button>
-          <button onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar" style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+          <button aria-label="Collapse sidebar" onClick={() => setSidebarCollapsed(true)} title="Collapse sidebar" style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
           </button>
          </div>
@@ -7393,7 +7399,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
            </button>
            {/* Split button — show on hover for non-active modes */}
            {k !== appMode && !isSplit && (
-            <button onClick={(e) => { e.stopPropagation(); openSplit(k); }}
+            <button aria-label={`Open ${l} in split view`} onClick={(e) => { e.stopPropagation(); openSplit(k); }}
              title={`Open ${l} in split view`}
              className="split-btn"
              style={{
@@ -7405,7 +7411,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
             </button>
            )}
            {isSplit && (
-            <button onClick={(e) => { e.stopPropagation(); closeSplit(); }}
+            <button aria-label="Close split view" onClick={(e) => { e.stopPropagation(); closeSplit(); }}
              title="Close split view"
              style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: T.textTertiary, display: "flex", borderRadius: 4, flexShrink: 0 }}>
              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -7429,7 +7435,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          <polygon points="8,66 50,61 92,66 50,71" fill="rgba(255,255,255,0.50)"/>
          <polygon points="8,80 50,75 92,80 50,85" fill="rgba(255,255,255,0.34)"/>
         </svg>
-        <button onClick={() => setSidebarCollapsed(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
+        <button aria-label="Expand sidebar" onClick={() => setSidebarCollapsed(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: "4px", display: "flex", borderRadius: 4 }}>
          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
         </button>
        </div>
@@ -7514,7 +7520,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
             </span>
            )}
            {!editing && (
-            <button
+            <button aria-label="Scenario menu"
              className={"scn-menu-btn" + (scnMenu?.name === name ? " open" : "")}
              title="Options"
              onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setScnMenu(scnMenu?.name === name ? null : { name, x: r.right, y: r.bottom }); }}
@@ -7921,7 +7927,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={e => e.stopPropagation()}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT }}>Share {isRefi ? "Refi" : "Purchase"} Estimate</div>
-     <button onClick={() => setShowEmailModal(false)} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 16, cursor: "pointer", color: T.textSecondary }}>✕</button>
+     <button aria-label="Close" onClick={() => setShowEmailModal(false)} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 16, cursor: "pointer", color: T.textSecondary }}>✕</button>
     </div>
     <div style={{ marginBottom: 12 }}>
      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>Borrower Name</label>
@@ -9754,7 +9760,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          <Icon name={splitApp === "pricepoint" ? "target" : splitApp === "markets" ? "trending-up" : "settings"} size={14} />
          <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{splitApp === "pricepoint" ? "PricePoint" : splitApp === "markets" ? "Markets" : "Blueprint"}</span>
         </div>
-        <button onClick={closeSplit} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4, display: "flex" }}>
+        <button aria-label="Close split view" onClick={closeSplit} style={{ background: "none", border: "none", cursor: "pointer", color: T.textTertiary, padding: 4, display: "flex" }}>
          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
        </div>

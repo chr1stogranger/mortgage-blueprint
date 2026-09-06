@@ -58,7 +58,7 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
           <div style={{ fontSize: 17, fontWeight: 700, fontFamily: FONT, color: T.text, display: "flex", alignItems: "center", gap: 8 }}>
             <Icon name="download" size={17} /> Import from Arive
           </div>
-          <button onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
+          <button aria-label="Close" onClick={() => !busy && onClose()} style={{ background: T.pillBg, border: "none", borderRadius: 20, width: 32, height: 32, fontSize: 15, cursor: "pointer", color: T.textSecondary }}>✕</button>
         </div>
         <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginBottom: 14, lineHeight: 1.5 }}>
           Pull an existing Arive file into Blueprint — client, numbers, property, and deal team come prepopulated.

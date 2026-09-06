@@ -77,7 +77,7 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
           borderBottom: `1px solid ${T.separator || "rgba(255,255,255,0.06)"}`,
         }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>{title}</h2>
-          <button
+          <button aria-label="Close"
             onClick={handleClose}
             style={{
               background: T.pillBg || "rgba(255,255,255,0.08)", border: "none",
