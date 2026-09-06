@@ -1708,12 +1708,14 @@ export default function CostsContent(props) {
         const shortMos = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         const skipMo = monthNames[(cm + 1) % 12];
         const firstPmtMo = monthNames[(cm + 2) % 12];
-        const daysRemaining = calc.autoPrepaidDays - 1;
+        // calc.autoPrepaidDays = closing day through month end, inclusive
+        // (daysInMonth - closingDay + 1). Same number the Prepaid Interest
+        // row multiplies by the per-diem.
         return (
           <Card style={{ background: `${T.blue}08`, border: `1px solid ${T.blue}18`, marginTop: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: T.blue, marginBottom: 8 }}>When Is My First Payment?</div>
             <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
-              <div style={{ marginBottom: 6 }}>You close on <strong>{shortMos[cm]} {closingDay}</strong>. We collect {daysRemaining} days remaining in {monthNames[cm]} + 1 day in {monthNames[(cm + 1) % 12]} = <strong>{calc.autoPrepaidDays} days</strong> of prepaid interest.</div>
+              <div style={{ marginBottom: 6 }}>You close on <strong>{shortMos[cm]} {closingDay}</strong>. Per-diem interest is collected from closing day through the end of {monthNames[cm]}: <strong>{calc.autoPrepaidDays} days</strong> of prepaid interest.</div>
               <div style={{ marginBottom: 6 }}>You have <strong>no mortgage payment in {skipMo}</strong> — your first full month of ownership.</div>
               <div style={{ marginBottom: 6 }}>Your first payment is due <strong>{firstPmtMo} 1st</strong>, and isn't considered late until after <strong>{firstPmtMo} 15th</strong>.</div>
               <div style={{ background: `${T.green}12`, borderRadius: 8, padding: "8px 10px", marginTop: 8 }}>
