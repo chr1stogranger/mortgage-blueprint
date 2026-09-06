@@ -449,9 +449,9 @@ export default function ReoContent(props) {
             }
           }
         }} options={[
-          { value: "", label: "— Not selling —" },
+          { value: "", label: "Not selling" },
           ...reos.map((r, i) => ({ value: String(r.id), label: r.address || `Property ${i + 1} (${fmt(r.value)})` })),
-          { value: "__yes__", label: "Yes — I'll enter details manually" },
+          { value: "__yes__", label: "Yes, I'll enter details manually" },
         ]} sm />
         {hasSellProperty && sellLinkedReoId && (() => {
           const reo = reos.find(r => String(r.id) === sellLinkedReoId);
@@ -508,7 +508,7 @@ export default function ReoContent(props) {
             {totals.dtiImpact >= 0 ? "+" : ""}{fmt(totals.dtiImpact)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
           </div>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
-            {totals.dtiImpact >= 0 ? "Net positive — adds to qualifying income" : "Net negative — adds to monthly debt obligations"}
+            {totals.dtiImpact >= 0 ? "Net positive: adds to qualifying income" : "Net negative: adds to monthly debt obligations"}
           </div>
         </div>
       </div>

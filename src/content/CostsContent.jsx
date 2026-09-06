@@ -1322,7 +1322,7 @@ export default function CostsContent(props) {
             return (<>
               {/* City Transfer Tax — has city dropdown inline when section unlocked */}
               <FeeRow
-                label="Transfer Tax — City"
+                label="Transfer Tax: City"
                 value={calc.buyerCityTT}
                 readOnly
                 autoBadge
@@ -1336,7 +1336,7 @@ export default function CostsContent(props) {
               {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
               {countyRate > 0 && (
                 <FeeRow
-                  label="Transfer Tax — County"
+                  label="Transfer Tax: County"
                   value={calc.buyerCountyTT}
                   readOnly
                   autoBadge
@@ -1503,7 +1503,7 @@ export default function CostsContent(props) {
               the rule). Non-escrowed renewals are a docs condition, never a
               collection (Christo 2026-07-22). */}
           <FeeRow
-            label={isRefi ? "Homeowner's Insurance Premium — Renewal (12 mo)" : "Homeowner's Insurance Premium — First Year (12 mo)"}
+            label={isRefi ? "Homeowner's Insurance Premium, Renewal (12 mo)" : "Homeowner's Insurance Premium, First Year (12 mo)"}
             value={isRefi ? calc.prepaidIns : annualIns}
             readOnly
             autoBadge

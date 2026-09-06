@@ -481,7 +481,9 @@ export default function DebtsContent(props) {
 
         {/* Mobile — condensed 5-col + tap row to expand full editor */}
         {!debtFree && !isDesktop && (
-          <>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", padding: "6px 10px 0", textAlign: "right" }}>Swipe to see more →</div>
+            <div style={{ minWidth: 468 }}>
             <div style={{
               display: "grid",
               gridTemplateColumns: COLS_MOBILE,
@@ -577,7 +579,8 @@ export default function DebtsContent(props) {
                 <TotalCell T={T}> </TotalCell>
               </div>
             )}
-          </>
+            </div>
+          </div>
         )}
       </div>
 

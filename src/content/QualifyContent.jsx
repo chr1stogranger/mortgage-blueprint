@@ -334,7 +334,7 @@ export default function QualifyContent(props) {
     )}
    </div>
    {creditScore > 0 && creditScore < calc.ficoMin && <Note color={T.red}>Min score for {loanType}: <strong>{calc.ficoMin}</strong>. Need {calc.ficoMin - creditScore} more points.</Note>}
-   {creditScore >= 740 && <Note color={T.green}>Excellent credit — qualifies for best pricing!</Note>}
+   {creditScore >= 740 && <Note color={T.green}>Excellent credit. Qualifies for best pricing.</Note>}
    {creditScore >= calc.ficoMin && creditScore < 740 && <Note color={T.orange}>Meets minimum. 740+ unlocks better pricing tiers.</Note>}
   </Card>
  </div>

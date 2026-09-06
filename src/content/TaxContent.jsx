@@ -229,7 +229,7 @@ export default function TaxContent(props) {
      <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 6, textAlign: "right" }}>Swipe to see more →</div>
     )}
     <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 12, lineHeight: 1.6, fontStyle: "italic" }}>
-     Same income, but Year 2 has $30K in write-offs. That extra deduction lowers taxable income — and saves $7,500 in taxes at the 25% bracket.
+     Same income, but Year 2 has $30K in write-offs. That extra deduction lowers taxable income and saves $7,500 in taxes at the 25% bracket.
     </div>
    </Card>
   </Sec>
