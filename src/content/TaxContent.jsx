@@ -199,35 +199,62 @@ export default function TaxContent(props) {
   {/* 2. Educational example: how write-offs work (hardcoded teaching numbers) */}
   <Sec title="Example: How Tax Write-offs Work">
    <Card>
-    <div style={{ overflowX: "auto" }}>
-     <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", gap: 0, fontSize: 12, minWidth: 620 }}>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Tax Year</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Income</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Write-offs</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxable Inc.</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Eff. Rate</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Taxes Owed</div>
-      <div style={{ fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, textAlign: "right", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 }}>Delta</div>
-
-      <div style={{ padding: "10px 6px", color: T.text, fontWeight: 600 }}>Year 1</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$0</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>25%</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$25,000</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 800, color: T.green, gridRow: "span 2", display: "flex", alignItems: "center", justifyContent: "flex-end", fontSize: 14 }}>$7,500</div>
-
-      <div style={{ padding: "10px 6px", color: T.text, fontWeight: 600 }}>Year 2</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$100,000</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$30,000</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$70,000</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>25%</div>
-      <div style={{ padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 }}>$17,500</div>
-     </div>
-    </div>
-    {typeof window !== "undefined" && window.innerWidth < 480 && (
-     <div style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 6, textAlign: "right" }}>Swipe to see more →</div>
-    )}
+    {/* Under 600px the 7-column grid (minWidth 620) is unreadable without a
+        side-scroll, so it swaps for one stacked card per tax year. 600-719px
+        can still overflow the card, so the swipe hint lives there only. */}
+    <style>{`
+      .tax-ex-cards { display: none; }
+      .tax-ex-hint { display: none; }
+      @media (max-width: 599px) {
+        .tax-ex-table { display: none; }
+        .tax-ex-cards { display: grid; }
+      }
+      @media (min-width: 600px) and (max-width: 719px) {
+        .tax-ex-hint { display: block; }
+      }
+    `}</style>
+    {(() => {
+     const COLS = ["Income", "Write-offs", "Taxable Inc.", "Eff. Rate", "Taxes Owed"];
+     const YEARS = [
+      { label: "Year 1", vals: ["$100,000", "$0", "$100,000", "25%", "$25,000"] },
+      { label: "Year 2", vals: ["$100,000", "$30,000", "$70,000", "25%", "$17,500"] },
+     ];
+     const DELTA = "$7,500";
+     const th = { fontWeight: 700, color: T.textTertiary, padding: "8px 6px", borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", fontSize: 10 };
+     const td = { padding: "10px 6px", textAlign: "right", fontFamily: FONT, fontWeight: 600 };
+     return (<>
+      <div className="tax-ex-table" style={{ overflowX: "auto" }}>
+       <div style={{ display: "grid", gridTemplateColumns: "90px repeat(6, 1fr)", gap: 0, fontSize: 12, minWidth: 620 }}>
+        <div style={th}>Tax Year</div>
+        {COLS.map(c => <div key={c} style={{ ...th, textAlign: "right" }}>{c}</div>)}
+        <div style={{ ...th, textAlign: "right" }}>Delta</div>
+        {YEARS.map((y, yi) => (<React.Fragment key={y.label}>
+         <div style={{ padding: "10px 6px", color: T.text, fontWeight: 600 }}>{y.label}</div>
+         {y.vals.map((v, i) => <div key={i} style={td}>{v}</div>)}
+         {yi === 0 && <div style={{ ...td, fontWeight: 800, color: T.green, gridRow: "span 2", display: "flex", alignItems: "center", justifyContent: "flex-end", fontSize: 14 }}>{DELTA}</div>}
+        </React.Fragment>))}
+       </div>
+      </div>
+      <div className="tax-ex-hint" style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 6, textAlign: "right" }}>Swipe to see more →</div>
+      <div className="tax-ex-cards" style={{ gap: 10 }}>
+       {YEARS.map(y => (
+        <div key={y.label} style={{ border: `1px solid ${T.separator}`, borderRadius: 12, padding: "10px 12px" }}>
+         <div style={{ ...th, padding: "0 0 6px", marginBottom: 4 }}>{y.label}</div>
+         {COLS.map((c, i) => (
+          <div key={c} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", fontSize: 12 }}>
+           <span style={{ color: T.textSecondary }}>{c}</span>
+           <span style={{ fontFamily: FONT, fontWeight: 600, color: T.text }}>{y.vals[i]}</span>
+          </div>
+         ))}
+        </div>
+       ))}
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 12px 0", fontSize: 12 }}>
+        <span style={{ ...th, padding: 0, borderBottom: "none" }}>Delta (Year 2 vs Year 1)</span>
+        <span style={{ fontFamily: FONT, fontWeight: 800, color: T.green, fontSize: 14 }}>{DELTA}</span>
+       </div>
+      </div>
+     </>);
+    })()}
     <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 12, lineHeight: 1.6, fontStyle: "italic" }}>
      Same income, but Year 2 has $30K in write-offs. That extra deduction lowers taxable income and saves $7,500 in taxes at the 25% bracket.
     </div>
