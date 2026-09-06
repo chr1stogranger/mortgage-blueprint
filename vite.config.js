@@ -115,12 +115,12 @@ export default defineConfig({
             }
           },
           {
-            // Cache read-only API endpoints (rates, listings, pricepoint)
+            // Cache read-only API endpoints (rates, pricepoint)
             // Exclude collab/auth/share endpoints — those must never be cached.
             // NOTE: workbox tests urlPattern against the FULL URL (with origin),
             // so the old /^\/api\/.../ anchor never matched — this rule was dead
             // code. Unanchored pathname match fixes it.
-            urlPattern: /\/api\/(rates|listings|pricepoint|propertydetails)/i,
+            urlPattern: /\/api\/(rates|pricepoint|propertydetails)/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
