@@ -166,14 +166,14 @@ const FEEDBACK = {
     messages: [
       "Solid instincts. You're in the ballpark.",
       "Good read on this one. You're close.",
-      "Not bad at all — you've got a feel for it.",
+      "Not bad at all. You've got a feel for it.",
     ],
     colorKey: "cyan",
     label: "SOLID",
   },
   tricky: {
     messages: [
-      "This one was tricky — you're not alone.",
+      "This one was tricky. You're not alone.",
       "Tough call. The market moved unexpectedly here.",
       "This one fooled a lot of people.",
     ],
@@ -184,7 +184,7 @@ const FEEDBACK = {
     messages: [
       "This one surprised almost everyone.",
       "The market had other plans on this one.",
-      "Wild card property — hard to predict.",
+      "Wild card property: hard to predict.",
     ],
     colorKey: "orange",
     label: "SURPRISE",
@@ -213,26 +213,26 @@ const getInsight = (listing, pctOff, guessedHigher) => {
       return `${listing.daysOnMarket} days on market tends to mean price reductions. Good to know for next time.`;
     }
     if (listing.daysOnMarket && listing.daysOnMarket <= 7) {
-      return `Only ${listing.daysOnMarket} days on market — fast sales often signal competitive offers above asking.`;
+      return `Only ${listing.daysOnMarket} days on market: fast sales often signal competitive offers above asking.`;
     }
-    return `${resolveNeighborhood(listing)} is a market worth watching — this one was tricky to read.`;
+    return `${resolveNeighborhood(listing)} is a market worth watching. This one was tricky to read.`;
   }
   const overUnder = listing.soldPrice > listing.listPrice ? "over" : "under";
   const listVsSold = Math.abs(((listing.soldPrice - listing.listPrice) / listing.listPrice) * 100).toFixed(0);
 
   if (listing.soldPrice > listing.listPrice && !guessedHigher) {
-    return `This home went ${listVsSold}% over asking — competitive market in ${resolveNeighborhood(listing)}.`;
+    return `This home went ${listVsSold}% over asking: competitive market in ${resolveNeighborhood(listing)}.`;
   }
   if (listing.soldPrice < listing.listPrice && guessedHigher) {
-    return `This one sold ${listVsSold}% under list — sat on the market ${listing.daysOnMarket} days.`;
+    return `This one sold ${listVsSold}% under list: sat on the market ${listing.daysOnMarket} days.`;
   }
   if (listing.daysOnMarket > 30) {
     return `${listing.daysOnMarket} days on market tends to mean price reductions. Good to know for next time.`;
   }
   if (listing.daysOnMarket <= 7) {
-    return `Only ${listing.daysOnMarket} days on market — fast sales often signal competitive offers above asking.`;
+    return `Only ${listing.daysOnMarket} days on market: fast sales often signal competitive offers above asking.`;
   }
-  return `${resolveNeighborhood(listing)} is shifting — this ${overUnder}-asking result is worth noting.`;
+  return `${resolveNeighborhood(listing)} is shifting. This ${overUnder}-asking result is worth noting.`;
 };
 
 // ── Level System ──
@@ -379,17 +379,17 @@ const AGENT_SPEAK = [
   { key: "charming",  re: /\bcharming\b/i, means: "often code for small or dated", tone: "neutral" },
   { key: "vintage",   re: /\b(?:time capsule|original condition|mostly original|well[ -]loved|lovingly (?:maintained|cared for)|estate condition)\b/i, means: "not updated in a long time", tone: "bad" },
   { key: "dated",     re: /\b(?:dated|needs? updating|update to taste|bring your (?:contractor|imagination|vision|tools|designer)|make it your own|sweat equity|some updating|a little (?:tlc|love)|needs? (?:some )?love)\b/i, means: "budget to renovate", tone: "bad" },
-  { key: "cosmetic",  re: /\bcosmetic(?:s|ally)?\b/i, means: "“just cosmetic” rarely is — get quotes", tone: "neutral" },
+  { key: "cosmetic",  re: /\bcosmetic(?:s|ally)?\b/i, means: "“just cosmetic” rarely is. Get quotes", tone: "neutral" },
   // "Small"
   { key: "cozy",      re: /\b(?:cozy|quaint|snug|intimate)\b/i, means: "small", tone: "bad" },
   { key: "efficient", re: /\b(?:efficient (?:layout|floor ?plan|use of space)|space[ -]efficient)\b/i, means: "small / compact", tone: "neutral" },
   // "Needs work — that's the pitch"
-  { key: "potential", re: /\b(?:tons of potential|lots of potential|great potential|full of potential|endless (?:potential|possibilities)|diamond in the rough|opportunity knocks|investor'?s dream|priced accordingly)\b/i, means: "needs work — that's the “potential”", tone: "bad" },
+  { key: "potential", re: /\b(?:tons of potential|lots of potential|great potential|full of potential|endless (?:potential|possibilities)|diamond in the rough|opportunity knocks|investor'?s dream|priced accordingly)\b/i, means: "needs work: that's the “potential”", tone: "bad" },
   { key: "bones",     re: /\b(?:good bones|great bones|solid bones)\b/i, means: "sound structure, but plan to renovate", tone: "neutral" },
-  { key: "canvas",    re: /\b(?:blank (?:canvas|slate)|clean slate)\b/i, means: "unfinished — you finish it", tone: "neutral" },
+  { key: "canvas",    re: /\b(?:blank (?:canvas|slate)|clean slate)\b/i, means: "unfinished: you finish it", tone: "neutral" },
   // Money / financing red flags
   { key: "cash",      re: /\b(?:cash (?:only|buyers? only|offers? only)|no financing|not financeable)\b/i, means: "likely won't pass a loan appraisal", tone: "bad" },
-  { key: "permit",    re: /\b(?:unpermitted|without permits|no permits|permits? unknown|buyer to verify permits?|not permitted)\b/i, means: "unpermitted work — appraisal & resale risk", tone: "bad" },
+  { key: "permit",    re: /\b(?:unpermitted|without permits|no permits|permits? unknown|buyer to verify permits?|not permitted)\b/i, means: "unpermitted work: appraisal & resale risk", tone: "bad" },
   { key: "mello",     re: /\b(?:mello[ -]roos|special assessment|special tax|cfd fee)\b/i, means: "extra tax on top of the mortgage", tone: "bad" },
   // "Not a real bedroom"
   { key: "bedroom",   re: /\b(?:non[ -]conforming|junior (?:bed|bedroom|suite)|possible (?:3rd|4th|5th|third|fourth|fifth) (?:bed|bedroom)|optional bedroom|bonus room)\b/i, means: "a room that may not count as a legal bed", tone: "neutral" },
@@ -398,7 +398,7 @@ const AGENT_SPEAK = [
   { key: "upcoming",  re: /\b(?:up[ -]and[ -]coming|up[ -]&[ -]coming|emerging (?:neighborhood|area)|transitional (?:neighborhood|area)|developing (?:neighborhood|area)|gentrif(?:ying|ication))\b/i, means: "neighborhood not established yet", tone: "neutral" },
   { key: "freeway",   re: /\b(?:easy (?:freeway|highway) access|close to (?:the )?(?:freeway|highway)|near (?:the )?(?:freeway|highway)|convenient to (?:freeway|highway)|steps to transit)\b/i, means: "traffic / noise likely nearby", tone: "neutral" },
   // Seller pressure (buyer leverage)
-  { key: "motivated", re: /\b(?:motivated seller|must sell|bring all offers|all offers (?:considered|welcome)|priced to sell|won'?t last|seller says sell)\b/i, means: "seller's under pressure — negotiate", tone: "neutral" },
+  { key: "motivated", re: /\b(?:motivated seller|must sell|bring all offers|all offers (?:considered|welcome)|priced to sell|won'?t last|seller says sell)\b/i, means: "seller's under pressure: negotiate", tone: "neutral" },
   // Genuine positives (the honest listings just say it)
   { key: "turnkey",   re: /\b(?:turn[ -]?key|move[ -]in ready|nothing to do but move in|shows? like a (?:model|dream)|model[ -]perfect)\b/i, means: "genuinely updated & ready", tone: "good" },
   { key: "pride",     re: /\b(?:pride of ownership|meticulously (?:maintained|kept)|impeccably maintained|no expense spared|no detail (?:overlooked|spared))\b/i, means: "well cared for", tone: "good" },
@@ -646,7 +646,7 @@ const renderPriceRead = (listing, valuePool, details, T) => {
         {tick("teaser", "TEASER")}{tick("transparent", "TRANSPARENT")}{tick("ambitious", "AMBITIOUS")}
       </div>
       <div style={{ fontSize: 11.5, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginTop: 8 }}>
-        {listPart}, with {sigPart} — {tail}.
+        {listPart}, with {sigPart}: {tail}.
       </div>
     </div>
   );
@@ -1531,7 +1531,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       const j = await r.json().catch(() => null);
       if (r.status === 401) {
         try { sessionStorage.removeItem('pp_cron_secret'); } catch {}
-        setResolveMsg('✕ Wrong secret — cleared it. Tap the button again to re-enter.');
+        setResolveMsg('✕ Wrong secret: cleared it. Tap the button again to re-enter.');
         return;
       }
       if (!r.ok) { setResolveMsg(`✕ ${j?.error || `HTTP ${r.status}`}`); return; }
@@ -1657,7 +1657,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     if (captureState === 'saved') return (
       <div style={{ padding: "12px 14px", background: `${T.green}12`, border: `1px solid ${T.green}30`, borderRadius: 14, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
         <Icon name="bell" size={14} style={{ color: T.green, flexShrink: 0 }} />
-        <div style={{ fontSize: 12, color: T.text, fontFamily: FONT }}>You're set — we'll ping you the moment it closes.</div>
+        <div style={{ fontSize: 12, color: T.text, fontFamily: FONT }}>You're set: we'll ping you the moment it closes.</div>
       </div>
     );
     if (notifPrefs.push_enabled || notifPrefs.email_enabled || notifPrefs.sms_enabled) return null;
@@ -1677,7 +1677,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.accent, marginBottom: 4 }}>Get the result</div>
         <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.45, marginBottom: 10 }}>
           {captureState === 'denied'
-            ? "Notifications are blocked for this site — leave an email instead and we'll send the result."
+            ? "Notifications are blocked for this site. Leave an email instead and we'll send the result."
             : "This settles when the sale closes. We'll tell you how your call did."}
         </div>
         {pushSupported() && captureState !== 'denied' && (
@@ -2236,7 +2236,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         if (compsData?.soldListings?.length > 0) {
           gotRealSold = true;
           const realSold = compsData.soldListings.map(l => ({ ...l, _source: "sold_comps" }));
-          if (import.meta.env.DEV) console.log(`[PricePoint] Got ${realSold.length} real sold comps — replacing all sold data`);
+          if (import.meta.env.DEV) console.log(`[PricePoint] Got ${realSold.length} real sold comps: replacing all sold data`);
           setSoldListings(realSold); // applied immediately → Daily card renders now
         }
         return compsData;
@@ -2451,7 +2451,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     });
     const url = buildChallengeUrl(token);
     const accuracy = (100 - result.pctOff).toFixed(1);
-    const text = `I scored ${accuracy}% accuracy on a ${result.neighborhood || result.city} home — think you can beat me?`;
+    const text = `I scored ${accuracy}% accuracy on a ${result.neighborhood || result.city} home: think you can beat me?`;
     // URL folded INTO text (no separate url field): iOS Messages drops the
     // text bubble when both are passed, delivering a bare link. The trailing
     // URL still unfurls into the rich preview.
@@ -2481,7 +2481,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // guess in the thread (and the in-app reveal already keeps it hidden until
     // the friend locks their own). Phrased for group texts — every recipient
     // can tap the same link and lock an independent call.
-    const text = `I locked in my call on this ${place} listing. Lock in yours — closest to the sold price wins. My number stays hidden until you guess.`;
+    const text = `I locked in my call on this ${place} listing. Lock in yours: closest to the sold price wins. My number stays hidden until you guess.`;
     // URL folded INTO text — see shareChallenge; a separate url field makes
     // iOS Messages drop the text bubble entirely.
     if (navigator.share) {
@@ -2564,7 +2564,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         finishDaily(val, resp.soldPrice, resp.pctOff ?? parseFloat((Math.abs((val - resp.soldPrice) / resp.soldPrice) * 100).toFixed(1)), resp);
       } else {
         // Offline (queued) or unscored — we can't reveal a price the server holds.
-        setSyncToast('Saved — reconnect to see today’s result');
+        setSyncToast('Saved: reconnect to see today’s result');
         setTimeout(() => setSyncToast(null), 3500);
       }
       return;
@@ -2665,7 +2665,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       guess: val, soldPrice: listing.soldPrice,
     }).then(resp => {
       if (resp && resp.queued) {
-        setSyncToast('Saved on this device — will sync when you’re online');
+        setSyncToast('Saved on this device. Will sync when you’re online');
         setTimeout(() => setSyncToast(null), 3500);
       }
       if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
@@ -3072,7 +3072,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       guess: val,
     }).then(resp => {
       if (resp && resp.queued) {
-        setSyncToast('Saved on this device — will sync when you’re online');
+        setSyncToast('Saved on this device. Will sync when you’re online');
         setTimeout(() => setSyncToast(null), 3500);
       }
       if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
@@ -3115,10 +3115,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (resp.ok && data?.listing) {
         setLiveSearchListing(data.listing);
       } else {
-        setLiveSearchError(data?.message || "Couldn't find that address — try adding city & zip");
+        setLiveSearchError(data?.message || "Couldn't find that address. Try adding city & zip");
       }
     } catch {
-      setLiveSearchError("Couldn't find that address — try adding city & zip");
+      setLiveSearchError("Couldn't find that address. Try adding city & zip");
     } finally {
       setLiveSearchLoading(false);
     }
@@ -3207,7 +3207,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       guess: val,
     }).then(resp => {
       if (resp && resp.queued) {
-        setSyncToast('Saved on this device — will sync when you’re online');
+        setSyncToast('Saved on this device. Will sync when you’re online');
         setTimeout(() => setSyncToast(null), 3500);
       }
       if (resp && resp.totalXp != null) setServerXp(resp.totalXp);
@@ -4014,7 +4014,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {/* Share button */}
             <button onClick={() => {
               const avg = allResults.length > 0 ? (100 - (allResults.reduce((s, r) => s + (r.pctOff || 0), 0) / allResults.length)).toFixed(1) : "—";
-              const text = `I just reached Level ${currentLevel.level} — ${currentLevel.name} on PricePoint!\n\n${allResults.length} guesses · ${avg}% accuracy · ${xp} XP\n\nThink you know real estate prices? Try it: blueprint.realstack.app`;
+              const text = `I just reached Level ${currentLevel.level}: ${currentLevel.name} on PricePoint!\n\n${allResults.length} guesses · ${avg}% accuracy · ${xp} XP\n\nThink you know real estate prices? Try it: blueprint.realstack.app`;
               if (navigator.share) {
                 navigator.share({ text }).catch(() => {});
               } else {
@@ -4288,7 +4288,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, maxWidth: 170, textAlign: "right", lineHeight: 1.4 }}>Challenge a friend to start your record</div>
                 )}
                 {h2h.pending?.length > 0 && (
-                  <div style={{ flexBasis: "100%", fontSize: 11, color: T.textTertiary, fontFamily: FONT, borderTop: `1px solid ${T.cardBorder}`, paddingTop: 10 }}>{h2h.pending.length} For&nbsp;Sale challenge{h2h.pending.length === 1 ? "" : "s"} pending — settles when {h2h.pending.length === 1 ? "it sells" : "they sell"}.</div>
+                  <div style={{ flexBasis: "100%", fontSize: 11, color: T.textTertiary, fontFamily: FONT, borderTop: `1px solid ${T.cardBorder}`, paddingTop: 10 }}>{h2h.pending.length} For&nbsp;Sale challenge{h2h.pending.length === 1 ? "" : "s"} pending: settles when {h2h.pending.length === 1 ? "it sells" : "they sell"}.</div>
                 )}
               </div>
             );
@@ -4366,7 +4366,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={14} /></span> Lv.{currentLevel.level} — {currentLevel.name}
+                    <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={14} /></span> Lv.{currentLevel.level}: {currentLevel.name}
                   </span>
                   <span style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary }}>{xp} XP{nextLevel ? ` / ${nextLevel.req}` : ""}</span>
                 </div>
@@ -4654,7 +4654,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {liveSearchListing.status !== "active" && liveSearchListing.status !== "pending" && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: `${T.orange}12`, border: `1px solid ${T.orange}30`, borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
                   <Icon name="info" size={14} style={{ color: T.orange, flexShrink: 0 }} />
-                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market — prediction resolves if/when it sells</div>
+                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market: prediction resolves if/when it sells</div>
                 </div>
               )}
               {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
@@ -4693,8 +4693,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ padding: "12px", background: `${T.accent}12`, borderRadius: 10, marginBottom: 12, borderLeft: `3px solid ${T.accent}` }}>
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>
                     {propCalls && propCalls.count >= 2
-                      ? `${propCalls.count} calls locked on this one — closest to the sold price wins. We'll notify you when it closes.`
-                      : "You're the first call on this one. Send it to friends — closest to the sold price wins. We'll notify you when it closes."}
+                      ? `${propCalls.count} calls locked on this one. Closest to the sold price wins. We'll notify you when it closes.`
+                      : "You're the first call on this one. Send it to friends. Closest to the sold price wins. We'll notify you when it closes."}
                   </div>
                 </div>
                 {renderNotifyCapture()}
@@ -4727,7 +4727,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 active or pending listings in {liveHoodName || locationLabel || market?.label || "your market"}.
               </div>
               <div style={{ fontSize: 13, color: T.textTertiary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
-                {liveTypeSel.length > 0 ? "The property-type filter may be too narrow." : "New listings drop daily — check back soon."}
+                {liveTypeSel.length > 0 ? "The property-type filter may be too narrow." : "New listings drop daily. Check back soon."}
               </div>
               {/* The type filter persists across sessions, so an empty pool is
                   often a filter left on days ago — offer the one-tap escape. */}
@@ -4902,12 +4902,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {boardProp.zpid
                 ? (renderCallsBoard(boardProp.listPrice) || (
                     <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginBottom: 14 }}>
-                      {propCalls ? "Just your call on this one so far — send the link to friends." : "Loading the field…"}
+                      {propCalls ? "Just your call on this one so far. Send the link to friends." : "Loading the field…"}
                     </div>
                   ))
                 : (
                   <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginBottom: 14 }}>
-                    This call was made before group scoreboards — the field can't be looked up for it.
+                    This call was made before group scoreboards. The field can't be looked up for it.
                   </div>
                 )}
               {!boardProp.resolved && renderNotifyCapture()}
@@ -4959,7 +4959,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
                 {propCalls && propCalls.count > 2 && renderCallsBoard(r.listPrice)}
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
-                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells — and anyone else with the link can still jump in.
+                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells, and anyone else with the link can still jump in.
                 </div>
                 {renderNotifyCapture()}
                 {(h2h.wins + h2h.losses + h2h.ties) > 0 && (
@@ -5727,7 +5727,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: unlocked ? T.text : T.textTertiary, fontFamily: FONT }}>
-                      Lv.{lvl.level} — {lvl.name}
+                      Lv.{lvl.level}: {lvl.name}
                     </div>
                     <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{lvl.req} XP required</div>
                   </div>

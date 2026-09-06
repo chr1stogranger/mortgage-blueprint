@@ -180,10 +180,10 @@ export default function RefiComparePane({ T }) {
             fontSize: 10, fontWeight: 600, textAlign: "center",
             color: breakEvenMonths <= 24 ? T.green : breakEvenMonths <= 48 ? T.orange : T.red,
           }}>
-            {breakEvenMonths <= 12 ? "Excellent — refi pays for itself within a year"
-              : breakEvenMonths <= 24 ? "Good — refi breaks even in under 2 years"
+            {breakEvenMonths <= 12 ? "Excellent: refi pays for itself within a year"
+              : breakEvenMonths <= 24 ? "Good: refi breaks even in under 2 years"
               : breakEvenMonths <= 48 ? "Consider if you plan to stay 4+ years"
-              : "Long breakeven — may not be worth it unless rates drop further"}
+              : "Long breakeven: may not be worth it unless rates drop further"}
           </div>
         </div>
       )}
