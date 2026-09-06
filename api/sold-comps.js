@@ -783,27 +783,90 @@ const redfinRegionCache = new Map(); // "zip:94116" / "city:san francisco" → r
 // redfin.com; 6 = SFR confirmed). 3=Condo/Co-op, 13=Townhouse, 5=Land.
 const REDFIN_PROPERTY_TYPES = { 6: 'Single Family', 3: 'Condo', 13: 'Townhouse', 4: 'Multi-Family', 20: 'Multi-Family', 7: 'Manufactured', 8: 'Manufactured' };
 
-async function redfinRegionId(query, cacheKey, apiKey) {
-  if (redfinRegionCache.has(cacheKey)) return redfinRegionCache.get(cacheKey);
+// Static regionIds for the seeded markets. Checked before the in-memory cache
+// and before any auto-complete call, so these markets never spend a RapidAPI
+// request (or hit the per-second rate limit) just to learn their own id.
+// LA confirmed 6_11203 from production logs. Other markets self-populate via
+// the pp_city_cache persistence below.
+const REDFIN_REGION_IDS = {
+  'city:los angeles': '6_11203',
+};
+const REDFIN_REGION_PERSIST_PREFIX = 'redfin_region:';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Persistent regionId cache (survives cold starts). Reuses the pp_city_cache
+// key/value table under its own key prefix; TTL is not applied because Redfin
+// region ids are stable.
+async function readPersistedRegionId(cacheKey) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return null;
   try {
-    const r = await fetch(`https://${REDFIN_HOST}/properties/auto-complete?query=${encodeURIComponent(query)}`, {
-      headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST },
-    });
-    const j = await r.json().catch(() => null);
-    if (!r.ok) {
-      // A 429 here is the RapidAPI MONTHLY quota — it kills the PRIMARY sold
-      // source for every market until the plan resets/upgrades, so shout.
-      console.error(`[SoldComps] redfin auto-complete ${query}: HTTP ${r.status} quota-left=${r.headers.get('x-ratelimit-requests-remaining') ?? '?'} body=${JSON.stringify(j?.message || j || '').slice(0, 120)}`);
+    const { data: row } = await supabase
+      .from('pp_city_cache')
+      .select('data')
+      .eq('cache_key', `${REDFIN_REGION_PERSIST_PREFIX}${cacheKey}`)
+      .maybeSingle();
+    const id = row?.data?.regionId;
+    return id ? String(id) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function persistRegionId(cacheKey, regionId) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return;
+  try {
+    await supabase
+      .from('pp_city_cache')
+      .upsert(
+        { cache_key: `${REDFIN_REGION_PERSIST_PREFIX}${cacheKey}`, data: { regionId }, updated_at: new Date().toISOString() },
+        { onConflict: 'cache_key' }
+      );
+  } catch (e) {
+    console.error(`[SoldComps] redfin regionId persist failed (non-fatal): ${e.message}`);
+  }
+}
+
+async function redfinRegionId(query, cacheKey, apiKey) {
+  if (REDFIN_REGION_IDS[cacheKey]) return REDFIN_REGION_IDS[cacheKey];
+  if (redfinRegionCache.has(cacheKey)) return redfinRegionCache.get(cacheKey);
+  const persisted = await readPersistedRegionId(cacheKey);
+  if (persisted) { redfinRegionCache.set(cacheKey, persisted); return persisted; }
+  // Up to 2 retries on a per-second 429 (the cron fan-out can trip it).
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    try {
+      const r = await fetch(`https://${REDFIN_HOST}/properties/auto-complete?query=${encodeURIComponent(query)}`, {
+        headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST },
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        if (r.status === 429 && attempt < 2) {
+          console.error(`[SoldComps] redfin auto-complete ${query}: HTTP 429, retrying in 1200ms (attempt ${attempt + 1}/2)`);
+          await sleep(1200);
+          continue;
+        }
+        // A 429 here may be the RapidAPI MONTHLY quota, which kills the PRIMARY
+        // sold source for every market until the plan resets/upgrades, so shout.
+        console.error(`[SoldComps] redfin auto-complete ${query}: HTTP ${r.status} quota-left=${r.headers.get('x-ratelimit-requests-remaining') ?? '?'} body=${JSON.stringify(j?.message || j || '').slice(0, 120)}`);
+        return null;
+      }
+      const sections = Array.isArray(j?.data) ? j.data : [];
+      const rows = sections.flatMap(sec => (Array.isArray(sec?.rows) ? sec.rows : []));
+      // Prefer region rows (Places: zip type "4" ids "2_xxxxx", city ids "6_xxxxx") in CA.
+      const hit = rows.find(x => x?.id && String(x.subName || '').includes('CA'))
+        || rows.find(x => x?.id) || null;
+      if (hit?.id) {
+        redfinRegionCache.set(cacheKey, hit.id);
+        await persistRegionId(cacheKey, hit.id);
+        return hit.id;
+      }
+      return null;
+    } catch (e) {
+      console.error(`[SoldComps] redfin auto-complete failed for ${query}: ${e.message}`);
       return null;
     }
-    const sections = Array.isArray(j?.data) ? j.data : [];
-    const rows = sections.flatMap(sec => (Array.isArray(sec?.rows) ? sec.rows : []));
-    // Prefer region rows (Places: zip type "4" ids "2_xxxxx", city ids "6_xxxxx") in CA.
-    const hit = rows.find(x => x?.id && String(x.subName || '').includes('CA'))
-      || rows.find(x => x?.id) || null;
-    if (hit?.id) { redfinRegionCache.set(cacheKey, hit.id); return hit.id; }
-  } catch (e) {
-    console.error(`[SoldComps] redfin auto-complete failed for ${query}: ${e.message}`);
   }
   return null;
 }
@@ -860,7 +923,7 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
     // Loud: without this line a dead Redfin (e.g. exhausted monthly quota)
     // looked identical to "region has no sales" and the funnel silently
     // degraded to the junk Zillow feed + stale county records.
-    console.error(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: SKIPPED — regionId resolve failed (see auto-complete error above)`);
+    console.error(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: SKIPPED: regionId resolve failed (see auto-complete error above)`);
     return { rows: [], diag: 'regionId resolve failed' };
   }
   let items = [];

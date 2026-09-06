@@ -58,6 +58,22 @@ async function runEnrichPass(supabase) {
 // flow into pp_property_pool every day, not just on the Monday pool-seed.
 // County-record (RentCast) data lags 2-4 months — this is what keeps Free Play
 // comps current.
+// Small concurrency pool. Keeps allSettled semantics: one market failing
+// never kills the others. Width 2 keeps RapidAPI under its per-second limit.
+async function runPool(items, width, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      try { results[i] = await fn(items[i], i); }
+      catch (err) { results[i] = { error: err?.message || String(err) }; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));
+  return results;
+}
+
 const PUMP_MARKETS = [
   'San Francisco', 'Alameda', 'Oakland', 'Berkeley',
   'Los Angeles', 'San Diego',
@@ -70,7 +86,8 @@ async function runFreshSearchPump() {
   // Vercel deployment protection, which returns an HTML SSO page instead of
   // JSON ("Unexpected token '<'" in the cron logs).
   const baseUrl = 'https://blueprint.realstack.app';
-  const results = await Promise.all(PUMP_MARKETS.map(async (market) => {
+  // 2-wide pool (was a 6-wide Promise.all that tripped RapidAPI's per-second 429).
+  const results = await runPool(PUMP_MARKETS, 2, async (market) => {
     const t0 = Date.now();
     try {
       const r = await fetch(
@@ -88,7 +105,7 @@ async function runFreshSearchPump() {
     } catch (err) {
       return { market, error: err.message, latencyMs: Date.now() - t0 };
     }
-  }));
+  });
   console.error(`[CronResolve] fresh-search pump: ${JSON.stringify(results)}`);
   return results;
 }
