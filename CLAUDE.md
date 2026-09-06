@@ -78,6 +78,14 @@
   (Daily sold-date pill renders nothing until applied). Write API code to
   tolerate the un-applied state (PGRST204 strip-and-retry, null-safe reads),
   and ALWAYS remind Christo to run the SQL in the same message that ships it.
+- **External schedulers can hit the cron endpoints.** An orphaned
+  cron-job.org job (left over from the May-2026 Hobby-plan cron cap) was
+  calling `/api/cron-pool-seed` every 15 min with the CRON_SECRET; once the
+  cron's internal fetch worked (2026-09-05) it burned the whole monthly
+  RentCast quota in ~7 hours. `api/_budget.js` now throttles pool-seed to one
+  run per 20h and gates every RentCast call (pause window → 6-day per-market
+  gap → monthly budget). If RentCast quota ever spikes again, open the Vercel
+  request log for `/api/cron-pool-seed` and read the User-Agent first.
 - Light-mode contrast pass (Christo 2026-07-05): borders/separators/inputs
   are deliberately darker than 6% gray — keep it when touching LIGHT tokens.
 - Markets/PricePoint render inside MortgageBlueprint's shell (one root,

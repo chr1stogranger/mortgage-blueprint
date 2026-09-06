@@ -35,8 +35,24 @@ const MARKETS_TO_SEED = [
   'Los Angeles', 'San Diego',
 ];
 
+import { createClient } from '@supabase/supabase-js';
+import { acquireRunLock } from './_budget.js';
+
 // Allow longer execution — each market pages the search endpoint.
 export const config = { maxDuration: 300 };
+
+// Persistent throttle: this job is a WEEKLY seeder, but anything holding the
+// CRON_SECRET can hit it (an orphaned cron-job.org job did, every 15 minutes,
+// 2026-09-05/06 — see api/_budget.js). Whatever the caller, at most one real
+// run per MIN_RUN_INTERVAL; extra calls get a 200 { skipped: 'throttled' }.
+const MIN_RUN_INTERVAL_MS = 20 * 60 * 60 * 1000; // 20h — never more than daily
+
+function getSupabaseAdmin() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 export default async function handler(req, res) {
   // Vercel cron sends Authorization: Bearer <CRON_SECRET>
@@ -52,6 +68,17 @@ export default async function handler(req, res) {
     if (auth !== `Bearer ${secret}`) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+  }
+
+  // Identify the caller in the logs (Vercel cron = "vercel-cron/1.0"). This is
+  // how the cron-job.org hammer was finally spotted — keep it.
+  const ua = req.headers['user-agent'] || '';
+  console.error(`[CronPoolSeed] invoked ua="${ua.slice(0, 80)}"`);
+
+  const lock = await acquireRunLock(getSupabaseAdmin(), 'cron:pool-seed', MIN_RUN_INTERVAL_MS, { failOpen: true });
+  if (!lock.ok) {
+    console.error(`[CronPoolSeed] throttled — last run ${lock.lastRunAt}, next allowed ${lock.nextAllowedAt} (via ${lock.via})`);
+    return res.status(200).json({ ok: false, skipped: 'throttled', lastRunAt: lock.lastRunAt, nextAllowedAt: lock.nextAllowedAt });
   }
 
   // Build absolute URL for the internal fetch. Use the canonical domain, NOT

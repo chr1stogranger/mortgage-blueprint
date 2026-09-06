@@ -20,6 +20,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors, isPrivileged } from './_cors.js';
 import { rateLimited } from './_ratelimit.js';
+import { rentcastAllow, marketHasRentcastRows } from './_budget.js';
 
 // Allow longer execution so multi-page discovery finishes inside the timeout.
 export const config = { maxDuration: 60 };
@@ -345,7 +346,14 @@ export default async function handler(req, res) {
     // discovery won't find more — RentCast already gave us everything it had.
     // Without this, a small city stuck below POOL_THRESHOLD would burn one
     // RentCast request on EVERY visit. Only the weekly cron (fresh=1) refreshes.
-    const alreadyRentcasted = pool.all.some(r => String(r.zpid).startsWith('rc_'));
+    // MARKET-level check (2026-09-06): the old `pool.all.some(rc_)` was
+    // computed AFTER the zip / ?exclude= / playability filters, so a zip view
+    // with no rc_ rows, or a player who had already been served every rc_
+    // row, saw "not seeded" and re-pulled the whole city from RentCast on
+    // every Load More. Only consulted when the pool is actually thin.
+    const alreadyRentcasted = fresh6Size >= POOL_THRESHOLD
+      ? true
+      : await marketHasRentcastRows(supabase, marketId);
 
     // Discovery triggers:
     //  - forceDiscover / forceFreshSearch (privileged cron)
@@ -432,18 +440,27 @@ export default async function handler(req, res) {
 
       // RentCast — licensed county-record VOLUME seeder (quota-limited):
       // weekly forceDiscover or a not-yet-seeded market; never for the
-      // daily freshsearch pump.
+      // daily freshsearch pump. Every call must ALSO clear the persistent
+      // gate in _budget.js (pause window → per-market 6-day refresh gap →
+      // monthly budget), so no caller cadence can burn the plan again.
       if (!forceFreshSearch && (forceDiscover || !alreadyRentcasted)) {
-        const haveSet = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
-        const rc = await discoverSoldViaRentCast(
-          city, marketId, ingestCutoff, excludeSet, haveSet
-        );
-        if (rc.rows.length > 0) {
-          newRows = [...newRows, ...rc.rows];
-          discoverySource += '+rentcast';
+        const gate = await rentcastAllow(supabase, marketId, { force: forceDiscover });
+        if (!gate.ok) {
+          console.error(`[SoldComps] rentcast SKIPPED ${marketId}: ${gate.reason}${gate.used != null ? ` (${gate.used}/${gate.budget})` : ''}`);
+          funnelDbg.rcSkipped = gate.reason;
+        } else {
+          const haveSet = new Set([...poolZpidSet, ...newRows.map(r => String(r.zpid))]);
+          const rc = await discoverSoldViaRentCast(
+            city, marketId, ingestCutoff, excludeSet, haveSet
+          );
+          if (rc.rows.length > 0) {
+            newRows = [...newRows, ...rc.rows];
+            discoverySource += '+rentcast';
+          }
+          funnelDbg.rcRows = rc.rows.length;
+          funnelDbg.rcDiag = rc.diag;
+          funnelDbg.rcBudget = `${gate.used}/${gate.budget}`;
         }
-        funnelDbg.rcRows = rc.rows.length;
-        funnelDbg.rcDiag = rc.diag;
       }
 
       // Property-details funnel — per-zpid priceHistory validation of the
@@ -469,7 +486,9 @@ export default async function handler(req, res) {
       if (upsertErr) {
         console.error('[SoldComps] Pool upsert error:', upsertErr.message);
       } else {
-        console.error(`[SoldComps] Inserted ${newRows.length} new rows into pool for ${marketId} (via ${discoverySource})`);
+        // ignoreDuplicates: this is the CANDIDATE count, not rows actually
+        // inserted — a re-pull of an already-seeded city logs the full batch.
+        console.error(`[SoldComps] Upserted ${newRows.length} candidate rows into pool for ${marketId} (via ${discoverySource}; duplicates ignored)`);
       }
     }
 
