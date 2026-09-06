@@ -298,16 +298,30 @@ async function processBatch(zpids, supabase) {
       // which the client polls directly.
       const queueEntries = [];
 
-      for (const notif of notifications) {
-        // Get player's notification preferences
-        const { data: playerPrefs, error: prefError } = await supabase
+      // Fetch every player's notification preferences in ONE query instead of
+      // one round trip per notification (was an N+1 inside this loop).
+      const playerIds = [...new Set(notifications.map((n) => n.player_id))];
+      const prefsById = new Map();
+      if (playerIds.length > 0) {
+        const { data: prefRows, error: prefError } = await supabase
           .from('pp_players')
-          .select('push_enabled, email_enabled, sms_enabled')
-          .eq('id', notif.player_id)
-          .single();
+          .select('id, push_enabled, email_enabled, sms_enabled')
+          .in('id', playerIds);
 
         if (prefError) {
-          console.error(`[CronResolve] Failed to fetch player prefs for user ${notif.player_id}: ${prefError.message}`);
+          console.error(`[CronResolve] Failed to fetch player prefs for zpid ${zpid}: ${prefError.message}`);
+        } else {
+          for (const row of prefRows || []) prefsById.set(row.id, row);
+        }
+      }
+
+      for (const notif of notifications) {
+        const playerPrefs = prefsById.get(notif.player_id);
+
+        // Same outcome as the old .single() error path: no player row, no
+        // queue entries for that notification.
+        if (!playerPrefs) {
+          console.error(`[CronResolve] No player prefs found for user ${notif.player_id}; skipping queue entries`);
           continue;
         }
 
