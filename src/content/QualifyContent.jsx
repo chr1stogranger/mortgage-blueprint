@@ -454,6 +454,16 @@ export default function QualifyContent(props) {
   // Program-default max DTI (Target DTI input was removed — use the loan program's max).
   const programDTI = affordLoanType === "FHA" ? 56.99 : affordLoanType === "VA" ? 60 : affordLoanType === "Jumbo" ? 43 : 50;
   const maxHousingPayment = affordIncome * (programDTI / 100) - affordDebts;
+  // No income entered: point to the Income tab (same card style as the
+  // "Add income to see DTI" prompt) instead of the debts-exceed warning.
+  if (!(affordIncome > 0)) return (
+   <div onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
+    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
+     <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add income to see what you can afford.</div>
+     <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Income tab.</div>
+    </Card>
+   </div>
+  );
   if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
   const r = (affordRate / 100) / 12;
   const n = affordTerm * 12;
