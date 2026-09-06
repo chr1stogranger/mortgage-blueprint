@@ -7355,6 +7355,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      {/* Mobile-only close button — top-right corner of the drawer */}
      {!isDesktop && (
       <button onClick={() => setMobileMenuOpen(false)}
+       aria-label="Close menu"
        style={{
         position: "absolute", top: 12, right: 12, zIndex: 1,
         background: "transparent", border: "none", cursor: "pointer",
@@ -7719,6 +7720,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     onToggleSkillLevel={() => saveSkillLevel(skillLevel === 'guided' ? 'standard' : 'guided')}
     appMode={appMode} setAppMode={setAppMode}
     onOpenMobileMenu={() => setMobileMenuOpen(true)}
+    mobileMenuOpen={mobileMenuOpen}
     tab={tab}
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
@@ -8121,6 +8123,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       <button
        onClick={() => setMobileMenuOpen(true)}
        title="Open menu"
+       aria-label="Open menu"
+       aria-expanded={mobileMenuOpen}
        style={{
         background: "transparent", border: "none",
         width: 28, height: 28, padding: 0, cursor: "pointer",

@@ -52,6 +52,7 @@ export default function UnifiedHeader({
   appMode, setAppMode,
   /* Mobile drawer — opens the RealStack shell sidebar on mobile */
   onOpenMobileMenu,
+  mobileMenuOpen = false,
   /* Active tab — used for breadcrumb after the wordmark */
   tab, tabLabel,
   /* Mobile tab bar */
@@ -342,6 +343,9 @@ export default function UnifiedHeader({
             <button
               onClick={onOpenMobileMenu}
               title="Open menu"
+              aria-label="Open menu"
+              aria-expanded={mobileMenuOpen}
+              aria-haspopup="dialog"
               style={{
                 background: "transparent", border: "none",
                 width: 28, height: 28, padding: 0, cursor: "pointer",
