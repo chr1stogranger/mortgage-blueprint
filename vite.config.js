@@ -79,6 +79,17 @@ export default defineConfig({
         // index.html must always be fetched fresh from the server so that
         // security headers (CSP, HSTS, etc.) are never served from stale cache
         globPatterns: ['**/*.{js,mjs,css,ico,png,svg,woff,woff2}'],
+        // Keep the heavy lazy chunks (map view, PDF renderer + worker, OG
+        // images) OUT of the install-time precache. They were ~5 MB of the
+        // 7 MB precache and most sessions never touch them. The assets-v1
+        // runtime rule below caches them on first use instead.
+        globIgnores: [
+          '**/PPMapView-*.js',
+          '**/react-pdf.browser-*.js',
+          '**/pdf.worker*',
+          '**/pdf-*.js',
+          '**/og-*.png',
+        ],
         // Ensure index.html is always fetched from network
         navigateFallback: null,
         // Purge precaches left behind by OLD service-worker versions.
@@ -93,6 +104,16 @@ export default defineConfig({
         clientsClaim: true,
         // Runtime caching for API calls and external resources
         runtimeCaching: [
+          {
+            // Hashed build assets not in the precache (see globIgnores) cache
+            // on first use. Filenames are content-hashed so CacheFirst is safe.
+            urlPattern: /\/assets\/.*\.(js|css|woff2?)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'assets-v1',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 }
+            }
+          },
           {
             // Cache Google Fonts
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
