@@ -9216,16 +9216,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       </div>
       {name === scenarioName && (
        <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
-        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); setTimeout(loadCompareData, 500); }} style={{ background: T.inputBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
-        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); setTimeout(loadCompareData, 500); }} style={{ background: T.errorBg, border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
+        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 9999, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
+        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); setTimeout(loadCompareData, 500); }} style={{ background: T.inputBg, border: "none", borderRadius: 9999, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
+        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); setTimeout(loadCompareData, 500); }} style={{ background: T.errorBg, border: "none", borderRadius: 9999, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
        </div>
       )}
      </div>
     )}
    </Card>
   ))}
-  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: 4 }}>Tap any option to switch, then go to Setup or Calculator to edit its details. Come back here to see them side-by-side.</div>
+  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: 4 }}>Tap an option to switch to it, then edit it on the Overview tab. Come back here to see them side by side.</div>
  </Sec>
 
  <div style={{ marginTop: 20 }}>
