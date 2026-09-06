@@ -1168,7 +1168,9 @@ export default function SetupContent(props) {
        <button
         type="button"
         onClick={() => { if (extraOn) { setExtraTouched(false); setRefiExtraPaid(0); setRefiExtraOnceDate(""); } else { setExtraTouched(true); } }}
-        aria-pressed={extraOn}
+        role="switch"
+        aria-checked={!!extraOn}
+        aria-label="Extra principal payments"
         title={extraOn ? "No extra principal payments" : "Borrower pays extra principal"}
         style={{ width: 44, height: 26, borderRadius: 13, background: extraOn ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s", padding: 0 }}
        >

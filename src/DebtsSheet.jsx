@@ -73,7 +73,7 @@ export default function DebtsSheet({
             <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Are you debt-free?</span>
             <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>No credit cards, auto loans, student loans, or installments</div>
           </div>
-          <div onClick={() => setDebtFree(!debtFree)} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+          <div role="switch" tabIndex={0} aria-checked={!!debtFree} aria-label="Debt-free" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDebtFree(!debtFree); } }} onClick={() => setDebtFree(!debtFree)} style={{ width: 52, height: 30, borderRadius: 99, background: debtFree ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
             <div style={{ width: 26, height: 26, borderRadius: 99, background: "#fff", transform: debtFree ? "translateX(22px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
           </div>
         </div>

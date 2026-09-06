@@ -710,7 +710,7 @@ function CreateClientModal({ open, onClose, onCreate, initialName, T }) {
       <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Add to CRM</div>
       <div style={{ fontSize: 11.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>Tag this client for your Homebase pipeline (CRM sync coming next)</div>
      </div>
-     <button onClick={() => setAddToCrm(!addToCrm)} aria-label="Add to CRM" style={{ width: 40, height: 22, borderRadius: 9999, border: "none", background: addToCrm ? T.blue : T.separator, position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
+     <button type="button" role="switch" aria-checked={!!addToCrm} onClick={() => setAddToCrm(!addToCrm)} aria-label="Add to CRM" style={{ width: 40, height: 22, borderRadius: 9999, border: "none", background: addToCrm ? T.blue : T.separator, position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
       <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: addToCrm ? 20 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
      </button>
     </div>
@@ -9526,7 +9526,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      <div style={{ fontSize: 15, fontWeight: 600 }}>Privacy Mode</div>
      <div style={{ fontSize: 12, color: T.textTertiary }}>Mask all dollar amounts & sensitive numbers</div>
     </div>
-    <button onClick={() => { setPrivacyMode(!privacyMode); Haptics.light(); }} style={{ width: 52, height: 30, borderRadius: 15, background: privacyMode ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+    <button type="button" role="switch" aria-checked={!!privacyMode} aria-label="Privacy mode" onClick={() => { setPrivacyMode(!privacyMode); Haptics.light(); }} style={{ width: 52, height: 30, borderRadius: 15, background: privacyMode ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
      <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: privacyMode ? 25 : 3, transition: "left 0.3s" }} />
     </button>
    </div>

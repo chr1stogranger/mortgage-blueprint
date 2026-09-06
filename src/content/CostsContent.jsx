@@ -727,6 +727,9 @@ function ToggleRow({ label, hint, on, onChange }) {
         )}
       </div>
       <button
+        type="button"
+        role="switch"
+        aria-checked={!!on}
         onClick={() => onChange(!on)}
         aria-label={label}
         style={{

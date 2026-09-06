@@ -248,7 +248,7 @@ export default function ReoContent(props) {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 0", marginTop: 10, borderTop: `1px solid ${T.separator}` }}>
                       <span style={{ fontSize: 12, color: T.textSecondary }}>Payment includes Tax, Ins &amp; HOA?</span>
-                      <div onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
+                      <div role="switch" tabIndex={0} aria-checked={!!r.includesTI} aria-label="Payment includes tax, insurance and HOA" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateReo(r.id, "includesTI", !r.includesTI); } }} onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2, transition: "all 0.3s", flexShrink: 0 }}>
                         <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", transform: r.includesTI ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                       </div>
                     </div>
@@ -368,7 +368,7 @@ export default function ReoContent(props) {
                 <Inp label={c.hasLinked ? "P&I (linked)" : (r.includesTI ? "Payment (PITIA)" : "P&I")} value={c.hasLinked ? c.pi : r.payment} onChange={v => c.hasLinked ? syncReoPayment(r.id, v) : updateReo(r.id, "payment", v)} sm />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
                   <span style={{ fontSize: 12, color: T.textSecondary }}>Includes Tax/Ins/HOA?</span>
-                  <div onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2 }}>
+                  <div role="switch" tabIndex={0} aria-checked={!!r.includesTI} aria-label="Payment includes tax, insurance and HOA" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateReo(r.id, "includesTI", !r.includesTI); } }} onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2 }}>
                     <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", transform: r.includesTI ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                   </div>
                 </div>

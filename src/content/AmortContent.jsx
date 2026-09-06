@@ -45,7 +45,7 @@ export default function AmortContent(props) {
   <Card pad={14}>
    <div style={{ fontSize: 11, color: T.textTertiary, fontWeight: 500 }}>Extra Payment</div>
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-    <button onClick={() => { setPayExtra(!payExtra); markTouched("amort-section"); }} style={{ width: 44, height: 26, borderRadius: 13, background: payExtra ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+    <button type="button" role="switch" aria-checked={!!payExtra} aria-label="Extra payment" onClick={() => { setPayExtra(!payExtra); markTouched("amort-section"); }} style={{ width: 44, height: 26, borderRadius: 13, background: payExtra ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: payExtra ? 21 : 3, transition: "left 0.3s" }} />
     </button>
    </div>

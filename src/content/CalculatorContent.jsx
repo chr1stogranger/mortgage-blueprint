@@ -523,8 +523,13 @@ export default function CalculatorContent(props) {
         current loan's setup (see the mirror effect in MortgageBlueprint). */}
     {(() => {
      const escrowLocked = loanType === "FHA" || loanType === "VA";
-     const Knob = ({ on, onClick, title }) => (
+     const Knob = ({ on, onClick, title, label }) => (
       <button
+       type="button"
+       role="switch"
+       aria-checked={!!on}
+       aria-label={label}
+       aria-disabled={escrowLocked || undefined}
        onClick={onClick}
        title={title}
        style={{ width: 44, height: 26, borderRadius: 13, border: "none", padding: 0, cursor: escrowLocked ? "not-allowed" : "pointer", background: on ? T.blue : T.inputBorder, position: "relative", transition: "background 0.2s", opacity: escrowLocked ? 0.6 : 1 }}
@@ -544,11 +549,11 @@ export default function CalculatorContent(props) {
         <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Insurance</span>
-          <Knob on={refiNewEscrowIns} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowIns ? "Insurance escrowed on the new loan" : "Insurance paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowIns(!refiNewEscrowIns); }} />
+          <Knob on={refiNewEscrowIns} label="Escrow insurance on the new loan" title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowIns ? "Insurance escrowed on the new loan" : "Insurance paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowIns(!refiNewEscrowIns); }} />
          </span>
          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Taxes</span>
-          <Knob on={refiNewEscrowTax} title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowTax ? "Taxes escrowed on the new loan" : "Taxes paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowTax(!refiNewEscrowTax); }} />
+          <Knob on={refiNewEscrowTax} label="Escrow taxes on the new loan" title={escrowLocked ? `${loanType} loans require escrow` : (refiNewEscrowTax ? "Taxes escrowed on the new loan" : "Taxes paid separately")} onClick={() => { if (!escrowLocked) setRefiNewEscrowTax(!refiNewEscrowTax); }} />
          </span>
         </div>
        </div>
@@ -559,7 +564,7 @@ export default function CalculatorContent(props) {
        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
         Include Escrow (Tax &amp; Ins)
        </span>
-       <Knob on={includeEscrow} title={escrowLocked ? `${loanType} loans require escrow: cannot be toggled off` : (includeEscrow ? "Escrow ON: Tax + Insurance included" : "Escrow OFF: Tax + Insurance shown separately")} onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }} />
+       <Knob on={includeEscrow} label="Include escrow (tax and insurance)" title={escrowLocked ? `${loanType} loans require escrow: cannot be toggled off` : (includeEscrow ? "Escrow ON: Tax + Insurance included" : "Escrow OFF: Tax + Insurance shown separately")} onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }} />
       </div>
      );
     })()}

@@ -5511,7 +5511,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {/* Toggle: Email */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>Email</div>
-              <button onClick={async () => {
+              <button type="button" role="switch" aria-checked={!!notifPrefs.email_enabled} aria-label="Email alerts" onClick={async () => {
                 const newVal = !notifPrefs.email_enabled;
                 setNotifPrefs(p => ({ ...p, email_enabled: newVal }));
                 await updateNotificationPreferences(playerId, { email_enabled: newVal });
@@ -5553,7 +5553,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {/* Toggle: SMS */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: T.text, fontFamily: FONT }}>SMS</div>
-              <button onClick={async () => {
+              <button type="button" role="switch" aria-checked={!!notifPrefs.sms_enabled} aria-label="SMS alerts" onClick={async () => {
                 const newVal = !notifPrefs.sms_enabled;
                 setNotifPrefs(p => ({ ...p, sms_enabled: newVal }));
                 await updateNotificationPreferences(playerId, { sms_enabled: newVal });
@@ -5601,7 +5601,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 )}
               </div>
               {pushSupported() ? (
-                <button onClick={async () => {
+                <button type="button" role="switch" aria-checked={!!notifPrefs.push_enabled} aria-label="Push notifications" onClick={async () => {
                   if (notifPrefs.push_enabled) {
                     setNotifPrefs(p => ({ ...p, push_enabled: false }));
                     await disablePush(playerId);

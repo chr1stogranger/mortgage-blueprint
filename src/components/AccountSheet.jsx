@@ -309,8 +309,11 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
                 </div>
               </div>
               <button
+                type="button"
+                role="switch"
+                aria-checked={!!syncEnabled}
                 onClick={() => setSyncEnabled(!syncEnabled)}
-                aria-label="Toggle cloud sync"
+                aria-label="Cloud sync"
                 style={{
                   width: 46, height: 26, borderRadius: 9999, border: 'none', cursor: 'pointer',
                   background: syncEnabled ? accent : (darkMode ? '#333' : '#D4D4D4'),

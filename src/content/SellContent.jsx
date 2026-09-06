@@ -133,7 +133,7 @@ export default function SellContent(props) {
    <div style={{ marginTop: 8 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0" }}>
      <span style={{ fontSize: 14, fontWeight: 500 }}>Primary Residence?</span>
-     <button onClick={() => setSellPrimaryRes(!sellPrimaryRes)} style={{ width: 50, height: 28, borderRadius: 14, border: "none", background: sellPrimaryRes ? T.green : T.ringTrack, cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
+     <button type="button" role="switch" aria-checked={!!sellPrimaryRes} aria-label="Primary residence" onClick={() => setSellPrimaryRes(!sellPrimaryRes)} style={{ width: 50, height: 28, borderRadius: 14, border: "none", background: sellPrimaryRes ? T.green : T.ringTrack, cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
       <div style={{ width: 22, height: 22, borderRadius: 11, background: "#fff", position: "absolute", top: 3, left: sellPrimaryRes ? 25 : 3, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
      </button>
     </div>
