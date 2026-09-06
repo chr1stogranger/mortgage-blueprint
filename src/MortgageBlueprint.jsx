@@ -9434,7 +9434,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 12 }}>
     <div>
      <div style={{ fontSize: 15, fontWeight: 600 }}>Animated background</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'} — blueprint house here, target in PricePoint, stock line in Markets</div>
+     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'}: blueprint house here, target in PricePoint, stock line in Markets</div>
     </div>
     <button onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} style={{ padding: "6px 14px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, background: bgPaused ? T.tabActiveBg : "transparent", color: T.text, cursor: "pointer" }}>{bgPaused ? 'Resume' : 'Pause'}</button>
    </div>
@@ -9442,11 +9442,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  </Sec>
  {!isBorrower && <Sec title="Loan Officer Info">
   <Card>
-   <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once — applies to all scenarios.</div>
+   <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once. Applies to all scenarios.</div>
    {!isBorrower && !isCloud && (
     <button onClick={() => rawAuth?.requestLogin?.()}
      style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 12, background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
-     Sign in as Loan Officer (Google) — unlocks clients, live links & Gmail send
+     Sign in as Loan Officer (Google) to unlock clients, live links and Gmail send
     </button>
    )}
    <Inp label="Loan Officer" value={loanOfficer} onChange={setLoanOfficer} prefix="" type="text" />
