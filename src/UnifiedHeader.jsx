@@ -265,6 +265,10 @@ export default function UnifiedHeader({
   // decision numbers are savings and walk-away cash; costs live in the
   // popovers and the Costs tab), and DTI (still in the pillars/badge).
   // PURCHASE: unchanged.
+  // No price yet: show placeholders instead of the fee-only defaults
+  // ("Cash Close $16K / Payment $250") that read like real numbers.
+  const noPrice = !(Number(salesPrice) > 0);
+  const orDash = (v) => (noPrice ? "--" : v);
   const statRow = isRefi ? (<>
     <Stat label="Value" value={fmt(salesPrice)} statKey="price" />
     <Stat label="Loan Amount" value={fmt(calc.refiNewLoanAmt || 0)} statKey="price" />
@@ -274,8 +278,8 @@ export default function UnifiedHeader({
   </>) : (<>
     <Stat label="Price" value={fmt(salesPrice)} statKey="price" />
     <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
-    <Stat label="Cash Close" value={fmt(calc.cashToClose)} color={T.green} statKey="cashclose" />
-    <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
+    <Stat label="Cash Close" value={orDash(fmt(calc.cashToClose))} color={T.green} statKey="cashclose" />
+    <Stat label="Payment" value={orDash(fmt(calc.displayPayment))} color={T.blue} statKey="payment" />
     {calc.qualifyingIncome > 0 && (
       <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
     )}
