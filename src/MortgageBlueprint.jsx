@@ -758,7 +758,7 @@ function Note({ children, color, strong }) {
  return <div style={{ background: tintOver(`${c}15`, T.cardGlass), borderRadius: 12, padding: "10px 14px", marginTop: 8 }}><span style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>{children}</span></div>;
 }
 function StatusPill({ ok, label }) {
- return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ok ? T.successBg : ok === null ? T.pillBg : T.errorBg, borderRadius: 99, padding: "3px 10px", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ok ? T.green : ok === null ? T.textTertiary : T.red }}>{ok ? "✓" : ok === null ? "—" : "✗"} {label}</span>;
+ return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ok ? T.successBg : ok === null ? T.pillBg : T.errorBg, borderRadius: 99, padding: "3px 10px", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ok ? T.green : ok === null ? T.textTertiary : T.red }}>{ok ? "✓" : ok === null ? "○" : "✗"} {label}</span>;
 }
 // ── CoBrandBar — dual-identity glass strip: LO always, referring realtor
 //    when present. One glass strip (chrome, so T.glass is correct), two
@@ -8382,10 +8382,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <Sec title="Qualification">
   <Card>
    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-    <StatusPill ok={calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false} label={`FICO ${creditScore || "—"}`} />
-    <StatusPill ok={calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false} label={`DTI ${calc.qualifyingIncome > 0 ? pct(calc.yourDTI, 1) : "—"}`} />
-    <StatusPill ok={calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false} label={`Cash ${calc.totalForClosing > 0 ? "✓" : "—"}`} />
-    <StatusPill ok={calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false} label={`Reserves ${calc.totalReserves > 0 ? "✓" : "—"}`} />
+    <StatusPill ok={calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false} label={creditScore ? `FICO ${creditScore}` : "FICO"} />
+    <StatusPill ok={calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false} label={calc.qualifyingIncome > 0 ? `DTI ${pct(calc.yourDTI, 1)}` : "DTI"} />
+    <StatusPill ok={calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false} label="Cash" />
+    <StatusPill ok={calc.resCheck === "Good!" ? true : calc.resCheck === "—" ? null : false} label="Reserves" />
    </div>
   </Card>
  </Sec>
