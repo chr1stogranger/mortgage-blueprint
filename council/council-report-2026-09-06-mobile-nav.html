@@ -1,0 +1,151 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Council Report: Mobile Bottom Tab Bar</title>
+<style>
+:root{--ink:#111827;--muted:#6B7280;--line:#E5E7EB;--accent:#3B6BF5;--bg:#fff}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:40px 22px 60px}
+h1{font-size:26px;margin:0 0 6px} h2{font-size:19px;margin:34px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)} h3{font-size:16px;margin:22px 0 8px}
+.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.q{background:#F9FAFB;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:16px 0 8px}
+.q p{margin:0 0 8px} .q p:last-child{margin:0}
+.verdict{border:2px solid var(--accent);border-radius:14px;padding:6px 22px 18px;margin-top:24px}
+.verdict h2{border:none;margin-top:22px;color:var(--accent)}
+.verdict h2:first-of-type{margin-top:14px}
+ul{padding-left:20px} li{margin:5px 0} code{background:#F3F4F6;padding:1px 5px;border-radius:5px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.pos{border:1px solid var(--line);border-radius:10px;padding:12px}
+.who{font-weight:600;font-size:13px} .stance{color:var(--accent);font-weight:600;font-size:13px;margin:4px 0} .why{font-size:12px;color:var(--muted)}
+details{border:1px solid var(--line);border-radius:10px;margin:10px 0;padding:0 16px}
+summary{cursor:pointer;padding:12px 0;font-weight:600;display:flex;align-items:center;gap:10px}
+.adv summary .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.adv{border-left:4px solid var(--c)}
+.body{padding:0 0 14px} .body p{margin:8px 0}
+footer{margin-top:44px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+@media(prefers-color-scheme:dark){:root{--ink:#EDEDED;--muted:#9CA3AF;--line:#2A2F3A;--bg:#0f1420} .q{background:#151b2b} code{background:#1f2637}}
+</style></head><body><main>
+<div class="kicker">LLM Council · 5 advisors · 5 peer reviews · chairman synthesis</div>
+<h1>Mobile nav: bottom tab bar vs. hamburger drawer</h1>
+<div class="q"><p><strong>Question:</strong> Should Mortgage Blueprint's mobile app drop the hamburger drawer for a 3–5 button bottom tab bar (X-style), given three products in one shell (Blueprint, PricePoint, Markets), 6–12 conditional page tabs, the Overview "Jump to" anchors, and the loan-scenario switcher? If yes, what should the buttons be and where does everything else go?</p></div>
+
+<div class="verdict"><h3>Where the Council Agrees</h3>
+<ul>
+<li><strong>Drop the hamburger drawer; add a bottom tab bar.</strong> Four of five advisors (Outsider, Executor, Expansionist, First Principles) said yes outright. The Contrarian said &quot;not yet,&quot; not &quot;no.&quot;</li>
+<li><strong>The bar is for pages only.</strong> First Principles named the real defect: the drawer stacks four orthogonal switchers (product, scenario, page, section) in one list. Every reviewer ranked this the strongest response. PricePoint already uses &quot;bar = pages&quot;; Blueprint should match that grammar, not invent a second one in the same shell.</li>
+<li><strong>Overview, Compare, Share are in the bar</strong> in every proposal that named buttons. Nobody put Team, Settings, or a conditional tab in it.</li>
+<li><strong>Jump-to anchors are not navigation.</strong> Outsider, First Principles, and Expansionist all said this is a symptom of an over-long Overview page.</li>
+<li><strong>Build one shared <code>MobileTabBar</code> mounted per <code>appMode</code>.</strong> Executor and Expansionist converged on lifting PricePoint&#x27;s existing bar; this settles the two-bar conflict structurally.</li>
+<li><strong>The sticky payment CTA, not PricePoint, is the real collision.</strong> Executor and Contrarian both flagged the reserved 90px padding.</li>
+</ul>
+<h3>Where the Council Clashes</h3>
+<p><strong>Ship via the old drawer vs. redesign first.</strong> Executor wants &quot;More&quot; to open the existing drawer and delete the hamburger — a one-day, reversible ship. Contrarian and the HIG reviewer call that the hamburger under a new name. Both are right: it is the anti-pattern <em>and</em> the correct first commit, because the only expensive decision is whether the bar exists. Resolution: do Executor&#x27;s step one, then migrate axes out of the drawer per First Principles.</p>
+<p><strong>Scenarios as a bar tab.</strong> Expansionist wants Scenarios first-class (&quot;what borrowers play with&quot;). Outsider, First Principles, and all five reviewers reject it: most borrowers have one scenario, so it&#x27;s a dead button; a scenario is context, not a destination. Reasonable people disagree because LOs really do switch scenarios constantly — but the header title-dropdown serves them just as fast without taxing borrowers.</p>
+<p><strong>Rename for borrowers.</strong> Outsider wants &quot;My Loan&quot; instead of &quot;Overview.&quot; The reversibility reviewer warns this breaks LO muscle memory. Minor; defer.</p>
+<h3>Blind Spots the Council Caught</h3>
+<ul>
+<li><strong>Guided flow.</strong> No advisor said what a fixed bar shows for a locked tab. HIG rule: tab bars must not have items that appear/disable. This needs a defined state before shipping.</li>
+<li><strong>LO client switcher.</strong> Every advisor waved it into &quot;More.&quot; Reviewers noted it&#x27;s the LO&#x27;s most frequent mobile action, and that <code>BorrowerPicker</code> already lives in the header — nobody mentioned that.</li>
+<li><strong>Header contention.</strong> First Principles&#x27; scenario dropdown and the LO BorrowerPicker both want the header title slot.</li>
+<li><strong>Keyboard occlusion.</strong> Blueprint is input-heavy (unlike PricePoint); a fixed bar rides the keyboard on Android and jitters on iOS.</li>
+<li><strong>Android hardware back</strong> under Capacitor: tab history vs. drawer close.</li>
+<li><strong>App Store screenshots</strong> must be regenerated by hand in Xcode.</li>
+<li><strong>Deep-link parity</strong>: share URLs must land on the right tab regardless of chrome.</li>
+</ul>
+<h3>The Recommendation</h3>
+<p><strong>(1) Yes — switch to a bottom tab bar.</strong> Lift PricePoint&#x27;s bar into a shared <code>src/components/MobileTabBar.jsx</code>, mount it in the shell keyed on <code>appMode</code>, and delete the hamburger from <code>UnifiedHeader</code>.</p>
+<p><strong>(2) Button set, four buttons plus More:</strong></p>
+<p><strong>Overview · Compare · Share · Learn · More</strong></p>
+<p>Homes for everything else:</p>
+<ul>
+<li><strong>Conditional Blueprint tabs</strong> (Refi Summary, 3-Point Test, REO, Seller Net, Investor, Rent vs Buy, Prop 19, Pipeline, Team, Settings): inside <strong>More</strong>, which is a half-height bottom sheet listing only the tabs that apply to this loan and this role. Conditional items never enter the bar itself, so the bar is identical for every user.</li>
+<li><strong>Jump-to anchors</strong>: removed from nav. Replace with a sticky section label at the top of Overview that opens a small section index on tap. Longer term, collapsible Overview sections make the index unnecessary.</li>
+<li><strong>Loan-scenario switcher</strong>: header title-dropdown, Mail-mailbox style (&quot;$1.5M purchase ▾&quot;). Renders as plain text with no chevron when the user has exactly one scenario. The per-scenario ⋮ actions live inside that dropdown.</li>
+<li><strong>Product switcher</strong> (Blueprint/PricePoint/Markets): tap the wordmark to open the existing RealStack umbrella drawer, which keeps the logo, product list, and theme toggle. That drawer stays; it just stops being page nav.</li>
+<li><strong>LO client picker</strong>: stays in the header as <code>BorrowerPicker</code> — it already exists there. Resolve header contention by ordering the title as <em>client → scenario</em> for LOs (client name is the title, scenario the subtitle-dropdown) and scenario-only for borrowers.</li>
+<li><strong>Guided-flow locked tabs</strong>: the bar always shows all five buttons. Tapping a locked one routes to the same gate the drawer uses today (unlock explainer), never a dead tap. No dimming, no reflow.</li>
+<li><strong>Sticky payment CTA</strong>: it sits <em>above</em> the tab bar as a single 44pt row, and it collapses on scroll-down / reappears on scroll-up. Total fixed chrome stays under ~100px when scrolling. Do not put the live payment number inside the tab bar.</li>
+</ul>
+<p>Also: hide the bar while any input has focus (fixes keyboard occlusion), map Android back to close sheets before navigating tabs, and plan to regenerate App Store screenshots in the same release.</p>
+<h3>The One Thing to Do First</h3>
+<p>Extract PricePoint&#x27;s bar into <code>MobileTabBar.jsx</code> with entries driven by <code>appMode</code>, mount it for Blueprint with Overview/Compare/Share/Learn/More where More opens the existing drawer, and delete the hamburger. Ship that, confirm on a real iPhone SE that the sticky CTA and bar don&#x27;t stack over 100px, then start moving scenarios to the header.</p></div>
+
+<h2>Where each advisor landed</h2>
+<div class="grid"><div class="pos"><div class="who">The Contrarian</div><div class="stance">Not yet</div><div class="why">Drawer does four jobs; "More" = hamburger renamed; measure the borrower's 2nd tap first</div></div><div class="pos"><div class="who">First Principles</div><div class="stance">Yes, pages only</div><div class="why">Four nav axes; bar = pages, scenario = header dropdown, product = wordmark, Jump-to = fix the page</div></div><div class="pos"><div class="who">The Expansionist</div><div class="stance">Yes, go big</div><div class="why">Shared BottomBar for all 3 products; Scenarios as a tab; payment number inside the bar</div></div><div class="pos"><div class="who">The Outsider</div><div class="stance">Yes, in plain words</div><div class="why">My Loan / Compare / Learn / Share; hide products; scenarios as a title dropdown</div></div><div class="pos"><div class="who">The Executor</div><div class="stance">Yes, ship Monday</div><div class="why">Lift PricePoint's bar; Overview/Compare/Share/Learn/More; More opens the old drawer</div></div></div>
+<p style="color:var(--muted);font-size:13px">Peer review ranked First Principles strongest in 4 of 5 reviews (Executor in the fifth) and named the Expansionist's plan the biggest blind spot in all 5.</p>
+
+<h2>Advisor responses</h2>
+
+<details class="adv" style="--c:#B91C1C"><summary><span class="dot"></span>The Contrarian</summary><div class="body"><p>The fatal flaw is hiding in item 2 of the drawer, not item 1. The hamburger isn&#x27;t the problem; the drawer is doing four jobs (product, scenario, page, section) and a tab bar can do exactly one. So &quot;drop the drawer&quot; is really &quot;keep the drawer, plus add a bar,&quot; and now mobile has two nav systems, two mental models, and the fold shrinks again on the exact screen he already fought to reclaim in May.</p>
+<p>Things being avoided:</p>
+<p><strong>The tab count is not 3–5. It&#x27;s 6–12, and it&#x27;s data-dependent.</strong> A refi LO with REO and Prop 19 sees a different app than a first-time borrower on a guided share link that unlocks tabs progressively. A fixed bar either lies (shows tabs that are locked/hidden) or reflows per user, which kills the one thing tab bars are for: muscle memory. &quot;More&quot; as the 5th button is just the hamburger with a worse name.</p>
+<p><strong>PricePoint already owns the bottom edge.</strong> Same shell, same root. Blueprint adding its own bar means the product switch animates one bar out and another in, or both render for a frame. Nobody has specified that transition and it&#x27;s where the bug will live.</p>
+<p><strong>That 90px paddingBottom is reserved for the sticky payment/CTA.</strong> The thing borrowers actually convert on. Stacking a tab bar under it means ~140px of fixed chrome on a 667px iPhone SE, over an animated canvas. That&#x27;s a screenshot he&#x27;ll hate in the App Store listing.</p>
+<p><strong>Scenarios have a ⋮ menu each.</strong> Where does that go? A bar can&#x27;t host contextual menus. If the answer is &quot;it stays in the drawer,&quot; you&#x27;ve proven the drawer can&#x27;t be dropped.</p>
+<p>Question to answer before touching code: what&#x27;s the borrower&#x27;s <em>second</em> tap on a shared link? If it&#x27;s Compare or Share, put those two in the existing sticky bottom row and leave nav alone. If nobody knows, you have no data, and a rewrite of a 9,800-line file&#x27;s nav is the wrong first move.</p></div></details>
+<details class="adv" style="--c:#1D4ED8"><summary><span class="dot"></span>The First Principles Thinker</summary><div class="body"><p>The question &quot;hamburger vs. bottom tabs&quot; is a container question. Strip it back: what is a person on a phone actually trying to do in Blueprint, and how many <em>kinds</em> of navigation does the app force on them?</p>
+<p>Count them. The drawer holds four orthogonal switchers stacked in one list: <strong>product</strong> (Blueprint/PricePoint/Markets), <strong>scenario</strong> (which loan), <strong>page</strong> (Overview/Compare/Share…), and <strong>section</strong> (Jump-to anchors). Those are different axes with different frequencies, and jamming them into one scrolling menu is the real problem. A bottom bar doesn&#x27;t fix a four-axis nav; it just relocates one axis and leaves the other three homeless. That&#x27;s how you end up with a tab bar <em>plus</em> a hamburger <em>plus</em> a scenario picker — worse than today.</p>
+<p>So the first-principles move is to assign each axis its own home based on frequency:</p>
+<ul>
+<li><strong>Section (Jump-to)</strong> — most frequent, but it&#x27;s not navigation at all. It&#x27;s a symptom of an Overview page too long to scroll. Fix the page (collapsible sections, a sticky mini-index) and the axis disappears.</li>
+<li><strong>Page</strong> — moderate frequency, bounded set. This is the only thing that belongs in a bottom bar, and only for 4–5 pages a borrower actually uses: Overview, Compare, Share, and a &quot;More&quot; that absorbs the conditional tabs.</li>
+<li><strong>Scenario</strong> — infrequent but high-stakes. It&#x27;s context, not navigation. It belongs in the header as a title-dropdown (&quot;Loan – $1.5m ▾&quot;), the way Mail shows the mailbox name.</li>
+<li><strong>Product</strong> — rarest. A borrower on a share link never switches products. Bury it: wordmark tap, or the RealStack drawer only.</li>
+</ul>
+<p>Note PricePoint already answered this correctly for itself: bottom bar = pages. Match it; don&#x27;t invent a second grammar in the same shell.</p>
+<p>The wrong question is &quot;which chrome.&quot; The right one is &quot;why does one screen need four switchers?&quot;</p></div></details>
+<details class="adv" style="--c:#7C3AED"><summary><span class="dot"></span>The Expansionist</summary><div class="body"><p>Yes, go bottom bar — and the upside everyone&#x27;s about to undercount is that this isn&#x27;t a Blueprint nav decision, it&#x27;s the moment RealStack becomes one app instead of three products sharing a shell.</p>
+<p>PricePoint already has a glass bottom bar. That&#x27;s not a conflict, it&#x27;s a template. Build ONE shared <code>BottomBar</code> component driven by <code>appMode</code>, and suddenly every product gets native-feeling nav for free, Markets included. The App Store screenshots stop looking like a calculator and start looking like a platform. That&#x27;s the bigger prize.</p>
+<p>The tab set that unlocks the most: <strong>Overview · Compare · Share · Scenarios · More</strong>. Scenarios as a first-class tab is the sleeper. Today scenarios are buried in a drawer; as a bottom tab they become the thing borrowers <em>play with</em> — &quot;what if I put 20% down&quot; is one tap, and every scenario a borrower creates is engagement data for Christo and a reason to reopen the app. Share as a permanent tab turns every mobile session into a referral surface. That&#x27;s conversion, not chrome.</p>
+<p>&quot;More&quot; is the overflow — a half-height bottom sheet (not a drawer) holding the conditional tabs, the product switcher, and the LO client picker. Bottom sheets feel native; drawers feel like 2015.</p>
+<p>The &quot;Jump to&quot; anchors shouldn&#x27;t be nav at all. Make them a tap-to-expand pill on the bottom bar&#x27;s Overview tab (tap again while active → section index pops up). That&#x27;s a pattern X and Instagram use — re-tap the active tab for a secondary action.</p>
+<p>And the 90px reserved padding that &quot;historically&quot; held a sticky payment summary? Put the live monthly payment <em>inside</em> the bottom bar — a number that updates as they scroll. The bar becomes the product&#x27;s heartbeat, not just navigation. Do that and the mobile app is the demo, not the desktop.</p></div></details>
+<details class="adv" style="--c:#B45309"><summary><span class="dot"></span>The Outsider</summary><div class="body"><p>I tapped a link my loan officer texted me. Here is what I see and think.</p>
+<p>The drawer today shows me, in order: a theme toggle, a logo for a company I&#x27;ve never heard of (&quot;RealStack&quot;), three product names (&quot;Blueprint / PricePoint / Markets&quot; — a guessing game? stocks? I came here for my house), a list of &quot;scenarios&quot; with names like &quot;Loan - $1.500m - buy now&quot; that I didn&#x27;t write, then Overview / Compare / Learn / Team / Share / Settings, then a &quot;Jump to&quot; list of nine more things. That&#x27;s forty-plus tappable words before I find &quot;Monthly Payment,&quot; which is the only number I care about.</p>
+<p>So yes, drop the drawer. But the real problem isn&#x27;t hamburger-vs-tabs. It&#x27;s that the nav is built for the person who built it. A bottom bar helps only if the buttons are words I already know.</p>
+<p>Bottom bar, four buttons, in my language:</p>
+<ul>
+<li><strong>My Loan</strong> (the Overview page)</li>
+<li><strong>Compare</strong> (I understand comparing two loans)</li>
+<li><strong>Learn</strong></li>
+<li><strong>Share</strong> (I want to send this to my partner)</li>
+</ul>
+<p>Not &quot;Scenarios.&quot; Not &quot;Team.&quot; Not &quot;Settings.&quot; Not &quot;Blueprint.&quot;</p>
+<p>Everything else:</p>
+<ul>
+<li><strong>Scenarios</strong>: don&#x27;t call them that. Show it as a title at the top of My Loan: &quot;$1.5M purchase ▾&quot; and let me tap it to see the other one or two. If I only have one, show nothing.</li>
+<li><strong>Product switcher</strong>: hide it from me completely. I never asked for a game or stock charts. If the loan officer wants those, put them under his own avatar.</li>
+<li><strong>Jump to</strong>: this is scrolling. A sticky section label as I scroll is fine; a menu of nine anchors is not.</li>
+<li><strong>Refi / REO / Investor / Prop 19</strong>: only show them if they apply to me, and put them inside My Loan, not in the bar.</li>
+</ul>
+<p>One test: if I&#x27;d need a loan officer to explain a button, it shouldn&#x27;t be in the bar.</p></div></details>
+<details class="adv" style="--c:#047857"><summary><span class="dot"></span>The Executor</summary><div class="body"><p>Yes, do it — but the fastest path is not &quot;design a nav system,&quot; it&#x27;s copy-paste PricePoint&#x27;s bar. <code>src/PricePoint.jsx</code> ~line 5300 already has the exact thing: <code>position: fixed; bottom: 0; zIndex: 100; T.card + blur(20px); paddingBottom: env(safe-area-inset-bottom)</code>, five <code>{id,label,icon}</code> entries, <code>maxWidth: 480</code>. Lift that block into <code>src/components/MobileTabBar.jsx</code>, have PricePoint import it, and render it in <code>MortgageBlueprint.jsx</code> when <code>!isDesktop &amp;&amp; appMode === &quot;blueprint&quot;</code>. One component, one shell, so the two-bars conflict is settled by construction: each <code>appMode</code> mounts its own entry list, never both.</p>
+<p>Monday morning, in order:</p>
+<p>1. Extract the bar (1 hour). Blueprint entries: <strong>Overview, Compare, Share, Learn, More</strong>. <code>tab</code> state and <code>setTab</code> already exist; the first four buttons are <code>setTab(&quot;overview&quot;)</code> etc. — nothing new to wire.</p>
+<p>2. <strong>More</strong> opens the existing drawer. Don&#x27;t rewrite 350 lines at 7290–7640; just move its trigger from the hamburger to the fifth button and delete the hamburger from <code>UnifiedHeader</code>. Scenarios, product switcher, conditional tabs (Refi, REO, Investor…), the LO client picker — all still live there, one tap away, zero regressions.</p>
+<p>3. Padding is already paid for: <code>paddingBottom: calc(90px + safe-area-inset-bottom)</code> at line 7675 exists. Check whether the old sticky payment summary still renders; if it does, that&#x27;s the real collision, not PricePoint.</p>
+<p>4. Jump-to anchors: leave them in the drawer for v1. Second-tap problem later, after telemetry says anyone uses them.</p>
+<p>Ship that, verify on blueprint.realstack.app with the cache-buster reload, done in a day. The &quot;what should the five buttons be&quot; debate can run for a week; the only decision that costs anything to reverse is whether the bar exists, and reusing PricePoint&#x27;s makes it near-free.</p></div></details>
+
+<h2>Peer review round</h2>
+<details><summary>All five reviews (anonymized A–E, mapping revealed)</summary><div class="body"><p><strong>Review 1 (general):</strong></p>
+<p>1. Strongest: E. It names the actual problem (four orthogonal nav axes stacked in one list), assigns each a home by frequency, and lands on a concrete answer that matches PricePoint&#x27;s existing grammar (bottom bar = pages only; scenario = header title-dropdown; product = wordmark; Jump-to = fix the page). A gets the borrower-language insight right but is a subset of E&#x27;s structure.</p>
+<p>2. Biggest blind spot: D. Putting the live monthly payment inside the tab bar and making Scenarios a first-class tab ignores that borrowers rarely switch scenarios, that a re-tap-active-tab gesture is undiscoverable, and that a &quot;shared BottomBar for every product&quot; is a platform rewrite dressed as a nav tweak. It also never addresses the 90px sticky-CTA collision C flags. B is close behind: &quot;More opens the existing drawer&quot; ships the hamburger under a new label, which C correctly calls out.</p>
+<p>3. All five missed: Guided flow (borrowers on share links may have tabs locked progressively; nobody said what a bottom bar shows for a locked tab). LO client switching (BorrowerPicker/SidebarSwitcher) hand-waved into &quot;More&quot; by everyone; for the power user it&#x27;s the most frequent action. Sticky CTA vs. tab bar is a binary conflict; only C raised it and no one resolved it.</p>
+<p><strong>Review 2 (skeptic):</strong></p>
+<p>1. Strongest: E. Only response that names the actual problem — four orthogonal switchers in one list — and assigns each a home by frequency while matching PricePoint&#x27;s &quot;bar = pages&quot; grammar. B is the best execution plan, but B&#x27;s &quot;More&quot; just relocates the hamburger; it works only as step one of E&#x27;s design.</p>
+<p>2. Biggest blind spot: D. Five tabs plus a live payment number in a 375px bar, a re-tap gesture nobody discovers, and &quot;Scenarios&quot; as a first-class tab when most borrowers have one scenario. A is a close second: it designs for borrowers only and hides the product switcher, breaking the explicit &quot;everyone gets the same view&quot; decision and stranding LOs.</p>
+<p>3. All five missed: Keyboard occlusion (Blueprint is input-heavy, unlike PricePoint; a fixed bar rides up over the keyboard on Android and jitters on iOS). Header contention (E&#x27;s scenario dropdown and the LO BorrowerPicker both want the header title slot). Android hardware back + Capacitor (drawer-close vs tab history is native-release behavior).</p>
+<p><strong>Review 3 (achievable/reversible):</strong></p>
+<p>1. Strongest: B. Only response with a reversible path: lift PricePoint&#x27;s bar into a shared MobileTabBar, mount per appMode (settles the two-bar conflict structurally), point &quot;More&quot; at the existing drawer, delete the hamburger. Zero new state, one-day ship, and B correctly flags the real collision risk: the sticky payment CTA, not PricePoint. E supplies the better mental model and B&#x27;s plan is compatible with it; do B first, then migrate scenarios to the header title-dropdown per E.</p>
+<p>2. Biggest blind spot: D. Everything in it is a new build, none reversible, none reuses code, and &quot;Scenarios as a tab&quot; contradicts the fact that borrowers typically have 1 scenario. A adds a rename campaign that breaks LO muscle memory; C argues for paralysis.</p>
+<p>3. All five missed: the tab bar&#x27;s active state must survive the Guided flow (locked tabs dimmed, hidden, or trigger unlock?). Capacitor keyboard behavior with a form-heavy Overview. App Store screenshot regeneration, which Christo must do by hand in Xcode.</p>
+<p><strong>Review 4 (end users: borrower + LO):</strong></p>
+<p>1. Strongest: E. Only response that gives both audiences a coherent home for every nav axis — pages in the bar, scenario as header title-dropdown (LOs still switch fast, borrowers with one scenario see nothing), product buried, Jump-to solved by fixing the page. A converges on the same answer from the borrower&#x27;s seat and is the best gut-check; B is the pragmatic ship path and should be the implementation of E, not a competitor.</p>
+<p>2. Biggest blind spot: D. Live payment inside the bar and &quot;re-tap Overview for the section index&quot; are invisible affordances for a first-time borrower and collide with the fold C warns about. Elevates Scenarios to a tab for borrowers who have one — a button that does nothing.</p>
+<p>3. All five missed: the Guided flow (locked tabs in a fixed bar either show dead buttons or reflow). The LO client switcher — the busiest LO action on mobile — waved into &quot;More&quot; by everyone; the header BorrowerPicker already exists and nobody said so. Desktop-to-mobile URL parity: deep links from shares must land on the right tab regardless of chrome.</p>
+<p><strong>Review 5 (senior mobile designer / HIG):</strong></p>
+<p>1. Strongest: E. Gets the taxonomy right in HIG terms: a tab bar is for peer top-level pages; product/scenario/section are different axes. Its assignments are the canonical patterns (scenario as header title-dropdown like Mail&#x27;s mailbox; product under the wordmark; Jump-to solved by fixing the page) and align with PricePoint&#x27;s &quot;bar = pages&quot; grammar. B is a close second for execution realism, but its &quot;More opens the old drawer&quot; is the anti-pattern C names.</p>
+<p>2. Biggest blind spot: D. Scenarios in the bar violates tab-bar semantics (a context switch, not a destination); &quot;re-tap active tab&quot; is a discoverability trap Apple reserves for scroll-to-top; a live payment number inside the bar collides with 44pt touch targets and the 90px CTA.</p>
+<p>3. All five missed: (a) Guided-flow gating: tab bars must not have disabled/appearing items, so borrowers in progressive unlock need a defined bar state. (b) Per-tab state retention: does switching tabs preserve scroll/section? (c) iOS 18+ adaptive tab bar guidance, and the sticky CTA&#x27;s z-order/keyboard-avoidance with a fixed bar. (d) LO client picker relocation.</p></div></details>
+
+<footer>Counciled 2026-09-06 · Mortgage Blueprint mobile navigation · Full transcript: council/council-transcript-2026-09-06-mobile-nav.md</footer>
+</main></body></html>

@@ -1,4 +1,4 @@
-import { FONT } from "./lib/fonts.js";
+import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
@@ -57,6 +57,9 @@ export default function UnifiedHeader({
   tab, tabLabel,
   /* Mobile tab bar */
   mobileTabBar,
+  /* Mobile scenario dropdown (2026-09-06) — rename/duplicate/remove/create */
+  scenarioActions = null,
+  canEditScenarios = false,
 }) {
   // ── Format helpers ──
   const fmt = (v) => {
@@ -285,6 +288,33 @@ export default function UnifiedHeader({
     )}
   </>);
 
+  // LO-only "Share Link" pill. Desktop: row 1 after the breadcrumb. Mobile:
+  // row 2, right of the scenario pill (2026-09-06).
+  const shareLinkPill = (isCloud && !isBorrower && activeBorrower?.share_token) ? (
+
+            <button
+              onClick={() => {
+                const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  const btn = document.getElementById('bp-copy-share-btn');
+                  if (btn) { const t = btn.querySelector('span'); if (t) { t.textContent = 'Copied!'; setTimeout(() => { t.textContent = 'Share Link'; }, 2000); } }
+                }).catch(() => { prompt('Copy this share link:', url); });
+              }}
+              id="bp-copy-share-btn"
+              style={{
+                fontSize: 10, fontWeight: 600, color: '#3B6BF5',
+                background: 'rgba(59,107,245,0.08)',
+                border: '1px solid rgba(59,107,245,0.2)',
+                borderRadius: 9999, padding: '3px 9px',
+                cursor: 'pointer', fontFamily: FONT, marginLeft: 6,
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+              }}
+            >
+              <Icon name="link" size={11} />
+              <span>Share Link</span>
+            </button>
+  ) : null;
+
   // Publish the header's real rendered height as a CSS var so the content
   // spacer in MortgageBlueprint can match it exactly. The mobile stats strip
   // is content-sized (label + value + padding + safe-area), so a hard-coded
@@ -339,42 +369,30 @@ export default function UnifiedHeader({
       }}>
         {/* Left: Hamburger (mobile) + Logo + Sync */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: isDesktop ? 0 : 1, minWidth: 0, zIndex: 1 }}>
-          {/* Mobile hamburger — opens the RealStack shell drawer with
-              product switcher (Blueprint / PricePoint / Markets), tab nav,
-              scenarios, and settings. Desktop uses the persistent sidebar
-              instead so we don't render the hamburger there. */}
-          {!isDesktop && onOpenMobileMenu && (
-            <button
-              onClick={onOpenMobileMenu}
-              title="Open menu"
-              aria-label="Open menu"
-              aria-expanded={mobileMenuOpen}
-              aria-haspopup="dialog"
-              style={{
-                background: "transparent", border: "none",
-                width: 28, height: 28, padding: 0, cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: T.text, flexShrink: 0,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-          )}
           {/* Blueprint wordmark + tab breadcrumb. When the user is on the
               Overview tab the wordmark stands alone. On any other tab a
               subtle separator and the tab label appear after it
               ('Blueprint · Costs'), so the user always knows where they
               are even with the horizontal tab strip removed. */}
-          <span style={{
-            fontSize: isDesktop ? 16 : 14, fontWeight: 800,
-            letterSpacing: "-0.03em", color: T.text,
-            whiteSpace: "nowrap",
-          }}>{isDesktop ? "Mortgage Blueprint" : "Blueprint"}</span>
-          {clientLabel && clientLabel.trim() && (
+          {isDesktop ? (
+            <span style={{
+              fontSize: 16, fontWeight: 800,
+              letterSpacing: "-0.03em", color: T.text,
+              whiteSpace: "nowrap",
+            }}>Mortgage Blueprint</span>
+          ) : (
+            /* Mobile (2026-09-06): the hamburger is gone. Tapping the wordmark
+               opens the RealStack shell drawer (product switcher + theme + LO
+               client list). The "powered by" badge appears once per surface —
+               here, as the MONO microline under the wordmark. */
+            <button type="button" onClick={onOpenMobileMenu} aria-label="Open RealStack menu"
+              aria-expanded={mobileMenuOpen} aria-haspopup="dialog"
+              style={{ background: "transparent", border: "none", padding: 0, margin: 0, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 2, minHeight: 36, justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: T.text, whiteSpace: "nowrap", lineHeight: 1, fontFamily: FONT }}>Blueprint</span>
+              <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, lineHeight: 1, whiteSpace: "nowrap" }}>Powered by RealStack</span>
+            </button>
+          )}
+          {isDesktop && clientLabel && clientLabel.trim() && (
             <>
               <span style={{
                 fontSize: isDesktop ? 14 : 12, color: T.textTertiary,
@@ -394,29 +412,7 @@ export default function UnifiedHeader({
               already shows where you are. Its slot now holds the Share Link
               button, which used to live on its own header row; folding it in
               here makes the fixed header one row shorter. */}
-          {isCloud && !isBorrower && activeBorrower?.share_token && (
-            <button
-              onClick={() => {
-                const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  const btn = document.getElementById('bp-copy-share-btn');
-                  if (btn) { const t = btn.querySelector('span'); if (t) { t.textContent = 'Copied!'; setTimeout(() => { t.textContent = 'Share Link'; }, 2000); } }
-                }).catch(() => { prompt('Copy this share link:', url); });
-              }}
-              id="bp-copy-share-btn"
-              style={{
-                fontSize: 10, fontWeight: 600, color: '#3B6BF5',
-                background: 'rgba(59,107,245,0.08)',
-                border: '1px solid rgba(59,107,245,0.2)',
-                borderRadius: 9999, padding: '3px 9px',
-                cursor: 'pointer', fontFamily: FONT, marginLeft: 6,
-                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
-              }}
-            >
-              <Icon name="link" size={11} />
-              <span>Share Link</span>
-            </button>
-          )}
+          {isDesktop && shareLinkPill}
           {/* Sync indicators — hidden on mobile to avoid visual overlap with centered badge */}
           {isDesktop && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -502,6 +498,20 @@ export default function UnifiedHeader({
           {auth?.userPill}
         </div>
       </div>
+
+      {/* ── Mobile row 1b — scenario title-dropdown + LO Share Link (2026-09-06).
+          The scenario is CONTEXT, not a page: it lives in the header like the
+          mailbox name in Mail, not in the drawer or the tab bar. ── */}
+      {!isDesktop && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px 8px", minWidth: 0 }}>
+          <ScenarioPill
+            T={T} scenarioName={scenarioName} scenarioList={scenarioList || []}
+            clientLabel={(!isBorrower && activeBorrower && (activeBorrower.name || "").trim()) ? activeBorrower.name.trim() : ""}
+            switchScenario={switchScenario} actions={scenarioActions} canEdit={!!canEditScenarios}
+          />
+          {shareLinkPill && <div style={{ marginLeft: "auto", flexShrink: 0, display: "flex" }}>{shareLinkPill}</div>}
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════
           ROW 2 — Stats Dashboard
@@ -592,5 +602,119 @@ export default function UnifiedHeader({
       {/* ── Mobile tab bar ── */}
       {mobileTabBar}
     </div>
+  );
+}
+
+/**
+ * ScenarioPill — mobile header scenario switcher (2026-09-06).
+ *
+ * Renders as plain text (no chevron, no tap) for a borrower with a single
+ * scenario. Otherwise a glass pill that opens a portal dropdown listing every
+ * scenario, with a per-row kebab revealing Rename / Duplicate / Delete inline,
+ * and a "+ New scenario" footer. Mirrors the desktop sidebar's scnMenu.
+ */
+function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenario, actions, canEdit }) {
+  const [open, setOpen] = useState(false);
+  const [menuFor, setMenuFor] = useState(null);      // scenario name with the action strip open
+  const [editing, setEditing] = useState(null);      // scenario name being renamed
+  const [editValue, setEditValue] = useState("");
+  const [rect, setRect] = useState(null);
+  const btnRef = useRef(null);
+  const interactive = scenarioList.length > 1 || canEdit;
+  const label = clientLabel ? `${clientLabel} · ${scenarioName || "Scenario 1"}` : (scenarioName || "Scenario 1");
+  const openMenu = () => {
+    if (!interactive) return;
+    if (btnRef.current) setRect(btnRef.current.getBoundingClientRect());
+    setMenuFor(null); setEditing(null);
+    setOpen(true);
+  };
+  const close = () => { setOpen(false); setMenuFor(null); setEditing(null); };
+  const nextName = () => { let n = scenarioList.length + 1; while (scenarioList.includes(`Scenario ${n}`)) n++; return `Scenario ${n}`; };
+  const pillStyle = {
+    display: "flex", alignItems: "center", gap: 6, minHeight: 32, maxWidth: 250, minWidth: 0,
+    padding: "6px 12px 6px 10px", borderRadius: 9999, boxSizing: "border-box",
+    background: open ? "rgba(59,107,245,0.15)" : (T.glass || T.pillBg),
+    border: `1px solid ${open ? (T.blue || "#3B6BF5") : (T.glassBorder || T.separator)}`,
+    color: T.text, fontFamily: FONT, cursor: interactive ? "pointer" : "default",
+    WebkitTapHighlightColor: "transparent",
+  };
+  const nameSpan = <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{label}</span>;
+  return (
+    <>
+      {interactive ? (
+        <button ref={btnRef} type="button" onClick={open ? close : openMenu} aria-haspopup="listbox" aria-expanded={open} aria-label="Switch scenario" style={pillStyle}>
+          <Icon name="copy" size={13} color={T.blue} />
+          {nameSpan}
+          <Icon name={open ? "chevron-up" : "chevron-down"} size={14} color={T.textSecondary} />
+        </button>
+      ) : (
+        <div style={pillStyle}><Icon name="copy" size={13} color={T.blue} />{nameSpan}</div>
+      )}
+      {open && rect && typeof document !== "undefined" && createPortal(
+        <>
+          <div onClick={close} onWheel={close} style={{ position: "fixed", inset: 0, zIndex: 99998 }} />
+          <div role="listbox" style={{ position: "fixed", left: 12, right: 12, top: rect.bottom + 6, maxHeight: "calc(100vh - 160px)", overflowY: "auto", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.38)", zIndex: 99999, fontFamily: FONT }}>
+            <div style={{ display: "flex", alignItems: "center", padding: "6px 12px 8px" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, color: T.textTertiary }}>Scenarios</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 500, color: T.textTertiary }}>{scenarioList.length}</span>
+            </div>
+            {scenarioList.map((name) => {
+              const active = name === scenarioName;
+              const isEditing = editing === name;
+              const strip = menuFor === name && !isEditing;
+              return (
+                <div key={name}>
+                  <div role="option" aria-selected={active}
+                    onClick={() => { if (isEditing) return; if (!active) switchScenario && switchScenario(name); close(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 4px 0 12px", minHeight: 46, borderRadius: 10, cursor: isEditing ? "default" : "pointer",
+                      background: active ? T.tabActiveBg : "transparent", borderLeft: `3px solid ${active ? (T.blue || "#3B6BF5") : "transparent"}` }}>
+                    <Icon name="copy" size={15} color={active ? T.blue : T.textSecondary} />
+                    {isEditing ? (
+                      <input value={editValue} autoFocus onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { const v = editValue.trim(); if (v && v !== name) actions?.rename?.(name, v); setEditing(null); } if (e.key === "Escape") setEditing(null); }}
+                        onBlur={() => { const v = editValue.trim(); if (v && v !== name) actions?.rename?.(name, v); setEditing(null); }}
+                        style={{ flex: 1, minWidth: 0, background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 6, padding: "4px 6px", fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none" }} />
+                    ) : (
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+                    )}
+                    {canEdit && !isEditing && (
+                      <button type="button" aria-label={`Options for ${name}`} onClick={(e) => { e.stopPropagation(); setMenuFor(strip ? null : name); }}
+                        style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", borderRadius: 8, cursor: "pointer", color: strip ? T.blue : T.textSecondary, padding: 0, flexShrink: 0 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+                      </button>
+                    )}
+                  </div>
+                  {strip && (
+                    <div style={{ display: "flex", gap: 6, padding: "4px 8px 8px 40px" }}>
+                      {[
+                        ["Rename", "edit", () => { setEditing(name); setEditValue(name); setMenuFor(null); }],
+                        ["Duplicate", "copy", () => { actions?.duplicate?.(name); close(); }],
+                        ...(scenarioList.length > 1 ? [["Delete", "trash", () => { actions?.remove?.(name); close(); }]] : []),
+                      ].map(([l, ico, fn]) => (
+                        <button key={l} type="button" onClick={(e) => { e.stopPropagation(); fn(); }}
+                          style={{ display: "flex", alignItems: "center", gap: 5, minHeight: 36, padding: "0 12px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: T.pillBg, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: l === "Delete" ? T.red : T.text }}>
+                          <Icon name={ico} size={13} color={l === "Delete" ? T.red : T.textSecondary} />{l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {canEdit && actions?.create && (
+              <>
+                <div style={{ height: 1, background: T.separator, margin: "6px 8px" }} />
+                <button type="button" onClick={() => { actions.create(nextName()); close(); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", minHeight: 44, padding: "0 12px", background: "transparent", border: "none", borderRadius: 10, cursor: "pointer", color: T.blue, fontSize: 13, fontWeight: 600, fontFamily: FONT, textAlign: "left" }}>
+                  <Icon name="plus" size={15} />New scenario
+                </button>
+              </>
+            )}
+          </div>
+        </>,
+        document.body
+      )}
+    </>
   );
 }

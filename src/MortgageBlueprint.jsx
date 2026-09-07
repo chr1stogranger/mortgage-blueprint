@@ -19,6 +19,9 @@ import { normalizeArivePrefill } from "./lib/arivePrefill.js";
 import { useBlueprintAuth } from "./BlueprintAuth";
 import { DEFAULT_APPLY_URL, getApplyUrl, applyHref } from "./lib/applyUrl.js";
 import Icon from "./Icon";
+import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT, useKeyboardOpen } from "./components/MobileTabBar.jsx";
+import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
 import { apiUrl, WEB_ORIGIN } from "./apiBase";
 // ── Self-healing lazy loader (stale-deploy recovery) ──
 // After a new Vercel deploy, the old hashed chunk (e.g. PricePoint-DAN2Y8cR.js)
@@ -1290,6 +1293,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // the hamburger button in UnifiedHeader is tapped. Replaces the killed
  // Blueprint|PricePoint segmented pill row (2026-05-03).
  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+ // Mobile bottom tab bar (2026-09-06, council verdict) — "More" sheet, the
+ // Overview "On this page" section sheet, the sticky payment pill's
+ // scroll-hide state, and the scroll-spied Overview section for its label.
+ const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+ const [sectionSheetOpen, setSectionSheetOpen] = useState(false);
+ const [stickyPillHidden, setStickyPillHidden] = useState(false);
+ const [currentSectionId, setCurrentSectionId] = useState("overview-setup");
+ const keyboardOpen = useKeyboardOpen();
  // ── iOS Safe Area: ensure viewport-fit=cover ──
  useEffect(() => {
   const meta = document.querySelector('meta[name="viewport"]');
@@ -6983,6 +6994,33 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Core destinations that stay PINNED above the section index. These are real
  // tab switches (not in-page scrolls), in the order Christo specified.
  const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
+ // ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
+ // Five fixed slots, identical for every user and flow (no reflow, no dead
+ // buttons). Everything else in TABS lives behind "More". Shared with the
+ // desktop drawer's icon map so the More sheet and sidebar agree.
+ const NAV_ICONS = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
+ const BAR_TAB_KEYS = ["overview", "compare", "summary", "learn"];
+ const MOBILE_BAR_ITEMS = [
+  { id: "overview", label: "Overview", icon: "home" },
+  { id: "compare",  label: "Compare",  icon: "bar-chart" },
+  { id: "summary",  label: "Share",    icon: "share" },
+  { id: "learn",    label: "Learn",    icon: "graduation-cap" },
+  { id: "more",     label: "More",     icon: "more-horizontal" },
+ ];
+ // Tabs where the sticky payment pill makes sense (numbers pages only).
+ const STICKY_PILL_TABS = ["overview", "compare", "refi", "refi3", "invest", "rentvbuy", "sell", "reo", "prop19"];
+ const moreSheetTabs = TABS.filter(([k]) => !BAR_TAB_KEYS.includes(k) && k !== "workspace");
+ // Bar / sheet tab switch — same body as the drawer's renderTabItem click.
+ // Re-tapping the active Overview tab scrolls to top (the one sanctioned
+ // re-tap gesture). Locked tabs (guided flow) are a no-op, as in the drawer.
+ const goTab = (k) => {
+  if (!isTabUnlocked(k)) return;
+  setMoreSheetOpen(false); setSectionSheetOpen(false); setMobileMenuOpen(false);
+  if (k === tab) { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); } return; }
+  setTab(k);
+  const mc = document.querySelector('.bp-main-content'); if (mc) mc.scrollTop = 0;
+  try { window.scrollTo({ top: 0 }); } catch (e) {}
+ };
  // Jump to an Overview section: make sure we're on the Overview tab, then scroll
  // the section into view. Polls briefly because OverviewTab is lazy-loaded and
  // may not be mounted on the same frame we switch tabs. scroll-margin-top (CSS,
@@ -6997,6 +7035,60 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (tab !== "overview") { setTab("overview"); setTimeout(() => tryScroll(10), 90); }
   else tryScroll(10);
  };
+ // ── Mobile chrome effects (2026-09-06) ──
+ // Sticky payment pill: hide on scroll-down, show on scroll-up, always shown
+ // near the top. 8px hysteresis so momentum jitter doesn't flicker it.
+ React.useEffect(() => {
+  if (isDesktop || appMode !== "blueprint") { setStickyPillHidden(false); return; }
+  let last = window.scrollY || 0, ticking = false;
+  const onScroll = () => {
+   if (ticking) return; ticking = true;
+   requestAnimationFrame(() => {
+    const y = window.scrollY || 0;
+    if (y < 80) setStickyPillHidden(false);
+    else if (y - last > 8) setStickyPillHidden(true);
+    else if (last - y > 8) setStickyPillHidden(false);
+    last = y; ticking = false;
+   });
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+ }, [isDesktop, appMode]);
+ // Overview scroll-spy for the "On this page" pill label: the last section
+ // whose top has scrolled up to (or past) the header bottom is "current".
+ const overviewSectionKey = OVERVIEW_SECTIONS.map((x) => x.id).join(",");
+ React.useEffect(() => {
+  if (isDesktop || appMode !== "blueprint" || tab !== "overview" || skillLevel === "guided") return;
+  const ids = overviewSectionKey ? overviewSectionKey.split(",") : [];
+  let ticking = false;
+  const spy = () => {
+   if (ticking) return; ticking = true;
+   requestAnimationFrame(() => {
+    ticking = false;
+    const hv = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bp-header-h"), 10) || 92;
+    let cur = ids[0] || "overview-setup";
+    for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= hv + 48) cur = id; }
+    setCurrentSectionId((prev) => (prev === cur ? prev : cur));
+   });
+  };
+  spy();
+  window.addEventListener("scroll", spy, { passive: true });
+  return () => window.removeEventListener("scroll", spy);
+ }, [isDesktop, appMode, tab, skillLevel, overviewSectionKey]);
+ // Android hardware back (Capacitor): close open mobile chrome first, then
+ // fall back to Overview, then let the app exit. iOS never fires this.
+ React.useEffect(() => {
+  if (isDesktop || !Capacitor.isNativePlatform?.()) return;
+  let handle = null, cancelled = false;
+  CapApp.addListener("backButton", () => {
+   if (moreSheetOpen) setMoreSheetOpen(false);
+   else if (sectionSheetOpen) setSectionSheetOpen(false);
+   else if (mobileMenuOpen) setMobileMenuOpen(false);
+   else if (appMode === "blueprint" && tab !== "overview") setTab("overview");
+   else CapApp.exitApp();
+  }).then((h) => { if (cancelled) h.remove(); else handle = h; }).catch(() => {});
+  return () => { cancelled = true; if (handle) handle.remove(); };
+ }, [isDesktop, moreSheetOpen, sectionSheetOpen, mobileMenuOpen, tab, appMode]);
  // Swipe navigation between apps REMOVED (Christo 2026-07-24): accidental
  // horizontal swipes kept flipping Blueprint→PricePoint mid-scroll. Apps are
  // switched via the sidebar/mode toggle only. Handlers are inert no-ops so the
@@ -7270,7 +7362,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     .scn-menu-btn.open { opacity: 1; }
     .scn-txt { display: inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* Sidebar "On this page" jump-links land below the fixed header, not under it. */
-    [id^="overview-"] { scroll-margin-top: calc(92px + env(safe-area-inset-top, 0px)); }
+    [id^="overview-"] { scroll-margin-top: calc(var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px))) + ${isDesktop ? 8 : 44}px); }
     /* Split button appears on hover */
     .split-btn { opacity: 0 !important; }
     div:hover > .split-btn { opacity: 0.6 !important; }
@@ -7477,13 +7569,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        />
       )}
       {/* Divider between the client switcher and the Scenarios list. */}
-      {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && scenarioList.length > 0 && (
+      {isDesktop && appMode === "blueprint" && !sidebarCollapsed && scenarioList.length > 0 && (
        <div style={{ height: 1, background: T.separator, margin: "6px 12px 8px" }} />
       )}
       {/* Scenarios switcher — quick toggle between saved scenarios, docked
           right below the Blueprint/PricePoint/Markets switcher and above the
           Overview nav so brokers can click between scenarios fast. (2026-07-07) */}
-      {appMode === "blueprint" && (!sidebarCollapsed || !isDesktop) && scenarioList.length > 0 && (
+      {isDesktop && appMode === "blueprint" && !sidebarCollapsed && scenarioList.length > 0 && (
        <>
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 18px 6px" }}>
          <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, letterSpacing: 0.2, color: T.textTertiary }}>Scenarios</span>
@@ -7558,13 +7650,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        </>
       )}
       {/* Blueprint nav */}
-      {appMode === "blueprint" && (() => {
+      {/* Mobile (2026-09-06): tabs live in the bottom bar / More sheet and the
+          "Jump to" index in the Overview "On this page" pill, so the drawer
+          renders none of this below 900px. */}
+      {isDesktop && appMode === "blueprint" && (() => {
        // Collapsed (icon-only) styling is a DESKTOP affordance only. The mobile
        // drawer is always full-width with labels — without this gate the desktop
        // sidebarCollapsed state leaked into mobile, forcing the icon to width:100%
        // and squeezing every label to zero width (icons-only, broken). (2026-06-02)
        const navCollapsed = sidebarCollapsed && isDesktop;
-       const icons = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target" };
+       const icons = NAV_ICONS;
        // Renders one core/destination nav item (real tab switch). Unchanged markup.
        const renderTabItem = ([k, l]) => {
         const locked = !isTabUnlocked(k);
@@ -7625,7 +7720,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       })()}
       {/* Blueprint switcher moved to the top of the nav (below Markets, above Scenarios). (2026-07-08) */}
       {/* PricePoint nav (when PP is primary) */}
-      {appMode === "pricepoint" && (!sidebarCollapsed || !isDesktop) && [["daily","target","Daily"],["free","play","Sold"],["live","radio","For Sale"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
+      {isDesktop && appMode === "pricepoint" && !sidebarCollapsed && [["daily","target","Daily"],["free","play","Sold"],["live","radio","For Sale"],["stats","bar-chart","Stats"],["board","award","Board"]].map(([k,ico,l]) => {
        const active = ppCurrentTab === k;
        return (
         <div key={k} className="bp-sidebar-item" onClick={() => { triggerPPTab(k); if (!isDesktop) setMobileMenuOpen(false); }} style={{
@@ -7640,7 +7735,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        );
       })}
       {/* Markets nav (when Markets is primary) */}
-      {appMode === "markets" && (!sidebarCollapsed || !isDesktop) && [["live","trending-up","Live Markets"],["practice","target","Practice"],["portfolio","banknote","Portfolio"]].map(([k,ico,l]) => (
+      {isDesktop && appMode === "markets" && !sidebarCollapsed && [["live","trending-up","Live Markets"],["practice","target","Practice"],["portfolio","banknote","Portfolio"]].map(([k,ico,l]) => (
        <div key={k} className="bp-sidebar-item" style={{
         padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px", borderRadius: 8,
         background: "transparent",
@@ -7649,7 +7744,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       ))}
      </div>
      {/* Sidebar Footer */}
-     {appMode === "blueprint" && applyUrl && (!sidebarCollapsed || !isDesktop) && (
+     {isDesktop && appMode === "blueprint" && applyUrl && !sidebarCollapsed && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
        <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 2px 10px ${T.green}30` }}>
@@ -7672,7 +7767,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : "calc(90px + env(safe-area-inset-bottom, 0px))", overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 44 + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -7700,6 +7795,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     appMode={appMode} setAppMode={setAppMode}
     onOpenMobileMenu={() => setMobileMenuOpen(true)}
     mobileMenuOpen={mobileMenuOpen}
+    scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario }}
+    canEditScenarios={!isBorrower || !scenariosAreCloud}
     tab={tab}
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
@@ -7750,6 +7847,96 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       — all tabs now live in the RealStack shell drawer (hamburger top-left).
       Saved ~50px of sticky fold and removed nav-redundancy with the drawer. */}
    />
+  )}
+  {/* ═══ MOBILE BOTTOM TAB BAR · MORE SHEET · ON-THIS-PAGE SHEET · STICKY PAYMENT PILL (2026-09-06) ═══
+      Council verdict: the bar carries pages only (Overview · Compare · Share ·
+      Learn · More). Scenario = header pill, product = wordmark tap, Jump-to =
+      the On-this-page pill. Never on desktop, never over the consent/lock
+      screens. Both the bar and the pill unmount while a text field has
+      focus so they don't ride the keyboard. */}
+  {!isDesktop && appMode === "blueprint" && consentGiven && !isLocked && (
+   <>
+    <MobileTabBar T={T} items={MOBILE_BAR_ITEMS}
+     activeId={BAR_TAB_KEYS.includes(tab) ? tab : "more"}
+     onSelect={(id) => { if (id === "more") { setMoreSheetOpen(true); return; } goTab(id); }} />
+    {STICKY_PILL_TABS.includes(tab) && !keyboardOpen && (() => {
+     const chip = qualStatus === "approved"
+      ? { label: "Qualified", bg: T.successBg, border: T.successBorder, color: T.green, icon: "check-circle" }
+      : qualStatus === "almost"
+       ? { label: "Almost", bg: T.warningBg, border: T.warningBorder, color: T.orange, icon: "alert-circle" }
+       : { label: "Not yet", bg: T.pillBg, border: T.cardBorder, color: T.textTertiary, icon: "info" };
+     const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+     return (
+      <div aria-hidden={stickyPillHidden} style={{
+       position: "fixed", left: 12, right: 12, zIndex: 99, height: 44, boxSizing: "border-box",
+       bottom: `calc(${MOBILE_TAB_BAR_HEIGHT + 8}px + env(safe-area-inset-bottom, 0px))`,
+       display: "flex", alignItems: "center", gap: 10, padding: "0 6px 0 14px", borderRadius: 9999,
+       background: T.sideBg || T.card, border: `1px solid ${T.glassBorder || T.cardBorder}`,
+       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: T.glassShadow || T.cardShadow,
+       fontFamily: FONT, maxWidth: 456, margin: "0 auto",
+       transform: stickyPillHidden ? "translateY(16px)" : "translateY(0)", opacity: stickyPillHidden ? 0 : 1,
+       pointerEvents: stickyPillHidden ? "none" : "auto",
+       transition: reduce ? "none" : "transform 0.2s ease, opacity 0.2s ease",
+      }}>
+       <button type="button" onClick={() => jumpToSection("overview-payment")} aria-label="Monthly payment — jump to the Monthly Payment section"
+        style={{ display: "flex", alignItems: "baseline", gap: 8, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: FONT, color: T.text, height: 44 }}>
+        <span style={{ fontSize: 12, color: T.textSecondary }}>Monthly</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>{fmt(calc.displayPayment)}</span>
+       </button>
+       <button type="button" onClick={() => jumpToSection("overview-qualification")} aria-label={`${chip.label} — jump to the Pre-Qualified section`}
+        style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 10px", height: 32, borderRadius: 9999, background: chip.bg, border: `1px solid ${chip.border}`, color: chip.color, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", flexShrink: 0 }}>
+        <Icon name={chip.icon} size={12} />{chip.label}
+       </button>
+      </div>
+     );
+    })()}
+    <Suspense fallback={null}>
+     <BottomSheet isOpen={moreSheetOpen} onClose={() => setMoreSheetOpen(false)} T={T} height="70vh" showHeader={false}>
+      <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px" }}>
+       <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary }}>More · this loan</span>
+      </div>
+      <div role="list" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+       {moreSheetTabs.map(([k, l]) => {
+        const locked = !isTabUnlocked(k);
+        const active = tab === k;
+        return (
+         <button key={k} type="button" role="listitem" aria-current={active ? "page" : undefined} disabled={locked}
+          onClick={() => goTab(k)}
+          style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 48, padding: "0 12px", borderRadius: 12, border: "none", textAlign: "left", width: "100%",
+           background: active ? T.tabActiveBg : "transparent", color: active ? T.blue : T.text, opacity: locked ? 0.35 : 1, cursor: locked ? "not-allowed" : "pointer", fontFamily: FONT, WebkitTapHighlightColor: "transparent" }}>
+          <Icon name={NAV_ICONS[k] || "grid"} size={18} color={active ? T.blue : T.textSecondary} />
+          <span style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>{l}</span>
+          {locked && <Icon name="lock" size={14} color={T.textTertiary} />}
+         </button>
+        );
+       })}
+      </div>
+      {applyUrl && (
+       <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", marginTop: 12, padding: "12px 14px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 9999, color: "#fff", fontSize: 13, fontWeight: 700, fontFamily: FONT, textDecoration: "none", cursor: "pointer" }}>
+        <Icon name="check-circle" size={14} />
+        Get Pre-Approved
+       </a>
+      )}
+      <div style={{ height: 1, background: T.separator, margin: "12px 0" }} />
+      <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, fontFamily: FONT }}>Investor, Rent vs Buy and Seller Net appear here when this loan turns them on.</div>
+     </BottomSheet>
+     <BottomSheet isOpen={sectionSheetOpen} onClose={() => setSectionSheetOpen(false)} T={T} title="On this page" height="60vh">
+      <div role="list" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+       {OVERVIEW_SECTIONS.map((sec) => {
+        const cur = sec.id === currentSectionId;
+        return (
+         <button key={sec.id} type="button" role="listitem" onClick={() => { setSectionSheetOpen(false); setTimeout(() => jumpToSection(sec.id), 260); }}
+          style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, padding: "0 12px", borderRadius: 10, border: "none", textAlign: "left", width: "100%", background: cur ? T.tabActiveBg : "transparent", color: cur ? T.blue : T.text, cursor: "pointer", fontFamily: FONT, WebkitTapHighlightColor: "transparent" }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: cur ? T.blue : T.textTertiary, flexShrink: 0 }} />
+          <span style={{ fontSize: 14, fontWeight: cur ? 700 : 500 }}>{sec.label}</span>
+         </button>
+        );
+       })}
+      </div>
+     </BottomSheet>
+    </Suspense>
+   </>
   )}
   {/* ═══ ACCOUNT SHEET + FIRST-RUN CLOUD MERGE (public calculator only) ═══ */}
   {!isBorrower && !isCloud && (
@@ -8098,31 +8285,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        display: "flex", alignItems: "center", gap: 8,
        padding: "0 14px", minHeight: 40,
      }}>
-      {/* Hamburger — opens the RealStack shell drawer */}
-      <button
-       onClick={() => setMobileMenuOpen(true)}
-       title="Open menu"
-       aria-label="Open menu"
-       aria-expanded={mobileMenuOpen}
-       style={{
-        background: "transparent", border: "none",
-        width: 28, height: 28, padding: 0, cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: T.text, flexShrink: 0,
-       }}
-      >
-       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <line x1="3" y1="12" x2="21" y2="12" />
-        <line x1="3" y1="18" x2="21" y2="18" />
-       </svg>
+      {/* Wordmark — tapping it opens the RealStack shell drawer (the hamburger
+          was retired 2026-09-06). Same bold style as the Blueprint wordmark,
+          with the one-per-surface "powered by" microline beneath. */}
+      <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open RealStack menu" aria-expanded={mobileMenuOpen} aria-haspopup="dialog"
+       style={{ background: "transparent", border: "none", padding: 0, margin: 0, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 2, minHeight: 36, justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>
+       <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: T.text, whiteSpace: "nowrap", lineHeight: 1, fontFamily: FONT }}>{appMode === "pricepoint" ? "PricePoint" : appMode === "markets" ? "Markets" : ""}</span>
+       <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, lineHeight: 1, whiteSpace: "nowrap" }}>Powered by RealStack</span>
       </button>
-      {/* Wordmark — same bold style as the Blueprint wordmark */}
-      <span style={{
-       fontSize: 14, fontWeight: 800,
-       letterSpacing: "-0.03em", color: T.text,
-       whiteSpace: "nowrap",
-      }}>{appMode === "pricepoint" ? "PricePoint" : appMode === "markets" ? "Markets" : ""}</span>
      </div>
     </div>
    )}
@@ -8461,6 +8631,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <WorkspaceHost T={T} isDesktop={isDesktop} sidebarW={sidebarCollapsed ? 56 : 270} incomes={incomes} debts={debts} otherIncome={otherIncome} reos={reos} scenarioList={scenarioList} currentScenario={scenarioName} filingStatus={married} />
 )}
 {/* ═══ OVERVIEW ═══ */}
+{/* Mobile "On this page" strip (2026-09-06) — replaces the drawer's "Overview:
+    Jump to" index. Sticks under the fixed header; the pill reads the current
+    section (scroll-spy) and opens the section sheet. Standard mode only, as
+    the drawer index was (guided flow keeps its wizard). */}
+{tab === "overview" && !isDesktop && skillLevel !== "guided" && OVERVIEW_SECTIONS.length > 0 && !keyboardOpen && (
+ <>
+  {/* Fixed, not sticky: html/body carry overflow-x:hidden (see the <style>
+      block), which turns body into the sticky containing block and the strip
+      would scroll away. Fixed under the header + a 40px spacer in flow. */}
+  <div style={{ position: "fixed", top: "var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px)))", left: 0, right: 0, zIndex: 20, pointerEvents: "none" }}>
+   <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "6px 16px 4px" }}>
+    <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary }}>On this page</span>
+    <button type="button" onClick={() => setSectionSheetOpen(true)} aria-haspopup="dialog" aria-label="Jump to a section"
+     style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+     {(OVERVIEW_SECTIONS.find((x) => x.id === currentSectionId) || OVERVIEW_SECTIONS[0]).label}
+     <Icon name="chevron-down" size={13} color={T.textSecondary} />
+    </button>
+   </div>
+  </div>
+  <div aria-hidden="true" style={{ height: 40 }} />
+ </>
+)}
 {tab === "overview" && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
   <OverviewTab {...{

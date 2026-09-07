@@ -1,6 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import Icon from './Icon';
+import MobileTabBar from './components/MobileTabBar.jsx';
 import AddressAutocomplete from './components/AddressAutocomplete.jsx';
 import { DARK } from './lib/theme.js';
 import { apiUrl, API_BASE } from './apiBase';
@@ -22,6 +23,14 @@ import { pushSupported, enablePush, disablePush } from './lib/pushNotifications'
 const PPMapView = lazy(() => import('./components/PPMapView.jsx'));
 // No token → no map toggle at all (guard, not a broken map).
 const MAP_ENABLED = !!import.meta.env.VITE_MAPBOX_TOKEN;
+// Bottom tab bar entries (rendered by the shared MobileTabBar).
+const PP_TABS = [
+  { id: "daily", label: "Daily", icon: "target" },
+  { id: "free", label: "Sold", icon: "play" },
+  { id: "live", label: "For Sale", icon: "radio" },
+  { id: "stats", label: "Stats", icon: "bar-chart" },
+  { id: "board", label: "Board", icon: "award" },
+];
 
 // Self-contained placeholder shown when a property has no usable photo, or
 // when a photo URL fails to load. Inline SVG data-URI — never 404s, works in
@@ -5297,37 +5306,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
-      {/* ═══ BOTTOM TAB BAR ═══ */}
+      {/* ═══ BOTTOM TAB BAR — shared shell component (2026-09-06) ═══ */}
       {showTabBar && (
-        <div style={{
-          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
-          background: T.card, borderTop: `1px solid ${T.cardBorder}`,
-          backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        }}>
-          <div style={{ display: "flex", maxWidth: isDesktop ? 520 : 480, margin: "0 auto", width: "100%" }}>
-            {[
-              { id: "daily", label: "Daily", icon: "target" },
-              { id: "free", label: "Sold", icon: "play" },
-              { id: "live", label: "For Sale", icon: "radio" },
-              { id: "stats", label: "Stats", icon: "bar-chart" },
-              { id: "board", label: "Board", icon: "award" },
-            ].map(tab => {
-              const active = TAB_VIEWS[tab.id];
-              return (
-                <button key={tab.id} onClick={() => handleTab(tab.id)} style={{
-                  flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  gap: 2, padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer",
-                  color: active ? T.accent : T.textTertiary, transition: "color 0.2s",
-                }}>
-                  <Icon name={tab.icon} size={20} />
-                  <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, letterSpacing: 0.5 }}>{tab.label}</span>
-                  {active && <div style={{ width: 4, height: 4, borderRadius: 2, background: T.accent, marginTop: 1 }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <MobileTabBar T={T} maxWidth={isDesktop ? 520 : 480}
+          items={PP_TABS}
+          activeId={Object.keys(TAB_VIEWS).find(k => TAB_VIEWS[k]) || "daily"}
+          onSelect={handleTab} />
       )}
 
       {/* ═══ NICKNAME PROMPT ═══ */}

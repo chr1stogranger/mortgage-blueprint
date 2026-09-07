@@ -2,7 +2,7 @@ import { FONT } from "./lib/fonts.js";
 import React, { useState, useRef, useEffect } from "react";
 
 
-export default function BottomSheet({ isOpen, onClose, title, T, children, height = "85vh" }) {
+export default function BottomSheet({ isOpen, onClose, title, T, children, height = "85vh", showHeader = true }) {
   const [isClosing, setIsClosing] = useState(false);
   const sheetRef = useRef(null);
   const dragStartY = useRef(null);
@@ -54,7 +54,7 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
         ref={sheetRef}
         style={{
           width: "100%", maxWidth: 500, maxHeight: height,
-          background: T.elevated || "#0d1524",
+          background: T.bg2 || T.elevated || "#0d1524",
           borderRadius: "20px 20px 0 0",
           display: "flex", flexDirection: "column",
           animation: isClosing ? "sheetSlideDown 0.25s ease forwards" : "sheetSlideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
@@ -70,8 +70,8 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
           <div style={{ width: 36, height: 4, borderRadius: 2, background: T.textTertiary || "#666" }} />
         </div>
 
-        {/* Header */}
-        <div style={{
+        {/* Header — optional; the More sheet draws its own compact microline. */}
+        {showHeader && <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           padding: "4px 20px 16px",
           borderBottom: `1px solid ${T.separator || "rgba(255,255,255,0.06)"}`,
@@ -88,7 +88,7 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
           </button>
-        </div>
+        </div>}
 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "16px 20px", WebkitOverflowScrolling: "touch" }}>
