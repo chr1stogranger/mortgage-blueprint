@@ -288,9 +288,13 @@ export default function UnifiedHeader({
     )}
   </>);
 
-  // LO-only "Share Link" pill. Desktop: row 1 after the breadcrumb. Mobile:
-  // row 2, right of the scenario pill (2026-09-06).
+  // LO-only "Share Link" + "Preview" pills. Desktop: row 1 after the
+  // breadcrumb. Mobile: row 2, right of the scenario pill (2026-09-06).
+  // Preview opens the client's own share URL in a new tab, so the LO sees
+  // exactly the borrower view (share-link mode overrides LO auth in that tab)
+  // without copying the link and pasting it into a private window.
   const shareLinkPill = (isCloud && !isBorrower && activeBorrower?.share_token) ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
 
             <button
               onClick={() => {
@@ -313,6 +317,24 @@ export default function UnifiedHeader({
               <Icon name="link" size={11} />
               <span>Share Link</span>
             </button>
+            <a
+              href={`${WEB_ORIGIN}?share=${activeBorrower.share_token}`}
+              target="_blank" rel="noopener noreferrer"
+              title="Open this client's blueprint the way they see it"
+              aria-label="Preview as borrower"
+              style={{
+                fontSize: 10, fontWeight: 600, color: T.textSecondary,
+                background: 'transparent',
+                border: `1px solid ${T.separator}`,
+                borderRadius: 9999, padding: '3px 9px',
+                cursor: 'pointer', fontFamily: FONT, textDecoration: 'none',
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+              }}
+            >
+              <Icon name="eye" size={11} />
+              <span>Preview</span>
+            </a>
+          </div>
   ) : null;
 
   // Publish the header's real rendered height as a CSS var so the content
