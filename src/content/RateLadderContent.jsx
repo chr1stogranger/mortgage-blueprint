@@ -1,7 +1,8 @@
 import { FONT, MONO } from "../lib/fonts.js";
 import React, { useMemo, useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
-import { computeRateLadder, compareRungs, scaffoldRateLadder } from "../lib/finance.js";
+import { compareRungs, scaffoldRateLadder } from "../lib/finance.js";
+import { buildLadderView, fmtRate as fmtPct3, ptsLabel, moLabel as mo } from "../lib/rateLadder.js";
 
 /* ═══════════════════════════════════════════════════════════════
    RATE & POINTS BREAKEVEN — Overview section (Option A, table-first;
@@ -22,20 +23,8 @@ const BAND_COLOR = (T, key) => ({
   free: T.green, nobrainer: T.green, sense: T.blue, situational: T.orange, hold: T.textSecondary, none: T.textTertiary,
 }[key] || T.textTertiary);
 
-const fmtPct3 = (r) => `${(+r).toFixed(3)}%`;
-const ptsLabel = (p) => p < 0 ? `${Math.abs(p).toFixed(3)}% credit` : p === 0 ? "par" : `${(+p).toFixed(3)} pts`;
 const money = (v) => (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
 const money2 = (v) => (v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const mo = (m) => (m === null || m === undefined || !isFinite(m)) ? "—" : m <= 0 ? "0 mo" : `${Math.round(m)} mo`;
-
-// Parse "70.01–75%" / "70-75" into [lo, hi]; null when unparseable.
-function parseLtvBand(s) {
-  if (!s) return null;
-  const nums = String(s).match(/\d+(?:\.\d+)?/g);
-  if (!nums || nums.length < 2) return null;
-  const lo = parseFloat(nums[0]), hi = parseFloat(nums[1]);
-  return isFinite(lo) && isFinite(hi) && hi > lo ? [lo, hi] : null;
-}
 
 function Band({ T, band, small }) {
   const c = BAND_COLOR(T, band.key);
@@ -164,30 +153,14 @@ export default function RateLadderContent(props) {
   const taxMode = L.taxMode || "auto";
   const patch = (p) => setRateLadder({ ...L, ...p });
 
-  const loan = calc?.loan || 0;
-  const ltvNow = calc?.ltv || 0;
-
-  // ── Tax basis: engine-derived unless overridden. Points paid on a purchase
-  //    deduct in year one; a refi amortizes them, so no upfront offset. ──
-  const autoRate = (calc?.fedItemizes ? (calc.fedTopRate || 0) : 0) + (calc?.stateItemizes ? (calc.stTopRate || 0) : 0);
-  const taxRate = taxMode === "off" ? 0 : taxMode === "manual" ? (Math.max(0, +L.taxManualPct || 0) / 100) : autoRate;
-  const deductPct = taxMode === "auto" ? (calc?.deductibleLoanPct ?? 1) : 1;
-  const taxLabel = taxMode === "off" ? "Pre-tax" : `${(taxRate * 100).toFixed(1)}%`;
-  const taxNote = taxMode === "off" ? "standard deduction, no write-off"
-    : taxMode === "manual" ? "manual bracket"
-    : autoRate === 0 ? "engine says this borrower takes the standard deduction, so no write-off"
-    : `${((calc.fedTopRate || 0) * 100).toFixed(0)}% federal${calc.stateItemizes && calc.stTopRate ? ` + ${(calc.stTopRate * 100).toFixed(1)}% state` : ""}, itemizing · from Tax Savings${deductPct < 1 ? ` · ${Math.round(deductPct * 100)}% of the loan deductible` : ""}`;
-
-  const ladder = useMemo(() => computeRateLadder({
-    loan, termYears: term || 30, rungs, baseIdx: L.baseIdx || 0, holdMonths: holdYears * 12,
-    taxRate, deductPct, pointsDeductible: !isRefi,
-  }), [loan, term, rungs, L.baseIdx, holdYears, taxRate, deductPct, isRefi]);
+  // Shared view-model (also feeds the Share card and the PDF page) — same
+  // tax basis, same rows, same sweet spot on every surface.
+  const view = useMemo(() => buildLadderView({ calc, term, isRefi, rateLadder }), [calc, term, isRefi, rateLadder]);
+  const { loan, tax, ladder, ltvNow, ltvDrift, spot, nextLower } = view;
+  const taxRate = tax.taxRate, deductPct = tax.deductPct, taxLabel = tax.label, taxNote = tax.note;
 
   const [cmp, setCmp] = useState({ a: 0, b: -1 });
   const [editing, setEditing] = useState(rungs.length === 0);
-
-  const band = parseLtvBand(L.ltvBand);
-  const ltvDrift = band && ltvNow > 0 && (ltvNow < band[0] || ltvNow > band[1]);
 
   // ── Ladder editing (sorted rows index the SAME order finance.js sorts, so
   //    idx maps back to a rung by value, not position) ──
@@ -227,9 +200,6 @@ export default function RateLadderContent(props) {
   );
   const td = (children, extra) => <td style={{ textAlign: "right", padding: "8px 7px", borderBottom: `1px solid ${T.separator}`, whiteSpace: "nowrap", fontFamily: FONT, fontSize: 12.5, ...extra }}>{children}</td>;
   const sub = (text, color) => <span style={{ display: "block", fontSize: 11, fontWeight: 500, color: color || T.textTertiary }}>{text}</span>;
-
-  const spot = ladder.spot;
-  const nextLower = spot ? ladder.rows.find(r => !r.dominated && r.rate < spot.rate) : null;
 
   /* ─────────────── Empty state ─────────────── */
   if (!rungs.length) {

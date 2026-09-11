@@ -13,6 +13,7 @@
 import React from "react";
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { FeesWorksheetPage } from "./FeesWorksheetPdf.jsx";
+import { RateLadderPage } from "./RateLadderPdf.jsx";
 
 const usd = (v) =>
   v == null || !isFinite(v) || isNaN(v)
@@ -427,6 +428,8 @@ export function RefiSummaryDoc(p) {
       {/* Optional page 2 — the Initial Fees Worksheet, identical to the
           standalone fees PDF. */}
       {p.includeFees ? <FeesWorksheetPage {...p} /> : null}
+      {/* Rate & Points Breakeven page, when the ladder module is on. */}
+      {p.rateLadder ? <RateLadderPage {...p} /> : null}
     </Document>
   );
 }

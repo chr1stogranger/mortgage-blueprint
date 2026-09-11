@@ -18,6 +18,7 @@ import React from "react";
 import { Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
 import interRegular from "../assets/fonts/Inter_400Regular.ttf";
 import interBold from "../assets/fonts/Inter_700Bold.ttf";
+import { RateLadderPage } from "./RateLadderPdf.jsx";
 
 // Brand fonts (Inter throughout — Brand Kit). Bundled
 // TTFs ride in the lazy PDF chunk. `new URL`-style asset paths come back as
@@ -386,6 +387,9 @@ export function FeesWorksheetDoc(p) {
   return (
     <Document title={`Fees Worksheet: ${p.scenarioName || ""}`} author={p.loanOfficer || "Loan Officer"}>
       <FeesWorksheetPage {...p} />
+      {/* Optional page 2 — Rate & Points Breakeven, when the scenario has the
+          ladder module on (snapshot from lib/rateLadder.js ladderPdfData). */}
+      {p.rateLadder ? <RateLadderPage {...p} /> : null}
     </Document>
   );
 }

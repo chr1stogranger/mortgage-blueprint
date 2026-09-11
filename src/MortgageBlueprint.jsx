@@ -1,5 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import AppBackground from "./components/AppBackground.jsx";
+import RateLadderSummary from "./components/RateLadderSummary.jsx";
+import { buildLadderView, ladderPdfData } from "./lib/rateLadder.js";
 import React, { useState, useMemo, useRef, useEffect, useCallback, useId, Suspense } from "react";
 import { lazyWithRetry } from "./lib/lazyWithRetry.js";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
@@ -3661,6 +3663,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   notaryFee, envProtectionLien, ownersTitleIns, homeWarranty, recordingFee,
   propertyTaxesInstallment, sellersProratedTaxCredit,
   sellerCredit, lenderCredit, realtorCredit, customFees,
+  // Rate & Points Breakeven page (module on + at least one rung) — plain-data
+  // snapshot so the PDF prints exactly what the screen showed.
+  rateLadder: (showRateLadder && (rateLadder?.rungs || []).length) ? ladderPdfData(buildLadderView({ calc, term, isRefi, rateLadder })) : null,
  });
  // Refi Savings Summary PDF — the one-pager modeled on the spreadsheet Christo
  // has closed refis with for years (2026-07-22). Optional page 2 = the fees
@@ -8573,6 +8578,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
   </Card>
  </Sec>
+ {showRateLadder && (rateLadder?.rungs || []).length > 0 && <Sec title="Rate & Points">
+  <RateLadderSummary T={T} calc={calc} term={term} isRefi={isRefi} rateLadder={rateLadder} Card={Card} />
+ </Sec>}
  {(loanOfficer || realtorName) && <Sec title="Your Team">
   <Card>
    {loanOfficer && <MRow label="Loan Officer" value={loanOfficer} />}

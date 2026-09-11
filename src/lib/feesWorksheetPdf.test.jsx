@@ -63,3 +63,21 @@ describe("FeesWorksheetDoc", () => {
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
   });
 });
+
+// ── Rate & Points Breakeven page (2026-09-11) ────────────────────────────────
+import { buildLadderView, ladderPdfData } from "./rateLadder.js";
+describe("FeesWorksheetDoc + RateLadderPage", () => {
+  it("renders the worksheet with the ladder page appended", async () => {
+    const calc = { ...baseCalc, loan: 650000, ltv: 72.5, fedItemizes: true, stateItemizes: true, fedTopRate: 0.24, stTopRate: 0.093, deductibleLoanPct: 1 };
+    const rateLadder = {
+      rungs: [{ rate: 7.0, pts: 0.016 }, { rate: 6.875, pts: 0.638 }, { rate: 6.75, pts: 1.309 }, { rate: 6.625, pts: 1.222 }, { rate: 6.5, pts: 1.628 }, { rate: 6.375, pts: 2.366 }],
+      baseIdx: 0, holdYears: 5, taxMode: "auto", asOf: "2026-09-11", ltvBand: "70.01–75%",
+    };
+    const snap = ladderPdfData(buildLadderView({ calc, term: 30, isRefi: false, rateLadder }));
+    expect(snap.spot.rate).toBe(6.5);
+    expect(snap.rows.find(r => r.rate === 6.75).dominated).toBe(true);
+    const buf = await renderToBuffer(<FeesWorksheetDoc {...baseProps} calc={calc} rateLadder={snap} />);
+    expect(buf.length).toBeGreaterThan(20000);
+    expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+});
