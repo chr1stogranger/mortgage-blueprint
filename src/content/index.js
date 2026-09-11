@@ -17,4 +17,5 @@ export const CalculatorContent = lazyWithRetry(() => import("./CalculatorContent
 export const QualifyContent = lazyWithRetry(() => import("./QualifyContent"));
 export const TaxContent = lazyWithRetry(() => import("./TaxContent"));
 export const Prop19Content = lazyWithRetry(() => import("./Prop19Content"));
+export const RateLadderContent = lazyWithRetry(() => import("./RateLadderContent"));
 export const TeamContent = lazyWithRetry(() => import("./TeamContent"));

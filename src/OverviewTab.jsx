@@ -1,7 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
-import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content } from "./content/index.js";
+import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent } from "./content/index.js";
 
 
 /* ─── Collapsible section wrapper ─── */
@@ -70,6 +70,7 @@ export default function OverviewTab(props) {
     hasSellProperty, setHasSellProperty,
     ownsProperties, setOwnsProperties,
     showProp19, prop19, sellPrice,
+    showRateLadder,
   } = props;
 
   const isGuided = skillLevel === "guided";
@@ -201,6 +202,18 @@ export default function OverviewTab(props) {
       <CollapsibleSection title={isRefi ? "Estimated Refi Costs" : "Costs"} T={T} id="overview-costs" heroStyle={true}>
         <CostsContent {...props} />
       </CollapsibleSection>
+
+      {/* ═══════════════════════════════════════
+          RATE & POINTS BREAKEVEN (module, 2026-09-11)
+          ═══════════════════════════════════════ */}
+      {showRateLadder && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Rate & Points Breakeven" T={T} id="overview-rateladder" heroStyle={true} subtitle="Buy the rate down, take a credit, or stay at par">
+            <RateLadderContent {...props} />
+          </CollapsibleSection>
+        </>
+      )}
 
       {/* ═══════════════════════════════════════
           SECTION 4: ASSETS

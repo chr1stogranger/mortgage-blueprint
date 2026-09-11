@@ -388,3 +388,70 @@ describe("computePassiveLossAllowance (§469i)", () => {
   expect(computePassiveLossAllowance({ magi: NaN, loss: NaN }).suspended).toBe(0);
  });
 });
+
+// ── Rate & Points breakeven ladder (2026-09-11) ─────────────────────────────
+// Expected values are the sheet's own cells ($650k, 30yr, 15% bracket, real
+// 70.01–75% LTV pricing) so a drift from the sheet fails loudly.
+import { computeRateLadder, compareRungs, breakevenBand, scaffoldRateLadder } from "./finance.js";
+describe("rate ladder", () => {
+  const rungs = [
+    { rate: 7.000, pts: 0.016 }, { rate: 6.875, pts: 0.638 }, { rate: 6.750, pts: 1.309 },
+    { rate: 6.625, pts: 1.222 }, { rate: 6.500, pts: 1.628 }, { rate: 6.375, pts: 2.366 },
+  ];
+  const opts = { loan: 650000, termYears: 30, rungs, baseIdx: 0, holdMonths: 60, taxRate: 0.15, deductPct: 1 };
+
+  it("matches the sheet row: 7.000% → 6.875% (delta $54.43, net $3,558, 65 mo)", () => {
+    const r = computeRateLadder(opts).rows[1];
+    expect(r.delta).toBeCloseTo(54.43, 1);
+    expect(r.cost).toBeCloseTo(4043, 0);
+    expect(r.postTaxCost).toBeCloseTo(3436.55, 0);
+    expect(r.writeOffLost).toBeCloseTo(121.875, 1);
+    expect(r.netCost).toBeCloseTo(3558, 0);
+    expect(Math.round(r.breakeven)).toBe(65);
+  });
+  it("flags 6.750% as dominated by 6.625% (cheaper AND lower) instead of printing −7 months", () => {
+    const rows = computeRateLadder(opts).rows;
+    expect(rows[2].rate).toBe(6.75);
+    expect(rows[2].dominated).toBe(true);
+    expect(rows[2].dominatedBy).toBe(6.625);
+    // 6.625% steps from 6.875%, skipping the dominated rung
+    expect(rows[3].step.delta).toBeCloseTo(108.02, 1);
+  });
+  it("ROI at N months equals the sheet formula (N − breakeven) × delta ÷ net", () => {
+    const r = computeRateLadder({ ...opts, holdMonths: 120 }).rows[1];
+    const sheet = (120 - r.breakeven) * r.delta / r.netCost;
+    expect(r.roiAtHold).toBeCloseTo(sheet, 6);
+  });
+  it("sweet spot moves with the hold: none at 3 yrs, 6.500% at 5 yrs, 6.375% at 8 yrs", () => {
+    const tax = { ...opts, taxRate: 0.333 };
+    expect(computeRateLadder({ ...tax, holdMonths: 36 }).spot).toBeNull();
+    expect(computeRateLadder({ ...tax, holdMonths: 60 }).spot.rate).toBe(6.5);
+    expect(computeRateLadder({ ...tax, holdMonths: 96 }).spot.rate).toBe(6.375);
+  });
+  it("a lender credit has no tax effect; refi points get no upfront offset", () => {
+    const credit = compareRungs({ rate: 6.5, pts: 0 }, { rate: 6.625, pts: -0.5 }, { loan: 650000, taxRate: 0.24 });
+    expect(credit.cost).toBe(-3250);
+    expect(credit.postTaxCost).toBe(-3250);
+    expect(credit.breakeven).toBeGreaterThan(0); // months until the higher payment eats the credit
+    const refi = compareRungs({ rate: 6.5, pts: 0 }, { rate: 6.375, pts: 0.5 }, { loan: 650000, taxRate: 0.24, pointsDeductible: false });
+    expect(refi.postTaxCost).toBe(3250);
+  });
+  it("equity at hold: the lower rate has paid down more principal", () => {
+    const r = computeRateLadder({ ...opts, holdMonths: 84 }).rows[4];
+    expect(r.equityAtHold).toBeGreaterThan(4000);
+    expect(r.equityAtHold).toBeLessThan(6000);
+  });
+  it("bands follow the Breakeven Key", () => {
+    expect(breakevenBand(12).key).toBe("nobrainer");
+    expect(breakevenBand(30).key).toBe("sense");
+    expect(breakevenBand(40).key).toBe("situational");
+    expect(breakevenBand(70).key).toBe("hold");
+    expect(breakevenBand(null).key).toBe("none");
+  });
+  it("scaffold builds eighth-point rungs around par", () => {
+    const s = scaffoldRateLadder(6.5);
+    expect(s.map(r => r.rate)).toEqual([6.75, 6.625, 6.5, 6.375, 6.25, 6.125, 6.0]);
+    expect(s[2].pts).toBe(0);
+    expect(s[0].pts).toBeLessThan(0);
+  });
+});

@@ -749,3 +749,107 @@ export function computePassiveLossAllowance({ magi, loss, married = "Single" }) 
     maxAllowance,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RATE & POINTS BREAKEVEN LADDER (2026-09-11)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Port of Christo's breakeven-matrix sheet, with three corrections the sheet
+// can't make on its own:
+//   1. Tax basis and the deductible share of the loan come from the tax
+//      engine (fed + state marginal, itemizing, $750k cap) instead of a typed
+//      bracket. Points paid on a PURCHASE deduct in year one; a lender credit
+//      has no tax effect; refi points amortize so they get no upfront offset.
+//   2. Real rate-sheet pricing is not monotonic — a rung can be dominated by
+//      a lower rate that costs less (6.750% @ 1.309 vs 6.625% @ 1.222). The
+//      sheet prints a −7 month breakeven there; we flag the rung "skip" and
+//      compute the marginal step against the previous NON-dominated rung.
+//   3. Breakeven is cash-only (the sheet's number, what a borrower repeats
+//      back). The extra principal a lower rate pays down by the hold horizon
+//      is reported separately, never folded into the headline.
+//
+// Sheet parity: monthly delta = P&I(base) − P&I(rung); cost = loan × Δpts;
+// write-off lost = loan × deductible share × Δrate × tax (year-1 interest);
+// net = post-tax cost + write-off; breakeven = net ÷ delta;
+// ROI at N months = (N − breakeven) × delta ÷ net  ≡  (N·delta − net) ÷ net.
+
+/** Rule-of-thumb bands from the sheet's Breakeven Key. */
+export function breakevenBand(months) {
+  if (months === null || months === undefined || !isFinite(months)) return { key: "none", label: "No payback" };
+  if (months <= 0) return { key: "free", label: "Free money" };
+  if (months < 24) return { key: "nobrainer", label: "No-brainer" };
+  if (months <= 36) return { key: "sense", label: "Makes sense" };
+  if (months <= 48) return { key: "situational", label: "Situational" };
+  return { key: "hold", label: "Long-term hold" };
+}
+
+/**
+ * One pairwise comparison: choosing rung `to` instead of rung `from`.
+ * Positive `delta` = `to` has the lower payment; positive `cost` = `to`
+ * costs more at closing. A credit rung (negative cost, negative delta) reads
+ * as "credit lasts N months" — the months until the higher payment eats it.
+ */
+export function compareRungs(from, to, { loan, termYears = 30, taxRate = 0, deductPct = 1, pointsDeductible = true, holdMonths = 60 }) {
+  const delta = calcPI(loan, from.rate, termYears) - calcPI(loan, to.rate, termYears);
+  const cost = loan * (to.pts - from.pts) / 100;
+  const postTaxCost = (cost > 0 && pointsDeductible) ? cost * (1 - taxRate) : cost;
+  const writeOffLost = loan * deductPct * (from.rate - to.rate) / 100 * taxRate;
+  const netCost = postTaxCost + writeOffLost;
+  let breakeven = null;
+  if (netCost > 0 && delta > 0) breakeven = netCost / delta;          // buy-down: months to recoup
+  else if (netCost < 0 && delta < 0) breakeven = netCost / delta;     // credit: months until it's spent
+  else if (netCost <= 0 && delta >= 0) breakeven = 0;                 // cheaper AND lower payment
+  const cumAtHold = holdMonths * delta - netCost;
+  const equityAtHold = calcBalance(loan, from.rate, termYears, holdMonths) - calcBalance(loan, to.rate, termYears, holdMonths);
+  const roiAtHold = netCost > 0 ? cumAtHold / netCost : null;
+  return { delta, cost, postTaxCost, writeOffLost, netCost, breakeven, cumAtHold, equityAtHold, roiAtHold, band: breakevenBand(breakeven) };
+}
+
+/**
+ * The full ladder. `rungs` = [{ rate, pts }] in any order (pts negative = lender
+ * credit). Rows come back sorted high→low rate. `baseIdx` indexes the SORTED
+ * rows. Sweet spot = the lowest rate below the baseline whose breakeven vs the
+ * baseline AND whose marginal step both land inside the hold.
+ */
+export function computeRateLadder({ loan, termYears = 30, rungs = [], baseIdx = 0, holdMonths = 60, taxRate = 0, deductPct = 1, pointsDeductible = true }) {
+  const sorted = (rungs || [])
+    .filter(r => r && isFinite(+r.rate) && isFinite(+r.pts) && +r.rate > 0)
+    .map(r => ({ rate: +r.rate, pts: +r.pts }))
+    .sort((a, b) => b.rate - a.rate || a.pts - b.pts);
+  if (!sorted.length || !(loan > 0)) return { rows: [], base: null, spot: null, bestAtHold: null, holdMonths };
+  const bi = Math.min(Math.max(0, baseIdx | 0), sorted.length - 1);
+  const base = sorted[bi];
+  const opts = { loan, termYears, taxRate, deductPct, pointsDeductible, holdMonths };
+  const rows = sorted.map((r, i) => {
+    const dominator = sorted.find(o => o.rate < r.rate && o.pts <= r.pts) || null;
+    const v = i === bi
+      ? { delta: 0, cost: 0, postTaxCost: 0, writeOffLost: 0, netCost: 0, breakeven: null, cumAtHold: 0, equityAtHold: 0, roiAtHold: null, band: breakevenBand(null) }
+      : compareRungs(base, r, opts);
+    return { idx: i, rate: r.rate, pts: r.pts, pi: calcPI(loan, r.rate, termYears), isBase: i === bi, dominated: !!dominator, dominatedBy: dominator ? dominator.rate : null, ...v, step: null };
+  });
+  // Marginal step: each rung vs the previous non-dominated rung above it.
+  let prev = null;
+  for (const row of rows) {
+    if (prev) row.step = compareRungs(prev, row, opts);
+    if (!row.dominated) prev = row;
+  }
+  const below = rows.filter(r => !r.isBase && !r.dominated && r.rate < base.rate);
+  const eligible = below.filter(r => r.breakeven !== null && r.breakeven <= holdMonths && (!r.step || r.step.breakeven === null || r.step.breakeven <= holdMonths));
+  const spot = eligible.length ? eligible.reduce((a, b) => (b.rate < a.rate ? b : a)) : null;
+  const bestAtHold = below.length ? below.reduce((a, b) => (b.cumAtHold > a.cumAtHold ? b : a)) : null;
+  return { rows, base: rows[bi], spot, bestAtHold, holdMonths };
+}
+
+/**
+ * Scaffold a ladder around a par rate when no rate-sheet pricing has been
+ * entered yet. Eighth-point rungs; the cost per eighth is a rule-of-thumb
+ * (real pricing curves bend), so callers must label the result "estimated".
+ */
+export function scaffoldRateLadder(parRate, { stepsDown = 4, stepsUp = 2, costPerEighth = 0.45, creditPerEighth = 0.40 } = {}) {
+  const par = Math.round((+parRate || 6.5) * 8) / 8;
+  const out = [];
+  for (let i = stepsUp; i >= 1; i--) out.push({ rate: +(par + i * 0.125).toFixed(3), pts: +(-(i * creditPerEighth)).toFixed(3) });
+  out.push({ rate: par, pts: 0 });
+  for (let i = 1; i <= stepsDown; i++) out.push({ rate: +(par - i * 0.125).toFixed(3), pts: +(i * costPerEighth).toFixed(3) });
+  return out;
+}
