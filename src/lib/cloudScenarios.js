@@ -12,6 +12,7 @@
  */
 
 import { getSupabaseClient } from './supabaseClient';
+import { todayLocal } from './today.js';
 
 // Device-local prefs must never sync — strip before any cloud write.
 const DEVICE_ONLY_KEYS = ['darkMode', 'themeMode'];
@@ -204,7 +205,7 @@ export async function exportMyData(account) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `realstack-blueprint-export-${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `realstack-blueprint-export-${todayLocal()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();

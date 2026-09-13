@@ -1,4 +1,5 @@
 import { FONT, MONO } from "../lib/fonts.js";
+import { todayLocal } from "../lib/today.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { toMonthly, computeIncomeMethods, isDecliningIncome } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
@@ -745,7 +746,7 @@ function EmployerGroup({
     if (isPrevious) {
       components.forEach(c => updateIncome(c.id, "end", ""));
     } else {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayLocal();
       components.forEach(c => updateIncome(c.id, "end", today));
     }
   };

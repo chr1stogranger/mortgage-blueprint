@@ -1,4 +1,5 @@
 import { FONT } from "./lib/fonts.js";
+import { todayLocal } from "./lib/today.js";
 /**
  * WorkspaceView — Multi-pane layout engine for Workspace mode
  *
@@ -209,7 +210,7 @@ export default function WorkspaceView({ T, isDesktop, renderBlueprintPane, rende
       if (res.ok) {
         const data = await res.json();
         if (data["30yr_fixed"] > 2 && data["30yr_fixed"] < 15) {
-          data.date = data.date || new Date().toISOString().split("T")[0];
+          data.date = data.date || todayLocal();
           setLiveRates(data);
           setRatesLoading(false);
           return;

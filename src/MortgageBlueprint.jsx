@@ -1,4 +1,5 @@
 import { FONT, MONO } from "./lib/fonts.js";
+import { todayLocal } from "./lib/today.js";
 import AppBackground from "./components/AppBackground.jsx";
 import RateLadderSummary from "./components/RateLadderSummary.jsx";
 import { buildLadderView, ladderPdfData } from "./lib/rateLadder.js";
@@ -3949,7 +3950,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setRatesLoading(true);
   setRatesError(null);
   const applyRates = (parsed) => {
-   parsed.date = parsed.date || new Date().toISOString().split("T")[0];
+   parsed.date = parsed.date || todayLocal();
    setLiveRates(parsed);
    const rateMap = { "Conventional": term === 15 ? parsed["15yr_fixed"] : parsed["30yr_fixed"],
     "FHA": parsed["30yr_fha"], "VA": parsed["30yr_va"], "Jumbo": parsed["30yr_jumbo"], "USDA": parsed["30yr_fixed"] };
@@ -3966,7 +3967,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const r = (payload && payload.rates) || {};
    const num = (k) => { const v = r[k] && r[k].rate; return (typeof v === "number" && !isNaN(v)) ? v : null; };
    const out = {
-    date: (payload && payload.asOf) || new Date().toISOString().split("T")[0],
+    date: (payload && payload.asOf) || todayLocal(),
     "30yr_fixed": num("30yr_fixed"),
     "15yr_fixed": num("15yr_fixed"),
     "30yr_fha": num("30yr_fha"),

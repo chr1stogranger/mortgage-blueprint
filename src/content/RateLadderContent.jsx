@@ -1,4 +1,5 @@
 import { FONT, MONO } from "../lib/fonts.js";
+import { todayLocal } from "../lib/today.js";
 import React, { useMemo, useState } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { compareRungs, scaffoldRateLadder } from "../lib/finance.js";
@@ -183,7 +184,7 @@ export default function RateLadderContent(props) {
   };
   const scaffold = () => {
     const s = scaffoldRateLadder(rate || 6.5);
-    patch({ rungs: s, baseIdx: 2, estimated: true, asOf: L.asOf || new Date().toISOString().slice(0, 10) });
+    patch({ rungs: s, baseIdx: 2, estimated: true, asOf: L.asOf || todayLocal() });
   };
   const applyRung = (row) => {
     setRate(row.rate);
