@@ -1353,14 +1353,14 @@ export default function CalculatorContent(props) {
      <div style={{ fontSize: 11, color: T.green, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>↓ {(refiCurrentRate - rate).toFixed(3)}% rate drop</div>
     )}
     {isRefi && refiCurrentRate > 0 && rate > 0 && rate >= refiCurrentRate && (
-     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>⚠ New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
+     <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: -6, marginBottom: 8 }}>New rate is {rate > refiCurrentRate ? "higher than" : "same as"} current ({refiCurrentRate}%)</div>
     )}
 
     {/* Live Rates fetch button — full-width pill */}
     <div data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
     <button onClick={() => { markTouched && markTouched("get-rates"); fetchRates(); }} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
      <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
-      {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "◉ Get Today's Rates"}
+      {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "Get Today's Rates"}
      </span>
      {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || "Today"}</span>}
      {!liveRates && !ratesLoading && fredApiKey && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>FRED</span>}

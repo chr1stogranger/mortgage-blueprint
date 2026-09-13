@@ -3492,8 +3492,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             if (lastSoldLabel) rows.push(`· Last sold ${lastSoldLabel}`);
             if (vc.ppsf) {
               rows.push(vc.medianPpsf
-                ? `· $${Math.round(vc.ppsf)}/sqft vs $${Math.round(vc.medianPpsf)} area median (${vc.ppsfDeltaPct >= 0 ? "+" : ""}${Math.round(vc.ppsfDeltaPct)}%)`
-                : `· $${Math.round(vc.ppsf)}/sqft list price`);
+                ? `· $${Math.round(vc.ppsf).toLocaleString("en-US")}/sqft vs $${Math.round(vc.medianPpsf).toLocaleString("en-US")} area median (${vc.ppsfDeltaPct >= 0 ? "+" : ""}${Math.round(vc.ppsfDeltaPct)}%)`
+                : `· $${Math.round(vc.ppsf).toLocaleString("en-US")}/sqft list price`);
             }
             if (vc.domVsMedian) rows.push(`· ${vc.domVsMedian.value} DOM vs ${Math.round(vc.domVsMedian.median)} median`);
             // How fast the market said yes. The pool's daysOnMarket is 0 on
@@ -3635,7 +3635,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               : listing.listPrice;
             const parts = [];
             if (anchor) { const d = ((v - anchor) / anchor * 100).toFixed(1); parts.push(`${d > 0 ? "+" : ""}${d}% vs list`); }
-            if (listing.sqft) parts.push(`$${Math.round(v / listing.sqft)}/sf`);
+            if (listing.sqft) parts.push(`$${Math.round(v / listing.sqft).toLocaleString("en-US")}/sf`);
             return parts.length ? parts.join(" · ") : "\u00A0";
           })()}</div>}
           <div style={{ marginTop: IS_MOBILE ? 4 : 14 }}>

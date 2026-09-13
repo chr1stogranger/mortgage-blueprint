@@ -86,7 +86,7 @@ export default function RentVsBuyContent(props) {
        const adv = d.buyerNet - d.renterNet;
        return (
        <tr key={d.yr} style={{ borderBottom: `1px solid ${T.separator}`, background: d.yr === rbCalc.breakEvenYear ? "rgba(52,199,89,0.1)" : "transparent" }}>
-        <td style={{ padding: "6px 4px", fontWeight: d.yr === rbCalc.breakEvenYear ? 700 : 400 }}>{d.yr}{d.yr === rbCalc.breakEvenYear ? " ★" : ""}</td>
+        <td style={{ padding: "6px 4px", fontWeight: d.yr === rbCalc.breakEvenYear ? 700 : 400 }}>{d.yr}{d.yr === rbCalc.breakEvenYear ? " →" : ""}</td>
         <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(d.rentMo)}</td>
         <td style={{ padding: "6px 4px", textAlign: "right" }}>{fmt(d.homeVal, true)}</td>
         <td style={{ padding: "6px 4px", textAlign: "right", color: T.green }}>{fmt(d.equity, true)}</td>
@@ -98,7 +98,7 @@ export default function RentVsBuyContent(props) {
     </table>
    </div>
    {rbCalc.breakEvenYear && (
-    <Note color={T.green}>★ Buying overtakes renting at <strong>Year {rbCalc.breakEvenYear}</strong>. After that, homeownership pulls further and further ahead.</Note>
+    <Note color={T.green}>Buying overtakes renting at <strong>Year {rbCalc.breakEvenYear}</strong>. After that, homeownership pulls further and further ahead.</Note>
    )}
   </Card>
  </Sec>
