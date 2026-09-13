@@ -82,6 +82,7 @@ export default function UnifiedHeader({
 
   // ── Clickable stat dropdowns (Arive-style summary popovers) ──
   const [statPop, setStatPop] = useState(null); // { key, x, y }
+  const [shareCopied, setShareCopied] = useState(false);
   const statContent = (key) => {
     if (key === "price") {
       const dp = Math.max(0, salesPrice - (calc.baseLoan || 0));
@@ -300,22 +301,24 @@ export default function UnifiedHeader({
               onClick={() => {
                 const url = `${WEB_ORIGIN}?share=${activeBorrower.share_token}`;
                 navigator.clipboard.writeText(url).then(() => {
-                  const btn = document.getElementById('bp-copy-share-btn');
-                  if (btn) { const t = btn.querySelector('span'); if (t) { t.textContent = 'Copied!'; setTimeout(() => { t.textContent = 'Share Link'; }, 2000); } }
+                  setShareCopied(true);
+                  setTimeout(() => setShareCopied(false), 2000);
                 }).catch(() => { prompt('Copy this share link:', url); });
               }}
               id="bp-copy-share-btn"
+              aria-label="Copy share link"
+              aria-live="polite"
               style={{
                 fontSize: 10, fontWeight: 600, color: '#3B6BF5',
                 background: 'rgba(59,107,245,0.08)',
                 border: '1px solid rgba(59,107,245,0.2)',
-                borderRadius: 9999, padding: '3px 9px',
+                borderRadius: 9999, padding: isDesktop ? '3px 9px' : '7px 11px', minHeight: isDesktop ? undefined : 32,
                 cursor: 'pointer', fontFamily: FONT, marginLeft: 6,
                 whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
               }}
             >
               <Icon name="link" size={11} />
-              <span>Share Link</span>
+              <span>{shareCopied ? 'Copied!' : 'Share Link'}</span>
             </button>
             <a
               href={`${WEB_ORIGIN}?share=${activeBorrower.share_token}`}
@@ -326,7 +329,7 @@ export default function UnifiedHeader({
                 fontSize: 10, fontWeight: 600, color: T.textSecondary,
                 background: 'transparent',
                 border: `1px solid ${T.separator}`,
-                borderRadius: 9999, padding: '3px 9px',
+                borderRadius: 9999, padding: isDesktop ? '3px 9px' : '7px 11px', minHeight: isDesktop ? undefined : 32,
                 cursor: 'pointer', fontFamily: FONT, textDecoration: 'none',
                 whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
               }}
