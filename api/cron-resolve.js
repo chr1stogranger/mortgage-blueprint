@@ -161,10 +161,20 @@ async function fetchPropertyDetails(zpid) {
   };
 
   try {
-    const response = await fetch(
-      `https://${apiHost}/property-details?zpid=${zpid}`,
-      options
-    );
+    // One retry on transient upstream failures (429/5xx). Five zpids fetch in
+    // parallel, so a single RapidAPI blip used to drop the whole chunk until
+    // the next day's run.
+    const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+    let response;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      response = await fetch(
+        `https://${apiHost}/property-details?zpid=${zpid}`,
+        options
+      );
+      if (response.ok || !RETRYABLE.has(response.status) || attempt === 1) break;
+      console.warn(`[CronResolve] RapidAPI ${response.status} for zpid ${zpid}, retrying once`);
+      await enrichSleep(1500 + Math.floor(Math.random() * 500));
+    }
 
     if (!response.ok) {
       console.error(`[CronResolve] RapidAPI error for zpid ${zpid}: ${response.status}`);
