@@ -44,11 +44,10 @@ export default defineConfig({
       manifest: {
         name: 'Mortgage Blueprint',
         short_name: 'Blueprint',
-        description: 'The supercharged mortgage calculator by Xpert Home Lending',
+        description: 'The supercharged mortgage calculator. Loan scenarios, payment breakdowns, tax savings, and more. Powered by RealStack.',
         theme_color: '#0a1120',
         background_color: '#0a1120',
         display: 'standalone',
-        orientation: 'portrait',
         scope: '/',
         start_url: '/',
         categories: ['finance', 'business'],
@@ -68,6 +67,11 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
+          },
+          {
+            src: 'icons/icon-1024.png',
+            sizes: '1024x1024',
+            type: 'image/png'
           }
         ]
       },
