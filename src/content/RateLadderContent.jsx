@@ -285,7 +285,7 @@ export default function RateLadderContent(props) {
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0 4px", gap: 8, flexWrap: "wrap" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>The ladder</div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
             {editing && <Pill T={T} onClick={addCreditRung} title="Add a higher rate with a lender credit">+ Credit rung</Pill>}
             {editing && <Pill T={T} onClick={addRung} title="Add a lower rate that costs points">+ Lower rate</Pill>}
             {editing && <Pill T={T} onClick={scaffold} title="Replace with an estimated ladder around the scenario rate">Re-scaffold</Pill>}
