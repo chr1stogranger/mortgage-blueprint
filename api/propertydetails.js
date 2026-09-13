@@ -141,6 +141,16 @@ export default async function handler(req, res) {
   if (!zpid && !(rcid && address)) {
     return res.status(400).json({ error: "zpid, or rcid + address, required" });
   }
+  // zpid is interpolated into the upstream URL and used as a cache key, so it
+  // must be a plain Zillow id (digits only) rather than "1&foo=bar".
+  if (zpid && !/^\d{1,12}$/.test(String(zpid))) {
+    return res.status(400).json({ error: "zpid must be numeric" });
+  }
+  // rc_ ids carry a RentCast address slug (commas, hyphens); rf_ ids a Redfin
+  // property id. Reject control chars and URL metacharacters, cap the length.
+  if (rcid && !/^(rc_|rf_)[A-Za-z0-9 _:.,#'-]{1,160}$/.test(String(rcid))) {
+    return res.status(400).json({ error: "invalid rcid" });
+  }
 
   // Cache key: rc_ id for RentCast rows (stable), zillow zpid otherwise.
   const cacheKey = rcid || zpid;
