@@ -791,7 +791,7 @@ export default function SetupContent(props) {
         far below the fold, which meant the choice that drives the whole refi
         model was nowhere near the button that turns the refi on. Styled to the
         Quick Start card's density, not the old section's. */}
-    {isRefi && (
+    {isRefi && (<>
     <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 10 }} />
     <div data-field="refi-purpose" className={isPulse("refi-purpose")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Refi Purpose</div>
@@ -809,7 +809,7 @@ export default function SetupContent(props) {
       )}
      </div>
     </div>
-    )}
+    </>)}
 
     {/* 3) FICO — purchase keeps it in the Quick Start card. Refi renders it in
         the right column, in the slot the Modules card used to occupy. */}
