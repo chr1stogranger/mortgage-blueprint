@@ -771,7 +771,8 @@ export default function SetupContent(props) {
     </div>
 
     {/* 2) Transaction Type */}
-    <div data-field="transaction-type" className={isPulse("transaction-type")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
+    <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 10 }} />
+    <div data-field="transaction-type" className={isPulse("transaction-type")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {[["Purchase", false], ["Refinance", true]].map(([label, val]) => {
@@ -791,7 +792,8 @@ export default function SetupContent(props) {
         model was nowhere near the button that turns the refi on. Styled to the
         Quick Start card's density, not the old section's. */}
     {isRefi && (
-    <div data-field="refi-purpose" className={isPulse("refi-purpose")} style={{ paddingTop: 10, borderTop: `1px solid ${T.separator}`, marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
+    <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 10 }} />
+    <div data-field="refi-purpose" className={isPulse("refi-purpose")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
      <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Refi Purpose</div>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
       {["Rate/Term", "Cash-Out"].map(p => (
