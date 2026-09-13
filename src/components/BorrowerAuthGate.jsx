@@ -31,7 +31,7 @@ const T = {
   cardBorder: 'rgba(255,255,255,0.06)', cardBorderHover: 'rgba(255,255,255,0.12)',
   accent: '#3B6BF5', accentLight: '#6E90FF', accentBright: '#6E90FF',
   blue: '#3B6BF5', teal: '#38c6c6', green: '#12a150', red: '#e5484d',
-  text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#666666',
+  text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#8A8A8A',
   separator: 'rgba(255,255,255,0.06)',
   inputBg: '#162034', inputBorder: 'rgba(255,255,255,0.12)',
 };

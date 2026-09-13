@@ -20,7 +20,7 @@ export const DARK = {
  accent: "#3B6BF5", accentHover: "#6E90FF", accentDeep: "#2B4FCE", blue: "#3B6BF5",
  green: "#12a150", red: "#e5484d",
  purple: "#8b7bf0", orange: "#d98a0b", cyan: "#38c6c6", pink: "#EC4899", teal: "#38c6c6",
- text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#666666",
+ text: "#EDEDED", textSecondary: "#A1A1A1", textTertiary: "#8A8A8A", // #666 was 3.2:1 on navy; #8A8A8A is 5.4:1 (AA), same value realstack-web uses
  separator: "rgba(255,255,255,0.08)", inputBg: "#162034", inputBorder: "rgba(255,255,255,0.12)",
  headerBg: "rgba(16,24,42,0.88)", tabActiveBg: "rgba(255,255,255,0.08)", tabActiveText: "#EDEDED",
  successBg: "rgba(18,161,80,0.12)", successBorder: "rgba(18,161,80,0.2)",

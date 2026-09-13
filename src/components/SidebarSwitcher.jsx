@@ -49,7 +49,7 @@ export default function SidebarSwitcher({
   const [recentsOpen, setRecentsOpen] = React.useState(true);
   const accent = '#3B6BF5';
   const text = T.text || '#EDEDED';
-  const textTer = T.textTertiary || '#666666';
+  const textTer = T.textTertiary || '#8A8A8A';
   const separator = T.separator || 'rgba(255,255,255,0.08)';
   const hoverBg = T.tabActiveBg || 'rgba(255,255,255,0.04)';
 

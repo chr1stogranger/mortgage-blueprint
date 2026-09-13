@@ -18,7 +18,7 @@ export default function CloudMergeSheet({ candidates = [], onUpload, onSkip, T, 
 
   const textColor = T?.text || (darkMode ? '#EDEDED' : '#171717');
   const secondary = T?.textSecondary || (darkMode ? '#A1A1A1' : '#525252');
-  const tertiary = T?.textTertiary || (darkMode ? '#666666' : '#737373');
+  const tertiary = T?.textTertiary || (darkMode ? '#8A8A8A' : '#737373');
   const accent = '#3B6BF5';
 
   const toggle = (name) => {

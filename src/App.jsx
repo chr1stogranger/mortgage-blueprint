@@ -224,7 +224,7 @@ function App() {
 function ShareExpiredScreen() {
   const T = {
     bg: '#0a1120', accent: '#3B6BF5',
-    text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#666666',
+    text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#8A8A8A',
     red: '#e5484d',
   };
     
