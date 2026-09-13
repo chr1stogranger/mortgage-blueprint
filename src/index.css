@@ -137,3 +137,7 @@ button:focus:not(:focus-visible) {
   color: var(--mkt-ph, #525252) !important;
   opacity: 1 !important;
 }
+
+/* Sideways-scroll hint for min-width tables (Rate & Points ladder on Share); phones only. */
+.bp-swipe-hint { display: none; }
+@media (max-width: 480px) { .bp-swipe-hint { display: block; } }

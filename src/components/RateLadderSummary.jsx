@@ -36,7 +36,7 @@ export default function RateLadderSummary({ T, calc, term, isRefi, rateLadder, C
           No rung pays for itself within {holdYears} years against {fmtRate(ladder.base.rate)}. Stay at the baseline, or take a credit if cash to close matters more.
         </div>
       )}
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 420, fontFamily: FONT, fontSize: 12.5 }}>
           <thead><tr>
             {["Rate", "Price", "Per month", "Breakeven", "Verdict"].map((h, i) => (
@@ -65,6 +65,8 @@ export default function RateLadderSummary({ T, calc, term, isRefi, rateLadder, C
           </tbody>
         </table>
       </div>
+      {/* The ladder is 420px wide at minimum; phones scroll it sideways, same hint Debts and Tax use. */}
+      <div className="bp-swipe-hint" style={{ fontSize: 9, color: T.textTertiary, fontFamily: FONT, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 6, textAlign: "right" }}>Swipe to see more →</div>
       <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5, marginTop: 8, fontFamily: FONT }}>
         Tax basis {tax.label} · {tax.note}.{L.asOf ? ` Pricing as of ${L.asOf}${L.ltvBand ? `, ${L.ltvBand} LTV` : ""}.` : ""}{L.estimated ? " Estimated pricing." : ""} Cash breakeven only; a lower rate also pays principal down faster.
       </div>
