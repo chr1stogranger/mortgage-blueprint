@@ -34,22 +34,23 @@ export default function handler(req, res) {
   }
 
   const accuracy = parseFloat(data.ac || 0).toFixed(1);          // numeric — coerced
-  const hood = esc(data.h || 'Unknown');
+  const cap = (v, n) => String(v ?? '').slice(0, n);              // the token is attacker-sized
+  const hood = esc(cap(data.h, 80) || 'Unknown');
   const beds = Number(data.b) || 0;                              // numeric — coerced
   const baths = Number(data.ba) || 0;                            // numeric — coerced
   const sqft = Number(data.sf) || 0;                             // numeric — coerced
   const mode = data.m === 'd' ? `Daily #${Number(data.dn) || 0}` : 'Free Play';
-  const label = esc(data.lb || '');
+  const label = esc(cap(data.lb, 80));
   const isLive = data.m === 'l'; // FOR SALE challenge — no sold price / accuracy yet
 
   // The property photo makes the unfurl — https URLs only (the token is
   // attacker-controllable; esc() handles attribute context, the scheme check
   // blocks anything that isn't a plain web image URL).
-  const photo = (typeof data.ph === 'string' && /^https:\/\//i.test(data.ph)) ? data.ph : null;
+  const photo = (typeof data.ph === 'string' && data.ph.length <= 2048 && /^https:\/\//i.test(data.ph)) ? data.ph : null;
   // Address goes in the card ONLY for a FOR SALE challenge (it's an active,
   // publicly listed home). Sold challenges keep neighborhood-only titles —
   // an address would let recipients look up the sold price and cheat.
-  const address = esc(data.a || '');
+  const address = esc(cap(data.a, 160));
 
   // For a FOR SALE challenge the friend's number is deliberately NOT revealed
   // (it would anchor the recipient's guess — both numbers appear together only
