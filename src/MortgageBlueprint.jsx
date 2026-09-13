@@ -1097,6 +1097,27 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
   </Suspense>
  );
 }
+// ═══ NAV CONSTANTS (module scope: rebuilt-per-render arrays were a new prop
+// for MobileTabBar on every keystroke) ═══
+// Core destinations that stay PINNED above the section index. These are real
+// tab switches (not in-page scrolls), in the order Christo specified.
+const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
+// ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
+// Five fixed slots, identical for every user and flow (no reflow, no dead
+// buttons). Everything else in TABS lives behind "More". Shared with the
+// desktop drawer's icon map so the More sheet and sidebar agree.
+const NAV_ICONS = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
+const BAR_TAB_KEYS = ["overview", "compare", "summary", "learn"];
+const MOBILE_BAR_ITEMS = [
+ { id: "overview", label: "Overview", icon: "home" },
+ { id: "compare",  label: "Compare",  icon: "bar-chart" },
+ { id: "summary",  label: "Share",    icon: "share" },
+ { id: "learn",    label: "Learn",    icon: "graduation-cap" },
+ { id: "more",     label: "More",     icon: "more-horizontal" },
+];
+// Tabs where the sticky payment pill makes sense (numbers pages only).
+const STICKY_PILL_TABS = ["overview", "compare", "refi", "refi3", "invest", "rentvbuy", "sell", "reo", "prop19"];
+
 export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // ── Borrower mode detection ──
  const isBorrower = !!borrowerMode?.enabled;
@@ -7006,24 +7027,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   ...((hasSellProperty && sellPrice > 0) ? [{ id: "overview-seller", label: "Seller Net" }] : []),
   ...((showProp19 && propertyState === "California" && !isRefi) ? [{ id: "overview-prop19", label: "Prop 19" }] : []),
  ];
- // Core destinations that stay PINNED above the section index. These are real
- // tab switches (not in-page scrolls), in the order Christo specified.
- const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
- // ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
- // Five fixed slots, identical for every user and flow (no reflow, no dead
- // buttons). Everything else in TABS lives behind "More". Shared with the
- // desktop drawer's icon map so the More sheet and sidebar agree.
- const NAV_ICONS = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
- const BAR_TAB_KEYS = ["overview", "compare", "summary", "learn"];
- const MOBILE_BAR_ITEMS = [
-  { id: "overview", label: "Overview", icon: "home" },
-  { id: "compare",  label: "Compare",  icon: "bar-chart" },
-  { id: "summary",  label: "Share",    icon: "share" },
-  { id: "learn",    label: "Learn",    icon: "graduation-cap" },
-  { id: "more",     label: "More",     icon: "more-horizontal" },
- ];
- // Tabs where the sticky payment pill makes sense (numbers pages only).
- const STICKY_PILL_TABS = ["overview", "compare", "refi", "refi3", "invest", "rentvbuy", "sell", "reo", "prop19"];
  const moreSheetTabs = TABS.filter(([k]) => !BAR_TAB_KEYS.includes(k) && k !== "workspace");
  // Bar / sheet tab switch — same body as the drawer's renderTabItem click.
  // Re-tapping the active Overview tab scrolls to top (the one sanctioned

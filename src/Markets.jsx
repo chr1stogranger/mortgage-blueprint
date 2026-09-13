@@ -68,6 +68,8 @@ const pct = (n) => `${(n * 100).toFixed(1)}%`;
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
 
+const NO_POSITIONS = [];
+
 export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode, setAppMode }) {
   const dispatch = useDispatch();
 
@@ -510,8 +512,10 @@ export default function Markets({ T, isDesktop, FONT, onBackToBlueprint, appMode
   // ─────────────────────────────────────────
 
   const TradingPanel = () => {
+    // Hook first, early return second: hooks must run in the same order on
+    // every render, even the ones where there is no active market.
+    const positions = useSelector((state) => activeMarket ? selectPositionsForMarket(state, activeMarket.id) : NO_POSITIONS);
     if (!activeMarket) return null;
-    const positions = useSelector((state) => selectPositionsForMarket(state, activeMarket.id));
 
     return (
       <div style={{

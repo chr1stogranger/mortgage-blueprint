@@ -185,7 +185,7 @@ export default function RateLadderContent(props) {
     const s = scaffoldRateLadder(rate || 6.5);
     patch({ rungs: s, baseIdx: 2, estimated: true, asOf: L.asOf || new Date().toISOString().slice(0, 10) });
   };
-  const useRung = (row) => {
+  const applyRung = (row) => {
     setRate(row.rate);
     if (row.pts > 0) { setDiscountPts(+row.pts.toFixed(3)); setLenderCredit(0); }
     else if (row.pts < 0) { setDiscountPts(0); setLenderCredit(Math.round(loan * Math.abs(row.pts) / 100)); }
@@ -274,7 +274,7 @@ export default function RateLadderContent(props) {
               Pays back in <b style={{ color: T.text }}>{Math.round(spot.breakeven)} months</b> and each step down to it also earns its keep. Ahead <b style={{ color: T.text }}>{money(spot.cumAtHold)}</b> in cash by year {holdYears}, plus <b style={{ color: T.text }}>{money(spot.equityAtHold)}</b> more principal paid down.
               {nextLower && <> The next step to {fmtPct3(nextLower.rate)} needs <b style={{ color: T.text }}>{nextLower.step && nextLower.step.breakeven !== null ? `${Math.round(nextLower.step.breakeven)} months` : "longer"}</b> to pay back on its own.</>}
             </div>
-            <div><Pill T={T} primary onClick={() => useRung(spot)}>Use {fmtPct3(spot.rate)}</Pill></div>
+            <div><Pill T={T} primary onClick={() => applyRung(spot)}>Use {fmtPct3(spot.rate)}</Pill></div>
           </div>
         ) : (
           <div style={{ padding: "14px 16px", borderRadius: 14, background: `linear-gradient(${T.blue}10, ${T.blue}10), ${T.card}`, border: `1px solid ${T.cardBorder}`, fontSize: 13, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>
@@ -339,7 +339,7 @@ export default function RateLadderContent(props) {
                       {td(<><span style={{ fontWeight: 800, fontSize: 15 }}>{mo(r.breakeven)}</span>{sub(r.step ? `step ${mo(r.step.breakeven)}` : " ")}</>, { color: dim })}
                       {td(r.dominated ? <Band T={T} band={{ key: "none", label: `Skip · ${fmtPct3(r.dominatedBy)} is cheaper` }} /> : credit ? <Band T={T} band={{ key: "hold", label: `Credit lasts ${mo(r.breakeven)}` }} /> : <Band T={T} band={r.band} />)}
                       {td(<><span style={{ fontWeight: 700, color: r.cumAtHold >= 0 ? T.green : T.red }}>{money(r.cumAtHold)}</span>{sub(`${r.equityAtHold >= 0 ? "+" : ""}${money(r.equityAtHold)} equity`)}</>)}
-                      {td(r.dominated ? "" : <Pill T={T} onClick={() => useRung(r)}>Use</Pill>, { paddingRight: 0 })}
+                      {td(r.dominated ? "" : <Pill T={T} onClick={() => applyRung(r)}>Use</Pill>, { paddingRight: 0 })}
                     </tr>
                   );
                 })}
@@ -393,7 +393,7 @@ export default function RateLadderContent(props) {
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, fontSize: 11, color: T.textSecondary }}>
                     <span>{r.cumAtHold >= 0 ? "Ahead" : "Behind"} <b style={{ color: r.cumAtHold >= 0 ? T.green : T.red }}>{money(Math.abs(r.cumAtHold))}</b> at {holdYears} yrs · +{money(r.equityAtHold)} equity</span>
-                    <Pill T={T} onClick={() => useRung(r)}>Use</Pill>
+                    <Pill T={T} onClick={() => applyRung(r)}>Use</Pill>
                   </div>
                 </div>
               );
