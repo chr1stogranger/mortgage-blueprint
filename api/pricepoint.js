@@ -208,7 +208,7 @@ async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
   if (page > 1) params.set("page", String(page));
 
   const url = `https://${apiHost}/search?${params}`;
-  console.error(`[PricePoint] Fetching: ${url.replace(apiKey, "***")}`);
+  console.info(`[PricePoint] Fetching: ${url.replace(apiKey, "***")}`);
 
   // Retry 429s, 5xx, and malformed 200s. This provider intermittently answers
   // 200 with {status, request_id, parameters} and NO data array — which used to
@@ -265,7 +265,7 @@ async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
   const dataCount = Array.isArray(data.data) ? data.data.length : "not-array";
   const resultsCount = Array.isArray(data.results) ? data.results.length : "not-array";
   const propsCount = Array.isArray(data.props) ? data.props.length : "not-array";
-  console.error(`[PricePoint] Response for ${homeStatus}: keys=[${topKeys}], data=${dataCount}, results=${resultsCount}, props=${propsCount}`);
+  console.info(`[PricePoint] Response for ${homeStatus}: keys=[${topKeys}], data=${dataCount}, results=${resultsCount}, props=${propsCount}`);
 
   // Log first listing's keys for shape discovery
   const firstItem = Array.isArray(data.data) ? data.data[0]
@@ -273,8 +273,8 @@ async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
     : Array.isArray(data.props) ? data.props[0]
     : null;
   if (firstItem) {
-    console.error(`[PricePoint] First ${homeStatus} item keys: ${Object.keys(firstItem).slice(0, 15).join(", ")}`);
-    console.error(`[PricePoint] First ${homeStatus} item: zpid=${firstItem.zpid}, price=${firstItem.price}, status=${firstItem.homeStatus}, homeType=${firstItem.homeType}`);
+    console.info(`[PricePoint] First ${homeStatus} item keys: ${Object.keys(firstItem).slice(0, 15).join(", ")}`);
+    console.info(`[PricePoint] First ${homeStatus} item: zpid=${firstItem.zpid}, price=${firstItem.price}, status=${firstItem.homeStatus}, homeType=${firstItem.homeType}`);
   }
 
   return data;
@@ -404,7 +404,7 @@ export default async function handler(req, res) {
       }
     } else {
       cache.delete(cacheKey); // clear stale entry
-      console.error(`[PricePoint] Cache bypassed for ${location}`);
+      console.info(`[PricePoint] Cache bypassed for ${location}`);
     }
 
     // API credentials
@@ -429,7 +429,7 @@ export default async function handler(req, res) {
       active = activeData.value
         .filter(r => r.zpid && r.price)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
-      console.error(`[PricePoint] Active across pages: ${activeData.value.length} raw, ${active.length} usable`);
+      console.info(`[PricePoint] Active across pages: ${activeData.value.length} raw, ${active.length} usable`);
     } else {
       console.error(`[PricePoint] Active failed: ${activeData.reason?.message}`);
     }
@@ -440,7 +440,7 @@ export default async function handler(req, res) {
       sold = soldData.value
         .filter(r => r.zpid && r.price)
         .map((r, i) => normalizeProperty(r, i, "pps", true));
-      console.error(`[PricePoint] Sold across pages: ${soldData.value.length} raw, ${sold.length} usable`);
+      console.info(`[PricePoint] Sold across pages: ${soldData.value.length} raw, ${sold.length} usable`);
     } else {
       console.error(`[PricePoint] Sold failed: ${soldData.reason?.message}`);
     }
@@ -462,7 +462,7 @@ export default async function handler(req, res) {
     sold = sold.filter(s => !activeZpidSet.has(s.zpid));
     const dedupRemoved = soldBeforeDedup - sold.length;
 
-    console.error(`[PricePoint] ${location}: ${active.length} active, ${soldBeforeDedup} sold raw, ${dedupRemoved} fake (zpid overlap), ${sold.length} genuine sold`);
+    console.info(`[PricePoint] ${location}: ${active.length} active, ${soldBeforeDedup} sold raw, ${dedupRemoved} fake (zpid overlap), ${sold.length} genuine sold`);
 
     const result = {
       location,
@@ -509,7 +509,7 @@ export default async function handler(req, res) {
           if (upsertErr) {
             console.error(`[PricePoint] Supabase cache write error (non-fatal): ${upsertErr.message}`);
           } else {
-            console.error(`[PricePoint] Supabase cache updated: ${cacheKey} (${active.length} active, ${sold.length} sold)`);
+            console.info(`[PricePoint] Supabase cache updated: ${cacheKey} (${active.length} active, ${sold.length} sold)`);
           }
         } catch (e) {
           console.error(`[PricePoint] Supabase cache write failed (non-fatal): ${e.message}`);

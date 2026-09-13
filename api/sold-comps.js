@@ -410,7 +410,7 @@ export default async function handler(req, res) {
       });
     }
 
-    console.error(`[SoldComps] Discovery for ${marketId} (prime=${pool.prime.length}, fresh6=${fresh6Size}, all=${pool.all.length}, forced=${forceDiscover || forceFreshSearch})...`);
+    console.info(`[SoldComps] Discovery for ${marketId} (prime=${pool.prime.length}, fresh6=${fresh6Size}, all=${pool.all.length}, forced=${forceDiscover || forceFreshSearch})...`);
     freshAttemptAt[freshKey] = Date.now();
 
     const poolZpidSet = new Set(pool.all.map(r => String(r.zpid)));
@@ -488,7 +488,7 @@ export default async function handler(req, res) {
       } else {
         // ignoreDuplicates: this is the CANDIDATE count, not rows actually
         // inserted — a re-pull of an already-seeded city logs the full batch.
-        console.error(`[SoldComps] Upserted ${newRows.length} candidate rows into pool for ${marketId} (via ${discoverySource}; duplicates ignored)`);
+        console.info(`[SoldComps] Upserted ${newRows.length} candidate rows into pool for ${marketId} (via ${discoverySource}; duplicates ignored)`);
       }
     }
 
@@ -498,7 +498,7 @@ export default async function handler(req, res) {
     pool = await readPool({ forceFresh: true });
     const { rows: shuffled, tier } = pickShuffledSlice(pool);
 
-    console.error(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: added ${newRows.length} via ${discoverySource}, pool now prime=${pool.prime.length} fresh=${pool.fresh.length} older=${pool.older.length}`);
+    console.info(`[SoldComps] ${marketId}${zip ? ` zip=${zip}` : ''}: added ${newRows.length} via ${discoverySource}, pool now prime=${pool.prime.length} fresh=${pool.fresh.length} older=${pool.older.length}`);
 
     res.setHeader("Cache-Control", "no-store");
     const responseBody = {
@@ -708,7 +708,7 @@ async function discoverSoldViaRentCast(city, marketId, ingestCutoff, excludeSet,
     seen.add(row.zpid);
     rows.push(row);
   }
-  console.error(`[SoldComps] rentcast discovery ${marketId}: raw=${results.length} kept=${rows.length} (status=${diag.status})`);
+  console.info(`[SoldComps] rentcast discovery ${marketId}: raw=${results.length} kept=${rows.length} (status=${diag.status})`);
   return { rows, diag };
 }
 
@@ -979,7 +979,7 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
     seen.add(row.zpid);
     rows.push(row);
   }
-  console.error(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: region=${regionId} raw=${items.length} kept=${rows.length}`);
+  console.info(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: region=${regionId} raw=${items.length} kept=${rows.length}`);
   return { rows, diag: null };
 }
 
@@ -1027,7 +1027,7 @@ async function discoverSoldViaSearch(city, apiKey, apiHost, marketId, ingestCuto
     seen.add(zpid);
     rows.push(searchItemToPoolRow(d, marketId, soldPrice, soldDate));
   }
-  console.error(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, provenOverlap=${keptProven}, noSoldData=${rejNoSoldData}, tooOld=${rejTooOld}, kept=${rows.length}, retry=${retryZpids.length}`);
+  console.info(`[SoldComps] search discovery ${marketId}: active=${activeItems.length}, soldRaw=${soldItems.length}, relabeled=${rejRelabeled}, provenOverlap=${keptProven}, noSoldData=${rejNoSoldData}, tooOld=${rejTooOld}, kept=${rows.length}, retry=${retryZpids.length}`);
   return { rows, retryZpids: retryZpids.slice(0, 150) };
 }
 
@@ -1147,7 +1147,7 @@ async function discoverViaPropertyDetails(city, zip, apiKey, apiHost, marketId, 
         { cache_key: junkKey, data: { zpids: Object.fromEntries(entries) }, updated_at: new Date().toISOString() },
         { onConflict: 'cache_key' }
       );
-      console.error(`[SoldComps] junk-memory ${marketId}: +${newJunk.length} (total ${entries.length})`);
+      console.info(`[SoldComps] junk-memory ${marketId}: +${newJunk.length} (total ${entries.length})`);
     } catch (e) {
       console.error(`[SoldComps] junk-memory write failed (continuing): ${e.message}`);
     }
