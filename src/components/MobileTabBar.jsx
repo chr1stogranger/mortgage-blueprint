@@ -56,11 +56,18 @@ export default function MobileTabBar({ items, activeId, onSelect, T, maxWidth = 
       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
       paddingBottom: "env(safe-area-inset-bottom, 0px)",
     }}>
-      <div role="tablist" style={{ display: "flex", maxWidth, margin: "0 auto", width: "100%" }}>
+      <div role="tablist" aria-label="Sections" style={{ display: "flex", maxWidth, margin: "0 auto", width: "100%" }}>
         {items.map((it) => {
           const active = it.id === activeId;
+          // "More" opens a sheet rather than switching pages, so it is a
+          // menu button, not a tab (screen readers would otherwise announce
+          // it as "tab 5 of 5, not selected").
+          const isMenu = it.id === "more";
+          const a11y = isMenu
+            ? { "aria-haspopup": "dialog" }
+            : { role: "tab", "aria-selected": active };
           return (
-            <button key={it.id} role="tab" aria-selected={active} aria-label={it.label}
+            <button key={it.id} type="button" aria-label={it.label} {...a11y}
               onClick={() => onSelect && onSelect(it.id)}
               style={{
                 flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",

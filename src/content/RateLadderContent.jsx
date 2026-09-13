@@ -316,7 +316,7 @@ export default function RateLadderContent(props) {
                         <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                           <NumCell T={T} value={r.rate} onCommit={(v) => updateRung(r, "rate", v)} suffix="%" width={70} ariaLabel="Rate" />
                           <NumCell T={T} value={r.pts} onCommit={(v) => updateRung(r, "pts", v)} suffix="pts" width={70} step={0.125} ariaLabel="Points (negative for credit)" />
-                          <button onClick={() => removeRung(r)} aria-label="Remove rung" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 14, padding: 2 }}>×</button>
+                          <button type="button" onClick={() => removeRung(r)} aria-label="Remove rung" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 14, padding: 0, minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>×</button>
                         </span>
                       ) : (
                         <>
@@ -357,7 +357,7 @@ export default function RateLadderContent(props) {
                   <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
                     <NumCell T={T} value={r.rate} onCommit={(v) => updateRung(r, "rate", v)} suffix="%" width={74} ariaLabel="Rate" />
                     <NumCell T={T} value={r.pts} onCommit={(v) => updateRung(r, "pts", v)} suffix="pts" width={74} step={0.125} ariaLabel="Points (negative for credit)" />
-                    <button onClick={() => removeRung(r)} aria-label="Remove rung" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 16 }}>×</button>
+                    <button type="button" onClick={() => removeRung(r)} aria-label="Remove rung" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 16, padding: 0, minWidth: 36, minHeight: 36, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>×</button>
                   </div>
                 </div>
               );
