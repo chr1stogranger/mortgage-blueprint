@@ -1,7 +1,7 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
-import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent } from "./content/index.js";
+import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent, VaResidualContent } from "./content/index.js";
 
 
 /* ─── Collapsible section wrapper ─── */
@@ -70,7 +70,7 @@ export default function OverviewTab(props) {
     hasSellProperty, setHasSellProperty,
     ownsProperties, setOwnsProperties,
     showProp19, prop19, sellPrice,
-    showRateLadder,
+    showRateLadder, vaResidualOn,
   } = props;
 
   const isGuided = skillLevel === "guided";
@@ -253,6 +253,18 @@ export default function OverviewTab(props) {
       {/* ═══════════════════════════════════════
           SECTION 8: PRE-QUALIFIED? (Qualification)
           ═══════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════
+          VA RESIDUAL INCOME (VA loans, module on — 2026-09-13)
+          ═══════════════════════════════════════ */}
+      {vaResidualOn && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="VA Residual Income" T={T} id="overview-varesidual" heroStyle={true} subtitle="Balance available for family support, against the VA table">
+            <VaResidualContent {...props} />
+          </CollapsibleSection>
+        </>
+      )}
+
       <SectionDivider T={T} />
       <CollapsibleSection title="Pre-Qualified?" T={T} id="overview-qualification" heroStyle={true}>
         <QualifyContent {...props} />

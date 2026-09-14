@@ -14,6 +14,7 @@ import React from "react";
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { FeesWorksheetPage } from "./FeesWorksheetPdf.jsx";
 import { RateLadderPage } from "./RateLadderPdf.jsx";
+import { VaResidualPage } from "./VaResidualPdf.jsx";
 
 const usd = (v) =>
   v == null || !isFinite(v) || isNaN(v)
@@ -430,6 +431,7 @@ export function RefiSummaryDoc(p) {
       {p.includeFees ? <FeesWorksheetPage {...p} /> : null}
       {/* Rate & Points Breakeven page, when the ladder module is on. */}
       {p.rateLadder ? <RateLadderPage {...p} /> : null}
+      {p.vaResidual ? <VaResidualPage {...p} /> : null}
     </Document>
   );
 }

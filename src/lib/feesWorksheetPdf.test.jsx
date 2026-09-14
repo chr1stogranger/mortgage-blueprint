@@ -81,3 +81,21 @@ describe("FeesWorksheetDoc + RateLadderPage", () => {
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
   });
 });
+
+// ── VA Residual Income page (2026-09-13) ─────────────────────────────────────
+import { buildVaResidualView, vaResidualPdfData } from "./vaResidual.js";
+describe("FeesWorksheetDoc + VaResidualPage", () => {
+  it("renders the worksheet with the VA residual page appended", async () => {
+    const calc = { ...baseCalc, loan: 600000, monthlyHOA: 233, qualifyingIncome: 14000, totalMonthlyDebts: 900, reoNegativeDebt: 0 };
+    const snap = vaResidualPdfData(buildVaResidualView({
+      calc, isRefi: false, propertyState: "California", married: "MFJ", taxState: "California",
+      vaResidual: { sqft: 1900, taxFreeIncome: 1200, childcare: 600, notes: "12 years with the same employer; 6 months reserves." },
+    }));
+    expect(snap.region).toBe("West");
+    expect(snap.guideline).toBe(823);
+    expect(snap.shelter.maintUtil).toBe(266);
+    const buf = await renderToBuffer(<FeesWorksheetDoc {...baseProps} loanType="VA" calc={calc} vaResidual={snap} />);
+    expect(buf.length).toBeGreaterThan(20000);
+    expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+});
