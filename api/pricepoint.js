@@ -470,6 +470,11 @@ export default async function handler(req, res) {
       soldListings: sold,
       activeCount: active.length,
       soldCount: sold.length,
+      // Upstream RapidAPI failure signal, safe for all callers (not gated
+      // behind isPrivileged): lets the frontend tell "genuinely zero
+      // listings" apart from "upstream errored, showing stale/empty data".
+      activeDataStale: activeData.status !== "fulfilled",
+      soldDataStale: soldData.status !== "fulfilled",
       timestamp: new Date().toISOString(),
       cached: false,
     };
