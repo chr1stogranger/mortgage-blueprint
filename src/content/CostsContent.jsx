@@ -1307,7 +1307,7 @@ export default function CostsContent(props) {
             const countySharePct = transferTaxCountySplit === "buyer" ? 100 : transferTaxCountySplit === "seller" ? 0 : 50;
             const cityRate = calc.ttEntry && calc.ttEntry.rate > 0 ? calc.ttEntry.rate : 0;
             const countyRate = calc.countyTTRate || 0;
-            const cityFullTax = (salesPrice / 1000) * cityRate;
+            const cityFullTax = calc.ttEntry && calc.ttEntry.amount != null ? calc.ttEntry.amount : (salesPrice / 1000) * cityRate;
             const countyFullTax = (salesPrice / 1000) * countyRate;
 
             const cityDropdown = !isRefi ? (

@@ -155,13 +155,18 @@ const ZIP_DATA = {"94501":"Alameda:Alameda","94502":"Alameda:Alameda","94536":"F
 const lookupZip = (zip) => { const e = ZIP_DATA[zip]; if (!e) return null; const parts = e.split(":"); const STATE_ALIAS = {"DC":"District of Columbia","New York":"New York","Illinois":"Illinois","Texas":"Texas","Arizona":"Arizona","Washington":"Washington","Florida":"Florida","Colorado":"Colorado"}; if (parts.length === 3) { const st = STATE_ALIAS[parts[2]] || parts[2]; return { city: parts[0], county: parts[1], state: st }; } return { city: parts[0], county: parts[1], state: "California" }; };
 // HUD 2024 Area Median Income by county/MSA for California DPA eligibility
 const COUNTY_AMI = {"Alameda":168500,"Contra Costa":168500,"Marin":168500,"San Francisco":168500,"San Mateo":168500,"Santa Clara":181300,"Napa":117400,"Solano":115300,"Sonoma":117200,"Los Angeles":98200,"Orange":98200,"Sacramento":106300,"El Dorado":106300,"Placer":106300,"Yolo":106300,"Riverside":84500,"San Bernardino":84500,"San Diego":106900,"Fresno":71800,"Kern":64400,"San Joaquin":84100,"Stanislaus":76100,"Santa Cruz":137400,"Monterey":97100,"Ventura":105300,"Santa Barbara":103000,"San Luis Obispo":103400,"Tulare":60500,"New York":114400,"Kings":114400,"Queens":114400,"Bronx":114400,"Richmond":114400,"Nassau":148600,"Suffolk":148600,"Westchester":114400,"Cook":98000,"DuPage":98000,"Lake":98000,"Will":98000,"Kane":98000,"Harris":89600,"Dallas":90000,"Tarrant":90000,"Collin":90000,"Denton":90000,"Travis":110300,"Maricopa":82800,"Pima":72000,"King":134600,"Snohomish":134600,"Pierce":96600,"Miami-Dade":68300,"Broward":68300,"Palm Beach":68300,"Hillsborough":75500,"Pinellas":75500,"Orange FL":72200,"Duval":81100,"Denver":108800,"Arapahoe":108800,"Jefferson":108800,"Adams":108800,"Douglas":108800,"Boulder":116300,"Suffolk MA":140200,"Middlesex":140200,"Norfolk MA":140200,"Essex MA":140200,"Philadelphia":89600,"Montgomery PA":89600,"Delaware PA":89600,"Bucks":89600,"Fulton":90700,"DeKalb":90700,"Gwinnett":90700,"Cobb":90700,"Wayne":73400,"Oakland MI":73400,"Macomb":73400,"Cuyahoga":70800,"Franklin OH":79200,"Hamilton OH":78800,"Fairfax":148600,"Arlington":148600,"Loudoun":148600,"Prince William":148600,"Montgomery MD":148600,"Prince Georges":148600,"Baltimore County":104300,"Howard":104300,"Mecklenburg":84700,"Wake":84700,"Durham":84700,"Hennepin":107800,"Ramsey":107800,"Dakota":107800,"Multnomah":95500,"Washington OR":95500,"Clackamas":95500,"Clark":75800,"Davidson":82900,"Shelby":67100,"Marion":73700,"Hamilton IN":73700,"St. Louis County":78200,"Jackson MO":78200,"Milwaukee":80400,"Dane":95700,"District of Columbia":148600};
+// City transfer tax rates: $ per $1,000 of sale price, applied to the WHOLE price for the
+// matching tier (price <= maxPrice). Entries with `marginal` are taxed on the portion within
+// each band instead (Santa Cruz Measure C). Source: Fidelity National Title "California
+// Customary Closing Costs and Transfer Tax", revised 7/23/2026. Cities not listed in that guide
+// have NO city transfer tax (county $1.10/$1K only) and must not appear here.
 const TRANSFER_TAX_CITIES = [
  { label: "Not listed", city: "Not listed", rate: 0, maxPrice: Infinity, state: "*" },
  // ── California ──
  { label: "Alameda", city: "Alameda", rate: 12, maxPrice: Infinity, state: "California" },
  { label: "Albany", city: "Albany", rate: 15, maxPrice: Infinity, state: "California" },
- { label: "Berkeley", city: "Berkeley", rate: 15, maxPrice: 1600000, state: "California" },
- { label: "Berkeley >$1.6M", city: "Berkeley", rate: 25, maxPrice: Infinity, state: "California" },
+ { label: "Berkeley", city: "Berkeley", rate: 15, maxPrice: 1700000, state: "California" },
+ { label: "Berkeley >$1.7M", city: "Berkeley", rate: 25, maxPrice: Infinity, state: "California" }, // eff. 1/1/2026
  { label: "Emeryville", city: "Emeryville", rate: 12, maxPrice: 1000000, state: "California" },
  { label: "Emeryville $1-2M", city: "Emeryville", rate: 15, maxPrice: 2000000, state: "California" },
  { label: "Emeryville >$2M", city: "Emeryville", rate: 25, maxPrice: Infinity, state: "California" },
@@ -181,8 +186,10 @@ const TRANSFER_TAX_CITIES = [
  { label: "Culver City $1.5-3M", city: "Culver City", rate: 15, maxPrice: 3000000, state: "California" },
  { label: "Culver City $3-10M", city: "Culver City", rate: 30, maxPrice: 10000000, state: "California" },
  { label: "Culver City >$10M", city: "Culver City", rate: 40, maxPrice: Infinity, state: "California" },
- { label: "Los Angeles", city: "Los Angeles", rate: 4.5, maxPrice: 5300000, state: "California" },
- { label: "Los Angeles >$5.3M", city: "Los Angeles", rate: 40, maxPrice: Infinity, state: "California" },
+ // Los Angeles: $4.50 base PLUS Measure ULA (thresholds eff. 6/30/2026): +4% above $5.4M, +5.5% at/above $10.9M
+ { label: "Los Angeles", city: "Los Angeles", rate: 4.5, maxPrice: 5400000, state: "California" },
+ { label: "Los Angeles $5.4-10.9M", city: "Los Angeles", rate: 44.5, maxPrice: 10899999, state: "California" },
+ { label: "Los Angeles >$10.9M", city: "Los Angeles", rate: 59.5, maxPrice: Infinity, state: "California" },
  { label: "Pomona", city: "Pomona", rate: 2.2, maxPrice: Infinity, state: "California" },
  { label: "Redondo Beach", city: "Redondo Beach", rate: 2.2, maxPrice: Infinity, state: "California" },
  { label: "Santa Monica", city: "Santa Monica", rate: 3, maxPrice: 5000000, state: "California" },
@@ -202,31 +209,21 @@ const TRANSFER_TAX_CITIES = [
  { label: "Hillsborough", city: "Hillsborough", rate: 0.3, maxPrice: Infinity, state: "California" },
  { label: "Mountain View", city: "Mountain View", rate: 3.3, maxPrice: Infinity, state: "California" },
  { label: "Palo Alto", city: "Palo Alto", rate: 3.3, maxPrice: Infinity, state: "California" },
- { label: "San Jose", city: "San Jose", rate: 3.3, maxPrice: 2000000, state: "California" },
- { label: "San Jose $2-5M", city: "San Jose", rate: 7.5, maxPrice: 5000000, state: "California" },
- { label: "San Jose $5-10M", city: "San Jose", rate: 10, maxPrice: 10000000, state: "California" },
- { label: "San Jose >$10M", city: "San Jose", rate: 15, maxPrice: Infinity, state: "California" },
+ // San Jose: $3.30 base PLUS Measure E (eff. 7/1/2025): +0.75% from $2.3M, +1.0% over $5M, +1.5% over $10M
+ { label: "San Jose", city: "San Jose", rate: 3.3, maxPrice: 2299999, state: "California" },
+ { label: "San Jose $2.3-5M", city: "San Jose", rate: 10.8, maxPrice: 5000000, state: "California" },
+ { label: "San Jose $5-10M", city: "San Jose", rate: 13.3, maxPrice: 10000000, state: "California" },
+ { label: "San Jose >$10M", city: "San Jose", rate: 18.3, maxPrice: Infinity, state: "California" },
  { label: "Vallejo", city: "Vallejo", rate: 3.3, maxPrice: Infinity, state: "California" },
  { label: "Petaluma", city: "Petaluma", rate: 2, maxPrice: Infinity, state: "California" },
  { label: "Santa Rosa", city: "Santa Rosa", rate: 2, maxPrice: Infinity, state: "California" },
- { label: "Burlingame", city: "Burlingame", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "Daly City", city: "Daly City", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "South San Francisco", city: "South San Francisco", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "Pacifica", city: "Pacifica", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "Half Moon Bay", city: "Half Moon Bay", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "Redwood City", city: "Redwood City", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "San Carlos", city: "San Carlos", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "Menlo Park", city: "Menlo Park", rate: 5, maxPrice: Infinity, state: "California" },
- { label: "Fremont", city: "Fremont", rate: 8.5, maxPrice: Infinity, state: "California" },
- { label: "Sunnyvale", city: "Sunnyvale", rate: 3.3, maxPrice: Infinity, state: "California" },
- { label: "Santa Clara", city: "Santa Clara", rate: 3.3, maxPrice: Infinity, state: "California" },
- { label: "Cupertino", city: "Cupertino", rate: 3.3, maxPrice: Infinity, state: "California" },
- { label: "Milpitas", city: "Milpitas", rate: 3.3, maxPrice: Infinity, state: "California" },
- { label: "Campbell", city: "Campbell", rate: 3.3, maxPrice: Infinity, state: "California" },
- { label: "Santa Cruz", city: "Santa Cruz", rate: 4.4, maxPrice: Infinity, state: "California" },
+ // City of Santa Cruz, Measure C (eff. 7/1/2026): no tax under $1.8M, then taxed on the PORTION within each
+ // band (0.5% $1.8-2.5M, 1.0% $2.5-3.5M, 1.5% $3.5-4.5M, 2.0% above), capped at $200,000 per transaction.
+ { label: "Santa Cruz", city: "Santa Cruz", rate: 0, maxPrice: Infinity, state: "California",
+   marginal: [{ upTo: 1800000, pct: 0 }, { upTo: 2500000, pct: 0.005 }, { upTo: 3500000, pct: 0.01 }, { upTo: 4500000, pct: 0.015 }, { upTo: Infinity, pct: 0.02 }], cap: 200000 },
+ // Long Beach + Pasadena: not in the Fidelity 7/2026 guide; kept pending confirmation with title.
  { label: "Long Beach", city: "Long Beach", rate: 2.2, maxPrice: Infinity, state: "California" },
  { label: "Pasadena", city: "Pasadena", rate: 2.2, maxPrice: Infinity, state: "California" },
- { label: "San Diego", city: "San Diego", rate: 1.1, maxPrice: Infinity, state: "California" },
  // ── New York ──
  { label: "NY State (outside NYC)", city: "NY State", rate: 4, maxPrice: Infinity, state: "New York", note: "$2/$500 state" },
  { label: "NYC 1-3 Family <$500K", city: "NYC", rate: 10, maxPrice: 500000, state: "New York", note: "1% state+city" },
@@ -302,10 +299,25 @@ const TRANSFER_TAX_CITIES = [
 ];
 const TT_CITY_NAMES = [...new Set(TRANSFER_TAX_CITIES.map(t => t.city))];
 const getTTCitiesForState = (st) => [...new Set(TRANSFER_TAX_CITIES.filter(t => t.state === "*" || t.state === st).map(t => t.city))];
+// Returns the matching tier for a city + price. Always carries `amount` (exact city tax in $) and
+// `rate` ($/$1K). For marginal cities `rate` is the effective rate at this price, rounded for display.
 const getTTForCity = (cityName, price) => {
  const tiers = TRANSFER_TAX_CITIES.filter(t => t.city === cityName).sort((a, b) => a.maxPrice - b.maxPrice);
- if (tiers.length === 0) return TRANSFER_TAX_CITIES[0];
- return tiers.find(t => price <= t.maxPrice) || tiers[tiers.length - 1];
+ if (tiers.length === 0) return { ...TRANSFER_TAX_CITIES[0], amount: 0 };
+ const p = Number(price) || 0;
+ const entry = tiers.find(t => p <= t.maxPrice) || tiers[tiers.length - 1];
+ if (entry.marginal) {
+  let tax = 0, lower = 0;
+  for (const band of entry.marginal) {
+   if (p <= lower) break;
+   tax += (Math.min(p, band.upTo) - lower) * band.pct;
+   lower = band.upTo;
+  }
+  if (entry.cap != null) tax = Math.min(tax, entry.cap);
+  const eff = p > 0 ? tax / (p / 1000) : 0;
+  return { ...entry, amount: tax, rate: Math.round(eff * 100) / 100 };
+ }
+ return { ...entry, amount: p / 1000 * entry.rate };
 };
 const MAX_DTI = { Conventional: 0.50, FHA: 0.57, Jumbo: 0.43, VA: 0.60, USDA: 0.50 };
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo", "USDA"];
@@ -5533,7 +5545,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const countyBuyerShare = transferTaxCountySplit === "buyer" ? 1.0 : transferTaxCountySplit === "seller" ? 0.0 : 0.5;
   // CA Documentary Transfer Tax: $1.10 per $1,000 of sale price, statewide. Other states currently 0 (CA-focused for now).
   const countyTTRate = propertyState === "California" ? 1.10 : 0;
-  const buyerCityTT = isRefi ? 0 : (salesPrice / 1000 * ttEntry.rate) * cityBuyerShare;
+  const buyerCityTT = isRefi ? 0 : ttEntry.amount * cityBuyerShare;
   const buyerCountyTT = isRefi ? 0 : (salesPrice / 1000 * countyTTRate) * countyBuyerShare;
   // Custom LO fees roll into their section subtotals.
   const customFeeSum = (sec) => (customFees || []).reduce((t, f) => t + (f.section === sec ? (f.amount || 0) : 0), 0);
@@ -5831,7 +5843,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const reoNetCashFlow = reoTotalIncome - reoTotalPayments;
   const sellTTEntry = getTTForCity(sellTransferTaxCity, sellPrice);
   const sellIsSF = sellTTEntry.sfSeller === true;
-  const sellCityTT = sellPrice / 1000 * sellTTEntry.rate;
+  const sellCityTT = sellTTEntry.amount;
   const sellCountyTT = sellPrice / 1000 * 1.1;
   const sellTotalTT = sellCountyTT + (sellIsSF ? sellCityTT : sellCityTT * 0.5);
   const sellCommAmt = sellPrice * (sellCommission / 100);
