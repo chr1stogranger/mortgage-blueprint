@@ -400,14 +400,24 @@ describe("rate ladder", () => {
   ];
   const opts = { loan: 650000, termYears: 30, rungs, baseIdx: 0, holdMonths: 60, taxRate: 0.15, deductPct: 1 };
 
-  it("matches the sheet row: 7.000% → 6.875% (delta $54.43, net $3,558, 65 mo)", () => {
+  it("reference row 7.000% → 6.875%: sheet pieces match, but the lost write-off is recurring (65 → 78 mo)", () => {
     const r = computeRateLadder(opts).rows[1];
+    // pre-tax pieces, sheet parity
     expect(r.delta).toBeCloseTo(54.43, 1);
     expect(r.cost).toBeCloseTo(4043, 0);
     expect(r.postTaxCost).toBeCloseTo(3436.55, 0);
-    expect(r.writeOffLost).toBeCloseTo(121.875, 1);
-    expect(r.netCost).toBeCloseTo(3558, 0);
-    expect(Math.round(r.breakeven)).toBe(65);
+    expect(r.writeOffLost).toBeCloseTo(121.875, 1); // per year
+    // engine: the write-off comes out of the monthly savings, not the upfront cost
+    expect(r.writeOffMonthly).toBeCloseTo(10.16, 1);
+    expect(r.netDelta).toBeCloseTo(44.27, 1);
+    expect(r.netCost).toBeCloseTo(3436.55, 0);
+    expect(Math.round(r.breakeven)).toBe(78); // the sheet says 65 by adding one year of write-off once
+  });
+  it("with no tax basis the after-tax and pre-tax deltas are identical", () => {
+    const r = computeRateLadder({ ...opts, taxRate: 0 }).rows[1];
+    expect(r.netDelta).toBeCloseTo(r.delta, 6);
+    expect(r.writeOffMonthly).toBe(0);
+    expect(r.netCost).toBeCloseTo(r.cost, 6);
   });
   it("flags 6.750% as dominated by 6.625% (cheaper AND lower) instead of printing −7 months", () => {
     const rows = computeRateLadder(opts).rows;
@@ -417,16 +427,19 @@ describe("rate ladder", () => {
     // 6.625% steps from 6.875%, skipping the dominated rung
     expect(rows[3].step.delta).toBeCloseTo(108.02, 1);
   });
-  it("ROI at N months equals the sheet formula (N − breakeven) × delta ÷ net", () => {
+  it("ROI at N months equals (N − breakeven) × after-tax delta ÷ net", () => {
     const r = computeRateLadder({ ...opts, holdMonths: 120 }).rows[1];
-    const sheet = (120 - r.breakeven) * r.delta / r.netCost;
+    const sheet = (120 - r.breakeven) * r.netDelta / r.netCost;
     expect(r.roiAtHold).toBeCloseTo(sheet, 6);
   });
-  it("sweet spot moves with the hold: none at 3 yrs, 6.500% at 5 yrs, 6.375% at 8 yrs", () => {
+  it("sweet spot moves with the hold: none at 3 yrs, 6.500% at 5 and 8 yrs, 6.375% at 10 yrs", () => {
+    // At a 33.3% basis the recurring write-off pushes the 6.375% marginal step
+    // past 8 years; it used to clear at 8 when the write-off was one-time.
     const tax = { ...opts, taxRate: 0.333 };
     expect(computeRateLadder({ ...tax, holdMonths: 36 }).spot).toBeNull();
     expect(computeRateLadder({ ...tax, holdMonths: 60 }).spot.rate).toBe(6.5);
-    expect(computeRateLadder({ ...tax, holdMonths: 96 }).spot.rate).toBe(6.375);
+    expect(computeRateLadder({ ...tax, holdMonths: 96 }).spot.rate).toBe(6.5);
+    expect(computeRateLadder({ ...tax, holdMonths: 120 }).spot.rate).toBe(6.375);
   });
   it("a lender credit has no tax effect; refi points get no upfront offset", () => {
     const credit = compareRungs({ rate: 6.5, pts: 0 }, { rate: 6.625, pts: -0.5 }, { loan: 650000, taxRate: 0.24 });

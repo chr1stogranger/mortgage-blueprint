@@ -74,7 +74,7 @@ function BenefitChart({ T, ladder, holdYears }) {
   const series = ladder.rows.filter(r => !r.isBase && !r.dominated && r.rate < ladder.base.rate);
   if (!series.length) return <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT }}>Add a rung below the baseline to chart it.</div>;
   let ymin = 0, ymax = 0;
-  series.forEach(s => { ymin = Math.min(ymin, -s.netCost); ymax = Math.max(ymax, MONTHS * s.delta - s.netCost); });
+  series.forEach(s => { ymin = Math.min(ymin, -s.netCost); ymax = Math.max(ymax, MONTHS * (s.netDelta ?? s.delta) - s.netCost); });
   const pad = (ymax - ymin) * 0.06 || 100; ymin -= pad; ymax += pad;
   const x = m => L + (m / MONTHS) * (W - L - R);
   const y = v => TOP + (1 - (v - ymin) / (ymax - ymin)) * (H - TOP - B);
@@ -109,8 +109,8 @@ function BenefitChart({ T, ladder, holdYears }) {
         )}
         {ordered.map(s => {
           const hot = s.idx === hotIdx;
-          const pts = []; for (let m = 0; m <= MONTHS; m += 2) pts.push(`${x(m).toFixed(1)},${y(m * s.delta - s.netCost).toFixed(1)}`);
-          const ye = y(MONTHS * s.delta - s.netCost);
+          const pts = []; for (let m = 0; m <= MONTHS; m += 2) pts.push(`${x(m).toFixed(1)},${y(m * (s.netDelta ?? s.delta) - s.netCost).toFixed(1)}`);
+          const ye = y(MONTHS * (s.netDelta ?? s.delta) - s.netCost);
           let ly = ye; labelYs.sort((a, b) => a - b).forEach(o => { if (Math.abs(ly - o) < 13) ly = o + 13; }); labelYs.push(ly);
           return (
             <g key={s.idx}>
@@ -128,8 +128,8 @@ function BenefitChart({ T, ladder, holdYears }) {
       {hover && (
         <div style={{ position: "absolute", left: Math.min(hover.px + 12, hover.w - 170), top: hover.py + 12, pointerEvents: "none", background: T.card, border: `1px solid ${T.cardBorder}`, boxShadow: T.cardShadow, borderRadius: 10, padding: "8px 10px", fontSize: 12, lineHeight: 1.5, minWidth: 150, fontFamily: FONT, color: T.text, zIndex: 2 }}>
           <b>Month {hover.m}</b> · year {(hover.m / 12).toFixed(1)}
-          {series.slice().sort((a, b) => (MONTHS * b.delta - b.netCost) - (MONTHS * a.delta - a.netCost)).map(s => {
-            const v = hover.m * s.delta - s.netCost;
+          {series.slice().sort((a, b) => (MONTHS * (b.netDelta ?? b.delta) - b.netCost) - (MONTHS * (a.netDelta ?? a.delta) - a.netCost)).map(s => {
+            const v = hover.m * (s.netDelta ?? s.delta) - s.netCost;
             return <div key={s.idx}>{fmtPct3(s.rate)}: <b style={{ color: v >= 0 ? T.green : T.red }}>{money(v)}</b></div>;
           })}
         </div>
@@ -335,7 +335,7 @@ export default function RateLadderContent(props) {
                     <tr key={r.idx} style={{ background: rowBg }}>
                       {first}
                       {td(<>{money2(r.pi)}{sub(`${r.delta > 0 ? "−" : "+"}${money2(Math.abs(r.delta))}/mo`, r.delta > 0 ? T.green : T.red)}</>, { color: dim })}
-                      {td(<>{money(r.cost)}{sub(credit ? "credit, no tax effect" : taxRate > 0 ? `after tax ${money(r.postTaxCost)} · write-off −${money(r.writeOffLost)}` : " ")}</>, { color: dim })}
+                      {td(<>{money(r.cost)}{sub(credit ? "credit, no tax effect" : taxRate > 0 ? `after tax ${money(r.postTaxCost)} · lost write-off −${money2(r.writeOffMonthly)}/mo → net −${money2(r.netDelta)}/mo` : " ")}</>, { color: dim })}
                       {td(<b>{money(r.netCost)}</b>, { color: dim })}
                       {td(<><span style={{ fontWeight: 800, fontSize: 15 }}>{mo(r.breakeven)}</span>{sub(r.step ? `step ${mo(r.step.breakeven)}` : " ")}</>, { color: dim })}
                       {td(r.dominated ? <Band T={T} band={{ key: "none", label: `Skip · ${fmtPct3(r.dominatedBy)} is cheaper` }} /> : credit ? <Band T={T} band={{ key: "hold", label: `Credit lasts ${mo(r.breakeven)}` }} /> : <Band T={T} band={r.band} />)}

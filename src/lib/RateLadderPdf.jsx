@@ -71,7 +71,7 @@ function Chart({ d }) {
   const series = d.rows.filter(r => !r.isBase && !r.dominated && d.base && r.rate < d.base.rate);
   if (!series.length) return null;
   let ymin = 0, ymax = 0;
-  series.forEach(r => { ymin = Math.min(ymin, -r.netCost); ymax = Math.max(ymax, MONTHS * r.delta - r.netCost); });
+  series.forEach(r => { ymin = Math.min(ymin, -r.netCost); ymax = Math.max(ymax, MONTHS * (r.netDelta ?? r.delta) - r.netCost); });
   const pad = (ymax - ymin) * 0.06 || 100; ymin -= pad; ymax += pad;
   const x = (m) => L + (m / MONTHS) * (W - L - R);
   const y = (v) => T + (1 - (v - ymin) / (ymax - ymin)) * (H - T - B);
@@ -94,8 +94,8 @@ function Chart({ d }) {
         {hold <= MONTHS && <Text x={x(hold)} y={T - 4} style={{ fontSize: 6.5, fill: SUB }} textAnchor="middle">hold · {d.holdYears} yr</Text>}
         {ordered.map(r => {
           const hot = r.rate === hotRate;
-          const points = []; for (let m = 0; m <= MONTHS; m += 4) points.push(`${x(m).toFixed(1)},${y(m * r.delta - r.netCost).toFixed(1)}`);
-          const ye = y(MONTHS * r.delta - r.netCost);
+          const points = []; for (let m = 0; m <= MONTHS; m += 4) points.push(`${x(m).toFixed(1)},${y(m * (r.netDelta ?? r.delta) - r.netCost).toFixed(1)}`);
+          const ye = y(MONTHS * (r.netDelta ?? r.delta) - r.netCost);
           let ly = ye; labelYs.sort((a, b) => a - b).forEach(o => { if (Math.abs(ly - o) < 9) ly = o + 9; }); labelYs.push(ly);
           return (
             <React.Fragment key={r.rate}>
@@ -178,7 +178,7 @@ export function RateLadderPage(p) {
                 ? [cell(COLS[1], usd2(r.pi)), cell(COLS[2], "—"), cell(COLS[3], "—"), cell(COLS[4], "—"), cell(COLS[5], "—"), cell(COLS[6], "—")]
                 : [
                   cell(COLS[1], usd2(r.pi), `${r.delta > 0 ? "−" : "+"}${usd2(Math.abs(r.delta))}/mo`),
-                  cell(COLS[2], usd(r.cost), credit ? "credit, no tax effect" : d.taxRate > 0 ? `after tax ${usd(r.postTaxCost)} · write-off −${usd(r.writeOffLost)}` : null),
+                  cell(COLS[2], usd(r.cost), credit ? "credit, no tax effect" : d.taxRate > 0 ? `after tax ${usd(r.postTaxCost)} · net ${usd2(r.netDelta)}/mo after lost write-off` : null),
                   cell(COLS[3], usd(r.netCost)),
                   cell(COLS[4], mo(r.breakeven), r.stepBreakeven != null ? `step ${mo(r.stepBreakeven)}` : null),
                   <View key="verdict" style={{ width: `${COLS[5].w * 100}%` }}>{verdict ? <Text style={[s.band, { color: verdict.color }]}>{verdict.label}</Text> : null}</View>,

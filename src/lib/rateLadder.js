@@ -77,7 +77,7 @@ export function ladderPdfData(view) {
   const { L, tax, holdYears, ladder, ltvNow, ltvDrift, spot, nextLower, isRefi } = view;
   const strip = (r) => r ? {
     rate: r.rate, pts: r.pts, pi: r.pi, isBase: !!r.isBase, dominated: !!r.dominated, dominatedBy: r.dominatedBy ?? null,
-    delta: r.delta, cost: r.cost, postTaxCost: r.postTaxCost, writeOffLost: r.writeOffLost, netCost: r.netCost,
+    delta: r.delta, netDelta: r.netDelta, cost: r.cost, postTaxCost: r.postTaxCost, writeOffLost: r.writeOffLost, writeOffMonthly: r.writeOffMonthly, netCost: r.netCost,
     breakeven: r.breakeven, cumAtHold: r.cumAtHold, equityAtHold: r.equityAtHold,
     band: r.band ? { key: r.band.key, label: r.band.label } : null,
     stepBreakeven: r.step ? r.step.breakeven : null,

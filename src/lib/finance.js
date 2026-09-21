@@ -767,11 +767,18 @@ export function computePassiveLossAllowance({ magi, loss, married = "Single" }) 
 //   3. Breakeven is cash-only (the sheet's number, what a borrower repeats
 //      back). The extra principal a lower rate pays down by the hold horizon
 //      is reported separately, never folded into the headline.
+//   4. The lost mortgage-interest write-off is RECURRING, not one-time
+//      (Christo, 2026-09-20). A lower rate means less interest every month,
+//      so an itemizer's deduction shrinks every month. The sheet added one
+//      year of it to the upfront cost; the engine now takes it out of the
+//      monthly savings instead, which is why the after-tax breakeven runs
+//      longer than the sheet's (65 → 78 months on the reference row).
 //
-// Sheet parity: monthly delta = P&I(base) − P&I(rung); cost = loan × Δpts;
-// write-off lost = loan × deductible share × Δrate × tax (year-1 interest);
-// net = post-tax cost + write-off; breakeven = net ÷ delta;
-// ROI at N months = (N − breakeven) × delta ÷ net  ≡  (N·delta − net) ÷ net.
+// Sheet parity (pre-tax pieces): monthly delta = P&I(base) − P&I(rung);
+// cost = loan × Δpts; write-off lost = loan × deductible share × Δrate × tax
+// (year-1 interest, per year). Engine: netDelta = delta − writeOffLost ÷ 12;
+// netCost = post-tax cost; breakeven = netCost ÷ netDelta;
+// ROI at N months = (N·netDelta − netCost) ÷ netCost.
 
 /** Rule-of-thumb bands from the sheet's Breakeven Key. */
 export function breakevenBand(months) {
@@ -793,16 +800,21 @@ export function compareRungs(from, to, { loan, termYears = 30, taxRate = 0, dedu
   const delta = calcPI(loan, from.rate, termYears) - calcPI(loan, to.rate, termYears);
   const cost = loan * (to.pts - from.pts) / 100;
   const postTaxCost = (cost > 0 && pointsDeductible) ? cost * (1 - taxRate) : cost;
+  // Per YEAR: the deduction a lower rate forfeits (year-1 interest basis).
   const writeOffLost = loan * deductPct * (from.rate - to.rate) / 100 * taxRate;
-  const netCost = postTaxCost + writeOffLost;
+  const writeOffMonthly = writeOffLost / 12;
+  // After-tax monthly savings. For a credit rung (higher rate) writeOffLost is
+  // negative, so the bigger deduction softens the higher payment the same way.
+  const netDelta = delta - writeOffMonthly;
+  const netCost = postTaxCost;
   let breakeven = null;
-  if (netCost > 0 && delta > 0) breakeven = netCost / delta;          // buy-down: months to recoup
-  else if (netCost < 0 && delta < 0) breakeven = netCost / delta;     // credit: months until it's spent
-  else if (netCost <= 0 && delta >= 0) breakeven = 0;                 // cheaper AND lower payment
-  const cumAtHold = holdMonths * delta - netCost;
+  if (netCost > 0 && netDelta > 0) breakeven = netCost / netDelta;        // buy-down: months to recoup
+  else if (netCost < 0 && netDelta < 0) breakeven = netCost / netDelta;   // credit: months until it's spent
+  else if (netCost <= 0 && netDelta >= 0) breakeven = 0;                  // cheaper AND lower payment
+  const cumAtHold = holdMonths * netDelta - netCost;
   const equityAtHold = calcBalance(loan, from.rate, termYears, holdMonths) - calcBalance(loan, to.rate, termYears, holdMonths);
   const roiAtHold = netCost > 0 ? cumAtHold / netCost : null;
-  return { delta, cost, postTaxCost, writeOffLost, netCost, breakeven, cumAtHold, equityAtHold, roiAtHold, band: breakevenBand(breakeven) };
+  return { delta, netDelta, cost, postTaxCost, writeOffLost, writeOffMonthly, netCost, breakeven, cumAtHold, equityAtHold, roiAtHold, band: breakevenBand(breakeven) };
 }
 
 /**
@@ -823,7 +835,7 @@ export function computeRateLadder({ loan, termYears = 30, rungs = [], baseIdx = 
   const rows = sorted.map((r, i) => {
     const dominator = sorted.find(o => o.rate < r.rate && o.pts <= r.pts) || null;
     const v = i === bi
-      ? { delta: 0, cost: 0, postTaxCost: 0, writeOffLost: 0, netCost: 0, breakeven: null, cumAtHold: 0, equityAtHold: 0, roiAtHold: null, band: breakevenBand(null) }
+      ? { delta: 0, netDelta: 0, cost: 0, postTaxCost: 0, writeOffLost: 0, writeOffMonthly: 0, netCost: 0, breakeven: null, cumAtHold: 0, equityAtHold: 0, roiAtHold: null, band: breakevenBand(null) }
       : compareRungs(base, r, opts);
     return { idx: i, rate: r.rate, pts: r.pts, pi: calcPI(loan, r.rate, termYears), isBase: i === bi, dominated: !!dominator, dominatedBy: dominator ? dominator.rate : null, ...v, step: null };
   });
