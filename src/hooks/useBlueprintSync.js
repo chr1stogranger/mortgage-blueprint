@@ -3,32 +3,82 @@
  *
  * Rather than replacing 80+ useState hooks, this hook wraps the existing
  * getState()/loadState() pattern and adds:
- *   - Realtime subscription (receive remote changes → call loadState)
- *   - Debounced writes (local changes → push to Supabase)
- *   - Presence tracking (who's online)
+ *   - Realtime subscription (receive remote changes → merge → loadState)
+ *   - Debounced writes (borrower: local changes → share-sync endpoint)
+ *   - Presence (who's online, and which scenario each person is on)
  *   - Lock status (which fields are locked)
  *   - Sync status indicator (saving/saved/error)
  *
- * Usage in MortgageBlueprint.jsx:
- *   const sync = useBlueprintSync({
- *     scenarioId: activeScenarioId,
- *     getState,
- *     loadState,
- *     userInfo: { email: authUser.email, name: authUser.name },
- *   });
- *   // sync.status → 'idle' | 'saving' | 'saved' | 'error'
- *   // sync.onlineUsers → [{ name, email, user_type }]
- *   // sync.lockedFields → { incomes: true, debts: false }
- *   // sync.isFieldLocked('annualIncome') → true/false
+ * Echo + clobber rules (live co-editing, 2026-09-22):
+ *   - `baseRef` is the last state known to be in the DB (what we wrote or
+ *     what we received). A write whose state equals it is skipped — so a
+ *     remote change applied on screen is never written straight back.
+ *   - An incoming row equal to something we just sent is our own echo.
+ *   - Otherwise only the keys the REMOTE side changed (vs baseRef) are laid
+ *     over the local state, so the other person's edit can't wipe fields
+ *     you're mid-typing.
+ *   Comparisons ignore per-device UI keys (theme), which getState carries
+ *   but loadState never applies.
+ *
+ * The LO's writes go through MortgageBlueprint's saveToCloud, which must call
+ * noteLocalWrite(state) so the echo check knows about them.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { subscribeToScenario, subscribeToLockEvents, createPresenceChannel } from '../lib/supabaseClient';
+import { subscribeToScenario, subscribeToLockEvents, createPresenceChannel, fetchScenarioRow } from '../lib/supabaseClient';
 import { updateScenario } from '../api';
 
 const DEBOUNCE_MS = 500;          // Write delay after last change
-const MERGE_COOLDOWN_MS = 300;    // Ignore remote updates shortly after local write
-const STALE_THRESHOLD_MS = 45000; // Presence timeout
+const RECENT_SENT = 8;            // How many of our own writes to remember for echo detection
+
+// Per-device keys: in getState() but never applied by loadState.
+const UI_ONLY_KEYS = new Set(['darkMode', 'themeMode']);
+
+// Stable stringify (sorted keys) so key order never reads as a change.
+function stable(v) {
+  if (v === undefined) return 'undefined';
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+  return '{' + Object.keys(v).sort().filter(k => v[k] !== undefined)
+    .map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
+}
+export function stateSig(state) {
+  if (!state) return '';
+  const o = {};
+  for (const k of Object.keys(state)) if (!UI_ONLY_KEYS.has(k)) o[k] = state[k];
+  return stable(o);
+}
+// Keys whose value differs between a and b (UI-only keys ignored).
+export function changedKeys(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  const out = [];
+  for (const k of keys) {
+    if (UI_ONLY_KEYS.has(k)) continue;
+    if (stable(a?.[k]) !== stable(b?.[k])) out.push(k);
+  }
+  return out;
+}
+
+/**
+ * Decide what an incoming realtime row means for this client.
+ *   base     — last state known to be in the DB before this row
+ *   local    — what's on screen now (getState())
+ *   remote   — the row's state_data
+ *   sentSigs — signatures of our recent writes
+ * Returns the state to loadState(), or null when there's nothing to apply.
+ */
+export function resolveRemote({ base, local, remote, sentSigs = [] }) {
+  if (!remote || typeof remote !== 'object') return null;
+  const remoteSig = stateSig(remote);
+  if (sentSigs.includes(remoteSig)) return null;          // our own echo
+  if (local && stateSig(local) === remoteSig) return null; // already showing it
+  if (!base || !local) return remote;
+  const moved = changedKeys(base, remote);
+  if (moved.length === 0) return null;                     // DB unchanged since we last knew it
+  const merged = { ...local };
+  for (const k of moved) merged[k] = remote[k];
+  return merged;
+}
 
 // Fields that map to lockable sections
 const FIELD_TO_SECTION = {};
@@ -45,6 +95,8 @@ for (const [section, fields] of Object.entries(LOCKABLE_SECTIONS)) {
 
 export default function useBlueprintSync({
   scenarioId,
+  scenarioName = '',
+  roomId = null,       // borrower UUID — presence room shared by all their scenarios
   getState,
   loadState,
   userInfo = {},       // { email, name, avatarUrl }
@@ -58,36 +110,76 @@ export default function useBlueprintSync({
   const [lastSavedAt, setLastSavedAt] = useState(null);
 
   const debounceRef = useRef(null);
-  const lastWriteRef = useRef(0);
-  const prevStateRef = useRef(null);
+  const baseRef = useRef(null);        // last state known to be in the DB
+  const sentSigsRef = useRef([]);      // signatures of our recent writes
   const subscriptionsRef = useRef([]);
   const presenceRef = useRef(null);
   const scenarioIdRef = useRef(scenarioId);
   const getStateRef = useRef(getState);
   const loadStateRef = useRef(loadState);
+  // userInfo arrives as a fresh object literal every render — read it through
+  // a ref so flush stays stable (an unstable flush re-ran the unmount cleanup
+  // below on EVERY render, which tore down the realtime + presence channels).
+  const userInfoRef = useRef(userInfo);
+  userInfoRef.current = userInfo;
 
   // Keep refs current
   useEffect(() => { scenarioIdRef.current = scenarioId; }, [scenarioId]);
   useEffect(() => { getStateRef.current = getState; }, [getState]);
   useEffect(() => { loadStateRef.current = loadState; }, [loadState]);
 
+  // ── Record a write we made (ours or saveToCloud's) ────────────────────
+  // Returns an undo for when the write fails.
+  const noteLocalWrite = useCallback((state) => {
+    if (!state) return () => {};
+    const prevBase = baseRef.current;
+    const prevSent = sentSigsRef.current;
+    baseRef.current = { ...state };
+    sentSigsRef.current = [stateSig(state), ...prevSent].slice(0, RECENT_SENT);
+    return () => { baseRef.current = prevBase; sentSigsRef.current = prevSent; };
+  }, []);
+
+  // True when `state` is already what the DB holds → writing it is an echo.
+  const isEcho = useCallback((state) => (
+    !!baseRef.current && stateSig(state) === stateSig(baseRef.current)
+  ), []);
+
   // ── Subscribe to Realtime changes ─────────────────────────────────────
   useEffect(() => {
     if (!scenarioId || !enabled) return;
 
-    // Scenario data changes
-    const scenarioSub = subscribeToScenario(scenarioId, (newRow) => {
-      // Skip if we just wrote (our own echo)
-      if (Date.now() - lastWriteRef.current < MERGE_COOLDOWN_MS) return;
+    // Scenario data changes (also fed by the catch-up re-read below)
+    const onRow = (newRow) => {
+      if (newRow.locked_fields) setLockedFields(newRow.locked_fields);
+      const remote = newRow.state_data;
+      if (!remote || typeof remote !== 'object' || !loadStateRef.current) return;
 
-      // Apply remote state to local calculator
-      if (newRow.state_data && loadStateRef.current) {
-        loadStateRef.current(newRow.state_data);
-      }
-      if (newRow.locked_fields) {
-        setLockedFields(newRow.locked_fields);
-      }
-    });
+      const base = baseRef.current;
+      baseRef.current = { ...remote };
+      // Lay only the fields the other side changed over our local state, so
+      // anything we're mid-edit on survives (and is written after, merged).
+      const next = resolveRemote({
+        base,
+        local: getStateRef.current ? getStateRef.current() : null,
+        remote,
+        sentSigs: sentSigsRef.current,
+      });
+      if (next) loadStateRef.current(next);
+    };
+    const scenarioSub = subscribeToScenario(scenarioId, onRow);
+
+    // Catch-up: realtime events are lost while a phone sleeps or the socket
+    // blips. Re-read the row (RLS-scoped) on return and run it through the
+    // same merge — a no-op when nothing changed.
+    let lastCatchUp = 0;
+    const catchUp = async () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastCatchUp < 3000) return;
+      lastCatchUp = Date.now();
+      const row = await fetchScenarioRow(scenarioId).catch(() => null);
+      if (row && scenarioIdRef.current === scenarioId) onRow(row);
+    };
+    document.addEventListener('visibilitychange', catchUp);
+    window.addEventListener('online', catchUp);
 
     // Lock events
     const lockSub = subscribeToLockEvents(scenarioId, (lockEvent) => {
@@ -100,25 +192,34 @@ export default function useBlueprintSync({
     subscriptionsRef.current = [scenarioSub, lockSub];
 
     return () => {
+      document.removeEventListener('visibilitychange', catchUp);
+      window.removeEventListener('online', catchUp);
       subscriptionsRef.current.forEach(s => s.unsubscribe());
       subscriptionsRef.current = [];
     };
   }, [scenarioId, enabled]);
 
-  // ── Presence channel ──────────────────────────────────────────────────
+  // ── Presence (one room per borrower; payload says which scenario) ─────
+  const locationRef = useRef({ scenarioId, scenarioName });
+  locationRef.current = { scenarioId, scenarioName };
   useEffect(() => {
-    if (!scenarioId || !enabled || !userInfo.email) return;
+    if (!roomId || !enabled || !userInfo.email) return;
 
     const presence = createPresenceChannel(
-      scenarioId,
+      roomId,
       { email: userInfo.email, name: userInfo.name, avatarUrl: userInfo.avatarUrl, userType },
+      locationRef.current,
       (users) => {
-        const now = new Date();
-        setOnlineUsers(users.filter(u => {
-          if (u.email === userInfo.email) return false;
-          const onlineAt = new Date(u.online_at);
-          return (now - onlineAt) < STALE_THRESHOLD_MS;
-        }));
+        // Supabase drops disconnected clients itself — no staleness cutoff
+        // (online_at is only stamped on track, so a time cutoff hid anyone
+        // connected for more than a minute). Dedupe tabs by email, newest wins.
+        const byEmail = new Map();
+        for (const u of users) {
+          if (!u.email || u.email === userInfo.email) continue;
+          const prev = byEmail.get(u.email);
+          if (!prev || String(u.online_at) > String(prev.online_at)) byEmail.set(u.email, u);
+        }
+        setOnlineUsers([...byEmail.values()]);
       }
     );
 
@@ -127,34 +228,30 @@ export default function useBlueprintSync({
     return () => {
       presence.unsubscribe();
       presenceRef.current = null;
+      setOnlineUsers([]);
     };
-  }, [scenarioId, enabled, userInfo.email, userType]);
+  }, [roomId, enabled, userInfo.email, userType]);
+
+  useEffect(() => {
+    presenceRef.current?.track({ scenarioId, scenarioName });
+  }, [scenarioId, scenarioName]);
 
   // ── Debounced write to Supabase ───────────────────────────────────────
   const flush = useCallback(async () => {
     if (!scenarioIdRef.current || !getStateRef.current) return;
 
     const currentState = getStateRef.current();
-    const previousState = prevStateRef.current;
+    const base = baseRef.current;
+    if (base && stateSig(currentState) === stateSig(base)) return; // Nothing new
 
-    // Compute diff
-    if (previousState) {
-      const diffs = {};
-      let hasChanges = false;
-      for (const key of Object.keys(currentState)) {
-        const oldVal = previousState[key];
-        const newVal = currentState[key];
-        if (oldVal === newVal) continue;
-        if (typeof oldVal === 'object' && typeof newVal === 'object'
-            && JSON.stringify(oldVal) === JSON.stringify(newVal)) continue;
-        diffs[key] = { old: oldVal, new: newVal };
-        hasChanges = true;
+    const fieldDiffs = {};
+    if (base) {
+      for (const k of changedKeys(base, currentState)) {
+        fieldDiffs[k] = { old: base[k] ?? null, new: currentState[k] ?? null };
       }
-      if (!hasChanges) return; // Nothing changed
     }
 
     setStatus('saving');
-    lastWriteRef.current = Date.now();
 
     try {
       // Build lightweight calc_summary
@@ -180,33 +277,45 @@ export default function useBlueprintSync({
         loanType: currentState.loanType || 'Conventional',
       };
 
-      if (shareToken) {
-        // Borrower: use share-sync endpoint
-        const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
-        await fetch(`${API_BASE}/api/collab?resource=sync`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: shareToken,
-            scenario_id: scenarioIdRef.current,
+      // Register before the request so the realtime echo is recognized even
+      // if it beats the HTTP response back.
+      const undoNote = noteLocalWrite(currentState);
+
+      try {
+        if (shareToken) {
+          // Borrower: use share-sync endpoint
+          const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
+          const res = await fetch(`${API_BASE}/api/collab?resource=sync`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: shareToken,
+              scenario_id: scenarioIdRef.current,
+              state_data: currentState,
+              calc_summary: calcSummary,
+              field_diffs: fieldDiffs,
+              changed_by: 'borrower',
+              changed_by_name: userInfoRef.current.name || '',
+              changed_by_email: userInfoRef.current.email || '',
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+          }
+        } else {
+          // LO: use authenticated endpoint
+          await updateScenario({
+            id: scenarioIdRef.current,
             state_data: currentState,
             calc_summary: calcSummary,
-            field_diffs: {},
-            changed_by: 'borrower',
-            changed_by_name: userInfo.name || '',
-            changed_by_email: userInfo.email || '',
-          }),
-        });
-      } else {
-        // LO: use authenticated endpoint
-        await updateScenario({
-          id: scenarioIdRef.current,
-          state_data: currentState,
-          calc_summary: calcSummary,
-        });
+          });
+        }
+      } catch (e) {
+        undoNote();
+        throw e;
       }
 
-      prevStateRef.current = { ...currentState };
       setLastSavedAt(new Date());
       setStatus('saved');
       setTimeout(() => setStatus(s => s === 'saved' ? 'idle' : s), 2000);
@@ -214,13 +323,13 @@ export default function useBlueprintSync({
       console.error('[useBlueprintSync] Save failed:', e);
       setStatus('error');
     }
-  }, [shareToken, userInfo]);
+  }, [shareToken, noteLocalWrite]);
 
   // ── Trigger sync (call this after any state change) ───────────────────
   const scheduleSync = useCallback(() => {
     if (!scenarioIdRef.current || !enabled) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(flush, DEBOUNCE_MS);
+    debounceRef.current = setTimeout(() => { debounceRef.current = null; flush(); }, DEBOUNCE_MS);
   }, [flush, enabled]);
 
   // ── Check if a field is locked ────────────────────────────────────────
@@ -230,23 +339,25 @@ export default function useBlueprintSync({
     return section ? !!lockedFields[section] : false;
   }, [lockedFields, userType]);
 
-  // ── Initialize prevState when scenario loads ──────────────────────────
+  // ── Initialize baseline when scenario loads ───────────────────────────
   const initSync = useCallback((initialState, initialLockedFields) => {
-    prevStateRef.current = initialState ? { ...initialState } : null;
+    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
+    baseRef.current = initialState ? { ...initialState } : null;
+    sentSigsRef.current = [];
     if (initialLockedFields) setLockedFields(initialLockedFields);
   }, []);
 
-  // ── Force flush on unmount ────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-        flush();
-      }
-      subscriptionsRef.current.forEach(s => s.unsubscribe());
-      if (presenceRef.current) presenceRef.current.unsubscribe();
-    };
-  }, [flush]);
+  // ── Force flush on unmount (only) ─────────────────────────────────────
+  // Channels are torn down by their own effects' cleanups above.
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+      flushRef.current();
+    }
+  }, []);
 
   return {
     // Status
@@ -254,7 +365,7 @@ export default function useBlueprintSync({
     lastSavedAt,
 
     // Presence
-    onlineUsers,        // Array of other users viewing this scenario
+    onlineUsers,        // Other people on this borrower's file: [{ name, email, user_type, scenario_id, scenario_name }]
 
     // Locking
     lockedFields,       // { incomes: true, debts: false, ... }
@@ -264,5 +375,7 @@ export default function useBlueprintSync({
     scheduleSync,       // Call after any state change to trigger debounced write
     initSync,           // Call when a scenario is loaded to set baseline state
     flush,              // Force immediate write (e.g., before navigation)
+    noteLocalWrite,     // Call when a write happens outside this hook (LO saveToCloud)
+    isEcho,             // (state) => true if the DB already holds exactly this state
   };
 }

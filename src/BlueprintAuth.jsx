@@ -8,7 +8,7 @@
  * backward compatibility for the public calculator.
  */
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
-import { getSession, onAuthStateChange, signOut as supabaseSignOut } from "./lib/supabaseClient";
+import { getSession, onAuthStateChange, signOut as supabaseSignOut, signInWithGoogleIdToken } from "./lib/supabaseClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "https://ops.realstack.app";
 
@@ -199,6 +199,10 @@ export default function BlueprintAuth({ children }) {
       setToken(sessionToken);
       setError("");
       setShowLogin(false);
+      // Also open a Supabase session with the same Google credential so the
+      // Realtime socket is authenticated — an anon socket sees no scenario
+      // rows, so the LO never received a borrower's live edits.
+      signInWithGoogleIdToken(response.credential);
     } catch {
       setError("Sign-in failed. Please try again.");
     }
@@ -259,6 +263,34 @@ export default function BlueprintAuth({ children }) {
       try { window.google.accounts.id.prompt(); } catch { /* manual Sign in remains */ }
     }
   }, [scriptLoaded, user, handleCredentialResponse, wantSilentReauth]);
+
+  // ── Heal: LO session restored from storage but no Supabase session ─────
+  // (signed in by One Tap before live co-editing needed one). Re-issue the
+  // Google credential silently at most daily and trade it for a Supabase
+  // session. auto_select means no UI for a returning account.
+  useEffect(() => {
+    if (!scriptLoaded || !window.google || !user || localMode) return;
+    if (localStorage.getItem("bp_signed_out")) return;
+    // At most once a day — if Supabase rejects the Google token (client ID not
+    // authorized on the Google provider) we must not nag every tab.
+    try {
+      const last = Number(localStorage.getItem("bp_rt_heal_at") || 0);
+      if (Date.now() - last < 24 * 3600 * 1000) return;
+      localStorage.setItem("bp_rt_heal_at", String(Date.now()));
+    } catch { /* proceed */ }
+    let cancelled = false;
+    (async () => {
+      const s = await getSession();
+      if (s || cancelled) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        auto_select: true,
+        callback: (resp) => { if (resp?.credential) signInWithGoogleIdToken(resp.credential); },
+      });
+      try { window.google.accounts.id.prompt(); } catch { /* live receive stays off until next sign-in */ }
+    })();
+    return () => { cancelled = true; };
+  }, [scriptLoaded, user, localMode]);
 
   const handleGoogleClick = () => {
     if (!window.google) return;

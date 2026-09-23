@@ -21,6 +21,7 @@ import {
   onAuthStateChange,
   signInWithMagicLink,
   signInWithGoogle,
+  registerShareView,
   verifyEmailCode,
   fetchMyAccount,
 } from '../lib/supabaseClient';
@@ -200,6 +201,11 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
       if (!shared || !shared.scenarios) {
         throw new Error('No scenarios found');
       }
+
+      // Grant this signed-in session live (Realtime) read access to the
+      // shared blueprint regardless of which email they used. Best-effort —
+      // a no-op until migration 020 is applied.
+      await registerShareView(shareToken);
 
       onAuthenticated({
         sessionToken: session.access_token,

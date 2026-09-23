@@ -64,7 +64,9 @@ import {
   searchAriveLoans, fetchAriveImport, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
+  fetchSharedData,
 } from "./api";
+import { fetchScenarioRow } from "./lib/supabaseClient";
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
 import LockControls from "./components/LockControls";
@@ -1229,6 +1231,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const loadStateRef = useRef(null);
  const sync = useBlueprintSync({
   scenarioId: activeScenarioId,
+  scenarioName,
+  roomId: isBorrower ? (borrowerMode.borrower?.id || null) : (activeBorrower?.id || null),
   getState: () => getStateRef.current ? getStateRef.current() : {},
   loadState: (s) => loadStateRef.current && loadStateRef.current(s),
   userInfo: isBorrower ? {
@@ -2438,16 +2442,61 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Wire getState/loadState into the sync hook refs
  getStateRef.current = getState;
  loadStateRef.current = loadState;
+ // ── Live co-editing: the borrower's view follows the LO ──
+ // Presence is one room per borrower and says which scenario each person is
+ // on. When the LO is working a different scenario of this borrower's file,
+ // switch to it — otherwise both sides edit different rows and neither sees
+ // the other's changes.
+ const followingRef = useRef(null);
+ const loOnScenario = isBorrower
+  ? (sync.onlineUsers.find(u => u.user_type === 'lo' && u.scenario_id) || null)
+  : null;
+ const loScenarioId = loOnScenario?.scenario_id || null;
+ useEffect(() => {
+  if (!isBorrower || !loaded || !loScenarioId || loScenarioId === activeScenarioId) return;
+  if (followingRef.current === loScenarioId) return;
+  followingRef.current = loScenarioId;
+  (async () => {
+   try {
+    await sync.flush();
+    let row = await fetchScenarioRow(loScenarioId, borrowerMode.borrower?.id);
+    if (!row?.state_data && borrowerMode.shareToken) {
+     // Migration 020 not applied / RLS hid it — the share endpoint still has it.
+     const shared = await fetchSharedData(borrowerMode.shareToken).catch(() => null);
+     row = shared?.scenarios?.find(x => x.id === loScenarioId) || null;
+    }
+    if (!row?.state_data) return;
+    loadState(row.state_data);
+    setActiveScenarioId(row.id);
+    const nm = row.name || loOnScenario?.scenario_name || "My Blueprint";
+    setScenarioList([nm]);
+    setScenarioName(nm);
+    sync.initSync(row.state_data, row.locked_fields || null);
+   } catch (e) {
+    console.warn('[Blueprint] Could not follow the LO to their scenario:', e.message);
+   } finally {
+    followingRef.current = null;
+   }
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isBorrower, loaded, loScenarioId, activeScenarioId]);
  useEffect(() => {
   (async () => {
    // ── Borrower mode: load initialState directly, skip localStorage ──
-   if (isBorrower && initialState) {
-    loadState(initialState);
+   // View-only links come back from /api/share without state_data — read the
+   // row directly (RLS: live share viewer) instead of falling through to the
+   // LO's local-storage path and showing someone else's numbers.
+   let borrowerStart = initialState;
+   if (isBorrower && !borrowerStart && activeScenarioId) {
+    try { borrowerStart = (await fetchScenarioRow(activeScenarioId, borrowerMode.borrower?.id))?.state_data || null; } catch { /* stays null */ }
+   }
+   if (isBorrower && borrowerStart) {
+    loadState(borrowerStart);
     setScenarioList([borrowerMode.scenarios?.[0]?.name || "My Blueprint"]);
     setScenarioName(borrowerMode.scenarios?.[0]?.name || "My Blueprint");
     // Initialize sync baseline
     if (activeScenarioId) {
-     sync.initSync(initialState, null);
+     sync.initSync(borrowerStart, null);
     }
     setLoaded(true);
     try { if (window.__FRED_API_KEY__) { setFredApiKey(window.__FRED_API_KEY__); } } catch(e) {}
@@ -2615,7 +2664,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // Update the active row's STATE only. Never write `name` here: the sidebar
     // display name may carry a "(2)" de-dupe suffix, and renames are explicit
     // (renameScenario). Writing it back would corrupt the stored name.
-    await apiUpdateScenario({ id: scenarioId, state_data: stateData, calc_summary: summary });
+    // Register the write with live sync BEFORE sending so its realtime echo is
+    // recognized as ours; roll back if the save fails.
+    const undoNote = sync.noteLocalWrite(stateData);
+    try { await apiUpdateScenario({ id: scenarioId, state_data: stateData, calc_summary: summary }); }
+    catch (e) { undoNote(); throw e; }
     // Keep the in-memory cloud row's state fresh so Compare + switch-back are
     // accurate without a refetch.
     setBorrowerScenarios(prev => prev.map(s => s.id === scenarioId ? { ...s, state_data: stateData, calc_summary: summary } : s));
@@ -2672,7 +2725,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      } catch(e) {}
     }
     // ── Write-through to Supabase when authenticated + borrower selected ──
-    if (isCloud && activeBorrower) {
+    // Skipped when the DB already holds exactly this state — i.e. the change
+    // on screen came IN from the borrower. Writing it back is the echo that
+    // clobbered in-progress edits during live co-editing.
+    if (isCloud && activeBorrower && activeScenarioId && !sync.isEcho(stateData)) {
      if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
      supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
     }
@@ -2684,8 +2740,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // No-op unless the user signed in AND turned sync on.
     selfSync.schedulePush();
    }
-   // ── Real-time sync (pushes changes to other connected users) ──
-   sync.scheduleSync();
+   // ── Real-time sync (borrower pushes via the share endpoint; the LO's write
+   // is saveToCloud above — calling this for the LO too double-wrote) ──
+   if (isBorrower) sync.scheduleSync();
    setTimeout(() => setSaving(false), 600);
   }, 1500);
   return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };

@@ -365,77 +365,117 @@ export function subscribeToVersionHistory(scenarioId, onNewVersion) {
 }
 
 /**
- * Create a Presence channel for a specific scenario.
- * Tracks who is currently viewing/editing.
+ * Create a Presence channel for a borrower's file (all of their scenarios).
+ * Tracks who is currently viewing/editing, and WHICH scenario each person is
+ * on — the borrower's view follows the LO to the scenario being worked.
  *
- * @param {string} scenarioId
+ * Keyed per borrower (not per scenario) so an LO switching scenarios stays in
+ * the same room as the borrower. Each tab gets its own presence key; callers
+ * dedupe by email.
+ *
+ * @param {string} roomId - borrower UUID
  * @param {object} userInfo - { email, name, avatarUrl, userType: 'lo' | 'borrower' }
+ * @param {object} location - { scenarioId, scenarioName } initially tracked
  * @param {function} onPresenceChange - called with array of present users
- * @returns {{ channel, track, updateField, unsubscribe }}
+ * @returns {{ channel, track, unsubscribe }}
  */
-export function createPresenceChannel(scenarioId, userInfo, onPresenceChange) {
+export function createPresenceChannel(roomId, userInfo, location, onPresenceChange) {
   const supabase = getSupabaseClient();
-  if (!supabase) return { channel: null, track: () => {}, updateField: () => {}, unsubscribe: () => {} };
+  if (!supabase) return { channel: null, track: () => {}, unsubscribe: () => {} };
 
-  const channelName = `presence:scenario:${scenarioId}`;
-  const channel = supabase.channel(channelName, {
-    config: { presence: { key: userInfo.email || 'anonymous' } },
+  const tabKey = `${userInfo.email || 'anonymous'}#${Math.random().toString(36).slice(2, 10)}`;
+  const channel = supabase.channel(`presence:borrower:${roomId}`, {
+    config: { presence: { key: tabKey } },
+  });
+
+  let current = { scenario_id: location?.scenarioId || null, scenario_name: location?.scenarioName || '' };
+  let subscribed = false;
+  const payload = () => ({
+    email: userInfo.email,
+    name: userInfo.name,
+    avatar_url: userInfo.avatarUrl,
+    user_type: userInfo.userType,
+    ...current,
+    online_at: new Date().toISOString(),
   });
 
   channel
     .on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState();
       const users = [];
-      for (const [key, presences] of Object.entries(state)) {
-        if (presences.length > 0) {
-          users.push(presences[0]); // Latest presence for each user
-        }
+      for (const presences of Object.values(channel.presenceState())) {
+        if (presences.length > 0) users.push(presences[presences.length - 1]);
       }
       onPresenceChange(users);
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({
-          email: userInfo.email,
-          name: userInfo.name,
-          avatar_url: userInfo.avatarUrl,
-          user_type: userInfo.userType,
-          active_field: null,
-          cursor_section: null,
-          online_at: new Date().toISOString(),
-        });
+        subscribed = true;
+        await channel.track(payload());
       }
     });
 
   return {
     channel,
-    // Update which field the user is currently editing
-    track: async (fieldData) => {
-      await channel.track({
-        email: userInfo.email,
-        name: userInfo.name,
-        avatar_url: userInfo.avatarUrl,
-        user_type: userInfo.userType,
-        ...fieldData,
-        online_at: new Date().toISOString(),
-      });
-    },
-    updateField: async (fieldName, section) => {
-      await channel.track({
-        email: userInfo.email,
-        name: userInfo.name,
-        avatar_url: userInfo.avatarUrl,
-        user_type: userInfo.userType,
-        active_field: fieldName,
-        cursor_section: section,
-        online_at: new Date().toISOString(),
-      });
+    // Update the tracked location (e.g. { scenarioId, scenarioName })
+    track: async ({ scenarioId, scenarioName } = {}) => {
+      current = { scenario_id: scenarioId || null, scenario_name: scenarioName || '' };
+      if (subscribed) await channel.track(payload());
     },
     unsubscribe: () => {
       channel.untrack();
       supabase.removeChannel(channel);
     },
   };
+}
+
+/**
+ * Borrower opened a share link while signed in → register them as a viewer
+ * so RLS lets their Realtime socket receive live updates for that borrower's
+ * scenarios, whatever email they signed in with (migration 020). Best-effort:
+ * returns null if the migration isn't applied or the link is dead.
+ */
+export async function registerShareView(shareToken) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !shareToken) return null;
+  try {
+    const { data, error } = await supabase.rpc('register_share_view', { p_token: shareToken });
+    if (error) { console.warn('[Supabase] register_share_view:', error.message); return null; }
+    return data || null;
+  } catch { return null; }
+}
+
+/**
+ * Read one scenario row straight from Supabase (RLS-scoped to the signed-in
+ * borrower's live share). Used when the borrower's view follows the LO to a
+ * different scenario, and for view-only links (which /api/share returns
+ * without state_data). Returns null when RLS hides it.
+ */
+export async function fetchScenarioRow(scenarioId, borrowerId) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !scenarioId) return null;
+  let q = supabase.from('scenarios').select('id, name, state_data, locked_fields').eq('id', scenarioId);
+  if (borrowerId) q = q.eq('borrower_id', borrowerId);
+  const { data, error } = await q.maybeSingle();
+  if (error) { console.warn('[Supabase] fetchScenarioRow:', error.message); return null; }
+  return data || null;
+}
+
+/**
+ * LO signed in with Google One Tap (outside Supabase Auth). Exchange the same
+ * Google ID token for a Supabase session so the LO's Realtime socket is
+ * authenticated — without it the socket is anon and RLS hides every scenario
+ * row, so the LO never sees a borrower's live edits. Best-effort.
+ */
+export async function signInWithGoogleIdToken(idToken) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !idToken) return null;
+  try {
+    const { data: existing } = await supabase.auth.getSession();
+    if (existing?.session) return existing.session;
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+    if (error) { console.warn('[Supabase] Google ID-token sign-in failed:', error.message); return null; }
+    return data?.session || null;
+  } catch { return null; }
 }
 
 /**
