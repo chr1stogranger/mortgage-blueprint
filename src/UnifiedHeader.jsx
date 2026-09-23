@@ -393,7 +393,7 @@ export default function UnifiedHeader({
         position: "relative",
       }}>
         {/* Left: Hamburger (mobile) + Logo + Sync */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: isDesktop ? 0 : 1, minWidth: 0, zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minWidth: 0, zIndex: 1 }}>
           {/* Blueprint wordmark + tab breadcrumb. When the user is on the
               Overview tab the wordmark stands alone. On any other tab a
               subtle separator and the tab label appear after it
@@ -457,7 +457,20 @@ export default function UnifiedHeader({
         </div>
 
         {/* Spacer */}
-        <div style={{ flex: 1 }} />
+        <div style={{ flex: 1, minWidth: 4 }} />
+
+        {/* Mobile: scenario switcher rides on Row 1, right-aligned next to the
+            controls (Christo 2026-09-22) — it had its own row, which cost the
+            borrower's share view ~40px of phone screen. Truncates to fit. */}
+        {!isDesktop && (
+          <div style={{ display: "flex", justifyContent: "flex-end", minWidth: 0, flexShrink: 1 }}>
+            <ScenarioPill compact
+              T={T} scenarioName={scenarioName} scenarioList={scenarioList || []}
+              clientLabel={(!isBorrower && activeBorrower && (activeBorrower.name || "").trim()) ? activeBorrower.name.trim() : ""}
+              switchScenario={switchScenario} actions={scenarioActions} canEdit={!!canEditScenarios}
+            />
+          </div>
+        )}
 
         {/* Divider before controls */}
         <div style={{ width: 1, height: 22, background: T.separator, flexShrink: 0, opacity: 0.4 }} />
@@ -524,17 +537,13 @@ export default function UnifiedHeader({
         </div>
       </div>
 
-      {/* ── Mobile row 1b — scenario title-dropdown + LO Share Link (2026-09-06).
-          The scenario is CONTEXT, not a page: it lives in the header like the
+      {/* ── Mobile row 1b — LO Share Link only. The scenario pill moved up into
+          Row 1 (2026-09-22), so borrowers don't get this row at all. The
+          scenario is CONTEXT, not a page: it lives in the header like the
           mailbox name in Mail, not in the drawer or the tab bar. ── */}
-      {!isDesktop && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px 8px", minWidth: 0 }}>
-          <ScenarioPill
-            T={T} scenarioName={scenarioName} scenarioList={scenarioList || []}
-            clientLabel={(!isBorrower && activeBorrower && (activeBorrower.name || "").trim()) ? activeBorrower.name.trim() : ""}
-            switchScenario={switchScenario} actions={scenarioActions} canEdit={!!canEditScenarios}
-          />
-          {shareLinkPill && <div style={{ marginLeft: "auto", flexShrink: 0, display: "flex" }}>{shareLinkPill}</div>}
+      {!isDesktop && shareLinkPill && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "0 14px 8px", minWidth: 0 }}>
+          {shareLinkPill}
         </div>
       )}
 
@@ -638,7 +647,7 @@ export default function UnifiedHeader({
  * scenario, with a per-row kebab revealing Rename / Duplicate / Delete inline,
  * and a "+ New scenario" footer. Mirrors the desktop sidebar's scnMenu.
  */
-function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenario, actions, canEdit }) {
+function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenario, actions, canEdit, compact = false }) {
   const [open, setOpen] = useState(false);
   const [menuFor, setMenuFor] = useState(null);      // scenario name with the action strip open
   const [editing, setEditing] = useState(null);      // scenario name being renamed
@@ -656,14 +665,15 @@ function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenar
   const close = () => { setOpen(false); setMenuFor(null); setEditing(null); };
   const nextName = () => { let n = scenarioList.length + 1; while (scenarioList.includes(`Scenario ${n}`)) n++; return `Scenario ${n}`; };
   const pillStyle = {
-    display: "flex", alignItems: "center", gap: 6, minHeight: 32, maxWidth: 250, minWidth: 0,
-    padding: "6px 12px 6px 10px", borderRadius: 9999, boxSizing: "border-box",
+    display: "flex", alignItems: "center", gap: compact ? 5 : 6, minHeight: compact ? 30 : 32,
+    maxWidth: compact ? "100%" : 250, minWidth: 0,
+    padding: compact ? "5px 9px 5px 9px" : "6px 12px 6px 10px", borderRadius: 9999, boxSizing: "border-box",
     background: open ? "rgba(59,107,245,0.15)" : (T.glass || T.pillBg),
     border: `1px solid ${open ? (T.blue || "#3B6BF5") : (T.glassBorder || T.separator)}`,
     color: T.text, fontFamily: FONT, cursor: interactive ? "pointer" : "default",
     WebkitTapHighlightColor: "transparent",
   };
-  const nameSpan = <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{label}</span>;
+  const nameSpan = <span style={{ fontSize: compact ? 12.5 : 13, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{label}</span>;
   return (
     <>
       {interactive ? (

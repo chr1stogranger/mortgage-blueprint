@@ -2773,10 +2773,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      } catch(e) {}
     }
     // ── Write-through to Supabase when authenticated + borrower selected ──
-    // Skipped when the DB already holds exactly this state — i.e. the change
-    // on screen came IN from the borrower. Writing it back is the echo that
-    // clobbered in-progress edits during live co-editing.
-    if (isCloud && activeBorrower && activeScenarioId && !sync.isEcho(stateData)) {
+    // Skipped when the DB already holds this state, or when the change on
+    // screen is only the knock-on of a change that came IN from the other
+    // person (derived fees recomputing) — writing either back ping-pongs.
+    if (isCloud && activeBorrower && activeScenarioId && sync.shouldWrite(stateData)) {
      if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
      supabaseSaveTimer.current = setTimeout(() => saveToCloud(stateData, activeScenarioId), 500);
     }

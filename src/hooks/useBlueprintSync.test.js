@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stateSig, changedKeys, resolveRemote } from './useBlueprintSync';
+import { stateSig, changedKeys, resolveRemote, decideWrite } from './useBlueprintSync';
 
 describe('stateSig', () => {
   it('ignores key order and per-device theme keys', () => {
@@ -62,5 +62,23 @@ describe('resolveRemote', () => {
   it('with no baseline, takes the remote state whole', () => {
     const remote = { ...base, rate: 7 };
     expect(resolveRemote({ base: null, local: base, remote })).toBe(remote);
+  });
+});
+
+describe('decideWrite', () => {
+  it('skips an echo', () => {
+    expect(decideWrite({ stateSig: 'a', baseSig: 'a' })).toBe('skip');
+  });
+  it('adopts knock-on changes after a remote apply with no local input (the $1 ↔ $1M ping-pong)', () => {
+    expect(decideWrite({ stateSig: 'b', baseSig: 'a', lastRemoteApplyAt: 200, lastUserInputAt: 100 })).toBe('adopt');
+  });
+  it('writes when the user touched something after the remote change', () => {
+    expect(decideWrite({ stateSig: 'b', baseSig: 'a', lastRemoteApplyAt: 100, lastUserInputAt: 200 })).toBe('write');
+  });
+  it('writes merged unsaved local edits even without new input', () => {
+    expect(decideWrite({ stateSig: 'b', baseSig: 'a', lastRemoteApplyAt: 200, lastUserInputAt: 100, pendingLocal: true })).toBe('write');
+  });
+  it('writes normally when nothing came in remotely', () => {
+    expect(decideWrite({ stateSig: 'b', baseSig: 'a', lastRemoteApplyAt: 0, lastUserInputAt: 50 })).toBe('write');
   });
 });

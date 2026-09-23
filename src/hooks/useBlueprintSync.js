@@ -80,6 +80,24 @@ export function resolveRemote({ base, local, remote, sentSigs = [] }) {
   return merged;
 }
 
+/**
+ * Should this client write `state`?
+ *   - Not if the DB already holds it (echo).
+ *   - Not if nothing was touched locally since the last remote change was
+ *     applied: whatever moved since is that change's knock-on (title/escrow/
+ *     EMD recomputing from the new price…). Writing it back carries the OLD
+ *     values into the DB and the windows ping-pong ($1 ↔ $1,000,000 with 3
+ *     windows open, 2026-09-22) — adopt it as the baseline instead.
+ *   - Unless there were unsaved local edits when the remote change landed:
+ *     those were merged in and still need saving.
+ * Returns 'write' | 'skip' | 'adopt'.
+ */
+export function decideWrite({ stateSig: sig, baseSig, lastRemoteApplyAt = 0, lastUserInputAt = 0, pendingLocal = false }) {
+  if (baseSig && sig === baseSig) return 'skip';
+  if (baseSig && lastRemoteApplyAt > lastUserInputAt && !pendingLocal) return 'adopt';
+  return 'write';
+}
+
 // Fields that map to lockable sections
 const FIELD_TO_SECTION = {};
 const LOCKABLE_SECTIONS = {
@@ -115,6 +133,9 @@ export default function useBlueprintSync({
   const subscriptionsRef = useRef([]);
   const presenceRef = useRef(null);
   const hereRef = useRef({});          // my { tab, field, field_active } for presence
+  const lastUserInputAtRef = useRef(0);    // last real keystroke/tap in this window
+  const lastRemoteApplyAtRef = useRef(0);  // last time a remote change was applied here
+  const pendingLocalRef = useRef(false);   // unsaved local edits existed when it was
   const scenarioIdRef = useRef(scenarioId);
   const getStateRef = useRef(getState);
   const loadStateRef = useRef(loadState);
@@ -135,6 +156,7 @@ export default function useBlueprintSync({
     if (!state) return () => {};
     const prevBase = baseRef.current;
     const prevSent = sentSigsRef.current;
+    pendingLocalRef.current = false;
     baseRef.current = { ...state };
     sentSigsRef.current = [stateSig(state), ...prevSent].slice(0, RECENT_SENT);
     return () => { baseRef.current = prevBase; sentSigsRef.current = prevSent; };
@@ -144,6 +166,35 @@ export default function useBlueprintSync({
   const isEcho = useCallback((state) => (
     !!baseRef.current && stateSig(state) === stateSig(baseRef.current)
   ), []);
+
+  // Real user activity in this window (vs. effects recomputing after a
+  // remote change). Capture phase so nothing can swallow it.
+  useEffect(() => {
+    // Only interactions with a control count — a finger landing to scroll
+    // (pointerdown) or an arrow key paging the page isn't an edit.
+    const mark = (e) => {
+      if (e.type === 'input' || e.type === 'change' || e.type === 'paste'
+          || e.target?.closest?.('input,select,textarea,button,label,[role="button"],[role="switch"],[role="checkbox"],[contenteditable="true"]')) {
+        lastUserInputAtRef.current = Date.now();
+      }
+    };
+    const evs = ['keydown', 'input', 'change', 'pointerdown', 'paste'];
+    evs.forEach(e => document.addEventListener(e, mark, true));
+    return () => evs.forEach(e => document.removeEventListener(e, mark, true));
+  }, []);
+
+  // See decideWrite. 'adopt' makes `state` the baseline without writing.
+  const shouldWrite = useCallback((state) => {
+    const d = decideWrite({
+      stateSig: stateSig(state),
+      baseSig: baseRef.current ? stateSig(baseRef.current) : '',
+      lastRemoteApplyAt: lastRemoteApplyAtRef.current,
+      lastUserInputAt: lastUserInputAtRef.current,
+      pendingLocal: pendingLocalRef.current,
+    });
+    if (d === 'adopt') baseRef.current = { ...state };
+    return d === 'write';
+  }, []);
 
   // ── Subscribe to Realtime changes ─────────────────────────────────────
   useEffect(() => {
@@ -159,13 +210,16 @@ export default function useBlueprintSync({
       baseRef.current = { ...remote };
       // Lay only the fields the other side changed over our local state, so
       // anything we're mid-edit on survives (and is written after, merged).
-      const next = resolveRemote({
-        base,
-        local: getStateRef.current ? getStateRef.current() : null,
-        remote,
-        sentSigs: sentSigsRef.current,
-      });
-      if (next) loadStateRef.current(next);
+      const local = getStateRef.current ? getStateRef.current() : null;
+      const next = resolveRemote({ base, local, remote, sentSigs: sentSigsRef.current });
+      if (next) {
+        // Were there local edits not yet saved? They were merged into `next`
+        // and must still be written (see decideWrite).
+        pendingLocalRef.current = pendingLocalRef.current
+          || (!!base && !!local && changedKeys(base, local).length > 0);
+        lastRemoteApplyAtRef.current = Date.now();
+        loadStateRef.current(next);
+      }
     };
     const scenarioSub = subscribeToScenario(scenarioId, onRow);
 
@@ -252,7 +306,7 @@ export default function useBlueprintSync({
 
     const currentState = getStateRef.current();
     const base = baseRef.current;
-    if (base && stateSig(currentState) === stateSig(base)) return; // Nothing new
+    if (!shouldWrite(currentState)) return; // echo, or a remote change's knock-on
 
     const fieldDiffs = {};
     if (base) {
@@ -333,7 +387,7 @@ export default function useBlueprintSync({
       console.error('[useBlueprintSync] Save failed:', e);
       setStatus('error');
     }
-  }, [shareToken, noteLocalWrite]);
+  }, [shareToken, noteLocalWrite, shouldWrite]);
 
   // ── Trigger sync (call this after any state change) ───────────────────
   const scheduleSync = useCallback(() => {
@@ -354,6 +408,8 @@ export default function useBlueprintSync({
     if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; }
     baseRef.current = initialState ? { ...initialState } : null;
     sentSigsRef.current = [];
+    pendingLocalRef.current = false;
+    lastRemoteApplyAtRef.current = 0;
     if (initialLockedFields) setLockedFields(initialLockedFields);
   }, []);
 
@@ -387,6 +443,7 @@ export default function useBlueprintSync({
     flush,              // Force immediate write (e.g., before navigation)
     noteLocalWrite,     // Call when a write happens outside this hook (LO saveToCloud)
     isEcho,             // (state) => true if the DB already holds exactly this state
+    shouldWrite,        // (state) => false for echoes and remote-change knock-ons
     setPresenceInfo,    // ({ tab, field, field_active }) => broadcast where I am
   };
 }
