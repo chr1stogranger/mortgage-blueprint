@@ -184,6 +184,18 @@ export default function DebtsContent(props) {
   );
 
   return (<>
+    {/* Equal-height fields. The shared Inp renders ~4px taller than Sel/TextInp
+        (15px vs 13px text in the same padding), so a Balance/Rate box sat taller
+        than its Owner/Payoff neighbour (Christo 2026-09-23). Pin all three to one
+        height here rather than touching the app-wide components. */}
+    <style>{`
+      .bp-eqf select,
+      .bp-eqf input[style*="border-radius: 12px"],
+      .bp-eqf div[style*="border-radius: 12px"]:has(> input) {
+        height: 42px !important; box-sizing: border-box !important;
+        padding-top: 0 !important; padding-bottom: 0 !important;
+      }
+    `}</style>
     {/* ─── Own Properties toggle — full width, structural (gates REO tab) ─── */}
     <div data-field="debts-section" style={{ marginTop: 20, marginBottom: 16 }}>
       {guideTouched.has("owns-properties-toggle") && ClusterContinue && <ClusterContinue stepId="debts-section" />}
@@ -274,7 +286,7 @@ export default function DebtsContent(props) {
 
           {debts.length === 0 ? emptyState : debts.map((d) => (
             <div key={d.id} data-debt-row style={{ borderBottom: `1px solid ${T.separator}`, background: isPaidOff(d) ? `linear-gradient(90deg, ${T.successBg}, transparent 70%)` : "transparent" }}>
-              <div style={{ display: "grid", gridTemplateColumns: COLS, gap: 8, padding: "10px 0", alignItems: "center" }}>
+              <div className="bp-eqf" style={{ display: "grid", gridTemplateColumns: COLS, gap: 8, padding: "10px 0", alignItems: "center" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                   <TextInp value={d.name || ""} onChange={v => calc.updateDebt(d.id, "name", v)} sm placeholder="e.g. Chase Sapphire" />
                   {linkChip(d)}
@@ -314,7 +326,7 @@ export default function DebtsContent(props) {
         </>) : (<>
           {/* ─── MOBILE: one tile per debt (mirrors Assets' card-per-account) ─── */}
           {debts.length === 0 ? emptyState : debts.map((d) => (
-            <div key={d.id} data-debt-row style={{ border: `1px solid ${T.separator}`, borderRadius: 14, padding: 12, marginBottom: 10, background: isPaidOff(d) ? T.successBg : "transparent" }}>
+            <div key={d.id} data-debt-row className="bp-eqf" style={{ border: `1px solid ${T.separator}`, borderRadius: 14, padding: 12, marginBottom: 10, background: isPaidOff(d) ? T.successBg : "transparent" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary }}>{d.type || "Debt"}</span>
                 <button onClick={() => calc.removeDebt(d.id)} style={{ background: "none", border: "none", color: T.red, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>Remove</button>
