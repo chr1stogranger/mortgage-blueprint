@@ -21,7 +21,7 @@ import {
   onAuthStateChange,
   signInWithMagicLink,
   signInWithGoogle,
-  registerShareView,
+  signOut,
   verifyEmailCode,
   fetchMyAccount,
 } from '../lib/supabaseClient';
@@ -97,6 +97,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
   const [showMagicLink, setShowMagicLink] = useState(false);
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [denied, setDenied] = useState(null);  // { email, loName } — signed in, not on the guest list
   const proceedingRef = useRef(false);
 
   // ── Step 1: Splash → Check existing Supabase session ────────────────────
@@ -197,15 +198,21 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         account = await fetchMyAccount();
       }
 
-      const shared = await fetchSharedData(shareToken);
+      let shared;
+      try {
+        shared = await fetchSharedData(shareToken);
+      } catch (e) {
+        // Signed in, but this email isn't on the borrower's guest list
+        if (e.code === 'not_on_list') {
+          setDenied({ email: e.payload?.email || session.user?.email || '', loName: e.payload?.lo_name || '' });
+          setPhase('denied');
+          return;
+        }
+        throw e;
+      }
       if (!shared || !shared.scenarios) {
         throw new Error('No scenarios found');
       }
-
-      // Grant this signed-in session live (Realtime) read access to the
-      // shared blueprint regardless of which email they used. Best-effort —
-      // a no-op until migration 020 is applied.
-      await registerShareView(shareToken);
 
       onAuthenticated({
         sessionToken: session.access_token,
@@ -269,6 +276,58 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
   }
 
   // ─── Render: Magic Link Sent ───────────────────────────────────────────
+  // ─── Render: Signed in, but not on this blueprint's guest list ─────────
+  if (phase === 'denied') {
+    const who = denied?.loName ? denied.loName.split(' ')[0] : 'your loan officer';
+    return (
+      <div style={{
+        minHeight: '100vh', background: T.bg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: FONT,
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: 400, padding: '0 24px' }}>
+          <div style={{
+            width: 64, height: 64, margin: '0 auto 20px',
+            borderRadius: 16, background: 'rgba(59,107,245,0.1)',
+            border: '1px solid rgba(59,107,245,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: T.accent,
+          }}>
+            <ShieldIcon />
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: T.text, letterSpacing: '-0.03em', marginBottom: 10 }}>
+            This blueprint is private
+          </div>
+          <div style={{ fontSize: 15, color: T.textSecondary, lineHeight: 1.6, marginBottom: 6 }}>
+            It's shared with specific people. You're signed in as
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.accent, fontFamily: FONT, marginBottom: 16 }}>
+            {denied?.email || 'this email'}
+          </div>
+          <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6 }}>
+            Ask {who} or the borrower to add this email from their Team tab, then open the link again. Or sign in with the email they shared it with.
+          </div>
+          <button
+            onClick={async () => {
+              try { await signOut(); } catch { /* still reset below */ }
+              proceedingRef.current = false;
+              setDenied(null); setError(''); setEmail('');
+              setPhase('auth');
+            }}
+            style={{
+              marginTop: 28, padding: '11px 22px',
+              background: 'linear-gradient(135deg, #3B6BF5, #2B4FCE)', border: 'none',
+              borderRadius: 9999, color: '#fff', fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: FONT,
+            }}
+          >
+            Use a different email
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === 'magic-sent') {
     return (
       <div style={{

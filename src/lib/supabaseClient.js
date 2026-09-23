@@ -376,6 +376,7 @@ export function subscribeToVersionHistory(scenarioId, onNewVersion) {
  * @param {string} roomId - borrower UUID
  * @param {object} userInfo - { email, name, avatarUrl, userType: 'lo' | 'borrower' }
  * @param {object} location - { scenarioId, scenarioName } initially tracked
+ *   (track() later merges tab / field / field_active for the field outlines)
  * @param {function} onPresenceChange - called with array of present users
  * @returns {{ channel, track, unsubscribe }}
  */
@@ -390,6 +391,7 @@ export function createPresenceChannel(roomId, userInfo, location, onPresenceChan
 
   let current = { scenario_id: location?.scenarioId || null, scenario_name: location?.scenarioName || '' };
   let subscribed = false;
+  let pending = null;
   const payload = () => ({
     email: userInfo.email,
     name: userInfo.name,
@@ -416,12 +418,15 @@ export function createPresenceChannel(roomId, userInfo, location, onPresenceChan
 
   return {
     channel,
-    // Update the tracked location (e.g. { scenarioId, scenarioName })
-    track: async ({ scenarioId, scenarioName } = {}) => {
-      current = { scenario_id: scenarioId || null, scenario_name: scenarioName || '' };
-      if (subscribed) await channel.track(payload());
+    // Merge into the tracked state (scenario_id, tab, field, field_active …)
+    // and re-broadcast. Rapid calls coalesce into one track per 150ms.
+    track: (partial = {}) => {
+      current = { ...current, ...partial };
+      if (!subscribed || pending) return;
+      pending = setTimeout(() => { pending = null; channel.track(payload()); }, 150);
     },
     unsubscribe: () => {
+      if (pending) clearTimeout(pending);
       channel.untrack();
       supabase.removeChannel(channel);
     },
@@ -429,24 +434,8 @@ export function createPresenceChannel(roomId, userInfo, location, onPresenceChan
 }
 
 /**
- * Borrower opened a share link while signed in → register them as a viewer
- * so RLS lets their Realtime socket receive live updates for that borrower's
- * scenarios, whatever email they signed in with (migration 020). Best-effort:
- * returns null if the migration isn't applied or the link is dead.
- */
-export async function registerShareView(shareToken) {
-  const supabase = getSupabaseClient();
-  if (!supabase || !shareToken) return null;
-  try {
-    const { data, error } = await supabase.rpc('register_share_view', { p_token: shareToken });
-    if (error) { console.warn('[Supabase] register_share_view:', error.message); return null; }
-    return data || null;
-  } catch { return null; }
-}
-
-/**
  * Read one scenario row straight from Supabase (RLS-scoped to the signed-in
- * borrower's live share). Used when the borrower's view follows the LO to a
+ * borrower's guest-list access, migration 021). Used when the borrower's view follows the LO to a
  * different scenario, and for view-only links (which /api/share returns
  * without state_data). Returns null when RLS hides it.
  */

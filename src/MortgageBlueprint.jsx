@@ -69,6 +69,8 @@ import {
 import { fetchScenarioRow } from "./lib/supabaseClient";
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
+import LivePresenceLayer from "./components/LivePresenceLayer";
+import { presenceRoot, findByKey, outlineBoxFor } from "./lib/fieldPresence";
 import LockControls from "./components/LockControls";
 import VersionTimeline from "./components/VersionTimeline";
 import useVersionHistory from "./hooks/useVersionHistory";
@@ -2479,6 +2481,53 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isBorrower, loaded, loScenarioId, activeScenarioId]);
+
+ // ── Live co-editing: where am I / jump to / follow the other person ──
+ // My tab goes out with presence (field resets on a tab change);
+ // LivePresenceLayer adds the field. Jump switches to their tab and scrolls
+ // their field into view; Follow repeats that whenever they move, and stops
+ // the moment I scroll, type or tap on my own.
+ const [followEmail, setFollowEmail] = useState(null);
+ useEffect(() => { sync.setPresenceInfo({ tab, field: null, field_active: false }); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+ const jumpToPresence = (u) => {
+  if (!u) return;
+  let t = u.tab;
+  if (t === "workspace" && !isDesktop) t = "overview";
+  // Per-person / LO-only screens aren't worth following into
+  const followable = t && t !== "settings" && !(isBorrower && t === "pipeline");
+  if (followable && t !== tab) setTab(t);
+  if (!u.field) return;
+  let tries = 0;
+  const seek = () => {
+   const el = findByKey(presenceRoot(), u.field);
+   if (el) { outlineBoxFor(el).scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+   if (++tries < 8) setTimeout(seek, 120);   // new tab may still be rendering
+  };
+  setTimeout(seek, t !== tab ? 150 : 0);
+ };
+ const followed = followEmail ? sync.onlineUsers.find(u => u.email === followEmail) : null;
+ useEffect(() => {
+  if (!followEmail) return;
+  if (!followed) { setFollowEmail(null); return; }   // they left
+  jumpToPresence(followed);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [followEmail, followed?.tab, followed?.field]);
+ useEffect(() => {
+  if (!followEmail) return;
+  const stop = () => setFollowEmail(null);
+  // Programmatic smooth scrolls don't fire these — only a real person does.
+  window.addEventListener("wheel", stop, { passive: true });
+  window.addEventListener("touchmove", stop, { passive: true });
+  window.addEventListener("keydown", stop);
+  const onDown = (e) => { if (!e.target.closest?.("[data-presence-bar]")) stop(); };
+  window.addEventListener("pointerdown", onDown, true);
+  return () => {
+   window.removeEventListener("wheel", stop);
+   window.removeEventListener("touchmove", stop);
+   window.removeEventListener("keydown", stop);
+   window.removeEventListener("pointerdown", onDown, true);
+  };
+ }, [followEmail]);
  useEffect(() => {
   (async () => {
    // ── Borrower mode: load initialState directly, skip localStorage ──
@@ -8069,8 +8118,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {/* Real-time presence bar — shows who else is viewing this blueprint */}
   {sync.onlineUsers.length > 0 && (
    <div style={{ padding: '8px 16px 0' }}>
-    <PresenceBar onlineUsers={sync.onlineUsers} fieldFocus={{}} />
+    <PresenceBar T={T} onlineUsers={sync.onlineUsers} followEmail={followEmail}
+     onJump={(u) => { setFollowEmail(null); jumpToPresence(u); }}
+     onToggleFollow={(email) => { setFollowEmail(email); const u = email && sync.onlineUsers.find(x => x.email === email); if (u) jumpToPresence(u); }} />
    </div>
+  )}
+  {activeScenarioId && (
+   <LivePresenceLayer users={sync.onlineUsers} tab={tab}
+    onLocalField={(field, active) => sync.setPresenceInfo({ field, field_active: active })} />
   )}
   {/* ═══ CONSENT MODAL ═══ */}
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -8524,7 +8579,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        rendered height, safe-area included). The fallback only applies before
        the first layout pass. */}
    <div style={{ paddingTop: isDesktop ? "var(--bp-header-h, 96px)" : "var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px)))" }} />
-   <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+   <div data-presence-root="" style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}

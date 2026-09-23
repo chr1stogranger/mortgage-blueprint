@@ -1,8 +1,11 @@
 /**
  * API helper for Blueprint ↔ Pipeline Supabase communication.
  * All authenticated calls go through Ops API routes at ops.realstack.app.
- * Share link calls are public (no auth needed).
+ * Share link calls carry the borrower's Supabase access token: the link only
+ * opens for emails on the borrower's guest list (migration 021).
  */
+
+import { getSession } from './lib/supabaseClient';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
@@ -107,19 +110,54 @@ export async function deleteScenarioAPI(id) {
 
 // ─── Share (public, no auth) ────────────────────────────────────────────────
 
+// Authorization header for share-link calls (signed-in borrower's session).
+export async function shareAuthHeaders() {
+  const session = await getSession().catch(() => null);
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
+
+// Throws an Error carrying .code/.status/.payload so callers can tell
+// "not on the guest list" (code 'not_on_list') from a dead link.
 export async function fetchSharedData(shareToken) {
-  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`);
+  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`, { headers: await shareAuthHeaders() });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error(err.error || 'Share link not found');
+    const e = new Error(err.error || 'Share link not found');
+    e.code = err.code || null; e.status = res.status; e.payload = err;
+    throw e;
   }
   return res.json();
 }
 
+// ─── Share-link guest list ─────────────────────────────────────────────────
+// Borrower side (share token + their session); LO side (authFetch).
+async function shareAccessCall(method, shareToken, email) {
+  const isGet = method === 'GET';
+  const url = `${API_BASE}/api/collab?resource=share-access${isGet ? `&token=${shareToken}` : ''}`;
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(await shareAuthHeaders()) },
+    body: isGet ? undefined : JSON.stringify({ token: shareToken, email }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+export const fetchShareAccessAsBorrower = (shareToken) => shareAccessCall('GET', shareToken);
+export const addShareAccessAsBorrower = (shareToken, email) => shareAccessCall('POST', shareToken, email);
+export const removeShareAccessAsBorrower = (shareToken, email) => shareAccessCall('DELETE', shareToken, email);
+
+export const fetchShareAccessAsLo = (borrowerId) =>
+  authFetch(`/api/collab?resource=share-access-lo&borrower_id=${borrowerId}`);
+export const addShareAccessAsLo = (borrowerId, email) =>
+  authFetch('/api/collab?resource=share-access-lo', { method: 'POST', body: { borrower_id: borrowerId, email } });
+export const removeShareAccessAsLo = (borrowerId, email) =>
+  authFetch('/api/collab?resource=share-access-lo', { method: 'DELETE', body: { borrower_id: borrowerId, email } });
+
 export async function saveSharedScenario(shareToken, data) {
   const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await shareAuthHeaders()) },
     body: JSON.stringify(data),
   });
   if (!res.ok) {

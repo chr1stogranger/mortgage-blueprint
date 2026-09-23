@@ -24,9 +24,9 @@
  * noteLocalWrite(state) so the echo check knows about them.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { subscribeToScenario, subscribeToLockEvents, createPresenceChannel, fetchScenarioRow } from '../lib/supabaseClient';
-import { updateScenario } from '../api';
+import { updateScenario, shareAuthHeaders } from '../api';
 
 const DEBOUNCE_MS = 500;          // Write delay after last change
 const RECENT_SENT = 8;            // How many of our own writes to remember for echo detection
@@ -114,6 +114,7 @@ export default function useBlueprintSync({
   const sentSigsRef = useRef([]);      // signatures of our recent writes
   const subscriptionsRef = useRef([]);
   const presenceRef = useRef(null);
+  const hereRef = useRef({});          // my { tab, field, field_active } for presence
   const scenarioIdRef = useRef(scenarioId);
   const getStateRef = useRef(getState);
   const loadStateRef = useRef(loadState);
@@ -121,7 +122,7 @@ export default function useBlueprintSync({
   // a ref so flush stays stable (an unstable flush re-ran the unmount cleanup
   // below on EVERY render, which tore down the realtime + presence channels).
   const userInfoRef = useRef(userInfo);
-  userInfoRef.current = userInfo;
+  useLayoutEffect(() => { userInfoRef.current = userInfo; });
 
   // Keep refs current
   useEffect(() => { scenarioIdRef.current = scenarioId; }, [scenarioId]);
@@ -201,7 +202,7 @@ export default function useBlueprintSync({
 
   // ── Presence (one room per borrower; payload says which scenario) ─────
   const locationRef = useRef({ scenarioId, scenarioName });
-  locationRef.current = { scenarioId, scenarioName };
+  useLayoutEffect(() => { locationRef.current = { scenarioId, scenarioName }; });
   useEffect(() => {
     if (!roomId || !enabled || !userInfo.email) return;
 
@@ -224,6 +225,8 @@ export default function useBlueprintSync({
     );
 
     presenceRef.current = presence;
+    // Re-announce tab/field after a room change (new channel starts blank)
+    if (Object.keys(hereRef.current).length) presence.track(hereRef.current);
 
     return () => {
       presence.unsubscribe();
@@ -233,8 +236,15 @@ export default function useBlueprintSync({
   }, [roomId, enabled, userInfo.email, userType]);
 
   useEffect(() => {
-    presenceRef.current?.track({ scenarioId, scenarioName });
+    presenceRef.current?.track({ scenario_id: scenarioId || null, scenario_name: scenarioName || '' });
   }, [scenarioId, scenarioName]);
+
+  // Where I am inside the blueprint: { tab, field, field_active } — drives the
+  // other person's field outline + initials, and their Jump/Follow.
+  const setPresenceInfo = useCallback((partial) => {
+    hereRef.current = { ...hereRef.current, ...partial };
+    presenceRef.current?.track(partial);
+  }, []);
 
   // ── Debounced write to Supabase ───────────────────────────────────────
   const flush = useCallback(async () => {
@@ -287,7 +297,7 @@ export default function useBlueprintSync({
           const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
           const res = await fetch(`${API_BASE}/api/collab?resource=sync`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await shareAuthHeaders()) },
             body: JSON.stringify({
               token: shareToken,
               scenario_id: scenarioIdRef.current,
@@ -350,7 +360,7 @@ export default function useBlueprintSync({
   // ── Force flush on unmount (only) ─────────────────────────────────────
   // Channels are torn down by their own effects' cleanups above.
   const flushRef = useRef(flush);
-  flushRef.current = flush;
+  useLayoutEffect(() => { flushRef.current = flush; });
   useEffect(() => () => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -377,5 +387,6 @@ export default function useBlueprintSync({
     flush,              // Force immediate write (e.g., before navigation)
     noteLocalWrite,     // Call when a write happens outside this hook (LO saveToCloud)
     isEcho,             // (state) => true if the DB already holds exactly this state
+    setPresenceInfo,    // ({ tab, field, field_active }) => broadcast where I am
   };
 }

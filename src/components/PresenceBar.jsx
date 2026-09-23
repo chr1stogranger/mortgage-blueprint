@@ -1,206 +1,90 @@
-import { FONT } from "../lib/fonts.js";
+import { FONT, MONO } from "../lib/fonts.js";
 /**
- * PresenceBar — Shows who else is currently viewing/editing this Blueprint.
+ * PresenceBar — who else is in this Blueprint, and where.
  *
- * Displays avatars with colored rings (indigo for LO, green for borrower),
- * name tooltips, and optionally which field they're editing.
- *
- * Sits at the top of the Blueprint, just below the header.
+ * One chip per person: initials (their presence color, matching the field
+ * outline LivePresenceLayer draws), name, and the tab + field they're on.
+ * Tap a chip to jump to them; Follow keeps you with them as they move
+ * (stops when you scroll, type, or tap anything yourself).
  */
 
-import React, { useState } from 'react';
+import React from 'react';
+import Icon from '../Icon';
+import { initialsOf, presenceColor, keyLabel, TAB_LABELS } from '../lib/fieldPresence';
 
-
-// Color coding by user type
-const USER_COLORS = {
-  lo: '#3B6BF5',       // Indigo for LO
-  borrower: '#12a150', // Green for borrower
-};
-
-const FIELD_LABELS = {
-  salesPrice: 'Purchase Price',
-  purchasePrice: 'Purchase Price',
-  downPayment: 'Down Payment',
-  downPct: 'Down %',
-  interestRate: 'Rate',
-  rate: 'Rate',
-  loanTerm: 'Term',
-  creditScore: 'Credit Score',
-  annualIncome: 'Income',
-  hoa: 'HOA',
-  annualIns: 'Insurance',
-  propTax: 'Property Tax',
-  city: 'City',
-};
-
-export default function PresenceBar({ onlineUsers = [], fieldFocus = {} }) {
-  const [hoveredUser, setHoveredUser] = useState(null);
-
+export default function PresenceBar({ T, onlineUsers = [], followEmail = null, onJump, onToggleFollow }) {
   if (onlineUsers.length === 0) return null;
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '8px 16px',
-      background: 'rgba(59,107,245, 0.06)',
-      borderRadius: 10,
-      marginBottom: 12,
-      border: '1px solid rgba(59,107,245, 0.12)',
+    <div data-presence-bar="" style={{
+      display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+      padding: '8px 12px', marginBottom: 12, borderRadius: 14,
+      background: T.glass || T.card, border: `1px solid ${T.glassBorder || T.separator}`,
     }}>
-      {/* Live indicator */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        marginRight: 4,
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 2 }}>
         <div style={{
-          width: 6, height: 6,
-          borderRadius: '50%',
-          background: '#12a150',
-          boxShadow: '0 0 8px rgba(18,161,80, 0.5)',
-          animation: 'pulse 2s infinite',
+          width: 6, height: 6, borderRadius: '50%', background: T.green || '#12a150',
+          boxShadow: '0 0 8px rgba(18,161,80,0.5)', animation: 'bp-live-pulse 2s infinite',
         }} />
         <span style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: '#A1A1A1',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          fontFamily: FONT,
-        }}>LIVE</span>
+          fontSize: 10, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase',
+          letterSpacing: '0.15em', fontFamily: MONO,
+        }}>Live</span>
       </div>
 
-      {/* User avatars */}
-      <div style={{ display: 'flex', gap: 4 }}>
-        {onlineUsers.map((user, i) => {
-          const color = USER_COLORS[user.user_type] || '#3B6BF5';
-          const initial = (user.name || user.email || '?')[0].toUpperCase();
-          const isEditing = fieldFocus[user.email];
-
-          return (
-            <div
-              key={user.email || i}
-              onMouseEnter={() => setHoveredUser(user.email)}
-              onMouseLeave={() => setHoveredUser(null)}
-              style={{ position: 'relative' }}
-            >
-              {/* Avatar circle */}
-              <div style={{
-                width: 28, height: 28,
-                borderRadius: '50%',
-                background: user.avatar_url ? 'transparent' : `${color}20`,
-                border: `2px solid ${color}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                transition: 'transform 0.15s',
-                transform: hoveredUser === user.email ? 'scale(1.1)' : 'scale(1)',
-              }}>
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt={user.name || ''}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
+      {onlineUsers.map((user) => {
+        const color = presenceColor(user.email);
+        const first = (user.name || user.email || 'Someone').split(/[\s@]/)[0];
+        const where = [TAB_LABELS[user.tab] || '', keyLabel(user.field)].filter(Boolean).join(' · ');
+        const following = followEmail === user.email;
+        return (
+          <div key={user.email} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 2, borderRadius: 9999,
+            border: `1px solid ${following ? color : T.separator}`,
+            background: following ? `${color}14` : 'transparent',
+          }}>
+            <button onClick={() => onJump?.(user)} title={`Jump to ${first}`} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 4px',
+              background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 9999,
+              fontFamily: FONT, color: T.text, maxWidth: 260,
+            }}>
+              <span style={{
+                width: 24, height: 24, borderRadius: '50%', background: color, color: '#fff',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0,
+              }}>{initialsOf(user.name, user.email)}</span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }}>
+                  {first}
+                  <span style={{ fontWeight: 500, color: T.textTertiary }}> · {user.user_type === 'lo' ? 'Loan Officer' : 'Borrower'}</span>
+                </span>
+                {where && (
                   <span style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color,
-                    fontFamily: FONT,
-                  }}>{initial}</span>
+                    fontSize: 11, color: T.textSecondary, lineHeight: 1.3, maxWidth: 200,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{user.field_active ? 'In ' : ''}{where}</span>
                 )}
-              </div>
-
-              {/* Editing indicator dot */}
-              {isEditing && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: -2,
-                  right: -2,
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: color,
-                  border: '2px solid #121c30',
-                  animation: 'pulse 1.5s infinite',
-                }} />
-              )}
-
-              {/* Tooltip */}
-              {hoveredUser === user.email && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  marginTop: 6,
-                  padding: '6px 10px',
-                  background: '#162034',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 8,
-                  whiteSpace: 'nowrap',
-                  zIndex: 100,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+              </span>
+            </button>
+            {onToggleFollow && (
+              <button onClick={() => onToggleFollow(following ? null : user.email)}
+                aria-pressed={following}
+                title={following ? `Stop following ${first}` : `Follow ${first}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 4,
+                  padding: '4px 10px', borderRadius: 9999, cursor: 'pointer', fontFamily: FONT,
+                  fontSize: 11.5, fontWeight: 600,
+                  border: 'none', background: following ? color : `${T.blue}12`,
+                  color: following ? '#fff' : T.blue,
                 }}>
-                  <div style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#EDEDED',
-                    fontFamily: FONT,
-                  }}>
-                    {user.name || user.email?.split('@')[0] || 'Anonymous'}
-                  </div>
-                  <div style={{
-                    fontSize: 10,
-                    color: color,
-                    fontFamily: FONT,
-                    marginTop: 2,
-                  }}>
-                    {user.user_type === 'lo' ? 'Loan Officer' : 'Borrower'}
-                  </div>
-                  {isEditing && (
-                    <div style={{
-                      fontSize: 10,
-                      color: '#A1A1A1',
-                      marginTop: 3,
-                      fontFamily: FONT,
-                    }}>
-                      Editing: {FIELD_LABELS[isEditing] || isEditing}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                <Icon name={following ? 'x' : 'eye'} size={12} />{following ? 'Following' : 'Follow'}
+              </button>
+            )}
+          </div>
+        );
+      })}
 
-      {/* Summary text */}
-      <span style={{
-        fontSize: 12,
-        color: '#A1A1A1',
-        fontFamily: FONT,
-        marginLeft: 4,
-      }}>
-        {onlineUsers.length === 1
-          ? `${onlineUsers[0].name?.split(' ')[0] || 'Someone'} is viewing`
-          : `${onlineUsers.length} people viewing`
-        }
-      </span>
-
-      {/* Pulse animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
+      <style>{`@keyframes bp-live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
     </div>
   );
 }

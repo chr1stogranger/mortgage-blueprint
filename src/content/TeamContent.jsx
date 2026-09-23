@@ -2,6 +2,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "../Icon";
 import { fetchDealTeam, saveDealTeam, fetchAriveDealTeam, addPartnerToDirectory } from "../api";
+import ShareAccessCard from "../components/ShareAccessCard";
 
 
 // ─── Role model ──────────────────────────────────────────────────────────────
@@ -375,6 +376,9 @@ export default function TeamContent({
             <ContactCard key={role} T={T} entry={entry} roleLabel={ROLE_LABEL[role]} readOnly />
           ))
         )}
+        <Sec title="Sharing">
+          <ShareAccessCard T={T} Card={Card} isBorrower borrowerId={borrowerId} shareToken={borrowerMode?.shareToken} />
+        </Sec>
       </div>
     );
   }
@@ -474,6 +478,11 @@ export default function TeamContent({
                 The co-borrower email links their sign-in to this blueprint. They'll co-edit the same file.
               </div>
             </Card>
+          </Sec>
+
+          {/* ── Who can open the share link ── */}
+          <Sec title="Sharing">
+            <ShareAccessCard key={borrowerId} T={T} Card={Card} isBorrower={false} borrowerId={borrowerId} shareToken={activeBorrower?.share_token || null} />
           </Sec>
 
           {/* ── Loan Team ── */}
