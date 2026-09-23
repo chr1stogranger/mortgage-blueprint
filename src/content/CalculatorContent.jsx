@@ -504,7 +504,12 @@ export default function CalculatorContent(props) {
   {/* ========== LEFT COLUMN ========== */}
   <div style={isDesktop ? { display: "contents" } : {}}>
   {/* — row 1: price / donut / escrow — */}
-  <div style={isDesktop ? { gridColumn: 1, gridRow: 1, display: "flex", flexDirection: "column", alignSelf: "start", minWidth: 0 } : {}}>
+  {/* Row-1 cells stretch to the taller column and the LAST card in each
+      (donut here, the 4 pills on the right) flexes to fill, so the two
+      columns' bottom edges always line up whatever the content height
+      (Christo 2026-09-23 — was alignSelf:start, which only lined up when
+      both columns happened to be the same height). */}
+  <div style={isDesktop ? { gridColumn: 1, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : {}}>
    {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
@@ -515,7 +520,7 @@ export default function CalculatorContent(props) {
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
        the wireframe read straight through the ring (Christo 2026-07-19). */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: 12, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "10px 12px 14px" }}>
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: isDesktop ? 0 : 12, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "10px 12px 14px" }}>
     {/* Escrow header row.
         PURCHASE — one master toggle (includeEscrow), unchanged.
         REFI — a toggle per component (Christo 2026-07-22): taxes and
@@ -1314,7 +1319,7 @@ export default function CalculatorContent(props) {
   {/* ========== RIGHT COLUMN ========== */}
   <div style={isDesktop ? { display: "contents" } : {}}>
   {/* — row 1: rate + live rates + the 4 loan-structure pills — */}
-  <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", alignSelf: "start", minWidth: 0 } : {}}>
+  <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : {}}>
    {/* Refi: CURRENT → NEW leads the right column, above New Rate (Christo
        2026-07-22 — swapped with the price card, now on the left). */}
    {isRefi && currentToNewCard}
@@ -1395,7 +1400,7 @@ export default function CalculatorContent(props) {
        These sit with Rate in grid row 1: a broker tunes rate and loan
        structure together, and keeping them out of row 2 lets the pillar row
        align with the 3-stat row on the left. */}
-   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12, borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 12, boxShadow: T.cardShadow }}>
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: isDesktop ? 0 : 12, ...(isDesktop ? { flex: 1, alignContent: "center" } : {}), borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 12, boxShadow: T.cardShadow }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {

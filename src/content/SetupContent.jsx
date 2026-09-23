@@ -108,7 +108,7 @@ export default function SetupContent(props) {
      right, where the Modules card would otherwise sit almost empty. */
   const propertyLocationCard = (
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-   <Card style={{ marginTop: 12 }}>
+   <Card style={{ marginTop: isDesktop && isRefi ? 0 : 12, ...(isDesktop ? { marginBottom: 0 } : {}) }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
     {isRefi ? (
      <>
@@ -733,7 +733,10 @@ export default function SetupContent(props) {
  )}
 
  {/* ── Quick Start — 2-column on desktop, columns stretch to equal height ── */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch" } : {}}>
+ {/* Card edges line up across the two columns (Christo 2026-09-23): the
+     first card in each column has no top margin, the last has no bottom
+     margin, and the grid's own marginBottom supplies the space below. */}
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch", marginBottom: 12 } : {}}>
 
   {/* ── LEFT COLUMN: Profile & Location — stretches to match right column ── */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
@@ -833,7 +836,7 @@ export default function SetupContent(props) {
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
 
    {isRefi && propertyLocationCard}
-   {isRefi && <Card style={{ marginTop: 12 }}>{ficoBlock}</Card>}
+   {isRefi && <Card style={{ marginTop: 12, ...(isDesktop ? { marginBottom: 0 } : {}) }}>{ficoBlock}</Card>}
 
    {/* 3-Point Refi Test — the one refi-mode module toggle (doc 7.23). Lives
        here because the Modules card below is purchase-only. */}
@@ -856,7 +859,7 @@ export default function SetupContent(props) {
 
    {/* ── Modules — full-width toggles with descriptions. Purchase only. ── */}
    {!isRefi && (
-   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
+   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: isDesktop ? 0 : 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
     <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
     {/* First-Time Homebuyer — Yes/No (purchase only) */}
     {!isRefi && (
