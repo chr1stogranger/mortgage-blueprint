@@ -502,16 +502,20 @@ function ComponentRow({
   // they align in a clean ledger-style table inside the expanded
   // employer card.
   // Columns: chevron · pay type · years · amount · freq · verified · $/mo · remove
+  // Controls match the Assets / Debts tables (Inp / Sel sm): inputBg
+  // ground, inputBorder hairline, 12px radius, ~38px tall.
   const pillSelect = (extra = {}) => ({
-    width: "100%", padding: "6px 10px", fontSize: 12,
-    border: "none", borderRadius: 8, height: 30,
-    background: `${T.textTertiary}10`, color: T.text,
+    width: "100%", padding: "0 12px", fontSize: 13, fontWeight: 500,
+    border: `1px solid ${T.inputBorder}`, borderRadius: 12, height: 38,
+    background: T.inputBg, color: T.text,
     fontFamily: FONT, cursor: "pointer", outline: "none",
+    WebkitAppearance: "none", boxSizing: "border-box",
     ...extra,
   });
   const pillInputWrap = {
-    background: `${T.textTertiary}10`, borderRadius: 8,
-    height: 30, padding: "0 10px",
+    background: T.inputBg, borderRadius: 12,
+    border: `1px solid ${T.inputBorder}`,
+    height: 38, padding: "0 12px", boxSizing: "border-box",
     display: "flex", alignItems: "center", gap: 4,
   };
   // Verified pill color logic (2026-05-05):
@@ -522,8 +526,8 @@ function ComponentRow({
   const isVerbal = inc.verifiedBy === "Verbal";
   const isDocVerified = !!inc.verifiedBy && !isVerbal;
   const verifiedPillStyle = {
-    width: "100%", padding: "6px 10px", fontSize: 11, height: 30,
-    borderRadius: 9999, fontFamily: FONT, fontWeight: 500,
+    width: "100%", padding: "0 12px", fontSize: 12, height: 38,
+    borderRadius: 9999, fontFamily: FONT, fontWeight: 500, boxSizing: "border-box",
     cursor: "pointer", outline: "none",
     color: isDocVerified ? T.green : T.orange,
     background: isDocVerified ? `${T.green}10` : `${T.orange}08`,
@@ -568,7 +572,7 @@ function ComponentRow({
   const methodChipEl = (
     <span style={{
       fontSize: 11, color: T.orange, fontFamily: FONT, fontWeight: 500,
-      padding: "5px 10px", background: `${T.orange}08`,
+      padding: "9px 12px", background: `${T.orange}08`,
       border: `1px solid ${T.orange}33`, borderRadius: 9999,
       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       textAlign: "center",
@@ -579,7 +583,7 @@ function ComponentRow({
   // "computed" italic since amount comes from the averaging panel.
   const amountEl = (extra) => (
     <div style={{ ...pillInputWrap, ...extra }}>
-      <span style={{ color: T.textTertiary, fontSize: 12 }}>$</span>
+      <span style={{ color: T.textSecondary, fontSize: 14, fontWeight: 600 }}>$</span>
       <input type="text" inputMode="decimal"
         value={inc.amount === 0 || inc.amount == null ? "" : Number(inc.amount).toLocaleString()}
         onChange={(e) => {
@@ -589,8 +593,8 @@ function ComponentRow({
         placeholder="0"
         style={{
           background: "transparent", border: "none", outline: "none",
-          flex: 1, fontSize: 12, color: T.text, fontFamily: FONT,
-          minWidth: 0, padding: 0,
+          flex: 1, fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
+          minWidth: 0, padding: 0, fontVariantNumeric: "tabular-nums",
         }} />
     </div>
   );
@@ -620,7 +624,7 @@ function ComponentRow({
 
   const moEl = (
     <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-      <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: T.text }}>
+      <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: mo > 0 ? T.orange : T.textTertiary }}>
         {fmt(mo)}
       </span>
       <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
@@ -654,8 +658,8 @@ function ComponentRow({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
-            gap: 8, alignItems: "center", padding: "6px 14px",
+            gridTemplateColumns: "24px 1.25fr 1.25fr 1fr 1fr 1.1fr minmax(80px, 0.8fr) 22px",
+            gap: 8, alignItems: "center", padding: "10px 16px",
             borderTop: rowBorder, background: rowBg,
           }}>
           {chevronEl || <div />}
@@ -944,20 +948,20 @@ function EmployerGroup({
           {isDesktop && (
             <div style={{
               display: "grid",
-              gridTemplateColumns: "24px 140px 140px 110px 120px 120px minmax(80px, 1fr) 22px",
-              gap: 8, padding: "6px 14px",
-              fontSize: 9, color: T.textSecondary,
-              fontWeight: 600, letterSpacing: "0.06em",
-              textTransform: "uppercase", fontFamily: MONO,
+              gridTemplateColumns: "24px 1.25fr 1.25fr 1fr 1fr 1.1fr minmax(80px, 0.8fr) 22px",
+              gap: 8, padding: "10px 16px 8px",
+              fontSize: 10, color: T.textTertiary,
+              fontWeight: 700, letterSpacing: 1,
+              textTransform: "uppercase", fontFamily: FONT,
               borderBottom: `1px solid ${T.separator}`,
             }}>
               <div></div>
               <div>Pay type</div>
               <div>Years</div>
               <div>Amount</div>
-              <div>Freq</div>
+              <div>Frequency</div>
               <div>Verified</div>
-              <div style={{ textAlign: "right" }}>Mo. income</div>
+              <div style={{ textAlign: "right" }}>Monthly</div>
               <div></div>
             </div>
           )}
@@ -978,15 +982,15 @@ function EmployerGroup({
           ))}
 
           {/* + Add Income Type — full-width light-blue dashed bar */}
-          <div style={{ padding: "10px 14px 4px" }}>
+          <div style={{ padding: "10px 16px 4px" }}>
             <button
               onClick={() => addIncome(borrowerNum, source)}
               style={{
-                padding: "9px 12px", width: "100%",
-                fontSize: 12, fontWeight: 500, color: ACCENT,
-                background: `${ACCENT}0c`,
-                border: `1px dashed ${ACCENT}55`,
-                borderRadius: 8, cursor: "pointer", fontFamily: FONT,
+                padding: 12, width: "100%",
+                fontSize: 13, fontWeight: 600, color: ACCENT,
+                background: `${ACCENT}10`,
+                border: `1px dashed ${ACCENT}44`,
+                borderRadius: 10, cursor: "pointer", fontFamily: FONT,
                 textAlign: "center",
               }}>+ Add Income Type</button>
           </div>
@@ -994,16 +998,15 @@ function EmployerGroup({
           {/* Per-employer subtotal row, matching the "Total Funds"
               row in the Assets section. */}
           <div style={{
-            padding: "8px 14px",
-            borderTop: `1px solid ${T.separator}`,
-            background: `${T.textTertiary}06`,
+            margin: "8px 16px 0", padding: "12px 0",
+            borderTop: `2px solid ${T.separator}`,
             display: "flex", justifyContent: "space-between", alignItems: "center",
-            fontSize: 11, fontFamily: FONT,
+            fontSize: 13, fontFamily: FONT, fontWeight: 700,
           }}>
-            <span style={{ color: T.textTertiary }}>{source || "Employer"} subtotal</span>
-            <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>
+            <span style={{ color: T.textSecondary, fontWeight: 600 }}>{source || "Employer"} total</span>
+            <span style={{ color: isPrevious ? T.textTertiary : T.orange }}>
               {fmt(totalMo)}
-              <span style={{ color: T.textTertiary, fontWeight: 400, fontSize: 10, marginLeft: 2 }}>/mo</span>
+              <span style={{ color: T.textTertiary, fontWeight: 600, fontSize: 11, marginLeft: 2 }}>/mo</span>
             </span>
           </div>
         </div>
@@ -1119,17 +1122,20 @@ export default function IncomeContent(props) {
     setExpandedComponents(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Bottom DTI summary (unchanged from prior version).
+  // Bottom DTI summary — same engine figures the Debts tab and Qualify use
+  // (qualifying income incl. rental offsets; totalPayment incl. REO
+  // shortfalls and the investment rent offset on housing).
   const monthlyIncome = calc.monthlyIncome || 0;
-  const housing = calc.housingPayment || 0;
-  const totalDebts = calc.totalMonthlyDebts || 0;
-  const reoExtra = calc.reoNegativeDebt || 0;
-  const backDTI = monthlyIncome > 0 ? (housing + totalDebts + reoExtra) / monthlyIncome : null;
-  const frontDTI = monthlyIncome > 0 ? housing / monthlyIncome : null;
+  const qualifyingIncome = calc.qualifyingIncome || 0;
+  const totalPayment = calc.totalPayment || 0;
+  const housingForDTI = calc.effectiveHousingForDTI != null ? calc.effectiveHousingForDTI : (calc.housingPayment || 0);
+  const backDTI = qualifyingIncome > 0 ? totalPayment / qualifyingIncome : null;
+  const frontDTI = qualifyingIncome > 0 ? housingForDTI / qualifyingIncome : null;
   const isFHA = loanType === "FHA";
   const backMax = isFHA ? 0.5699 : (calc.maxDTI || 0.50);
   const frontMax = 0.47;
   const backOk = backDTI !== null && backDTI <= backMax;
+  const headroom = qualifyingIncome * backMax - totalPayment;
   const frontOk = frontDTI !== null && frontDTI <= frontMax;
 
   // Total qualifying $/mo across all groups. Mirrors the parent calc layer
@@ -1254,37 +1260,48 @@ export default function IncomeContent(props) {
                 borrower accent, editable name, right-aligned subtotal.
                 No gradient fills — one separator line below. Hidden
                 entirely in 1-borrower scenarios (just rows). */}
-            {showBorrowerHeaders && (
+            {/* Blue banner — same container header as the Assets and
+                Monthly Debts tables. Multi-borrower scenarios add the
+                initials disc + editable name inline; single-borrower
+                scenarios just read "Income". */}
             <div style={{
-              borderBottom: `1px solid ${T.separator}`,
-              padding: "10px 14px",
+              background: `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`,
+              color: ACCENT,
+              borderBottom: `1px solid ${ACCENT}38`,
+              padding: showBorrowerHeaders ? "6px 10px 6px 16px" : "10px 16px",
               fontFamily: FONT,
-              display: "flex", alignItems: "center", gap: 10,
+              display: "flex", alignItems: "center", gap: 10, minHeight: 40, boxSizing: "border-box",
             }}>
-              <div style={{
-                width: 26, height: 26, borderRadius: 9999, flexShrink: 0,
-                background: `${accent}1c`, color: accent,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 11, fontWeight: 700, fontFamily: FONT,
-                letterSpacing: "0.02em",
-              }}>{initials}</div>
-              <input
-                type="text"
-                value={borrowerNames[n] || ""}
-                placeholder={`Borrower ${n} name (optional)`}
-                onChange={(e) => setBorrowerName(n, e.target.value)}
-                style={{
-                  flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600,
-                  color: T.text, background: "transparent",
-                  border: "none", outline: "none", padding: 0,
-                  fontFamily: FONT, letterSpacing: "-0.01em",
-                }}
-              />
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: T.text, whiteSpace: "nowrap" }}>
-                  {fmt(totalForBorrower)}<span style={{ fontSize: 11, fontWeight: 400, color: T.textTertiary }}>/mo</span>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", flexShrink: 0 }}>Monthly Income</span>
+              {showBorrowerHeaders ? (<>
+                <div style={{
+                  width: 24, height: 24, borderRadius: 9999, flexShrink: 0,
+                  background: `${accent}24`, color: accent,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 10, fontWeight: 700, fontFamily: FONT,
+                  letterSpacing: "0.02em",
+                }}>{initials}</div>
+                <input
+                  type="text"
+                  value={borrowerNames[n] || ""}
+                  placeholder={`Borrower ${n} name (optional)`}
+                  onChange={(e) => setBorrowerName(n, e.target.value)}
+                  aria-label={`Borrower ${n} name`}
+                  style={{
+                    flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600,
+                    color: T.text, background: "transparent",
+                    border: "none", outline: "none", padding: 0,
+                    fontFamily: FONT,
+                  }}
+                />
+              </>) : <div style={{ flex: 1 }} />}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, opacity: 0.85, whiteSpace: "nowrap", textTransform: "uppercase" }}>
+                  {groups.length === 0 && otherMo === 0
+                    ? "No income yet"
+                    : `${fmt(totalForBorrower)}/mo${groups.length ? ` · ${groups.length} ${groups.length === 1 ? "employer" : "employers"}` : ""}`}
                 </span>
-                {canRemove && (
+                {canRemove && showBorrowerHeaders && (
                   <button
                     type="button"
                     onPointerDown={(e) => { e.stopPropagation(); }}
@@ -1323,22 +1340,17 @@ export default function IncomeContent(props) {
                 )}
               </div>
             </div>
-            )}
 
             {/* Empty state per borrower — full-width dashed bar
                 matching the '+ Add Debt' / '+ Add Property' pattern. */}
             {groups.length === 0 && (
-              <button onClick={() => addIncome(n, "")} style={{
-                display: "block", width: "calc(100% - 24px)",
-                margin: "12px 12px 14px",
-                padding: "10px 12px",
-                borderRadius: 8,
-                background: `${accent}14`,
-                border: `1px dashed ${accent}78`,
-                color: accent, fontSize: 13, fontWeight: 500,
-                cursor: "pointer", fontFamily: FONT,
-                textAlign: "center",
-              }}>+ Add Employer</button>
+              <div style={{ padding: "20px 16px", textAlign: "center" }}>
+                <button onClick={() => addIncome(n, "")} style={{
+                  background: "none", border: `2px dashed ${T.separator}`, color: ACCENT,
+                  fontSize: 14, fontWeight: 600, cursor: "pointer",
+                  padding: "16px 24px", borderRadius: 12, fontFamily: FONT,
+                }}>+ Add Employer</button>
+              </div>
             )}
 
             {/* Employer groups for this borrower — separated by a
@@ -1374,14 +1386,13 @@ export default function IncomeContent(props) {
                 consistent with '+ Add Debt' / '+ Add Property' in
                 Debts / REO. */}
             {groups.length > 0 && (
-              <div style={{ padding: "12px 12px 0" }}>
+              <div style={{ padding: "12px 16px 12px", borderTop: `1px solid ${T.separator}` }}>
                 <button onClick={() => addIncome(n, "")} style={{
-                  display: "block", width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  background: `${accent}14`,
-                  border: `1px dashed ${accent}78`,
-                  color: accent, fontSize: 13, fontWeight: 500,
+                  display: "block", width: "100%", padding: 12,
+                  borderRadius: 10,
+                  background: `${ACCENT}10`,
+                  border: `1px dashed ${ACCENT}44`,
+                  color: ACCENT, fontSize: 13, fontWeight: 600,
                   cursor: "pointer", fontFamily: FONT,
                   textAlign: "center",
                 }}>+ Add Employer</button>
@@ -1445,85 +1456,90 @@ export default function IncomeContent(props) {
       {setNumBorrowers && numBorrowers < 4 && (
         <button onClick={() => setNumBorrowers(numBorrowers + 1)} style={{
           display: "block", width: "100%",
-          padding: "10px 12px",
-          marginBottom: 10,
-          borderRadius: 8,
-          background: `${ACCENT}0c`,
-          border: `1px dashed ${ACCENT}55`,
-          color: ACCENT, fontSize: 13, fontWeight: 500,
+          padding: 12,
+          marginBottom: 16,
+          borderRadius: 10,
+          background: `${ACCENT}10`,
+          border: `1px dashed ${ACCENT}44`,
+          color: ACCENT, fontSize: 13, fontWeight: 600,
           cursor: "pointer", fontFamily: FONT,
           textAlign: "center",
         }}>+ Add Borrower</button>
       )}
-      {/* ── Totals footer (B4): single "Total qualifying income" row
-             pinned at the bottom of the section. Same number the old
-             QUALIFYING TOTAL row showed (employment income across all
-             current employers, matching calc.employmentMonthlyIncome's
-             role) — presentation change only. */}
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "baseline",
-        gap: 10, marginBottom: 16, padding: "12px 14px",
-        background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14,
-      }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>
-          Total qualifying income
-        </span>
-        <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16, color: T.accent, whiteSpace: "nowrap" }}>
-          {fmt(totalEmploymentMo)}<span style={{ fontSize: 12, fontWeight: 600, color: T.textTertiary }}>/mo</span>
-        </span>
-      </div>
     </div>
 
-    {/* ─── BOTTOM SUMMARY: Total Monthly Income + DTI progress ─── */}
-    <Card pad={16}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, gap: 12, flexWrap: "wrap" }}>
+    {/* ─── BOTTOM SUMMARY — mirrors Assets / Debts: amber total, then two cards ─── */}
+    {(() => {
+      const employmentMo = calc.employmentMonthlyIncome != null ? calc.employmentMonthlyIncome : totalEmploymentMo;
+      const otherTotal = Math.max(0, monthlyIncome - employmentMo);
+      const rentalMo = Math.max(0, qualifyingIncome - monthlyIncome);
+      const currentEmployers = employerGroups.filter(g => !g.components.some(c => c.end && c.end !== "")).length;
+      const parts = [`${fmt(qualifyingIncome * 12)}/yr`];
+      if (currentEmployers > 0) parts.push(`${currentEmployers} current ${currentEmployers === 1 ? "employer" : "employers"}`);
+      if (renderedBorrowerCount > 1) parts.push(`${renderedBorrowerCount} borrowers`);
+      const labelStyle = { fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 };
+      const kv = { display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, gap: 12 };
+      const totRow = { display: "flex", justifyContent: "space-between", padding: "8px 0 12px", fontSize: 14, borderTop: `1px solid ${T.separator}`, marginTop: 4 };
+      const pctTxt = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
+      return (
         <div>
-          <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>Total Monthly Income</div>
-          {/* Amber total — uniform across Income / Assets / Debts / REO summary heroes for scroll-and-scan consistency. */}
-          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
-            {fmt(monthlyIncome)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
-          </div>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, fontFamily: FONT, letterSpacing: 0.3 }}>
-            {fmt(monthlyIncome * 12)}/yr
+          <Card pad={16}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={labelStyle}>Total Monthly Income</div>
+                {/* Amber total — uniform across Income / Assets / Debts / REO summary heroes. */}
+                <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
+                  {fmt(qualifyingIncome)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo qualifying</span>
+                </div>
+                <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{parts.join(" · ")}</div>
+              </div>
+              {isFHA && (
+                <div style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}33`, borderRadius: 9999, padding: "4px 10px", fontSize: 10, fontWeight: 700, color: T.orange, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                  FHA caps: front 47% / back 56.99%
+                </div>
+              )}
+            </div>
+          </Card>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
+            <Card pad={16} style={{ marginBottom: 0 }}>
+              <div style={{ ...labelStyle, marginBottom: 8 }}>Qualifying Income</div>
+              <div style={kv}><span style={{ color: T.textSecondary }}>Employment (current employers)</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(employmentMo)}</span></div>
+              <div style={kv}><span style={{ color: T.textSecondary }}>Other monthly income</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(otherTotal)}</span></div>
+              {rentalMo > 0 && (
+                <div style={kv}><span style={{ color: T.textSecondary }}>Rental income (75% rule)</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(rentalMo)}</span></div>
+              )}
+              <div style={totRow}>
+                <span style={{ color: T.text, fontWeight: 700 }}>Total qualifying</span>
+                <span style={{ fontFamily: FONT, fontWeight: 700, color: T.orange }}>{fmt(qualifyingIncome)}/mo</span>
+              </div>
+              <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.5 }}>
+                Previous employers count toward averaging history only, not qualifying income.
+              </div>
+            </Card>
+            <Card pad={16} style={{ marginBottom: 0 }}>
+              <div style={{ ...labelStyle, marginBottom: 8 }}>Back-End DTI</div>
+              {qualifyingIncome > 0 && backDTI !== null ? (<>
+                <div style={kv}><span style={{ color: T.textSecondary }}>Housing + debts</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalPayment)}/mo</span></div>
+                <div style={kv}><span style={{ color: T.textSecondary }}>Max at {pctTxt(backMax, isFHA ? 2 : 0)} of income</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(qualifyingIncome * backMax)}/mo</span></div>
+                {isFHA && frontDTI !== null && (
+                  <div style={kv}><span style={{ color: T.textSecondary }}>Front-end (housing only)</span><span style={{ fontFamily: FONT, fontWeight: 600, color: frontOk ? T.green : T.red }}>{pctTxt(frontDTI)} of {pctTxt(frontMax, 0)}</span></div>
+                )}
+                <div style={totRow}>
+                  <span style={{ color: T.text, fontWeight: 700 }}>Headroom</span>
+                  <span style={{ fontFamily: FONT, fontWeight: 700, color: headroom >= 0 ? T.green : T.red }}>{headroom >= 0 ? fmt(headroom) : `−${fmt(Math.abs(headroom))}`}</span>
+                </div>
+                <Progress value={backDTI} max={backMax} color={backOk ? T.green : T.red} height={10} />
+                <div style={{ fontSize: 11, color: backOk ? T.green : T.red, fontWeight: 500, marginTop: 6 }}>
+                  {backOk ? `✓ ${pctTxt(backDTI)} of ${pctTxt(backMax, isFHA ? 2 : 0)} max` : `${pctTxt(backDTI)}: above the ${loanType} max. Reduce debts or add income`}
+                </div>
+              </>) : (
+                <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5 }}>Enter employment income above to see your DTI.</div>
+              )}
+            </Card>
           </div>
         </div>
-        {isFHA && (
-          <div style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}33`, borderRadius: 8, padding: "4px 10px", fontSize: 10, fontWeight: 700, color: T.orange, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase" }}>
-            FHA caps: front 47% / back 56.99%
-          </div>
-        )}
-      </div>
-
-      {monthlyIncome > 0 && backDTI !== null ? (<>
-        {isFHA && (<>
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", fontSize: 13, borderTop: `1px solid ${T.separator}`, marginTop: 8 }}>
-            <span style={{ color: T.textSecondary, fontWeight: 500 }}>Front-end DTI (housing only)</span>
-            <span style={{ fontFamily: FONT, fontWeight: 700, color: frontOk ? T.green : T.red }}>
-              {(frontDTI * 100).toFixed(1)}% / {(frontMax * 100).toFixed(0)}% max
-            </span>
-          </div>
-          <Progress value={frontDTI} max={frontMax} color={frontOk ? T.green : T.red} height={8} />
-          <div style={{ height: 8 }} />
-        </>)}
-
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0 4px", fontSize: 13, borderTop: isFHA ? "none" : `1px solid ${T.separator}`, marginTop: isFHA ? 0 : 8 }}>
-          <span style={{ color: T.textSecondary, fontWeight: 500 }}>Back-end DTI (housing + debts)</span>
-          <span style={{ fontFamily: FONT, fontWeight: 700, color: backOk ? T.green : T.red }}>
-            {(backDTI * 100).toFixed(1)}% / {(backMax * 100).toFixed(isFHA ? 2 : 0)}% max
-          </span>
-        </div>
-        <Progress value={backDTI} max={backMax} color={backOk ? T.green : T.red} height={10} />
-        <div style={{ fontSize: 11, color: backOk ? T.green : T.red, fontWeight: 500, marginTop: 6 }}>
-          {backOk
-            ? `✓ Within limits: ${fmt(monthlyIncome * backMax - housing - totalDebts - reoExtra)}/mo headroom`
-            : `Above ${loanType} max: reduce debts or increase income`}
-        </div>
-      </>) : (
-        <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.separator}` }}>
-          Enter employment income above to see your DTI.
-        </div>
-      )}
-    </Card>
+      );
+    })()}
 
     <GuidedNextButton />
   </>);
