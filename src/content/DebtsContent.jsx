@@ -20,7 +20,7 @@ const isLienType = (d) => d.type === "Mortgage" || d.type === "HELOC";
 
 // Desktop grid — same grammar as the Assets table (hairline rows, no cell
 // gridlines, derived colored column second-to-last, remove × last).
-const COLS = "1.45fr 0.8fr 1fr 1fr 0.9fr 0.85fr 1.2fr 0.95fr 32px";
+const COLS = "minmax(0,1.45fr) minmax(0,0.8fr) minmax(0,1fr) minmax(0,1fr) minmax(0,0.9fr) minmax(0,0.85fr) minmax(0,1.2fr) minmax(0,0.95fr) 32px";
 
 export default function DebtsContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
@@ -82,7 +82,7 @@ export default function DebtsContent(props) {
   };
 
   const chip = (color, bg, children) => (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, alignSelf: "flex-start", fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 9999, whiteSpace: "nowrap", color, background: bg, fontFamily: FONT }}>{children}</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, alignSelf: "flex-start", fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 9999, maxWidth: "100%", color, background: bg, fontFamily: FONT, lineHeight: 1.35 }}>{children}</span>
   );
 
   // What this debt adds to back-end DTI — the Debts analog of Assets' "For Reserves".
@@ -201,25 +201,29 @@ export default function DebtsContent(props) {
       {guideTouched.has("owns-properties-toggle") && ClusterContinue && <ClusterContinue stepId="debts-section" />}
       <div data-field="owns-properties-toggle" className={isPulse("owns-properties-toggle")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
         <Card>
-          <div>
-            <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Do you own any properties?</span>
-            <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-            <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Current home, investment properties, second homes</div>
-          </div>
-          {/* Light-blue segmented Yes/No — matches Quick Start selector. */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button onClick={() => { setOwnsProperties(true); markTouched("owns-properties-toggle"); }} style={{
-              flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", fontFamily: FONT,
-              background: ownsProperties === true && guideTouched.has("owns-properties-toggle") ? `${T.blue}22` : T.inputBg,
-              color: ownsProperties === true && guideTouched.has("owns-properties-toggle") ? T.blue : T.textSecondary,
-              border: `2px solid ${ownsProperties === true && guideTouched.has("owns-properties-toggle") ? T.blue : T.separator}`,
-            }}>Yes</button>
-            <button onClick={() => { setOwnsProperties(false); markTouched("owns-properties-toggle"); }} style={{
-              flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", fontFamily: FONT,
-              background: ownsProperties === false && guideTouched.has("owns-properties-toggle") ? `${T.blue}22` : T.inputBg,
-              color: ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.blue : T.textSecondary,
-              border: `2px solid ${ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.blue : T.separator}`,
-            }}>No</button>
+          {/* Question left, Yes/No right on desktop (Christo 2026-09-23);
+              stacked on phones. */}
+          <div style={{ display: isDesktop ? "flex" : "block", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+            <div>
+              <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Do you own any properties?</span>
+              <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+              <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>Current home, investment properties, second homes</div>
+            </div>
+            {/* Light-blue segmented Yes/No — matches Quick Start selector. */}
+            <div style={{ display: "flex", gap: 8, marginTop: isDesktop ? 0 : 12, width: isDesktop ? 260 : "auto", flexShrink: 0 }}>
+              <button onClick={() => { setOwnsProperties(true); markTouched("owns-properties-toggle"); }} style={{
+                flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", fontFamily: FONT,
+                background: ownsProperties === true && guideTouched.has("owns-properties-toggle") ? `${T.blue}22` : T.inputBg,
+                color: ownsProperties === true && guideTouched.has("owns-properties-toggle") ? T.blue : T.textSecondary,
+                border: `2px solid ${ownsProperties === true && guideTouched.has("owns-properties-toggle") ? T.blue : T.separator}`,
+              }}>Yes</button>
+              <button onClick={() => { setOwnsProperties(false); markTouched("owns-properties-toggle"); }} style={{
+                flex: 1, padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.2s", fontFamily: FONT,
+                background: ownsProperties === false && guideTouched.has("owns-properties-toggle") ? `${T.blue}22` : T.inputBg,
+                color: ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.blue : T.textSecondary,
+                border: `2px solid ${ownsProperties === false && guideTouched.has("owns-properties-toggle") ? T.blue : T.separator}`,
+              }}>No</button>
+            </div>
           </div>
           {ownsProperties && guideTouched.has("owns-properties-toggle") && (
             <div style={{ marginTop: 12, padding: "10px 14px", background: `${T.blue}10`, borderRadius: 12 }}>
@@ -286,8 +290,8 @@ export default function DebtsContent(props) {
 
           {debts.length === 0 ? emptyState : debts.map((d) => (
             <div key={d.id} data-debt-row style={{ borderBottom: `1px solid ${T.separator}`, background: isPaidOff(d) ? `linear-gradient(90deg, ${T.successBg}, transparent 70%)` : "transparent" }}>
-              <div className="bp-eqf" style={{ display: "grid", gridTemplateColumns: COLS, gap: 8, padding: "10px 0", alignItems: "center" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <div className="bp-eqf" style={{ display: "grid", gridTemplateColumns: COLS, gap: 8, padding: "10px 0", alignItems: "start" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 0, minWidth: 0 }}>
                   <TextInp value={d.name || ""} onChange={v => calc.updateDebt(d.id, "name", v)} sm placeholder="e.g. Chase Sapphire" />
                   {linkChip(d)}
                 </div>
@@ -300,8 +304,8 @@ export default function DebtsContent(props) {
                   <Sel value={d.payoff} onChange={v => calc.updateDebt(d.id, "payoff", v)} options={PAYOFF_LABELED} sm />
                   {payoffAmount(d)}
                 </div>
-                {dtiCell(d)}
-                <button onClick={() => calc.removeDebt(d.id)} aria-label="Remove debt" style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 16, cursor: "pointer", padding: 4, borderRadius: 4, lineHeight: 1 }}>×</button>
+                <div style={{ minHeight: 42, display: "flex", alignItems: "center" }}>{dtiCell(d)}</div>
+                <button onClick={() => calc.removeDebt(d.id)} aria-label="Remove debt" style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 16, cursor: "pointer", padding: 4, borderRadius: 4, lineHeight: 1, height: 42 }}>×</button>
               </div>
               {linkOpenId === d.id && isLienType(d) && reos.length > 0 && linkPicker(d)}
             </div>

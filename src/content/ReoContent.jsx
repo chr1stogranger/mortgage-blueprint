@@ -64,8 +64,6 @@ export default function ReoContent(props) {
   // Breakdown header style) with INDIGO text. Reads as a child of the main
   // 'Real Estate Owned' bright-indigo banner above without competing.
   const SUB_BG = `linear-gradient(135deg, ${ACCENT}18, ${ACCENT}0c)`;
-  const HEAD_BG = `${ACCENT}14`;
-  const HEAD_BORDER = `${ACCENT}38`;
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const propTypeOpts = (REO_PROPERTY_TYPES || ["Single Family", "Duplex", "Triplex", "4-plex", "Condo", "Townhouse", "PUD", "Land", "Commercial"]).map(t => ({ value: t, label: t }));
@@ -111,34 +109,74 @@ export default function ReoContent(props) {
     return acc;
   }, { value: 0, liens: 0, expenses: 0, income: 0, net: 0, dtiImpact: 0 });
 
-  // 15-col grid (legacy, kept for reference)
-  const COLS = "minmax(140px, 1fr) 110px 115px 100px 100px 70px 90px 80px 90px 80px 90px 100px 100px 90px 64px";
-  // Collapsed summary grid — Address, Value, Net, actions. Everything else lives in the chevron expand.
-  const COLS_SUM = "minmax(180px, 1fr) 140px 120px 70px";
+  // Desktop row — same grammar as Assets / Debts: key inputs on the row,
+  // derived columns (Net, Counts in DTI) colored, details in the chevron.
+  const COLS = "minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,0.9fr) minmax(0,1fr) 28px";
+  const totalRent = totals.income;
+
+  // Equal-height fields (same fix as Debts): Inp renders taller than Sel.
+  const eqfStyle = (
+    <style>{`
+      .bp-eqf select,
+      .bp-eqf input[style*="border-radius: 12px"],
+      .bp-eqf div[style*="border-radius: 12px"]:has(> input) {
+        height: 42px !important; box-sizing: border-box !important;
+        padding-top: 0 !important; padding-bottom: 0 !important;
+      }
+    `}</style>
+  );
+
+  const banner = (
+    <div style={{
+      background: SUB_BG, color: ACCENT,
+      borderBottom: `1px solid ${ACCENT}38`,
+      padding: "10px 16px",
+      fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
+      textTransform: "uppercase", fontFamily: FONT,
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+    }}>
+      <span>Real Estate Owned</span>
+      <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
+        {reos.length === 0 ? "No properties" : `${fmt(totals.value)} value · ${reos.length} ${reos.length === 1 ? "property" : "properties"}`}
+      </span>
+    </div>
+  );
+
+  const addButton = (
+    <button onClick={addReo} style={{
+      width: "100%", padding: 12, marginTop: 10, background: `${ACCENT}10`,
+      border: `1px dashed ${ACCENT}44`, borderRadius: 10,
+      color: ACCENT, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT,
+    }}>+ Add Property</button>
+  );
+
+  const dtiText = (c) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+      <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: c.dtiImpact >= 0 ? T.green : T.orange }}>
+        {c.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(c.dtiImpact))}
+      </span>
+      <span style={{ fontSize: 10.5, color: T.textTertiary }}>{c.isInvestment ? (c.dtiImpact >= 0 ? "income (75% rule)" : "debt (75% rule)") : "debt (full PITIA)"}</span>
+    </div>
+  );
+  const liensInput = (r, c, label) => c.hasLinked
+    ? <Inp label={label} value={c.liens} onChange={v => syncReoBalance(r.id, v)} sm />
+    : <Inp label={label} value={r.mortgageBalance} onChange={v => updateReo(r.id, "mortgageBalance", v)} sm />;
 
   // ─── Empty state — no REOs ───
   if (!reos || reos.length === 0) {
     return (<>
       <div style={{ marginTop: 20 }}>
         <div style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden", background: T.card }}>
-          <div style={{
-            background: SUB_BG, color: ACCENT,
-            borderBottom: `1px solid ${ACCENT}38`,
-            padding: "10px 16px",
-            fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-            textTransform: "uppercase", fontFamily: FONT,
-          }}>Real Estate Owned: Income Analysis</div>
-          <div style={{ padding: "28px 16px", textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 4 }}>No properties added yet</div>
-            <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 14, lineHeight: 1.5 }}>
-              Track primary, second-home, or investment properties here.<br/>
-              Investment rentals get the 75% income offset in DTI.
-            </div>
+          {banner}
+          <div style={{ padding: "24px 16px", textAlign: "center" }}>
             <button onClick={addReo} style={{
-              padding: "10px 20px", background: ACCENT, border: "none", borderRadius: 9999,
-              color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
-              boxShadow: `0 4px 14px ${ACCENT}30`,
+              background: "none", border: `2px dashed ${T.separator}`, color: ACCENT,
+              fontSize: 14, fontWeight: 600, cursor: "pointer",
+              padding: "16px 24px", borderRadius: 12, fontFamily: FONT,
             }}>+ Add Property</button>
+            <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 10, lineHeight: 1.5 }}>
+              Primary, second-home, or investment properties. Investment rentals get the 75% income offset in DTI.
+            </div>
           </div>
         </div>
       </div>
@@ -147,60 +185,40 @@ export default function ReoContent(props) {
   }
 
   return (<div data-field="reo-section" className={isPulse && isPulse("reo-section")} onClick={() => markTouched && markTouched("reo-section")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-    {/* ─── DESKTOP: tabular Income Analysis ─── */}
-    {isDesktop ? (
-      <div style={{
-        border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden",
-        background: T.card, marginTop: 20, marginBottom: 16,
-      }}>
-        {/* Blue banner — soft tint matching Payment Breakdown header style */}
+    {eqfStyle}
+    <div style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden", background: T.card, marginTop: 20, marginBottom: 16 }}>
+      {banner}
+      <div style={{ padding: isDesktop ? "12px 16px" : "12px" }}>
+      {isDesktop ? (<>
+        {/* Column headers — Assets style */}
         <div style={{
-          background: SUB_BG, color: ACCENT,
-          borderBottom: `1px solid ${ACCENT}38`,
-          padding: "10px 16px",
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-          textTransform: "uppercase", fontFamily: FONT,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-        }}>
-          <span>Real Estate Owned: Income Analysis</span>
-          <span style={{ fontSize: 11, opacity: 0.85, fontFamily: FONT, letterSpacing: 0.5 }}>
-            {fmt(totals.value)} total value
-          </span>
-        </div>
-
-        {/* Column headers — collapsed summary */}
-        <div style={{
-          display: "grid", gridTemplateColumns: COLS_SUM, gap: 0,
-          background: HEAD_BG, borderBottom: `1px solid ${HEAD_BORDER}`,
-          padding: "8px 12px",
+          display: "grid", gridTemplateColumns: COLS, gap: 8,
+          paddingBottom: 8, borderBottom: `1px solid ${T.separator}`,
           fontSize: 10, fontFamily: FONT, fontWeight: 700, letterSpacing: 1,
           textTransform: "uppercase", color: T.textTertiary,
         }}>
           <span>Address</span>
-          <span style={{ textAlign: "right" }}>Value</span>
-          <span style={{ textAlign: "right" }}>Net</span>
+          <span>Occupancy</span>
+          <span>Value</span>
+          <span>Liens</span>
+          <span>Rent</span>
+          <span>Net / mo</span>
+          <span>Counts in DTI</span>
           <span></span>
         </div>
 
-        {/* Rows */}
         {reos.map((r) => {
           const c = computeRow(r);
           const isExpanded = expandedRowId === r.id;
           const piMerged = r.includesTI;
           return (
-            <React.Fragment key={r.id}>
-              <div style={{
-                display: "grid", gridTemplateColumns: COLS_SUM, gap: 8,
-                padding: "8px 12px", borderBottom: `1px solid ${T.separator}`,
-                alignItems: "center",
-                background: isExpanded ? `${ACCENT}06` : "transparent",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <button onClick={() => setExpandedRowId(isExpanded ? null : r.id)} aria-label="Toggle details" style={{
-                    width: 20, height: 20, borderRadius: 4, flexShrink: 0,
-                    background: isExpanded ? `${ACCENT}20` : "transparent",
-                    border: `1px solid ${T.separator}`, color: T.textSecondary,
-                    fontSize: 10, lineHeight: 1, cursor: "pointer", padding: 0,
+            <div key={r.id} style={{ borderBottom: `1px solid ${T.separator}` }}>
+              <div className="bp-eqf" style={{ display: "grid", gridTemplateColumns: COLS, gap: 8, padding: "10px 0", alignItems: "start" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
+                  <button onClick={() => setExpandedRowId(isExpanded ? null : r.id)} aria-label={isExpanded ? "Hide property details" : "Show property details"} aria-expanded={isExpanded} style={{
+                    width: 22, height: 42, borderRadius: 6, flexShrink: 0,
+                    background: "none", border: "none", color: isExpanded ? ACCENT : T.textTertiary,
+                    fontSize: 11, lineHeight: 1, cursor: "pointer", padding: 0,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.2s",
                   }}>▸</button>
@@ -208,43 +226,37 @@ export default function ReoContent(props) {
                     <TextInp value={r.address} onChange={v => updateReo(r.id, "address", v)} placeholder="123 Main St" sm />
                   </div>
                 </div>
-                <Inp value={r.value} onChange={v => updateReo(r.id, "value", v)} sm />
-                {/* Net — auto */}
-                <div style={{ textAlign: "right", fontSize: 13, fontFamily: FONT, fontWeight: 700, color: c.net >= 0 ? T.green : T.red }}>
+                <div style={{ minWidth: 0 }}><Sel value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm /></div>
+                <div style={{ minWidth: 0 }}><Inp value={r.value} onChange={v => updateReo(r.id, "value", v)} sm /></div>
+                <div style={{ minWidth: 0 }}>{liensInput(r, c)}</div>
+                <div style={{ minWidth: 0 }}><Inp value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} sm /></div>
+                <div style={{ minHeight: 42, display: "flex", alignItems: "center", fontSize: 13, fontFamily: FONT, fontWeight: 600, color: c.net >= 0 ? T.green : T.red }}>
                   {fmt(c.net)}
                 </div>
-                {/* Actions */}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 4 }}>
-                  <button onClick={() => removeReo(r.id)} aria-label="Remove" style={{
-                    width: 22, height: 22, borderRadius: 4,
-                    background: "transparent", border: "none", color: T.textTertiary,
-                    fontSize: 14, lineHeight: 1, cursor: "pointer", padding: 0,
-                  }}>×</button>
-                </div>
+                <div style={{ minHeight: 42, display: "flex", alignItems: "center" }}>{dtiText(c)}</div>
+                <button onClick={() => removeReo(r.id)} aria-label="Remove property" style={{
+                  background: "none", border: "none", color: T.textTertiary, height: 42,
+                  fontSize: 16, lineHeight: 1, cursor: "pointer", padding: 4,
+                }}>×</button>
               </div>
 
-              {/* Expand panel — property details + linked debts UI + equity/cash flow detail */}
+              {/* Expand panel — property details + linked debts + equity detail */}
               {isExpanded && (
-                <div style={{ padding: "14px 20px", background: `${ACCENT}06`, borderBottom: `1px solid ${T.separator}` }}>
+                <div className="bp-eqf" style={{ padding: "14px 16px", margin: "0 0 10px", background: `${ACCENT}0a`, borderRadius: 10 }}>
                   {/* Property Details — moved out of the collapsed row */}
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
                       Property Details
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, alignItems: "end" }}>
                       <Sel label="Type" value={r.propType || "Single Family"} onChange={v => updateReo(r.id, "propType", v)} options={propTypeOpts} sm />
-                      <Sel label="Occupancy" value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm />
                       <Inp label="Purchase Price" value={r.purchasePrice || 0} onChange={v => updateReo(r.id, "purchasePrice", v)} sm />
-                      {c.hasLinked
-                        ? <Inp label="Liens (auto)" value={c.liens} onChange={() => {}} sm readOnly />
-                        : <Inp label="Liens" value={r.mortgageBalance} onChange={v => updateReo(r.id, "mortgageBalance", v)} sm />}
                       {c.hasLinked
                         ? <Inp label="P&I (auto)" value={c.pi} onChange={() => {}} sm readOnly />
                         : <Inp label={piMerged ? "Payment (PITIA)" : "P&I"} value={r.payment} onChange={v => updateReo(r.id, "payment", v)} sm />}
                       {!piMerged && <Inp label="Tax" value={r.reoTax} onChange={v => updateReo(r.id, "reoTax", v)} sm />}
                       {!piMerged && <Inp label="Insurance" value={r.reoIns} onChange={v => updateReo(r.id, "reoIns", v)} sm />}
                       {!piMerged && <Inp label="HOA" value={r.reoHoa} onChange={v => updateReo(r.id, "reoHoa", v)} sm />}
-                      <Inp label="Rental Income" value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} sm />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0 0", marginTop: 10, borderTop: `1px solid ${T.separator}` }}>
                       <span style={{ fontSize: 12, color: T.textSecondary }}>Payment includes Tax, Ins &amp; HOA?</span>
@@ -321,86 +333,76 @@ export default function ReoContent(props) {
                   </div>
                 </div>
               )}
-            </React.Fragment>
+            </div>
           );
         })}
 
-        {/* Totals row */}
+        {/* Totals rule — Assets style */}
         <div style={{
-          display: "grid", gridTemplateColumns: COLS_SUM, gap: 8,
-          padding: "10px 12px", background: T.inputBg,
-          borderTop: `1px solid ${HEAD_BORDER}`,
-          alignItems: "center",
-          fontSize: 12, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5,
-          textTransform: "uppercase", color: T.text,
+          display: "grid", gridTemplateColumns: COLS, gap: 8,
+          padding: "12px 0 4px", borderTop: `2px solid ${T.separator}`, marginTop: -1,
+          fontSize: 13, fontWeight: 700, fontFamily: FONT, color: T.text,
         }}>
-          <span>Total Rental Income / Loss</span>
-          <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(totals.value)}</span>
-          <span style={{ textAlign: "right", fontFamily: FONT, color: totals.net >= 0 ? T.green : T.red, fontSize: 13 }}>{fmt(totals.net)}</span>
+          <span style={{ gridColumn: "1 / 3", color: T.textSecondary, fontWeight: 600 }}>Total</span>
+          <span>{fmt(totals.value)}</span>
+          <span>{fmt(totals.liens)}</span>
+          <span>{fmt(totalRent)}</span>
+          <span style={{ color: totals.net >= 0 ? T.green : T.red }}>{fmt(totals.net)}</span>
+          <span style={{ color: totals.dtiImpact >= 0 ? T.green : T.orange }}>{totals.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(totals.dtiImpact))}</span>
           <span></span>
         </div>
-
-        <div style={{ padding: "10px 12px" }}>
-          <button onClick={addReo} style={{
-            width: "100%", padding: 12, background: `${ACCENT}10`,
-            border: `1px dashed ${ACCENT}44`, borderRadius: 10,
-            color: ACCENT, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT,
-          }}>+ Add Property</button>
-        </div>
-      </div>
-    ) : (
-      // ─── MOBILE: card-per-property ───
-      <div style={{ marginTop: 20 }}>
+        {addButton}
+      </>) : (<>
+        {/* ─── MOBILE: one tile per property (mirrors Debts / Assets) ─── */}
         {reos.map((r, i) => {
           const c = computeRow(r);
           return (
-            <div key={r.id} style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, marginBottom: 12, overflow: "hidden", background: T.card }}>
-              <div style={{ background: ACCENT, color: "#fff", padding: "8px 14px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT, display: "flex", justifyContent: "space-between" }}>
-                <span>{r.address || `Property ${i + 1}`}</span>
-                <button onClick={() => removeReo(r.id)} style={{ background: "none", border: "none", color: "#fff", fontSize: 13, cursor: "pointer", opacity: 0.85 }}>Remove</button>
+            <div key={r.id} className="bp-eqf" style={{ border: `1px solid ${T.separator}`, borderRadius: 14, padding: 12, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.address || `Property ${i + 1}`}</span>
+                <button onClick={() => removeReo(r.id)} style={{ background: "none", border: "none", color: T.red, fontSize: 13, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}>Remove</button>
               </div>
-              <div style={{ padding: "12px 14px" }}>
-                <TextInp label="Address" value={r.address} onChange={v => updateReo(r.id, "address", v)} sm />
+              <TextInp label="Address" value={r.address} onChange={v => updateReo(r.id, "address", v)} sm />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <Sel label="Type" value={r.propType || "Single Family"} onChange={v => updateReo(r.id, "propType", v)} options={propTypeOpts} sm />
-                <Sel label="Occup." value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm />
+                <Sel label="Occupancy" value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm />
                 <Inp label="Value" value={r.value} onChange={v => updateReo(r.id, "value", v)} sm />
-                <Inp label="Liens" value={c.hasLinked ? c.liens : r.mortgageBalance} onChange={v => c.hasLinked ? syncReoBalance(r.id, v) : updateReo(r.id, "mortgageBalance", v)} sm />
+                {liensInput(r, c, c.hasLinked ? "Liens (linked)" : "Liens")}
                 <Inp label={c.hasLinked ? "P&I (linked)" : (r.includesTI ? "Payment (PITIA)" : "P&I")} value={c.hasLinked ? c.pi : r.payment} onChange={v => c.hasLinked ? syncReoPayment(r.id, v) : updateReo(r.id, "payment", v)} sm />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
-                  <span style={{ fontSize: 12, color: T.textSecondary }}>Includes Tax/Ins/HOA?</span>
-                  <div role="switch" tabIndex={0} aria-checked={!!r.includesTI} aria-label="Payment includes tax, insurance and HOA" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateReo(r.id, "includesTI", !r.includesTI); } }} onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2 }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", transform: r.includesTI ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
-                  </div>
+                <Inp label="Rent" value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} sm />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
+                <span style={{ fontSize: 12, color: T.textSecondary }}>Payment includes tax, ins &amp; HOA?</span>
+                <div role="switch" tabIndex={0} aria-checked={!!r.includesTI} aria-label="Payment includes tax, insurance and HOA" onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); updateReo(r.id, "includesTI", !r.includesTI); } }} onClick={() => updateReo(r.id, "includesTI", !r.includesTI)} style={{ width: 44, height: 24, borderRadius: 99, background: r.includesTI ? T.green : T.inputBg, cursor: "pointer", padding: 2, flexShrink: 0, boxSizing: "border-box" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", transform: r.includesTI ? "translateX(20px)" : "translateX(0)", transition: "transform 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
                 </div>
-                {!r.includesTI && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                    <Inp label="Tax" value={r.reoTax} onChange={v => updateReo(r.id, "reoTax", v)} sm />
-                    <Inp label="Ins" value={r.reoIns} onChange={v => updateReo(r.id, "reoIns", v)} sm />
-                    <Inp label="HOA" value={r.reoHoa} onChange={v => updateReo(r.id, "reoHoa", v)} sm />
-                  </div>
-                )}
-                <Inp label="Rental Income" value={r.rentalIncome} onChange={v => updateReo(r.id, "rentalIncome", v)} sm />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-                  <div>
-                    <span style={{ fontSize: 11, color: T.textTertiary }}>Net Cash Flow</span>
-                    <div style={{ fontWeight: 700, color: c.net >= 0 ? T.green : T.red, fontFamily: FONT }}>{fmt(c.net)}/mo</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 11, color: T.textTertiary }}>DTI Impact</span>
-                    <div style={{ fontWeight: 700, color: c.dtiImpact >= 0 ? T.green : T.orange, fontFamily: FONT }}>{c.dtiImpact >= 0 ? "+" : ""}{fmt(c.dtiImpact)}/mo</div>
-                  </div>
+              </div>
+              {!r.includesTI && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                  <Inp label="Tax" value={r.reoTax} onChange={v => updateReo(r.id, "reoTax", v)} sm />
+                  <Inp label="Ins" value={r.reoIns} onChange={v => updateReo(r.id, "reoIns", v)} sm />
+                  <Inp label="HOA" value={r.reoHoa} onChange={v => updateReo(r.id, "reoHoa", v)} sm />
                 </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, marginTop: 4, borderTop: `1px solid ${T.separator}`, fontSize: 13 }}>
+                <span style={{ color: T.textSecondary }}>Net cash flow</span>
+                <span style={{ fontWeight: 600, fontFamily: FONT, color: c.net >= 0 ? T.green : T.red }}>{fmt(c.net)}/mo</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, fontSize: 13 }}>
+                <span style={{ color: T.textSecondary }}>Counts in DTI</span>
+                {dtiText(c)}
               </div>
             </div>
           );
         })}
-        <button onClick={addReo} style={{
-          width: "100%", padding: 14, background: `${ACCENT}15`,
-          border: `1px dashed ${ACCENT}55`, borderRadius: 12,
-          color: ACCENT, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT,
-        }}>+ Add Property</button>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 2px 0", fontSize: 13, fontWeight: 700 }}>
+          <span style={{ color: T.textSecondary, fontWeight: 600 }}>Total · {fmt(totals.value)} value</span>
+          <span style={{ fontFamily: FONT, color: totals.dtiImpact >= 0 ? T.green : T.orange }}>{totals.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(totals.dtiImpact))}/mo DTI</span>
+        </div>
+        {addButton}
+      </>)}
       </div>
-    )}
+    </div>
 
     {/* ─── Planning to sell card + inline Seller Net (chevron-expanded) ─── */}
     {setHasSellProperty && (
@@ -498,42 +500,42 @@ export default function ReoContent(props) {
       </Card>
     )}
 
-    {/* ─── Bottom REO summary card ─── */}
-    <Card pad={16}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-        <div>
-          <div style={{ fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 }}>REO DTI Impact</div>
-          {/* Amber total — uniform with Income / Assets / Debts summary heroes for scroll-and-scan consistency (sign keeps "+" prefix to indicate net positive). */}
+    {/* ─── BOTTOM SUMMARY — mirrors Assets / Debts / Income ─── */}
+    {(() => {
+      const labelStyle = { fontSize: 11, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700 };
+      const kv = { display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13, gap: 12 };
+      const totRow = { display: "flex", justifyContent: "space-between", padding: "8px 0 4px", fontSize: 14, borderTop: `1px solid ${T.separator}`, marginTop: 4 };
+      const equity = totals.value - totals.liens;
+      return (<>
+        <Card pad={16}>
+          <div style={labelStyle}>REO DTI Impact</div>
+          {/* Amber total — uniform with the other summary heroes; the sign says which side of DTI it lands on. */}
           <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.orange, letterSpacing: "-0.02em", marginTop: 2 }}>
-            {totals.dtiImpact >= 0 ? "+" : ""}{fmt(totals.dtiImpact)}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
+            {totals.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(totals.dtiImpact))}<span style={{ fontSize: 13, color: T.textTertiary, fontWeight: 600 }}>/mo</span>
           </div>
           <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>
             {totals.dtiImpact >= 0 ? "Net positive: adds to qualifying income" : "Net negative: adds to monthly debt obligations"}
           </div>
+        </Card>
+        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 12, marginBottom: 12 }}>
+          <Card pad={16} style={{ marginBottom: 0 }}>
+            <div style={{ ...labelStyle, marginBottom: 8 }}>Equity</div>
+            <div style={kv}><span style={{ color: T.textSecondary }}>Total value</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totals.value)}</span></div>
+            <div style={kv}><span style={{ color: T.textSecondary }}>Total liens</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totals.liens)}</span></div>
+            <div style={totRow}><span style={{ fontWeight: 700 }}>Total equity</span><span style={{ fontFamily: FONT, fontWeight: 700, color: equity >= 0 ? T.green : T.red }}>{fmt(equity)}</span></div>
+          </Card>
+          <Card pad={16} style={{ marginBottom: 0 }}>
+            <div style={{ ...labelStyle, marginBottom: 8 }}>Cash Flow</div>
+            <div style={kv}><span style={{ color: T.textSecondary }}>Rental income</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totalRent)}/mo</span></div>
+            <div style={kv}><span style={{ color: T.textSecondary }}>Expenses (PITIA + HELOC)</span><span style={{ fontFamily: FONT, fontWeight: 600 }}>{fmt(totals.expenses)}/mo</span></div>
+            <div style={totRow}><span style={{ fontWeight: 700 }}>Net cash flow</span><span style={{ fontFamily: FONT, fontWeight: 700, color: totals.net >= 0 ? T.green : T.red }}>{fmt(totals.net)}/mo</span></div>
+          </Card>
         </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, paddingTop: 12, borderTop: `1px solid ${T.separator}`, marginTop: 8 }}>
-        <div>
-          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Value</div>
-          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2 }}>{fmt(totals.value)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Liens</div>
-          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2, color: T.red }}>{fmt(totals.liens)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Total Equity</div>
-          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2, color: T.green }}>{fmt(totals.value - totals.liens)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 10, fontFamily: FONT, color: T.textTertiary, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700 }}>Net Cash Flow</div>
-          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, marginTop: 2, color: totals.net >= 0 ? T.green : T.red }}>{fmt(totals.net)}/mo</div>
-        </div>
-      </div>
-      <Note color={T.blue}>
-        DTI rule: Investment properties get 75% of gross rent netted against PITIA. Primary &amp; second-home PITIA counts as full debt.
-      </Note>
-    </Card>
+        <Note color={T.blue}>
+          DTI rule: Investment properties get 75% of gross rent netted against PITIA. Primary &amp; second-home PITIA counts as full debt.
+        </Note>
+      </>);
+    })()}
 
     {GuidedNextButton && <GuidedNextButton />}
   </div>);
