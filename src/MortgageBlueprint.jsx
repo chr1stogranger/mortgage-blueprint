@@ -2140,7 +2140,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   sellPrice, sellMortgagePayoff, sellCommission, sellTransferTaxCity,
   sellEscrow, sellTitle, sellOther, sellSellerCredit, sellProration,
   sellCostBasis, sellImprovements, sellPrimaryRes, sellYearsOwned, sellLinkedReoId,
-  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra, debtFree, autoJumboSwitch,
+  incomes, otherIncome, otherIncome2, assets, creditScore, pmiRateLocked, pmiRateOverride, pmiChartOverrides, vaFundingFeeLocked, vaFundingFeeOverride, extraPayment, payExtra: extraPayment > 0, debtFree, autoJumboSwitch,
   // Borrower roster travels with the scenario so a 2-borrower file (Arive
   // import, or a manually added co-borrower) reopens with both cards.
   numBorrowers, borrowerNames,
@@ -2297,6 +2297,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (s.vaFundingFeeOverride !== undefined) setVaFundingFeeOverride(s.vaFundingFeeOverride);
   if (s.extraPayment !== undefined) setExtraPayment(s.extraPayment);
   if (s.payExtra !== undefined) setPayExtra(s.payExtra);
+  // Extra-payment toggle retired 2026-09-23 — the amount alone drives it.
+  // A legacy save with the toggle OFF and an amount typed never applied that
+  // amount; zero it so reopening doesn't silently change the payoff math.
+  if (s.payExtra === false && (Number(s.extraPayment) || 0) > 0) setExtraPayment(0);
   if (s.debtFree !== undefined) setDebtFree(s.debtFree);
   if (s.hasSellProperty !== undefined) setHasSellProperty(s.hasSellProperty);
   if (s.ownsProperties !== undefined) setOwnsProperties(s.ownsProperties);
@@ -6000,7 +6004,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   // Excluded per TILA: appraisal, title, escrow, recording, credit report, flood cert
   const aprFinanceCharges = (pointsCost || 0) + (fhaUp || 0) + (vaFundingFee || 0) + (usdaFee || 0) + (underwritingFee || 0) + (adminFee || 0) + (lenderWireFee || 0) + (processingFee || 0);
   const apr = calcAPR(loan, rate, term, aprFinanceCharges);
-  const extra = payExtra ? extraPayment : 0;
+  // No toggle (retired 2026-09-23): any positive amount is an extra payment.
+  const extra = extraPayment > 0 ? extraPayment : 0;
   // Amortization engine extracted to lib/finance.js (audit M-1).
   const { amortSchedule, amortStandard, totalIntWithExtra, totalIntStandard, yearlyData, intSaved, monthsSaved, lastPayDate, firstPayDate } =
    buildAmortization({ loan, mr, np, pi, extra, closeDate });
@@ -6627,13 +6632,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   if (!isRefi) return;
   const target = Math.max(0, Math.round(calc.refiPiMiSavings || 0));
+  if (autoExtraRef.current === "user") return; // a typed amount (even $0) always wins
   const isAuto = extraPayment === 0 || extraPayment === autoExtraRef.current;
   if (!isAuto || target <= 0 || extraPayment === target) return;
   setExtraPayment(target);
-  if (autoExtraRef.current === null && !payExtra) setPayExtra(true);
   autoExtraRef.current = target;
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isRefi, calc.refiPiMiSavings]);
+ // What the Amort input calls: marks the amount as user-owned so the refi
+ // auto-fill above never overwrites it (the retired toggle used to be the
+ // way to "turn it off"; now typing $0 is).
+ const setExtraPaymentByUser = (v) => { autoExtraRef.current = "user"; setExtraPayment(v); };
 
  // ── Refi Summary + 3-Point Test section bodies ──
  // Single source of truth for BOTH surfaces (Christo 7.24 — "one screen
@@ -8588,7 +8597,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
 {tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
-{tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
+{tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
 {/* ═══ INCOME ═══ */}
@@ -8900,7 +8909,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    assets, addAsset, updateAsset, removeAsset,
    ASSET_TYPES, RESERVE_FACTORS, getReserveFactor,
    /* Amortization */
-   payExtra, setPayExtra, extraPayment, setExtraPayment,
+   payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser,
    amortView, setAmortView,
    appreciationRate, setAppreciationRate,
    /* Schedule E modeler — must be here too, not only in the tab==="tax"
