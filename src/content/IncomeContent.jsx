@@ -575,8 +575,12 @@ function ComponentRow({
       padding: "9px 12px", background: `${T.orange}08`,
       border: `1px solid ${T.orange}33`, borderRadius: 9999,
       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      textAlign: "center",
-    }}>{methodLabel}{yearSpan.replace(" · ", " · ").trim() || ""}</span>
+      textAlign: "center", minWidth: 0, boxSizing: "border-box",
+    }} title={`${methodLabel}${yearSpan}`}>
+      {/* Phone column is ~100px — show the method alone; the year span
+          stays on desktop and in the tooltip / averaging panel. */}
+      {methodLabel}{isDesktop ? (yearSpan.replace(" · ", " · ").trim() || "") : ""}
+    </span>
   );
 
   // Amount — non-variable uses an editable pill; variable shows
@@ -687,13 +691,16 @@ function ComponentRow({
             {moEl}
             {removeEl}
           </div>
+          {/* Three fixed columns: amount (or method) · frequency · verified.
+              Verified lands on the right edge, under the $/mo figure
+              (Christo 2026-09-23) rather than wrapping to its own line. */}
           <div style={{
-            display: "flex", flexWrap: "wrap", alignItems: "center",
+            display: "grid", gridTemplateColumns: "1.15fr 1fr 1fr", alignItems: "center",
             gap: 6, marginTop: 8, paddingLeft: isVar ? 30 : 0,
           }}>
-            {isVar ? methodChipEl : amountEl({ width: 110, boxSizing: "border-box" })}
-            {freqEl({ width: "auto" })}
-            {verifiedEl({ width: "auto" })}
+            {isVar ? methodChipEl : amountEl({ padding: "0 10px", minWidth: 0 })}
+            {freqEl({ padding: "0 10px", minWidth: 0 })}
+            {verifiedEl({ padding: "0 10px", minWidth: 0 })}
           </div>
         </div>
       )}
@@ -861,81 +868,82 @@ function EmployerGroup({
           {chevron}
         </div>
       ) : (
-      /* ── Expanded header — editable name, Current/Previous toggle,
-            subtitle, $/mo, chevron to collapse back to summary. ── */
+      /* ── Expanded header — one centered line: editable name ·
+            Current/Previous pill · $/mo · chevron. Subtitle sits
+            underneath, indented to line up with the name text
+            (Christo 2026-09-23: the three used to sit at different
+            heights on mobile). ── */
       <div onClick={onToggleExpand}
         style={{
-          display: "flex", alignItems: "center", gap: 10,
           padding: "12px 14px", cursor: "pointer",
           borderBottom: `1px solid ${T.separator}`,
         }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          {/* Editable employer name */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 8,
+            display: "flex", alignItems: "center", gap: 6,
+            border: `1px dashed ${draftSource ? "transparent" : ACCENT + "55"}`,
+            borderRadius: 6, padding: "2px 6px",
+            background: draftSource ? "transparent" : `${ACCENT}06`,
+            transition: "all 0.15s",
+            minWidth: 0, flex: "0 1 auto",
           }}>
-            {/* Editable employer name */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              border: `1px dashed ${draftSource ? "transparent" : ACCENT + "55"}`,
-              borderRadius: 6, padding: "2px 6px",
-              background: draftSource ? "transparent" : `${ACCENT}06`,
-              transition: "all 0.15s",
-              minWidth: 0, flex: "0 1 auto",
-            }}>
-              <input
-                type="text"
-                value={draftSource}
-                placeholder="Click to name this employer"
-                onChange={(e) => setDraftSource(e.target.value)}
-                onBlur={commitSource}
-                onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  fontSize: 15, fontWeight: 600, color: T.text,
-                  fontFamily: FONT, border: "none", outline: "none",
-                  background: "transparent", flex: 1, padding: 0,
-                  letterSpacing: "-0.01em", minWidth: 0,
-                }}
-              />
-              {!draftSource && (
-                <span style={{ color: ACCENT, fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✎</span>
-              )}
-            </div>
-            {/* Current / Previous toggle pill — relocated from the right
-                side of the row to sit immediately right of the employer
-                name (Christo, 2026-05-05). */}
-            <button
-              onClick={(e) => { e.stopPropagation(); togglePrevEmployer(); }}
-              title={isPrevious ? "Mark this as your current employer" : "Mark this as a previous employer"}
+            <input
+              type="text"
+              value={draftSource}
+              placeholder="Click to name this employer"
+              // Size to the name so the Current pill hugs it instead of
+              // floating after a fixed-width box.
+              size={Math.max(4, (draftSource || "Click to name this employer").length)}
+              onChange={(e) => setDraftSource(e.target.value)}
+              onBlur={commitSource}
+              onKeyDown={(e) => { if (e.key === "Enter") { commitSource(); e.target.blur(); } }}
+              onClick={(e) => e.stopPropagation()}
               style={{
-                background: isPrevious ? `${T.textTertiary}14` : `${T.green}12`,
-                color: isPrevious ? T.textSecondary : T.green,
-                border: isPrevious
-                  ? `1px solid ${T.separator}`
-                  : `1px solid ${T.green}55`,
-                fontSize: 10, fontWeight: 600, fontFamily: FONT,
-                padding: "4px 10px", borderRadius: 9999,
-                cursor: "pointer", letterSpacing: 0.3,
-                textAlign: "center", whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}>
-              {isPrevious ? "Previous" : "Current ✓"}
-            </button>
-          </div>
-          <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, fontFamily: FONT }}>
-            {subtitle}
-            {isPrevious && endDate && (
-              <span style={{ marginLeft: 6, color: T.textTertiary }}>· ended {endDate}</span>
+                fontSize: 15, fontWeight: 600, color: T.text,
+                fontFamily: FONT, border: "none", outline: "none",
+                background: "transparent", padding: 0, width: "auto",
+                letterSpacing: "-0.01em", minWidth: 0, maxWidth: "100%",
+              }}
+            />
+            {!draftSource && (
+              <span style={{ color: ACCENT, fontSize: 11, opacity: 0.7, flexShrink: 0 }}>✎</span>
             )}
           </div>
+          {/* Current / Previous toggle pill — sits immediately right of
+              the employer name (Christo, 2026-05-05). */}
+          <button
+            onClick={(e) => { e.stopPropagation(); togglePrevEmployer(); }}
+            title={isPrevious ? "Mark this as your current employer" : "Mark this as a previous employer"}
+            style={{
+              background: isPrevious ? `${T.textTertiary}14` : `${T.green}12`,
+              color: isPrevious ? T.textSecondary : T.green,
+              border: isPrevious
+                ? `1px solid ${T.separator}`
+                : `1px solid ${T.green}55`,
+              fontSize: 10, fontWeight: 600, fontFamily: FONT,
+              padding: "4px 10px", borderRadius: 9999,
+              cursor: "pointer", letterSpacing: 0.3,
+              textAlign: "center", whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}>
+            {isPrevious ? "Previous" : "Current ✓"}
+          </button>
+          <div style={{ flex: 1 }} />
+          <div style={{ textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>
+            <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 14, color: T.text }}>
+              {fmt(totalMo)}
+            </span>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+          </div>
+          {chevron}
         </div>
-        <div style={{ textAlign: "right", flexShrink: 0, whiteSpace: "nowrap" }}>
-          <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 14, color: T.text }}>
-            {fmt(totalMo)}
-          </span>
-          <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2, fontFamily: FONT, paddingLeft: 7 }}>
+          {subtitle}
+          {isPrevious && endDate && (
+            <span style={{ marginLeft: 6, color: T.textTertiary }}>· ended {endDate}</span>
+          )}
         </div>
-        {chevron}
       </div>
       )}
 

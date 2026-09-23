@@ -4175,8 +4175,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // override per-row in the variable averaging panel to skip a
  // distorted year or pick a different historical window.
  const addIncome = (borrower, source = "") => { const cy = new Date().getFullYear(); return setIncomes([...incomes, { id: Date.now(), borrower, source, start: "", end: "", payType: "Salary", amount: 0, frequency: "Annual", ytd: 0, py1: 0, py2: 0, py1Year: cy - 1, py2Year: cy - 2, selection: "Amount", verifiedBy: "", monthlyIncome: 0 }]); };
- const updateIncome = (id, f, v) => setIncomes(incomes.map(i => i.id === id ? { ...i, [f]: v } : i));
- const removeIncome = (id) => setIncomes(incomes.filter(i => i.id !== id));
+ // Functional updates: renaming an employer or toggling Current/Previous
+ // calls updateIncome once per component in the same tick. Closing over
+ // `incomes` made every call but the last one a no-op, so a 2-component
+ // employer split into two groups on rename (found 2026-09-23).
+ const updateIncome = (id, f, v) => setIncomes(prev => prev.map(i => i.id === id ? { ...i, [f]: v } : i));
+ const removeIncome = (id) => setIncomes(prev => prev.filter(i => i.id !== id));
  // Delete borrower N — drops their incomes and compacts everyone above
  // them down by one. Christo (2026-05-05): "we should be able to delete
  // borrower #2 too." Works for any borrower, not just the last.
