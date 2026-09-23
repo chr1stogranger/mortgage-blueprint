@@ -1751,19 +1751,9 @@ export default function SetupContent(props) {
  </Card>
  )}
 
- {/* ── Scenarios ── */}
- {/* ── Current Loan Option indicator ── */}
- {scenarioList.length > 1 && (
-  <Card pad={14} style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-   <div>
-    <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary }}>Active Loan Option</div>
-    <div style={{ fontSize: 15, fontWeight: 700, color: T.blue }}>{scenarioName}</div>
-   </div>
-   <button onClick={() => setTab("compare")} style={{ background: `${T.blue}12`, border: `1px solid ${T.blue}25`, borderRadius: 10, padding: "8px 14px", cursor: "pointer" }}>
-    <span style={{ fontSize: 12, fontWeight: 600, color: T.blue, fontFamily: FONT }}>Compare {scenarioList.length}</span>
-   </button>
-  </Card>
- )}
+ {/* Active Loan Option card removed (Christo 2026-09-23): the active
+     scenario already shows in the sidebar (desktop) and the header's
+     scenario pill (mobile); Compare lives in the nav. */}
 
  <GuidedNextButton />
 </>);
