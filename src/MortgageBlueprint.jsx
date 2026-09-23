@@ -1231,7 +1231,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const loadStateRef = useRef(null);
  const sync = useBlueprintSync({
   scenarioId: activeScenarioId,
-  scenarioName,
   roomId: isBorrower ? (borrowerMode.borrower?.id || null) : (activeBorrower?.id || null),
   getState: () => getStateRef.current ? getStateRef.current() : {},
   loadState: (s) => loadStateRef.current && loadStateRef.current(s),
