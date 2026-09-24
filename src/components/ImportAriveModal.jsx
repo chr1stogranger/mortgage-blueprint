@@ -90,7 +90,7 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
               }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}{r.co_name ? <span style={{ fontWeight: 500, color: T.textSecondary }}> &amp; {r.co_name}</span> : null}</span>
                   {r.status && (
                     <span style={{ fontSize: 9.5, fontWeight: 600, fontFamily: MONO, textTransform: "uppercase", letterSpacing: 0.6, color: T.blue, background: `${T.blue}14`, padding: "2px 7px", borderRadius: 9999, flexShrink: 0 }}>
                       {prettyStatus(r.status)}
