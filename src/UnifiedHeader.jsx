@@ -244,17 +244,22 @@ export default function UnifiedHeader({
   // Under 380px the five uppercase labels plus their carets overflow the
   // strip, so step the label down and drop the caret glyph.
   const isNarrow = !isDesktop && typeof window !== "undefined" && window.innerWidth < 380;
-  const Stat = ({ label, value, color, statKey }) => (
+  // Five stats + the badge on a phone (refi, or purchase once DTI shows) ran
+  // the labels into each other ("DOWN CASH CLOSEPAYMENT", Christo
+  // 2026-09-23): crowded mode uses the short label, tighter tracking and no
+  // caret. The popover still carries the full name.
+  const crowded = !isDesktop && (isRefi || calc.qualifyingIncome > 0);
+  const Stat = ({ label, short, value, color, statKey }) => (
     <div
       onClick={statKey ? (e) => { const r = e.currentTarget.getBoundingClientRect(); setStatPop(pv => pv && pv.key === statKey ? null : { key: statKey, x: r.left + r.width / 2, y: r.bottom }); } : undefined}
       style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, flex: 1, cursor: statKey ? "pointer" : "default", borderRadius: 8, padding: "2px 0", background: (statPop && statPop.key === statKey) ? T.pillBg : "transparent", transition: "background 0.15s" }}
     >
       <div style={{
         fontSize: isDesktop ? 10 : isNarrow ? "0.55rem" : 9, color: T.textTertiary, fontWeight: 600,
-        letterSpacing: 1.2, fontFamily: FONT, textTransform: "uppercase",
+        letterSpacing: crowded ? 0.6 : 1.2, fontFamily: FONT, textTransform: "uppercase",
         marginBottom: isDesktop ? 3 : 2, whiteSpace: "nowrap", textAlign: "center",
         display: "flex", alignItems: "center", gap: 3,
-      }}>{label}{statKey && !isNarrow && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
+      }}>{crowded && short ? short : label}{statKey && !isNarrow && !crowded && <span style={{ fontSize: 8, opacity: 0.65 }}>▾</span>}</div>
       <div style={{
         fontSize: isDesktop ? 17 : 13, fontWeight: 700,
         color: color || T.text, fontFamily: FONT,
@@ -275,14 +280,14 @@ export default function UnifiedHeader({
   const orDash = (v) => (noPrice ? "--" : v);
   const statRow = isRefi ? (<>
     <Stat label="Value" value={fmt(salesPrice)} statKey="price" />
-    <Stat label="Loan Amount" value={fmt(calc.refiNewLoanAmt || 0)} statKey="price" />
+    <Stat label="Loan Amount" short="Loan" value={fmt(calc.refiNewLoanAmt || 0)} statKey="price" />
     <Stat label="Savings" value={`${(calc.refiMonthlyTotalSavings || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiMonthlyTotalSavings || 0)))}/mo`} color={(calc.refiMonthlyTotalSavings || 0) >= 0 ? T.green : T.red} statKey="savings" />
     <Stat label="Payment" value={fmt(calc.displayPayment)} color={T.blue} statKey="payment" />
     <Stat label="Net Cash" value={`${(calc.refiNetCashInHand || 0) < 0 ? "−" : ""}${fmt(Math.abs(Math.round(calc.refiNetCashInHand || 0)))}`} color={(calc.refiNetCashInHand || 0) >= 0 ? T.green : T.red} statKey="netcash" />
   </>) : (<>
     <Stat label="Price" value={fmt(salesPrice)} statKey="price" />
     <Stat label="Down" value={((downPct || 0)).toFixed(0) + "%"} statKey="down" />
-    <Stat label="Cash Close" value={orDash(fmt(calc.cashToClose))} color={T.green} statKey="cashclose" />
+    <Stat label="Cash Close" short="To Close" value={orDash(fmt(calc.cashToClose))} color={T.green} statKey="cashclose" />
     <Stat label="Payment" value={orDash(fmt(calc.displayPayment))} color={T.blue} statKey="payment" />
     {calc.qualifyingIncome > 0 && (
       <Stat label="DTI" value={pct(calc.yourDTI, 1)} color={calc.yourDTI <= calc.maxDTI ? T.text : T.red} statKey="dti" />
