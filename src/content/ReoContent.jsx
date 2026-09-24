@@ -247,9 +247,9 @@ export default function ReoContent(props) {
               <div className="bp-eqf" style={{ display: "grid", gridTemplateColumns: COLS, gap: 8, padding: "10px 0", alignItems: "start" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
                   <button onClick={() => setExpandedRowId(isExpanded ? null : r.id)} aria-label={isExpanded ? "Hide property details" : "Show property details"} aria-expanded={isExpanded} style={{
-                    width: 22, height: 42, borderRadius: 6, flexShrink: 0,
+                    width: 26, height: 42, borderRadius: 6, flexShrink: 0,
                     background: "none", border: "none", color: isExpanded ? ACCENT : T.textTertiary,
-                    fontSize: 11, lineHeight: 1, cursor: "pointer", padding: 0,
+                    fontSize: 16, lineHeight: 1, cursor: "pointer", padding: 0,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.2s",
                   }}>▸</button>
@@ -450,7 +450,7 @@ export default function ReoContent(props) {
               onClick={() => setSellExpanded(!sellExpanded)}
               title={sellExpanded ? "Hide Seller Net calculator" : "Show Seller Net calculator"}
               style={{
-                fontSize: 14, fontWeight: 700, color: T.blue,
+                fontSize: 18, fontWeight: 700, color: T.blue,
                 cursor: "pointer", padding: "2px 8px",
                 lineHeight: 1, userSelect: "none",
                 transform: `rotate(${sellExpanded ? 180 : 0}deg)`,
