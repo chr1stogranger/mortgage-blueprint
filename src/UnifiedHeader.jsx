@@ -17,6 +17,9 @@ import { WEB_ORIGIN } from "./apiBase";
  * Mobile: unchanged (compact single row + stats strip below)
  */
 export default function UnifiedHeader({
+  /* Presence: the "who's here" list, shown as a dropdown off "N online"
+     (desktop). Was an in-flow row that pushed the page down ~90px. */
+  presencePanel = null,
   /* Financials */
   salesPrice, calc, creditScore, downPct, hoa, includeEscrow,
   subjectRentalIncome, otherIncome, otherIncome2,
@@ -82,6 +85,7 @@ export default function UnifiedHeader({
 
   // ── Clickable stat dropdowns (Arive-style summary popovers) ──
   const [statPop, setStatPop] = useState(null); // { key, x, y }
+  const [presenceOpen, setPresenceOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const statContent = (key) => {
     if (key === "price") {
@@ -453,7 +457,20 @@ export default function UnifiedHeader({
               {cloudSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>✗</span>}
               {sync?.status === 'saving' && <span style={{ fontSize: 9, color: '#3B6BF5', fontStyle: "italic" }}>syncing...</span>}
               {sync?.status === 'saved' && <span style={{ fontSize: 9, color: '#12a150' }}>live</span>}
-              {sync?.onlineUsers?.length > 0 && <span style={{ fontSize: 9, color: '#3B6BF5', fontWeight: 600 }}>{sync.onlineUsers.length} online</span>}
+              {sync?.onlineUsers?.length > 0 && (
+                <span style={{ position: "relative", display: "inline-flex" }}>
+                  <button type="button" onClick={() => setPresenceOpen(o => !o)} aria-expanded={presenceOpen} title="Who's in this Blueprint"
+                    style={{ fontSize: 9.5, color: '#3B6BF5', fontWeight: 700, background: presenceOpen ? `${T.blue}14` : "transparent", border: "none", borderRadius: 9999, padding: "2px 6px", cursor: "pointer", fontFamily: FONT }}>
+                    {sync.onlineUsers.length} online ▾
+                  </button>
+                  {presenceOpen && presencePanel && (<>
+                    <div onClick={() => setPresenceOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 950 }} />
+                    <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 951, minWidth: 320, maxWidth: 520, background: T.card, borderRadius: 16, boxShadow: T.cardShadow || "0 12px 32px rgba(15,23,41,.18)" }}>
+                      {presencePanel}
+                    </div>
+                  </>)}
+                </span>
+              )}
               {selfSyncStatus === 'saving' && <span style={{ fontSize: 9, color: '#3B6BF5', fontStyle: "italic" }}>syncing...</span>}
               {selfSyncStatus === 'saved' && <span style={{ fontSize: 9, color: '#12a150' }}>synced</span>}
               {selfSyncStatus === 'error' && <span style={{ fontSize: 9, color: T.red }}>sync error</span>}

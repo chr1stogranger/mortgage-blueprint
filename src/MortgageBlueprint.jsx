@@ -8163,6 +8163,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     dpOk={dpOk} refiLtvCheck={refiLtvCheck}
     scenarioName={scenarioName} scenarioList={scenarioList} switchScenario={switchScenario}
     saving={saving} loaded={loaded} cloudSyncStatus={cloudSyncStatus} sync={sync}
+    presencePanel={sync.onlineUsers.length > 0 ? (
+     <PresenceBar T={T} onlineUsers={sync.onlineUsers} followEmail={followEmail}
+      onJump={(u) => { setFollowEmail(null); jumpToPresence(u); }}
+      onToggleFollow={(email) => { setFollowEmail(email); const u = email && sync.onlineUsers.find(x => x.email === email); if (u) jumpToPresence(u); }} />
+    ) : null}
     borrowerName={borrowerName}
     loanNumber={loanNumber}
     darkMode={darkMode} themeMode={themeMode} cycleTheme={cycleTheme}
@@ -8312,8 +8317,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       (scenario name + qualification chips + sync status), so this
       duplicate header is gone. PresenceBar below still surfaces who's on
       the page in real time. */}
-  {/* Real-time presence bar — shows who else is viewing this blueprint */}
-  {sync.onlineUsers.length > 0 && (
+  {/* Real-time presence bar — shows who else is viewing this blueprint.
+      Phones only: on desktop it lives in the header's "N online" dropdown,
+      because as an in-flow row it left a ~90px band above the Overview. */}
+  {sync.onlineUsers.length > 0 && !isDesktop && (
    <div style={{ padding: '8px 16px 0' }}>
     <PresenceBar T={T} onlineUsers={sync.onlineUsers} followEmail={followEmail}
      onJump={(u) => { setFollowEmail(null); jumpToPresence(u); }}
