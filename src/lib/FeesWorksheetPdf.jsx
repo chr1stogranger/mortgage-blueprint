@@ -196,7 +196,7 @@ export function FeesWorksheetPage(p) {
   ]);
   const prepaidRows = rows([
     { label: `Prepaid Interest (${c.autoPrepaidDays || 0} days @ ${usd2(c.dailyInt)}/day)`, value: c.prepaidInt, cents: true },
-    { label: "Hazard Insurance Premium (12 months)", value: c.prepaidIns },
+    { label: "Homeowner's Insurance, 1st Year", value: c.prepaidIns },
     { label: "Property Taxes (installment due at close)", value: p.propertyTaxesInstallment },
     p.sellersProratedTaxCredit > 0 && { label: "Seller's Prorated Tax Credit", value: -p.sellersProratedTaxCredit, color: GREEN },
     { label: `Initial Escrow (${c.escrowTaxMonths || 0} mo tax + ${c.escrowInsMonths || 0} mo ins)`, value: c.initialEscrow },

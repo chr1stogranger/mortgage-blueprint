@@ -605,6 +605,7 @@ function FeeRow({
   prefixEditor = null,           // NEW: always-visible editor rendered BEFORE the label
   hideWhenLockedAndZero = false, // NEW: row collapses entirely when section is locked AND value is 0
   calc, explainer,
+  calcFirst = false,             // math + ⓘ ride line 1 next to the label; prefixEditor drops to line 2
 }) {
   const { T, fmt2, Inp } = useContext(CostsCtx);
   const { unlocked: sectionUnlocked } = useContext(LockCtx);
@@ -646,15 +647,21 @@ function FeeRow({
                 label and BEFORE the calc string — so the row label stays left-aligned with
                 its siblings (per Christo's spec). Used by the closing-date pills on the
                 Prepaid Interest row. */}
+            {calcFirst && calc && (
+              <span style={{ color: T.textTertiary, fontSize: 11, marginLeft: 8, fontFamily: FONT, fontWeight: 500, minWidth: 0, overflowWrap: "anywhere" }}>· {calc}</span>
+            )}
+            {calcFirst && <InfoTipBubble explainer={explainer} />}
             {prefixEditor && (
               /* flexShrink 1 + wrap (was flexShrink 0): at narrow widths the
                  pill group wraps to its own line instead of colliding with
-                 the amount column (Prepaid Interest overlap bug, 2026-07-06) */
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 1, minWidth: 0, flexWrap: "wrap", rowGap: 4, marginLeft: 8 }}>
+                 the amount column (Prepaid Interest overlap bug, 2026-07-06).
+                 calcFirst: the pills take their own full-width line 2, so the
+                 row is 2 lines instead of label / pills / math (2026-09-23). */
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 1, minWidth: 0, flexWrap: "wrap", rowGap: 4, marginLeft: calcFirst ? 0 : 8, ...(calcFirst ? { flexBasis: "100%", marginTop: 4 } : {}) }}>
                 {prefixEditor}
               </span>
             )}
-            {calc && (
+            {!calcFirst && calc && (
               /* Wrapping allowed (was nowrap): at 375px the escrow reserve
                  math strings ran under the AUTO pill and amount column. */
               <span style={{
@@ -669,7 +676,7 @@ function FeeRow({
                 · {calc}
               </span>
             )}
-            <InfoTipBubble explainer={explainer} />
+            {!calcFirst && <InfoTipBubble explainer={explainer} />}
           </div>
           {alwaysVisibleControl && (
             /* Full-width so split pills always drop to their own compact second line */
@@ -1200,7 +1207,7 @@ export default function CostsContent(props) {
             // Render value as negative when it's a credit
             isDollar={true}
             calc={discountPts !== 0
-              ? `${Math.abs(discountPts)}% × ${fmt(calc.loan)} = ${discountPts < 0 ? "−" : ""}${fmt2(Math.abs(calc.pointsCost))}`
+              ? `${Math.abs(discountPts)}% × ${fmt(calc.loan)} = ${discountPts < 0 ? "−" : ""}${fmt(Math.abs(calc.pointsCost))}`
               : undefined}
             explainer={discountPts < 0
               ? "Negative: lender credits go to your closing costs (often in exchange for a slightly higher rate)"
@@ -1334,7 +1341,7 @@ export default function CostsContent(props) {
                 inlineEditor={cityDropdown}
                 explainer={isRefi
                   ? "No transfer tax on refinances in California"
-                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100%. Toggle Seller above. " : ""}$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt2(cityFullTax)} → buyer ${citySharePct}% = ${fmt2(calc.buyerCityTT)}`}
+                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100%. Toggle Seller above. " : ""}$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt(cityFullTax)} → buyer ${citySharePct}% = ${fmt(calc.buyerCityTT)}`}
               />
               {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
               {countyRate > 0 && (
@@ -1347,7 +1354,7 @@ export default function CostsContent(props) {
                   alwaysVisibleControl={renderToggle(transferTaxCountySplit, setTransferTaxCountySplit)}
                   explainer={isRefi
                     ? "No county transfer tax on refinances in California"
-                    : `CA Documentary Transfer Tax ($1.10/$1K statewide): $${countyRate.toFixed(2)}/$1K × ${fmt(salesPrice)} = ${fmt2(countyFullTax)} → buyer ${countySharePct}% = ${fmt2(calc.buyerCountyTT)}`}
+                    : `CA Documentary Transfer Tax ($1.10/$1K statewide): $${countyRate.toFixed(2)}/$1K × ${fmt(salesPrice)} = ${fmt(countyFullTax)} → buyer ${countySharePct}% = ${fmt(calc.buyerCountyTT)}`}
                 />
               )}
             </>);
@@ -1367,7 +1374,7 @@ export default function CostsContent(props) {
                 value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
                 onChange={setHoaTransferFee}
                 sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
-                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
+                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt(hoa)}/mo = ${fmt(hoa)}` : undefined}
                 explainer="HOA's fee to transfer ownership records"
               />
             )}
@@ -1382,7 +1389,7 @@ export default function CostsContent(props) {
                 label="Buyer Agent Commission"
                 value={liveBuyerComm}
                 readOnly
-                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt2(liveBuyerComm)}`}
+                calc={`${buyerCommPct}% × ${fmt(salesPrice)} = ${fmt(liveBuyerComm)}`}
                 explainer="Commission paid to buyer's real estate agent"
                 alwaysEdit
                 inlineEditor={
@@ -1495,7 +1502,8 @@ export default function CostsContent(props) {
                 </span>
               );
             })()}
-            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day`}
+            calc={`${calc.autoPrepaidDays} days × ${fmt(calc.dailyInt)}/day`}
+            calcFirst
             explainer="Interest from your closing date through end of month. Pick the closing date and everything recalculates. First payment is the 1st of the second month after closing: the prepaid interest covers your closing month, the next month's interest accrues, and it's paid in arrears with that first payment."
           />
 
@@ -1506,7 +1514,7 @@ export default function CostsContent(props) {
               the rule). Non-escrowed renewals are a docs condition, never a
               collection (Christo 2026-07-22). */}
           <FeeRow
-            label={isRefi ? "Homeowner's Insurance Premium, Renewal (12 mo)" : "Homeowner's Insurance Premium, First Year (12 mo)"}
+            label={isRefi ? "Homeowner's Insurance, Renewal" : "Homeowner's Insurance, 1st Year"}
             value={isRefi ? calc.prepaidIns : annualIns}
             readOnly
             autoBadge
@@ -1568,11 +1576,11 @@ export default function CostsContent(props) {
             <>
               {gEscIns ? (
               <FeeRow
-                label="Hazard Insurance Reserve"
+                label="Homeowner's Insurance"
                 value={escrowHOI_reserve}
                 readOnly
                 autoBadge
-                calc={`${calc.escrowInsMonths} mo × ${fmt2(gMonthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
+                calc={`${calc.escrowInsMonths} mo × ${fmt(gMonthlyIns)}/mo = ${fmt(escrowHOI_reserve)}`}
                 explainer="Cushion held by lender for upcoming insurance payments"
               />
               ) : (
@@ -1584,7 +1592,7 @@ export default function CostsContent(props) {
                 value={escrowTax_reserve}
                 readOnly
                 autoBadge
-                calc={`${calc.escrowTaxMonths} mo × ${fmt2(gMonthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
+                calc={`${calc.escrowTaxMonths} mo × ${fmt(gMonthlyTax)}/mo = ${fmt(escrowTax_reserve)}`}
                 explainer="Cushion for upcoming property tax bills"
               />
               ) : (
@@ -1636,8 +1644,8 @@ export default function CostsContent(props) {
           color={!isRefi && !emdPaid ? T.muted : undefined}
           explainer={!isRefi && salesPrice > 0
             ? `${emdLocked
-                ? `${emdPct}% × ${fmt(salesPrice)} = ${fmt2(calc.emdAmt)}`
-                : `Flat amount: ${fmt2(calc.emdAmt)}`}${emdPaid ? ", paid to escrow and credited" : ", not yet paid ($0 credited)"}. 3% is standard in CA; unlock to enter a flat dollar amount.`
+                ? `${emdPct}% × ${fmt(salesPrice)} = ${fmt(calc.emdAmt)}`
+                : `Flat amount: ${fmt(calc.emdAmt)}`}${emdPaid ? ", paid to escrow and credited" : ", not yet paid ($0 credited)"}. 3% is standard in CA; unlock to enter a flat dollar amount.`
             : "Deposit only credited toward cash to close once paid to escrow."}
           inlineEditor={!isRefi ? (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -1715,8 +1723,11 @@ export default function CostsContent(props) {
         // (daysInMonth - closingDay + 1). Same number the Prepaid Interest
         // row multiplies by the per-diem.
         return (
-          <Card style={{ background: `${T.blue}08`, border: `1px solid ${T.blue}18`, marginTop: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.blue, marginBottom: 8 }}>When Is My First Payment?</div>
+          /* Amber "heads-up" note (Christo 2026-09-23: yellow reads as "hey,
+             read this"). Tint layered over the solid card so the blueprint
+             canvas doesn't bleed through the glass. */
+          <Card style={{ background: `linear-gradient(${T.orange}1c, ${T.orange}1c), ${T.card}`, border: `1px solid ${T.orange}55`, marginTop: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 8 }}>When Is My First Payment?</div>
             <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
               <div style={{ marginBottom: 6 }}>You close on <strong>{shortMos[cm]} {closingDay}</strong>. Per-diem interest is collected from closing day through the end of {monthNames[cm]}: <strong>{calc.autoPrepaidDays} days</strong> of prepaid interest.</div>
               <div style={{ marginBottom: 6 }}>You have <strong>no mortgage payment in {skipMo}</strong>: your first full month of ownership.</div>
