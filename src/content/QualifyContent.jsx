@@ -29,44 +29,28 @@ function DebtToIncomeSummary({
   reos = [], debts = [], debtFree = false,
   propertyCounty = "", propertyState = "California",
 }) {
-  // ── Income breakdown ──
-  // Read from calc.employmentMonthlyIncome — the parent layer aggregates
-  // every income row through the variable-pay averaging logic and excludes
-  // Previous employers. Reading the stale `monthlyAmount` field (legacy,
-  // never populated in the current data model) would always return $0.
-  // Christo (2026-05-12): DTI Summary was showing $0 income.
+  // ── Income & debts — straight from the engine (Christo 2026-09-24) ──
+  // This block used to re-add everything itself and drifted from the header:
+  // it took calc.totalPayment (which is ALREADY housing + debts + REO) as
+  // "housing", then added the debts and REO on top again, and read REO
+  // fields that don't exist (r.taxes vs r.reoTax). Result: 49.6% here vs the
+  // header's 40.1%. Now each row is an engine term and the totals ARE
+  // calc.qualifyingIncome / calc.totalPayment, so DTI = calc.yourDTI.
   const employmentIncome = Number(calc?.employmentMonthlyIncome) || 0;
-  // Subject Property Income — rental income from the property being purchased (if 1-4 unit)
-  const subjectPropIncome = Number(subjectRentalIncome) || 0;
-  // Investment Property Income — net positive contributions from rental REOs (from calc)
-  const investmentIncome = Number(calc?.reoPositiveIncome) || 0;
-  // Other Monthly Income — child support, alimony, social security, etc.
   const otherTotal = (Number(otherIncome) || 0) + (Number(otherIncome2) || 0);
-  const totalMonthlyIncome = employmentIncome + subjectPropIncome + investmentIncome + otherTotal;
+  const investmentIncome = Number(calc?.reoPositiveIncome) || 0;
+  const totalMonthlyIncome = Number(calc?.qualifyingIncome) || 0;
+  // Subject-property rent as it qualifies (75%): whatever the engine adds
+  // beyond employment, other income and REO net income.
+  const subjectPropIncome = Math.max(0, totalMonthlyIncome - employmentIncome - otherTotal - investmentIncome);
   const totalAnnualIncome = totalMonthlyIncome * 12;
 
-  // ── Debts breakdown ──
-  const newHousingPiti = Number(calc?.totalPayment) || 0;
-  const monthlyLiabilities = debtFree
-    ? 0
-    : (debts || []).reduce((sum, d) => {
-        // Debts paid off (at or before closing) or omitted don't count
-        // toward post-closing DTI. NOTE: the monthly payment field on a
-        // debt is `monthly` (set in DebtsContent), not `payment` — reading
-        // the wrong key was zeroing out Monthly Liabilities entirely.
-        if (d?.payoff === "Yes - at Escrow" || d?.payoff === "Yes - POC" || d?.payoff === "Omit") return sum;
-        return sum + (Number(d?.monthly) || 0);
-      }, 0);
-  // Primary & Secondary Home Expenses — REO PITIA on owner-occupied (non-investment) properties
-  const primarySecondaryHomeExpenses = (reos || []).reduce((sum, r) => {
-    const occ = String(r?.occupancy || "").toLowerCase();
-    const isInvestment = occ.includes("invest") || occ.includes("rental");
-    if (isInvestment) return sum;
-    return sum + ((Number(r?.payment) || 0) + (Number(r?.taxes) || 0) + (Number(r?.insurance) || 0) + (Number(r?.hoa) || 0));
-  }, 0);
-  // Investment RE Net — pulled from calc (already nets rental income against PITIA)
-  const investmentReNet = Number(calc?.reoNegativeDebt) || 0;
-  const totalDebts = newHousingPiti + monthlyLiabilities + primarySecondaryHomeExpenses + investmentReNet;
+  const totalDebts = Number(calc?.totalPayment) || 0;
+  const monthlyLiabilities = Number(calc?.totalMonthlyDebts) || 0;
+  const primarySecondaryHomeExpenses = Number(calc?.reoPrimaryDebt) || 0;
+  const investmentReNet = Math.max(0, (Number(calc?.reoNegativeDebt) || 0) - primarySecondaryHomeExpenses);
+  // Housing as DTI counts it (investment purchases net 75% of subject rent).
+  const newHousingPiti = Math.max(0, totalDebts - monthlyLiabilities - (Number(calc?.reoNegativeDebt) || 0));
   const totalAnnualDebts = totalDebts * 12;
 
   // ── Qualifying caps & deltas ──
