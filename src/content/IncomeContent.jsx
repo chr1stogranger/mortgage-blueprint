@@ -662,7 +662,7 @@ function ComponentRow({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "24px 1.25fr 1.25fr 1fr 1fr 1.1fr minmax(80px, 0.8fr) 22px",
+            gridTemplateColumns: INCOME_ROW_COLS,
             gap: 8, alignItems: "center", padding: "10px 16px",
             borderTop: rowBorder, background: rowBg,
           }}>
@@ -956,7 +956,7 @@ function EmployerGroup({
           {isDesktop && (
             <div style={{
               display: "grid",
-              gridTemplateColumns: "24px 1.25fr 1.25fr 1fr 1fr 1.1fr minmax(80px, 0.8fr) 22px",
+              gridTemplateColumns: INCOME_ROW_COLS,
               gap: 8, padding: "10px 16px 8px",
               fontSize: 10, color: T.textTertiary,
               fontWeight: 700, letterSpacing: 1,
@@ -1024,6 +1024,12 @@ function EmployerGroup({
 }
 
 // ─── Main component ─────────────────────────────────────────────────
+// Desktop component-row columns, shared by the header and every row.
+// minmax(0, …) pins each column to its share: a bare `fr` grows to its
+// content's min width, so each row (its own grid) sized differently and the
+// pills drifted off the headers (Christo 2026-09-23).
+const INCOME_ROW_COLS = "24px minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(80px, 0.8fr) 22px";
+
 export default function IncomeContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
   if (import.meta.env.DEV) devCheckProps("IncomeContent", props, ["T", "isDesktop", "calc", "fmt", "incomes", "addIncome", "updateIncome", "removeIncome", "removeBorrower", "otherIncome", "setOtherIncome", "otherIncome2", "setOtherIncome2", "setNumBorrowers", "setBorrowerNames", "setOtherIncomeByBorrower", "Hero", "Card", "Sec", "TextInp", "Inp", "Sel", "Note", "Progress", "VARIABLE_PAY_TYPES", "PAY_TYPES", "loanType", "isPulse", "GuidedNextButton", "ClusterContinue"]);
