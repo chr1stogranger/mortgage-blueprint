@@ -4,7 +4,7 @@
 // MortgageBlueprint.jsx so the math is testable and the tab component stays
 // presentational. Everything here takes plain numbers — no React, no theme.
 
-import { toMonthly, computeIncomeMethods } from "./finance.js";
+import { toMonthly, computeIncomeMethods, isLumpSumIncome } from "./finance.js";
 
 // Qualifying monthly income from a saved scenario's `incomes` array — the
 // same rules as the live engine (MortgageBlueprint totalIncomeFromEntries):
@@ -23,7 +23,7 @@ export function quickIncomeMonthly(incomes, variablePayTypes = []) {
     const sel = i.selection || (isVariable ? "2Y+" : "Amount");
     if (sel === "Amount") return s + toMonthly(Number(i.amount) || 0, i.frequency);
     if (sel === "YTD") { const y = Number(i.ytd) || 0; return s + (y > 0 ? (y * 12 / monthsElapsed) / 12 : 0); }
-    const methods = computeIncomeMethods({ ytd: i.ytd, py1: i.py1, py2: i.py2, monthsElapsed });
+    const methods = computeIncomeMethods({ ytd: i.ytd, py1: i.py1, py2: i.py2, monthsElapsed, lumpSum: isLumpSumIncome(i) });
     if (sel in methods) return s + methods[sel] / 12;
     return s + toMonthly(Number(i.amount) || 0, i.frequency);
   }, 0);

@@ -12,7 +12,7 @@ import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } fro
 // Pure, unit-tested (src/lib/finance.test.js). Change formulas THERE, not here.
 import {
  calcPI, calcBalance, balanceAfter, calcAPR, calcTempBuydown, computeLTV, computeDTI,
- getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, progressiveTax,
+ getPMIRate, getFHAMipRate, vaFundingFeeRate, toMonthly, computeIncomeMethods, isLumpSumIncome, progressiveTax,
  computeTaxSavings, computePassiveLossAllowance, buildAmortization, computeProp19,
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
@@ -5176,7 +5176,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // drift from the per-row $/mo figures — including the Fannie/Freddie
    // declining-income collapse, which a hand-mirrored copy here used to miss.
    const methods = computeIncomeMethods({
-    ytd: i.ytd, py1: i.py1, py2: i.py2, monthsElapsed,
+    ytd: i.ytd, py1: i.py1, py2: i.py2, monthsElapsed, lumpSum: isLumpSumIncome(i),
    });
    if (sel in methods) return s + methods[sel] / 12;
    // Legacy fallback: conservative auto-pick for variable pay (lower of yr1 vs 2yr-avg)

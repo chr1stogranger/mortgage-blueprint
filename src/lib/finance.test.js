@@ -389,6 +389,17 @@ describe("computePassiveLossAllowance (§469i)", () => {
  });
 });
 
+describe("annual bonus YTD (lump sum)", () => {
+  it("counts an annual bonus's YTD as the year's amount, not annualized", () => {
+    // $30k bonus paid in March, 9 months elapsed: YTD is $30k, not $40k
+    const lump = computeIncomeMethods({ ytd: 30000, py1: 30000, py2: 24000, monthsElapsed: 9, lumpSum: true });
+    expect(lump["1Y_YTD"]).toBe(30000);
+    expect(lump["2Y_YTD"]).toBe(28000);
+    const even = computeIncomeMethods({ ytd: 30000, py1: 30000, py2: 24000, monthsElapsed: 9 });
+    expect(even["1Y_YTD"]).toBe(35000); // (30k + 40k) / 2
+  });
+});
+
 // ── Rate & Points breakeven ladder (2026-09-11) ─────────────────────────────
 // Expected values are the sheet's own cells ($650k, 30yr, 15% bracket, real
 // 70.01–75% LTV pricing) so a drift from the sheet fails loudly.

@@ -390,14 +390,20 @@ export function isDecliningIncome(py1, py2) {
  * @param {number|string} p.py1  prior year 1 annual amount ($)
  * @param {number|string} p.py2  prior year 2 annual amount ($)
  * @param {number} p.monthsElapsed months represented by the YTD figure
+ * @param {boolean} [p.lumpSum] once-a-year payment (annual bonus): YTD is not annualized
  * @returns {{"1Y+":number,"2Y+":number,"1Y_YTD":number,"2Y_YTD":number}} annual $/yr per method
  */
-export function computeIncomeMethods({ ytd, py1, py2, monthsElapsed }) {
+/** Annual bonus: paid once a year, so its YTD counts as the year's amount. */
+export const isLumpSumIncome = (inc) => inc?.payType === "Bonus" && (inc?.frequency || "Annual") === "Annual";
+
+export function computeIncomeMethods({ ytd, py1, py2, monthsElapsed, lumpSum = false }) {
  const y  = Number(ytd) || 0;
  const p1 = Number(py1) || 0;
  const p2 = Number(py2) || 0;
  const m  = Math.max(1, Number(monthsElapsed) || 1);
- const ytdAnn = y > 0 ? (y * 12) / m : 0;
+ // A once-a-year payment (annual bonus) isn't earned evenly: YTD already IS
+ // this year's amount once it's paid, so it isn't scaled up by 12 ÷ months.
+ const ytdAnn = y > 0 ? (lumpSum ? y : (y * 12) / m) : 0;
  const declining = isDecliningIncome(p1, p2);
  return {
   "1Y+":    p1,

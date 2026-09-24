@@ -2,7 +2,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import { todayLocal } from "../lib/today.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
-import { toMonthly, computeIncomeMethods, isDecliningIncome } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
+import { toMonthly, computeIncomeMethods, isDecliningIncome, isLumpSumIncome } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
 
 
 const FREQ_OPTIONS = [
@@ -132,15 +132,13 @@ const SELF_EMP_TYPES = new Set(["Sch-C", "1120-S", "1065", "Self-Emp"]);
 // type + frequency combination. Christo (2026-05-05):
 //   - Self-employment (Sch C / 1120-S / 1065) goes off tax returns
 //     only — no YTD options. Use 1-yr or 2-yr average.
-//   - Bonus is rule-by-frequency:
-//       * Annual bonus → no YTD (you already get the full year on
-//         the W-2). Use 1-yr or 2-yr average.
-//       * Quarterly / Monthly / Semi-monthly bonus → YTD + most
-//         recent year is the standard.
+//   - Bonus: all 4 methods (Christo 2026-09-24 reversed the old "annual
+//     bonus → no YTD" rule). An annual bonus's YTD counts as-is, not
+//     annualized (finance.js isLumpSumIncome). Default stays 2-yr avg for
+//     annual, 1-yr + YTD for more frequent bonuses.
 //   - Hourly / Commission / RSU / Tips / OT / Other → all 4 methods.
 function availableMethodsFor(payType, frequency) {
   if (SELF_EMP_TYPES.has(payType)) return ["1Y+", "2Y+"];
-  if (payType === "Bonus" && frequency === "Annual") return ["1Y+", "2Y+"];
   return ["1Y+", "2Y+", "1Y_YTD", "2Y_YTD"];
 }
 
@@ -170,7 +168,7 @@ function computeMoIncome(inc, isVariable, monthsElapsed) {
     return y > 0 ? (y * 12 / m) / 12 : 0;
   }
   const methods = computeIncomeMethods({
-    ytd: inc.ytd, py1: inc.py1, py2: inc.py2, monthsElapsed,
+    ytd: inc.ytd, py1: inc.py1, py2: inc.py2, monthsElapsed, lumpSum: isLumpSumIncome(inc),
   });
   const annual = methods[sel] || 0;
   return annual / 12;
@@ -205,7 +203,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
   const currentYear = now.getFullYear();
   const monthLabel = now.toLocaleString("default", { month: "short" });
   const methods = computeIncomeMethods({
-    ytd: inc.ytd, py1: inc.py1, py2: inc.py2, monthsElapsed,
+    ytd: inc.ytd, py1: inc.py1, py2: inc.py2, monthsElapsed, lumpSum: isLumpSumIncome(inc),
   });
   const sel = inc.selection || "2Y+";
   const annual = methods[sel] || 0;
