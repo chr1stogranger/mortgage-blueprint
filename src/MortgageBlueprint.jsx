@@ -67,7 +67,7 @@ import {
   fetchStatementDoc, deleteStatementDoc, extractStatements,
   fetchSharedData,
 } from "./api";
-import { fetchScenarioRow } from "./lib/supabaseClient";
+import { fetchScenarioRow, subscribeToBorrowerScenarios } from "./lib/supabaseClient";
 import useBlueprintSync from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
 import LivePresenceLayer from "./components/LivePresenceLayer";
@@ -2688,6 +2688,40 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [scenariosAreCloud, cloudScenarioIndex, activeScenarioId]);
+
+ // ── Live scenario tabs: a teammate adding / duplicating / renaming / deleting
+ //    a scenario on this client used to need a refresh (Gina → Christo,
+ //    2026-09-24). Refetch the list on INSERT/DELETE or a rename; plain
+ //    autosaves (UPDATE with the same name) are ignored. Also catch up when
+ //    the tab becomes visible, since realtime drops events while asleep. ──
+ const borrowerScenariosRef = useRef(borrowerScenarios);
+ useEffect(() => { borrowerScenariosRef.current = borrowerScenarios; }, [borrowerScenarios]);
+ useEffect(() => {
+  const bid = scenariosAreCloud ? activeBorrower?.id : null;
+  if (!bid) return;
+  let timer = null, dead = false;
+  const refresh = () => {
+   clearTimeout(timer);
+   timer = setTimeout(async () => {
+    try {
+     const scens = await apiFetchScenarios(bid);
+     if (dead || !Array.isArray(scens)) return;
+     const sig = (list) => list.map(x => `${x.id}:${x.name}`).join("|");
+     if (sig(scens) !== sig(borrowerScenariosRef.current || [])) setBorrowerScenarios(scens);
+    } catch { /* next event or focus retries */ }
+   }, 400);
+  };
+  const sub = subscribeToBorrowerScenarios(bid, (type, row) => {
+   if (type === "UPDATE") {
+    const known = (borrowerScenariosRef.current || []).find(x => x.id === row?.id);
+    if (known && known.name === row?.name) return; // autosave, not a tab change
+   }
+   refresh();
+  });
+  const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+  document.addEventListener("visibilitychange", onVisible);
+  return () => { dead = true; clearTimeout(timer); sub.unsubscribe(); document.removeEventListener("visibilitychange", onVisible); };
+ }, [scenariosAreCloud, activeBorrower?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
  // ── Load borrower list from Supabase when authenticated ──
  // Ordered by most-recent BLUEPRINT activity (Christo 7.24): the server's

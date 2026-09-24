@@ -305,6 +305,25 @@ export function subscribeToScenario(scenarioId, onUpdate) {
 }
 
 /**
+ * Subscribe to every scenario row of one borrower (INSERT / UPDATE / DELETE),
+ * so a tab a teammate adds, duplicates, renames or deletes shows up live in the
+ * sidebar. subscribeToScenario only watches the ONE open scenario.
+ */
+export function subscribeToBorrowerScenarios(borrowerId, onChange) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !borrowerId) return { channel: null, unsubscribe: () => {} };
+  const channel = supabase
+    .channel(`borrower-scenarios:${borrowerId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'scenarios', filter: `borrower_id=eq.${borrowerId}` },
+      (payload) => onChange(payload.eventType, payload.new, payload.old),
+    )
+    .subscribe();
+  return { channel, unsubscribe: () => { supabase.removeChannel(channel); } };
+}
+
+/**
  * Subscribe to field lock events on a scenario.
  */
 export function subscribeToLockEvents(scenarioId, onLockChange) {
