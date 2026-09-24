@@ -11,7 +11,10 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
   const [openState, setOpenState] = useState(defaultOpen);
   const open = openProp ?? openState;
   const setOpen = onToggle ?? setOpenState;
-  if (!open && collapsedSubtitle) subtitle = collapsedSubtitle;
+  // Collapsed with a summary: ONE line — title, then the summary inline to its
+  // right (Christo 2026-09-24: the two-line banner read as too big).
+  const inlineSummary = !open && collapsedSubtitle ? collapsedSubtitle : null;
+  if (inlineSummary) subtitle = null;
   if (heroStyle) {
     // Full-width indigo banner with white text. Slim profile per Christo
     // (2026-05-02) — shorter padding + smaller title so the banners stop
@@ -24,10 +27,15 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+          <div style={{ flex: 1, minWidth: 0, ...(inlineSummary ? { display: "flex", alignItems: "baseline", gap: 12 } : {}) }}>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, flexShrink: 0 }}>
               {title}
             </div>
+            {inlineSummary && (
+              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {inlineSummary}
+              </div>
+            )}
             {subtitle && (
               <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, marginTop: 2 }}>
                 {subtitle}
@@ -114,7 +122,9 @@ export default function OverviewTab(props) {
   const compactUsd = (v) => v >= 1e6 ? `$${parseFloat((v / 1e6).toFixed(2))}M` : `$${Math.round(v / 1000)}K`;
   const setupSummary = [
     isRefi ? "Refinance" : "Purchase",
-    city && propertyState ? `${city}, ${STATE_ABBR[propertyState] || propertyState}` : propertyZip,
+    // Phones keep the numbers: the one-line banner truncates, and the city
+    // pushed price + FICO off the end.
+    !isDesktop ? null : city && propertyState ? `${city}, ${STATE_ABBR[propertyState] || propertyState}` : propertyZip,
     isRefi ? (refiCurrentBalance > 0 ? `${compactUsd(refiCurrentBalance)} balance` : null) : (salesPrice > 0 ? compactUsd(salesPrice) : null),
     creditScore > 0 ? `${creditScore} FICO` : null,
   ].filter(Boolean).join(" · ");
@@ -166,7 +176,9 @@ export default function OverviewTab(props) {
       {/* ═══════════════════════════════════════
           SECTION 2: MONTHLY PAYMENT (Calculator)
           ═══════════════════════════════════════ */}
-      <SectionDivider T={T} />
+      {/* A collapsed Quick Start is a one-line header: no divider, so the
+          donut section sits right under it. */}
+      {setupOpen && <SectionDivider T={T} />}
       {/* Refi reads "New Loan" — this whole section IS the new loan being
           built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
       <CollapsibleSection title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
