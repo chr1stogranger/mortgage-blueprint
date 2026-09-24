@@ -10,6 +10,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  * scenario — nothing is overwritten.
  */
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Icon from "../Icon";
 
 
@@ -51,7 +52,10 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
   const busy = !!importingId;
   const inputStyle = { width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, outline: "none", fontFamily: FONT };
 
-  return (
+  // Portaled to <body>: the app shell is a z-index:1 stacking context, which
+  // trapped this modal under the docked live PDF preview (z 900) no matter its
+  // own z-index. Rendering at the body puts it above every panel.
+  return createPortal(
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => !busy && onClose()}>
       <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 500, width: "100%", padding: "20px 18px 30px", maxHeight: "82vh", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -110,5 +114,5 @@ export default function ImportAriveModal({ open, onClose, onImport, searchArive,
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }

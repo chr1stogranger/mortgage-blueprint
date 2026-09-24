@@ -29,6 +29,7 @@ import { FONT, MONO } from "../lib/fonts.js";
  *   loInfo           — { loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls }
  */
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Icon from "../Icon.jsx";
 import { WEB_ORIGIN } from "../apiBase.js";
 import {
@@ -249,7 +250,10 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
   ].filter(Boolean).join(" · ");
   const place = [pf.city, pf.propertyState, pf.propertyZip].filter(Boolean).join(", ");
 
-  return (
+  // Portaled to <body>: the app shell is a z-index:1 stacking context, which
+  // trapped this modal under the docked live PDF preview (z 900) no matter its
+  // own z-index. Rendering at the body puts it above every panel.
+  return createPortal(
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1300, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={close}>
       <div style={{ background: T.card, borderRadius: "20px 20px 0 0", maxWidth: 500, width: "100%", maxHeight: "86vh", overflowY: "auto", padding: "20px 18px 30px" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -354,5 +358,5 @@ export default function PipelineImportModal({ open, row, onClose, T, fetchPayloa
         )}
       </div>
     </div>
-  );
+  , document.body);
 }
