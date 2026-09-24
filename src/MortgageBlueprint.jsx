@@ -552,6 +552,50 @@ function Hero({ value, label, color, sub, small, light }) {
   )}
  </div>);
 }
+// Settings shell — same bordered card + blue banner strip that heads the
+// Assets / Debts / Income / REO tables (Christo 2026-09-23 "same restyle for
+// the settings section"). tone="danger" swaps the strip to red.
+function SetShell({ title, meta, tone, children }) {
+ const c = tone === "danger" ? T.red : T.blue;
+ return (
+  <div style={{ border: `1px solid ${tone === "danger" ? c + "40" : T.cardBorder}`, borderRadius: 14, background: T.card, marginTop: 20, marginBottom: 12, overflow: "hidden" }}>
+   <div style={{ background: `linear-gradient(135deg, ${c}18, ${c}0c)`, color: c, borderBottom: `1px solid ${c}38`, padding: "10px 16px", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+    <span>{title}</span>
+    {meta && <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5, textTransform: "none", fontWeight: 600 }}>{meta}</span>}
+   </div>
+   <div style={{ padding: "4px 16px 14px" }}>{children}</div>
+  </div>
+ );
+}
+// Sub-banner inside a SetShell body (full-bleed against its 16px padding).
+function SetSub({ title }) {
+ return (
+  <div style={{ margin: "14px -16px 12px", background: `linear-gradient(135deg, ${T.blue}12, ${T.blue}08)`, borderTop: `1px solid ${T.blue}30`, borderBottom: `1px solid ${T.blue}30`, color: T.blue, padding: "8px 16px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT }}>{title}</div>
+ );
+}
+// One settings row: title + helper text on the left, control on the right,
+// hairline between rows (the Assets row rhythm).
+function SetRow({ title, sub, right, children, last, titleColor }) {
+ return (
+  <div style={{ padding: "12px 0", borderBottom: last ? "none" : `1px solid ${T.separator}` }}>
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+    <div style={{ minWidth: 0 }}>
+     <div style={{ fontSize: 14, fontWeight: 600, color: titleColor || T.text, fontFamily: FONT }}>{title}</div>
+     {sub && <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2, lineHeight: 1.45, fontFamily: FONT }}>{sub}</div>}
+    </div>
+    {right && <div style={{ flexShrink: 0 }}>{right}</div>}
+   </div>
+   {children && <div style={{ marginTop: 10 }}>{children}</div>}
+  </div>
+ );
+}
+function SetSwitch({ on, onClick, label }) {
+ return (
+  <button type="button" role="switch" aria-checked={!!on} aria-label={label} onClick={onClick} style={{ width: 52, height: 30, borderRadius: 15, background: on ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s", flexShrink: 0 }}>
+   <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: on ? 25 : 3, transition: "left 0.3s", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+  </button>
+ );
+}
 function Card({ children, style: s, onClick, pad }) {
  // Callers tint a card with `background: `${T.blue}08``, which REPLACED the
  // solid fill and let the blueprint canvas read through (Christo 2026-07-19).
@@ -9619,34 +9663,23 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   onAddOption={async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
 )}
 {tab === "settings" && (<>
- <div style={{ marginTop: 20 }}>
-  <Hero value="Settings" label="Preferences & info" small />
- </div>
- <Sec title="Appearance">
-  <Card>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
-    <div>
-     <div style={{ fontSize: 15, fontWeight: 600 }}>Theme</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>{themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</div>
-    </div>
-    <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 10, padding: 3 }}>
-     {[['light','○'],['dark','☽']].map(([k,e]) => (
-      <button key={k} type="button" aria-label={k === 'dark' ? 'Dark mode' : 'Light mode'} aria-pressed={themeMode === k} onClick={() => { setThemeMode(k); try { localStorage.setItem('bp_theme_mode', k); } catch {} Haptics.light(); }} style={{ padding: "5px 10px", borderRadius: 8, minWidth: 36, minHeight: 32, border: "none", fontSize: 13, fontWeight: themeMode === k ? 700 : 500, background: themeMode === k ? T.tabActiveBg : "transparent", color: themeMode === k ? T.text : T.textTertiary, cursor: "pointer" }}>{e}</button>
-     ))}
-    </div>
-   </div>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderTop: `1px solid ${T.separator}`, marginTop: 8, paddingTop: 12 }}>
-    <div>
-     <div style={{ fontSize: 15, fontWeight: 600 }}>Animated background</div>
-     <div style={{ fontSize: 13, color: T.textTertiary }}>{bgPaused ? 'Paused' : 'Active'}: blueprint house here, target in PricePoint, stock line in Markets</div>
-    </div>
-    <button onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} style={{ padding: "6px 14px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, background: bgPaused ? T.tabActiveBg : "transparent", color: T.text, cursor: "pointer" }}>{bgPaused ? 'Resume' : 'Pause'}</button>
-   </div>
-  </Card>
- </Sec>
- {!isBorrower && <Sec title="Loan Officer Info">
-  <Card>
-   <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 10 }}>This info appears on shared Blueprints and email summaries. Set once. Applies to all scenarios.</div>
+ <SetShell title="Appearance">
+   <SetRow title="Theme" sub={themeMode === 'dark' ? 'Dark mode' : 'Light mode'}
+    right={
+     <div style={{ display: "flex", gap: 4, background: T.pillBg, borderRadius: 9999, padding: 3 }}>
+      {[['light', 'Light'], ['dark', 'Dark']].map(([k, lbl]) => (
+       <button key={k} type="button" aria-pressed={themeMode === k} onClick={() => { setThemeMode(k); try { localStorage.setItem('bp_theme_mode', k); } catch {} Haptics.light(); }}
+        style={{ padding: "6px 14px", borderRadius: 9999, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600,
+         background: themeMode === k ? T.card : "transparent", color: themeMode === k ? T.text : T.textTertiary,
+         boxShadow: themeMode === k ? T.cardShadow : "none" }}>{lbl}</button>
+      ))}
+     </div>
+    } />
+   <SetRow last title="Animated background" sub={`${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
+    right={<SetSwitch on={!bgPaused} label="Animated background" onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} />} />
+ </SetShell>
+ {!isBorrower && <SetShell title="Loan Officer Info" meta="Shown on shared Blueprints and emails">
+   <div style={{ fontSize: 12, color: T.textTertiary, margin: "8px 0 12px", fontFamily: FONT }}>Set once. Applies to all scenarios.</div>
    {!isBorrower && !isCloud && (
     <button onClick={() => rawAuth?.requestLogin?.()}
      style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 12, background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
@@ -9669,8 +9702,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <Inp label="Application (1003) Link" value={applyUrl} onChange={setApplyUrl} prefix="" type="text" placeholder="https://…my1003app.com/…/register" />
    {/* ── Email Signature (Christo 2026-07-05): matches Homebase/Ops — used
        at the bottom of worksheet emails sent from Blueprint. Device-level. ── */}
-   <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>Email Signature</div>
+   <div>
+    <SetSub title="Email Signature" />
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 8, fontFamily: FONT }}>
      Appears at the bottom of worksheet emails. Plain text works, or paste your <strong>HTML signature</strong> (Gmail → Settings → copy your signature's HTML) for full formatting: same as Ops. Leave blank to use your name, company, NMLS, and phone from above.
     </div>
@@ -9693,8 +9726,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    {/* ── My Default Fees (Christo 2026-07-05): snapshot the current Costs
        fee sheet (values + added/removed fees) as this LO's template — every
        new scenario starts from it. Device-level (localStorage). ── */}
-   <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.separator}` }}>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>My Default Fees</div>
+   <div>
+    <SetSub title="My Default Fees" />
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginBottom: 10, fontFamily: FONT }}>
      Set up the Costs tab the way you quote (edit amounts, add or remove fees), then save it as your default fee sheet. Every new scenario will start from it.
     </div>
@@ -9715,27 +9748,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     )}
    </div>
-  </Card>
- </Sec>}
+ </SetShell>}
  {/* Settings ▸ Modules section removed (2026-06-02, Christo): it duplicated the
      Quick Start module toggles (same isRefi/ownsProperties/hasSellProperty/
      showInvestor/showRentVsBuy state). Quick Start is the single source of truth. */}
  {/* Settings ▸ Integrations section hidden (2026-06-02, Christo): read-only,
      admin-managed; nothing actionable for the user. FRED/Freddie Mac rate
      attribution lives in the footer blurb if needed. */}
- <Sec title="Security & Privacy">
-  <Card>
-   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.separator}` }}>
+ <SetShell title="Security & Privacy">
+   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
     <div>
-     <div style={{ fontSize: 15, fontWeight: 600 }}>Privacy Mode</div>
-     <div style={{ fontSize: 12, color: T.textTertiary }}>Mask all dollar amounts & sensitive numbers</div>
+     <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT }}>Privacy Mode</div>
+     <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Mask all dollar amounts & sensitive numbers</div>
     </div>
     <button type="button" role="switch" aria-checked={!!privacyMode} aria-label="Privacy mode" onClick={() => { setPrivacyMode(!privacyMode); Haptics.light(); }} style={{ width: 52, height: 30, borderRadius: 15, background: privacyMode ? T.green : T.ringTrack, border: "none", cursor: "pointer", position: "relative", transition: "background 0.3s" }}>
      <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: privacyMode ? 25 : 3, transition: "left 0.3s" }} />
     </button>
    </div>
    <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>PIN Lock</div>
+    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, fontFamily: FONT }}>PIN Lock</div>
     {!pinSet ? (
      <div>
       <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 8 }}>Set a PIN to auto-lock the app after inactivity</div>
@@ -9779,7 +9810,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </div>
    <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
     <div onClick={() => setShowPrivacy(!showPrivacy)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-     <div style={{ fontSize: 15, fontWeight: 600 }}>Privacy Policy</div>
+     <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONT }}>Privacy Policy</div>
      <span style={{ fontSize: 18, color: T.textTertiary, transition: "transform 0.3s", transform: showPrivacy ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
     </div>
     {showPrivacy && (
@@ -9795,13 +9826,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     )}
    </div>
-   <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.separator}` }}>
-    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Welcome Tutorial</div>
+   <div style={{ padding: "12px 0" }}>
+    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, fontFamily: FONT }}>Welcome Tutorial</div>
     <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Replay the intro walkthrough for new users</div>
     <button onClick={() => { setWelcomeStep(0); setShowWelcome(true); }} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Replay Tutorial</button>
    </div>
-   <div style={{ padding: "12px 0" }}>
-    <div style={{ fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 10 }}>Danger Zone</div>
+ </SetShell>
+ {/* Danger Zone — its own red-banner card so destructive controls never
+     sit inside an ordinary settings list. */}
+ <SetShell title="Danger Zone" tone="danger">
+   <div style={{ padding: "12px 0 0" }}>
     {/* Delete this client — cloud LO view only. Cascades to all the client's
         blueprints on the server. Two-step confirm; irreversible. (2026-07-08) */}
     {scenariosAreCloud && activeBorrower && (
@@ -9823,8 +9857,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Wipe this device's local scenarios, borrower data, and preferences</div>
     <button onClick={() => { setShowClearConfirm(true); setClearStep(0); }} style={{ width: "100%", padding: 14, background: `${T.red}12`, border: `1px solid ${T.red}33`, borderRadius: 12, color: T.red, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Clear All Data</button>
    </div>
-  </Card>
- </Sec>
+ </SetShell>
  {/* Loan Settings section removed (Christo 2026-07-05) — coeDays/sellerTaxBasis
      state remains for saved scenarios; the closing-date picker on the Costs tab
      supersedes COE Days as the user-facing control. */}
@@ -9833,8 +9866,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6 }}>Mortgage Blueprint v5: 13 modules, Investor analysis, Rent vs Buy, 50-state property tax rates + 153 CA city rates, Federal + state brackets, 5-pillar qualification engine, PIN lock + full privacy masking + input validation.</div>
  </Card>
  {realtorPartner && (
-  <Sec title="Realtor Partner Link">
-   <Card>
+  <SetShell title="Realtor Partner Link">
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
      {realtorPartner.photo ? (
       <img src={realtorPartner.photo} alt={realtorPartner.name} style={{ width: 36, height: 36, borderRadius: 18, objectFit: "cover" }} />
@@ -9849,8 +9881,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     </div>
     <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5 }}>This app was shared via <strong>{realtorPartner.name}</strong>'s partner link. Source tracking is active. All pre-approval clicks attribute to <strong>{realtorPartnerSlug}</strong>.</div>
-   </Card>
-  </Sec>
+  </SetShell>
  )}
 </>)}
    </div>
