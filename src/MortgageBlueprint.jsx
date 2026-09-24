@@ -2735,6 +2735,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const baseLoan = salesPrice - dp;
    const ltv = salesPrice > 0 ? baseLoan / salesPrice : 0;
    const totalIncomeCalc = incomes.reduce((s, i) => {
+    if (i.moOverride !== undefined && i.moOverride !== null && i.moOverride !== "") return s + (Number(i.moOverride) || 0);
     if (i.selection === "YTD") return s + (i.ytdCalc || 0);
     if (i.selection === "1Y") return s + (i.oneYCalc || 0);
     if (i.selection === "2Y") return s + (i.twoYCalc || 0);
@@ -5190,6 +5191,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   });
   const totalIncomeFromEntries = incomes.reduce((s, i) => {
    if (previousEmployerKeys.has(`${i.borrower}::${i.source || ""}`)) return s;
+   // Underwriter monthly override (lock next to $/mo on the Income tab).
+   if (i.moOverride !== undefined && i.moOverride !== null && i.moOverride !== "") return s + (Number(i.moOverride) || 0);
    const isVariable = VARIABLE_PAY_TYPES.includes(i.payType);
    const ytd = Number(i.ytd) || 0;
    const yr1 = Number(i.py1) || 0;

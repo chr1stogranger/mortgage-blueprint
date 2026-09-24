@@ -19,6 +19,7 @@ export function quickIncomeMonthly(incomes, variablePayTypes = []) {
   list.forEach(i => { if (i.end && i.end !== "") prev.add(`${i.borrower}::${i.source || ""}`); });
   return list.reduce((s, i) => {
     if (prev.has(`${i.borrower}::${i.source || ""}`)) return s;
+    if (i.moOverride !== undefined && i.moOverride !== null && i.moOverride !== "") return s + (Number(i.moOverride) || 0);
     const isVariable = variablePayTypes.includes(i.payType);
     const sel = i.selection || (isVariable ? "2Y+" : "Amount");
     if (sel === "Amount") return s + toMonthly(Number(i.amount) || 0, i.frequency);

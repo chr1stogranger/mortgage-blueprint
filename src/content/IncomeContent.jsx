@@ -2,6 +2,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import { todayLocal } from "../lib/today.js";
 import React, { useState, useMemo, useEffect } from "react";
 import { devCheckProps } from "../lib/devPropCheck.js";
+import Icon from "../Icon";
 import { toMonthly, computeIncomeMethods, isDecliningIncome, isLumpSumIncome } from "../lib/finance.js"; // shared engine — was a drift-prone local copy
 
 
@@ -157,7 +158,39 @@ function defaultMethodFor(payType, frequency) {
 // and drifted (declining-income protection was missing there, inflating DTI).
 
 // Mo. Income for one row, honoring the user-picked Selection.
+/** Underwriter monthly override (the lock next to $/mo). null/"" = not set. */
+const moOverrideOf = (inc) =>
+  inc && inc.moOverride !== undefined && inc.moOverride !== null && inc.moOverride !== ""
+    ? (Number(inc.moOverride) || 0) : null;
+
+/**
+ * Dollar text input that keeps exactly what's typed while focused (so "85000."
+ * keeps its decimal point) and shows grouped digits once blurred. The old
+ * inputs re-formatted every keystroke, which swallowed the "." (2026-09-24).
+ */
+function MoneyInput({ value, onChange, style, placeholder = "0", autoFocus = false }) {
+  const [draft, setDraft] = useState(null); // null = not editing
+  const empty = value === 0 || value === null || value === undefined || value === "";
+  const shown = draft !== null ? draft
+    : empty ? "" : Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return (
+    <input type="text" inputMode="decimal" value={shown} placeholder={placeholder} autoFocus={autoFocus}
+      onFocus={() => setDraft(empty ? "" : String(value))}
+      onChange={(e) => {
+        const raw = String(e.target.value).replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+        setDraft(raw);
+        const n = parseFloat(raw);
+        onChange(Number.isNaN(n) ? 0 : n);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+      style={style} />
+  );
+}
+
 function computeMoIncome(inc, isVariable, monthsElapsed) {
+  const ov = moOverrideOf(inc);
+  if (ov !== null) return ov;
   const sel = inc.selection || (isVariable ? "2Y+" : "Amount");
   if (!isVariable || sel === "Amount") {
     return toMonthly(Number(inc.amount) || 0, inc.frequency);
@@ -278,16 +311,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
-            <input
-              type="text" inputMode="decimal"
-              value={inc.ytd === 0 || inc.ytd == null ? "" : Number(inc.ytd).toLocaleString()}
-              onChange={(e) => {
-                const n = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
-                updateIncome(inc.id, "ytd", isNaN(n) ? 0 : n);
-              }}
-              style={inputStyle}
-              placeholder="0"
-            />
+            <MoneyInput value={inc.ytd} onChange={(v) => updateIncome(inc.id, "ytd", v)} style={inputStyle} />
           </div>
         </div>
         <div>
@@ -309,16 +333,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
-            <input
-              type="text" inputMode="decimal"
-              value={inc.py1 === 0 || inc.py1 == null ? "" : Number(inc.py1).toLocaleString()}
-              onChange={(e) => {
-                const n = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
-                updateIncome(inc.id, "py1", isNaN(n) ? 0 : n);
-              }}
-              style={inputStyle}
-              placeholder="0"
-            />
+            <MoneyInput value={inc.py1} onChange={(v) => updateIncome(inc.id, "py1", v)} style={inputStyle} />
           </div>
         </div>
         <div>
@@ -337,16 +352,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
-            <input
-              type="text" inputMode="decimal"
-              value={inc.py2 === 0 || inc.py2 == null ? "" : Number(inc.py2).toLocaleString()}
-              onChange={(e) => {
-                const n = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
-                updateIncome(inc.id, "py2", isNaN(n) ? 0 : n);
-              }}
-              style={inputStyle}
-              placeholder="0"
-            />
+            <MoneyInput value={inc.py2} onChange={(v) => updateIncome(inc.id, "py2", v)} style={inputStyle} />
           </div>
         </div>
       </div>
@@ -590,14 +596,7 @@ function ComponentRow({
   const amountEl = (extra) => (
     <div style={{ ...pillInputWrap, ...extra }}>
       <span style={{ color: T.textSecondary, fontSize: 14, fontWeight: 600 }}>$</span>
-      <input type="text" inputMode="decimal"
-        value={inc.amount === 0 || inc.amount == null ? "" : Number(inc.amount).toLocaleString()}
-        onChange={(e) => {
-          const n = parseFloat(String(e.target.value).replace(/[^0-9.]/g, ""));
-          updateIncome(inc.id, "amount", isNaN(n) ? 0 : n);
-        }}
-        placeholder="0"
-        style={{
+      <MoneyInput value={inc.amount} onChange={(v) => updateIncome(inc.id, "amount", v)} style={{
           background: "transparent", border: "none", outline: "none",
           flex: 1, fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
           minWidth: 0, padding: 0, fontVariantNumeric: "tabular-nums",
@@ -628,12 +627,43 @@ function ComponentRow({
     </select>
   );
 
-  const moEl = (
-    <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-      <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: mo > 0 ? T.orange : T.textTertiary }}>
-        {fmt(mo)}
+  // Monthly + underwriter override. The lock unlocks a $/mo field for the
+  // figure UW says they're using (e.g. a bonus average they computed); it
+  // replaces the computed monthly everywhere (totals, DTI). Re-lock = back to
+  // the computed figure.
+  const moOv = moOverrideOf(inc);
+  const lockBtn = (
+    <button
+      onClick={() => updateIncome(inc.id, "moOverride", moOv === null ? Math.round(mo * 100) / 100 : null)}
+      title={moOv === null ? "Override: enter the monthly income underwriting is using" : "Remove override, use the computed monthly"}
+      aria-label={moOv === null ? "Override monthly income" : "Remove monthly override"}
+      style={{
+        background: "none", border: "none", padding: 0, cursor: "pointer", flexShrink: 0,
+        color: moOv === null ? T.textTertiary : ACCENT, fontSize: 12, lineHeight: 1,
+        width: 16, display: "inline-flex", justifyContent: "center",
+      }}><Icon name={moOv === null ? "lock" : "unlock"} size={13} /></button>
+  );
+  const moEl = moOv === null ? (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, whiteSpace: "nowrap" }}>
+      <span>
+        <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: mo > 0 ? T.orange : T.textTertiary }}>
+          {fmt(mo)}
+        </span>
+        <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
       </span>
-      <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
+      {lockBtn}
+    </div>
+  ) : (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, whiteSpace: "nowrap" }} title="Underwriter override">
+      <div style={{ display: "flex", alignItems: "center", gap: 2, border: `1px solid ${ACCENT}66`, borderRadius: 9999, padding: "3px 8px", background: `${ACCENT}0d`, minWidth: 0 }}>
+        <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>$</span>
+        <MoneyInput value={moOv} autoFocus onChange={(v) => updateIncome(inc.id, "moOverride", v)} style={{
+          width: 64, background: "transparent", border: "none", outline: "none", padding: 0, textAlign: "right",
+          fontFamily: FONT, fontWeight: 600, fontSize: 13, color: ACCENT, fontVariantNumeric: "tabular-nums",
+        }} />
+        <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>/mo</span>
+      </div>
+      {lockBtn}
     </div>
   );
 
