@@ -833,7 +833,7 @@ export function computeRateLadder({ loan, termYears = 30, rungs = [], baseIdx = 
     .filter(r => r && isFinite(+r.rate) && isFinite(+r.pts) && +r.rate > 0)
     .map(r => ({ rate: +r.rate, pts: +r.pts }))
     .sort((a, b) => b.rate - a.rate || a.pts - b.pts);
-  if (!sorted.length || !(loan > 0)) return { rows: [], base: null, spot: null, bestAtHold: null, holdMonths };
+  if (!sorted.length || !(loan > 0)) return { rows: [], base: null, spot: null, creditPick: null, bestAtHold: null, holdMonths };
   const bi = Math.min(Math.max(0, baseIdx | 0), sorted.length - 1);
   const base = sorted[bi];
   const opts = { loan, termYears, taxRate, deductPct, pointsDeductible, holdMonths };
@@ -844,17 +844,33 @@ export function computeRateLadder({ loan, termYears = 30, rungs = [], baseIdx = 
       : compareRungs(base, r, opts);
     return { idx: i, rate: r.rate, pts: r.pts, pi: calcPI(loan, r.rate, termYears), isBase: i === bi, dominated: !!dominator, dominatedBy: dominator ? dominator.rate : null, ...v, step: null };
   });
-  // Marginal step: each rung vs the previous non-dominated rung above it.
+  // Marginal step, walking OUT from the baseline (Christo 2026-09-24: par in
+  // the middle, buy the rate up or down). Below the base each rung steps from
+  // the previous non-dominated rung above it (pay points for a lower rate);
+  // above the base each rung steps from the next non-dominated rung below it
+  // (take a credit for a higher rate: breakeven = months the credit lasts).
   let prev = null;
-  for (const row of rows) {
-    if (prev) row.step = compareRungs(prev, row, opts);
+  for (let i = bi; i < rows.length; i++) {
+    const row = rows[i];
+    if (prev) { row.step = compareRungs(prev, row, opts); row.stepFrom = prev.rate; row.stepDir = "down"; }
+    if (!row.dominated || i === bi) prev = row;
+  }
+  prev = rows[bi];
+  for (let i = bi - 1; i >= 0; i--) {
+    const row = rows[i];
+    row.step = compareRungs(prev, row, opts); row.stepFrom = prev.rate; row.stepDir = "up";
     if (!row.dominated) prev = row;
   }
   const below = rows.filter(r => !r.isBase && !r.dominated && r.rate < base.rate);
   const eligible = below.filter(r => r.breakeven !== null && r.breakeven <= holdMonths && (!r.step || r.step.breakeven === null || r.step.breakeven <= holdMonths));
   const spot = eligible.length ? eligible.reduce((a, b) => (b.rate < a.rate ? b : a)) : null;
   const bestAtHold = below.length ? below.reduce((a, b) => (b.cumAtHold > a.cumAtHold ? b : a)) : null;
-  return { rows, base: rows[bi], spot, bestAtHold, holdMonths };
+  // Best credit: the highest rate above the base whose credit (and every
+  // step up to it) outlasts the hold — cash in hand beats the lower payment.
+  const above = rows.filter(r => !r.isBase && !r.dominated && r.rate > base.rate && r.cost < 0);
+  const creditOk = above.filter(r => r.breakeven !== null && r.breakeven >= holdMonths && (!r.step || r.step.breakeven === null || r.step.breakeven >= holdMonths));
+  const creditPick = creditOk.length ? creditOk.reduce((a, b) => (b.rate > a.rate ? b : a)) : null;
+  return { rows, base: rows[bi], spot, creditPick, bestAtHold, holdMonths };
 }
 
 /**
@@ -862,7 +878,7 @@ export function computeRateLadder({ loan, termYears = 30, rungs = [], baseIdx = 
  * entered yet. Eighth-point rungs; the cost per eighth is a rule-of-thumb
  * (real pricing curves bend), so callers must label the result "estimated".
  */
-export function scaffoldRateLadder(parRate, { stepsDown = 4, stepsUp = 2, costPerEighth = 0.45, creditPerEighth = 0.40 } = {}) {
+export function scaffoldRateLadder(parRate, { stepsDown = 3, stepsUp = 3, costPerEighth = 0.45, creditPerEighth = 0.40 } = {}) {
   const par = Math.round((+parRate || 6.5) * 8) / 8;
   const out = [];
   for (let i = stepsUp; i >= 1; i--) out.push({ rate: +(par + i * 0.125).toFixed(3), pts: +(-(i * creditPerEighth)).toFixed(3) });

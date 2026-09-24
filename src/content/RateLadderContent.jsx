@@ -159,7 +159,7 @@ export default function RateLadderContent(props) {
   // Shared view-model (also feeds the Share card and the PDF page) — same
   // tax basis, same rows, same sweet spot on every surface.
   const view = useMemo(() => buildLadderView({ calc, term, isRefi, rateLadder }), [calc, term, isRefi, rateLadder]);
-  const { loan, tax, ladder, ltvNow, ltvDrift, spot, nextLower } = view;
+  const { loan, tax, ladder, ltvNow, ltvDrift, spot, creditPick, nextLower } = view;
   const taxRate = tax.taxRate, deductPct = tax.deductPct, taxLabel = tax.label, taxNote = tax.note;
 
   const [cmp, setCmp] = useState({ a: 0, b: -1 });
@@ -185,7 +185,7 @@ export default function RateLadderContent(props) {
   };
   const scaffold = () => {
     const s = scaffoldRateLadder(rate || 6.5);
-    patch({ rungs: s, baseIdx: 2, estimated: true, asOf: L.asOf || todayLocal() });
+    patch({ rungs: s, baseAuto: true, estimated: true, asOf: L.asOf || todayLocal() });
   };
   const applyRung = (row) => {
     setRate(row.rate);
@@ -246,17 +246,23 @@ export default function RateLadderContent(props) {
     <th style={{ ...cellBase, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textTertiary, textAlign: left ? "left" : "right", verticalAlign: "bottom", whiteSpace: "normal", lineHeight: 1.25 }}>{label}</th>
   );
   const stickyBg = (bg) => ({ position: "sticky", left: 0, zIndex: 1, background: bg || T.card });
+  const holdMo = holdYears * 12;
+  // One answer: the buydown or the credit, whichever leaves more cash at the hold.
+  const pick = spot && creditPick ? (creditPick.cumAtHold > spot.cumAtHold ? creditPick : spot) : (spot || creditPick);
   const stepCells = (v, prevRate, prevSel) => {
     const credit = v && v.cost < 0;
     const be = v ? v.breakeven : null;
+    // Credit steps (buying the rate UP): longer is better, so the shading
+    // flips: green when the credit outlasts the hold, red when it runs out.
+    const beBg = !v ? "transparent" : credit ? (be !== null && be >= holdMo ? `${T.green}40` : `${T.red}24`) : BAND_BG(v.band.key);
     return (<>
-      <td style={{ ...cellBase, color: T.textSecondary }}>{prevSel || (prevRate !== null ? fmtPct3(prevRate) : "—")}</td>
+      <td style={{ ...cellBase, color: T.textSecondary }}>{prevSel || (prevRate !== null && prevRate !== undefined ? fmtPct3(prevRate) : "—")}</td>
       <td style={cellBase}>{v ? `${(v.cost / loan * 100).toFixed(3)}%` : "—"}</td>
-      <td style={cellBase}>{v ? money(v.cost) : "—"}</td>
+      <td style={{ ...cellBase, color: credit ? T.green : T.text }}>{v ? (credit ? `${money(Math.abs(v.cost))} back` : money(v.cost)) : "—"}</td>
       <td style={{ ...cellBase, color: v ? (v.delta >= 0 ? T.green : T.red) : T.textTertiary }}>{v ? `${v.delta >= 0 ? "−" : "+"}${money2(Math.abs(v.delta))}` : "—"}</td>
-      {showTax && <td style={cellBase}>{v ? money(v.netCost) : "—"}</td>}
-      {showTax && <td style={{ ...cellBase, color: T.textSecondary }}>{v ? `−${money2(Math.abs(v.writeOffMonthly))}` : "—"}</td>}
-      <td style={{ ...cellBase, fontWeight: 800, fontSize: 14, background: v && !credit ? BAND_BG(v.band.key) : "transparent" }}>{v ? (credit ? `${mo(be)} credit` : mo(be)) : "—"}</td>
+      {showTax && <td style={cellBase}>{v ? (credit ? `${money(Math.abs(v.netCost))} back` : money(v.netCost)) : "—"}</td>}
+      {showTax && <td style={{ ...cellBase, color: T.textSecondary }}>{v ? `${v.writeOffMonthly >= 0 ? "−" : "+"}${money2(Math.abs(v.writeOffMonthly))}` : "—"}</td>}
+      <td style={{ ...cellBase, fontWeight: 800, fontSize: 14, background: beBg }} title={credit ? "Months until the higher payment uses up the credit" : "Months until the lower payment pays back the cost"}>{v ? (credit ? `lasts ${mo(be)}` : mo(be)) : "—"}</td>
       <td style={cellBase}>{v ? money(v.netDelta * 12) : "—"}</td>
       <td style={cellBase}>{v && v.netCost > 0 ? pctCell(v.netDelta * 12 / v.netCost) : "—"}</td>
       {ROI_YEARS.map(y => { const r = v ? roiAt(v, y) : null; return (
@@ -291,24 +297,28 @@ export default function RateLadderContent(props) {
             <div style={{ fontSize: 11.5, color: T.textTertiary, lineHeight: 1.5, marginTop: 6, fontFamily: FONT }}>{taxLabel} · {taxNote}{isRefi ? " · refi points get no upfront write-off" : ""}</div>
           </div>
         </div>
-        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 14, background: spot ? `${T.blue}12` : T.pillBg, border: `1px solid ${spot ? `${T.blue}55` : T.cardBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontFamily: FONT }}>
-          {spot ? (
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 14, background: pick ? `${T.blue}12` : T.pillBg, border: `1px solid ${pick ? `${T.blue}55` : T.cardBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontFamily: FONT }}>
+          {pick && pick === creditPick ? (
+            <span style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.5 }}>
+              Best value for a {holdYears}-year hold: take the credit at <b style={{ color: T.text, fontSize: 15 }}>{fmtPct3(creditPick.rate)}</b>, {money(Math.abs(creditPick.cost))} back at closing. The higher payment takes {mo(creditPick.breakeven)} to use it up, longer than the hold.
+            </span>
+          ) : pick ? (
             <span style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.5 }}>
               Best value for a {holdYears}-year hold: <b style={{ color: T.text, fontSize: 15 }}>{fmtPct3(spot.rate)}</b> at {ptsLabel(spot.pts)}. Every ⅛ step down to it breaks even inside {holdYears} years{nextLower ? `; the next step to ${fmtPct3(nextLower.rate)} doesn't` : ""}.
             </span>
           ) : (
             <span style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.5 }}>
-              No buydown breaks even inside <b style={{ color: T.text }}>{holdYears} years</b> against {ladder.base ? fmtPct3(ladder.base.rate) : "the starting rate"}. Stay there, or take a credit if cash to close matters more. (Measuring from {ladder.base ? fmtPct3(ladder.base.rate) : "the top rate"}: change the starting rate under Pricing details.)
+              For a <b style={{ color: T.text }}>{holdYears}-year</b> hold, stay at {ladder.base ? fmtPct3(ladder.base.rate) : "the starting rate"}: no buydown breaks even in time, and no credit outlasts the hold.
             </span>
           )}
-          {spot && <Pill T={T} primary onClick={() => applyRung(spot)}>Use {fmtPct3(spot.rate)}</Pill>}
+          {pick && <Pill T={T} primary onClick={() => applyRung(pick)}>Use {fmtPct3(pick.rate)}</Pill>}
         </div>
       </Card>
 
       {/* ═══ The breakeven matrix ═══ */}
       <Card>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Breakeven matrix <span style={{ fontWeight: 500, color: T.textTertiary, fontSize: 12 }}>· {money(loan)} loan · each row vs the rate above it</span></div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Breakeven matrix <span style={{ fontWeight: 500, color: T.textTertiary, fontSize: 12 }}>· {money(loan)} loan · par in the middle: credits above, points below</span></div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <Pill T={T} onClick={addCreditRung} title="Add a higher rate with a lender credit">+ Higher rate (credit)</Pill>
             <Pill T={T} onClick={addRung} title="Add a lower rate that costs points">+ Lower rate</Pill>
@@ -324,7 +334,7 @@ export default function RateLadderContent(props) {
               <tr>
                 <th style={{ ...stickyBg(), borderBottom: `1px solid ${T.blue}40` }} />
                 {grp("Pricing", 2, T.blue)}
-                {grp("Vs the rate above", showTax ? 7 : 5, T.orange)}
+                {grp("Vs the next rate toward par", showTax ? 7 : 5, T.orange)}
                 {grp("Return on the step", 2 + ROI_YEARS.length, T.green)}
                 <th />
               </tr>
@@ -341,11 +351,18 @@ export default function RateLadderContent(props) {
             </thead>
             <tbody>
               {rows.map((r, i) => {
-                const isSpot = spot && r.idx === spot.idx;
-                const rowBg = isSpot ? `${T.blue}14` : "transparent";
-                const prevRate = i > 0 ? (rows.slice(0, i).reverse().find(o => !o.dominated) || rows[i - 1]).rate : null;
+                const isSpot = (spot && r.idx === spot.idx) || (creditPick && r.idx === creditPick.idx);
+                const rowBg = isSpot ? `${T.blue}14` : r.isBase ? `${T.blue}08` : "transparent";
+                const prevRate = r.stepFrom ?? null;
+                const baseI = ladder.base ? ladder.base.idx : 0;
+                const divider = (label, key) => (
+                  <tr key={key}><td colSpan={99} style={{ padding: "8px 18px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.textTertiary, fontFamily: FONT, background: T.pillBg, borderBottom: `1px solid ${T.separator}` }}>{label}</td></tr>
+                );
                 return (
-                  <tr key={r.idx} style={{ background: rowBg, opacity: r.dominated ? 0.55 : 1 }}>
+                  <React.Fragment key={r.idx}>
+                  {i === 0 && baseI > 0 && divider("↑ Buy the rate up · take a lender credit · each row vs the rate below it", "up")}
+                  {i === baseI + 1 && divider("↓ Buy the rate down · pay points · each row vs the rate above it", "down")}
+                  <tr style={{ background: rowBg, opacity: r.dominated ? 0.55 : 1, ...(r.isBase ? { boxShadow: `inset 0 2px 0 ${T.blue}55, inset 0 -2px 0 ${T.blue}55` } : {}) }}>
                     <td style={{ ...cellBase, ...stickyBg(isSpot ? `linear-gradient(${T.blue}14, ${T.blue}14), ${T.card}` : T.card), textAlign: "left", paddingLeft: 18 }}>
                       <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                         <NumCell T={T} value={r.rate} onCommit={(v) => updateRung(r, "rate", v)} suffix="%" width={58} ariaLabel="Rate" decimals={3} />
@@ -355,13 +372,19 @@ export default function RateLadderContent(props) {
                     </td>
                     <td style={cellBase}>{money2(r.pi)}</td>
                     <td style={{ ...cellBase, color: r.pts < 0 ? T.green : T.text }}>{money(loan * r.pts / 100)}</td>
-                    {r.dominated ? (
+                    {r.isBase ? (
+                      <td colSpan={(showTax ? 7 : 5) + 2 + ROI_YEARS.length} style={{ ...cellBase, textAlign: "left" }}>
+                        <span style={{ padding: "3px 10px", borderRadius: 9999, background: T.blue, color: "#fff", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.08em", fontFamily: FONT }}>{Math.abs(r.pts) < 1e-9 ? "PAR" : "START"}</span>
+                        <span style={{ marginLeft: 8, color: T.textSecondary, fontSize: 12 }}>Starting rate. Every other row steps out from here, one rate at a time.</span>
+                      </td>
+                    ) : r.dominated ? (
                       <td colSpan={(showTax ? 7 : 5) + 2 + ROI_YEARS.length} style={{ ...cellBase, textAlign: "left", color: T.textTertiary }}>Skip: {fmtPct3(r.dominatedBy)} is a lower rate for less money</td>
                     ) : stepCells(r.step, prevRate)}
                     <td style={{ ...cellBase, paddingRight: 12 }}>{!r.dominated && (
                       <button onClick={() => applyRung(r)} title={`Use ${fmtPct3(r.rate)} in this Blueprint`} style={{ border: `1px solid ${T.blue}`, background: isSpot ? T.blue : "transparent", color: isSpot ? "#fff" : T.blue, borderRadius: 9999, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Use</button>
                     )}</td>
                   </tr>
+                  </React.Fragment>
                 );
               })}
               {/* Compare over multiple increments — the sheet's bottom row */}
@@ -393,7 +416,7 @@ export default function RateLadderContent(props) {
           ))}
         </div>
         <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.55, marginTop: 10, fontFamily: FONT }}>
-          Type rates and points straight into the first column; negative points are a lender credit. Each row is the ⅛ step from the rate above it (the next rate that isn't skipped). {isRefi ? "Points on a refinance deduct over the life of the loan, so no upfront write-off is credited." : "Points paid on a purchase deduct in the year you close; giving up a lender credit pays no points, so it gets no tax savings."} ROI at N years = (N years of savings − net cost) ÷ net cost. Check with your CPA.
+          Type rates and points straight into the first column; negative points are a lender credit. Par sits in the middle. Below it, each row is the step down from the rate above it (pay points, save monthly). Above it, each row is the step up from the rate below it (take a credit, pay more monthly); "lasts" is how long the credit covers the higher payment. {isRefi ? "Points on a refinance deduct over the life of the loan, so no upfront write-off is credited." : "Points paid on a purchase deduct in the year you close; giving up a lender credit pays no points, so it gets no tax savings."} ROI at N years = (N years of savings − net cost) ÷ net cost. Check with your CPA.
         </div>
       </Card>
 
@@ -402,9 +425,10 @@ export default function RateLadderContent(props) {
         <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: T.blue, fontFamily: FONT, padding: "8px 2px" }}>Pricing details &amp; chart</summary>
         <Card>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Best-value starting rate</span>
-            <select value={ladder.base ? ladder.base.idx : 0} onChange={(e) => patch({ baseIdx: +e.target.value })} aria-label="Starting rate"
+            <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Starting rate</span>
+            <select value={L.baseAuto === false ? (ladder.base ? ladder.base.idx : 0) : "auto"} onChange={(e) => e.target.value === "auto" ? patch({ baseAuto: true }) : patch({ baseIdx: +e.target.value, baseAuto: false })} aria-label="Starting rate"
               style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 10, padding: "6px 10px", color: T.text, fontSize: 12.5, fontWeight: 700, fontFamily: FONT }}>
+              <option value="auto">Par (automatic)</option>
               {rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)} · {ptsLabel(r.pts)}</option>)}
             </select>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 9999, background: T.pillBg, fontSize: 11, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>

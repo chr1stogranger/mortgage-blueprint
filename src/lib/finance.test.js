@@ -463,6 +463,22 @@ describe("rate ladder", () => {
     const pp = compareRungs({ rate: 6.875, pts: 0 }, { rate: 6.75, pts: 0.5 }, o);
     expect(pp.postTaxCost).toBeCloseTo(5200 * 0.76, 6);
   });
+  it("par in the middle: rungs above the base step toward it (credit lasts N months)", () => {
+    const rungs2 = [{ rate: 7.125, pts: -0.9 }, { rate: 7.0, pts: -0.5 }, { rate: 6.875, pts: 0 }, { rate: 6.75, pts: 0.5 }];
+    const L = computeRateLadder({ loan: 1040000, termYears: 30, rungs: rungs2, baseIdx: 2, holdMonths: 36, taxRate: 0 });
+    const [r7125, r7, par, r675] = L.rows;
+    expect(par.isBase).toBe(true);
+    expect(par.step).toBeNull();
+    expect(r7.stepDir).toBe("up");
+    expect(r7.stepFrom).toBe(6.875);
+    expect(r7.step.cost).toBeCloseTo(-5200, 6);
+    expect(Math.round(r7.step.breakeven)).toBe(60); // $5,200 ÷ $87.09/mo
+    expect(r7125.stepFrom).toBe(7.0);
+    expect(r675.stepDir).toBe("down");
+    expect(r675.stepFrom).toBe(6.875);
+    // 3-yr hold: the credit outlasts it, so the credit is the pick
+    expect(L.creditPick.rate).toBe(7.125);
+  });
   it("equity at hold: the lower rate has paid down more principal", () => {
     const r = computeRateLadder({ ...opts, holdMonths: 84 }).rows[4];
     expect(r.equityAtHold).toBeGreaterThan(4000);
@@ -477,8 +493,8 @@ describe("rate ladder", () => {
   });
   it("scaffold builds eighth-point rungs around par", () => {
     const s = scaffoldRateLadder(6.5);
-    expect(s.map(r => r.rate)).toEqual([6.75, 6.625, 6.5, 6.375, 6.25, 6.125, 6.0]);
-    expect(s[2].pts).toBe(0);
+    expect(s.map(r => r.rate)).toEqual([6.875, 6.75, 6.625, 6.5, 6.375, 6.25, 6.125]);
+    expect(s[3].pts).toBe(0); // par in the middle
     expect(s[0].pts).toBeLessThan(0);
   });
 });

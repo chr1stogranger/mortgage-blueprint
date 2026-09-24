@@ -51,6 +51,27 @@ export function resolveLadderTax(calc, L) {
 }
 
 /**
+ * Starting rate. Defaults to PAR — the rung priced closest to zero points
+ * (ties go to the no-credit side) — so the matrix centers on it: credits
+ * above, points below (Christo 2026-09-24). `baseAuto: false` means the LO
+ * picked one by hand; honor `baseIdx` then. Indexes the engine's sorted order.
+ */
+export function resolveBaseIdx(L) {
+  if (L?.baseAuto === false) return L.baseIdx || 0;
+  const sorted = (L?.rungs || [])
+    .filter(r => r && isFinite(+r.rate) && isFinite(+r.pts) && +r.rate > 0)
+    .map(r => ({ rate: +r.rate, pts: +r.pts }))
+    .sort((a, b) => b.rate - a.rate || a.pts - b.pts);
+  if (!sorted.length) return 0;
+  let best = 0;
+  sorted.forEach((r, i) => {
+    const d = Math.abs(r.pts), bd = Math.abs(sorted[best].pts);
+    if (d < bd - 1e-9 || (Math.abs(d - bd) < 1e-9 && r.pts >= 0 && sorted[best].pts < 0)) best = i;
+  });
+  return best;
+}
+
+/**
  * Everything a surface needs to render the ladder: computed rows, sweet spot,
  * tax basis, pricing context, and the LTV-drift flag.
  */
@@ -60,15 +81,16 @@ export function buildLadderView({ calc, term, isRefi, rateLadder }) {
   const tax = resolveLadderTax(calc, L);
   const holdYears = L.holdYears || 5;
   const ladder = computeRateLadder({
-    loan, termYears: term || 30, rungs: L.rungs, baseIdx: L.baseIdx || 0, holdMonths: holdYears * 12,
+    loan, termYears: term || 30, rungs: L.rungs, baseIdx: resolveBaseIdx(L), holdMonths: holdYears * 12,
     taxRate: tax.taxRate, deductPct: tax.deductPct, pointsDeductible: !isRefi,
   });
   const band = parseLtvBand(L.ltvBand);
   const ltvNow = calc?.ltv || 0;
   const ltvDrift = !!(band && ltvNow > 0 && (ltvNow < band[0] || ltvNow > band[1]));
   const spot = ladder.spot;
+  const creditPick = ladder.creditPick || null;
   const nextLower = spot ? ladder.rows.find(r => !r.dominated && r.rate < spot.rate) : null;
-  return { L, loan, tax, holdYears, ladder, ltvNow, ltvDrift, spot, nextLower, isRefi: !!isRefi };
+  return { L, loan, tax, holdYears, ladder, ltvNow, ltvDrift, spot, creditPick, nextLower, isRefi: !!isRefi };
 }
 
 /**
