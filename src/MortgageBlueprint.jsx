@@ -18,6 +18,7 @@ import {
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
+import { quickIncomeMonthly, miModeFor, borrowCostSeries, refiNetSavingsSeries } from "./lib/compareMetrics.js";
 import { gmailSendAvailable, warmGmailToken } from "./lib/gmailAuth.js";
 import { DARK, LIGHT, tintOver, isTranslucentColor } from "./lib/theme.js";
 import { normalizeArivePrefill } from "./lib/arivePrefill.js";
@@ -51,7 +52,7 @@ const LoPipelinePanel = lazyWithRetry(() => import("./components/LoPipelinePanel
 const IncomeSheet = lazyWithRetry(() => import("./IncomeSheet"));
 const DebtsSheet = lazyWithRetry(() => import("./DebtsSheet"));
 const AssetsSheet = lazyWithRetry(() => import("./AssetsSheet"));
-import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, TeamContent } from "./content/index.js";
+import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, TeamContent, CompareContent } from "./content/index.js";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
@@ -3488,8 +3489,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [dragScenario, setDragScenario] = useState(null);
  const [dragOverScenario, setDragOverScenario] = useState(null);
  // Quick metrics calculator for compare view
- const calcQuickMetrics = (s) => {
+ // `basis` carries the on-screen option's real closing costs so estimated
+ // columns share its fee basis (title, escrow, lender fees are ~identical
+ // across options in one file) instead of a flat 2.5% that made live-vs-est
+ // breakevens incomparable. Only discount points differ per option.
+ const calcQuickMetrics = (s, basis = null) => {
   if (!s) return null;
+  const costsFor = (loanAmt, refi) => (basis && basis.isRefi === !!refi && basis.closing > 0)
+   ? Math.max(0, basis.closing - (basis.points || 0) + loanAmt * (Number(s.discountPts) || 0) / 100)
+   : loanAmt * 0.025;
   const sp = s.salesPrice || 1000000;
   const dp = sp * (s.downPct || 20) / 100;
   const baseLoan = sp - dp;
@@ -3514,12 +3522,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const monthlyPayment = pi + monthlyTax + ins + mi + hoaM;
   const totalInt = pi * n - loan;
   // simplified cash to close
-  const closingCosts = loan * 0.025;
+  const closingCosts = costsFor(loan, false);
   const prepaids = yearlyTax * 0.4 + (s.annualIns || 1500) + (loan * (s.rate || 6.5) / 100 / 365 * 15);
   const cashToClose = dp + closingCosts + prepaids - (s.sellerCredit || 0) - (s.realtorCredit || 0);
   // simplified DTI (including REO with linked debts)
-  const incArr = s.incomes || [];
-  const monthlyInc = incArr.reduce((sum, inc) => sum + (inc.monthly || 0), 0) + (s.otherIncome || 0) + (s.otherIncome2 || 0);
+  // Same income rules as the live engine (was summing a nonexistent
+  // `inc.monthly`, so every non-active option's DTI read 0 — fixed 2026-09-23).
+  const monthlyInc = quickIncomeMonthly(s.incomes, VARIABLE_PAY_TYPES) + (s.otherIncome || 0) + (s.otherIncome2 || 0);
   const debtArr = s.debts || [];
   const reoArr = s.reos || [];
   // Identify linked debts — only exclude those linked to INVESTMENT REOs
@@ -3545,8 +3554,53 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const reoIncAdd = reoInvNet > 0 ? reoInvNet : 0;
   const reoDebtAdd = (reoInvNet < 0 ? Math.abs(reoInvNet) : 0) + reoPrimDebt;
   const qualInc = monthlyInc + reoIncAdd;
-  const dti = qualInc > 0 ? (monthlyPayment + monthlyDebts + reoDebtAdd) / qualInc : 0;
-  return { salesPrice: sp, downPct: s.downPct || 20, rate: s.rate || 6.5, term: s.term || 30, loanType: s.loanType || "Conventional", loan, pi, monthlyPayment, cashToClose, dti, totalInt, monthlyInc: qualInc, monthlyTax, ins, mi, hoaM, ltv };
+  const dtiFor = (housing) => qualInc > 0 ? (housing + monthlyDebts + reoDebtAdd) / qualInc : null;
+  // ── Refi option (not the one on screen): estimate against its current loan
+  // instead of running it through purchase math (Compare rebuild 2026-09-23).
+  if (s.isRefi) {
+   const curRate = Number(s.refiCurrentRate) || 0;
+   // No statement balance → work it out from the original note like the live
+   // engine's Flow 2 (amortize from the close date, net of the first-payment lag).
+   let curBal = Number(s.refiCurrentBalance) || 0;
+   let rem = Number(s.refiRemainingMonths) || 0;
+   const origAmt = Number(s.refiOriginalAmount) || 0, origTerm = Number(s.refiOriginalTerm) || 30;
+   if (curBal <= 0 && origAmt > 0 && s.refiClosedDate) {
+    const cd = new Date(s.refiClosedDate + "T00:00:00");
+    if (!isNaN(cd)) {
+     const now = new Date();
+     const elapsed = Math.max(0, (now.getFullYear() - cd.getFullYear()) * 12 + (now.getMonth() - cd.getMonth()) - 1); // 1 = REFI_FIRST_PMT_LAG (scoped inside the engine)
+     curBal = calcBalance(origAmt, curRate, origTerm, elapsed);
+     if (rem <= 0) rem = Math.max(0, origTerm * 12 - elapsed);
+    }
+   }
+   const curPI = (curBal > 0 && curRate > 0 && rem > 0) ? calcPI(curBal, curRate, rem / 12) : (Number(s.refiCurrentPayment) || 0);
+   const curMI = Number(s.refiCurrentMI) || 0;
+   const cashOut = s.refiPurpose === "Cash-Out" ? (Number(s.refiCashOut) || 0) : 0;
+   const newLoan = curBal + cashOut;
+   const value = Number(s.refiHomeValue) || 0;
+   const rLtv = value > 0 ? newLoan / value : 0;
+   const rRate = s.rate || 6.5, rTerm = s.term || 30, rType = s.loanType || "Conventional";
+   const newPI = calcPI(newLoan, rRate, rTerm);
+   const newMI = rType === "FHA" ? newLoan * 0.0055 / 12 : ((rType === "Conventional" && rLtv > 0.8) ? newLoan * 0.005 / 12 : 0);
+   const rTax = (Number(s.refiAnnualTax) || 0) / 12, rIns = (Number(s.refiAnnualIns) || 0) / 12;
+   const closing = costsFor(newLoan, true);
+   const savings = (curPI + curMI) - (newPI + newMI);
+   const payment = newPI + newMI + rTax + rIns;
+   const curRemainingInt = rem > 0 ? curPI * rem - curBal : null;
+   const newTotalInt = newPI * rTerm * 12 - newLoan;
+   return {
+    isRefi: true, rate: rRate, term: rTerm, loanType: rType,
+    monthlyPayment: payment, pi: newPI, mi: newMI, monthlyTax: rTax, ins: rIns, hoaM: 0,
+    curPiMi: curPI + curMI, savings, breakeven: savings > 0 ? Math.ceil(closing / savings) : null,
+    closingCosts: closing, cashOut: cashOut - closing, loan: newLoan, ltv: rLtv, rateDrop: curRate > 0 ? curRate - rRate : null,
+    intSaved: curRemainingInt == null ? null : curRemainingInt - newTotalInt,
+    dti: dtiFor(payment), monthlyInc: qualInc,
+    netSeries: refiNetSavingsSeries({ savings, closingCosts: closing, years: 10 }),
+   };
+  }
+  const miMode = miModeFor(s.loanType || "Conventional", ltv, s.downPct || 20);
+  return { isRefi: false, salesPrice: sp, downPct: s.downPct || 20, downAmt: dp, rate: s.rate || 6.5, term: s.term || 30, loanType: s.loanType || "Conventional", loan, pi, monthlyPayment, cashToClose, closingCosts, dti: dtiFor(monthlyPayment), totalInt, monthlyInc: qualInc, monthlyTax, ins, mi, miMode, hoaM, ltv,
+   costSeries: borrowCostSeries({ loan, rate: s.rate || 6.5, termYears: s.term || 30, miMonthly: mi, miMode, value: sp, closingCosts }) };
  };
  // Load all scenarios for compare view
  const loadCompareData = async () => {
@@ -3556,7 +3610,26 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // cloud mode reads non-active states from the in-memory cloud rows).
    if (!scenariosAreCloud) { try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {} }
    const results = [];
-   const liveMetrics = { salesPrice, downPct, rate, term, loanType, loan: calc.loan, pi: calc.pi, monthlyPayment: calc.displayPayment, cashToClose: calc.cashToClose, dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome, monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, hoaM: hoa, ltv: calc.ltv };
+   // Live figures for the option on screen — same shape calcQuickMetrics
+   // returns, so every column of the Compare table reads the same keys.
+   const liveMiMode = miModeFor(loanType, calc.ltv, downPct);
+   const liveMetrics = isRefi ? {
+    isRefi: true, rate, term, loanType,
+    monthlyPayment: calc.refiNewTotalPmt, pi: calc.refiNewPi, mi: calc.refiNewMI, monthlyTax: calc.refiNewMonthlyTax, ins: calc.refiNewMonthlyIns, hoaM: 0,
+    curPiMi: (calc.refiEffPI || 0) + (calc.refiCurrentMI || 0), savings: calc.refiPiMiSavings,
+    breakeven: calc.refiBreakevenMonths > 0 ? calc.refiBreakevenMonths : null,
+    closingCosts: calc.totalClosingCosts, cashOut: calc.refiNetCashInHand, loan: calc.refiNewLoanAmt, ltv: calc.refiNewLTV,
+    rateDrop: calc.refiRateDrop, intSaved: calc.refiIntSavings, dti: calc.yourDTI, monthlyInc: calc.qualifyingIncome,
+    netSeries: refiNetSavingsSeries({ savings: calc.refiPiMiSavings, closingCosts: calc.totalClosingCosts, years: 10 }),
+   } : {
+    isRefi: false, salesPrice, downPct, downAmt: calc.dp, rate, term, loanType, loan: calc.loan, pi: calc.pi,
+    // Full PITI + HOA, same basis as the estimated columns (displayPayment
+    // drops tax/ins when escrow is off, which would skew the comparison).
+    monthlyPayment: calc.housingPayment, cashToClose: calc.cashToClose, closingCosts: calc.totalClosingCosts,
+    dti: calc.yourDTI, totalInt: calc.totalIntStandard, monthlyInc: calc.qualifyingIncome,
+    monthlyTax: calc.monthlyTax, ins: calc.ins, mi: calc.monthlyMI, miMode: liveMiMode, hoaM: hoa, ltv: calc.ltv,
+    costSeries: borrowCostSeries({ loan: calc.loan, rate, termYears: term, miMonthly: calc.monthlyMI, miMode: liveMiMode, value: salesPrice, closingCosts: calc.totalClosingCosts }),
+   };
    // Build STRICTLY from the current scenario list so a just-deleted scenario
    // can't ghost into the cards. The active scenario (scenarioName) uses live
    // calc values; the rest load from storage (local) or the cloud row (cloud).
@@ -3576,7 +3649,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        s = (res && res.value) ? JSON.parse(res.value) : null;
       }
       if (s) {
-       const m = calcQuickMetrics(s);
+       const m = calcQuickMetrics(s, { isRefi, closing: calc.totalClosingCosts, points: calc.pointsCost });
        if (m) results.push({ name, metrics: m, isCurrent: false });
       }
      } catch(e) { /* skip broken scenarios */ }
@@ -9539,259 +9612,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   </Card>
  </>)}
 </>)}
-{tab === "compare" && (<>
- {/* ── Scenario Manager ── */}
- <Sec title="Your Loan Options" action="+ New" onAction={() => setNewScenarioName("New Option")}>
-  {newScenarioName !== "" && (
-   <Card>
-    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, marginBottom: 8 }}>Create New Loan Option</div>
-    <TextInp label="Name" value={newScenarioName} onChange={setNewScenarioName} placeholder="e.g. 3BR Condo Oakland" />
-    <div style={{ display: "flex", gap: 8 }}>
-     <button onClick={() => { createScenario(newScenarioName); loadCompareData(); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Create</button>
-     <button onClick={() => setNewScenarioName("")} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 12, padding: "12px 0", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-    </div>
-   </Card>
-  )}
-  {scenarioList.map((name) => (
-   <Card key={name} onClick={() => name !== scenarioName && editingScenarioName !== name ? switchScenario(name) : null}
-    style={{ border: name === scenarioName ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, cursor: name === scenarioName || editingScenarioName === name ? "default" : "pointer" }}>
-    {editingScenarioName === name ? (
-     <div>
-      <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, marginBottom: 4 }}>Rename Loan Option</div>
-      <input value={editScenarioValue} onChange={e => setEditScenarioValue(e.target.value)}
-       onKeyDown={e => { if (e.key === "Enter") { renameScenario(name, editScenarioValue); setEditingScenarioName(null); } if (e.key === "Escape") setEditingScenarioName(null); }}
-       autoFocus
-       style={{ width: "100%", background: T.inputBg, border: `1px solid ${T.blue}`, borderRadius: 8, padding: "10px 12px", fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
-      <div style={{ display: "flex", gap: 6 }}>
-       <button onClick={() => { renameScenario(name, editScenarioValue); setEditingScenarioName(null); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Save</button>
-       <button onClick={() => setEditingScenarioName(null)} style={{ flex: 1, background: T.inputBg, color: T.textSecondary, border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
-      </div>
-     </div>
-    ) : (
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ flex: 1 }}>
-       <div style={{ fontSize: 15, fontWeight: 600, color: name === scenarioName ? T.blue : T.text }}>{name}</div>
-       {name === scenarioName ? <div style={{ fontSize: 12, color: T.green, fontWeight: 500, marginTop: 2 }}>Active. Editing this one</div> : <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 2 }}>Tap to switch</div>}
-      </div>
-      {name === scenarioName && (
-       <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={(e) => { e.stopPropagation(); setEditingScenarioName(name); setEditScenarioValue(name); }} style={{ background: T.inputBg, border: "none", borderRadius: 9999, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.text, cursor: "pointer", fontFamily: FONT }}>Rename</button>
-        <button onClick={(e) => { e.stopPropagation(); duplicateScenario(); setTimeout(loadCompareData, 500); }} style={{ background: T.inputBg, border: "none", borderRadius: 9999, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.blue, cursor: "pointer", fontFamily: FONT }}>Duplicate</button>
-        {scenarioList.length > 1 && <button onClick={(e) => { e.stopPropagation(); deleteScenario(name); setTimeout(loadCompareData, 500); }} style={{ background: T.errorBg, border: "none", borderRadius: 9999, padding: "6px 10px", fontSize: 12, fontWeight: 500, color: T.red, cursor: "pointer", fontFamily: FONT }}>Delete</button>}
-       </div>
-      )}
-     </div>
-    )}
-   </Card>
-  ))}
-  <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, marginTop: 4 }}>Tap an option to switch to it, then edit it on the Overview tab. Come back here to see them side by side.</div>
- </Sec>
-
- <div style={{ marginTop: 20 }}>
-  <Hero value={<Icon name="bar-chart" size={34} />} label="Compare Loan Options" color={T.blue} sub={`${scenarioList.length} option${scenarioList.length !== 1 ? "s" : ""}`} />
- </div>
- {/* ── Comparison Data ── */}
- {compareLoading ? (
-  <Card><div style={{ textAlign: "center", padding: 20, color: T.textSecondary }}>Loading comparison...</div></Card>
- ) : compareData.length <= 1 ? (
-  <Card style={{ marginTop: 8 }}>
-   <div style={{ textAlign: "center", padding: 20 }}>
-    <div style={{ fontSize: 32, marginBottom: 8 }}></div>
-    <div style={{ fontSize: 14, fontWeight: 600, color: T.textSecondary }}>Create a second loan option above to see a side-by-side comparison</div>
-    <div style={{ fontSize: 12, color: T.textTertiary, marginTop: 6 }}>Try a different price, rate, loan type, or down payment to see which works best for you.</div>
-   </div>
-  </Card>
- ) : (<>
-  {/* Comparison cards — side-by-side on desktop, scrollable on mobile */}
-  <div style={isDesktop ? { display: "grid", gridTemplateColumns: `repeat(${Math.min(compareData.length, 4)}, 1fr)`, gap: 14, margin: "12px 0" } : { overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "12px -6px", padding: "0 6px" }}>
-   <div style={isDesktop ? { display: "contents" } : { display: "flex", gap: 10, minWidth: "max-content" }}>
-    {compareData.map((sc, i) => {
-     const m = sc.metrics;
-     const best = (field, dir = "low") => {
-      const vals = compareData.map(s => s.metrics[field]).filter(v => v != null && !isNaN(v));
-      return dir === "low" ? m[field] <= Math.min(...vals) : m[field] >= Math.max(...vals);
-     };
-     return (
-      <div key={i} style={isDesktop ? { background: T.card, borderRadius: 16, border: sc.isCurrent ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, padding: 16, boxShadow: T.cardShadow } : { minWidth: 200, maxWidth: 240, flex: "0 0 auto", background: T.card, borderRadius: 16, border: sc.isCurrent ? `2px solid ${T.blue}` : `1px solid ${T.cardBorder}`, padding: 14, boxShadow: T.cardShadow }}>
-       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-        {sc.isCurrent && <div style={{ width: 8, height: 8, borderRadius: 4, background: T.blue, flexShrink: 0 }} />}
-        <div style={{ fontSize: 14, fontWeight: 700, color: sc.isCurrent ? T.blue : T.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sc.name}</div>
-       </div>
-       <div style={{ fontSize: 11, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>{m.loanType} · {m.term}yr · {m.rate}%</div>
-       <div style={{ fontSize: 24, fontWeight: 800, color: best("monthlyPayment") ? T.green : T.text, fontFamily: FONT, marginBottom: 2 }}>{fmt(m.monthlyPayment)}</div>
-       <div style={{ fontSize: 11, color: T.textTertiary, marginBottom: 14 }}>Monthly Payment</div>
-       {[
-        ["Purchase Price", fmt(m.salesPrice), null],
-        ["Down Payment", `${m.downPct}%`, null],
-        ["Loan Amount", fmt(m.loan), null],
-        ["Cash to Close", fmt(m.cashToClose), best("cashToClose") ? T.green : null],
-        ["DTI", m.dti != null ? (m.dti * 100).toFixed(1) + "%" : "—", m.dti != null ? (m.dti <= 0.43 ? T.green : m.dti <= 0.5 ? T.yellow : T.red) : null],
-        ["LTV", (m.ltv * 100).toFixed(1) + "%", null],
-        ["Total Interest", fmt(m.totalInt), best("totalInt") ? T.green : null],
-       ].map(([label, val, color], ri) => (
-        <div key={ri} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderTop: ri === 0 ? `1px solid ${T.separator}` : "none" }}>
-         <span style={{ fontSize: 12, color: T.textSecondary }}>{label}</span>
-         <span style={{ fontSize: 12, fontWeight: 600, color: color || T.text }}>{PRIVACY ? "$•••••" : val}</span>
-        </div>
-       ))}
-      </div>
-     );
-    })}
-   </div>
-  </div>
-  {/* Winner Summary */}
-  {compareData.length >= 2 && (() => {
-   const sorted = [...compareData].sort((a, b) => a.metrics.monthlyPayment - b.metrics.monthlyPayment);
-   const lowest = sorted[0];
-   const highest = sorted[sorted.length - 1];
-   const diff = highest.metrics.monthlyPayment - lowest.metrics.monthlyPayment;
-   const lowestCash = [...compareData].sort((a, b) => a.metrics.cashToClose - b.metrics.cashToClose)[0];
-   const lowestInt = [...compareData].sort((a, b) => a.metrics.totalInt - b.metrics.totalInt)[0];
-   return (
-   <Card style={{ background: `${T.green}08`, border: `1px solid ${T.green}22`, marginTop: 12 }}>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.green, marginBottom: 10 }}>Quick Verdict</div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-     {[
-      ["Lowest Payment", lowest.name, fmt(lowest.metrics.monthlyPayment) + "/mo"],
-      ["Least Cash Needed", lowestCash.name, fmt(lowestCash.metrics.cashToClose)],
-      ["Least Interest", lowestInt.name, fmt(lowestInt.metrics.totalInt)],
-     ].map(([label, winner, val], i) => (
-      <div key={i} style={{ textAlign: "center" }}>
-       <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
-       <div style={{ fontSize: 13, fontWeight: 700, color: T.green, fontFamily: FONT }}>{val}</div>
-       <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{winner}</div>
-      </div>
-     ))}
-    </div>
-    {diff > 0 && (
-     <div style={{ borderTop: `1px solid ${T.green}22`, marginTop: 12, paddingTop: 10 }}>
-      <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6, textAlign: "center" }}>
-       <strong style={{ color: T.green }}>{lowest.name}</strong> saves <strong style={{ color: T.green }}>{fmt(diff)}/mo</strong> ({fmt(diff * 12)}/yr) over <strong>{highest.name}</strong>
-       {diff * 360 > 1000 && <span>. That's <strong style={{ color: T.green }}>{fmt(diff * 360)}</strong> over 30 years</span>}
-      </div>
-     </div>
-    )}
-   </Card>);
-  })()}
-  {/* Metric comparison rows */}
-  <Sec title="Payment Breakdown">
-   <Card>
-    <div style={{ overflowX: "auto" }}>
-     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-      <thead>
-       <tr style={{ borderBottom: `2px solid ${T.separator}` }}>
-        <th style={{ textAlign: "left", padding: "8px 6px", color: T.textSecondary, fontWeight: 500 }}>Component</th>
-        {compareData.map((sc, i) => <th key={i} style={{ textAlign: "right", padding: "8px 6px", color: sc.isCurrent ? T.blue : T.text, fontWeight: 600, whiteSpace: "nowrap" }}>{sc.name.length > 12 ? sc.name.slice(0,12) + "…" : sc.name}</th>)}
-       </tr>
-      </thead>
-      <tbody>
-       {["P&I", "Tax", "Insurance", "MI/PMI", "HOA", "Total"].map((row, ri) => (
-        <tr key={ri} style={{ borderBottom: ri < 5 ? `1px solid ${T.separator}` : "none", background: ri === 5 ? `${T.blue}08` : "transparent" }}>
-         <td style={{ padding: "7px 6px", color: ri === 5 ? T.text : T.textSecondary, fontWeight: ri === 5 ? 600 : 400 }}>{row}</td>
-         {compareData.map((sc, ci) => {
-          const m = sc.metrics;
-          const vals = [m.pi, m.monthlyTax, m.ins, m.mi, m.hoaM, m.monthlyPayment];
-          return <td key={ci} style={{ textAlign: "right", padding: "7px 6px", fontWeight: ri === 5 ? 700 : 500, color: ri === 5 ? (sc.isCurrent ? T.blue : T.text) : T.text }}>{fmt(vals[ri])}</td>;
-         })}
-        </tr>
-       ))}
-      </tbody>
-     </table>
-    </div>
-   </Card>
-  </Sec>
-  <Sec title="Loan Details">
-   <Card>
-    <div style={{ overflowX: "auto" }}>
-     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-      <thead>
-       <tr style={{ borderBottom: `2px solid ${T.separator}` }}>
-        <th style={{ textAlign: "left", padding: "8px 6px", color: T.textSecondary, fontWeight: 500 }}>Detail</th>
-        {compareData.map((sc, i) => <th key={i} style={{ textAlign: "right", padding: "8px 6px", color: sc.isCurrent ? T.blue : T.text, fontWeight: 600, whiteSpace: "nowrap" }}>{sc.name.length > 12 ? sc.name.slice(0,12) + "…" : sc.name}</th>)}
-       </tr>
-      </thead>
-      <tbody>
-       {[
-        ["Price", d => fmt(d.salesPrice)],
-        ["Down %", d => d.downPct + "%"],
-        ["Down $", d => fmt(d.salesPrice * d.downPct / 100)],
-        ["Loan", d => fmt(d.loan)],
-        ["Rate", d => d.rate + "%"],
-        ["Term", d => d.term + " yr"],
-        ["Type", d => d.loanType],
-        ["LTV", d => (d.ltv * 100).toFixed(1) + "%"],
-        ["DTI", d => d.dti != null ? (d.dti * 100).toFixed(1) + "%" : "—"],
-        ["Cash to Close", d => fmt(d.cashToClose)],
-       ].map(([label, fn], ri) => {
-        const vals = compareData.map(sc => fn(sc.metrics));
-        const isTotal = label === "Cash to Close";
-        return (
-         <tr key={ri} style={{ borderBottom: ri < 9 ? `1px solid ${T.separator}` : "none", background: isTotal ? `${T.blue}08` : "transparent" }}>
-          <td style={{ padding: "7px 6px", color: isTotal ? T.text : T.textSecondary, fontWeight: isTotal ? 600 : 400 }}>{label}</td>
-          {compareData.map((sc, ci) => <td key={ci} style={{ textAlign: "right", padding: "7px 6px", fontWeight: isTotal ? 700 : 500, color: isTotal ? (sc.isCurrent ? T.blue : T.text) : T.text }}>{vals[ci]}</td>)}
-         </tr>
-        );
-       })}
-      </tbody>
-     </table>
-    </div>
-   </Card>
-  </Sec>
-  <Sec title="Total Cost of Ownership">
-   <Card>
-    <div style={{ overflowX: "auto" }}>
-     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-      <thead>
-       <tr style={{ borderBottom: `2px solid ${T.separator}` }}>
-        <th style={{ textAlign: "left", padding: "8px 6px", color: T.textSecondary, fontWeight: 500 }}>Cost</th>
-        {compareData.map((sc, i) => <th key={i} style={{ textAlign: "right", padding: "8px 6px", color: sc.isCurrent ? T.blue : T.text, fontWeight: 600, whiteSpace: "nowrap" }}>{sc.name.length > 12 ? sc.name.slice(0,12) + "…" : sc.name}</th>)}
-       </tr>
-      </thead>
-      <tbody>
-       {[
-        ["Total Interest", d => fmt(d.totalInt), "low"],
-        ["Cash to Close", d => fmt(d.cashToClose), "low"],
-        ["5yr Payments", d => fmt(d.monthlyPayment * 60), "low"],
-        ["10yr Payments", d => fmt(d.monthlyPayment * 120), "low"],
-        ["Lifetime Payments", d => fmt(d.monthlyPayment * d.term * 12), "low"],
-       ].map(([label, fn, dir], ri) => {
-        const rawVals = compareData.map(sc => fn(sc.metrics));
-        const numVals = compareData.map(sc => {
-         const s = fn(sc.metrics).replace(/[$,]/g, "");
-         return parseFloat(s) || 0;
-        });
-        const bestVal = dir === "low" ? Math.min(...numVals) : Math.max(...numVals);
-        const isTotal = label === "Lifetime Payments";
-        return (
-         <tr key={ri} style={{ borderBottom: ri < 4 ? `1px solid ${T.separator}` : "none", background: isTotal ? `${T.blue}08` : "transparent" }}>
-          <td style={{ padding: "7px 6px", color: isTotal ? T.text : T.textSecondary, fontWeight: isTotal ? 600 : 400 }}>{label}</td>
-          {compareData.map((sc, ci) => (
-           <td key={ci} style={{ textAlign: "right", padding: "7px 6px", fontWeight: isTotal ? 700 : 500, color: numVals[ci] === bestVal ? T.green : (isTotal ? T.text : T.text) }}>
-            {rawVals[ci]}
-           </td>
-          ))}
-         </tr>
-        );
-       })}
-      </tbody>
-     </table>
-    </div>
-   </Card>
-  </Sec>
-  <Card style={{ marginTop: 8, padding: 14 }}>
-   <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, textAlign: "center" }}>Current scenario metrics use exact calculations. Other scenarios use simplified estimates for quick comparison. Switch to a scenario in Setup for full detail.</div>
-  </Card>
-  <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-   <button onClick={() => { setNewScenarioName("New Option"); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ flex: 1, background: T.blue, color: "#FFF", border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-    <span style={{ fontSize: 18 }}>+</span> Build Another Option
-   </button>
-   <button onClick={() => { duplicateScenario(); setTimeout(loadCompareData, 500); }} style={{ background: `${T.blue}12`, color: T.blue, border: `1px solid ${T.blue}25`, borderRadius: 14, padding: "14px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
-    Duplicate
-   </button>
-  </div>
-  {/* End of Compare tab */}
- </>)}
-</>)}
+{tab === "compare" && (
+ <CompareContent T={T} isDesktop={isDesktop} fmt={fmt} pct={pct} privacy={privacyMode}
+  compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName}
+  switchScenario={switchScenario} isRefi={isRefi}
+  onAddOption={async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
+)}
 {tab === "settings" && (<>
  <div style={{ marginTop: 20 }}>
   <Hero value="Settings" label="Preferences & info" small />

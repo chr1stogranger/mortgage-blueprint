@@ -20,3 +20,4 @@ export const Prop19Content = lazyWithRetry(() => import("./Prop19Content"));
 export const RateLadderContent = lazyWithRetry(() => import("./RateLadderContent"));
 export const VaResidualContent = lazyWithRetry(() => import("./VaResidualContent"));
 export const TeamContent = lazyWithRetry(() => import("./TeamContent"));
+export const CompareContent = lazyWithRetry(() => import("./CompareContent"));
