@@ -2864,6 +2864,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
   refiHasMaturity, refiMaturityDate, refiPayoffFees, refiPayoffDebts, showRefi3, debtFree,
   darkMode, loaded, scenarioName]);
+
  // ── Blueprint switcher (left panel): client callbacks + open helper ──
  const borrowerPickerCallbacks = {
   onSelect: async (b) => {
@@ -6206,6 +6207,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    intSaved, monthsSaved, lastPayDate, closeDate, firstPayDate, mr, np, extra,
   };
  }, [salesPrice, downPct, rate, term, loanType, vaUsage, propType, loanPurpose, city, propertyState, propertyCounty, countyLimitsFor, hoa, annualIns, includeEscrow, subjectRentalIncome, assessedLand, assessedImprovements, rentalSharePctOverride, schedEVacancyPct, schedEMgmtPct,
+
   propTaxMode, taxBaseRateOverride, fixedAssessments, taxExemptionOverride, taxRateLocked, taxExemptionLocked,
   transferTaxCity, transferTaxSplit, transferTaxCountySplit, discountPts, buydownType, adminFee, lenderWireFee, underwritingFee, processingFee, appraisalFee, creditReportFee, floodCertFee, mersFee, taxServiceFee, titleInsurance, titleSearch, settlementFee, escrowFee, courierFee, loanTieInFee, notaryFee, envProtectionLien, recordingFee, lenderCredit, sellerCredit, realtorCredit, emd, emdPct, emdPaid, emdLocked, emdFlat,
   customFees, hiddenFees,
@@ -6222,6 +6224,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   refiThirdLien, refiThirdKind, refiThirdBalance, refiThirdRate, refiThirdPlan, refiThirdPmtOverride,
   refiModified, refiPrepayPenalty, refiExtraCadence, refiExtraOnceDate, refiEscrowUnsure,
   refiHasMaturity, refiMaturityDate, refiPayoffDebts, debtFree]);
+
+ // Keep "What Can I Afford?" in step with the calculator (Christo 2026-09-24).
+ // The tab-change sync above runs once when Overview mounts, often before the
+ // Blueprint has loaded, so the affordability panel priced at the 6.5% default
+ // and stale income/debts/cash ($9,831/mo vs the calculator's $10,461). Re-sync
+ // whenever the calculator's inputs change.
+ React.useEffect(() => {
+  if (calc.qualifyingIncome > 0) setAffordIncome(Math.round(calc.qualifyingIncome));
+  setAffordDebts(Math.round((calc.totalMonthlyDebts || 0) + (calc.reoNegativeDebt || 0)));
+  if (calc.totalForClosing > 0) setAffordDown(calc.totalForClosing);
+  if (rate > 0) setAffordRate(rate);
+  if (term > 0) setAffordTerm(term);
+  if (loanType) { setAffordLoanType(loanType); setAffordTargetDTI(loanType === "FHA" ? 56.99 : loanType === "VA" ? 60 : loanType === "Jumbo" ? 43 : 50); }
+ }, [calc.qualifyingIncome, calc.totalMonthlyDebts, calc.reoNegativeDebt, calc.totalForClosing, rate, term, loanType]);
 
  // ── Live PDF preview: re-render the actual Refi Summary as numbers settle ──
  // Debounced — @react-pdf renders cost a few hundred ms, so wait for typing

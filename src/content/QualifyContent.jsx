@@ -454,6 +454,13 @@ export default function QualifyContent(props) {
   if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
   const r = (affordRate / 100) / 12;
   const n = affordTerm * 12;
+  // Price the escrow the way the calculator does (Christo 2026-09-24): the
+  // flat 1.25% tax + 0.35% insurance guesses priced $1.648M at $10,086/mo
+  // while the calculator said $10,461. Tax scales with price at this
+  // scenario's effective rate; insurance and HOA carry over as entered.
+  const effTaxRate = salesPrice > 0 && calc.monthlyTax > 0 ? (calc.monthlyTax * 12) / salesPrice : 0.0125;
+  const insMo = calc.ins > 0 ? calc.ins : null;
+  const hoaMo = Math.max(0, (calc.housingPayment || 0) - (calc.pi || 0) - (calc.monthlyTax || 0) - (calc.ins || 0) - (calc.monthlyMI || 0));
   // Dynamic loan program: if loan > conforming limit, switch to Jumbo rules
   const getProgram = (price, dpAmt) => {
    const loan = price - dpAmt;
@@ -481,13 +488,13 @@ export default function QualifyContent(props) {
    const vaFF = prog.vaFF * actualLoan;
    const totalLoan = actualLoan + fhaUp + vaFF;
    const pi = r > 0 ? totalLoan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : totalLoan / n;
-   const tax = price * 0.0125 / 12;
-   const ins = Math.max(1200, price * 0.0035) / 12;
+   const tax = price * effTaxRate / 12;
+   const ins = insMo ?? Math.max(1200, price * 0.0035) / 12;
    let mi = 0;
    if (prog.type === "FHA") mi = totalLoan * prog.miRate / 12;
    else if (prog.type !== "VA" && prog.type !== "Jumbo" && ltv > 0.8) mi = totalLoan * 0.005 / 12;
    const maxPmt = affordIncome * (prog.maxDTI / 100) - affordDebts;
-   return { dp: actualDP, loan: actualLoan, totalLoan, ltv, pi, tax, ins, mi, fhaUp, vaFF, total: pi + tax + ins + mi, prog, maxPmt, isJumbo: prog.type === "Jumbo" && affordLoanType !== "Jumbo" };
+   return { dp: actualDP, loan: actualLoan, totalLoan, ltv, pi, tax, ins, mi, fhaUp, vaFF, total: pi + tax + ins + mi + hoaMo, prog, maxPmt, isJumbo: prog.type === "Jumbo" && affordLoanType !== "Jumbo" };
   };
   // Binary search: max price where total payment fits within the program's DTI limit
   const jumboDPmax = Math.floor(affordDown / 0.20);
@@ -509,6 +516,13 @@ export default function QualifyContent(props) {
   const totalPmt = result.total;
   const dpPct = maxPrice > 0 ? (actualDP / maxPrice * 100) : 0;
   const actualDTI = affordIncome > 0 ? (totalPmt + affordDebts) / affordIncome : 0;
+  // What stops the price going higher? Step $5k past the max and see which
+  // rule breaks: the loan crossing into Jumbo (20% down, 43% DTI), running
+  // out of down payment, or the DTI cap itself.
+  const nextUp = calcPmt(maxPrice + 5000);
+  const limitedBy = !nextUp ? "cash"
+   : (!hitsJumbo && nextUp.prog.type === "Jumbo" && affordLoanType !== "Jumbo") ? "jumbo"
+   : "dti";
   // Also find max conforming price (before Jumbo kicks in)
   let maxConfPrice = 0;
   if (hitsJumbo) {
@@ -533,7 +547,12 @@ export default function QualifyContent(props) {
      <div style={{ textAlign: "center", padding: "14px 0" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: 1.5 }}>You Can Afford Up To</div>
       <div style={{ fontSize: isDesktop ? 48 : 40, fontWeight: 800, color: "#fff", fontFamily: FONT, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "8px 0" }}>{fmt(maxPrice)}</div>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)" }}>with {fmt(actualDP)} down ({dpPct.toFixed(1)}%) · {fmt(loanAmt)} loan</div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)" }}>with {fmt(actualDP)} down ({dpPct.toFixed(1)}%) · {fmt(loanAmt)} loan · {fmt(totalPmt)}/mo · {(actualDTI * 100).toFixed(1)}% DTI</div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", marginTop: 8, maxWidth: 520, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+       {limitedBy === "jumbo" ? <>Capped by the <b>{fmt(confLimit)}</b> high-balance loan limit, not DTI. A bigger loan is Jumbo: 20% down and a 43% max DTI, which this income doesn't clear.</>
+        : limitedBy === "cash" ? <>Capped by the down payment: a higher price needs more than {fmt(affordDown)} down for this loan type.</>
+        : <>Capped by the {(finalProg.maxDTI).toFixed(finalProg.maxDTI % 1 ? 2 : 0)}% max DTI for {finalProg.type}.</>}
+      </div>
       {hitsJumbo && (
        <div style={{ marginTop: 12, padding: "8px 14px", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, display: "inline-block" }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Jumbo Loan Territory</div>

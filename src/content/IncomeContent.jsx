@@ -546,10 +546,12 @@ function ComponentRow({
       onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
       title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
       style={{
-        width: 26, height: 26, borderRadius: 7, padding: 0, flexShrink: 0,
-        background: `${T.orange}10`,
-        border: `1px solid ${T.orange}33`,
-        color: T.orange, fontSize: 15, fontWeight: 700,
+        // Plain chevron, same as the employer / other-income rows (Christo
+        // 2026-09-24: "make the bonus averaging arrow match the others").
+        width: 28, height: 28, padding: 0, flexShrink: 0,
+        background: "transparent",
+        border: "none",
+        color: T.textSecondary, fontSize: 18,
         cursor: "pointer", display: "flex",
         alignItems: "center", justifyContent: "center",
         transform: `rotate(${isExpanded ? 0 : -90}deg)`,
