@@ -38,12 +38,14 @@ function Band({ T, band, small }) {
 
 // Tiny numeric cell — commits on blur/Enter so a half-typed "6." never
 // re-sorts the ladder under the cursor.
-function NumCell({ T, value, onCommit, suffix, width = 78, step = 0.125, ariaLabel }) {
+function NumCell({ T, value, onCommit, suffix, width = 78, step = 0.125, ariaLabel, decimals = null }) {
   const [edit, setEdit] = useState(null);
+  // At rest, show sheet precision (7.000 / −0.500); editing shows the raw value.
+  const shown = decimals !== null && isFinite(+value) ? (+value).toFixed(decimals) : value;
   const commit = () => { if (edit === null) return; const n = parseFloat(edit); if (isFinite(n)) onCommit(n); setEdit(null); };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-      <input aria-label={ariaLabel} type="text" inputMode="decimal" value={edit === null ? value : edit}
+      <input aria-label={ariaLabel} type="text" inputMode="decimal" value={edit === null ? shown : edit}
         onFocus={() => setEdit(String(value))} onChange={(e) => setEdit(e.target.value)} onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "ArrowUp") { e.preventDefault(); onCommit(+(value + step).toFixed(3)); } if (e.key === "ArrowDown") { e.preventDefault(); onCommit(+(value - step).toFixed(3)); } }}
         style={{ width, background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8, padding: "5px 8px", color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT, textAlign: "right", outline: "none" }} />
@@ -161,7 +163,6 @@ export default function RateLadderContent(props) {
   const taxRate = tax.taxRate, deductPct = tax.deductPct, taxLabel = tax.label, taxNote = tax.note;
 
   const [cmp, setCmp] = useState({ a: 0, b: -1 });
-  const [editing, setEditing] = useState(rungs.length === 0);
 
   // ── Ladder editing (sorted rows index the SAME order finance.js sorts, so
   //    idx maps back to a rung by value, not position) ──
@@ -212,250 +213,216 @@ export default function RateLadderContent(props) {
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
           <Pill T={T} primary onClick={scaffold}>Scaffold around {fmtPct3(rate || 6.5)}</Pill>
-          <Pill T={T} onClick={() => { patch({ rungs: [{ rate: rate || 6.5, pts: 0 }], baseIdx: 0 }); setEditing(true); }}>Start from par</Pill>
+          <Pill T={T} onClick={() => { patch({ rungs: [{ rate: rate || 6.5, pts: 0 }], baseIdx: 0 }); }}>Start from par</Pill>
         </div>
       </Card>
     );
   }
 
+  // ── Matrix helpers (Christo 2026-09-24: "like my spreadsheet") ──
+  // Every row compares to the rate one step above it — the sheet's "Compare
+  // to" column — via finance.js's marginal `step`. ROI at N years is the
+  // sheet's (N·monthly savings − net cost) ÷ net cost.
+  const termMonths = (term || 30) * 12;
+  // The sheet's 5/10/20/30 plus the slider's hold, highlighted.
+  const ROI_YEARS = [...new Set([5, 10, 20, 30, holdYears])].sort((a, b) => a - b);
+  const roiAt = (v, years) => (v && v.netCost > 0 ? (Math.min(years * 12, termMonths) * v.netDelta - v.netCost) / v.netCost : null);
+  const pctCell = (x) => (x === null || !isFinite(x) ? "—" : `${(x * 100).toFixed(1)}%`);
+  const showTax = taxRate > 0;
+  const BAND_BG = (key) => ({ free: `${T.green}40`, nobrainer: `${T.green}40`, sense: `${T.green}1f`, situational: `${T.orange}2e`, hold: `${T.red}24` }[key] || "transparent");
+  const rows = ladder.rows;
+  const [cmpA, setCmpA] = [cmp.a, (a) => setCmp({ ...cmp, a })];
+  const ai = Math.min(cmpA, rows.length - 1);
+  const bi = cmp.b < 0 ? (spot ? spot.idx : rows.length - 1) : Math.min(cmp.b, rows.length - 1);
+  const multi = rows.length > 1 ? compareRungs(rows[ai], rows[bi], { loan, termYears: term || 30, taxRate, deductPct, pointsDeductible: !isRefi, holdMonths: holdYears * 12 }) : null;
+
+  const cellBase = { padding: "6px 5px", borderBottom: `1px solid ${T.separator}`, whiteSpace: "nowrap", fontFamily: FONT, fontSize: 12, textAlign: "right", color: T.text };
+  const grp = (label, span, color) => (
+    <th colSpan={span} style={{ padding: "6px 8px", background: `${color}14`, borderBottom: `1px solid ${color}40`, textAlign: "center" }}>
+      <Overline T={T} color={color}>{label}</Overline>
+    </th>
+  );
+  const hd = (label, left) => (
+    <th style={{ ...cellBase, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textTertiary, textAlign: left ? "left" : "right", verticalAlign: "bottom", whiteSpace: "normal", lineHeight: 1.25 }}>{label}</th>
+  );
+  const stickyBg = (bg) => ({ position: "sticky", left: 0, zIndex: 1, background: bg || T.card });
+  const stepCells = (v, prevRate, prevSel) => {
+    const credit = v && v.cost < 0;
+    const be = v ? v.breakeven : null;
+    return (<>
+      <td style={{ ...cellBase, color: T.textSecondary }}>{prevSel || (prevRate !== null ? fmtPct3(prevRate) : "—")}</td>
+      <td style={cellBase}>{v ? `${(v.cost / loan * 100).toFixed(3)}%` : "—"}</td>
+      <td style={cellBase}>{v ? money(v.cost) : "—"}</td>
+      <td style={{ ...cellBase, color: v ? (v.delta >= 0 ? T.green : T.red) : T.textTertiary }}>{v ? `${v.delta >= 0 ? "−" : "+"}${money2(Math.abs(v.delta))}` : "—"}</td>
+      {showTax && <td style={cellBase}>{v ? money(v.netCost) : "—"}</td>}
+      {showTax && <td style={{ ...cellBase, color: T.textSecondary }}>{v ? `−${money2(Math.abs(v.writeOffMonthly))}` : "—"}</td>}
+      <td style={{ ...cellBase, fontWeight: 800, fontSize: 14, background: v && !credit ? BAND_BG(v.band.key) : "transparent" }}>{v ? (credit ? `${mo(be)} credit` : mo(be)) : "—"}</td>
+      <td style={cellBase}>{v ? money(v.netDelta * 12) : "—"}</td>
+      <td style={cellBase}>{v && v.netCost > 0 ? pctCell(v.netDelta * 12 / v.netCost) : "—"}</td>
+      {ROI_YEARS.map(y => { const r = v ? roiAt(v, y) : null; return (
+        <td key={y} style={{ ...cellBase, fontWeight: y === holdYears ? 800 : 600, color: r === null ? T.textTertiary : r >= 0 ? T.green : T.red, background: y === holdYears ? `${T.blue}0d` : "transparent" }}>{pctCell(r)}</td>
+      ); })}
+    </>);
+  };
+
   return (
     <div>
-      {/* ═══ Setup: hold horizon, baseline, tax basis, pricing context ═══ */}
+      {/* ═══ Controls: hold slider + tax basis + the answer ═══ */}
       <Card>
-        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1.3fr 1fr" : "1fr", gap: "14px 20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: "14px 24px", alignItems: "start" }}>
           <div>
             <Overline T={T}>How long will you keep this loan?</Overline>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
               <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", fontFamily: FONT, color: T.text, minWidth: 60 }}>{holdYears} yrs</span>
-              <input type="range" min="2" max="15" step="1" value={holdYears} aria-label="Expected hold in years" onChange={(e) => patch({ holdYears: +e.target.value })} style={{ flex: 1, accentColor: T.blue }} />
+              <input type="range" min="2" max="30" step="1" value={holdYears} aria-label="Expected hold in years" onChange={(e) => patch({ holdYears: +e.target.value })} style={{ flex: 1, accentColor: T.blue }} />
             </div>
-            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, marginTop: 4, fontFamily: FONT }}>Sell, refinance, or pay off before then and points you paid stop paying you back. This one number decides the sweet spot.</div>
+            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, marginTop: 4, fontFamily: FONT }}>Until they sell or refinance. The matrix highlights the best value for this hold.</div>
           </div>
           <div>
-            <Overline T={T}>Comparing against</Overline>
-            <select value={ladder.base ? ladder.base.idx : 0} onChange={(e) => patch({ baseIdx: +e.target.value })} aria-label="Baseline rung"
-              style={{ marginTop: 6, background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 10, padding: "7px 10px", color: T.text, fontSize: 13, fontWeight: 700, fontFamily: FONT, width: "100%" }}>
-              {ladder.rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)} · {ptsLabel(r.pts)}</option>)}
-            </select>
-            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.5, marginTop: 8, fontFamily: FONT }}>
-              Tax basis <b style={{ color: T.text }}>{taxLabel}</b> · {taxNote}
-            </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+            <Overline T={T}>Tax</Overline>
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
               {["auto", "manual", "off"].map(m => (
-                <button key={m} onClick={() => patch({ taxMode: m })} aria-pressed={taxMode === m} style={{ border: `1px solid ${taxMode === m ? T.blue : T.inputBorder}`, background: taxMode === m ? `${T.blue}18` : "transparent", color: taxMode === m ? T.blue : T.textSecondary, borderRadius: 9999, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>
-                  {m === "auto" ? "From Tax Savings" : m === "manual" ? "Type a bracket" : "Pre-tax"}
+                <button key={m} onClick={() => patch({ taxMode: m })} aria-pressed={taxMode === m} style={{ border: `1px solid ${taxMode === m ? T.blue : T.inputBorder}`, background: taxMode === m ? `${T.blue}18` : "transparent", color: taxMode === m ? T.blue : T.textSecondary, borderRadius: 9999, padding: "4px 11px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>
+                  {m === "auto" ? "After tax" : m === "manual" ? "Type a bracket" : "Simplified (no tax)"}
                 </button>
               ))}
               {taxMode === "manual" && <NumCell T={T} value={+L.taxManualPct || 0} onCommit={(v) => patch({ taxManualPct: v })} suffix="%" width={60} step={1} ariaLabel="Manual tax bracket" />}
             </div>
-            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 9999, background: T.pillBg, fontSize: 11, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>
-                Pricing as of <input type="date" value={L.asOf || ""} onChange={(e) => patch({ asOf: e.target.value })} aria-label="Pricing as-of date" style={{ background: "transparent", border: "none", color: T.text, fontFamily: FONT, fontSize: 11, fontWeight: 700 }} />
-              </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 9999, background: ltvDrift ? `${T.orange}18` : T.pillBg, fontSize: 11, fontWeight: 600, color: ltvDrift ? T.orange : T.textSecondary, fontFamily: FONT }}>
-                LTV band <input type="text" placeholder="70.01–75%" value={L.ltvBand || ""} onChange={(e) => patch({ ltvBand: e.target.value })} aria-label="Rate-sheet LTV band" style={{ width: 84, background: "transparent", border: "none", borderBottom: `1px dashed ${T.inputBorder}`, color: T.text, fontFamily: FONT, fontSize: 11, fontWeight: 700, outline: "none" }} />
-                {ltvNow > 0 && <span>· today {ltvNow.toFixed(1)}%{ltvDrift ? " — outside this band, reprice" : ""}</span>}
-              </span>
-              {L.estimated && <span style={{ padding: "4px 10px", borderRadius: 9999, background: `${T.orange}18`, color: T.orange, fontSize: 11, fontWeight: 700, fontFamily: FONT }}>Estimated pricing — paste the rate sheet</span>}
-            </div>
+            <div style={{ fontSize: 11.5, color: T.textTertiary, lineHeight: 1.5, marginTop: 6, fontFamily: FONT }}>{taxLabel} · {taxNote}{isRefi ? " · refi points get no upfront write-off" : ""}</div>
           </div>
+        </div>
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 14, background: spot ? `${T.blue}12` : T.pillBg, border: `1px solid ${spot ? `${T.blue}55` : T.cardBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", fontFamily: FONT }}>
+          {spot ? (
+            <span style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.5 }}>
+              Best value for a {holdYears}-year hold: <b style={{ color: T.text, fontSize: 15 }}>{fmtPct3(spot.rate)}</b> at {ptsLabel(spot.pts)}. Every ⅛ step down to it breaks even inside {holdYears} years{nextLower ? `; the next step to ${fmtPct3(nextLower.rate)} doesn't` : ""}.
+            </span>
+          ) : (
+            <span style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.5 }}>
+              No buydown breaks even inside <b style={{ color: T.text }}>{holdYears} years</b> against {ladder.base ? fmtPct3(ladder.base.rate) : "the starting rate"}. Stay there, or take a credit if cash to close matters more. (Measuring from {ladder.base ? fmtPct3(ladder.base.rate) : "the top rate"}: change the starting rate under Pricing details.)
+            </span>
+          )}
+          {spot && <Pill T={T} primary onClick={() => applyRung(spot)}>Use {fmtPct3(spot.rate)}</Pill>}
         </div>
       </Card>
 
-      {/* ═══ Sweet spot + ladder table ═══ */}
+      {/* ═══ The breakeven matrix ═══ */}
       <Card>
-        {spot ? (
-          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "auto 1fr auto" : "1fr", gap: 14, alignItems: "center", padding: "14px 16px", borderRadius: 14, background: `linear-gradient(${T.blue}18, ${T.blue}18), ${T.card}`, border: `1.5px solid ${T.blue}73` }}>
-            <div>
-              <Overline T={T} color={T.blue}>Sweet spot · {holdYears}-yr hold</Overline>
-              <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1, color: T.text, fontFamily: FONT, marginTop: 4 }}>{fmtPct3(spot.rate)}</div>
-              <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4, fontFamily: FONT }}>{ptsLabel(spot.pts)} · {money(spot.cost)} {spot.cost >= 0 ? "more" : "back"} at closing</div>
-            </div>
-            <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>
-              Pays back in <b style={{ color: T.text }}>{Math.round(spot.breakeven)} months</b> and each step down to it also earns its keep. Ahead <b style={{ color: T.text }}>{money(spot.cumAtHold)}</b> in cash by year {holdYears}, plus <b style={{ color: T.text }}>{money(spot.equityAtHold)}</b> more principal paid down.
-              {nextLower && <> The next step to {fmtPct3(nextLower.rate)} needs <b style={{ color: T.text }}>{nextLower.step && nextLower.step.breakeven !== null ? `${Math.round(nextLower.step.breakeven)} months` : "longer"}</b> to pay back on its own.</>}
-            </div>
-            <div><Pill T={T} primary onClick={() => applyRung(spot)}>Use {fmtPct3(spot.rate)}</Pill></div>
-          </div>
-        ) : (
-          <div style={{ padding: "14px 16px", borderRadius: 14, background: `linear-gradient(${T.blue}10, ${T.blue}10), ${T.card}`, border: `1px solid ${T.cardBorder}`, fontSize: 13, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>
-            No rung pays for itself within <b style={{ color: T.text }}>{holdYears} years</b> against {ladder.base ? fmtPct3(ladder.base.rate) : "the baseline"}. Stay at the baseline, or take a credit if cash to close matters more.
-          </div>
-        )}
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "14px 0 4px", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>The ladder</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {editing && <Pill T={T} onClick={addCreditRung} title="Add a higher rate with a lender credit">+ Credit rung</Pill>}
-            {editing && <Pill T={T} onClick={addRung} title="Add a lower rate that costs points">+ Lower rate</Pill>}
-            {editing && <Pill T={T} onClick={scaffold} title="Replace with an estimated ladder around the scenario rate">Re-scaffold</Pill>}
-            <Pill T={T} onClick={() => setEditing(!editing)}>{editing ? "Done" : "Edit pricing"}</Pill>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: FONT }}>Breakeven matrix <span style={{ fontWeight: 500, color: T.textTertiary, fontSize: 12 }}>· {money(loan)} loan · each row vs the rate above it</span></div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Pill T={T} onClick={addCreditRung} title="Add a higher rate with a lender credit">+ Higher rate (credit)</Pill>
+            <Pill T={T} onClick={addRung} title="Add a lower rate that costs points">+ Lower rate</Pill>
+            <Pill T={T} onClick={scaffold} title="Replace with an estimated ⅛-step ladder around the scenario rate">Fill ⅛ steps</Pill>
           </div>
         </div>
-
-        {isDesktop ? (
-          <div style={{ overflowX: "auto", margin: "0 -18px", padding: "0 18px" }}>
-            <table style={{ borderCollapse: "separate", borderSpacing: 0, width: "100%", minWidth: 640 }}>
-              <thead><tr>
-                <th style={{ textAlign: "left", padding: "8px 7px", borderBottom: `1px solid ${T.separator}`, position: "sticky", left: 0, background: T.card, zIndex: 1, verticalAlign: "bottom" }}><Overline T={T}>Rate</Overline><div style={{ fontSize: 10, fontWeight: 500, color: T.textTertiary, fontFamily: FONT }}>price</div></th>
-                {th("Payment", "P&I · vs baseline")}
-                {th("Cost", "at closing")}
-                {th("Net cost", taxRate > 0 ? "after tax" : "pre-tax")}
-                {th("Breakeven", "vs baseline · this step")}
-                {th("Verdict")}
-                {th(`At ${holdYears} yrs`, "cash ahead")}
+        {L.estimated && <div style={{ display: "inline-block", marginBottom: 8, padding: "4px 10px", borderRadius: 9999, background: `${T.orange}18`, color: T.orange, fontSize: 11, fontWeight: 700, fontFamily: FONT }}>Estimated pricing: type the rate sheet over it</div>}
+        {/* Bleeds to the card edges so the matrix gets the full width; it
+            scrolls sideways (rate column sticky) only when it can't fit. */}
+        <div style={{ overflowX: "auto", margin: "0 -18px" }}>
+          <table style={{ borderCollapse: "separate", borderSpacing: 0, width: "100%", minWidth: showTax ? 1040 : 920 }}>
+            <thead>
+              <tr>
+                <th style={{ ...stickyBg(), borderBottom: `1px solid ${T.blue}40` }} />
+                {grp("Pricing", 2, T.blue)}
+                {grp("Vs the rate above", showTax ? 7 : 5, T.orange)}
+                {grp("Return on the step", 2 + ROI_YEARS.length, T.green)}
+                <th />
+              </tr>
+              <tr>
+                <th style={{ ...cellBase, ...stickyBg(), fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textTertiary, textAlign: "left", verticalAlign: "bottom", paddingLeft: 18 }}>Rate · points <span style={{ fontWeight: 500, letterSpacing: 0, textTransform: "none" }}>(− = credit)</span></th>
+                {hd("Monthly payment")}{hd("Cost in $")}
+                {hd("Compare to")}{hd("Δ points")}{hd("Δ cost")}{hd("Payment Δ /mo")}
+                {showTax && hd("Net after tax")}{showTax && hd("Lost write-off /mo")}
+                {hd("Months to break even")}
+                {hd("Annual savings")}{hd("ROI / yr")}
+                {ROI_YEARS.map(y => <React.Fragment key={y}>{hd(`${y} yrs`)}</React.Fragment>)}
                 <th style={{ borderBottom: `1px solid ${T.separator}` }} />
-              </tr></thead>
-              <tbody>
-                {ladder.rows.map(r => {
-                  const isSpot = spot && r.idx === spot.idx;
-                  const rowBg = isSpot ? `${T.blue}14` : "transparent";
-                  const dim = r.dominated ? T.textTertiary : r.isBase ? T.textSecondary : T.text;
-                  const first = (
-                    <td style={{ textAlign: "left", padding: "8px 7px", borderBottom: `1px solid ${T.separator}`, position: "sticky", left: 0, background: isSpot ? `linear-gradient(${T.blue}14, ${T.blue}14), ${T.card}` : T.card, zIndex: 1, whiteSpace: "nowrap", fontFamily: FONT }}>
-                      {editing ? (
-                        <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                          <NumCell T={T} value={r.rate} onCommit={(v) => updateRung(r, "rate", v)} suffix="%" width={70} ariaLabel="Rate" />
-                          <NumCell T={T} value={r.pts} onCommit={(v) => updateRung(r, "pts", v)} suffix="pts" width={70} step={0.125} ariaLabel="Points (negative for credit)" />
-                          <button type="button" onClick={() => removeRung(r)} aria-label="Remove rung" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 14, padding: 0, minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>×</button>
-                        </span>
-                      ) : (
-                        <>
-                          <span style={{ fontWeight: 700, fontSize: 14, color: dim, textDecoration: r.dominated ? "line-through" : "none" }}>{fmtPct3(r.rate)}</span>
-                          {sub(`${ptsLabel(r.pts)}${r.isBase ? " · baseline" : ""}`)}
-                        </>
-                      )}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const isSpot = spot && r.idx === spot.idx;
+                const rowBg = isSpot ? `${T.blue}14` : "transparent";
+                const prevRate = i > 0 ? (rows.slice(0, i).reverse().find(o => !o.dominated) || rows[i - 1]).rate : null;
+                return (
+                  <tr key={r.idx} style={{ background: rowBg, opacity: r.dominated ? 0.55 : 1 }}>
+                    <td style={{ ...cellBase, ...stickyBg(isSpot ? `linear-gradient(${T.blue}14, ${T.blue}14), ${T.card}` : T.card), textAlign: "left", paddingLeft: 18 }}>
+                      <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                        <NumCell T={T} value={r.rate} onCommit={(v) => updateRung(r, "rate", v)} suffix="%" width={58} ariaLabel="Rate" decimals={3} />
+                        <NumCell T={T} value={r.pts} onCommit={(v) => updateRung(r, "pts", v)} width={62} step={0.125} ariaLabel="Points (negative for a lender credit)" decimals={3} />
+                        <button type="button" onClick={() => removeRung(r)} aria-label="Remove rate" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 14, padding: 0, width: 24, height: 28 }}>×</button>
+                      </span>
                     </td>
-                  );
-                  if (r.isBase) return (
-                    <tr key={r.idx}>{first}{td(money2(r.pi), { color: dim })}{td("—", { color: dim })}{td("—", { color: dim })}{td("—", { color: dim })}{td("—", { color: dim })}{td("—", { color: dim })}{td("")}</tr>
-                  );
-                  const credit = r.cost < 0;
-                  return (
-                    <tr key={r.idx} style={{ background: rowBg }}>
-                      {first}
-                      {td(<>{money2(r.pi)}{sub(`${r.delta > 0 ? "−" : "+"}${money2(Math.abs(r.delta))}/mo`, r.delta > 0 ? T.green : T.red)}</>, { color: dim })}
-                      {td(<>{money(r.cost)}{sub(credit ? "credit, no tax effect" : taxRate > 0 ? `after tax ${money(r.postTaxCost)} · lost write-off −${money2(r.writeOffMonthly)}/mo → net −${money2(r.netDelta)}/mo` : " ")}</>, { color: dim })}
-                      {td(<b>{money(r.netCost)}</b>, { color: dim })}
-                      {td(<><span style={{ fontWeight: 800, fontSize: 15 }}>{mo(r.breakeven)}</span>{sub(r.step ? `step ${mo(r.step.breakeven)}` : " ")}</>, { color: dim })}
-                      {td(r.dominated ? <Band T={T} band={{ key: "none", label: `Skip · ${fmtPct3(r.dominatedBy)} is cheaper` }} /> : credit ? <Band T={T} band={{ key: "hold", label: `Credit lasts ${mo(r.breakeven)}` }} /> : <Band T={T} band={r.band} />)}
-                      {td(<><span style={{ fontWeight: 700, color: r.cumAtHold >= 0 ? T.green : T.red }}>{money(r.cumAtHold)}</span>{sub(`${r.equityAtHold >= 0 ? "+" : ""}${money(r.equityAtHold)} equity`)}</>)}
-                      {td(r.dominated ? "" : <Pill T={T} onClick={() => applyRung(r)}>Use</Pill>, { paddingRight: 0 })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          /* ── Mobile: one card per rung, the verdict leads ── */
-          <div>
-            {ladder.rows.map(r => {
-              const isSpot = spot && r.idx === spot.idx;
-              const cardStyle = { background: isSpot ? `linear-gradient(${T.blue}14, ${T.blue}14), ${T.card}` : T.card, border: `1px solid ${isSpot ? `${T.blue}8C` : T.cardBorder}`, borderRadius: 14, padding: "12px 14px", marginTop: 8, opacity: r.dominated ? 0.6 : 1, fontFamily: FONT };
-              if (editing) return (
-                <div key={r.idx} style={cardStyle}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
-                    <NumCell T={T} value={r.rate} onCommit={(v) => updateRung(r, "rate", v)} suffix="%" width={74} ariaLabel="Rate" />
-                    <NumCell T={T} value={r.pts} onCommit={(v) => updateRung(r, "pts", v)} suffix="pts" width={74} step={0.125} ariaLabel="Points (negative for credit)" />
-                    <button type="button" onClick={() => removeRung(r)} aria-label="Remove rung" style={{ background: "none", border: "none", color: T.textTertiary, cursor: "pointer", fontSize: 16, padding: 0, minWidth: 36, minHeight: 36, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>×</button>
-                  </div>
-                </div>
-              );
-              if (r.isBase) return (
-                <div key={r.idx} style={cardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: T.text }}>{fmtPct3(r.rate)}</span>
-                    <span style={{ padding: "3px 9px", borderRadius: 9999, background: T.pillBg, fontSize: 11, fontWeight: 600, color: T.textSecondary }}>Baseline · {ptsLabel(r.pts)}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{money2(r.pi)}/mo P&I</div>
-                </div>
-              );
-              if (r.dominated) return (
-                <div key={r.idx} style={cardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: T.textTertiary, textDecoration: "line-through" }}>{fmtPct3(r.rate)}</span>
-                    <Band T={T} band={{ key: "none", label: "Skip" }} />
-                  </div>
-                  <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 4 }}>{ptsLabel(r.pts)} · {fmtPct3(r.dominatedBy)} costs less</div>
-                </div>
-              );
-              const credit = r.cost < 0;
-              return (
-                <div key={r.idx} style={cardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: T.text }}>{fmtPct3(r.rate)}</span>
-                    {isSpot ? <Band T={T} band={{ key: "sense", label: "Sweet spot" }} /> : credit ? <Band T={T} band={{ key: "hold", label: `Credit lasts ${mo(r.breakeven)}` }} /> : <Band T={T} band={r.band} />}
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
-                    <div><div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{mo(r.breakeven)}</div><Overline T={T}>breakeven</Overline></div>
-                    <div><div style={{ fontSize: 14, fontWeight: 700, color: r.delta > 0 ? T.green : T.red }}>{r.delta > 0 ? "−" : "+"}{money(Math.abs(r.delta))}</div><Overline T={T}>per month</Overline></div>
-                    <div><div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{money(r.cost)}</div><Overline T={T}>{credit ? "credit" : "at closing"}</Overline></div>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, fontSize: 11, color: T.textSecondary }}>
-                    <span>{r.cumAtHold >= 0 ? "Ahead" : "Behind"} <b style={{ color: r.cumAtHold >= 0 ? T.green : T.red }}>{money(Math.abs(r.cumAtHold))}</b> at {holdYears} yrs · +{money(r.equityAtHold)} equity</span>
-                    <Pill T={T} onClick={() => applyRung(r)}>Use</Pill>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-          <Band T={T} band={{ key: "nobrainer", label: "No-brainer · under 24 mo" }} small />
-          <Band T={T} band={{ key: "sense", label: "Makes sense · 24–36" }} small />
-          <Band T={T} band={{ key: "situational", label: "Situational · 36–48" }} small />
-          <Band T={T} band={{ key: "hold", label: "Long-term hold · 48+" }} small />
+                    <td style={cellBase}>{money2(r.pi)}</td>
+                    <td style={{ ...cellBase, color: r.pts < 0 ? T.green : T.text }}>{money(loan * r.pts / 100)}</td>
+                    {r.dominated ? (
+                      <td colSpan={(showTax ? 7 : 5) + 2 + ROI_YEARS.length} style={{ ...cellBase, textAlign: "left", color: T.textTertiary }}>Skip: {fmtPct3(r.dominatedBy)} is a lower rate for less money</td>
+                    ) : stepCells(r.step, prevRate)}
+                    <td style={{ ...cellBase, paddingRight: 12 }}>{!r.dominated && (
+                      <button onClick={() => applyRung(r)} title={`Use ${fmtPct3(r.rate)} in this Blueprint`} style={{ border: `1px solid ${T.blue}`, background: isSpot ? T.blue : "transparent", color: isSpot ? "#fff" : T.blue, borderRadius: 9999, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Use</button>
+                    )}</td>
+                  </tr>
+                );
+              })}
+              {/* Compare over multiple increments — the sheet's bottom row */}
+              {multi && (
+                <tr style={{ background: `${T.accentHover || T.blue}10` }}>
+                  <td style={{ ...cellBase, ...stickyBg(T.card), textAlign: "left", paddingLeft: 18, borderTop: `2px solid ${T.separator}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textTertiary, marginBottom: 4 }}>Compare over several steps<br />from</div>
+                    <select value={ai} onChange={(e) => setCmpA(+e.target.value)} aria-label="Start rate" style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8, padding: "5px 8px", color: T.text, fontSize: 12.5, fontWeight: 700, fontFamily: FONT }}>
+                      {rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ ...cellBase, borderTop: `2px solid ${T.separator}` }}>{money2(rows[bi].pi)}</td>
+                  <td style={{ ...cellBase, borderTop: `2px solid ${T.separator}` }}>{money(loan * rows[bi].pts / 100)}</td>
+                  {stepCells(multi, null, (
+                    <select value={bi} onChange={(e) => setCmp({ ...cmp, b: +e.target.value })} aria-label="Compare-to rate" style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 8, padding: "5px 8px", color: T.text, fontSize: 12.5, fontWeight: 700, fontFamily: FONT }}>
+                      {rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)}</option>)}
+                    </select>
+                  ))}
+                  <td style={{ ...cellBase, borderTop: `2px solid ${T.separator}` }} />
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+          <Overline T={T}>Breakeven key</Overline>
+          {[["nobrainer", "No-brainer · under 24 mo"], ["sense", "Makes sense · 24–36"], ["situational", "Situational · 36–48"], ["hold", "Long-term hold · 48+"]].map(([k, label]) => (
+            <span key={k} style={{ padding: "3px 9px", borderRadius: 9999, background: BAND_BG(k), color: T.text, fontSize: 11, fontWeight: 600, fontFamily: FONT }}>{label}</span>
+          ))}
         </div>
         <div style={{ fontSize: 11, color: T.textTertiary, lineHeight: 1.55, marginTop: 10, fontFamily: FONT }}>
-          {isRefi ? "Points on a refinance deduct over the life of the loan, so no upfront tax offset is credited." : "Points paid on a purchase deduct in the year you close; a lender credit has no tax effect."} Write-off lost is year-one interest you no longer deduct. Breakeven is cash-only: it ignores the extra principal a lower rate pays down, shown separately. "This step" is the payback of moving from the rung above, skipping rungs a cheaper lower rate makes pointless. Check with your CPA.
+          Type rates and points straight into the first column; negative points are a lender credit. Each row is the ⅛ step from the rate above it (the next rate that isn't skipped). {isRefi ? "Points on a refinance deduct over the life of the loan, so no upfront write-off is credited." : "Points paid on a purchase deduct in the year you close; giving up a lender credit pays no points, so it gets no tax savings."} ROI at N years = (N years of savings − net cost) ÷ net cost. Check with your CPA.
         </div>
       </Card>
 
-      {/* ═══ Net benefit over time ═══ */}
-      {ladder.base && (
+      {/* ═══ LO details: starting rate, pricing context, chart ═══ */}
+      <details style={{ marginTop: 4 }}>
+        <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: T.blue, fontFamily: FONT, padding: "8px 2px" }}>Pricing details &amp; chart</summary>
         <Card>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>Net benefit over time</div>
-          <BenefitChart T={T} ladder={ladder} holdYears={holdYears} />
-        </Card>
-      )}
-
-      {/* ═══ Compare any two ═══ */}
-      {ladder.rows.length > 1 && (() => {
-        const rows = ladder.rows;
-        const ai = Math.min(cmp.a, rows.length - 1);
-        const bi = cmp.b < 0 ? rows.length - 1 : Math.min(cmp.b, rows.length - 1);
-        const a = rows[ai], b = rows[bi];
-        const v = compareRungs(a, b, { loan, termYears: term || 30, taxRate, deductPct, pointsDeductible: !isRefi, holdMonths: holdYears * 12 });
-        const selStyle = { width: "100%", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 10, padding: "8px 10px", color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT };
-        const stat = (val, label, color) => (
-          <div style={{ padding: "10px 12px", borderRadius: 12, background: T.pillBg }}>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", color: color || T.text, fontFamily: FONT }}>{val}</div>
-            <Overline T={T}>{label}</Overline>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Best-value starting rate</span>
+            <select value={ladder.base ? ladder.base.idx : 0} onChange={(e) => patch({ baseIdx: +e.target.value })} aria-label="Starting rate"
+              style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 10, padding: "6px 10px", color: T.text, fontSize: 12.5, fontWeight: 700, fontFamily: FONT }}>
+              {rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)} · {ptsLabel(r.pts)}</option>)}
+            </select>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 9999, background: T.pillBg, fontSize: 11, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>
+              Pricing as of <input type="date" value={L.asOf || ""} onChange={(e) => patch({ asOf: e.target.value })} aria-label="Pricing as-of date" style={{ background: "transparent", border: "none", color: T.text, fontFamily: FONT, fontSize: 11, fontWeight: 700 }} />
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 9999, background: ltvDrift ? `${T.orange}18` : T.pillBg, fontSize: 11, fontWeight: 600, color: ltvDrift ? T.orange : T.textSecondary, fontFamily: FONT }}>
+              Rate-sheet LTV band <input type="text" placeholder="70.01–75%" value={L.ltvBand || ""} onChange={(e) => patch({ ltvBand: e.target.value })} aria-label="Rate-sheet LTV band" style={{ width: 84, background: "transparent", border: "none", borderBottom: `1px dashed ${T.inputBorder}`, color: T.text, fontFamily: FONT, fontSize: 11, fontWeight: 700, outline: "none" }} />
+              {ltvNow > 0 && <span>· today {ltvNow.toFixed(1)}%{ltvDrift ? ": outside this band, reprice" : ""}</span>}
+            </span>
           </div>
-        );
-        return (
-          <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>Compare any two</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center" }}>
-              <select value={ai} onChange={(e) => setCmp({ ...cmp, a: +e.target.value })} aria-label="From rung" style={selStyle}>{rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)} · {ptsLabel(r.pts)}</option>)}</select>
-              <span style={{ fontSize: 11, color: T.textTertiary, fontWeight: 700, fontFamily: MONO }}>VS</span>
-              <select value={bi} onChange={(e) => setCmp({ ...cmp, b: +e.target.value })} aria-label="To rung" style={selStyle}>{rows.map(r => <option key={r.idx} value={r.idx}>{fmtPct3(r.rate)} · {ptsLabel(r.pts)}</option>)}</select>
+          {ladder.base && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>Net benefit over time vs {fmtPct3(ladder.base.rate)}</div>
+              <BenefitChart T={T} ladder={ladder} holdYears={Math.min(holdYears, 10)} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(4, 1fr)" : "repeat(2, 1fr)", gap: 8, marginTop: 10 }}>
-              {stat(money(v.cost), v.cost >= 0 ? "more at closing" : "credit back")}
-              {stat(`${v.delta >= 0 ? "−" : "+"}${money2(Math.abs(v.delta))}`, "per month", v.delta >= 0 ? T.green : T.red)}
-              {stat(mo(v.breakeven), v.cost < 0 ? "credit lasts" : "breakeven")}
-              {stat(money(v.cumAtHold), `ahead at ${holdYears} yrs`, v.cumAtHold >= 0 ? T.green : T.red)}
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
-              {v.cost < 0 ? <Band T={T} band={{ key: "hold", label: "Lender credit" }} /> : <Band T={T} band={v.band} />}
-              <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>Net cost {taxRate > 0 ? "after tax " : ""}{money(v.netCost)} · plus {money(v.equityAtHold)} extra principal paid down by year {holdYears}</span>
-            </div>
-          </Card>
-        );
-      })()}
+          )}
+        </Card>
+      </details>
     </div>
   );
 }

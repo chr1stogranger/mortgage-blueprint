@@ -38,10 +38,13 @@ export function resolveLadderTax(calc, L) {
   const st = calc?.stateItemizes ? (calc.stTopRate || 0) : 0;
   const autoRate = fed + st;
   const taxRate = mode === "off" ? 0 : mode === "manual" ? Math.max(0, +L.taxManualPct || 0) / 100 : autoRate;
-  const deductPct = mode === "auto" ? (calc?.deductibleLoanPct ?? 1) : 1;
+  // The $750k acquisition-debt cap applies whatever the bracket source: a
+  // typed bracket used to deduct the whole loan, overstating the write-off on
+  // jumbo loans (the sheet's "Max Write-Off $750,000"; Christo 2026-09-24).
+  const deductPct = calc?.deductibleLoanPct ?? 1;
   const label = mode === "off" ? "Pre-tax" : `${(taxRate * 100).toFixed(1)}%`;
   const note = mode === "off" ? "standard deduction, no write-off"
-    : mode === "manual" ? "manual bracket"
+    : mode === "manual" ? `typed bracket${deductPct < 1 ? ` · ${Math.round(deductPct * 100)}% of the loan deductible` : ""}`
     : autoRate === 0 ? "engine says this borrower takes the standard deduction, so no write-off"
     : `${(fed * 100).toFixed(0)}% federal${st ? ` + ${(st * 100).toFixed(1)}% state` : ""}, itemizing · from Tax Savings${deductPct < 1 ? ` · ${Math.round(deductPct * 100)}% of the loan deductible` : ""}`;
   return { mode, taxRate, deductPct, label, note };

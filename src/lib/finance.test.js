@@ -449,6 +449,20 @@ describe("rate ladder", () => {
     const refi = compareRungs({ rate: 6.5, pts: 0 }, { rate: 6.375, pts: 0.5 }, { loan: 650000, taxRate: 0.24, pointsDeductible: false });
     expect(refi.postTaxCost).toBe(3250);
   });
+  it("stepping off a lender credit only deducts the points actually paid", () => {
+    const o = { loan: 1040000, taxRate: 0.24 };
+    // credit → par: gives up $5,200 of credit, pays no points → no offset
+    const toPar = compareRungs({ rate: 7.0, pts: -0.5 }, { rate: 6.875, pts: 0 }, o);
+    expect(toPar.cost).toBeCloseTo(5200, 6);
+    expect(toPar.postTaxCost).toBeCloseTo(5200, 6);
+    // credit → 1 pt: $15,600 more, but only the $10,400 of points deducts
+    const toPts = compareRungs({ rate: 7.0, pts: -0.5 }, { rate: 6.625, pts: 1.0 }, o);
+    expect(toPts.cost).toBeCloseTo(15600, 6);
+    expect(toPts.postTaxCost).toBeCloseTo(15600 - 10400 * 0.24, 6);
+    // par → points: the whole cost deducts
+    const pp = compareRungs({ rate: 6.875, pts: 0 }, { rate: 6.75, pts: 0.5 }, o);
+    expect(pp.postTaxCost).toBeCloseTo(5200 * 0.76, 6);
+  });
   it("equity at hold: the lower rate has paid down more principal", () => {
     const r = computeRateLadder({ ...opts, holdMonths: 84 }).rows[4];
     expect(r.equityAtHold).toBeGreaterThan(4000);

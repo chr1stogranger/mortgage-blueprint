@@ -799,7 +799,12 @@ export function breakevenBand(months) {
 export function compareRungs(from, to, { loan, termYears = 30, taxRate = 0, deductPct = 1, pointsDeductible = true, holdMonths = 60 }) {
   const delta = calcPI(loan, from.rate, termYears) - calcPI(loan, to.rate, termYears);
   const cost = loan * (to.pts - from.pts) / 100;
-  const postTaxCost = (cost > 0 && pointsDeductible) ? cost * (1 - taxRate) : cost;
+  // Only points actually PAID deduct. Stepping off a lender credit toward par
+  // gives up money but pays no points, so that slice gets no tax offset —
+  // the sheet's "* no tax savings w/ lender credit" (Christo 2026-09-24).
+  const paidPtsDelta = Math.max(0, to.pts) - Math.max(0, from.pts);
+  const pointsDeduction = (cost > 0 && pointsDeductible) ? loan * paidPtsDelta / 100 * taxRate : 0;
+  const postTaxCost = cost - pointsDeduction;
   // Per YEAR: the deduction a lower rate forfeits (year-1 interest basis).
   const writeOffLost = loan * deductPct * (from.rate - to.rate) / 100 * taxRate;
   const writeOffMonthly = writeOffLost / 12;
