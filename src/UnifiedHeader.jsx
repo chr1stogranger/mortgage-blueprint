@@ -541,11 +541,10 @@ export default function UnifiedHeader({
           Row 1 (2026-09-22), so borrowers don't get this row at all. The
           scenario is CONTEXT, not a page: it lives in the header like the
           mailbox name in Mail, not in the drawer or the tab bar. ── */}
-      {!isDesktop && shareLinkPill && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "0 14px 8px", minWidth: 0 }}>
-          {shareLinkPill}
-        </div>
-      )}
+      {/* Mobile row 1b (Share Link + Preview) removed 2026-09-23 (Christo:
+          header white space). Both now live on the Share tab — the bottom
+          bar's Share button — as Copy Link and Preview as borrower. Desktop
+          keeps its pills on row 1, which costs no extra height. */}
 
       {/* ══════════════════════════════════════════════════════════
           ROW 2 — Stats Dashboard

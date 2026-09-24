@@ -228,7 +228,7 @@ function LetterSection({ letter, title, total, children, lockable = false }) {
   const unlocked = lockable && !locked;
   return (
     <div className="cost-letter-section" style={{
-      marginBottom: 14,
+      marginBottom: 10,
       // subtle background tint when section is in edit mode
       ...(unlocked ? { background: `${ACCENT}06`, borderRadius: 10, padding: "4px 10px", border: `1px solid ${ACCENT}22` } : {}),
     }}>
@@ -634,8 +634,8 @@ function FeeRow({
         display: "flex",
         alignItems: alwaysVisibleControl ? "flex-start" : "center",
         justifyContent: "space-between",
-        padding: "8px 0",
-        minHeight: 30,
+        padding: "6px 0",
+        minHeight: 28,
         gap: 10,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
@@ -979,7 +979,7 @@ export default function CostsContent(props) {
   //    (zeroed + hidden), custom fees added per section via the catalog. ──
   const BUILTIN_META = {
     A: [
-      { key: "originatorComp", label: "Originator Compensation", set: setOriginatorComp, def: 0 },
+      { key: "originatorComp", label: "Origination Fee", set: setOriginatorComp, def: 0 },
       { key: "adminFee", label: "Administration Fee", set: setAdminFee, def: 795 },
       { key: "lenderWireFee", label: "Lender Wire Fee", set: setLenderWireFee, def: 295 },
       { key: "underwritingFee", label: "Underwriting Fee", set: setUnderwritingFee, def: 1250 },
@@ -993,7 +993,7 @@ export default function CostsContent(props) {
       { key: "taxServiceFee", label: "Tax Service Fee", set: setTaxServiceFee, def: 85 },
     ],
     C: [
-      { key: "titleInsurance", label: "Lender's Title Insurance Policy", set: setTitleInsurance, def: 2000 },
+      { key: "titleInsurance", label: "Lender's Title Insurance", set: setTitleInsurance, def: 2000 },
       { key: "escrowFee", label: "Escrow Fee", set: setEscrowFee, def: 2400 },
       { key: "courierFee", label: "Courier / FedEx", set: setCourierFee, def: 150 },
       { key: "loanTieInFee", label: "Loan Tie-in Fee", set: setLoanTieInFee, def: 150 },
@@ -1223,7 +1223,7 @@ export default function CostsContent(props) {
               />
             }
           />
-          <FeeRow label="Originator Compensation" value={originatorComp}  onChange={setOriginatorComp}  hidden={isHidden("originatorComp")} onDelete={() => deleteBuiltin("originatorComp")} explainer="Paid to the loan officer/originator" />
+          <FeeRow label="Origination Fee" value={originatorComp}  onChange={setOriginatorComp}  hidden={isHidden("originatorComp")} onDelete={() => deleteBuiltin("originatorComp")} explainer="Paid to the loan officer/originator" />
           <FeeRow label="Administration Fee"       value={adminFee}        onChange={setAdminFee}        hidden={isHidden("adminFee")} onDelete={() => deleteBuiltin("adminFee")} explainer="Lender administration fee" />
           <FeeRow label="Lender Wire Fee"          value={lenderWireFee}   onChange={setLenderWireFee}   hidden={isHidden("lenderWireFee")} onDelete={() => deleteBuiltin("lenderWireFee")} explainer="Fee to wire loan funds at closing" />
           <FeeRow label="Underwriting Fee"        value={underwritingFee} onChange={setUnderwritingFee} hidden={isHidden("underwritingFee")} onDelete={() => deleteBuiltin("underwritingFee")} explainer="Lender's fee for evaluating the loan" />
@@ -1256,7 +1256,7 @@ export default function CostsContent(props) {
             <>
               {/* Title — Settlement Agent Fee + Title Search removed from
                   defaults (Christo 2026-07-05). */}
-              <FeeRow label="Lender's Title Insurance Policy" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Lender's title insurance policy" />
+              <FeeRow label="Lender's Title Insurance" value={titleInsurance} onChange={setTitleInsurance} hidden={isHidden("titleInsurance")} onDelete={() => deleteBuiltin("titleInsurance")} explainer="Lender's title insurance policy" />
               <FeeRow label="Escrow Fee"                      value={escrowFee}      onChange={setEscrowFee}      hidden={isHidden("escrowFee")} onDelete={() => deleteBuiltin("escrowFee")} explainer="Escrow company's closing fee" />
               <FeeRow label="Courier / FedEx"                 value={courierFee}     onChange={setCourierFee}     hidden={isHidden("courierFee")} onDelete={() => deleteBuiltin("courierFee")} explainer="Document courier / overnight delivery" />
               <FeeRow label="Loan Tie-in Fee"                 value={loanTieInFee}   onChange={setLoanTieInFee}   hidden={isHidden("loanTieInFee")} onDelete={() => deleteBuiltin("loanTieInFee")} explainer="Escrow's fee to coordinate with the lender" />
@@ -1281,7 +1281,7 @@ export default function CostsContent(props) {
             // row reads its own split state (independent per Christo's spec).
             const splitOpts = [
               { v: "seller",  label: "Seller" },
-              { v: "split50", label: "Split 50/50" },
+              { v: "split50", label: "Split" }, // was "Split 50/50" — wrapped to 2 lines when selected (Christo 2026-09-23)
               { v: "buyer",   label: "Buyer" },
             ];
             const renderToggle = (current, setter) => !isRefi ? (
@@ -1293,7 +1293,7 @@ export default function CostsContent(props) {
                     onClick={() => setter(opt.v)}
                     style={{
                       fontSize: 10, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase",
-                      padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer",
+                      padding: "4px 10px", borderRadius: 9999, border: "none", cursor: "pointer", whiteSpace: "nowrap",
                       background: current === opt.v ? T.blue : "transparent",
                       color: current === opt.v ? "#fff" : T.textSecondary,
                       transition: "all 0.15s",
@@ -1373,7 +1373,7 @@ export default function CostsContent(props) {
             )}
             <ToggleRow
               label="Buyer Pays Agent Commission"
-              hint="Toggle on if buyer is responsible for their agent's fee"
+              hint="Buyer covers their agent's fee"
               on={buyerPaysComm}
               onChange={setBuyerPaysComm}
             />

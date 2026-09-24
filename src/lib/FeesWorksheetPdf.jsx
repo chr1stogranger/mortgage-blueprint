@@ -156,7 +156,7 @@ export function FeesWorksheetPage(p) {
   // ── Section data ──
   const lenderRows = rows([
     p.discountPts > 0 && { label: `${Number(p.discountPts).toFixed(3)}% of Loan Amount (Points)`, value: c.pointsCost },
-    { label: "Originator Compensation", value: p.originatorComp },
+    { label: "Origination Fee", value: p.originatorComp },
     { label: "Underwriting Fee", value: p.underwritingFee },
     { label: "Admin Fee", value: p.adminFee },
     { label: "Lender Wire Fee", value: p.lenderWireFee },

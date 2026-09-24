@@ -8051,7 +8051,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     </div>
    )}
    {/* ═══ MAIN CONTENT AREA ═══ */}
-   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 44 + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
+   <div className={isDesktop ? "bp-main-content" : ""} style={{ flex: 1, maxWidth: isDesktop && splitMode ? `calc(${splitRatio}vw - ${sidebarCollapsed ? 56 : 270}px)` : isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : 480, margin: isDesktop ? 0 : "0 auto", marginLeft: isDesktop ? (sidebarCollapsed ? 56 : 270) : undefined, paddingBottom: isDesktop ? 40 : `calc(${MOBILE_TAB_BAR_HEIGHT + 24}px + env(safe-area-inset-bottom, 0px))`, overflowY: "visible", height: "auto", width: isDesktop ? `calc(100% - ${sidebarCollapsed ? 56 : 270}px)` : "100%", overflow: splitMode ? "hidden" : "visible" }}>
   {/* ═══ UNIFIED HEADER — persistent across all Blueprint tabs ═══
        Now rendered for borrowers too (2026-05-12). UnifiedHeader has its
        own internal isBorrower gate that hides the multi-client picker row
@@ -8143,37 +8143,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <MobileTabBar T={T} items={MOBILE_BAR_ITEMS}
      activeId={BAR_TAB_KEYS.includes(tab) ? tab : "more"}
      onSelect={(id) => { if (id === "more") { setMoreSheetOpen(true); return; } goTab(id); }} />
-    {STICKY_PILL_TABS.includes(tab) && !keyboardOpen && (() => {
-     const chip = qualStatus === "approved"
-      ? { label: "Qualified", bg: T.successBg, border: T.successBorder, color: T.green, icon: "check-circle" }
-      : qualStatus === "almost"
-       ? { label: "Almost", bg: T.warningBg, border: T.warningBorder, color: T.orange, icon: "alert-circle" }
-       : { label: "Not yet", bg: T.pillBg, border: T.cardBorder, color: T.textTertiary, icon: "info" };
-     const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-     return (
-      <div aria-hidden={stickyPillHidden} style={{
-       position: "fixed", left: 12, right: 12, zIndex: 99, height: 44, boxSizing: "border-box",
-       bottom: `calc(${MOBILE_TAB_BAR_HEIGHT + 8}px + env(safe-area-inset-bottom, 0px))`,
-       display: "flex", alignItems: "center", gap: 10, padding: "0 6px 0 14px", borderRadius: 9999,
-       background: T.sideBg || T.card, border: `1px solid ${T.glassBorder || T.cardBorder}`,
-       backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: T.glassShadow || T.cardShadow,
-       fontFamily: FONT, maxWidth: 456, margin: "0 auto",
-       transform: stickyPillHidden ? "translateY(16px)" : "translateY(0)", opacity: stickyPillHidden ? 0 : 1,
-       pointerEvents: stickyPillHidden ? "none" : "auto",
-       transition: reduce ? "none" : "transform 0.2s ease, opacity 0.2s ease",
-      }}>
-       <button type="button" onClick={() => jumpToSection("overview-payment")} aria-label="Monthly payment — jump to the Monthly Payment section"
-        style={{ display: "flex", alignItems: "baseline", gap: 8, flex: 1, minWidth: 0, background: "transparent", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: FONT, color: T.text, height: 44 }}>
-        <span style={{ fontSize: 12, color: T.textSecondary }}>Monthly</span>
-        <span style={{ fontSize: 15, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>{fmt(calc.displayPayment)}</span>
-       </button>
-       <button type="button" onClick={() => jumpToSection("overview-qualification")} aria-label={`${chip.label} — jump to the Pre-Qualified section`}
-        style={{ display: "flex", alignItems: "center", gap: 5, padding: "0 10px", height: 32, borderRadius: 9999, background: chip.bg, border: `1px solid ${chip.border}`, color: chip.color, fontSize: 11, fontWeight: 600, fontFamily: FONT, cursor: "pointer", flexShrink: 0 }}>
-        <Icon name={chip.icon} size={12} />{chip.label}
-       </button>
-      </div>
-     );
-    })()}
+    {/* Floating "Monthly · Qualified" pill removed (Christo 2026-09-23):
+        redundant with the header stat strip's Payment + qualification chip. */}
     <Suspense fallback={null}>
      <BottomSheet isOpen={moreSheetOpen} onClose={() => setMoreSheetOpen(false)} T={T} height="70vh" showHeader={false}>
       <div style={{ display: "flex", alignItems: "center", padding: "0 0 10px" }}>
@@ -8775,6 +8746,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </button>
   )}
  </div>
+ {/* Preview as borrower — lives here now that the mobile header dropped its
+     Share Link / Preview row (Christo 2026-09-23). LO-only by construction:
+     borrowers have no share_token on activeBorrower. */}
+ {activeBorrower?.share_token && !isBorrower && (
+  <a href={`${WEB_ORIGIN}?share=${activeBorrower.share_token}`} target="_blank" rel="noopener noreferrer"
+   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 700, fontSize: 14, fontFamily: FONT, textDecoration: "none" }}>
+   <Icon name="eye" size={15} />
+   Preview as borrower
+  </a>
+ )}
  {/* ── One-click PDF: fees worksheet for purchases, legacy refi estimate
      for refis. Sits between Email and Get Pre-Approved (Christo 2026-07-05). ── */}
  <button onClick={handleSaveScenarioPdf} style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
@@ -8938,7 +8919,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       would scroll away. Fixed under the header + a 40px spacer in flow. */}
   <div style={{ position: "fixed", top: "var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px)))", left: 0, right: 0, zIndex: 20, pointerEvents: "none" }}>
    <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "6px 16px 4px" }}>
-    <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary }}>On this page</span>
     <button type="button" onClick={() => setSectionSheetOpen(true)} aria-haspopup="dialog" aria-label="Jump to a section"
      style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
      {(OVERVIEW_SECTIONS.find((x) => x.id === currentSectionId) || OVERVIEW_SECTIONS[0]).label}
