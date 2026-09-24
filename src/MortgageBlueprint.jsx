@@ -1572,6 +1572,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [transferTaxSplit, setTransferTaxSplit] = useState("split50");
  // Buyer's share of COUNTY transfer tax — independent of city per Christo (different deals split these differently).
  const [transferTaxCountySplit, setTransferTaxCountySplit] = useState("split50");
+ // San Francisco custom: the SELLER pays 100% of both city and county transfer
+ // tax (Christo 2026-09-24); everywhere else defaults to 50/50. Keyed on an SF
+ // ZIP (941xx) or the city. The ref holds the SF-ness last applied, so the
+ // auto-switch only fires when the LO moves the property into/out of SF —
+ // loadState seeds it, so opening a saved scenario keeps its saved split.
+ const isSFProperty = (zip, c) => /^941\d\d$/.test(String(zip || "").trim()) || String(c || "").trim().toLowerCase() === "san francisco";
+ const ttSfAppliedRef = useRef(null);
  const [discountPts, setDiscountPts] = useState(0);
  // Temporary rate buydown (B2): "none" | "1-0" | "2-1" | "3-2-1". Cash-flow
  // subsidy only — qualification stays at the note rate. Cost is a data point
@@ -2218,6 +2225,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  if (blankStateRef.current === null) blankStateRef.current = getState();
  const loadState = (s) => {
   if (!s) return;
+  {
+   // Transfer-tax split: restore what was saved (it was saved but never read
+   // back, so a manual choice reverted to 50/50 on reload). Older scenarios
+   // without it get the location default: Seller for SF, 50/50 elsewhere.
+   const sf = isSFProperty(s.propertyZip !== undefined ? s.propertyZip : propertyZip, s.city || city);
+   const splitOk = (v) => v === "buyer" || v === "split50" || v === "seller";
+   setTransferTaxSplit(splitOk(s.transferTaxSplit) ? s.transferTaxSplit : sf ? "seller" : "split50");
+   setTransferTaxCountySplit(splitOk(s.transferTaxCountySplit) ? s.transferTaxCountySplit : sf ? "seller" : "split50");
+   ttSfAppliedRef.current = sf;
+  }
   if (s.salesPrice !== undefined) setSalesPrice(s.salesPrice);
   if (s.downPct !== undefined) setDownPct(s.downPct);
   // A scenario's saved rate is treated as locked so the live-rate auto-apply
@@ -4967,6 +4984,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (stateCities.includes(city)) setTransferTaxCity(city);
   else setTransferTaxCity("Not listed");
  }, [city, propertyState]);
+ // SF ⇄ elsewhere: flip BOTH transfer-tax splits to the local custom when the
+ // property moves into or out of San Francisco (see isSFProperty).
+ useEffect(() => {
+  const sf = isSFProperty(propertyZip, city);
+  if (ttSfAppliedRef.current === null) { ttSfAppliedRef.current = sf; return; }
+  if (ttSfAppliedRef.current === sf) return;
+  ttSfAppliedRef.current = sf;
+  setTransferTaxSplit(sf ? "seller" : "split50");
+  setTransferTaxCountySplit(sf ? "seller" : "split50");
+ }, [propertyZip, city]); // eslint-disable-line react-hooks/exhaustive-deps
  // Auto-fill city, state, county when zip code changes (transfer tax auto-synced by city/state effect above)
  useEffect(() => {
   if (propertyZip.length !== 5) return;
