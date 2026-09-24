@@ -20,6 +20,12 @@ async function authFetch(path, options = {}) {
   if (!token) throw new Error('Not authenticated');
 
   const res = await fetch(`${API_BASE}${path}`, {
+    // Per-user data never comes from the browser cache (Christo 2026-09-24):
+    // Ops answers with "public, must-revalidate", and a revalidation of a
+    // cached /api/scenarios failed CORS in Chrome ("Failed to fetch"), so the
+    // recent-scenarios feed silently came back empty and Recents lost every
+    // server-side touch. no-store skips the HTTP cache entirely.
+    cache: 'no-store',
     ...options,
     headers: {
       'Content-Type': 'application/json',
