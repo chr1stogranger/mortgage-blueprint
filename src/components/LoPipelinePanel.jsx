@@ -79,6 +79,17 @@ function fmtRate(r) {
 }
 
 // Date-only strings parse as UTC and can display a day early — pin to local noon.
+// "2h ago" / "3d ago" for the last Blueprint touch.
+function touchAgo(ms) {
+  const mins = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return days < 30 ? `${days}d ago` : `${Math.round(days / 30)}mo ago`;
+}
+
 function fmtDate(s) {
   if (!s) return "—";
   const iso = /^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00` : s;
@@ -96,7 +107,7 @@ function agoLabel(ts) {
   return `updated ${hrs}h ago`;
 }
 
-export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, onOpenClient, importCtx }) {
+export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, onOpenClient, importCtx, blueprintTouch = {} }) {
   const font = FONT_PROP || FONT;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -151,12 +162,24 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
   const visibleLoans = filter === "leads" ? [] : loans.filter(matches);
   const visibleLeads = filter === "live" ? [] : leads.filter(matches);
 
+  // Most recently touched first inside each milestone (Christo 2026-09-24):
+  // a row whose Blueprint anyone edited or opened (blueprintTouch, from the
+  // recent-scenarios feed) floats up by that time; untouched rows keep the
+  // server order below them.
+  const touchedAt = (l) => {
+    const id = l.bpClientId || importedIds[l.id] || null;
+    return id ? (blueprintTouch[id] || 0) : 0;
+  };
+  const byTouch = (list) => list
+    .map((l, i) => [l, touchedAt(l), i])
+    .sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]))
+    .map((x) => x[0]);
   // Group by milestone, in pipeline order — live groups first, lead groups after.
   const loanGroups = MILESTONE_ORDER
-    .map((m) => [m, visibleLoans.filter((l) => (l.milestone || "In Process") === m)])
+    .map((m) => [m, byTouch(visibleLoans.filter((l) => (l.milestone || "In Process") === m))])
     .filter(([, list]) => list.length > 0);
   const leadGroups = LEAD_MILESTONE_ORDER
-    .map((m) => [m, visibleLeads.filter((l) => (l.milestone || "Leads") === m)])
+    .map((m) => [m, byTouch(visibleLeads.filter((l) => (l.milestone || "Leads") === m))])
     .filter(([, list]) => list.length > 0);
   const groups = [...loanGroups, ...leadGroups];
   const visibleCount = visibleLoans.length + visibleLeads.length;
@@ -166,18 +189,19 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
     textTransform: "uppercase", color: T.textTertiary,
   };
 
+  // Solid card surfaces (Christo 2026-09-24: the glass read as gray over the
+  // blueprint canvas). Stat tiles, filter pills and search all use T.card.
   const glassTile = {
     flex: 1, minWidth: 108, padding: "14px 16px", borderRadius: 16,
-    background: T.glass, border: `1px solid ${T.glassBorder}`,
-    boxShadow: T.glassShadow, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+    background: T.card, border: `1px solid ${T.cardBorder}`,
+    boxShadow: T.cardShadow,
   };
 
   const pillBtn = {
     display: "inline-flex", alignItems: "center", gap: 6,
     padding: "6px 14px", borderRadius: 9999, cursor: "pointer",
-    background: T.glass, border: `1px solid ${T.glassBorder}`,
+    background: T.card, border: `1px solid ${T.cardBorder}`,
     color: T.text, fontFamily: font, fontSize: 12, fontWeight: 600,
-    backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
   };
 
   // ── Session expired → re-auth prompt ──
@@ -247,8 +271,8 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
               onClick={() => setFilter(key)}
               style={{
                 ...pillBtn,
-                background: active ? T.accent : T.glass,
-                border: active ? `1px solid ${T.accent}` : `1px solid ${T.glassBorder}`,
+                background: active ? T.accent : T.card,
+                border: active ? `1px solid ${T.accent}` : `1px solid ${T.cardBorder}`,
                 color: active ? "#fff" : T.text,
               }}
             >
@@ -259,7 +283,7 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
             </button>
           );
         })}
-        <div style={{ flex: 1, minWidth: 160, maxWidth: 320, display: "flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 9999, background: T.inputBg, border: `1px solid ${T.inputBorder}` }}>
+        <div style={{ flex: 1, minWidth: 160, maxWidth: 320, display: "flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 9999, background: T.card, border: `1px solid ${T.cardBorder}` }}>
           <Icon name="search" size={13} style={{ color: T.textTertiary, flexShrink: 0 }} />
           <input
             value={query}
@@ -332,6 +356,7 @@ export default function LoPipelinePanel({ T, FONT: FONT_PROP, auth, isDesktop, o
                     <div style={{ marginTop: 2, fontFamily: font, fontSize: 12, color: T.textSecondary }}>
                       {[l.loanType || null, l.loanAmount ? fmtMoney(l.loanAmount) : null, l.rate ? fmtRate(l.rate) : null].filter(Boolean).join(" · ") || "—"}
                       {l.lender ? <span style={{ color: T.textTertiary }}> · {l.lender}</span> : null}
+                      {touchedAt(l) > 0 && <span style={{ color: T.accent, fontWeight: 600 }}> · Blueprint {touchAgo(touchedAt(l))}</span>}
                     </div>
                   </div>
                   {canImport && (

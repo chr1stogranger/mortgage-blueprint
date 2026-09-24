@@ -2723,6 +2723,68 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   return () => { dead = true; clearTimeout(timer); sub.unsubscribe(); document.removeEventListener("visibilitychange", onVisible); };
  }, [scenariosAreCloud, activeBorrower?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+ // ── Recently touched Blueprints, by ANYONE (Christo 2026-09-24) ──
+ // Recents used to be this device's open history only, so a Blueprint the
+ // borrower (or Gina, or Christo on another device) edited never surfaced.
+ // The Ops dashboard route returns the 100 most recently updated scenarios
+ // (updated_at bumps on every save, including share-link borrower edits;
+ // last_opened_at on LO opens). Per client, the newest of those is its
+ // "last touched" time: it feeds the sidebar Recents and the Pipeline sort.
+ const borrowerListRef = useRef([]);
+ useEffect(() => { borrowerListRef.current = borrowerList; }, [borrowerList]);
+ const [blueprintTouch, setBlueprintTouch] = useState({}); // borrowerId → ms
+ const [serverRecents, setServerRecents] = useState([]);   // shelf-shaped entries
+ const touchMapFrom = (recent) => {
+  const m = {};
+  for (const sc of (Array.isArray(recent) ? recent : [])) {
+   const t = Math.max(Date.parse(sc.updated_at || "") || 0, Date.parse(sc.last_opened_at || "") || 0);
+   if (sc.borrower_id && t > (m[sc.borrower_id] || 0)) m[sc.borrower_id] = t;
+  }
+  return m;
+ };
+ const applyRecentScenarios = (recent, borrowers = []) => {
+  const m = touchMapFrom(recent);
+  setBlueprintTouch(m);
+  const byId = {};
+  for (const b of borrowers) byId[b.id] = b;
+  const seen = new Set();
+  const entries = [];
+  for (const sc of (Array.isArray(recent) ? recent : [])) {
+   const id = sc.borrower_id;
+   if (!id || seen.has(id)) continue;
+   seen.add(id);
+   const b = byId[id] || { id, ...(sc.borrower || {}) };
+   if (!b.name && !b.email) continue;
+   entries.push({ borrowerId: id, borrowerName: formatLastFirst(b), status: b.status || sc.borrower?.status || '', ts: m[id] || 0 });
+  }
+  setServerRecents(entries.sort((a, b) => b.ts - a.ts).slice(0, 15));
+ };
+ // Keep it fresh: someone else's edit should show up without a reload.
+ useEffect(() => {
+  if (!isCloud || isBorrower) return;
+  let stop = false;
+  const refresh = () => fetchRecentScenarios().then((r) => { if (!stop) applyRecentScenarios(r, borrowerListRef.current || []); }).catch(() => {});
+  const iv = setInterval(refresh, 90000);
+  const onFocus = () => { if (document.visibilityState !== "hidden") refresh(); };
+  window.addEventListener("focus", onFocus);
+  document.addEventListener("visibilitychange", onFocus);
+  return () => { stop = true; clearInterval(iv); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onFocus); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isCloud, isBorrower]);
+
+ // Sidebar Recents = server "last touched" (anyone's edits) ∪ this device's
+ // open history, newest first, pinned clients excluded (they sit above).
+ const mergedRecents = React.useMemo(() => {
+  const pinnedIds = new Set(pinnedBlueprints.map((e) => e.borrowerId));
+  const best = new Map();
+  for (const e of [...recentBlueprints, ...serverRecents]) {
+   if (pinnedIds.has(e.borrowerId)) continue;
+   const prev = best.get(e.borrowerId);
+   if (!prev || (e.ts || 0) > (prev.ts || 0)) best.set(e.borrowerId, { ...prev, ...e, status: e.status || prev?.status || '' });
+  }
+  return [...best.values()].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 15);
+ }, [recentBlueprints, serverRecents, pinnedBlueprints]);
+
  // ── Load borrower list from Supabase when authenticated ──
  // Ordered by most-recent BLUEPRINT activity (Christo 7.24): the server's
  // borrower order only tracks borrower-row edits, so we pull the recent
@@ -2741,11 +2803,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     ]);
     if (cancelled) return;
     const rows = Array.isArray(list) ? list : [];
-    const lastUsed = {};
-    for (const s of (Array.isArray(recent) ? recent : [])) {
-     const t = Math.max(Date.parse(s.updated_at || "") || 0, Date.parse(s.last_opened_at || "") || 0);
-     if (s.borrower_id && t > (lastUsed[s.borrower_id] || 0)) lastUsed[s.borrower_id] = t;
-    }
+    const lastUsed = touchMapFrom(recent);
+    applyRecentScenarios(recent, rows);
     const sorted = rows
      .map((b, i) => [b, lastUsed[b.id] || 0, i])
      .sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]))
@@ -7924,7 +7983,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       {appMode === "blueprint" && isCloud && !isBorrower && (!sidebarCollapsed || !isDesktop) && (
        <SidebarSwitcher
         pinned={pinnedBlueprints}
-        recents={recentBlueprints}
+        recents={mergedRecents}
         activeBorrowerId={activeBorrower?.id}
         onOpen={openClient}
         onTogglePin={toggleBlueprintPin}
@@ -8812,7 +8871,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ MY PIPELINE (LO only — per-LO Ops/Arive loans, B5) ═══ */}
 {tab === "pipeline" && isCloud && !isBorrower && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary, fontFamily: FONT, fontSize: 13 }}>Loading Pipeline...</div>}>
-  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} onOpenClient={(entry) => { setTab("overview"); openClient(entry); }}
+  <LoPipelinePanel T={T} FONT={FONT} auth={auth} isDesktop={isDesktop} blueprintTouch={blueprintTouch} onOpenClient={(entry) => { setTab("overview"); openClient(entry); }}
    importCtx={{
     // row.guid (sysGUID) is the Arive detail key; older deployed Ops rows
     // lack it — row.id then degrades to a friendly in-modal error.
