@@ -1,5 +1,5 @@
 import { FONT, MONO } from "./lib/fonts.js";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
 import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent, VaResidualContent } from "./content/index.js";
 
@@ -87,16 +87,30 @@ export default function OverviewTab(props) {
   // donut, with Quick Start shrunk to a one-line summary banner. A blank one
   // keeps the form on top so the donut never shows a payment built on default
   // ZIP/FICO. Guided mode always keeps it open (its steps start there).
-  // The decision is snapshotted when the Blueprint loads or the scenario
-  // changes, NOT re-run on every edit, so finishing the last field doesn't
-  // collapse the section out from under the cursor.
+  // The decision is re-made when the Blueprint loads or the scenario changes,
+  // and again when setup flips to complete WITHOUT the user editing this page
+  // (a cloud/client load whose data lands after the scenario id). A flip
+  // caused by the user typing never collapses the section under the cursor,
+  // and a manual open/close sticks until the next scenario.
   const setupFilled = !!isTabFieldsComplete?.("setup");
   const [setupOpen, setSetupOpen] = useState(() => isGuided || !setupFilled);
+  const setupManual = useRef(false);
+  const lastEditAt = useRef(0);
+  const prevSetupFilled = useRef(setupFilled);
+  const markEdit = () => { lastEditAt.current = Date.now(); };
+  const toggleSetup = (v) => { setupManual.current = true; setSetupOpen(v); };
   const setupSnapshotKey = `${blueprintLoaded ? 1 : 0}|${activeScenarioId || ""}|${scenarioName || ""}|${isGuided ? 1 : 0}`;
   useEffect(() => {
+    setupManual.current = false;
     setSetupOpen(isGuided || !setupFilled);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupSnapshotKey]);
+  useEffect(() => {
+    const flippedOn = setupFilled && !prevSetupFilled.current;
+    prevSetupFilled.current = setupFilled;
+    if (flippedOn && !isGuided && !setupManual.current && Date.now() - lastEditAt.current > 3000) setSetupOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setupFilled]);
   const compactUsd = (v) => v >= 1e6 ? `$${parseFloat((v / 1e6).toFixed(2))}M` : `$${Math.round(v / 1000)}K`;
   const setupSummary = [
     isRefi ? "Refinance" : "Purchase",
@@ -112,7 +126,9 @@ export default function OverviewTab(props) {
   // (Christo 2026-05-27.)
   return (
     <Suspense fallback={null}>
-    <div style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
+    {/* Edits anywhere on the page (not the sidebar/header that load other
+        Blueprints) mark "the user is typing" for Quick Start's auto-collapse. */}
+    <div onPointerDownCapture={markEdit} onKeyDownCapture={markEdit} style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
       {/* Top-of-page block removed (Christo 2026-09-23): the "Blueprint ·
           loan #" eyebrow, the mobile city/ZIP line, the inline scenario list +
           Compare chip, and the Synced / Sign-in-to-sync chip. Every piece is
@@ -140,7 +156,7 @@ export default function OverviewTab(props) {
         T={T}
         id="overview-setup"
         open={setupOpen}
-        onToggle={setSetupOpen}
+        onToggle={toggleSetup}
         collapsedSubtitle={setupSummary}
         heroStyle={true}
       >

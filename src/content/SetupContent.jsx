@@ -130,6 +130,45 @@ export default function SetupContent(props) {
    </div>
   );
 
+  /* Middle FICO input + slider. Extracted for the same reason as the location
+     card: purchase renders it inside Quick Start (or under the ZIP on
+     Overview), refi renders it on the right. Defined before the location card,
+     which embeds it. */
+  const ficoBlock = (
+    <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
+     <FieldLabel label="Middle FICO Score" tip="Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification." req filled={creditScore > 0} />
+     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ flex: "0 0 90px" }}>
+       <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
+        onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
+        onBlur={() => {
+          if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
+          else if (creditScore >= 300) markTouched("fico-input-done");
+        }}
+        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "normal", fontVariantNumeric: "tabular-nums" }} />
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+       <input type="range" min={300} max={850} step={5} value={creditScore || 650}
+        onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+        onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
+        style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
+        <span>300</span>
+        <span>580</span>
+        <span>670</span>
+        <span>740</span>
+        <span>850</span>
+       </div>
+      </div>
+     </div>
+     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
+      <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
+       {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+): need ${calc.ficoMin - creditScore} more pts`}
+      </span>
+     </div>}
+    </div>
+  );
+
   // Purchase on Overview: the location card is alone in the right column, so
   // it stretches to the Quick Start card's height (edges line up).
   const locationFillsColumn = isDesktop && !isRefi && hideModules;
@@ -250,46 +289,13 @@ export default function SetupContent(props) {
      )}
     </div>
     )}
+   {/* Purchase on Overview: FICO sits under the ZIP (Christo 2026-09-23),
+        leaving the Quick Start card to Experience + Transaction Type. */}
+    {!isRefi && hideModules && (
+     <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 14, paddingTop: 14 }}>{ficoBlock}</div>
+    )}
    </Card>
    </div>
-  );
-
-  /* Middle FICO input + slider. Extracted for the same reason as the location
-     card: purchase renders it inside Quick Start, refi renders it on the right
-     where the Modules card used to be (Christo 2026-07-22). */
-  const ficoBlock = (
-    <div data-field="fico-input" className={isPulse("fico-input")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-     <FieldLabel label="Middle FICO Score" tip="Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification." req filled={creditScore > 0} />
-     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ flex: "0 0 90px" }}>
-       <input type="text" inputMode="numeric" value={creditScore === 0 ? "" : creditScore} placeholder="750"
-        onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } const n = Math.min(parseInt(v, 10), 850); setCreditScore(n); }}
-        onBlur={() => {
-          if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
-          else if (creditScore >= 300) markTouched("fico-input-done");
-        }}
-        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "normal", fontVariantNumeric: "tabular-nums" }} />
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-       <input type="range" min={300} max={850} step={5} value={creditScore || 650}
-        onChange={e => setCreditScore(parseInt(e.target.value, 10))}
-        onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
-        style={{ width: "100%", height: 6, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
-       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: T.textTertiary, fontFamily: FONT, letterSpacing: 0.5 }}>
-        <span>300</span>
-        <span>580</span>
-        <span>670</span>
-        <span>740</span>
-        <span>850</span>
-       </div>
-      </div>
-     </div>
-     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
-      <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
-       {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+): need ${calc.ficoMin - creditScore} more pts`}
-      </span>
-     </div>}
-    </div>
   );
 
   // ── Flow-1 question nodes (Christo 2026-08-04): every yes/no question in
@@ -976,7 +982,7 @@ export default function SetupContent(props) {
 
     {/* 3) FICO — purchase keeps it in the Quick Start card. Refi renders it in
         the right column, in the slot the Modules card used to occupy. */}
-    {!isRefi && ficoBlock}
+    {!isRefi && !hideModules && ficoBlock}
     {/* Filing Status removed — set under Tax Savings / Settings instead */}
    </Card>
 

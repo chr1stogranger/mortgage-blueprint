@@ -25,6 +25,10 @@ export default function CashToCloseSummary({
   // Breakdown card's "Advanced" expander (which sits below ITS band) so the
   // two total bands stay on the same line at rest (Christo 2026-07-22).
   footerReserve = 0,
+  // Empty space BELOW the card (outside its border) — the height of Payment
+  // Breakdown's open Advanced ladder. The card ends at its total band instead
+  // of stretching, so the band stays level with Total Payment.
+  outsideReserve = 0,
 }) {
   const total = isRefi
     ? newLoan - oldLoanPayoff - closingCosts - prepaids - payoffs + credits
@@ -51,7 +55,7 @@ export default function CashToCloseSummary({
     : "Estimated Cash To Close";
   const totalColor = isRefi ? (total >= 0 ? (T.green || ACCENT) : ACCENT) : ACCENT;
 
-  return (
+  const card = (
     <div style={{
       background: T.card,
       border: `1px solid ${T.cardBorder}`,
@@ -147,6 +151,13 @@ export default function CashToCloseSummary({
       {/* Reserve matching Payment Breakdown's Advanced expander so the total
           bands align at rest. Transparent — nothing to show here. */}
       {stretch && footerReserve > 0 && <div aria-hidden="true" style={{ height: footerReserve }} />}
+    </div>
+  );
+  if (!stretch || outsideReserve <= 0) return card;
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      {card}
+      <div aria-hidden="true" style={{ height: outsideReserve, flexShrink: 0 }} />
     </div>
   );
 }

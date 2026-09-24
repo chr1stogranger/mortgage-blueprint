@@ -212,6 +212,20 @@ export default function CalculatorContent(props) {
   // Closed at rest so the Payment Breakdown card keeps the fixed height that
   // bottom-aligns it with Cash-to-Close on desktop.
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Height of the open Advanced ladder. Cash To Close parks the same height
+  // BELOW its card, so its total band stays level with Total Payment instead
+  // of stretching down to the ladder's bottom (Christo 2026-09-23).
+  const ladderRef = useRef(null);
+  const [ladderH, setLadderH] = useState(0);
+  React.useEffect(() => {
+    const el = ladderRef.current;
+    if (!advancedOpen || !el) { setLadderH(0); return; }
+    const measure = () => setLadderH(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [advancedOpen]);
   // Advanced PMI rate chart (LO-editable Radian matrix for the current FICO band).
   const [pmiChartOpen, setPmiChartOpen] = useState(false);
   // Live-rates popup — opens when user clicks the inline '✓ Live' pill in the Rate
@@ -1285,7 +1299,7 @@ export default function CalculatorContent(props) {
      }}>▾</span>
     </div>
     {advancedOpen && (
-     <div style={{ padding: "4px 18px 16px" }}>
+     <div ref={ladderRef} style={{ padding: "4px 18px 16px" }}>
       <NetPaymentLadder
        T={T}
        fmt={fmt}
@@ -1495,6 +1509,7 @@ export default function CalculatorContent(props) {
     /* Matches the Advanced expander bar tucked under Payment Breakdown's
        Total band so the two bands align at rest (Christo 2026-07-22). */
     footerReserve={39}
+    outsideReserve={isDesktop ? ladderH : 0}
     T={T}
     ACCENT={T.blue}
     fmt={fmt}
