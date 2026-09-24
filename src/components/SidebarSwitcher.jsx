@@ -47,6 +47,8 @@ export default function SidebarSwitcher({
   T = {},
 }) {
   const [recentsOpen, setRecentsOpen] = React.useState(true);
+  // Two steps (Christo 2026-09-24): 5 at rest, "Show more" opens up to 10.
+  const [recentsMore, setRecentsMore] = React.useState(false);
   const accent = '#3B6BF5';
   const text = T.text || '#EDEDED';
   const textTer = T.textTertiary || '#8A8A8A';
@@ -159,9 +161,22 @@ export default function SidebarSwitcher({
               <Icon name="chevron-down" size={13} color={textTer} />
             </span>
           </div>
-          {/* Cap the visible recents at 5 so a long history can't push the
-              "Overview: Jump to" index down the sidebar. (2026-07-08) */}
-          {recentsOpen && recents.slice(0, 5).map(row)}
+          {/* 5 at rest so a long history can't push the "Overview: Jump to"
+              index down the sidebar (2026-07-08); "Show more" opens up to 10. */}
+          {recentsOpen && recents.slice(0, recentsMore ? 10 : 5).map(row)}
+          {recentsOpen && recents.length > 5 && (
+            <button type="button" onClick={() => setRecentsMore((v) => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4, width: '100%', padding: '4px 14px 6px 32px',
+                background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                fontSize: 11, fontWeight: 600, color: T.blue, fontFamily: FONT,
+              }}>
+              {recentsMore ? 'Show less' : `Show more (${Math.min(recents.length, 10) - 5})`}
+              <span style={{ display: 'flex', transition: 'transform 0.18s ease', transform: recentsMore ? 'rotate(180deg)' : 'none' }}>
+                <Icon name="chevron-down" size={12} color={T.blue} />
+              </span>
+            </button>
+          )}
         </>
       )}
 
