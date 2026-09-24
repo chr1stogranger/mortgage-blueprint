@@ -543,15 +543,17 @@ export default function QualifyContent(props) {
   }
   return (<>
    <Sec title="Your Maximum Purchase Price">
-    <Card style={{ background: `linear-gradient(135deg, ${T.blue}10, ${T.accent}08)`, border: `1px solid ${T.blue}25` }}>
-     <div style={{ textAlign: "center", padding: "10px 0" }}>
-      <div style={{ fontSize: 11, color: T.textTertiary, textTransform: "uppercase", letterSpacing: 1 }}>You Can Afford Up To</div>
-      <div style={{ fontSize: 36, fontWeight: 800, color: T.blue, fontFamily: FONT, margin: "6px 0" }}>{fmt(maxPrice)}</div>
-      <div style={{ fontSize: 13, color: T.textSecondary }}>with {fmt(actualDP)} down ({dpPct.toFixed(1)}%) · {fmt(loanAmt)} loan</div>
+    {/* Solid Grange-blue hero, white type (Christo 2026-09-23: "mega pop").
+        The pale tint read as just another card over the background canvas. */}
+    <Card style={{ background: `linear-gradient(135deg, ${T.blue}, ${T.accentDeep})`, border: "none", boxShadow: `0 10px 30px ${T.blue}40` }}>
+     <div style={{ textAlign: "center", padding: "14px 0" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", letterSpacing: 1.5 }}>You Can Afford Up To</div>
+      <div style={{ fontSize: isDesktop ? 48 : 40, fontWeight: 800, color: "#fff", fontFamily: FONT, letterSpacing: "-0.03em", lineHeight: 1.1, margin: "8px 0" }}>{fmt(maxPrice)}</div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)" }}>with {fmt(actualDP)} down ({dpPct.toFixed(1)}%) · {fmt(loanAmt)} loan</div>
       {hitsJumbo && (
-       <div style={{ marginTop: 8, padding: "8px 14px", background: `${T.orange}12`, borderRadius: 10, display: "inline-block" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: T.orange }}>Jumbo Loan Territory</div>
-        <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 2 }}>Loan exceeds {fmt(confLimit)} high-balance limit: requires 20% down + 43% max DTI</div>
+       <div style={{ marginTop: 12, padding: "8px 14px", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 10, display: "inline-block" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>Jumbo Loan Territory</div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>Loan exceeds {fmt(confLimit)} high-balance limit: requires 20% down + 43% max DTI</div>
        </div>
       )}
      </div>
