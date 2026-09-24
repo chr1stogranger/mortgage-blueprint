@@ -86,11 +86,14 @@ export default function DebtsContent(props) {
   );
 
   // What this debt adds to back-end DTI — the Debts analog of Assets' "For Reserves".
-  const dtiCell = (d) => {
+  // `right` — the mobile card: stacks right-align under their right-hand
+  // column, like REO's "Counts in DTI" (Christo 2026-09-23).
+  const dtiCell = (d, right = false) => {
+    const stack = { display: "flex", flexDirection: "column", alignItems: right ? "flex-end" : "flex-start", textAlign: right ? "right" : "left" };
     if (isPaidOff(d)) {
       const po = Number(d.payoffAmount) || Number(d.balance) || 0;
       return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3 }}>
+        <div style={{ ...stack, gap: 3 }}>
           <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.green }}>{fmt(0)}</span>
           {chip(T.green, T.successBg, d.payoff === "Yes - at Escrow" ? `✓ ${fmt(po)} paid at close` : "✓ Paid before close")}
         </div>
@@ -99,7 +102,7 @@ export default function DebtsContent(props) {
     if (d.payoff === "Omit") return <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textTertiary }}>Omitted</span>;
     if (reoLinked.has(d.id)) {
       return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+        <div style={{ ...stack, gap: 2 }}>
           <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.textTertiary }}>via REO</span>
           <span style={{ fontSize: 11, color: T.textTertiary }}>75% rent offset</span>
         </div>
@@ -351,7 +354,7 @@ export default function DebtsContent(props) {
               )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, marginTop: 4, borderTop: `1px solid ${T.separator}`, fontSize: 13 }}>
                 <span style={{ color: T.textSecondary }}>Counts in DTI</span>
-                {dtiCell(d)}
+                {dtiCell(d, true)}
               </div>
             </div>
           ))}

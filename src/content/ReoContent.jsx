@@ -152,10 +152,13 @@ export default function ReoContent(props) {
     }}>+ Add Property</button>
   );
 
-  const dtiText = (c) => (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+  // `right` — the mobile card, where the figure sits in the same right-hand
+  // column as "Net cash flow" above it: right-aligned, same /mo unit, note
+  // tucked under it (Christo 2026-09-23).
+  const dtiText = (c, right = false) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: right ? "flex-end" : "flex-start", textAlign: right ? "right" : "left", gap: 1 }}>
       <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONT, color: c.dtiImpact >= 0 ? T.green : T.orange }}>
-        {c.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(c.dtiImpact))}
+        {c.dtiImpact >= 0 ? "+" : "−"}{fmt(Math.abs(c.dtiImpact))}{right ? "/mo" : ""}
       </span>
       <span style={{ fontSize: 10.5, color: T.textTertiary }}>{c.isInvestment ? (c.dtiImpact >= 0 ? "income (75% rule)" : "debt (75% rule)") : "debt (full PITIA)"}</span>
     </div>
@@ -418,7 +421,7 @@ export default function ReoContent(props) {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, fontSize: 13 }}>
                 <span style={{ color: T.textSecondary }}>Counts in DTI</span>
-                {dtiText(c)}
+                {dtiText(c, true)}
               </div>
             </div>
           );
