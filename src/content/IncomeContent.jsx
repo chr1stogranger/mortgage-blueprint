@@ -546,10 +546,10 @@ function ComponentRow({
       onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
       title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
       style={{
-        width: 22, height: 22, borderRadius: 6, padding: 0, flexShrink: 0,
+        width: 26, height: 26, borderRadius: 7, padding: 0, flexShrink: 0,
         background: `${T.orange}10`,
         border: `1px solid ${T.orange}33`,
-        color: T.orange, fontSize: 11, fontWeight: 700,
+        color: T.orange, fontSize: 15, fontWeight: 700,
         cursor: "pointer", display: "flex",
         alignItems: "center", justifyContent: "center",
         transform: `rotate(${isExpanded ? 0 : -90}deg)`,
@@ -790,9 +790,9 @@ function EmployerGroup({
 
   const chevron = (
     <span style={{
-      color: T.textTertiary, fontSize: 12, flexShrink: 0,
+      color: T.textSecondary, fontSize: 18, flexShrink: 0,
       display: "flex", alignItems: "center", justifyContent: "center",
-      width: 22, height: 22,
+      width: 28, height: 28,
       transition: "transform 0.2s",
       transform: `rotate(${isExpanded ? 0 : -90}deg)`,
     }}>▾</span>
@@ -1441,9 +1441,9 @@ export default function IncomeContent(props) {
                       <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginLeft: 2 }}>/mo</span>
                     </div>
                     <span style={{
-                      color: T.textTertiary, fontSize: 12, flexShrink: 0,
+                      color: T.textSecondary, fontSize: 18, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      width: 22, height: 22,
+                      width: 28, height: 28,
                       transition: "transform 0.2s",
                       transform: `rotate(${otherOpen ? 0 : -90}deg)`,
                     }}>▾</span>

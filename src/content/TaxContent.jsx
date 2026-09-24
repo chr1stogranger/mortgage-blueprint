@@ -364,8 +364,11 @@ export default function TaxContent(props) {
   {calc.yearlyInc > 0 ? (
    <Sec title="Tax Savings: Before vs After">
     <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } : { display: "flex", flexDirection: "column", gap: 12 }}>
-     {/* Federal card */}
-     <Card>
+     {/* Federal card — flex column stretched to the state card's height, so
+         its Total Annual Savings band pins to the bottom and lines up with the
+         state band (Christo 2026-09-24). Card's built-in marginBottom would
+         leave the cards 12px uneven in the grid row. */}
+     <Card style={isDesktop ? { marginBottom: 0, display: "flex", flexDirection: "column" } : undefined}>
       <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>Federal (2026) Tax Savings: Before & After</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
        <div style={{ background: `${T.orange}08`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${T.orange}22` }}>
@@ -388,7 +391,7 @@ export default function TaxContent(props) {
         <div style={{ fontSize: 11, color: T.green, fontWeight: 700, marginTop: 4 }}>Difference: {fmt(fedTaxableBefore - fedTaxableAfter)}</div>
        </div>
       </div>
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr 1fr 0.9fr", gap: 0, fontSize: 10, color: T.textTertiary, fontWeight: 700, paddingBottom: 6, borderBottom: `1px solid ${T.separator}`, fontFamily: FONT, letterSpacing: 0.5, textTransform: "uppercase" }}>
         <span>Bracket</span>
         <span style={{ textAlign: "right" }}>Rate</span>
@@ -416,7 +419,8 @@ export default function TaxContent(props) {
         <span style={{ textAlign: "right", fontFamily: FONT }}>{fmt(fedAfter.total)}</span>
         <span style={{ textAlign: "right", fontFamily: FONT, color: T.green }}>{fmt(fedSav)}</span>
        </div>
-       <div style={{ marginTop: 8, padding: "10px 12px", background: `${T.green}10`, borderRadius: 10, border: `1px solid ${T.green}22`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+       {isDesktop && <div style={{ minHeight: 8, flexShrink: 0 }} />}
+       <div style={{ marginTop: isDesktop ? "auto" : 8, padding: "10px 12px", background: `${T.green}10`, borderRadius: 10, border: `1px solid ${T.green}22`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
          <div style={{ fontSize: 11, color: T.textSecondary }}>Total Annual Savings</div>
          <div style={{ fontSize: 18, fontWeight: 800, color: T.green, fontFamily: FONT, letterSpacing: "-0.02em" }}>{fmt(fedSav)}</div>
@@ -430,7 +434,7 @@ export default function TaxContent(props) {
      </Card>
 
      {/* State card */}
-     <Card>
+     <Card style={isDesktop ? { marginBottom: 0 } : undefined}>
       <div style={{ fontSize: 11, fontWeight: 700, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 }}>{taxState}{calc.stateTaxYear ? ` (${calc.stateTaxYear})` : ""} Tax Savings: Before & After</div>
       {stateInfo.type === "none" ? (
        <div style={{ padding: "20px 12px", textAlign: "center" }}>
