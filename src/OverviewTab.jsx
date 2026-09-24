@@ -83,58 +83,11 @@ export default function OverviewTab(props) {
   return (
     <Suspense fallback={null}>
     <div style={{ marginTop: 0, paddingTop: 0, paddingBottom: 80 }}>
-      {/* Blueprint reference eyebrow — quiet overline at the very top of the
-          page, like the loan number printed atop a loan file. */}
-      {props.loanNumber && (
-        <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "1.5px", color: T.textTertiary, textTransform: "uppercase", fontFamily: FONT, marginBottom: 12 }}>
-          Blueprint <span style={{ opacity: 0.5, margin: "0 5px" }}>·</span> {props.loanNumber}
-        </div>
-      )}
-      {/* ═══════════════════════════════════════
-          HEADER: scenario pills + sign-in (title removed — sticky bar provides context)
-          ═══════════════════════════════════════ */}
-      {/* Redundant on desktop — scenarios live in the left sidebar and the
-          ZIP/city live in Quick Start. Kept on mobile for quick scenario
-          switching + borrower sign-in (drawer isn't always visible there). */}
-      {!isDesktop && (
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {(city || propertyZip) && (
-            <span style={{ fontSize: 12, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, letterSpacing: "0.01em" }}>
-              {city}{city && propertyState ? ", " : ""}{propertyState ? (STATE_ABBR[propertyState] || propertyState) : ""}{propertyZip ? ` ${propertyZip}` : ""}
-            </span>
-          )}
-          {(city || propertyZip) && <span style={{ color: T.textTertiary, fontSize: 10 }}>·</span>}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: T.pillBg, borderRadius: 8, padding: "2px 8px" }}>
-            {(scenarioList || []).length > 1 ? (scenarioList || []).map(name => (
-              <span key={name} onClick={() => name !== scenarioName ? switchScenario(name) : null}
-                style={{ fontSize: 11, fontWeight: name === scenarioName ? 700 : 400, color: name === scenarioName ? T.blue : T.textTertiary, cursor: name === scenarioName ? "default" : "pointer", textDecoration: name === scenarioName ? "none" : "underline", whiteSpace: "nowrap", transition: "all 0.2s" }}>
-                {name}
-              </span>
-            )) : (
-              <span style={{ fontSize: 11, fontWeight: 600, color: T.blue, whiteSpace: "nowrap" }}>{scenarioName || "Scenario 1"}</span>
-            )}
-            {(scenarioList || []).length > 1 && onCompare && (
-              <span onClick={onCompare} style={{ fontSize: 9, fontWeight: 700, color: T.blue, background: `${T.blue}15`, borderRadius: 5, padding: "1px 5px", cursor: "pointer", whiteSpace: "nowrap" }}>Compare</span>
-            )}
-          </div>
-          {/* Borrower account affordance (public calculator only). When signed
-              in + syncing → a subtle "Synced" chip; otherwise a "Sign in to
-              sync" button that opens the borrower AccountSheet (NOT the LO
-              login gate, which is allowlist-only). */}
-          {props.showAccountButton && (
-            props.selfAccount ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 600, color: T.green, background: `${T.green}15`, borderRadius: 8, padding: "2px 8px", fontFamily: FONT, whiteSpace: "nowrap" }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: T.green, display: "inline-block" }} />
-                {props.syncEnabled ? "Synced" : "Signed in"}
-              </span>
-            ) : (
-              <button onClick={props.onOpenAccountSheet} style={{ fontSize: 10, color: T.blue, background: "none", border: `1px solid ${T.blue}30`, borderRadius: 8, padding: "2px 8px", cursor: "pointer", fontFamily: FONT }}>Sign in to sync</button>
-            )
-          )}
-        </div>
-      </div>
-      )}
+      {/* Top-of-page block removed (Christo 2026-09-23): the "Blueprint ·
+          loan #" eyebrow, the mobile city/ZIP line, the inline scenario list +
+          Compare chip, and the Synced / Sign-in-to-sync chip. Every piece is
+          elsewhere: scenarios in the header dropdown, location in Quick Start,
+          Compare in the tab bar, account + sync status in the header. */}
 
       {/* Guided progress strip — slim, non-floating "Step X of N" indicator.
           Driven by guidedStep computed in MortgageBlueprint (mirrors guideField). */}
