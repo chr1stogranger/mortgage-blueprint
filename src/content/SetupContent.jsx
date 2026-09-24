@@ -754,7 +754,9 @@ export default function SetupContent(props) {
     <div data-field="fthb" className={isPulse("fthb")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
      <div>
       <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Buying your first home?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{firstTimeBuyer === true ? "FTHB unlocked: 3% down conventional available" : "Unlocks first-time buyer loan programs"}</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{firstTimeBuyer === true
+        ? (calc?.threePctPath === "fthb" ? "FTHB unlocked: 3% down conventional, no income limit" : "FTHB: 3% down needs a conforming (not high-balance) primary purchase")
+        : calc?.threePctPath === "homeready" ? "3% down via HomeReady: income under 80% of area median" : "Unlocks first-time buyer loan programs"}</div>
      </div>
      <YesNoSeg
       T={T}

@@ -1084,7 +1084,7 @@ const SKILL_PRESETS = {
  standard: { label: "Standard", sub: "I Know the Basics", icon: "key", desc: "Full access to everything. Jump to any section.", unlockedThrough: 11, startsOn: "overview" },
 };
 const TOGGLE_DESCRIPTIONS = {
- firstTimeBuyer: { on: "Enables 3% down conventional (income limits apply). Also unlocks Rent vs Buy analysis.", off: "Standard down payment minimums (5% conv, 3.5% FHA, 0% VA)." },
+ firstTimeBuyer: { on: "Enables 3% down conventional on a conforming (not high-balance) primary purchase. No income limit. Also unlocks Rent vs Buy analysis.", off: "Standard down payment minimums (5% conv, 3.5% FHA, 0% VA)." },
  ownsProperties: { on: "Opens the REO (Real Estate Owned) tab to track existing properties, rental income, and reserve requirements.", off: "No existing properties to report." },
  hasSellProperty: { on: "Opens the Seller Net tab. Calculates your net proceeds, capital gains tax, and how sale funds apply to your new purchase.", off: "Not selling a property as part of this transaction." },
  showInvestor: { on: "Opens the Investor tab with NOI, Cap Rate, Cash-on-Cash, DSCR, and IRR analysis for rental properties.", off: "Standard primary/second home analysis only." },
@@ -5887,7 +5887,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const cashToClose = (isRefi ? 0 : dp) + totalClosingCosts + totalPrepaidExp + payoffAtClosing - totalCredits;
   const ficoMin = loanType === "FHA" ? 580 : loanType === "Jumbo" ? 700 : loanType === "VA" ? 580 : 620;
   const ficoCheck = creditScore > 0 ? (creditScore >= ficoMin ? "Good!" : "Too Low") : "—";
-  const minDPpct = loanType === "VA" ? 0 : loanType === "FHA" ? 3.5 : loanType === "Jumbo" ? 20 : (firstTimeBuyer && loanCategory === "Conforming") ? 3 : 5;
+  // 3% down conventional — two Fannie Mae paths, both 1-unit primary purchase
+  // on a conforming (NOT high-balance) loan (Christo 2026-09-24):
+  //   • Standard 97% LTV: a first-time buyer. No income limit.
+  //   • HomeReady: anyone whose QUALIFYING income ≤ 80% of the county AMI.
+  //     Only the income used to qualify counts, so leaving bonus / RSUs out
+  //     can bring a borrower under the limit.
+  const amiAnnual = COUNTY_AMI[propertyCounty] || 0;
+  const homeReadyLimit = Math.round(amiAnnual * 0.8);
+  const qualifyingAnnual = monthlyIncome * 12;
+  const homeReadyIncomeOk = homeReadyLimit > 0 && qualifyingAnnual > 0 && qualifyingAnnual <= homeReadyLimit;
+  const threePctEligible = !isRefi && loanPurpose === "Purchase Primary" && loanCategory === "Conforming";
+  const threePctPath = !threePctEligible ? null : firstTimeBuyer ? "fthb" : homeReadyIncomeOk ? "homeready" : null;
+  const minDPpct = loanType === "VA" ? 0 : loanType === "FHA" ? 3.5 : loanType === "Jumbo" ? 20 : threePctPath ? 3 : 5;
   const recDPpct = minDPpct;
   const dpWarning = downPct < minDPpct ? "fail" : null;
   const dtiCheck = qualifyingIncome > 0 && yourDTI !== null ? (yourDTI <= maxDTI ? "Good!" : "Too High") : "—";
@@ -6180,7 +6192,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    govCharges, sectionH, buyerCommAmt, hoaTransferActual, totalClosingCosts, dailyInt, prepaidInt, prepaidIns, insRenewalAtClose, insRenewalDays, insDocCondition,
    refiCurEscrowTax, refiCurEscrowIns, refiNewEscrowTax, refiNewEscrowIns, refiNewEscrowPortion, sellerProration, autoPrepaidDays,
    totalPrepaids, initialEscrow, escrowTaxMonths, escrowInsMonths, closeMonth, totalPrepaidExp, totalCredits, cashToClose, emdAmt, emdCredit,
-   reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning,
+   reserveMonths, reservesReq, ficoMin, ficoCheck, dtiCheck, cashCheck: cashCheckAll, resCheck, minDPpct, recDPpct, dpWarning, threePctPath, threePctEligible, homeReadyLimit, amiAnnual, qualifyingAnnual, homeReadyRelevant: threePctEligible && !firstTimeBuyer && loanType === "Conventional" && homeReadyLimit > 0,
    yearlyInc, fedStdDeduction, stStdDeduction, fedPropTax, saltCap, mortIntDeductLimit, totalMortInt, deductibleLoanPct, fedMortInt, fedItemized,
    stateMortInt, stateItemized, schedATax, schedAMortInt, fedTaxBefore, fedTaxAfter, fedSavings,
    stateTaxBefore, stateTaxAfter, stateSavings, totalTaxSavings, monthlyTaxSavings,
@@ -9570,7 +9582,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    const programs = [
     { name: "Conventional", sub: "Conforming & High Balance", icon: "landmark", active: loanType === "Conventional",
       rows: [
-       ["Min Down Payment", "3% (FTHB ≤100% AMI)\n5% standard", "3% requires first-time buyer status + income ≤ area median. Non-FTHB or high-balance = 5% min."],
+       ["Min Down Payment", "3% (FTHB, or income ≤80% AMI)\n5% standard", "3% needs a conforming (not high-balance) primary purchase plus either a first-time buyer (no income limit) or qualifying income ≤ 80% of area median (HomeReady). Otherwise 5% min."],
        ["Min FICO", "620", "Below 680 may trigger pricing adjustments (LLPAs). 740+ gets the best rates."],
        ["Max DTI", "50%", "With strong compensating factors (reserves, high FICO). Standard comfort zone is 45%."],
        ["Reserves", "2–6 months PITI", "2 months for conforming, up to 6 for high-balance or investment. 401(k), stocks, and savings all count at face value."],
@@ -9674,7 +9686,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <Card style={{ marginTop: 12, border: `1px solid ${T.blue}33`, background: `${T.blue}06` }}>
    <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT, color: T.blue, marginBottom: 10 }}>Your Current Thresholds</div>
    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Based on your {loanType} loan setup</div>
-   {[["Loan Type", loanType], ["Min Down %", calc.minDPpct + "%" + (loanType === "Conventional" && firstTimeBuyer ? " (FTHB)" : "")], ["Max DTI", pct(calc.maxDTI, 0)], ["Min FICO", calc.ficoMin.toString()],
+   {[["Loan Type", loanType], ["Min Down %", calc.minDPpct + "%" + (loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : "")], ["Max DTI", pct(calc.maxDTI, 0)], ["Min FICO", calc.ficoMin.toString()],
     ["Reserve Months", calc.reserveMonths.toString()], ["Conforming Limit", fmt(calc.confLimit)], ["High Balance", fmt(calc.highBalLimit)]
    ].map(([l, v], i) => (
     <MRow key={i} label={l} value={v} />

@@ -18,6 +18,7 @@ const FREQ_OPTIONS = [
 
 const VERIFIED_BY_OPTIONS = [
   { value: "", label: "—" },
+  { value: "Application", label: "Application" }, // what they stated on the 1003
   { value: "Verbal", label: "Verbal" },
   { value: "Paystub", label: "Paystub" },
   { value: "W-2", label: "W-2" },
@@ -519,9 +520,10 @@ function ComponentRow({
   // Verified pill color logic (2026-05-05):
   // - Documentary verification (Paystub, W-2, Tax Return, Award Letter,
   //   Bank Statement, Grant doc, etc.) → green = solid documentation.
-  // - "Verbal" → amber = lender accepts but warrants caution.
+  // - "Verbal" / "Application" (stated on the 1003) → amber = self-reported,
+  //   lender accepts but warrants caution.
   // - "" (not set) → amber dashed = not verified yet.
-  const isVerbal = inc.verifiedBy === "Verbal";
+  const isVerbal = inc.verifiedBy === "Verbal" || inc.verifiedBy === "Application";
   const isDocVerified = !!inc.verifiedBy && !isVerbal;
   const verifiedPillStyle = {
     width: "100%", padding: "0 12px", fontSize: 12, height: 38,
@@ -952,6 +954,40 @@ function EmployerGroup({
           components map into flat rows of pill-style controls. */}
       {isExpanded && (
         <div>
+          {/* Employment dates (restored 2026-09-24, dropped in the table
+              restyle). Stored per component; edits apply to every component
+              of this employer. Blank end date = current employer. */}
+          {(() => {
+            const start = firstStart;
+            const end = endDate;
+            const setAll = (field, v) => components.forEach(c => updateIncome(c.id, field, v));
+            const toDate = (v) => { const [y, m, d] = String(v).split("-").map(Number); return y ? new Date(y, (m || 1) - 1, d || 1) : null; };
+            const sd = toDate(start), ed = end ? toDate(end) : new Date();
+            const yrs = sd && ed && ed >= sd ? (ed - sd) / (365.25 * 864e5) : null;
+            const dateInp = {
+              padding: "6px 12px", borderRadius: 9999, border: `1px solid ${T.inputBorder || T.separator}`,
+              background: T.inputBg || "transparent", color: T.text, fontSize: 13, fontFamily: FONT, outline: "none",
+            };
+            const lbl = { fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textTertiary };
+            return (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: isDesktop ? 16 : 10, padding: "12px 16px 4px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={lbl}>Start date</span>
+                  <input type="date" value={start} max={end || undefined} onChange={(e) => setAll("start", e.target.value)} style={dateInp} />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={lbl}>End date</span>
+                  <input type="date" value={end} min={start || undefined} onChange={(e) => setAll("end", e.target.value)} style={dateInp} />
+                  {!end && <span style={{ fontSize: 11, color: T.green, fontFamily: FONT }}>Current</span>}
+                </label>
+                {yrs !== null && (
+                  <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, fontVariantNumeric: "tabular-nums" }}>
+                    {yrs.toFixed(2)} yr{end ? "" : " to date"}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           {/* Column headers — same 8-col grid as ComponentRow rows */}
           {isDesktop && (
             <div style={{
@@ -1234,6 +1270,16 @@ export default function IncomeContent(props) {
   const showBorrowerHeaders = renderedBorrowerCount > 1;
 
   return (<>
+    {/* HomeReady 3% down (not first-time buyer): qualifying income ≤ 80% AMI.
+        Only income USED to qualify counts, so it can be trimmed. */}
+    {calc?.homeReadyRelevant && Note && (
+      <Note color={calc.threePctPath === "homeready" ? T.green : T.orange}>
+        {calc.threePctPath === "homeready"
+          ? `HomeReady 3% down: qualifying income ${fmt(calc.qualifyingAnnual)}/yr is under the ${fmt(calc.homeReadyLimit)} limit (80% of area median income). `
+          : `HomeReady 3% down needs qualifying income at or under ${fmt(calc.homeReadyLimit)}/yr (80% of area median income). Currently ${fmt(calc.qualifyingAnnual)}/yr. `}
+        You don&rsquo;t have to use every income source to qualify: if base salary alone qualifies, bonus, commission or RSU income can be left out, and only the income you use counts toward the limit.
+      </Note>
+    )}
     {/* marginBottom gives the .pulse-next indigo glow room to breathe — the
         Total Monthly Income card below used to sit flush against this box and
         paint over the bottom of the glow ring, clipping it. (Christo 2026-05-27.) */}

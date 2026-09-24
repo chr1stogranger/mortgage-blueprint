@@ -405,8 +405,8 @@ export default function CalculatorContent(props) {
         })()}
        </>)}
       </div>
-      {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && firstTimeBuyer ? " (FTHB conforming)" : ""}. Current: {downPct}%. Need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
-      {loanType === "Conventional" && !firstTimeBuyer && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down requires First-Time Homebuyer + conforming loan + income ≤ 100% AMI. Toggle FTHB in Setup or increase to 5%.</Note>}
+      {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB conforming)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : ""}. Current: {downPct}%. Need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
+      {loanType === "Conventional" && !calc.threePctPath && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down needs a conforming (not high-balance) primary purchase plus either a first-time buyer (no income limit) or qualifying income at or under 80% of area median{calc.homeReadyLimit > 0 ? ` (${fmt(calc.homeReadyLimit)}/yr here)` : ""}, which is HomeReady. Toggle FTHB in Setup, trim the income used to qualify, or increase to 5%.</Note>}
       </>)}
      </Card>
     </div>
