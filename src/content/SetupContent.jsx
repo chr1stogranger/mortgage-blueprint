@@ -106,6 +106,26 @@ export default function SetupContent(props) {
      Extracted to a const because the two flows park it in different columns:
      purchase keeps it under Quick Start on the left, refi moves it to the
      right, where the Modules card would otherwise sit almost empty. */
+  // Section banner inside a Card — the same blue strip that heads the Assets /
+  // Monthly Debts / Income / REO tables (Christo 2026-09-23: "same restyle for
+  // the refi section"). Full-bleed against the Card's default 18px padding;
+  // `first` rounds the top corners to the card and pulls up into its padding.
+  const refiBanner = (title, first = false, meta = null) => (
+   <div style={{
+    margin: first ? "-18px -18px 14px" : "18px -18px 14px",
+    borderRadius: first ? "16px 16px 0 0" : 0,
+    background: `linear-gradient(135deg, ${T.blue}18, ${T.blue}0c)`,
+    borderTop: first ? "none" : `1px solid ${T.blue}38`,
+    borderBottom: `1px solid ${T.blue}38`,
+    color: T.blue, padding: "10px 18px",
+    fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONT,
+    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+   }}>
+    <span>{title}</span>
+    {meta && <span style={{ fontSize: 11, opacity: 0.85, letterSpacing: 0.5 }}>{meta}</span>}
+   </div>
+  );
+
   const propertyLocationCard = (
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s" }}>
    <Card style={{ marginTop: isDesktop && isRefi ? 0 : 12, ...(isDesktop ? { marginBottom: 0 } : {}) }}>
@@ -1018,6 +1038,7 @@ export default function SetupContent(props) {
    </div>
   )}
   <Card style={{ marginTop: 12 }}>
+   {refiBanner("Loan Profile", true)}
    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
     <div style={{ flex: 1, minWidth: 180 }}>
      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: "-0.01em" }}>
@@ -1117,10 +1138,8 @@ export default function SetupContent(props) {
        section for section. Flow 2 (no statement) works backwards from the
        original note. Loan type and fixed/adjustable aren't printed in the box
        but the math needs them, so they ride under the rate in both flows. */}
+   {refiBanner(calc.refiFromStatement ? "Account Information" : "Current Loan", true)}
    {calc.refiFromStatement && (<>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>
-     Account Information
-    </div>
     <Inp label="Outstanding Principal Balance" value={refiCurrentBalance} onChange={setRefiCurrentBalance} req tip="Straight off the statement's Account Information box. Not the payoff amount. The payoff runs about a month of interest ahead; we calculate that below. When set, this anchors everything." />
    </>)}
    <Inp label="Current Interest Rate" value={refiCurrentRate} onChange={setRefiCurrentRate} prefix="" suffix="%" step={0.125} max={30} req tip="The note rate today. On an adjusted ARM this is the rate it adjusted TO." />
@@ -1162,9 +1181,7 @@ export default function SetupContent(props) {
         Balance first, penalty second (Christo 2026-08-04). */}
     <Inp label="Escrow Balance" value={refiEscrowBalance} onChange={setRefiEscrowBalance}
      tip="As printed in Account Information. Money sitting in the escrow account. Refunded after the old loan pays off. $0 when nothing is impounded." />
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
-     Explanation of Amount Due
-    </div>
+    {refiBanner("Explanation of Amount Due")}
    </>)}
    {!calc.refiFromStatement && (<>
     <Inp label="Original Balance" value={refiOriginalAmount} onChange={setRefiOriginalAmount} req
@@ -1419,9 +1436,7 @@ export default function SetupContent(props) {
     </div>
    )}
    {calc.refiFromStatement && (<>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
-     Current Property Taxes &amp; Insurance
-    </div>
+    {refiBanner("Current Property Taxes & Insurance")}
     {taxInsBreakdownNode}
     {taxInsAmountsNoNode}
     {insEffectiveDateNode}
@@ -1529,9 +1544,7 @@ export default function SetupContent(props) {
        new first has to beat the blended cost of both liens, not the first's
        rate alone. Modification and prepayment penalty are one question each,
        and both are printed on most statements. */}
-   <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: MONO, letterSpacing: 1.2, textTransform: "uppercase", marginTop: 16, marginBottom: 10 }}>
-    Other Liens &amp; History
-   </div>
+   {refiBanner("Other Liens & History")}
    {secondLienNode}
    {[
     { label: "Ever modified, or in forbearance since origination?", value: refiModified, set: setRefiModified },

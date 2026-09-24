@@ -4225,9 +4225,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }
   setNumBorrowers(prev => Math.max(1, prev - 1));
  };
- const addAsset = () => setAssets([...assets, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
- const updateAsset = (id, f, v) => setAssets(assets.map(a => a.id === id ? { ...a, [f]: v } : a));
- const removeAsset = (id) => setAssets(assets.filter(a => a.id !== id));
+ // Functional updates — same stale-closure class as the updateIncome bug
+ // fixed 2026-09-23 (two calls in one tick: all but the last were dropped).
+ const addAsset = () => setAssets(prev => [...prev, { id: Date.now(), bank: "", last4: "", owner: "", type: "Checking", value: 0, forClosing: 0 }]);
+ const updateAsset = (id, f, v) => setAssets(prev => prev.map(a => a.id === id ? { ...a, [f]: v } : a));
+ const removeAsset = (id) => setAssets(prev => prev.filter(a => a.id !== id));
  // ── Security: Privacy mode sync ──
  PRIVACY = privacyMode;
  // ── Security: Load consent + PIN from storage ──

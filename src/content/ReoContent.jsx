@@ -1,6 +1,7 @@
 import { FONT } from "../lib/fonts.js";
 import React, { useState } from "react";
 import SellContent from "./SellContent";
+import PlacesAddressInput from "../components/AddressAutocomplete.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
 
 
@@ -130,6 +131,7 @@ export default function ReoContent(props) {
     <div style={{
       background: SUB_BG, color: ACCENT,
       borderBottom: `1px solid ${ACCENT}38`,
+      borderRadius: "13px 13px 0 0",
       padding: "10px 16px",
       fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
       textTransform: "uppercase", fontFamily: FONT,
@@ -157,6 +159,30 @@ export default function ReoContent(props) {
       </span>
       <span style={{ fontSize: 10.5, color: T.textTertiary }}>{c.isInvestment ? (c.dtiImpact >= 0 ? "income (75% rule)" : "debt (75% rule)") : "debt (full PITIA)"}</span>
     </div>
+  );
+  // Address typeahead — the same geocoder-backed input the refi Property
+  // Location card uses (Christo 2026-09-23). Picking a suggestion stores the
+  // street as the display address plus city / state / zip / county on the
+  // REO for later use; free typing still works as before.
+  const addressField = (r, label) => (
+    <PlacesAddressInput
+      T={T}
+      value={r.address || ""}
+      onChange={v => updateReo(r.id, "address", v)}
+      onSelect={sel => {
+        updateReo(r.id, "address", sel.address || "");
+        if (sel.city) updateReo(r.id, "city", sel.city);
+        if (sel.state) updateReo(r.id, "state", sel.state);
+        if (sel.county) updateReo(r.id, "county", sel.county);
+        const z = String(sel.zip || "").replace(/[^0-9]/g, "").slice(0, 5);
+        if (z.length === 5) updateReo(r.id, "zip", z);
+      }}
+      stateFormat="short"
+      placeholder="Start typing an address..."
+      label={label ? <div style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}</div> : null}
+      containerStyle={{ marginBottom: 6 }}
+      inputStyle={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder || T.cardBorder}`, padding: "10px 12px", paddingRight: 32, color: T.text, fontSize: 13, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
+    />
   );
   const liensInput = (r, c, label) => c.hasLinked
     ? <Inp label={label} value={c.liens} onChange={v => syncReoBalance(r.id, v)} sm />
@@ -186,7 +212,9 @@ export default function ReoContent(props) {
 
   return (<div data-field="reo-section" className={isPulse && isPulse("reo-section")} onClick={() => markTouched && markTouched("reo-section")} style={{ borderRadius: 14, transition: "all 0.3s" }}>
     {eqfStyle}
-    <div style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, overflow: "hidden", background: T.card, marginTop: 20, marginBottom: 16 }}>
+    {/* overflow stays visible so the address suggestion list can drop past
+        the card edge; the banner carries the top corner radius instead. */}
+    <div style={{ border: `1px solid ${T.cardBorder}`, borderRadius: 14, background: T.card, marginTop: 20, marginBottom: 16 }}>
       {banner}
       <div style={{ padding: isDesktop ? "12px 16px" : "12px" }}>
       {isDesktop ? (<>
@@ -223,7 +251,7 @@ export default function ReoContent(props) {
                     transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.2s",
                   }}>▸</button>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <TextInp value={r.address} onChange={v => updateReo(r.id, "address", v)} placeholder="123 Main St" sm />
+                    {addressField(r)}
                   </div>
                 </div>
                 <div style={{ minWidth: 0 }}><Sel value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm /></div>
@@ -362,7 +390,7 @@ export default function ReoContent(props) {
                 <span style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.address || `Property ${i + 1}`}</span>
                 <button onClick={() => removeReo(r.id)} style={{ background: "none", border: "none", color: T.red, fontSize: 13, cursor: "pointer", fontFamily: FONT, flexShrink: 0 }}>Remove</button>
               </div>
-              <TextInp label="Address" value={r.address} onChange={v => updateReo(r.id, "address", v)} sm />
+              {addressField(r, "Address")}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <Sel label="Type" value={r.propType || "Single Family"} onChange={v => updateReo(r.id, "propType", v)} options={propTypeOpts} sm />
                 <Sel label="Occupancy" value={r.occupancy || "Invest."} onChange={v => updateReo(r.id, "occupancy", v)} options={occupOpts} sm />
