@@ -72,6 +72,10 @@ export default function SetupContent(props) {
     refiPayoffFees, setRefiPayoffFees, showRefi3, setShowRefi3,
     refiPayoffDebts, setRefiPayoffDebts, debts, debtFree,
     hideHero = false,
+    // Overview renders the Modules card as its own section below the payment
+    // donut (Christo 2026-09-23): hideModules drops it from Quick Start,
+    // modulesOnly renders just the card.
+    hideModules = false, modulesOnly = false,
   } = props;
 
   // Current-loan amortization drawer — collapsed by default (it's a
@@ -126,9 +130,12 @@ export default function SetupContent(props) {
    </div>
   );
 
+  // Purchase on Overview: the location card is alone in the right column, so
+  // it stretches to the Quick Start card's height (edges line up).
+  const locationFillsColumn = isDesktop && !isRefi && hideModules;
   const propertyLocationCard = (
-   <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s" }}>
-   <Card style={{ marginTop: isDesktop && isRefi ? 0 : 12, ...(isDesktop ? { marginBottom: 0 } : {}) }}>
+   <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s", ...(locationFillsColumn ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
+   <Card style={{ marginTop: isDesktop && (isRefi || hideModules) ? 0 : 12, ...(isDesktop ? { marginBottom: 0 } : {}), ...(locationFillsColumn ? { flex: 1 } : {}) }}>
     <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
     {isRefi ? (
      <>
@@ -727,6 +734,139 @@ export default function SetupContent(props) {
      </div>
     </div>
   </>);
+  // Modules — full-width toggles with descriptions. Purchase only.
+  const modulesCard = !isRefi && (
+   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: isDesktop || modulesOnly ? 0 : 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(modulesOnly ? {} : isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
+    {!modulesOnly && <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>}
+    {/* Standalone (Overview) on desktop: two columns of toggles so a
+        full-width row doesn't strand the Yes/No far from its label. */}
+    {/* marginTop -1 tucks the first rows' borderTop under the card edge
+        (no "Modules" title above them here). */}
+    <div style={modulesOnly ? { marginTop: -1, ...(isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: 24 } : {}) } : {}}>
+    {/* First-Time Homebuyer — Yes/No (purchase only) */}
+    {!isRefi && (
+    <div data-field="fthb" className={isPulse("fthb")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Buying your first home?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{firstTimeBuyer === true ? "FTHB unlocked: 3% down conventional available" : "Unlocks first-time buyer loan programs"}</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={firstTimeBuyer}
+      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); }}
+      onNo={() => { setFirstTimeBuyer(false); markTouched("fthb"); }}
+     />
+    </div>
+    )}
+    {/* Own Properties */}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Own other properties?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Adds the Real Estate Owned (REO) section</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={ownsProperties}
+      onYes={() => { setOwnsProperties(true); }}
+      onNo={() => { setOwnsProperties(false); }}
+     />
+    </div>
+    {/* Selling a Property */}
+    {!isRefi && (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Selling a home too?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Adds the Seller Net Sheet</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={hasSellProperty}
+      onYes={() => { setHasSellProperty(true); }}
+      onNo={() => { setHasSellProperty(false); }}
+     />
+    </div>
+    )}
+    {/* Investment Analysis */}
+    {!isRefi && (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Run the investor numbers?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Adds cash flow, cap rate and ROI</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={showInvestor}
+      onYes={() => { setShowInvestor(true); }}
+      onNo={() => { setShowInvestor(false); }}
+     />
+    </div>
+    )}
+    {/* Buy vs Rent — NEW MODULE */}
+    {!isRefi && (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Compare renting vs buying?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Adds the Rent vs Buy wealth comparison</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={showRentVsBuy}
+      onYes={() => { setShowRentVsBuy(true); }}
+      onNo={() => { setShowRentVsBuy(false); }}
+     />
+    </div>
+    )}
+    {/* Rate & Points Breakeven — any loan, purchase or refi (2026-09-11) */}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Rate &amp; Points Breakeven?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Price the rate-sheet ladder: buy down, credit, or par</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={!!showRateLadder}
+      onYes={() => { setShowRateLadder(true); }}
+      onNo={() => { setShowRateLadder(false); }}
+     />
+    </div>
+    {/* VA Residual Income — VA loans only; on by default, No hides it (2026-09-13) */}
+    {loanType === "VA" && (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>VA Residual Income?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Balance available for family support vs the VA regional table</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={showVaResidual !== false}
+      onYes={() => { setShowVaResidual(true); }}
+      onNo={() => { setShowVaResidual(false); }}
+     />
+    </div>
+    )}
+    {/* California Prop 19 Transfer — CA purchases only */}
+    {propertyState === "California" && !isRefi && (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
+     <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>California Prop 19?</div>
+      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Transfer your property tax base (55+, disabled, or disaster)</div>
+     </div>
+     <YesNoSeg
+      T={T}
+      value={showProp19}
+      onYes={() => { setShowProp19(true); }}
+      onNo={() => { setShowProp19(false); }}
+     />
+    </div>
+    )}
+    </div>{/* end toggle grid */}
+    <div style={{ padding: "4px 14px 12px" }}>
+     <ClusterContinue stepId="modules" />
+    </div>
+   </div>
+  );
+  if (modulesOnly) return modulesCard || null;
+
   return (<>
  {!hideHero && (
   <div style={{ marginTop: 12 }}>
@@ -842,7 +982,7 @@ export default function SetupContent(props) {
 
    {/* Purchase keeps the location card here under Quick Start. Refi renders
        it in the right column instead — see below. */}
-   {!isRefi && propertyLocationCard}
+   {!isRefi && !hideModules && propertyLocationCard}
   </div>{/* end left column */}
 
   {/* ── RIGHT COLUMN ──
@@ -855,7 +995,9 @@ export default function SetupContent(props) {
       MortgageBlueprint's guideField. */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
 
-   {isRefi && propertyLocationCard}
+   {/* Purchase with Modules moved out (Overview) takes the location card
+       here too, so the right column isn't empty. */}
+   {(isRefi || hideModules) && propertyLocationCard}
    {isRefi && <Card style={{ marginTop: 12, ...(isDesktop ? { marginBottom: 0 } : {}) }}>{ficoBlock}</Card>}
 
    {/* 3-Point Refi Test — the one refi-mode module toggle (doc 7.23). Lives
@@ -877,131 +1019,7 @@ export default function SetupContent(props) {
     </div>
    )}
 
-   {/* ── Modules — full-width toggles with descriptions. Purchase only. ── */}
-   {!isRefi && (
-   <div data-field="modules" className={isPulse("modules")} style={{ marginTop: isDesktop ? 0 : 10, background: T.card, borderRadius: 14, border: `1px solid ${T.separator}`, overflow: "hidden", transition: "all 0.3s", ...(isDesktop ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
-    <div style={{ padding: "8px 14px 4px", fontSize: 12, fontWeight: 700, color: T.text }}>Modules</div>
-    {/* First-Time Homebuyer — Yes/No (purchase only) */}
-    {!isRefi && (
-    <div data-field="fthb" className={isPulse("fthb")} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>First-Time Homebuyer?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>{firstTimeBuyer === true ? "FTHB unlocked: 3% down conventional available" : "Unlocks first-time buyer loan programs"}</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={firstTimeBuyer}
-      onYes={() => { setFirstTimeBuyer(true); markTouched("fthb"); }}
-      onNo={() => { setFirstTimeBuyer(false); markTouched("fthb"); }}
-     />
-    </div>
-    )}
-    {/* Own Properties */}
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Own Properties?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show REO (Real Estate Owned) tab</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={ownsProperties}
-      onYes={() => { setOwnsProperties(true); }}
-      onNo={() => { setOwnsProperties(false); }}
-     />
-    </div>
-    {/* Selling a Property */}
-    {!isRefi && (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Selling a Property?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Seller Net Sheet tab</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={hasSellProperty}
-      onYes={() => { setHasSellProperty(true); }}
-      onNo={() => { setHasSellProperty(false); }}
-     />
-    </div>
-    )}
-    {/* Investment Analysis */}
-    {!isRefi && (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Investment Analysis?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Investor tab with ROI metrics</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={showInvestor}
-      onYes={() => { setShowInvestor(true); }}
-      onNo={() => { setShowInvestor(false); }}
-     />
-    </div>
-    )}
-    {/* Buy vs Rent — NEW MODULE */}
-    {!isRefi && (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Buy vs Rent?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Show the Rent vs Buy wealth comparison tab</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={showRentVsBuy}
-      onYes={() => { setShowRentVsBuy(true); }}
-      onNo={() => { setShowRentVsBuy(false); }}
-     />
-    </div>
-    )}
-    {/* Rate & Points Breakeven — any loan, purchase or refi (2026-09-11) */}
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>Rate &amp; Points Breakeven?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Price the rate-sheet ladder: buy down, credit, or par</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={!!showRateLadder}
-      onYes={() => { setShowRateLadder(true); }}
-      onNo={() => { setShowRateLadder(false); }}
-     />
-    </div>
-    {/* VA Residual Income — VA loans only; on by default, No hides it (2026-09-13) */}
-    {loanType === "VA" && (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>VA Residual Income?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Balance available for family support vs the VA regional table</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={showVaResidual !== false}
-      onYes={() => { setShowVaResidual(true); }}
-      onNo={() => { setShowVaResidual(false); }}
-     />
-    </div>
-    )}
-    {/* California Prop 19 Transfer — CA purchases only */}
-    {propertyState === "California" && !isRefi && (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderTop: `1px solid ${T.separator}`, transition: "background 0.2s" }}>
-     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.text }}>California Prop 19?</div>
-      <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 1 }}>Transfer your property tax base (55+, disabled, or disaster)</div>
-     </div>
-     <YesNoSeg
-      T={T}
-      value={showProp19}
-      onYes={() => { setShowProp19(true); }}
-      onNo={() => { setShowProp19(false); }}
-     />
-    </div>
-    )}
-    <div style={{ padding: "4px 14px 12px" }}>
-     <ClusterContinue stepId="modules" />
-    </div>
-   </div>
-   )}
+   {!hideModules && modulesCard}
   </div>{/* end right column */}
 
  </div>{/* end 2-column grid */}

@@ -1,12 +1,17 @@
 import { FONT, MONO } from "./lib/fonts.js";
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
 import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent, VaResidualContent } from "./content/index.js";
 
 
 /* ─── Collapsible section wrapper ─── */
-function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle }) {
-  const [open, setOpen] = useState(defaultOpen);
+// `open` + `onToggle` make it controlled (Quick Start's auto-collapse);
+// `collapsedSubtitle` replaces the subtitle only while the section is shut.
+function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle, collapsedSubtitle, open: openProp, onToggle }) {
+  const [openState, setOpenState] = useState(defaultOpen);
+  const open = openProp ?? openState;
+  const setOpen = onToggle ?? setOpenState;
+  if (!open && collapsedSubtitle) subtitle = collapsedSubtitle;
   if (heroStyle) {
     // Full-width indigo banner with white text. Slim profile per Christo
     // (2026-05-02) — shorter padding + smaller title so the banners stop
@@ -71,9 +76,34 @@ export default function OverviewTab(props) {
     ownsProperties, setOwnsProperties,
     showProp19, prop19, sellPrice,
     showRateLadder, vaResidualOn,
+    salesPrice, creditScore, refiCurrentBalance, isTabFieldsComplete,
+    blueprintLoaded, activeScenarioId,
   } = props;
 
   const isGuided = skillLevel === "guided";
+
+  // Quick Start opens only when the Blueprint still needs its setup inputs
+  // (Christo 2026-09-23, LLM council): a filled Blueprint opens on the payment
+  // donut, with Quick Start shrunk to a one-line summary banner. A blank one
+  // keeps the form on top so the donut never shows a payment built on default
+  // ZIP/FICO. Guided mode always keeps it open (its steps start there).
+  // The decision is snapshotted when the Blueprint loads or the scenario
+  // changes, NOT re-run on every edit, so finishing the last field doesn't
+  // collapse the section out from under the cursor.
+  const setupFilled = !!isTabFieldsComplete?.("setup");
+  const [setupOpen, setSetupOpen] = useState(() => isGuided || !setupFilled);
+  const setupSnapshotKey = `${blueprintLoaded ? 1 : 0}|${activeScenarioId || ""}|${scenarioName || ""}|${isGuided ? 1 : 0}`;
+  useEffect(() => {
+    setSetupOpen(isGuided || !setupFilled);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setupSnapshotKey]);
+  const compactUsd = (v) => v >= 1e6 ? `$${parseFloat((v / 1e6).toFixed(2))}M` : `$${Math.round(v / 1000)}K`;
+  const setupSummary = [
+    isRefi ? "Refinance" : "Purchase",
+    city && propertyState ? `${city}, ${STATE_ABBR[propertyState] || propertyState}` : propertyZip,
+    isRefi ? (refiCurrentBalance > 0 ? `${compactUsd(refiCurrentBalance)} balance` : null) : (salesPrice > 0 ? compactUsd(salesPrice) : null),
+    creditScore > 0 ? `${creditScore} FICO` : null,
+  ].filter(Boolean).join(" · ");
 
   // No paddingTop on the root below: the parent content spacer in
   // MortgageBlueprint.jsx already reserves 98px + env(safe-area-inset-top) to
@@ -109,10 +139,12 @@ export default function OverviewTab(props) {
         title="Quick Start"
         T={T}
         id="overview-setup"
-        defaultOpen={true}
+        open={setupOpen}
+        onToggle={setSetupOpen}
+        collapsedSubtitle={setupSummary}
         heroStyle={true}
       >
-        <SetupContent {...props} hideHero={true} />
+        <SetupContent {...props} hideHero={true} hideModules={true} />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -124,6 +156,21 @@ export default function OverviewTab(props) {
       <CollapsibleSection title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} />
       </CollapsibleSection>
+
+      {/* ═══════════════════════════════════════
+          ADD TO THIS BLUEPRINT — the Modules toggles, moved out of Quick
+          Start to sit right under the donut (Christo 2026-09-23). Purchase
+          only, like the card itself; refi keeps its 3-Point toggle in
+          Quick Start.
+          ═══════════════════════════════════════ */}
+      {!isRefi && (
+        <>
+          <SectionDivider T={T} />
+          <CollapsibleSection title="Add to this Blueprint" T={T} id="overview-modules" heroStyle={true} subtitle="Turn on the sections that fit this buyer">
+            <SetupContent {...props} modulesOnly={true} />
+          </CollapsibleSection>
+        </>
+      )}
 
       {/* ═══════════════════════════════════════
           SECTION 2b (REFI): REFI SUMMARY + 3-POINT TEST

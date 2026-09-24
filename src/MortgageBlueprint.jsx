@@ -4703,11 +4703,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //  1) Transaction type     — SetupContent
   //  2) FICO score           — SetupContent
   //  3) ZIP code             — SetupContent
-  //  4) Modules              — SetupContent
-  //  5) Purchase price       — CalculatorContent (purchase only)
-  //  6) Down payment         — CalculatorContent (purchase only)
-  //  7) Get Today's Rates    — CalculatorContent
-  //  8) Loan-structure pills — CalculatorContent (occupancy/type/loan/term)
+  //  4) Purchase price       — CalculatorContent (purchase only)
+  //  5) Down payment         — CalculatorContent (purchase only)
+  //  6) Get Today's Rates    — CalculatorContent
+  //  7) Loan-structure pills — CalculatorContent (occupancy/type/loan/term)
+  //  8) Modules              — "Add to this Blueprint", under the donut
   //  9) Costs / Cash to Close — CostsContent (review-only, auto-calculated)
   // 10) Assets               — AssetsContent
   // 11) Debts                — DebtsContent
@@ -4726,12 +4726,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 
   // 3. ZIP code — advances once all 5 digits are in
   if (!propertyZip || propertyZip.length < 5 || !guideTouched.has("zip-code-done")) return "zip-code";
-
-  // 4. Modules — pulse stays on the card until the user clicks "Continue"
-  //    (sets "modules-done"). Tapping individual modules no longer advances.
-  //    Skipped on refi: every module is purchase-only, so the card no longer
-  //    renders there and a guided refi would stall pointing at nothing.
-  if (!isRefi && !guideTouched.has("modules-done")) return "modules";
 
   // 5. Purchase price (purchase only) — hold the pulse until a full
   //    6-digit price ($100k+) is entered. The input is debounced, but a
@@ -4756,6 +4750,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   //    after the Tax/PMI carets are expanded (gate lives in CalculatorContent);
   //    chip sets "payment-breakdown-done".
   if (!guideTouched.has("payment-breakdown-done")) return "payment-breakdown";
+
+  // Modules — the "Add to this Blueprint" section sits right under the donut
+  //    on Overview (2026-09-23), so it follows the payment steps instead of
+  //    leading them. Pulse stays on the card until "Continue" ("modules-done").
+  //    Skipped on refi: every module is purchase-only, so the card doesn't
+  //    render there and a guided refi would stall pointing at nothing.
+  if (!isRefi && !guideTouched.has("modules-done")) return "modules";
 
   // 9. Costs / Cash to Close — comprehension step. Costs auto-calculate, so
   //    there is nothing to type; pulse the costs section, let the buyer review
@@ -4803,12 +4804,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    { id: "transaction-type", label: "Transaction", on: true },
    { id: "fico-input", label: "Credit score", on: true },
    { id: "zip-code", label: "Location", on: true },
-   { id: "modules", label: "Modules", on: true },
    { id: "calc-price", label: "Price", on: !isRefi },
    { id: "calc-down", label: "Down payment", on: !isRefi },
    { id: "get-rates", label: "Rate", on: true },
    { id: "calc-pills", label: "Loan structure", on: true },
    { id: "payment-breakdown", label: "Payment breakdown", on: true },
+   { id: "modules", label: "Add sections", on: !isRefi },
    { id: "closing-costs", label: "Closing costs", on: true },
    { id: "prepaids", label: "Prepaid expenses", on: true },
    { id: "credits", label: "Credits to buyer", on: true },
@@ -7276,6 +7277,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const OVERVIEW_SECTIONS = [
   { id: "overview-setup",         label: "Quick Start" },
   { id: "overview-payment",       label: "Monthly Payment" },
+  ...(!isRefi ? [{ id: "overview-modules", label: "Add Sections" }] : []),
   ...(isRefi ? [{ id: "overview-refi", label: "Refi Summary" }] : []),
   ...(isRefi && showRefi3 ? [{ id: "overview-refi3", label: "3-Point Test" }] : []),
   { id: "overview-costs",         label: isRefi ? "Refi Costs" : "Costs" },
@@ -8937,6 +8939,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setTab, isCloud, auth, isBorrower,
    /* Scenario */
    scenarioName, scenarioList, switchScenario, onCompare: () => setTab("compare"),
+   blueprintLoaded: loaded, activeScenarioId,
    /* Borrower account (self-serve cloud sync) */
    showAccountButton: !isBorrower && !isCloud,
    selfAccount: selfMode ? (account.account || { email: account.session?.user?.email || '' }) : null,
