@@ -11,10 +11,9 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
   const [openState, setOpenState] = useState(defaultOpen);
   const open = openProp ?? openState;
   const setOpen = onToggle ?? setOpenState;
-  // Collapsed with a summary: ONE line — title, then the summary inline to its
-  // right (Christo 2026-09-24: the two-line banner read as too big).
-  const inlineSummary = !open && collapsedSubtitle ? collapsedSubtitle : null;
-  if (inlineSummary) subtitle = null;
+  // ONE line — title, then the summary (collapsed) or explainer subtitle inline
+  // to its right (Christo 2026-09-24/25: two-line banners read as too big).
+  const inlineText = !open && collapsedSubtitle ? collapsedSubtitle : subtitle;
   if (heroStyle) {
     // Full-width indigo banner with white text. Slim profile per Christo
     // (2026-05-02) — shorter padding + smaller title so the banners stop
@@ -27,18 +26,13 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
-          <div style={{ flex: 1, minWidth: 0, ...(inlineSummary ? { display: "flex", alignItems: "baseline", gap: 12 } : {}) }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", gap: 12 }}>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, flexShrink: 0 }}>
               {title}
             </div>
-            {inlineSummary && (
+            {inlineText && (
               <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {inlineSummary}
-              </div>
-            )}
-            {subtitle && (
-              <div style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.85)", fontFamily: FONT, marginTop: 2 }}>
-                {subtitle}
+                {inlineText}
               </div>
             )}
           </div>
