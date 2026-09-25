@@ -7,12 +7,14 @@ import { FONT } from "../lib/fonts.js";
  * Borrowers see a read-only view showing which fields are locked.
  */
 
+import { DARK } from "../lib/theme.js";
 import React, { useState, useCallback } from 'react';
 
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
 export default function LockControls({
+  T = DARK,
   scenarioId,
   lockedFields = {},
   userType = 'lo',
@@ -66,8 +68,9 @@ export default function LockControls({
 
   return (
     <div style={{
-      background: '#121c30',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: T.card,
+      border: `1px solid ${T.cardBorder}`,
+      boxShadow: T.cardShadow,
       borderRadius: 12,
       padding: 16,
       marginBottom: 16,
@@ -82,7 +85,7 @@ export default function LockControls({
         <div style={{
           fontSize: 11,
           fontWeight: 600,
-          color: '#A1A1A1',
+          color: T.textSecondary,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           fontFamily: FONT,
@@ -90,7 +93,7 @@ export default function LockControls({
           {userType === 'lo' ? 'DOCUMENT VERIFICATION' : 'VERIFIED SECTIONS'}
         </div>
         {userType === 'lo' && (
-          <span style={{ fontSize: 10, color: '#666666', fontFamily: FONT }}>
+          <span style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>
             Lock after verifying docs
           </span>
         )}
@@ -110,8 +113,8 @@ export default function LockControls({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 12px',
-                background: isLocked ? 'rgba(18,161,80, 0.06)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${isLocked ? 'rgba(18,161,80, 0.15)' : 'rgba(255,255,255,0.04)'}`,
+                background: isLocked ? 'rgba(18,161,80, 0.06)' : `${T.text}05`,
+                border: `1px solid ${isLocked ? 'rgba(18,161,80, 0.15)' : `${T.text}0A`}`,
                 borderRadius: 8,
                 transition: 'all 0.2s',
               }}
@@ -121,7 +124,7 @@ export default function LockControls({
                 <div style={{
                   width: 28, height: 28,
                   borderRadius: 7,
-                  background: isLocked ? 'rgba(18,161,80, 0.12)' : 'rgba(255,255,255,0.04)',
+                  background: isLocked ? 'rgba(18,161,80, 0.12)' : `${T.text}0A`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -134,7 +137,7 @@ export default function LockControls({
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
                   ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textTertiary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                       <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
                     </svg>
@@ -145,14 +148,14 @@ export default function LockControls({
                   <div style={{
                     fontSize: 13,
                     fontWeight: 600,
-                    color: '#EDEDED',
+                    color: T.text,
                     fontFamily: FONT,
                   }}>
                     {section.label}
                   </div>
                   <div style={{
                     fontSize: 11,
-                    color: isLocked ? '#12a150' : '#666666',
+                    color: isLocked ? '#12a150' : T.textTertiary,
                     fontFamily: FONT,
                     marginTop: 1,
                   }}>

@@ -10,6 +10,7 @@ import { FONT } from "../lib/fonts.js";
  *   - Revert to any previous version
  */
 
+import { DARK } from "../lib/theme.js";
 import React, { useState, useMemo } from 'react';
 
 
@@ -50,6 +51,7 @@ function timeAgo(dateStr) {
 }
 
 export default function VersionTimeline({
+  T = DARK,
   history = [],
   bookmarks = [],
   onUndo = null,
@@ -82,13 +84,14 @@ export default function VersionTimeline({
   if (history.length === 0) {
     return (
       <div style={{
-        background: '#121c30',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: T.card,
+        border: `1px solid ${T.cardBorder}`,
+        boxShadow: T.cardShadow,
         borderRadius: 12,
         padding: 20,
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 13, color: '#666666', fontFamily: FONT }}>
+        <div style={{ fontSize: 13, color: T.textTertiary, fontFamily: FONT }}>
           No changes recorded yet
         </div>
       </div>
@@ -97,8 +100,9 @@ export default function VersionTimeline({
 
   return (
     <div style={{
-      background: '#121c30',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: T.card,
+      border: `1px solid ${T.cardBorder}`,
+      boxShadow: T.cardShadow,
       borderRadius: 12,
       padding: 16,
     }}>
@@ -112,7 +116,7 @@ export default function VersionTimeline({
         <div style={{
           fontSize: 11,
           fontWeight: 600,
-          color: '#A1A1A1',
+          color: T.textSecondary,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           fontFamily: FONT,
@@ -125,10 +129,10 @@ export default function VersionTimeline({
               onClick={onUndo}
               style={{
                 padding: '4px 10px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: `${T.text}0A`,
+                border: `1px solid ${T.separator}`,
                 borderRadius: 6,
-                color: '#A1A1A1',
+                color: T.textSecondary,
                 fontSize: 11,
                 cursor: 'pointer',
                 fontFamily: FONT,
@@ -172,8 +176,8 @@ export default function VersionTimeline({
             placeholder="Version name (e.g. Pre-Approval Locked)"
             style={{
               flex: 1, padding: '6px 10px',
-              background: '#162034', border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 6, color: '#EDEDED', fontSize: 12,
+              background: T.inputBg, border: `1px solid ${T.separator}`,
+              borderRadius: 6, color: T.text, fontSize: 12,
               fontFamily: FONT, outline: 'none',
             }}
           />
@@ -199,13 +203,13 @@ export default function VersionTimeline({
       {Object.entries(grouped).map(([date, changes]) => (
         <div key={date} style={{ marginBottom: 12 }}>
           <div style={{
-            fontSize: 10, color: '#666666', fontWeight: 600,
+            fontSize: 10, color: T.textTertiary, fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '0.06em',
             marginBottom: 6, fontFamily: FONT,
           }}>{date}</div>
 
           {changes.map((change, i) => {
-            const color = USER_COLORS[change.changed_by] || '#666666';
+            const color = USER_COLORS[change.changed_by] || T.textTertiary;
             const isExpanded = expanded === change.id;
             const diffs = change.field_diffs || {};
             const diffCount = Object.keys(diffs).length;
@@ -221,7 +225,7 @@ export default function VersionTimeline({
                   padding: '8px 10px',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: isExpanded ? 'rgba(255,255,255,0.03)' : 'transparent',
+                  background: isExpanded ? `${T.text}08` : 'transparent',
                   transition: 'background 0.15s',
                   borderLeft: isBookmark ? '3px solid #3B6BF5' : '3px solid transparent',
                   marginLeft: -3,
@@ -239,7 +243,7 @@ export default function VersionTimeline({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {/* Summary line */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 12, color: '#EDEDED', fontFamily: FONT }}>
+                    <div style={{ fontSize: 12, color: T.text, fontFamily: FONT }}>
                       {isBookmark && change.version_label ? (
                         <span style={{ color: '#3B6BF5', fontWeight: 600 }}>
                           {change.version_label}
@@ -250,14 +254,14 @@ export default function VersionTimeline({
                             {change.changed_by_name?.split(' ')[0] || change.changed_by === 'lo' ? 'LO' : 'Borrower'}
                           </span>
                           {' '}
-                          <span style={{ color: '#A1A1A1' }}>
+                          <span style={{ color: T.textSecondary }}>
                             {getChangeSummary ? getChangeSummary(change) : `${diffCount} field${diffCount !== 1 ? 's' : ''}`}
                           </span>
                         </>
                       )}
                     </div>
                     <span style={{
-                      fontSize: 10, color: '#666666', fontFamily: FONT,
+                      fontSize: 10, color: T.textTertiary, fontFamily: FONT,
                       flexShrink: 0, marginLeft: 8,
                     }}>
                       {timeAgo(change.created_at)}
@@ -273,16 +277,16 @@ export default function VersionTimeline({
                           alignItems: 'center',
                           gap: 8,
                           padding: '4px 0',
-                          borderBottom: '1px solid rgba(255,255,255,0.03)',
+                          borderBottom: `1px solid ${T.separator}`,
                           fontSize: 11,
                         }}>
-                          <span style={{ color: '#666666', minWidth: 80, fontFamily: FONT }}>
+                          <span style={{ color: T.textTertiary, minWidth: 80, fontFamily: FONT }}>
                             {FIELD_LABELS[field] || field}
                           </span>
                           <span style={{ color: '#e5484d', fontFamily: FONT, textDecoration: 'line-through', opacity: 0.6 }}>
                             {formatValue(diff.old)}
                           </span>
-                          <span style={{ color: '#666666' }}>&#8594;</span>
+                          <span style={{ color: T.textTertiary }}>&#8594;</span>
                           <span style={{ color: '#12a150', fontFamily: FONT, fontWeight: 600 }}>
                             {formatValue(diff.new)}
                           </span>

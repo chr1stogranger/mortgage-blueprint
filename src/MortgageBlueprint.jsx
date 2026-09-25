@@ -8911,14 +8911,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      borrowers have no share_token on activeBorrower. */}
  {activeBorrower?.share_token && !isBorrower && (
   <a href={`${WEB_ORIGIN}?share=${activeBorrower.share_token}`} target="_blank" rel="noopener noreferrer"
-   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: "transparent", border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 700, fontSize: 14, fontFamily: FONT, textDecoration: "none" }}>
+   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: T.card, border: `1px solid ${T.separator}`, borderRadius: 14, color: T.textSecondary, fontWeight: 700, fontSize: 14, fontFamily: FONT, textDecoration: "none" }}>
    <Icon name="eye" size={15} />
    Preview as borrower
   </a>
  )}
  {/* ── One-click PDF: fees worksheet for purchases, legacy refi estimate
      for refis. Sits between Email and Get Pre-Approved (Christo 2026-07-05). ── */}
- <button onClick={handleSaveScenarioPdf} style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: `${T.blue}12`, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+ <button onClick={handleSaveScenarioPdf} style={{ width: "100%", boxSizing: "border-box", padding: 13, marginBottom: 8, background: T.card, border: `1px solid ${T.blue}30`, borderRadius: 14, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
   <Icon name="download" size={15} />
   Save Scenario as PDF
  </button>
@@ -8935,7 +8935,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    </a>
    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
     {[["zap", "48hr turnaround"], ["lock", "No hard credit pull"], ["mail", "Direct LO access"]].map(([icon, text], i) => (
-     <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: `${T.green}08`, borderRadius: 10, border: `1px solid ${T.green}15` }}>
+     <div key={i} style={{ textAlign: "center", padding: "8px 4px", background: T.card, borderRadius: 10, border: `1px solid ${T.green}15` }}>
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 2, color: T.green }}><Icon name={icon} size={16} /></div>
       <div style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: FONT, lineHeight: 1.3 }}>{text}</div>
      </div>
@@ -9032,6 +9032,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     <span style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: FONT }}>COLLABORATION</span>
    </div>
    <LockControls
+    T={T}
     scenarioId={activeScenarioId}
     lockedFields={sync.lockedFields}
     userType="lo"
@@ -9048,6 +9049,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    />
    <div style={{ marginTop: 12 }}>
     <VersionTimeline
+     T={T}
      history={versionHistory}
      bookmarks={versionBookmarks}
      onUndo={handleVersionUndo}
