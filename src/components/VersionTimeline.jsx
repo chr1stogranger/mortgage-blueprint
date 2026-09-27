@@ -251,7 +251,7 @@ export default function VersionTimeline({
                       ) : (
                         <>
                           <span style={{ color, fontWeight: 600 }}>
-                            {change.changed_by_name?.split(' ')[0] || change.changed_by === 'lo' ? 'LO' : 'Borrower'}
+                            {change.changed_by_name?.split(' ')[0] || (change.changed_by === 'lo' ? 'LO' : 'Borrower')}
                           </span>
                           {' '}
                           <span style={{ color: T.textSecondary }}>
