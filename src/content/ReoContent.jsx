@@ -447,7 +447,12 @@ export default function ReoContent(props) {
               Property Tax breakdown chevron in the Monthly Payment section. */}
           {hasSellProperty && (
             <span
+              role="button"
+              tabIndex={0}
+              aria-label={sellExpanded ? "Hide Seller Net calculator" : "Show Seller Net calculator"}
+              aria-expanded={sellExpanded}
               onClick={() => setSellExpanded(!sellExpanded)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSellExpanded(!sellExpanded); } }}
               title={sellExpanded ? "Hide Seller Net calculator" : "Show Seller Net calculator"}
               style={{
                 fontSize: 18, fontWeight: 700, color: T.blue,

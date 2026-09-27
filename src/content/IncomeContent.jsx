@@ -168,13 +168,13 @@ const moOverrideOf = (inc) =>
  * keeps its decimal point) and shows grouped digits once blurred. The old
  * inputs re-formatted every keystroke, which swallowed the "." (2026-09-24).
  */
-function MoneyInput({ value, onChange, style, placeholder = "0", autoFocus = false }) {
+function MoneyInput({ value, onChange, style, placeholder = "0", autoFocus = false, ariaLabel }) {
   const [draft, setDraft] = useState(null); // null = not editing
   const empty = value === 0 || value === null || value === undefined || value === "";
   const shown = draft !== null ? draft
     : empty ? "" : Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
   return (
-    <input type="text" inputMode="decimal" value={shown} placeholder={placeholder} autoFocus={autoFocus}
+    <input type="text" inputMode="decimal" value={shown} placeholder={placeholder} autoFocus={autoFocus} aria-label={ariaLabel}
       onFocus={() => setDraft(empty ? "" : String(value))}
       onChange={(e) => {
         const raw = String(e.target.value).replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
@@ -311,7 +311,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
-            <MoneyInput value={inc.ytd} onChange={(v) => updateIncome(inc.id, "ytd", v)} style={inputStyle} />
+            <MoneyInput value={inc.ytd} onChange={(v) => updateIncome(inc.id, "ytd", v)} style={inputStyle} ariaLabel={`${currentYear} year-to-date income`} />
           </div>
         </div>
         <div>
@@ -333,7 +333,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
-            <MoneyInput value={inc.py1} onChange={(v) => updateIncome(inc.id, "py1", v)} style={inputStyle} />
+            <MoneyInput value={inc.py1} onChange={(v) => updateIncome(inc.id, "py1", v)} style={inputStyle} ariaLabel={`${py1Year} income`} />
           </div>
         </div>
         <div>
@@ -352,7 +352,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
           </div>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: T.textTertiary, fontSize: 13, fontFamily: FONT }}>$</span>
-            <MoneyInput value={inc.py2} onChange={(v) => updateIncome(inc.id, "py2", v)} style={inputStyle} />
+            <MoneyInput value={inc.py2} onChange={(v) => updateIncome(inc.id, "py2", v)} style={inputStyle} ariaLabel={`${py2Year} income`} />
           </div>
         </div>
       </div>
@@ -553,6 +553,8 @@ function ComponentRow({
     <button
       onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
       title={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
+      aria-label={isExpanded ? "Hide averaging detail" : "Show averaging detail"}
+      aria-expanded={isExpanded}
       style={{
         // Plain chevron, same as the employer / other-income rows (Christo
         // 2026-09-24: "make the bonus averaging arrow match the others").
@@ -596,7 +598,7 @@ function ComponentRow({
   const amountEl = (extra) => (
     <div style={{ ...pillInputWrap, ...extra }}>
       <span style={{ color: T.textSecondary, fontSize: 14, fontWeight: 600 }}>$</span>
-      <MoneyInput value={inc.amount} onChange={(v) => updateIncome(inc.id, "amount", v)} style={{
+      <MoneyInput value={inc.amount} onChange={(v) => updateIncome(inc.id, "amount", v)} ariaLabel="Income amount" style={{
           background: "transparent", border: "none", outline: "none",
           flex: 1, fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT,
           minWidth: 0, padding: 0, fontVariantNumeric: "tabular-nums",
@@ -657,7 +659,7 @@ function ComponentRow({
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, whiteSpace: "nowrap" }} title="Underwriter override">
       <div style={{ display: "flex", alignItems: "center", gap: 2, border: `1px solid ${ACCENT}66`, borderRadius: 9999, padding: "3px 8px", background: `${ACCENT}0d`, minWidth: 0 }}>
         <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>$</span>
-        <MoneyInput value={moOv} autoFocus onChange={(v) => updateIncome(inc.id, "moOverride", v)} style={{
+        <MoneyInput value={moOv} autoFocus onChange={(v) => updateIncome(inc.id, "moOverride", v)} ariaLabel="Monthly income override" style={{
           width: 64, background: "transparent", border: "none", outline: "none", padding: 0, textAlign: "right",
           fontFamily: FONT, fontWeight: 600, fontSize: 13, color: ACCENT, fontVariantNumeric: "tabular-nums",
         }} />
@@ -1003,11 +1005,11 @@ function EmployerGroup({
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: isDesktop ? 16 : 10, padding: "12px 16px 4px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={lbl}>Start date</span>
-                  <input type="date" value={start} max={end || undefined} onChange={(e) => setAll("start", e.target.value)} style={dateInp} />
+                  <input type="date" aria-label="Employer start date" value={start} max={end || undefined} onChange={(e) => setAll("start", e.target.value)} style={dateInp} />
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={lbl}>End date</span>
-                  <input type="date" value={end} min={start || undefined} onChange={(e) => setAll("end", e.target.value)} style={dateInp} />
+                  <input type="date" aria-label="Employer end date" value={end} min={start || undefined} onChange={(e) => setAll("end", e.target.value)} style={dateInp} />
                   {!end && <span style={{ fontSize: 11, color: T.green, fontFamily: FONT }}>Current</span>}
                 </label>
                 {yrs !== null && (
