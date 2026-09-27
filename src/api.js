@@ -196,30 +196,6 @@ export async function createScenarioChange(data) {
   return authFetch('/api/collab?resource=changes', { method: 'POST', body: data });
 }
 
-// ─── Share Sync (public, no auth — for borrower live editing) ───────────────
-
-export async function syncSharedScenario(shareToken, scenarioId, stateData, calcSummary, fieldDiffs, userInfo = {}) {
-  const res = await fetch(`${API_BASE}/api/collab?resource=sync`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      token: shareToken,
-      scenario_id: scenarioId,
-      state_data: stateData,
-      calc_summary: calcSummary,
-      field_diffs: fieldDiffs,
-      changed_by: 'borrower',
-      changed_by_name: userInfo.name || '',
-      changed_by_email: userInfo.email || '',
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-    throw new Error(err.error || 'Could not sync scenario');
-  }
-  return res.json();
-}
-
 // ─── Activity Digest (LO only) ─────────────────────────────────────────────
 
 export async function fetchActivityDigest(days = 7) {
