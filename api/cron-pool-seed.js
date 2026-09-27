@@ -37,6 +37,7 @@ const MARKETS_TO_SEED = [
 
 import { createClient } from '@supabase/supabase-js';
 import { acquireRunLock } from './_budget.js';
+import { safeEq } from './_safeEq.js';
 
 // Allow longer execution — each market pages the search endpoint.
 export const config = { maxDuration: 300 };
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
   }
   if (secret) {
     const auth = req.headers.authorization || '';
-    if (auth !== `Bearer ${secret}`) {
+    if (!safeEq(auth, `Bearer ${secret}`)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
   }

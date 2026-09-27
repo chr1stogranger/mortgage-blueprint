@@ -10,6 +10,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
+import { safeEq } from './_safeEq.js';
 
 const ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",
@@ -174,7 +175,7 @@ export default async function handler(req, res) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.replace("Bearer ", "");
   const secret = process.env.CRON_SECRET;
-  if (!secret || (token !== secret && req.query.secret !== secret)) {
+  if (!secret || (!safeEq(token, secret) && !safeEq(req.query.secret, secret))) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 

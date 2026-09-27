@@ -9,6 +9,7 @@
 // known origins, INCLUDING the Capacitor native app (which fetches from
 // https://localhost inside the iOS/Android WebView — the original reason
 // the wildcard was added to rates.js).
+import { safeEq } from "./_safeEq.js";
 
 export const ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",   // production web
@@ -61,5 +62,5 @@ export function isPrivileged(req) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return process.env.VERCEL_ENV !== "production";
   const bearer = (req.headers.authorization || "").replace("Bearer ", "");
-  return bearer === secret || req.query?.secret === secret;
+  return safeEq(bearer, secret) || safeEq(req.query?.secret, secret);
 }

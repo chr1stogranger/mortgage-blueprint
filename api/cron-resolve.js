@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { enrichPoolRow } from './_enrich.js';
+import { safeEq } from './_safeEq.js';
 
 // Raise the function budget: this cron now resolves predictions AND runs the
 // nightly Free Play photo backfill (folded in here to stay under the Hobby plan's
@@ -432,7 +433,7 @@ export default async function handler(req, res) {
   const querySecret = req.query.secret || '';
   const providedSecret = authHeader.replace('Bearer ', '') || querySecret;
 
-  if (providedSecret !== cronSecret) {
+  if (!safeEq(providedSecret, cronSecret)) {
     console.error('[CronResolve] Unauthorized request');
     return res.status(401).json({ error: 'Unauthorized' });
   }
