@@ -1322,7 +1322,7 @@ export default function CostsContent(props) {
                 <Sel
                   value={transferTaxCity}
                   onChange={setTransferTaxCity}
-                  options={getTTCitiesForState(propertyState).map(c => ({ value: c, label: c === "Not listed" ? "Not listed" : `${c} ($${getTTForCity(c, salesPrice).rate}/$1K)` }))}
+                  options={getTTCitiesForState(propertyState).map(c => ({ value: c, label: c === "Not listed" ? "Not listed" : `${c} ($${getTTForCity(c, salesPrice).rate.toFixed(2)}/$1K)` }))}
                   sm
                   tip="City transfer tax: varies by city."
                 />
@@ -1336,12 +1336,12 @@ export default function CostsContent(props) {
                 value={calc.buyerCityTT}
                 readOnly
                 autoBadge
-                sub={cityRate > 0 ? `$${cityRate}/$1K` : null}
+                sub={cityRate > 0 ? `$${cityRate.toFixed(2)}/$1K` : null}
                 alwaysVisibleControl={renderToggle(transferTaxSplit, setTransferTaxSplit)}
                 inlineEditor={cityDropdown}
                 explainer={isRefi
                   ? "No transfer tax on refinances in California"
-                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100%. Toggle Seller above. " : ""}$${cityRate}/$1K × ${fmt(salesPrice)} = ${fmt(cityFullTax)} → buyer ${citySharePct}% = ${fmt(calc.buyerCityTT)}`}
+                  : `${transferTaxCity === "San Francisco" && transferTaxSplit !== "seller" ? "SF: Seller customarily pays 100%. Toggle Seller above. " : ""}$${cityRate.toFixed(2)}/$1K × ${fmt(salesPrice)} = ${fmt(cityFullTax)} → buyer ${citySharePct}% = ${fmt(calc.buyerCityTT)}`}
               />
               {/* County Transfer Tax — only renders when state has a county-level rate (CA: $1.10/$1K) */}
               {countyRate > 0 && (
@@ -1374,7 +1374,7 @@ export default function CostsContent(props) {
                 value={hoaTransferFee > 0 ? hoaTransferFee : hoa}
                 onChange={setHoaTransferFee}
                 sub={hoaTransferFee === 0 ? "Auto: 1 mo HOA" : null}
-                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt(hoa)}/mo = ${fmt(hoa)}` : undefined}
+                calc={hoaTransferFee === 0 ? `1 mo HOA × ${fmt2(hoa)}/mo = ${fmt2(hoa)}` : undefined}
                 explainer="HOA's fee to transfer ownership records"
               />
             )}
@@ -1502,7 +1502,7 @@ export default function CostsContent(props) {
                 </span>
               );
             })()}
-            calc={`${calc.autoPrepaidDays} days × ${fmt(calc.dailyInt)}/day`}
+            calc={`${calc.autoPrepaidDays} days × ${fmt2(calc.dailyInt)}/day`}
             calcFirst
             explainer="Interest from your closing date through end of month. Pick the closing date and everything recalculates. First payment is the 1st of the second month after closing: the prepaid interest covers your closing month, the next month's interest accrues, and it's paid in arrears with that first payment."
           />
@@ -1580,7 +1580,7 @@ export default function CostsContent(props) {
                 value={escrowHOI_reserve}
                 readOnly
                 autoBadge
-                calc={`${calc.escrowInsMonths} mo × ${fmt(gMonthlyIns)}/mo = ${fmt(escrowHOI_reserve)}`}
+                calc={`${calc.escrowInsMonths} mo × ${fmt2(gMonthlyIns)}/mo = ${fmt2(escrowHOI_reserve)}`}
                 explainer="Cushion held by lender for upcoming insurance payments"
               />
               ) : (
@@ -1592,7 +1592,7 @@ export default function CostsContent(props) {
                 value={escrowTax_reserve}
                 readOnly
                 autoBadge
-                calc={`${calc.escrowTaxMonths} mo × ${fmt(gMonthlyTax)}/mo = ${fmt(escrowTax_reserve)}`}
+                calc={`${calc.escrowTaxMonths} mo × ${fmt2(gMonthlyTax)}/mo = ${fmt2(escrowTax_reserve)}`}
                 explainer="Cushion for upcoming property tax bills"
               />
               ) : (
