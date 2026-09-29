@@ -8520,17 +8520,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     </div>
    )}
-   {/* ── LO / Realtor Co-Brand Bar — LO always paired with the referring
-        realtor when one is active. With no realtor it still shows (LO-only)
-        on borrower-facing surfaces (isBorrower), but NOT in the LO's own
-        working view — Christo doesn't need his own banner while working. ── */}
-   {(realtorPartner || isBorrower) && (
-    <CoBrandBar
-     isDesktop={isDesktop}
-     loInfo={{ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls }}
-     realtorPartner={realtorPartner}
-    />
-   )}
    {/* ── Welcome Modal — shown only on first visit when no skill level set ── */}
    {appMode === "blueprint" && skillLevel === null && (
     <div style={{
@@ -8645,6 +8634,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        rendered height, safe-area included). The fallback only applies before
        the first layout pass. */}
    <div style={{ paddingTop: isDesktop ? "var(--bp-header-h, 96px)" : "var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px)))" }} />
+   {/* ── LO / Realtor Co-Brand Bar (rendered below the header spacer so the
+        fixed header can't cover the realtor's name on phones; audit #5) — LO always paired with the referring
+        realtor when one is active. With no realtor it still shows (LO-only)
+        on borrower-facing surfaces (isBorrower), but NOT in the LO's own
+        working view — Christo doesn't need his own banner while working. ── */}
+   {(realtorPartner || isBorrower) && (
+    <CoBrandBar
+     isDesktop={isDesktop}
+     loInfo={{ loanOfficer, loEmail, loPhone, loNmls, companyName, companyNmls }}
+     realtorPartner={realtorPartner}
+    />
+   )}
    <div data-presence-root="" style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 <TabIntro id={tab} />
 <Suspense fallback={null}>
