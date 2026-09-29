@@ -474,6 +474,12 @@ describe("rate ladder", () => {
     const pp = compareRungs({ rate: 6.875, pts: 0 }, { rate: 6.75, pts: 0.5 }, o);
     expect(pp.postTaxCost).toBeCloseTo(5200 * 0.76, 6);
   });
+  it("jumbo: the points offset is capped by deductPct like the interest write-off", () => {
+    // $1.5M loan, $750K cap → half the points deduct
+    const j = compareRungs({ rate: 6.875, pts: 0 }, { rate: 6.75, pts: 0.5 }, { loan: 1500000, taxRate: 0.24, deductPct: 0.5 });
+    expect(j.cost).toBeCloseTo(7500, 6);
+    expect(j.postTaxCost).toBeCloseTo(7500 - 7500 * 0.5 * 0.24, 6);
+  });
   it("par in the middle: rungs above the base step toward it (credit lasts N months)", () => {
     const rungs2 = [{ rate: 7.125, pts: -0.9 }, { rate: 7.0, pts: -0.5 }, { rate: 6.875, pts: 0 }, { rate: 6.75, pts: 0.5 }];
     const L = computeRateLadder({ loan: 1040000, termYears: 30, rungs: rungs2, baseIdx: 2, holdMonths: 36, taxRate: 0 });

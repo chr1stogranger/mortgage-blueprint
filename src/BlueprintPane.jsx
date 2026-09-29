@@ -1,4 +1,5 @@
 import { FONT } from "./lib/fonts.js";
+import { liveRateFor } from "./lib/liveRates.js";
 /**
  * BlueprintPane — Self-contained mortgage calculator for Workspace panes
  *
@@ -129,15 +130,9 @@ export default function BlueprintPane({ theme, paneId, paneConfig, onCalcUpdate,
   useEffect(() => {
     if (liveRates && liveRates["30yr_fixed"]) {
       hasLiveRates.current = true;
-      const rateMap = {
-        "Conventional": term === 15 ? liveRates["15yr_fixed"] : liveRates["30yr_fixed"],
-        "FHA": liveRates["30yr_fha"] || liveRates["30yr_fixed"],
-        "VA": liveRates["30yr_va"] || liveRates["30yr_fixed"],
-        "Jumbo": liveRates["30yr_jumbo"] || liveRates["30yr_fixed"],
-        "USDA": liveRates["30yr_fixed"],
-      };
-      const matched = rateMap[loanType] || liveRates["30yr_fixed"];
-      if (matched && !isNaN(matched)) setRate(matched);
+      // Published series only — estimated FHA/VA/Jumbo rates aren't applied.
+      const matched = liveRateFor(liveRates, loanType, term);
+      if (matched) setRate(matched);
     } else if (liveRate && !hasLiveRates.current && !isNaN(liveRate)) {
       setRate(liveRate);
     }

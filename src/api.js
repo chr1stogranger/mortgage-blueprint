@@ -125,7 +125,8 @@ export async function shareAuthHeaders() {
 // Throws an Error carrying .code/.status/.payload so callers can tell
 // "not on the guest list" (code 'not_on_list') from a dead link.
 export async function fetchSharedData(shareToken) {
-  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`, { headers: await shareAuthHeaders() });
+  // no-store: per-borrower data, same reason as authFetch.
+  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`, { cache: 'no-store', headers: await shareAuthHeaders() });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     const e = new Error(err.error || 'Share link not found');
@@ -142,6 +143,7 @@ async function shareAccessCall(method, shareToken, email) {
   const url = `${API_BASE}/api/collab?resource=share-access${isGet ? `&token=${shareToken}` : ''}`;
   const res = await fetch(url, {
     method,
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json', ...(await shareAuthHeaders()) },
     body: isGet ? undefined : JSON.stringify({ token: shareToken, email }),
   });

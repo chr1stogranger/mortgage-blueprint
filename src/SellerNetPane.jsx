@@ -8,6 +8,7 @@ import { FONT } from "./lib/fonts.js";
  */
 import React, { useState, useMemo, useEffect } from "react";
 import Icon from "./Icon";
+import { getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 
 
 let T = {};
@@ -79,6 +80,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
   const [sellPrice, setSellPrice] = useState(1200000);
   const [mortgagePayoff, setMortgagePayoff] = useState(400000);
   const [commission, setCommission] = useState(6);
+  const [ttCity, setTtCity] = useState("Not listed");
   const [escrowCost, setEscrowCost] = useState(3500);
   const [titleCost, setTitleCost] = useState(2500);
   const [otherCosts, setOtherCosts] = useState(0);
@@ -99,7 +101,12 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
   // ── Calculation ──
   const calc = useMemo(() => {
     const commAmt = sellPrice * (commission / 100);
-    const transferTax = sellPrice * 0.0011; // ~$1.10/$1000 default
+    // Seller's transfer tax, same convention as the Sell tab: county $1.10/$1K
+    // (none in SF — its city tiers are the whole tax) plus the city tax,
+    // split 50/50 except SF where the seller customarily pays it all.
+    const ttEntry = getTTForCity(ttCity, sellPrice);
+    const cityShare = ttEntry.sfSeller ? 1 : 0.5;
+    const transferTax = sellPrice / 1000 * countyTTRateFor("California", ttCity) + ttEntry.amount * cityShare;
     const totalCosts = commAmt + escrowCost + titleCost + transferTax + otherCosts + sellerCredit;
     const netProceeds = sellPrice - mortgagePayoff - totalCosts;
 
@@ -150,7 +157,7 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
       isLongTerm, fedRate, fedTax, stateTax, niit, totalCapGainsTax,
       netAfterTax,
     };
-  }, [sellPrice, mortgagePayoff, commission, escrowCost, titleCost, otherCosts, sellerCredit, costBasis, improvements, primaryRes, holdingYears, filingStatus]);
+  }, [sellPrice, mortgagePayoff, commission, ttCity, escrowCost, titleCost, otherCosts, sellerCredit, costBasis, improvements, primaryRes, holdingYears, filingStatus]);
 
   // ── Report back to workspace ──
   useEffect(() => {
@@ -195,6 +202,16 @@ export default function SellerNetPane({ theme, paneId, onNetProceedsUpdate, shar
           <PaneInp label="Mortgage Payoff" value={mortgagePayoff} onChange={setMortgagePayoff} />
         </div>
         <PaneInp label="Commission %" value={commission} onChange={setCommission} prefix="" suffix="%" step={0.25} max={10} />
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 500, color: T.textSecondary, marginBottom: 4, fontFamily: FONT }}>Transfer Tax City</div>
+          <select value={ttCity} onChange={e => setTtCity(e.target.value)} aria-label="Transfer tax city" style={{
+            width: "100%", background: T.inputBg, borderRadius: 8, border: `1px solid ${T.inputBorder}`,
+            padding: "6px 8px", color: T.text, fontSize: 11, fontWeight: 500,
+            outline: "none", cursor: "pointer", fontFamily: FONT, WebkitAppearance: "none",
+          }}>
+            {getTTCitiesForState("California").map(c => <option key={c} value={c}>{c === "Not listed" ? "Not listed (county $1.10/$1K only)" : c}</option>)}
+          </select>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
           <PaneInp label="Escrow" value={escrowCost} onChange={setEscrowCost} />
           <PaneInp label="Title" value={titleCost} onChange={setTitleCost} />

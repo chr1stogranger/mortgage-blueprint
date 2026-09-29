@@ -809,7 +809,9 @@ export function compareRungs(from, to, { loan, termYears = 30, taxRate = 0, dedu
   // gives up money but pays no points, so that slice gets no tax offset —
   // the sheet's "* no tax savings w/ lender credit" (Christo 2026-09-24).
   const paidPtsDelta = Math.max(0, to.pts) - Math.max(0, from.pts);
-  const pointsDeduction = (cost > 0 && pointsDeductible) ? loan * paidPtsDelta / 100 * taxRate : 0;
+  // Points on debt above the $750K cap don't deduct — same deductPct scaling
+  // as the forfeited interest write-off below.
+  const pointsDeduction = (cost > 0 && pointsDeductible) ? loan * deductPct * paidPtsDelta / 100 * taxRate : 0;
   const postTaxCost = cost - pointsDeduction;
   // Per YEAR: the deduction a lower rate forfeits (year-1 interest basis).
   const writeOffLost = loan * deductPct * (from.rate - to.rate) / 100 * taxRate;

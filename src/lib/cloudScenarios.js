@@ -13,6 +13,9 @@
 
 import { getSupabaseClient } from './supabaseClient';
 import { todayLocal } from './today.js';
+import { buildCalcSummary } from './calcSummary.js';
+
+export { buildCalcSummary };
 
 // Device-local prefs must never sync — strip before any cloud write.
 const DEVICE_ONLY_KEYS = ['darkMode', 'themeMode'];
@@ -22,36 +25,6 @@ export function stripDevicePrefs(stateData) {
   const clean = { ...stateData };
   for (const key of DEVICE_ONLY_KEYS) delete clean[key];
   return clean;
-}
-
-/**
- * Build the lightweight calc_summary stored alongside state_data.
- * Mirrors the formula in useBlueprintSync.flush().
- */
-export function buildCalcSummary(state) {
-  const sp = Number(state.salesPrice) || 0;
-  const dp = sp * (Number(state.downPct) || 0) / 100;
-  const la = sp - dp;
-  const r = Number(state.rate) || 0;
-  const t = Number(state.term) || 30;
-  const mr = r / 100 / 12;
-  const np = t * 12;
-  let pi = 0;
-  if (mr > 0 && np > 0 && la > 0) {
-    pi = la * (mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1);
-  }
-  return {
-    salesPrice: sp,
-    loanAmount: la,
-    downPayment: dp,
-    downPct: Number(state.downPct) || 0,
-    ltv: sp > 0 ? Math.round((la / sp) * 1000) / 10 : 0,
-    rate: r,
-    term: t,
-    creditScore: Number(state.creditScore) || 0,
-    monthlyPI: Math.round(pi),
-    loanType: state.loanType || 'Conventional',
-  };
 }
 
 /** List the signed-in user's own scenarios (newest first). */

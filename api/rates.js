@@ -36,6 +36,12 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "Invalid rate data from FRED" });
     }
 
+    // PMMS publishes only 30yr / 15yr / 5yr ARM. The rest are spread
+    // estimates for the reference grid — flagged so the client shows "est."
+    // and never auto-applies them as a live rate.
+    const estimated = ["30yr_fha", "30yr_va", "30yr_jumbo"];
+    if (!v15) estimated.push("15yr_fixed");
+    if (!vArm) estimated.push("5yr_arm");
     const rates = {
       date: r30.observations[0].date,
       "30yr_fixed": v30,
@@ -44,6 +50,7 @@ export default async function handler(req, res) {
       "30yr_va": +(v30 - 0.35).toFixed(2),
       "30yr_jumbo": +(v30 + 0.25).toFixed(2),
       "5yr_arm": vArm || +(v30 - 0.3).toFixed(2),
+      estimated,
       source: "FRED / Freddie Mac PMMS",
     };
 

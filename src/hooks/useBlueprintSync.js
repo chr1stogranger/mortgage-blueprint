@@ -27,6 +27,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { subscribeToScenario, subscribeToLockEvents, createPresenceChannel, fetchScenarioRow } from '../lib/supabaseClient';
 import { updateScenario, shareAuthHeaders } from '../api';
+import { buildCalcSummary } from '../lib/calcSummary.js';
 
 const DEBOUNCE_MS = 500;          // Write delay after last change
 const RECENT_SENT = 8;            // How many of our own writes to remember for echo detection
@@ -318,28 +319,7 @@ export default function useBlueprintSync({
     setStatus('saving');
 
     try {
-      // Build lightweight calc_summary
-      const sp = Number(currentState.salesPrice) || 0;
-      const dp = sp * (Number(currentState.downPct) || 0) / 100;
-      const la = sp - dp;
-      const r = Number(currentState.rate) || 0;
-      const t = Number(currentState.term) || 30;
-      const mr = r / 100 / 12;
-      const np = t * 12;
-      let pi = 0;
-      if (mr > 0 && np > 0 && la > 0) {
-        pi = la * (mr * Math.pow(1 + mr, np)) / (Math.pow(1 + mr, np) - 1);
-      }
-
-      const calcSummary = {
-        salesPrice: sp, loanAmount: la, downPayment: dp,
-        downPct: Number(currentState.downPct) || 0,
-        ltv: sp > 0 ? Math.round((la / sp) * 1000) / 10 : 0,
-        rate: r, term: t,
-        creditScore: Number(currentState.creditScore) || 0,
-        monthlyPI: Math.round(pi),
-        loanType: currentState.loanType || 'Conventional',
-      };
+      const calcSummary = buildCalcSummary(currentState);
 
       // Register before the request so the realtime echo is recognized even
       // if it beats the HTTP response back.

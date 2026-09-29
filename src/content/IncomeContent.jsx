@@ -168,7 +168,7 @@ const moOverrideOf = (inc) =>
  * keeps its decimal point) and shows grouped digits once blurred. The old
  * inputs re-formatted every keystroke, which swallowed the "." (2026-09-24).
  */
-function MoneyInput({ value, onChange, style, placeholder = "0", autoFocus = false, ariaLabel }) {
+function MoneyInput({ value, onChange, onClear, style, placeholder = "0", autoFocus = false, ariaLabel }) {
   const [draft, setDraft] = useState(null); // null = not editing
   const empty = value === 0 || value === null || value === undefined || value === "";
   const shown = draft !== null ? draft
@@ -182,7 +182,7 @@ function MoneyInput({ value, onChange, style, placeholder = "0", autoFocus = fal
         const n = parseFloat(raw);
         onChange(Number.isNaN(n) ? 0 : n);
       }}
-      onBlur={() => setDraft(null)}
+      onBlur={() => { if (onClear && draft === "") onClear(); setDraft(null); }}
       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
       style={style} />
   );
@@ -445,7 +445,7 @@ function VariableCalcPanel({ inc, updateIncome, monthsElapsed, T, fmt, ACCENT })
 function ComponentRow({
   inc, isExpanded, onToggleExpand, updateIncome, removeIncome,
   monthsElapsed, T, fmt, ACCENT, isDesktop = true,
-  isFirst = true, isLast = true,
+  isFirst = true, isLast = true, isBorrower = false,
 }) {
   const meta = payTypeLabel(inc.payType);
   const isVar = meta.variable;
@@ -618,7 +618,13 @@ function ComponentRow({
     </select>
   );
 
-  const verifiedEl = (extra) => (
+  // Verified-by and the monthly override are LO/underwriter attestations —
+  // read-only on a borrower's share link so nobody self-certifies income.
+  const verifiedEl = (extra) => isBorrower ? (
+    <span style={{ ...verifiedPillStyle, ...extra, cursor: "default", display: "inline-flex", alignItems: "center" }}>
+      {(VERIFIED_BY_OPTIONS.find(v => v.value === (inc.verifiedBy || "")) || {}).label || "not verified"}
+    </span>
+  ) : (
     <select
       value={inc.verifiedBy || ""}
       onChange={(e) => updateIncome(inc.id, "verifiedBy", e.target.value)}
@@ -634,7 +640,7 @@ function ComponentRow({
   // replaces the computed monthly everywhere (totals, DTI). Re-lock = back to
   // the computed figure.
   const moOv = moOverrideOf(inc);
-  const lockBtn = (
+  const lockBtn = isBorrower ? null : (
     <button
       onClick={() => updateIncome(inc.id, "moOverride", moOv === null ? Math.round(mo * 100) / 100 : null)}
       title={moOv === null ? "Override: enter the monthly income underwriting is using" : "Remove override, use the computed monthly"}
@@ -645,7 +651,7 @@ function ComponentRow({
         width: 16, display: "inline-flex", justifyContent: "center",
       }}><Icon name={moOv === null ? "lock" : "unlock"} size={13} /></button>
   );
-  const moEl = moOv === null ? (
+  const moEl = (moOv === null || isBorrower) ? (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, whiteSpace: "nowrap" }}>
       <span>
         <span style={{ fontFamily: FONT, fontWeight: 600, fontSize: 13, color: mo > 0 ? T.orange : T.textTertiary }}>
@@ -659,7 +665,7 @@ function ComponentRow({
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, whiteSpace: "nowrap" }} title="Underwriter override">
       <div style={{ display: "flex", alignItems: "center", gap: 2, border: `1px solid ${ACCENT}66`, borderRadius: 9999, padding: "3px 8px", background: `${ACCENT}0d`, minWidth: 0 }}>
         <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>$</span>
-        <MoneyInput value={moOv} autoFocus onChange={(v) => updateIncome(inc.id, "moOverride", v)} ariaLabel="Monthly income override" style={{
+        <MoneyInput value={moOv} autoFocus onChange={(v) => updateIncome(inc.id, "moOverride", v)} onClear={() => updateIncome(inc.id, "moOverride", null)} ariaLabel="Monthly income override" style={{
           width: 64, background: "transparent", border: "none", outline: "none", padding: 0, textAlign: "right",
           fontFamily: FONT, fontWeight: 600, fontSize: 13, color: ACCENT, fontVariantNumeric: "tabular-nums",
         }} />
@@ -756,7 +762,7 @@ function EmployerGroup({
   source, components, borrowerNum, isExpanded, onToggleExpand,
   componentExpandState, toggleComponentExpand,
   updateIncome, addIncome, removeIncome, onSourceRename,
-  monthsElapsed, T, fmt, ACCENT, isDesktop = true,
+  monthsElapsed, T, fmt, ACCENT, isDesktop = true, isBorrower = false,
 }) {
   // Local edit state for the source field. Committing on every keystroke
   // would re-key the group (because grouping is by source), destroy the
@@ -1052,6 +1058,7 @@ function EmployerGroup({
               removeIncome={removeIncome}
               monthsElapsed={monthsElapsed}
               T={T} fmt={fmt} ACCENT={ACCENT} isDesktop={isDesktop}
+              isBorrower={isBorrower}
               isFirst={idx === 0}
               isLast={idx === components.length - 1}
             />
@@ -1111,6 +1118,7 @@ export default function IncomeContent(props) {
   Hero, Card, Sec, TextInp, Inp, Sel, Note, Progress,
   VARIABLE_PAY_TYPES, PAY_TYPES, loanType,
   isPulse, GuidedNextButton, ClusterContinue,
+  isBorrower = false,
 } = props;
 
   const ACCENT = T.blue;
@@ -1460,6 +1468,7 @@ export default function IncomeContent(props) {
                   updateIncome={updateIncome}
                   addIncome={addIncome}
                   removeIncome={removeIncome}
+                  isBorrower={isBorrower}
                   onSourceRename={(newSource) => {
                     // Renaming re-keys the group — carry the expand state
                     // to the new key so the card doesn't snap shut.

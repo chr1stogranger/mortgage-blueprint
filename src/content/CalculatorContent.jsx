@@ -1,4 +1,5 @@
 import { FONT } from "../lib/fonts.js";
+import { liveRateFor, isEstimatedRate } from "../lib/liveRates.js";
 import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
@@ -1379,7 +1380,7 @@ export default function CalculatorContent(props) {
     <div data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
     <button onClick={() => { markTouched && markTouched("get-rates"); fetchRates(); }} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
      <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
-      {ratesLoading ? "Fetching rates..." : liveRates ? "✓ Live Rates Applied" : "Get Today's Rates"}
+      {ratesLoading ? "Fetching rates..." : liveRates ? (liveRateFor(liveRates, loanType, term) ? "✓ Live Rates Applied" : `Live Rates Loaded · no published ${loanType} rate`) : "Get Today's Rates"}
      </span>
      {liveRates && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{liveRates.date || "Today"}</span>}
      {!liveRates && !ratesLoading && fredApiKey && <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>FRED</span>}
@@ -1390,9 +1391,9 @@ export default function CalculatorContent(props) {
     {/* Always-visible 6-tile rate grid (only when liveRates loaded) */}
     {liveRates && (<>
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 4 }}>
-      {[["30yr", liveRates["30yr_fixed"]], ["15yr", liveRates["15yr_fixed"]], ["FHA", liveRates["30yr_fha"]],
-       ["VA", liveRates["30yr_va"]], ["Jumbo", liveRates["30yr_jumbo"]], ["5/1 ARM", liveRates["5yr_arm"]]
-      ].filter(([, v]) => v).map(([label, r], i) => {
+      {[["30yr", "30yr_fixed"], ["15yr", "15yr_fixed"], ["FHA", "30yr_fha"],
+       ["VA", "30yr_va"], ["Jumbo", "30yr_jumbo"], ["5/1 ARM", "5yr_arm"]
+      ].map(([label, key]) => [label, liveRates[key], isEstimatedRate(liveRates, key)]).filter(([, v]) => v).map(([label, r, est], i) => {
        const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
         (label === "15yr" && loanType === "Conventional" && term === 15) ||
         (label === "FHA" && loanType === "FHA") ||
@@ -1400,13 +1401,13 @@ export default function CalculatorContent(props) {
         (label === "Jumbo" && loanType === "Jumbo");
        return (
         <div key={i} onClick={() => setRate(r)} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: "8px 10px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
          <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
         </div>
        );
       })}
      </div>
-     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}</div>}
+     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}{(liveRates.estimated || []).length ? " · est. = spread off the 30yr, not published" : ""}</div>}
     </>)}
    </Card>
 
