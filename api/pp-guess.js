@@ -185,7 +185,18 @@ export default async function handler(req, res) {
     // Property basics so a board opened from a notification/deep link (no local
     // prediction copy on this device) still has a heading and list price.
     const first = (data || [])[0];
-    const property = first ? { address: first.address || '', neighborhood: first.neighborhood || '', listPrice: first.list_price || null } : null;
+    let property = first ? { address: first.address || '', neighborhood: first.neighborhood || '', listPrice: first.list_price || null } : null;
+    // pp_predictions has no photo/specs — the live guess rows that created them do.
+    if (property) {
+      try {
+        const { data: g } = await supabase
+          .from('pp_guesses')
+          .select('photo, city, zip, beds, baths, sqft, property_type')
+          .eq('zpid', zpid).not('photo', 'is', null)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (g) property = { ...property, photo: g.photo, city: g.city, zip: g.zip, beds: g.beds, baths: g.baths, sqft: g.sqft, propertyType: g.property_type };
+      } catch (e) { console.error('[pp-guess] board photo lookup failed:', e.message); }
+    }
     return res.status(200).json({ zpid, count: calls.length, calls, soldPrice, revealed, property });
   }
 

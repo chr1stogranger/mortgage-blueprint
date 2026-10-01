@@ -5373,19 +5373,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         const boardAddress = boardProp.address || bp.address || "";
         const boardListPrice = boardProp.listPrice || bp.listPrice || null;
         const boardHood = boardProp.neighborhood || bp.neighborhood || "";
+        const boardPhoto = boardProp.photo || bp.photo || null;
+        const bBeds = boardProp.beds || bp.beds, bBaths = boardProp.baths || bp.baths, bSqft = boardProp.sqft || bp.sqft;
+        // Listing link: stored detailUrl, else Zillow's zpid URL (numeric ids only).
+        const boardListingUrl = boardProp.detailUrl
+          ? (boardProp.detailUrl.startsWith("http") ? boardProp.detailUrl : `https://www.zillow.com${boardProp.detailUrl}`)
+          : (/^\d+$/.test(String(boardProp.zpid || "")) ? `https://www.zillow.com/homedetails/${boardProp.zpid}_zpid/` : null);
         return (
         <div onClick={() => setBoardProp(null)} style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.9)", backdropFilter: "blur(16px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, animation: "ppFadeIn 0.25s ease", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 20, overflow: "hidden", maxWidth: isDesktop ? 520 : 420, width: "100%", maxHeight: "88vh", overflowY: "auto", animation: "ppScaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}>
-            {boardProp.photo && <img src={boardProp.photo} alt="" style={{ width: "100%", height: isDesktop ? 200 : 150, objectFit: "cover", display: "block" }} onError={onPhotoError} />}
+            {boardPhoto && <img src={boardPhoto} alt="" style={{ width: "100%", height: isDesktop ? 220 : 170, objectFit: "cover", display: "block" }} onError={onPhotoError} />}
             <div style={{ padding: "18px 20px 20px" }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: boardSold ? T.green : T.orange, marginBottom: 6 }}>
                 {boardSold ? "SOLD" : "PENDING SALE"}
               </div>
               <div style={{ fontSize: 19, fontWeight: 800, fontFamily: FONT, color: T.text }}>{boardAddress || resolveNeighborhood(boardProp)}</div>
               <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 3, marginBottom: 14 }}>
-                {[boardProp.neighborhood || boardProp.city ? resolveNeighborhood(boardProp) : (boardHood || null),
-                  boardProp.beds ? `${boardProp.beds}BR/${boardProp.baths || "?"}BA` : null,
-                  boardProp.sqft > 0 ? `${Number(boardProp.sqft).toLocaleString()}sf` : null].filter(Boolean).join(" · ")}
+                {[boardProp.neighborhood || boardProp.city ? resolveNeighborhood(boardProp) : (boardHood || bp.city || null),
+                  bBeds ? `${bBeds}BR/${bBaths || "?"}BA` : null,
+                  bSqft > 0 ? `${Number(bSqft).toLocaleString()}sf` : null].filter(Boolean).join(" · ")}
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
@@ -5426,10 +5432,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </button>
               )}
               <PillButton onClick={() => setBoardProp(null)} secondary>Close</PillButton>
-              {boardProp.detailUrl && (
-                <a href={boardProp.detailUrl.startsWith("http") ? boardProp.detailUrl : `https://www.zillow.com${boardProp.detailUrl}`} target="_blank" rel="noopener noreferrer"
+              {boardListingUrl && (
+                <a href={boardListingUrl} target="_blank" rel="noopener noreferrer"
                   style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT }}>
-                  <Icon name="external-link" size={13} /> View full listing on {String(boardProp.detailUrl).includes("redfin.com") ? "Redfin" : "Zillow"}
+                  <Icon name="external-link" size={13} /> View the listing on {String(boardListingUrl).includes("redfin.com") ? "Redfin" : "Zillow"}
                 </a>
               )}
             </div>
