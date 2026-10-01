@@ -7,7 +7,7 @@ import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, A
 /* ─── Collapsible section wrapper ─── */
 // `open` + `onToggle` make it controlled (Quick Start's auto-collapse);
 // `collapsedSubtitle` replaces the subtitle only while the section is shut.
-function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle, collapsedSubtitle, open: openProp, onToggle }) {
+function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroStyle = false, subtitle, collapsedSubtitle, open: openProp, onToggle, compact = false }) {
   const [openState, setOpenState] = useState(defaultOpen);
   const open = openProp ?? openState;
   const setOpen = onToggle ?? setOpenState;
@@ -21,13 +21,13 @@ function CollapsibleSection({ title, T, defaultOpen = true, children, id, heroSt
     return (
       <div id={id}>
         <div onClick={() => setOpen(!open)} style={{
-          cursor: "pointer", marginTop: 12, marginBottom: open ? 10 : 4,
-          background: T.blue, padding: "10px 18px", borderRadius: 12,
+          cursor: "pointer", marginTop: compact ? 6 : 12, marginBottom: open ? (compact ? 8 : 10) : 4,
+          background: T.blue, padding: compact ? "6px 14px" : "10px 18px", borderRadius: 12,
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <span style={{ fontSize: 14, lineHeight: 1, color: "rgba(255,255,255,0.85)", transition: "transform 0.2s", transform: open ? "rotate(0deg)" : "rotate(-90deg)", flexShrink: 0 }}>▾</span>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", gap: 12 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, flexShrink: 0 }}>
+            <div style={{ fontSize: compact ? 16 : 18, fontWeight: 700, fontFamily: FONT, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2, flexShrink: 0 }}>
               {title}
             </div>
             {inlineText && (
@@ -156,6 +156,7 @@ export default function OverviewTab(props) {
           SECTION 1: QUICK START (full Setup tab)
           ═══════════════════════════════════════ */}
       <CollapsibleSection
+        compact={!isDesktop}
         title="Quick Start"
         T={T}
         id="overview-setup"
@@ -175,7 +176,9 @@ export default function OverviewTab(props) {
       {setupOpen && <SectionDivider T={T} />}
       {/* Refi reads "New Loan" — this whole section IS the new loan being
           built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
-      <CollapsibleSection title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
+      {/* Phones: slimmer banners so the screenshot reaches from Quick Start
+          through the pillars (Christo 2026-10-01). */}
+      <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} />
       </CollapsibleSection>
 

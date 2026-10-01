@@ -315,13 +315,13 @@ export default function CalculatorContent(props) {
      compact ? (
       // Phones: one row of small pills inside a single card, right under the
       // loan strip, so the screenshot carries qualification too.
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 2, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: "9px 4px", marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 2, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: "7px 4px", marginBottom: 8 }}>
        {compactChecks.map((c, i) => {
         const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
         return (
          <div key={i} onClick={() => handlePillarClick && handlePillarClick(c.label)} title={`${c.label}: ${c.sub}. Tap for details`}
           style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0 }}>
-          <div style={{ width: 20, height: 20, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 800, marginBottom: 3 }}>
+          <div style={{ width: 17, height: 17, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800, marginBottom: 2 }}>
            {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
           </div>
           <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
@@ -393,7 +393,8 @@ export default function CalculatorContent(props) {
    <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
      {/* Phones trim the bottom pad: the inputs already carry 14px below. */}
-     <Card style={isDesktop ? undefined : { paddingBottom: 6 }}>
+     {/* Phones: tighter card so the screenshot fits (Christo 2026-10-01). */}
+     <Card style={isDesktop ? undefined : { padding: "12px 14px 0", marginBottom: 8 }}>
       {isRefi ? (<>
        {/* Refi price card (Christo 7.24): just the two inputs. The Equity and
            payoff TILES are gone — equity already lives in the card beneath the
@@ -632,7 +633,7 @@ export default function CalculatorContent(props) {
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
        the wireframe read straight through the ring (Christo 2026-07-19). */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 12, marginBottom: isDesktop ? 0 : 12, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "10px 12px 14px" }}>
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "8px 12px 10px" }}>
     {/* Escrow header row.
         PURCHASE — one master toggle (includeEscrow), unchanged.
         REFI — a toggle per component (Christo 2026-07-22): taxes and
@@ -677,7 +678,7 @@ export default function CalculatorContent(props) {
       );
      }
      if (!isDesktop) return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px 6px", width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 2px", width: "100%" }}>
        <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Monthly payment</span>
        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
         Escrow
@@ -706,9 +707,9 @@ export default function CalculatorContent(props) {
     {!isDesktop ? (
      <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 2 }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing segments={paySegs} total={calc.displayPayment} size={Math.max(120, Math.min(156, ((donutSlotW || 340) - 14) * 0.46))} hideLegend />
+       <PayRing segments={paySegs} total={calc.displayPayment} size={Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
        {legendRows.map((row, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: T.textSecondary, fontFamily: FONT }}>
          <span style={{ width: 9, height: 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
@@ -781,7 +782,7 @@ export default function CalculatorContent(props) {
    </div>}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={isDesktop
     ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12, flex: 1 }
-    : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginBottom: 10, overflow: "hidden" }}>
+    : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginBottom: 8, overflow: "hidden" }}>
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
