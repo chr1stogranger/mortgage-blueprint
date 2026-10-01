@@ -2011,13 +2011,33 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const nextLevel = useMemo(() => LEVELS.find(l => l.req > xp), [xp]);
 
   // ── Detect level-up and trigger celebration ──
+  // Celebrate ONCE per level, and only for a level earned by a guess just now.
+  // On open the level is first computed from this device's local results, then
+  // the server XP arrives and the level "jumps" — that sync jump re-fired the
+  // Level 8 card on every visit (Christo 2026-10-01). The highest level ever
+  // celebrated is persisted, and a jump with no guess in the last 15s is
+  // recorded silently.
+  const lastGuessAtRef = useRef(0);
+  const resultsLenRef = useRef(null);
   useEffect(() => {
+    if (resultsLenRef.current != null && allResults.length > resultsLenRef.current) lastGuessAtRef.current = Date.now();
+    resultsLenRef.current = allResults.length;
+  }, [allResults.length]);
+  useEffect(() => {
+    let celebrated = 0;
+    try { celebrated = parseInt(localStorage.getItem("pp-celebrated-level") || "0", 10) || 0; } catch { /* ignore */ }
+    const remember = (lvl) => { try { localStorage.setItem("pp-celebrated-level", String(lvl)); } catch { /* ignore */ } };
     if (prevLevelRef.current === null) {
       // First render — just store, don't celebrate
       prevLevelRef.current = currentLevel.level;
+      if (currentLevel.level > celebrated) remember(currentLevel.level);
       return;
     }
-    if (currentLevel.level > prevLevelRef.current) {
+    const earnedNow = Date.now() - lastGuessAtRef.current < 15000;
+    if (currentLevel.level > prevLevelRef.current && (currentLevel.level <= celebrated || !earnedNow)) {
+      if (currentLevel.level > celebrated) remember(currentLevel.level);
+    } else if (currentLevel.level > prevLevelRef.current) {
+      remember(currentLevel.level);
       const oldLevel = LEVELS.find(l => l.level === prevLevelRef.current) || LEVELS[0];
       setLevelUpData({ newLevel: currentLevel, oldLevel, xp });
       // Haptic feedback + sound
@@ -2032,12 +2052,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     prevLevelRef.current = currentLevel.level;
   }, [currentLevel.level]);
 
-  // ── Nickname prompt — show after 3rd guess if no display_name set ──
+  // ── Nickname prompt — after your first locked For Sale call (that's when
+  // your name shows on a property board) or your 3rd guess, if no display
+  // name is set. Most board rows read "Player" because link-invited friends
+  // make one call and never hit guess #3. A dismissal snoozes it for 3 days. ──
   const nicknamePromptShownRef = useRef(false);
+  const nameSnoozed = () => {
+    try { return Date.now() - parseInt(localStorage.getItem("pp-name-prompt-dismissed") || "0", 10) < 3 * 86400000; } catch { return false; }
+  };
   useEffect(() => {
     if (
-      allResults.length >= 3 &&
+      (allResults.length >= 3 || allPredictions.length >= 1) &&
       !displayName &&
+      !nameSnoozed() &&
       !nicknamePromptShownRef.current &&
       !showNicknamePrompt &&
       !levelUpData &&
@@ -2051,7 +2078,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [allResults.length, displayName, playerId, levelUpData, showLevelUpShare]);
+  }, [allResults.length, allPredictions.length, displayName, playerId, levelUpData, showLevelUpShare]);
 
   // ── Streak (consecutive days played) ──
   const streak = useMemo(() => {
@@ -5666,7 +5693,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ NICKNAME PROMPT ═══ */}
       {showNicknamePrompt && (
-        <div onClick={() => setShowNicknamePrompt(false)} style={{
+        <div onClick={() => { setShowNicknamePrompt(false); if (!displayName) { try { localStorage.setItem("pp-name-prompt-dismissed", String(Date.now())); } catch { /* ignore */ } } }} style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 250,
           background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -5681,10 +5708,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <Icon name="user" size={24} style={{ color: T.accent }} />
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 4 }}>
-              Claim your spot
+              Put your name on the board
             </div>
             <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginBottom: 20, lineHeight: 1.5 }}>
-              Pick a name to show on the leaderboard. Keep it short and fun.
+              Friends see who's called each home on its board. Your number stays hidden until they lock theirs.
             </div>
             <input
               type="text"
