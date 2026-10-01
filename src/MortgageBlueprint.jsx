@@ -674,20 +674,38 @@ function Note({ children, color, strong, title, action, onClick, style, onDismis
  const c = color || T.blue;
  const [dx, setDx] = useState(0);
  const [gone, setGone] = useState(false);
+ // Nudge until the user has swiped any note once (device-local).
+ // Only the FIRST swipeable note on the page nudges, once per load, so the
+ // hint stays subtle.
+ const [nudge, setNudge] = useState(false);
+ useEffect(() => {
+  try {
+   if (!onDismiss || localStorage.getItem("bp_swipe_learned") === "1" || window.__bpNoteNudged) return;
+   window.__bpNoteNudged = true; setNudge(true);
+  } catch { /* storage blocked: skip the hint */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, []);
  const startX = useRef(null);
  const swipe = onDismiss ? {
   onPointerDown: (e) => { if (e.target.closest("button")) return; startX.current = e.clientX; e.currentTarget.setPointerCapture?.(e.pointerId); },
   onPointerMove: (e) => { if (startX.current !== null) setDx(e.clientX - startX.current); },
-  onPointerUp: () => { if (startX.current === null) return; startX.current = null; if (Math.abs(dx) > 80) { setGone(true); setDx(dx > 0 ? 400 : -400); setTimeout(onDismiss, 180); } else setDx(0); },
+  onPointerUp: () => { if (startX.current === null) return; startX.current = null; if (Math.abs(dx) > 80) { try { localStorage.setItem("bp_swipe_learned", "1"); } catch {} setGone(true); setDx(dx > 0 ? 400 : -400); setTimeout(onDismiss, 180); } else setDx(0); },
   onPointerCancel: () => { startX.current = null; setDx(0); },
  } : {};
  return (
-  <div onClick={onClick} {...swipe} title={onDismiss ? "Swipe to dismiss" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${c}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: 8, fontFamily: FONT, cursor: onClick ? "pointer" : onDismiss ? "grab" : undefined, ...(onDismiss ? { touchAction: "pan-y", userSelect: "none", transform: `translateX(${dx}px)`, opacity: gone ? 0 : Math.max(0.3, 1 - Math.abs(dx) / 240), transition: startX.current !== null ? "none" : "transform 0.18s ease, opacity 0.18s ease" } : {}), ...style }}>
+  <div onClick={onClick} {...swipe} title={onDismiss ? "Swipe to dismiss" : undefined} className={onDismiss && nudge ? "bp-note-nudge" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${c}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: 8, fontFamily: FONT, cursor: onClick ? "pointer" : onDismiss ? "grab" : undefined, ...(onDismiss ? { touchAction: "pan-y", userSelect: "none", transform: `translateX(${dx}px)`, opacity: gone ? 0 : Math.max(0.3, 1 - Math.abs(dx) / 240), transition: startX.current !== null ? "none" : "transform 0.18s ease, opacity 0.18s ease" } : {}), ...style }}>
    <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.45, color: strong ? T.text : T.textSecondary, fontWeight: strong && !title ? 500 : 400 }}>
     {title && <strong style={{ display: "block", color: c, fontSize: 12.5, fontWeight: 700 }}>{title}</strong>}
     {children && <span style={title ? { fontSize: 11.5, color: T.textTertiary } : undefined}>{children}</span>}
    </div>
    {action}
+   {/* Swipe affordance: a faint grip on the right edge, plus a one-time
+       nudge (slides a few px and back) until the first swipe ever. */}
+   {onDismiss && <span aria-hidden="true" style={{ flexShrink: 0, display: "flex", gap: 2, opacity: 0.35, marginRight: -4 }}>
+    <span style={{ width: 2, height: 14, borderRadius: 1, background: T.textTertiary }} />
+    <span style={{ width: 2, height: 14, borderRadius: 1, background: T.textTertiary }} />
+   </span>}
+   {onDismiss && nudge && <style>{`@keyframes bp-note-nudge { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-16px); } 55% { transform: translateX(4px); } } .bp-note-nudge { animation: bp-note-nudge 0.9s ease 0.6s 1; }`}</style>}
   </div>
  );
 }

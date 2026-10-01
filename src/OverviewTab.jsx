@@ -121,6 +121,8 @@ export default function OverviewTab(props) {
     !isDesktop ? null : city && propertyState ? `${city}, ${STATE_ABBR[propertyState] || propertyState}` : propertyZip,
     isRefi ? (refiCurrentBalance > 0 ? `${compactUsd(refiCurrentBalance)} balance` : null) : (salesPrice > 0 ? compactUsd(salesPrice) : null),
     creditScore > 0 ? `${creditScore} FICO` : null,
+    // Loan structure rides in the summary since its card collapses with Quick Start.
+    [props.loanType === "Conventional" ? "Conv." : props.loanType, props.term ? `${props.term}-yr` : null].filter(Boolean).join(" ") || null,
   ].filter(Boolean).join(" · ");
 
   // No paddingTop on the root below: the parent content spacer in
@@ -166,6 +168,9 @@ export default function OverviewTab(props) {
         heroStyle={true}
       >
         <SetupContent {...props} hideHero={true} hideModules={true} />
+        {/* Loan structure lives in Quick Start on the Overview (Christo
+            2026-10-01): set once, tucks away when Quick Start collapses. */}
+        <CalculatorContent {...props} loanStructureOnly={true} />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -179,7 +184,7 @@ export default function OverviewTab(props) {
       {/* Phones: slimmer banners so the screenshot reaches from Quick Start
           through the pillars (Christo 2026-10-01). */}
       <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
-        <CalculatorContent {...props} />
+        <CalculatorContent {...props} loanStructureInQuickStart={true} />
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════

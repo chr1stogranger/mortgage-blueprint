@@ -543,6 +543,39 @@ export default function CalculatorContent(props) {
     </div>
   ) : null;
 
+  // Occupancy / Property Type / Loan Type / Term. On the Overview this block
+  // renders inside Quick Start (setup choices made once per Blueprint), so it
+  // tucks away with it; the standalone Calculator tab keeps it here.
+  const loanStructureInQuickStart = !!props.loanStructureInQuickStart;
+  const loanStructureBlock = (<>
+   {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term.
+       These sit with Rate in grid row 1: a broker tunes rate and loan
+       structure together, and keeping them out of row 2 lets the pillar row
+       align with the 3-stat row on the left. */}
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: isDesktop && props.loanStructureOnly ? "repeat(4, 1fr)" : "1fr 1fr", gap: isDesktop ? 12 : "0 10px", marginBottom: props.loanStructureOnly ? 12 : isDesktop ? 0 : 8, ...(isDesktop && !props.loanStructureOnly ? { flex: 1, alignContent: "center" } : {}), borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: isDesktop ? 12 : "10px 12px 4px", boxShadow: T.cardShadow }}>
+    <Sel label="Occupancy" value={loanPurpose} onChange={v => {
+     // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
+     if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
+      setRate(prev => Math.round((prev + 1.0) * 1000) / 1000);
+     } else if (v !== "Purchase Investment" && loanPurpose === "Purchase Investment") {
+      setRate(prev => Math.round(Math.max(0, prev - 1.0) * 1000) / 1000);
+     }
+     setLoanPurpose(v);
+    }} options={isRefi
+     ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
+     : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
+    } req sm={!isDesktop} />
+    <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
+     <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req sm={!isDesktop} />
+    </div>
+    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} req sm={!isDesktop} />
+    <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
+     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
+    </div>
+   </div>
+   <ClusterContinue stepId="calc-pills" />
+  </>);
+
   // ── One alert stack above the price card (Christo 2026-10-01) ──
   // Every "heads up" about the numbers lives here, most severe first, each its
   // own swipeable card. A swiped card comes back once its condition clears
@@ -581,6 +614,24 @@ export default function CalculatorContent(props) {
   }, [shownAlertKeys]);
   const visibleAlerts = alerts.filter(a => a.show && !hiddenAlerts[a.key]);
 
+  // Alerts render next to what they're about (Christo 2026-10-01: "where
+  // applicable, not at the top"): down payment + Jumbo under the price card,
+  // investment above the Rate card, escrow under the payment card.
+  const renderAlerts = (keys, wrapStyle) => {
+   const list = visibleAlerts.filter(a => keys.includes(a.key));
+   if (!list.length) return null;
+   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, ...wrapStyle }}>
+     {list.map(a => (
+      <Note key={a.key} color={a.color} title={a.title} action={a.action} style={{ marginTop: 0 }}
+       onDismiss={() => setHiddenAlerts(h => ({ ...h, [a.key]: true }))}>{a.body}</Note>
+     ))}
+    </div>
+   );
+  };
+
+  if (props.loanStructureOnly) return loanStructureBlock;
+
   return (<>
 
  {/* ─────────────────────────────────────────────────────────────── */}
@@ -592,15 +643,6 @@ export default function CalculatorContent(props) {
      a broker tunes the scenario. */}
  {/* ─────────────────────────────────────────────────────────────── */}
 
- {/* Alert stack — see `alerts` above. Swipe a card sideways to dismiss it. */}
- {visibleAlerts.length > 0 && (
-  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-   {visibleAlerts.map(a => (
-    <Note key={a.key} color={a.color} title={a.title} action={a.action} style={{ marginTop: 0 }}
-     onDismiss={() => setHiddenAlerts(h => ({ ...h, [a.key]: true }))}>{a.body}</Note>
-   ))}
-  </div>
- )}
  {loanType === "VA" && (
   <div style={{ marginBottom: 12 }}>
    <Sel label="VA Usage" value={vaUsage} onChange={setVaUsage} options={VA_USAGE.map(v => ({value:v,label:v === "First Use" ? "First Use (2.15%)" : v === "Subsequent" ? "Subsequent (3.3%)" : "Disabled (0%)"}))} sm />
@@ -652,6 +694,7 @@ export default function CalculatorContent(props) {
    {/* Price card leads the LEFT column above the donut, for purchase AND refi
        (Christo 2026-07-22). CURRENT → NEW now leads the right column. */}
    {priceCard}
+   {renderAlerts(["down-min", "three-pct", "jumbo"], { marginBottom: isDesktop ? 0 : 8, marginTop: isDesktop ? 10 : 0 })}
 
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
@@ -791,6 +834,7 @@ export default function CalculatorContent(props) {
    </div>
 
 
+   {renderAlerts(["escrow-off", "escrow-required"], { marginTop: isDesktop ? 10 : 0, marginBottom: isDesktop ? 0 : 8 })}
    </div>{/* end row 1 (left) */}
 
    {/* — row 2: Loan Amount / LTV / Cash to Close. Shares grid row 2 with the
@@ -1514,7 +1558,8 @@ export default function CalculatorContent(props) {
        per the 2026-05-02 final layout. Brokers tune the rate first; the 4
        loan-structure pills (occupancy/property type/loan type/term) sit
        directly below so changes flow naturally into the rate context. */}
-   <Card style={isDesktop ? { marginBottom: 12 } : { marginBottom: 8, padding: "10px 14px" }}>
+   {renderAlerts(["investment"], { marginBottom: 8 })}
+   <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12, ...(loanStructureInQuickStart ? { flex: 1 } : {}) } : { marginBottom: 8, padding: "10px 14px" }}>
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: isDesktop ? 10 : 6 }}>
      <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
@@ -1581,32 +1626,9 @@ export default function CalculatorContent(props) {
     </>)}
    </Card>
 
-   {/* 4 loan-structure pills — Occupancy / Property Type / Loan Type / Term.
-       These sit with Rate in grid row 1: a broker tunes rate and loan
-       structure together, and keeping them out of row 2 lets the pillar row
-       align with the 3-stat row on the left. */}
-   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: isDesktop ? 12 : "0 10px", marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1, alignContent: "center" } : {}), borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: isDesktop ? 12 : "10px 12px 4px", boxShadow: T.cardShadow }}>
-    <Sel label="Occupancy" value={loanPurpose} onChange={v => {
-     // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
-     if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
-      setRate(prev => Math.round((prev + 1.0) * 1000) / 1000);
-     } else if (v !== "Purchase Investment" && loanPurpose === "Purchase Investment") {
-      setRate(prev => Math.round(Math.max(0, prev - 1.0) * 1000) / 1000);
-     }
-     setLoanPurpose(v);
-    }} options={isRefi
-     ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
-     : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
-    } req sm={!isDesktop} />
-    <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
-     <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req sm={!isDesktop} />
-    </div>
-    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} req sm={!isDesktop} />
-    <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
-     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
-    </div>
-   </div>
-   <ClusterContinue stepId="calc-pills" />
+   {/* Loan structure moved into Quick Start on the Overview (Christo
+       2026-10-01) — rendered there via loanStructureOnly. */}
+   {!loanStructureInQuickStart && loanStructureBlock}
    </div>{/* end row 1 (right) */}
 
    {/* — row 2: the compact 5-pillar row. Shares grid row 2 with the 3-stat
