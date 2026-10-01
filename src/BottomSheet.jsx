@@ -2,7 +2,7 @@ import { FONT } from "./lib/fonts.js";
 import React, { useState, useRef, useEffect } from "react";
 
 
-export default function BottomSheet({ isOpen, onClose, title, T, children, height = "85vh", showHeader = true }) {
+export default function BottomSheet({ isOpen, onClose, title, T, children, height = "85vh", showHeader = true, headerAction = null }) {
   const [isClosing, setIsClosing] = useState(false);
   const sheetRef = useRef(null);
   const dragStartY = useRef(null);
@@ -76,7 +76,8 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
           padding: "4px 20px 16px",
           borderBottom: `1px solid ${T.separator || "rgba(255,255,255,0.06)"}`,
         }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em" }}>{title}</h2>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: "-0.02em", flex: 1, minWidth: 0 }}>{title}</h2>
+          {headerAction && <div style={{ marginRight: 10, display: "flex", alignItems: "center" }}>{headerAction}</div>}
           <button aria-label="Close"
             onClick={handleClose}
             style={{
@@ -86,7 +87,7 @@ export default function BottomSheet({ isOpen, onClose, title, T, children, heigh
               cursor: "pointer", color: T.textSecondary,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textSecondary || "#666"} strokeWidth="2.5" strokeLinecap="round" style={{ display: "block" }}><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
           </button>
         </div>}
 

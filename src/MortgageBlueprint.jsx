@@ -1174,6 +1174,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { const saved = localStorage.getItem('bp_theme_mode'); if (saved === 'dark') return true; } catch {}
   return false;
  });
+ // Phone "On this page" pill: hideable so it never covers numbers in a
+ // screenshot (Christo 2026-10-01). Hide from the sheet header; Settings →
+ // Appearance brings it back. Device-local presentation pref.
+ const [sectionPillHidden, setSectionPillHidden] = useState(() => {
+  try { return localStorage.getItem('bp_hide_section_pill') === '1'; } catch { return false; }
+ });
+ const setSectionPillHiddenPersist = (v) => { setSectionPillHidden(v); try { localStorage.setItem('bp_hide_section_pill', v ? '1' : '0'); } catch {} };
  // Grange ribbon canvas — freeze control (Settings → Appearance). Persisted.
  const [bgPaused, setBgPaused] = useState(() => {
   try { return localStorage.getItem('bp_bg_paused') === '1'; } catch { return false; }
@@ -8140,7 +8147,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       <div style={{ height: 1, background: T.separator, margin: "12px 0" }} />
       <div style={{ fontSize: 12, color: T.textTertiary, lineHeight: 1.5, fontFamily: FONT }}>Investor, Rent vs Buy and Seller Net appear here when this loan turns them on.</div>
      </BottomSheet>
-     <BottomSheet isOpen={sectionSheetOpen} onClose={() => setSectionSheetOpen(false)} T={T} title="On this page" height="60vh">
+     <BottomSheet isOpen={sectionSheetOpen} onClose={() => setSectionSheetOpen(false)} T={T} title="On this page" height="60vh"
+      headerAction={
+       <button type="button" onClick={() => { setSectionSheetOpen(false); setSectionPillHiddenPersist(true); }} title="Hide the On this page button (turn it back on in Settings → Appearance)"
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 9999, border: `1px solid ${T.separator}`, background: "transparent", color: T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
+        <Icon name="eye-off" size={14} color={T.textSecondary} />Hide
+       </button>
+      }>
       <div role="list" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
        {OVERVIEW_SECTIONS.map((sec) => {
         const cur = sec.id === currentSectionId;
@@ -8884,7 +8897,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     Jump to" index. Sticks under the fixed header; the pill reads the current
     section (scroll-spy) and opens the section sheet. Standard mode only, as
     the drawer index was (guided flow keeps its wizard). */}
-{tab === "overview" && !isDesktop && skillLevel !== "guided" && OVERVIEW_SECTIONS.length > 0 && !keyboardOpen && (
+{tab === "overview" && !isDesktop && skillLevel !== "guided" && OVERVIEW_SECTIONS.length > 0 && !keyboardOpen && !sectionPillHidden && (
  <>
   {/* Fixed, not sticky: html/body carry overflow-x:hidden (see the <style>
       block), which turns body into the sticky containing block and the strip
@@ -9628,6 +9641,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       ))}
      </div>
     } />
+   {!isDesktop && <SetRow title="On this page button" sub={sectionPillHidden ? 'Hidden: the section jump pill stays off for screenshots' : 'On: the pill under the header jumps between Overview sections'}
+    right={<SetSwitch on={!sectionPillHidden} label="On this page button" onClick={() => { setSectionPillHiddenPersist(!sectionPillHidden); Haptics.light(); }} />} />}
    <SetRow last title="Animated background" sub={`${bgPaused ? 'Paused' : 'On'}: blueprint house here, target in PricePoint, stock line in Markets`}
     right={<SetSwitch on={!bgPaused} label="Animated background" onClick={() => { const next = !bgPaused; setBgPaused(next); try { localStorage.setItem('bp_bg_paused', next ? '1' : '0'); } catch {} Haptics.light(); }} />} />
  </SetShell>
