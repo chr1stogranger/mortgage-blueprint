@@ -1295,6 +1295,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // (it reads ?c= on mount to open the challenge), but it only mounts under
    // appMode 'pricepoint', so route there or the link lands on Blueprint.
    if (params.get('c')) return 'pricepoint';
+   // Push/email notification links (cron-deliver) use ?v=pricepoint[&board=<zpid>]
+   // — never routed before, so every notification tap landed on Blueprint.
+   if (params.get('v') === 'pricepoint' || params.get('board')) return 'pricepoint';
    const seg = window.location.pathname.split('/')[1];
    if (seg === 'pricepoint' || seg === 'markets' || seg === 'blueprint') return seg;
    const host = window.location.hostname || '';

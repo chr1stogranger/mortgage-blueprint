@@ -1658,6 +1658,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       .catch(() => {});
   };
 
+  // Open a board from a notification / deep-link payload ({ zpid, address,
+  // list_price, sold_price, predicted_price }). Prefer the local prediction
+  // (it has the photo + specs); fall back to what the payload carries.
+  const openBoardFromPayload = (p) => {
+    if (!p?.zpid) return;
+    const z = String(p.zpid);
+    const local = allPredictions.find(x => x.zpid && String(x.zpid) === z);
+    const sold = p.sold_price || local?.soldPrice || null;
+    openPredictionBoard(local
+      ? { ...local, soldPrice: sold, resolved: !!sold || local.resolved }
+      : { zpid: z, address: p.address, listPrice: p.list_price, guess: p.predicted_price || null,
+          soldPrice: sold, resolved: !!sold, timestamp: 0 });
+  };
+
   // Scoreboard rows for the current property — rendered only post-lock.
   const renderCallsBoard = (listPrice, { soldPrice } = {}) => {
     const calls = propCalls?.calls || [];
@@ -2116,6 +2130,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }, 500);
     return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current); };
   }, [market, locationLabel, allResults, dailyResult, soldListings, activeListings, allPredictions]);
+
+  // ── Deep link from a push/email notification: ?board=<zpid> opens that
+  // property's board once the app has its predictions. ──
+  const [pendingBoardZpid, setPendingBoardZpid] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("board") || null; } catch { return null; }
+  });
+  useEffect(() => {
+    if (!pendingBoardZpid || view === "onboarding") return;
+    openBoardFromPayload({ zpid: pendingBoardZpid });
+    setPendingBoardZpid(null);
+    try {
+      const q = new URLSearchParams(window.location.search); q.delete("board");
+      const qs = q.toString();
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingBoardZpid, view]);
 
   // ── Initialize view ──
   useEffect(() => {
@@ -3218,6 +3249,55 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setLiveRefresh({ busy: false, note });
     setTimeout(() => setLiveRefresh(r => (r.note === note ? { ...r, note: null } : r)), 3500);
   };
+  // ── Sold refresh. Server runs a search-only discovery (Redfin/Zillow — never
+  // RentCast) at most once per market(+zip) per 2h, shared across users; any
+  // other tap just re-reads the pool. Unseen sales slot in after the card on
+  // screen, newest first. ──
+  const [soldRefresh, setSoldRefresh] = useState({ busy: false, note: null });
+  const refreshSoldListings = async () => {
+    if (!market || soldRefresh.busy) return;
+    setSoldRefresh({ busy: true, note: null });
+    let note = "Couldn't check right now";
+    try {
+      const cityName = market.city || market.label?.split(",")[0] || "San Francisco";
+      const zips = fpZipRef.current && fpZipRef.current.length ? fpZipRef.current : [null];
+      const results = await Promise.allSettled(zips.map(z =>
+        fetch(apiUrl(`/api/sold-comps?city=${encodeURIComponent(cityName)}${z ? `&zip=${z}` : ""}&refresh=1`)).then(r => (r.ok ? r.json() : null))));
+      const rows = results.flatMap(r => (r.status === "fulfilled" && Array.isArray(r.value?.soldListings) ? r.value.soldListings : []));
+      if (results.some(r => r.status === "fulfilled" && r.value)) {
+        const have = new Set([...fpListings, ...soldListings].map(l => String(l.zpid)));
+        const done = fpGuessedZpidsRef.current;
+        const dailyZ = dailyProperty?.zpid ? String(dailyProperty.zpid) : null;
+        const seen = new Set();
+        const added = orderByRecency(rows
+          .filter(l => l.zpid && l.soldPrice && !have.has(String(l.zpid)) && !done.has(l.zpid) && String(l.zpid) !== dailyZ)
+          .filter(l => { if (seen.has(l.zpid)) return false; seen.add(l.zpid); return true; })
+          .filter(l => fpTypeMatch(fpTypeSel, l.propertyType))
+          .map(l => ({ ...l, _source: l._source || "sold_comps" })));
+        if (added.length > 0) {
+          setFpListings(prev => {
+            const at = Math.min(prev.length, fpIdx + 1);
+            return [...prev.slice(0, at), ...added, ...prev.slice(at)];
+          });
+          setSoldListings(prev => [...prev, ...added]);
+          if (!fpListings[fpIdx]) setFpIdx(Math.min(fpListings.length, fpIdx));
+          note = `${added.length} new ${added.length === 1 ? "sale" : "sales"} added`;
+        } else {
+          const at = results.map(r => r.value?.checkedAt).filter(Boolean).map(Date.parse).sort((a, b) => b - a)[0];
+          const ago = at ? Math.max(0, Math.round((Date.now() - at) / 60000)) : null;
+          note = ago != null && ago >= 1 ? `Up to date · checked ${ago < 120 ? `${ago} min` : `${Math.round(ago / 60)}h`} ago` : "Up to date";
+        }
+      }
+    } catch { /* note stays */ }
+    setSoldRefresh({ busy: false, note });
+    setTimeout(() => setSoldRefresh(r => (r.note === note ? { ...r, note: null } : r)), 3500);
+  };
+  const renderRefreshButton = (state, onClick, label) => (
+    <button onClick={onClick} disabled={state.busy} aria-label={label} title={label}
+      style={{ width: 26, height: 26, borderRadius: 9999, border: "none", background: "transparent", color: T.textTertiary, cursor: state.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
+      <Icon name="refresh-cw" size={14} style={{ animation: state.busy ? "ppSpin 0.9s linear infinite" : "none" }} />
+    </button>
+  );
   const liveFieldPill = (listing) => {
     if (!listing?.zpid || cardCalls?.zpid !== String(listing.zpid)) return null;
     const calls = cardCalls.calls || [];
@@ -5003,10 +5083,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: liveRefresh.note ? T.textSecondary : T.red, fontFamily: FONT, whiteSpace: "nowrap" }}>{liveRefresh.note || `${liveRemaining} left`}</span>
-              <button onClick={refreshLiveListings} disabled={liveRefresh.busy} aria-label="Check for new listings" title="Check for new listings"
-                style={{ width: 26, height: 26, borderRadius: 9999, border: "none", background: "transparent", color: T.textTertiary, cursor: liveRefresh.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
-                <Icon name="refresh-cw" size={14} style={{ animation: liveRefresh.busy ? "ppSpin 0.9s linear infinite" : "none" }} />
-              </button>
+              {renderRefreshButton(liveRefresh, refreshLiveListings, "Check for new listings")}
               {livePrediction && MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
               {!ppBellSlot && renderBellButton()}
             </div>
@@ -5301,7 +5378,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
               <div style={{ fontSize: 19, fontWeight: 800, fontFamily: FONT, color: T.text }}>{boardProp.address || resolveNeighborhood(boardProp)}</div>
               <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 3, marginBottom: 14 }}>
-                {resolveNeighborhood(boardProp)} · {boardProp.beds}BR/{boardProp.baths}BA · {(boardProp.sqft || 0).toLocaleString()}sf
+                {[boardProp.neighborhood || boardProp.city ? resolveNeighborhood(boardProp) : null,
+                  boardProp.beds ? `${boardProp.beds}BR/${boardProp.baths || "?"}BA` : null,
+                  boardProp.sqft > 0 ? `${Number(boardProp.sqft).toLocaleString()}sf` : null].filter(Boolean).join(" · ")}
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
@@ -5510,7 +5589,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div onClick={() => setView("fpPicker")} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}</span> <Icon name="chevron-right" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{`${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""}`} left</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: soldRefresh.note ? T.textSecondary : T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{soldRefresh.note || `${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""} left`}</span>
+              {renderRefreshButton(soldRefresh, refreshSoldListings, "Check for new sales")}
               {MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
             </div>
           </div>
@@ -5865,6 +5945,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               ) : (
                 notifications.map(n => (
                   <div key={n.id} onClick={async () => {
+                    // A notification about a property opens that property's
+                    // board (who called it, final ranking) — Christo 2026-10-01.
+                    if (n.payload?.zpid) { setShowNotifDrawer(false); openBoardFromPayload(n.payload); }
                     if (!n.read) {
                       await markNotificationsRead(playerId, [n.id]);
                       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
@@ -5882,6 +5965,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5 }}>{n.body}</div>
                         <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 6, letterSpacing: 1 }}>
                           {new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          {n.payload?.zpid && <span style={{ color: T.accent, fontWeight: 600, marginLeft: 8, letterSpacing: 0 }}>See the board ›</span>}
                         </div>
                       </div>
                       {!n.read && (

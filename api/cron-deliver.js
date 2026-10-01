@@ -30,8 +30,9 @@ function escapeHtml(text) {
 }
 
 function buildEmailHtml(notification) {
-  const ctaUrl = "https://blueprint.realstack.app/?v=pricepoint";
   const payload = notification.payload || {};
+  // Deep link straight to the property's board when the notification is about one.
+  const ctaUrl = `https://blueprint.realstack.app/?v=pricepoint${payload.zpid ? `&board=${encodeURIComponent(payload.zpid)}` : ""}`;
   const pctOff = payload.pct_off != null ? `${payload.pct_off.toFixed(1)}%` : "";
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -90,7 +91,7 @@ async function deliverPush(notification, deviceTokens) {
         await webpush.sendNotification(subscription, JSON.stringify({
           title: notification.title,
           body: notification.body,
-          data: { type: notification.type, url: "/?v=pricepoint", payload: notification.payload || {} },
+          data: { type: notification.type, url: `/?v=pricepoint${notification.payload?.zpid ? `&board=${encodeURIComponent(notification.payload.zpid)}` : ""}`, payload: notification.payload || {} },
         }));
         sent++;
       } catch (e) {

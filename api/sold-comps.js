@@ -73,6 +73,12 @@ const SOLD_DATE_MONTHS_PRIME = 3;     // 0-3mo = prime tier, always served first
 // Freshness-discovery cooldown, per warm serverless instance. Ephemeral by
 // design: cold starts reset it, which just means an occasional extra search.
 const freshAttemptAt = {};
+// User-triggered Sold refresh (?refresh=1, anyone): a search-ONLY discovery
+// (Redfin/Zillow, never RentCast) at most once per market(+zip) per window,
+// stamped in pp_city_cache so the cooldown is shared across every instance.
+// Redfin RapidAPI is the sold-data lifeline — this caps user refreshes at
+// ~12 searches/market/day no matter how often the button is tapped.
+const SOLD_REFRESH_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
 // ─── Map city name → market_id used as pool key ───
 function cityToMarketId(city) {
@@ -368,7 +374,29 @@ export default async function handler(req, res) {
     const freshKey = zip ? `${marketId}:${zip}` : marketId;
     const cooledDown = (Date.now() - (freshAttemptAt[freshKey] || 0)) > FRESH_COOLDOWN_MS;
     const primeThin = pool.prime.length < PRIME_DISCOVERY_MIN;
-    const needDiscovery = forceDiscover || forceFreshSearch || !bulkHealthy || (primeThin && cooledDown);
+    let userRefresh = false;
+    let refreshCheckedAt = null;
+    if (req.query.refresh === "1" && !forceDiscover && !forceFreshSearch) {
+      const stampKey = `sold-refresh:${freshKey}`;
+      try {
+        const { data: stamp } = await supabase
+          .from('pp_city_cache').select('updated_at').eq('cache_key', stampKey).maybeSingle();
+        const last = stamp?.updated_at ? Date.parse(stamp.updated_at) : 0;
+        if (Date.now() - last >= SOLD_REFRESH_COOLDOWN_MS) {
+          const nowIso = new Date().toISOString();
+          // Claim the window BEFORE searching so concurrent taps don't stack.
+          await supabase.from('pp_city_cache')
+            .upsert({ cache_key: stampKey, data: { kind: 'sold-refresh' }, updated_at: nowIso }, { onConflict: 'cache_key' });
+          userRefresh = true;
+          refreshCheckedAt = nowIso;
+        } else {
+          refreshCheckedAt = new Date(last).toISOString();
+        }
+      } catch (e) {
+        console.error(`[SoldComps] refresh stamp failed (serving pool): ${e.message}`);
+      }
+    }
+    const needDiscovery = forceDiscover || forceFreshSearch || userRefresh || !bulkHealthy || (primeThin && cooledDown);
 
     if (!needDiscovery) {
       const { rows: shuffled, tier } = pickShuffledSlice(pool);
@@ -386,6 +414,8 @@ export default async function handler(req, res) {
         source: 'pool',
         hasMore: totalSize > shuffled.length,
         timestamp: new Date().toISOString(),
+        refreshed: false,
+        checkedAt: refreshCheckedAt,
       });
     }
 
@@ -443,7 +473,7 @@ export default async function handler(req, res) {
       // daily freshsearch pump. Every call must ALSO clear the persistent
       // gate in _budget.js (pause window → per-market 6-day refresh gap →
       // monthly budget), so no caller cadence can burn the plan again.
-      if (!forceFreshSearch && (forceDiscover || !alreadyRentcasted)) {
+      if (!forceFreshSearch && !userRefresh && (forceDiscover || !alreadyRentcasted)) {
         const gate = await rentcastAllow(supabase, marketId, { force: forceDiscover });
         if (!gate.ok) {
           console.error(`[SoldComps] rentcast SKIPPED ${marketId}: ${gate.reason}${gate.used != null ? ` (${gate.used}/${gate.budget})` : ''}`);
@@ -502,6 +532,8 @@ export default async function handler(req, res) {
 
     res.setHeader("Cache-Control", "no-store");
     const responseBody = {
+      refreshed: userRefresh,
+      checkedAt: refreshCheckedAt,
       soldListings: shuffled.map(poolRowToListing),
       count: shuffled.length,
       city,
