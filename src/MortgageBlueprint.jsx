@@ -10001,7 +10001,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        onMouseDown={onSplitDragStart} onTouchStart={onSplitDragStart}
        style={{ position: "fixed", top: 0, bottom: 0, left: `calc(${splitRatio}vw)`, width: 6, zIndex: 20 }} />
       {/* Right Pane — secondary mode */}
-      <div style={{ position: "fixed", top: 0, bottom: 0, right: 0, left: `calc(${splitRatio}vw + 6px)`, background: T.bg, zIndex: 15, overflow: "auto", borderLeft: `1px solid ${T.separator}` }}>
+      {/* The outer frame carries a transform so position:fixed children (the
+          PricePoint / Markets bottom tab bar) anchor to THIS pane, not the
+          window, and don't stretch under the Blueprint side (Christo
+          2026-10-01). It doesn't scroll; the inner div does, so the bar stays
+          pinned to the pane's bottom edge. */}
+      <div style={{ position: "fixed", top: 0, bottom: 0, right: 0, left: `calc(${splitRatio}vw + 6px)`, background: T.bg, zIndex: 15, overflow: "hidden", borderLeft: `1px solid ${T.separator}`, transform: "translateZ(0)" }}>
+       <div style={{ position: "absolute", inset: 0, overflow: "auto" }}>
        <div style={{ padding: "8px 12px", borderBottom: `1px solid ${T.separator}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: T.headerBg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
          <Icon name={splitApp === "pricepoint" ? "target" : splitApp === "markets" ? "trending-up" : "settings"} size={14} />
@@ -10012,6 +10018,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         </button>
        </div>
        {renderSplitPane(splitApp)}
+       </div>
       </div>
      </>
     );
