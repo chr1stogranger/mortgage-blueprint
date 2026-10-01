@@ -215,11 +215,7 @@ export default function CalculatorContent(props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Swiped-away notes (Christo 2026-10-01). A dismissal lasts until the
   // condition clears: escrow back on / loan back under the limit re-arms it.
-  const escrowNoteOn = (isRefi ? (!refiNewEscrowTax || !refiNewEscrowIns) : !includeEscrow) && loanType !== "FHA" && loanType !== "VA";
-  const [escrowNoteHidden, setEscrowNoteHidden] = useState(false);
-  const [jumboNoteHidden, setJumboNoteHidden] = useState(false);
-  React.useEffect(() => { if (!escrowNoteOn) setEscrowNoteHidden(false); }, [escrowNoteOn]);
-  React.useEffect(() => { if (!autoJumboSwitch) setJumboNoteHidden(false); }, [autoJumboSwitch]);
+  const [hiddenAlerts, setHiddenAlerts] = useState({}); // alert key → swiped away
   // Height of the open Advanced ladder. Cash To Close parks the same height
   // BELOW its card, so its total band stays level with Total Payment instead
   // of stretching down to the ladder's bottom (Christo 2026-09-23).
@@ -504,8 +500,6 @@ export default function CalculatorContent(props) {
         })()}
        </>)}
       </div>
-      {calc.dpWarning === "fail" && <Note color={T.red}>{loanType} requires minimum {calc.minDPpct}% down{loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB conforming)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : ""}. Current: {downPct}%. Need {(calc.minDPpct - downPct).toFixed(1)}% more.</Note>}
-      {loanType === "Conventional" && !calc.threePctPath && downPct >= 3 && downPct < 5 && <Note color={T.orange}>3% down needs a conforming (not high-balance) primary purchase plus either a first-time buyer (no income limit) or qualifying income at or under 80% of area median{calc.homeReadyLimit > 0 ? ` (${fmt(calc.homeReadyLimit)}/yr here)` : ""}, which is HomeReady. Toggle FTHB in Setup, trim the income used to qualify, or increase to 5%.</Note>}
       </>)}
      </Card>
     </div>
@@ -549,6 +543,44 @@ export default function CalculatorContent(props) {
     </div>
   ) : null;
 
+  // ── One alert stack above the price card (Christo 2026-10-01) ──
+  // Every "heads up" about the numbers lives here, most severe first, each its
+  // own swipeable card. A swiped card comes back once its condition clears
+  // and returns (escrow on → off, down payment fixed then short again…).
+  const minDownSuffix = loanType === "Conventional" && calc.threePctPath === "fthb" ? " (FTHB)" : loanType === "Conventional" && calc.threePctPath === "homeready" ? " (HomeReady)" : "";
+  const alerts = [
+   { key: "down-min", show: !isRefi && calc.dpWarning === "fail", color: T.red,
+     title: `${loanType} needs ${calc.minDPpct}% down${minDownSuffix}`,
+     body: `You're at ${downPct}% · add ${(calc.minDPpct - downPct).toFixed(1)}% to qualify` },
+   { key: "jumbo", show: !!autoJumboSwitch, color: T.orange,
+     title: `Jumbo: ${fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the ${fmt(getHighBalLimit(propType))} high-balance limit${UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}`,
+     body: "20% down · 700+ FICO · 43–50% max DTI",
+     action: <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
+       style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button> },
+   { key: "investment", show: loanPurpose === "Purchase Investment", color: T.orange,
+     title: "Investment property · +1.000% added to the rate",
+     body: "Typical range 0.750–1.250%. Change the rate if your lender quotes differently." },
+   { key: "three-pct", show: !isRefi && loanType === "Conventional" && !calc.threePctPath && downPct >= 3 && downPct < 5, color: T.orange,
+     title: "3% down needs HomeReady or a first-time buyer",
+     body: `Conforming primary purchase, plus FTHB or income ≤ 80% of area median${calc.homeReadyLimit > 0 ? ` (${fmt(calc.homeReadyLimit)}/yr here)` : ""}. Or go to 5%.` },
+   { key: "escrow-off", show: (!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA", color: T.orange,
+     title: `${!escTax && !escIns ? "Escrow off" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} · ${fmt(excludedEscrowAmt)}/mo ${!escTax && !escIns ? "tax + ins" : !escTax ? "tax" : "insurance"}`,
+     body: "Paid separately · still counted in DTI" },
+   { key: "escrow-required", show: loanType === "FHA" || loanType === "VA", color: T.blue,
+     title: `${loanType} loans require escrow`,
+     body: "Tax and insurance are always impounded; the escrow switch is locked." },
+  ];
+  const shownAlertKeys = alerts.filter(a => a.show).map(a => a.key).join("|");
+  React.useEffect(() => {
+   // Re-arm: forget a dismissal as soon as that alert's condition clears.
+   setHiddenAlerts(h => {
+    const next = {}; let changed = false;
+    for (const k of Object.keys(h)) { if (shownAlertKeys.split("|").includes(k)) next[k] = h[k]; else changed = true; }
+    return changed ? next : h;
+   });
+  }, [shownAlertKeys]);
+  const visibleAlerts = alerts.filter(a => a.show && !hiddenAlerts[a.key]);
+
   return (<>
 
  {/* ─────────────────────────────────────────────────────────────── */}
@@ -560,26 +592,19 @@ export default function CalculatorContent(props) {
      a broker tunes the scenario. */}
  {/* ─────────────────────────────────────────────────────────────── */}
 
- {/* Gold/strong to match the "Escrow OFF" banner below the donut — both are
-     "we changed something about your numbers" alerts, so they read alike.
-     marginBottom keeps it off the Price / Rate cards that follow. */}
- {loanPurpose === "Purchase Investment" && (
-  <div style={{ marginBottom: 14 }}>
-   <Note color={T.orange} title="Investment property · +1.000% added to the rate">Typical range 0.750–1.250%. Change the rate if your lender quotes differently.</Note>
+ {/* Alert stack — see `alerts` above. Swipe a card sideways to dismiss it. */}
+ {visibleAlerts.length > 0 && (
+  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+   {visibleAlerts.map(a => (
+    <Note key={a.key} color={a.color} title={a.title} action={a.action} style={{ marginTop: 0 }}
+     onDismiss={() => setHiddenAlerts(h => ({ ...h, [a.key]: true }))}>{a.body}</Note>
+   ))}
   </div>
  )}
  {loanType === "VA" && (
   <div style={{ marginBottom: 12 }}>
    <Sel label="VA Usage" value={vaUsage} onChange={setVaUsage} options={VA_USAGE.map(v => ({value:v,label:v === "First Use" ? "First Use (2.15%)" : v === "Subsequent" ? "Subsequent (3.3%)" : "Disabled (0%)"}))} sm />
   </div>
- )}
- {autoJumboSwitch && !jumboNoteHidden && (
-  <Note color={T.orange} style={{ marginTop: 0, marginBottom: 10 }} onDismiss={() => setJumboNoteHidden(true)}
-   title={`Jumbo: ${fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the ${fmt(getHighBalLimit(propType))} high-balance limit${UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}`}
-   action={<button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
-    style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button>}>
-   20% down · 700+ FICO · 43–50% max DTI
-  </Note>
  )}
 
  {/* The big 5-pillar StopLight that used to live here was removed per Christo —
@@ -765,16 +790,6 @@ export default function CalculatorContent(props) {
     ); })()}
    </div>
 
-   {/* Escrow warning notes (live below the donut). */}
-   {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts. This cannot be toggled off.</Note>}
-   {/* Same card as the Jumbo note (Christo 2026-10-01): solid, orange edge,
-       one bold line + one detail line, instead of a translucent orange bar. */}
-   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && !escrowNoteHidden && (
-    <Note color={T.orange} style={{ marginTop: isDesktop ? 8 : 0, marginBottom: isDesktop ? 14 : 8 }} onDismiss={() => setEscrowNoteHidden(true)}
-     title={`${!escTax && !escIns ? "Escrow off" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} · ${fmt(excludedEscrowAmt)}/mo ${!escTax && !escIns ? "tax + ins" : !escTax ? "tax" : "insurance"}`}>
-     Paid separately · still counted in DTI
-    </Note>
-   )}
 
    </div>{/* end row 1 (left) */}
 
