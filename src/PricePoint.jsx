@@ -3903,9 +3903,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const divider = <div style={{ width: 1, background: T.cardBorder, flexShrink: 0 }} />;
     return (
       <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: cmp ? 20 : 24, padding: cmp ? "18px 16px 16px" : "32px 24px", maxWidth: isDesktop ? 560 : 420, width: "100%", boxSizing: "border-box", margin: "auto", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
-        <div style={{ textAlign: "center", marginBottom: cmp ? 12 : 24 }}>
+        <div style={{ textAlign: "center", marginBottom: cmp ? 10 : 24 }}>
           <OverlineLabel>SOLD FOR</OverlineLabel>
-          <div style={{ fontSize: cmp ? 36 : 42, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: FONT, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
+          <div style={{ fontSize: cmp ? 34 : 42, lineHeight: 1.15, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: FONT, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
         </div>
         {(!showPhases || revealPhase >= 1) && (
           <div style={{ animation: "ppSlideUp 0.4s ease" }}>
@@ -3952,10 +3952,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
             )}
-            <div style={{ textAlign: "center", marginBottom: cmp ? 10 : 16 }}>
-              <div style={{ display: "inline-block", padding: cmp ? "3px 12px" : "4px 14px", borderRadius: 9999, fontSize: cmp ? 10 : 11, fontWeight: 700, fontFamily: FONT, letterSpacing: 2, color, background: `${color}18`, border: `1px solid ${color}30`, marginBottom: cmp ? 6 : 10 }}>{result.feedback.label}</div>
-              <div style={{ fontSize: cmp ? 13.5 : 15, fontWeight: 500, color: T.textSecondary, lineHeight: 1.45, fontFamily: FONT }}>{result.feedbackMessage}</div>
+            {cmp ? (
+              // Compact: verdict badge inline with its message — one line saved.
+              <div style={{ textAlign: "center", marginBottom: 10, fontSize: 13.5, fontWeight: 500, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>
+                <span style={{ display: "inline-block", padding: "1px 9px", borderRadius: 9999, fontSize: 9.5, fontWeight: 700, letterSpacing: 1.5, color, background: `${color}18`, border: `1px solid ${color}30`, marginRight: 6, verticalAlign: "1px" }}>{result.feedback.label}</span>
+                {result.feedbackMessage}
+              </div>
+            ) : (
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div style={{ display: "inline-block", padding: "4px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 700, fontFamily: FONT, letterSpacing: 2, color, background: `${color}18`, border: `1px solid ${color}30`, marginBottom: 10 }}>{result.feedback.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: T.textSecondary, lineHeight: 1.45, fontFamily: FONT }}>{result.feedbackMessage}</div>
             </div>
+            )}
             {result.insight && (
               <div style={{ background: T.inputBg, borderRadius: 12, padding: cmp ? "8px 12px" : "12px 16px", border: `1px solid ${T.cardBorder}`, marginBottom: cmp ? 10 : 16, borderLeft: `3px solid ${T.blue}` }}>
                 <div style={{ fontSize: cmp ? 12 : 13, color: T.textSecondary, lineHeight: 1.45, fontFamily: FONT }}>{result.insight}</div>
@@ -4006,7 +4014,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   The Field · {field.count} {field.count === 1 ? "player" : "players"}
                 </div>
                 {field.count === 1 ? (
-                  <div style={{ fontSize: 12.5, color: T.textSecondary, fontFamily: FONT }}>You're the first to play this one. Challenge a friend to beat you.</div>
+                  <div style={{ fontSize: 12.5, color: T.textSecondary, fontFamily: FONT }}>{cmp ? "You're first on this one. Challenge a friend." : "You're the first to play this one. Challenge a friend to beat you."}</div>
                 ) : (
                   <>
                     <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.45 }}>
