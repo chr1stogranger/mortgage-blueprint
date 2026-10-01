@@ -633,7 +633,7 @@ export default function CalculatorContent(props) {
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
        the wireframe read straight through the ring (Christo 2026-07-19). */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "8px 12px 10px" }}>
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "12px 14px 14px" }}>
     {/* Escrow header row.
         PURCHASE — one master toggle (includeEscrow), unchanged.
         REFI — a toggle per component (Christo 2026-07-22): taxes and
@@ -678,7 +678,7 @@ export default function CalculatorContent(props) {
       );
      }
      if (!isDesktop) return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 2px", width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 6px", width: "100%" }}>
        <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Monthly payment</span>
        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
         Escrow
@@ -720,7 +720,9 @@ export default function CalculatorContent(props) {
        <div style={{ marginTop: 4, paddingTop: 7, borderTop: `1px solid ${T.separator}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
          <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
-         <span style={{ fontSize: 17, fontWeight: 800, color: T.blue, letterSpacing: "-0.02em", fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
+         {/* Present but quiet: same weight as the legend amounts, so the eye
+             stays on the payment (Christo 2026-10-01). */}
+         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: 1 }}>
          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>
@@ -767,7 +769,14 @@ export default function CalculatorContent(props) {
 
    {/* Escrow warning notes (live below the donut). */}
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts. This cannot be toggled off.</Note>}
-   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && <div style={{ background: tintOver(`${T.orange}1C`, T.cardGlass), border: `1px solid ${T.orange}45`, borderRadius: 12, padding: "8px 14px", marginTop: 8, marginBottom: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 13, lineHeight: 1.4, fontFamily: FONT, color: T.orange, fontWeight: 600 }}>{!escTax && !escIns ? "Escrow OFF: Tax + Ins" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} ({fmt(excludedEscrowAmt)}/mo) paid separately</div>}
+   {/* Same card as the Jumbo note (Christo 2026-10-01): solid, orange edge,
+       one bold line + one detail line, instead of a translucent orange bar. */}
+   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && (
+    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${T.orange}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: isDesktop ? 8 : 0, marginBottom: isDesktop ? 14 : 8, fontSize: 12, lineHeight: 1.4, fontFamily: FONT, color: T.textSecondary }}>
+     <strong style={{ color: T.orange }}>{!escTax && !escIns ? "Escrow off" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"}</strong> · {fmt(excludedEscrowAmt)}/mo {!escTax && !escIns ? "tax + ins" : !escTax ? "tax" : "insurance"}
+     <span style={{ display: "block", fontSize: 11, color: T.textTertiary }}>Paid separately · still counted in DTI</span>
+    </div>
+   )}
 
    </div>{/* end row 1 (left) */}
 
@@ -1494,8 +1503,8 @@ export default function CalculatorContent(props) {
        per the 2026-05-02 final layout. Brokers tune the rate first; the 4
        loan-structure pills (occupancy/property type/loan type/term) sit
        directly below so changes flow naturally into the rate context. */}
-   <Card style={{ marginBottom: 12 }}>
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 10 }}>
+   <Card style={isDesktop ? { marginBottom: 12 } : { marginBottom: 8, padding: "10px 14px" }}>
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: isDesktop ? 10 : 6 }}>
      <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
        <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -1512,7 +1521,7 @@ export default function CalculatorContent(props) {
         <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
         <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
        </div>
-       <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
+       <div style={{ background: T.bgAccent, borderRadius: 12, padding: isDesktop ? "10px 14px" : "6px 10px", fontSize: isDesktop ? 18 : 14, fontWeight: 700, color: isDesktop ? T.blue : T.textSecondary, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
       </div>
      )}
     </div>
@@ -1525,7 +1534,7 @@ export default function CalculatorContent(props) {
 
     {/* Live Rates fetch button — full-width pill */}
     <div data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-    <button onClick={() => { markTouched && markTouched("get-rates"); fetchRates(); }} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: "10px 14px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+    <button onClick={() => { markTouched && markTouched("get-rates"); fetchRates(); }} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: isDesktop ? "10px 14px" : "7px 12px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isDesktop ? 10 : 6 }}>
      <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
       {ratesLoading ? "Fetching rates..." : liveRates ? (liveRateFor(liveRates, loanType, term) ? "✓ Live Rates Applied" : `Live Rates Loaded · no published ${loanType} rate`) : "Get Today's Rates"}
      </span>
@@ -1547,9 +1556,9 @@ export default function CalculatorContent(props) {
         (label === "VA" && loanType === "VA") ||
         (label === "Jumbo" && loanType === "Jumbo");
        return (
-        <div key={i} onClick={() => setRate(r)} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: "8px 10px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+        <div key={i} onClick={() => setRate(r)} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
-         <div style={{ fontSize: 15, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
+         <div style={{ fontSize: isDesktop ? 15 : 13, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
         </div>
        );
       })}
@@ -1562,7 +1571,7 @@ export default function CalculatorContent(props) {
        These sit with Rate in grid row 1: a broker tunes rate and loan
        structure together, and keeping them out of row 2 lets the pillar row
        align with the 3-stat row on the left. */}
-   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: isDesktop ? 0 : 12, ...(isDesktop ? { flex: 1, alignContent: "center" } : {}), borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: 12, boxShadow: T.cardShadow }}>
+   <div data-field="calc-pills" className={isPulse && isPulse("calc-pills")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: isDesktop ? 12 : "0 10px", marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1, alignContent: "center" } : {}), borderRadius: 12, transition: "all 0.3s", background: T.card, border: `1px solid ${T.cardBorder}`, padding: isDesktop ? 12 : "10px 12px 4px", boxShadow: T.cardShadow }}>
     <Sel label="Occupancy" value={loanPurpose} onChange={v => {
      // Preserve investment rate auto-adjustment (+1%) from the original Occupancy dropdown
      if (v === "Purchase Investment" && loanPurpose !== "Purchase Investment") {
@@ -1574,13 +1583,13 @@ export default function CalculatorContent(props) {
     }} options={isRefi
      ? [{value:"Refi Rate/Term",label:"Primary (R/T)"},{value:"Refi Cash-Out",label:"Primary (Cash-Out)"}]
      : [{value:"Purchase Primary",label:"Primary"},{value:"Purchase 2nd Home",label:"Second Home"},{value:"Purchase Investment",label:"Investment"}]
-    } req />
+    } req sm={!isDesktop} />
     <div data-field="calc-proptype" className={isPulse && isPulse("calc-proptype")} onClick={() => markTouched && markTouched("calc-proptype")}>
-     <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req />
+     <Sel label="Property Type" value={propType} onChange={setPropType} options={PROP_TYPES} req sm={!isDesktop} />
     </div>
-    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} req />
+    <Sel label="Loan Type" value={loanType} onChange={v => { setLoanType(v); userLoanTypeRef.current = v; setAutoJumboSwitch(false); }} options={LOAN_TYPES} req sm={!isDesktop} />
     <div data-field="calc-term" className={isPulse && isPulse("calc-term")} onClick={() => { markTouched && markTouched("calc-term"); markTouched && markTouched("calc-loantype"); }}>
-     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req />
+     <Sel label="Term" value={term} onChange={v => setTerm(parseInt(v))} options={Array.from({length: 26}, (_, i) => ({value: 30 - i, label: `${30 - i} Year${30 - i === 1 ? "" : "s"}`}))} req sm={!isDesktop} />
     </div>
    </div>
    <ClusterContinue stepId="calc-pills" />
