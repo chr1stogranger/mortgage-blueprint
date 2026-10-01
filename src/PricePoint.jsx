@@ -3516,11 +3516,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ── Property card (shared daily & free play) ──
   const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool, onShare, guessPlaceholder }) => {
     const accent = accentColor || T.accent;
-    // Compact = the For Sale card on phones/tablets. Everything down to the
-    // Lock In button has to fit one screen (Christo 2026-09-30): specs fold
-    // into the subtitle, MLS remarks + Price Read + Value Signals collapse into
-    // one Details row, and the photo takes whatever height is left.
-    const compact = !isDesktop && view === "live";
+    // Compact = the game cards (For Sale, Sold, Daily) on phones/tablets.
+    // Everything down to the guess button has to fit one screen (Christo
+    // 2026-09-30): specs fold into the subtitle, MLS remarks + Value Signals
+    // (+ Price Read on For Sale) collapse into one Details row, and the photo
+    // takes whatever height is left. --pp-card-chrome = everything on screen
+    // that isn't the photo, per view (For Sale has the extra search row).
+    const compact = !isDesktop && (view === "live" || view === "freeplay" || view === "daily");
+    const cardChrome = view === "live" ? 575 : view === "daily" ? 560 : 530;
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
     // Merge photo sources: prefer details API photos, fall back to listing.photos from sold-comps (both capped at 24)
@@ -3552,7 +3555,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             plain-<img> fallback branch is gone — it duplicated the whole pill row
             and had no way to expand. */}
         <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare}
-          photoHeight={compact ? "clamp(170px, calc(100dvh - var(--pp-card-chrome, 575px)), 340px)" : undefined} />
+          photoHeight={compact ? `clamp(170px, calc(100dvh - ${cardChrome}px), 340px)` : undefined} />
         </div>
         </div>
         <div style={{ padding: IS_MOBILE ? "10px 14px 12px" : (isDesktop ? "20px 24px" : "16px 18px 20px"), ...(isDesktop ? { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", borderLeft: `1px solid ${T.cardBorder}` } : {}) }}>
@@ -3562,7 +3565,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           </div>
           <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
             {compact
-              ? [resolveNeighborhood(listing), listing.zip,
+              ? [showAddress ? resolveNeighborhood(listing) : listing.city, listing.zip,
                   listing.beds ? `${listing.beds} bd` : null,
                   listing.baths ? `${listing.baths} ba` : null,
                   listing.sqft > 0 ? `${Number(listing.sqft).toLocaleString("en-US")} sf` : null,
@@ -3570,7 +3573,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               : <>{showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{(showExtras || showPropertyType) && listing.propertyType ? ` · ${listing.propertyType}` : ""}</>}
           </div>
           {/* MLS Description — from details API or listing */}
-          {showExtras && desc && !compact && (
+          {showExtras && desc && (!compact || !valuePool) && (
             <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
               {/* Expanded is CAPPED and scrolls internally — MLS remarks run
                   2,000+ chars, and an unbounded "none" stretched the desktop
@@ -3631,7 +3634,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),
               ...sigs.discount.map(s => ({ ...s, color: T.red, bg: T.errorBg, border: T.errorBorder })),
             ];
-            const pr = compact ? listingPriceRead(listing, valuePool, details) : null;
+            // Price Read only pre-guess on For Sale — on the Sold game it would
+            // telegraph the answer (it moves to the reveal there).
+            const pr = compact && view === "live" ? listingPriceRead(listing, valuePool, details) : null;
             const zone = priceReadZone(pr, T);
             if (chips.length === 0 && rows.length === 0 && decoded.length === 0 && !(compact && (desc || pr))) return null;
             // Compact header previews the verdict + top premium chips; the rest
@@ -3664,7 +3669,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         {renderHighlightedDesc(desc, T)}
                       </div>
                     )}
-                    {compact && renderPriceRead(listing, valuePool, details, T, { flush: true })}
+                    {compact && view === "live" && renderPriceRead(listing, valuePool, details, T, { flush: true })}
                     {chips.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                         {chips.map(c => (
@@ -3789,11 +3794,25 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ── Reveal card ──
   const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison, priceRead }) => {
     const color = fbColor(result.feedback);
+    // Compact (phones/tablets): the whole reveal, down to Continue, fits one
+    // screen (Christo 2026-09-30) — guess/accuracy/vs-ask share one stat row,
+    // the address is a single line, and the actions pair up.
+    const cmp = !isDesktop;
+    const lp = result.listPrice;
+    const askDelta = lp && result.soldPrice && lp !== result.soldPrice ? ((result.soldPrice - lp) / lp) * 100 : null;
+    const statCell = (label, value, valueColor, sub) => (
+      <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
+        <div style={{ fontSize: 8.5, fontFamily: MONO, letterSpacing: 1.5, color: T.textTertiary, textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}</div>
+        <div style={{ fontSize: 17, fontWeight: 800, fontFamily: FONT, color: valueColor || T.text, marginTop: 3, whiteSpace: "nowrap" }}>{value}</div>
+        {sub && <div style={{ fontSize: 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: 1, whiteSpace: "nowrap" }}>{sub}</div>}
+      </div>
+    );
+    const divider = <div style={{ width: 1, background: T.cardBorder, flexShrink: 0 }} />;
     return (
-      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "32px 24px", maxWidth: isDesktop ? 560 : 420, width: "100%", margin: isDesktop ? "0 auto" : undefined, animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
+      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: cmp ? 20 : 24, padding: cmp ? "18px 16px 16px" : "32px 24px", maxWidth: isDesktop ? 560 : 420, width: "100%", boxSizing: "border-box", margin: "auto", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
+        <div style={{ textAlign: "center", marginBottom: cmp ? 12 : 24 }}>
           <OverlineLabel>SOLD FOR</OverlineLabel>
-          <div style={{ fontSize: 42, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: FONT, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
+          <div style={{ fontSize: cmp ? 36 : 42, fontWeight: 900, letterSpacing: "-0.03em", fontFamily: FONT, color: showPhases && revealPhase >= 1 ? color : showPhases ? T.textTertiary : color, transition: "color 0.3s", animation: showPhases && revealPhase < 1 ? "ppPulse 0.3s ease infinite" : "none" }}>{fmt(result.soldPrice)}</div>
         </div>
         {(!showPhases || revealPhase >= 1) && (
           <div style={{ animation: "ppSlideUp 0.4s ease" }}>
@@ -3820,6 +3839,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
               </div>
             )}
+            {cmp ? (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, background: T.inputBg, borderRadius: 14, padding: "10px 8px", border: `1px solid ${T.cardBorder}` }}>
+                {statCell("Your guess", fmt(result.guess))}
+                {divider}
+                {statCell("Accuracy", `${(100 - result.pctOff).toFixed(1)}%`, color)}
+                {askDelta != null && <>{divider}{statCell(askDelta > 0 ? "Over ask" : "Under ask", `${askDelta > 0 ? "+" : "−"}${Math.abs(askDelta).toFixed(1)}%`, askDelta > 0 ? T.green : T.orange, `List ${fmt(lp)}`)}</>}
+              </div>
+            ) : (
             <div style={{ display: "flex", gap: 12, marginBottom: 20, background: T.inputBg, borderRadius: 14, padding: "14px 16px", border: `1px solid ${T.cardBorder}` }}>
               <div style={{ flex: 1, textAlign: "center" }}>
                 <div style={{ fontSize: 9, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase" }}>YOUR GUESS</div>
@@ -3831,13 +3858,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ fontSize: 20, fontWeight: 800, fontFamily: FONT, marginTop: 4, color }}>{(100 - result.pctOff).toFixed(1)}%</div>
               </div>
             </div>
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ display: "inline-block", padding: "4px 14px", borderRadius: 9999, fontSize: 11, fontWeight: 700, fontFamily: FONT, letterSpacing: 2, color, background: `${color}18`, border: `1px solid ${color}30`, marginBottom: 10 }}>{result.feedback.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>{result.feedbackMessage}</div>
+            )}
+            <div style={{ textAlign: "center", marginBottom: cmp ? 10 : 16 }}>
+              <div style={{ display: "inline-block", padding: cmp ? "3px 12px" : "4px 14px", borderRadius: 9999, fontSize: cmp ? 10 : 11, fontWeight: 700, fontFamily: FONT, letterSpacing: 2, color, background: `${color}18`, border: `1px solid ${color}30`, marginBottom: cmp ? 6 : 10 }}>{result.feedback.label}</div>
+              <div style={{ fontSize: cmp ? 13.5 : 15, fontWeight: 500, color: T.textSecondary, lineHeight: 1.45, fontFamily: FONT }}>{result.feedbackMessage}</div>
             </div>
             {result.insight && (
-              <div style={{ background: T.inputBg, borderRadius: 12, padding: "12px 16px", border: `1px solid ${T.cardBorder}`, marginBottom: 16, borderLeft: `3px solid ${T.blue}` }}>
-                <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5, fontFamily: FONT }}>{result.insight}</div>
+              <div style={{ background: T.inputBg, borderRadius: 12, padding: cmp ? "8px 12px" : "12px 16px", border: `1px solid ${T.cardBorder}`, marginBottom: cmp ? 10 : 16, borderLeft: `3px solid ${T.blue}` }}>
+                <div style={{ fontSize: cmp ? 12 : 13, color: T.textSecondary, lineHeight: 1.45, fontFamily: FONT }}>{result.insight}</div>
               </div>
             )}
             {/* What it ASKED vs what it GOT — the number that tells you whether
@@ -3845,8 +3873,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 listPrice equal to soldPrice is a placeholder, not an asking
                 price). Reveal-only, so it can never hint at the answer. */}
             {(() => {
-              const lp = result.listPrice;
-              if (!lp || !result.soldPrice || lp === result.soldPrice) return null;
+              if (cmp || !lp || !result.soldPrice || lp === result.soldPrice) return null;
               const deltaPct = ((result.soldPrice - lp) / lp) * 100;
               const over = deltaPct > 0;
               const deltaColor = over ? T.green : T.orange;
@@ -3866,17 +3893,64 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
               );
             })()}
+            {cmp ? (
+              <div style={{ textAlign: "center", marginBottom: 12, fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.4 }}>
+                <span style={{ fontWeight: 700, color: T.text }}>{result.address}</span>
+                {result.neighborhood ? ` · ${result.neighborhood}` : ""}
+              </div>
+            ) : (
             <div style={{ textAlign: "center", marginBottom: 20, padding: "10px 0", borderTop: `1px solid ${T.cardBorder}`, borderBottom: `1px solid ${T.cardBorder}` }}>
               <div style={{ fontSize: 10, fontFamily: FONT, letterSpacing: 2, color: T.textTertiary, textTransform: "uppercase", marginBottom: 4 }}>ADDRESS</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
               <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{result.neighborhood} · {result.city}, {result.state}</div>
             </div>
+            )}
             {/* Price Read — post-guess on the Sold game (passed only from the
                 freeplay reveal, where a comp median exists). */}
             {priceRead}
           </div>
         )}
-        {(!showPhases || revealPhase >= 2) && (
+        {(!showPhases || revealPhase >= 2) && cmp && (
+          <div style={{ animation: "ppSlideUp 0.3s ease", display: "flex", flexDirection: "column", gap: 8 }}>
+            {(onChallenge || onShare) && (
+              <div style={{ display: "flex", gap: 8 }}>
+                {onChallenge && (
+                  <button onClick={() => onChallenge(result)} style={{ flex: 1.4, padding: 12, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: "0 0 16px rgba(59,107,245,0.28)" }}>
+                    <Icon name="send" size={15} /> Challenge
+                  </button>
+                )}
+                {onShare && (
+                  <button onClick={() => onShare(result)} style={{ flex: 1, padding: 12, borderRadius: 9999, border: onChallenge ? `1px solid ${T.blue}40` : "none", background: onChallenge ? `${T.blue}12` : "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: onChallenge ? T.blue : "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                    <Icon name="share" size={15} /> {onChallenge ? "Share" : "Share Your Result"}
+                  </button>
+                )}
+              </div>
+            )}
+            {comparison && isIOSWebVisitor && (
+              <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", width: "100%", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 8, padding: 11, borderRadius: 9999, background: "linear-gradient(135deg, #38c6c6, #3B6BF5)", textDecoration: "none", color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT }}>
+                <Icon name="smartphone" size={15} /> Get the RealStack App
+              </a>
+            )}
+            {(onRunNumbersClick || result.detailUrl) && (
+              <div style={{ display: "flex", gap: 8 }}>
+                {onRunNumbersClick && (
+                  <button onClick={() => onRunNumbersClick(result)} style={{ flex: 1, padding: 10, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: "transparent", color: T.textSecondary, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
+                    <Icon name="calculator" size={13} /> Run Numbers
+                  </button>
+                )}
+                {result.detailUrl && (
+                  <a href={result.detailUrl.startsWith("http") ? result.detailUrl : `https://www.zillow.com${result.detailUrl}`} target="_blank" rel="noopener noreferrer"
+                    style={{ flex: 1, display: "flex", boxSizing: "border-box", alignItems: "center", justifyContent: "center", gap: 6, padding: 10, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, textDecoration: "none", color: T.textSecondary, fontSize: 13, fontWeight: 700, fontFamily: FONT, whiteSpace: "nowrap" }}>
+                    <Icon name="external-link" size={13} /> {String(result.detailUrl).includes("redfin.com") ? "Redfin" : "Zillow"}
+                  </a>
+                )}
+              </div>
+            )}
+            {onContinue && <PillButton onClick={onContinue} secondary style={{ padding: 11 }}>{onShare ? "Continue" : "Next Property"}</PillButton>}
+          </div>
+        )}
+        {(!showPhases || revealPhase >= 2) && !cmp && (
           <div style={{ animation: "ppSlideUp 0.3s ease" }}>
             {onChallenge && (
               <button onClick={() => onChallenge(result)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)", transition: "all 0.2s" }}>
@@ -4280,12 +4354,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ DAILY CHALLENGE ═══ */}
       {view === "daily" && dailyProperty && (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.5s ease-out" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>DAILY CHALLENGE #{displayDailyNumber}</div>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
+          {/* One-row header (Christo 2026-09-30) so the card fits one screen. */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: isDesktop ? 16 : 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: MONO, color: T.accent, flexShrink: 0 }}>Daily #{displayDailyNumber}</span>
+              <span style={{ color: T.textTertiary }}>·</span>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               {streak > 0 && <StatPill value={`${streak}d`} label="streak" color={T.orange} />}
               <StatPill value={`Lv.${currentLevel.level}`} color={T.accent} />
             </div>
@@ -4296,7 +4372,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ REVEAL ═══ */}
       {view === "reveal" && dailyResult && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))", overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", boxSizing: "border-box" }}>
           {RevealCard({ result: dailyResult, showPhases: true, onShare: shareResult,
             onChallenge: dailyProperty ? (r) => shareChallenge(r, dailyProperty, true) : null,
             onContinue: () => setView("postDaily"),
@@ -5062,7 +5138,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
       {/* ═══ CHALLENGE RESULT ═══ */}
       {view === "challenge" && challengeResult && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))", overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", boxSizing: "border-box" }}>
           {challengeResult.isLive ? (() => {
             // FOR SALE head-to-head: no sold price yet, so we show both calls
             // side by side vs. the list price. Winner is decided by the market.
@@ -5074,7 +5150,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const vsText = (v) => v == null ? "—" : `${v >= 0 ? "+" : ""}${v}% vs list`;
             const resetTo = () => { setChallengeData(null); setChallengeResult(null); setChallengeGuess(""); if (market) { if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily"); else setView("daily"); } else setView("onboarding"); };
             return (
-              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "28px 22px", maxWidth: isDesktop ? 560 : 420, width: "100%", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "28px 22px", maxWidth: isDesktop ? 560 : 420, width: "100%", boxSizing: "border-box", margin: "auto", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
                 <div style={{ textAlign: "center", marginBottom: 4 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>{r.challengerGuess ? "Head to Head" : "Prediction Locked"}</div>
                 </div>
@@ -5208,18 +5284,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ FREE PLAY ═══ */}
       {view === "freeplay" && (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.cyan }}>SOLD</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
-                <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
-                <div onClick={() => setView("fpPicker")} style={{ fontSize: 13, color: T.cyan, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>{fpSelectedNeighborhood || "All"} <Icon name="chevron-right" size={12} /></div>
-              </div>
+          {/* One-row header (Christo 2026-09-30) — matches For Sale. */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: isDesktop ? 16 : 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
+              <span style={{ color: T.textTertiary }}>·</span>
+              <div onClick={() => setView("fpPicker")} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}</span> <Icon name="chevron-right" size={12} /></div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan)}
-              <StatPill value={`${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""}`} label="left" color={T.cyan} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{`${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""}`} left</span>
+              {MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
             </div>
           </div>
           {showMap && MAP_ENABLED ? (
