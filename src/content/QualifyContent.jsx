@@ -398,28 +398,12 @@ export default function QualifyContent(props) {
  )}
  {calc.qualifyingIncome <= 0 && (
   <div data-field="qualify-needs-income" className={isPulse("qualify-needs-income")} onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-   <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-     <span style={{ fontSize: 20 }}></span>
-     <div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add income to see DTI</div>
-      <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Income tab</div>
-     </div>
-    </div>
-   </Card>
+   <Note color={T.orange} title="Add income to see DTI" style={{ marginTop: 0, marginBottom: 12 }}>Tap to go to the Income tab</Note>
   </div>
  )}
  {!isRefi && calc.qualifyingIncome > 0 && calc.totalForClosing <= 0 && (
   <div data-field="qualify-needs-assets" className={isPulse("qualify-needs-assets")} onClick={() => setTab("assets")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-   <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-     <span style={{ fontSize: 20 }}></span>
-     <div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add assets to verify cash to close</div>
-      <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Assets tab</div>
-     </div>
-    </div>
-   </Card>
+   <Note color={T.orange} title="Add assets to verify cash to close" style={{ marginTop: 0, marginBottom: 12 }}>Tap to go to the Assets tab</Note>
   </div>
  )}
  </div>{/* end qualify left column */}
@@ -445,10 +429,7 @@ export default function QualifyContent(props) {
   // "Add income to see DTI" prompt) instead of the debts-exceed warning.
   if (!(affordIncome > 0)) return (
    <div onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-    <Card style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30` }}>
-     <div style={{ fontSize: 14, fontWeight: 600, color: T.orange }}>Add income to see what you can afford.</div>
-     <div style={{ fontSize: 12, color: T.textSecondary }}>Tap to go to the Income tab.</div>
-    </Card>
+    <Note color={T.orange} title="Add income to see what you can afford" style={{ marginTop: 0 }}>Tap to go to the Income tab</Note>
    </div>
   );
   if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;

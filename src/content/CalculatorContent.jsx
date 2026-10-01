@@ -537,10 +537,7 @@ export default function CalculatorContent(props) {
        <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
       </div>
      ) : calc.refiPiMiSavings < 0 ? (
-      <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", background: `${T.orange}10`, borderRadius: 10 }}>
-       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange }}>New payment is {fmt(Math.abs(calc.refiPiMiSavings))}/mo higher</span>
-       <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 3 }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</div>
-      </div>
+      <Note color={T.orange} title={`New payment is ${fmt(Math.abs(calc.refiPiMiSavings))}/mo higher`} style={{ marginTop: 10, boxShadow: "none" }}>Based on P&I + MI. Taxes, insurance & HOA carry over unchanged.</Note>
      ) : null}
     </div>
   ) : null;
@@ -561,7 +558,7 @@ export default function CalculatorContent(props) {
      marginBottom keeps it off the Price / Rate cards that follow. */}
  {loanPurpose === "Purchase Investment" && (
   <div style={{ marginBottom: 14 }}>
-   <Note color={T.orange} strong>Investment property rate adjustment: +1.000% applied automatically (typical range: 0.750–1.250%). Adjust your rate manually if your lender quotes differently.</Note>
+   <Note color={T.orange} title="Investment property · +1.000% added to the rate">Typical range 0.750–1.250%. Change the rate if your lender quotes differently.</Note>
   </div>
  )}
  {loanType === "VA" && (
@@ -570,18 +567,12 @@ export default function CalculatorContent(props) {
   </div>
  )}
  {autoJumboSwitch && (
-  // Solid card + orange edge (Christo 2026-10-01): the translucent tint read
-  // as a smudge over the canvas, and the sentence ran four lines on a phone.
-  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${T.orange}`, borderRadius: 12, boxShadow: T.cardShadow, marginBottom: 10 }}>
-   <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.4, fontFamily: FONT, color: T.textSecondary }}>
-    {/* Quote the SAME figure the switch tested — the refi loan amount on a
-        refi, the purchase loan amount otherwise. */}
-    <strong style={{ color: T.orange }}>Jumbo</strong>: {fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}.
-    <span style={{ display: "block", fontSize: 11, color: T.textTertiary }}>20% down · 700+ FICO · 43–50% max DTI</span>
-   </div>
-   <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
-    style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button>
-  </div>
+  <Note color={T.orange} style={{ marginTop: 0, marginBottom: 10 }}
+   title={`Jumbo: ${fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the ${fmt(getHighBalLimit(propType))} high-balance limit${UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}`}
+   action={<button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
+    style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button>}>
+   20% down · 700+ FICO · 43–50% max DTI
+  </Note>
  )}
 
  {/* The big 5-pillar StopLight that used to live here was removed per Christo —
@@ -772,10 +763,10 @@ export default function CalculatorContent(props) {
    {/* Same card as the Jumbo note (Christo 2026-10-01): solid, orange edge,
        one bold line + one detail line, instead of a translucent orange bar. */}
    {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && (
-    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${T.orange}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: isDesktop ? 8 : 0, marginBottom: isDesktop ? 14 : 8, fontSize: 12, lineHeight: 1.4, fontFamily: FONT, color: T.textSecondary }}>
-     <strong style={{ color: T.orange }}>{!escTax && !escIns ? "Escrow off" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"}</strong> · {fmt(excludedEscrowAmt)}/mo {!escTax && !escIns ? "tax + ins" : !escTax ? "tax" : "insurance"}
-     <span style={{ display: "block", fontSize: 11, color: T.textTertiary }}>Paid separately · still counted in DTI</span>
-    </div>
+    <Note color={T.orange} style={{ marginTop: isDesktop ? 8 : 0, marginBottom: isDesktop ? 14 : 8 }}
+     title={`${!escTax && !escIns ? "Escrow off" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} · ${fmt(excludedEscrowAmt)}/mo ${!escTax && !escIns ? "tax + ins" : !escTax ? "tax" : "insurance"}`}>
+     Paid separately · still counted in DTI
+    </Note>
    )}
 
    </div>{/* end row 1 (left) */}
@@ -1321,9 +1312,7 @@ export default function CalculatorContent(props) {
           {bd && (
            <>
             {clamped && (
-             <div style={{ fontSize: 11, color: T.orange, background: `${T.orange}12`, borderRadius: 8, padding: "8px 10px", marginBottom: 8, lineHeight: 1.4, fontFamily: FONT }}>
-              The note rate is lower than the buydown reduction. Early-year rates are clamped at 0%. Double-check this structure with the lender.
-             </div>
+             <Note color={T.orange} style={{ marginTop: 0, marginBottom: 8, boxShadow: "none" }}>The note rate is lower than the buydown reduction. Early-year rates are clamped at 0%. Double-check this structure with the lender.</Note>
             )}
             {/* Year table — dense data, solid card (not glass) */}
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, padding: "8px 12px" }}>

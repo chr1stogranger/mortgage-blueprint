@@ -279,13 +279,7 @@ export default function SetupContent(props) {
       </div>
      )}
      {propertyZip && propertyZip.length === 5 && !city && !propertyCounty && (
-      <div style={{
-       flex: 1, padding: "10px 12px", marginBottom: 2,
-       background: `${T.orange}10`, border: `1px solid ${T.orange}30`,
-       borderRadius: 12, fontSize: 12, color: T.orange, fontFamily: FONT,
-      }}>
-       ZIP not in lookup. Fill manually below.
-      </div>
+      <Note color={T.orange} style={{ flex: 1, marginTop: 0, marginBottom: 2, boxShadow: "none" }}>ZIP not in lookup. Fill manually below.</Note>
      )}
     </div>
     )}
@@ -1042,9 +1036,7 @@ export default function SetupContent(props) {
  )}
  {/* Refi: nudge to fill in loan details if base setup is done but refi fields are empty */}
  {isRefi && !isTabFieldsComplete("setup") && propertyZip.length >= 5 && creditScore > 0 && (
-  <div style={{ textAlign: "center", padding: "14px 16px", margin: "12px 0", background: `${T.orange}10`, border: `1px solid ${T.orange}30`, borderRadius: 18 }}>
-   <div style={{ fontSize: 13, color: T.orange, fontWeight: 600 }}>↓ Fill in your current loan details below to complete setup</div>
-  </div>
+  <Note color={T.orange} title="Fill in the current loan details below" style={{ margin: "12px 0" }}>Setup completes once the current loan is entered.</Note>
  )}
 
  {/* ── Refi Sections (when applicable) ──
@@ -1599,7 +1591,7 @@ export default function SetupContent(props) {
        ground truth, and a prepayment penalty changes the deal's economics,
        never the balance. */}
    {(calc.refiUnsure.length > 0 || calc.refiHardFlags.length > 0) && (
-    <div style={{ background: `${T.orange}10`, border: `1px solid ${T.orange}30`, borderRadius: 10, padding: "10px 12px", marginTop: 10, marginBottom: 12 }}>
+    <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${T.orange}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: 10, marginBottom: 12 }}>
      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: T.orange, fontFamily: MONO, textTransform: "uppercase", marginBottom: 4 }}>
       {calc.refiConfidence === "verify" ? "Needs verification" : "Worth flagging"}
      </div>
