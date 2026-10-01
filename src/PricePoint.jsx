@@ -1,5 +1,6 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from './Icon';
 import MobileTabBar from './components/MobileTabBar.jsx';
 import AddressAutocomplete from './components/AddressAutocomplete.jsx';
@@ -326,6 +327,10 @@ const decodeEntities = (str) => String(str || "")
 // Free Play property-type filter options. Empty selection = all types.
 // 'Manufactured' plays under Single Family.
 const FP_TYPE_OPTIONS = ["Single Family", "Condo", "Townhouse", "Multi-Family"];
+// Header-chip display names only — the stored filter values stay as above.
+const typeChipLabel = (t) => t === "Single Family" ? "House" : t;
+// "San Francisco, CA" → "San Francisco": the state is noise in a one-row header.
+const shortMarketLabel = (label) => String(label || "").replace(/,\s*[A-Z]{2}$/, "");
 // The pipeline emits BOTH spellings of the duplex type: "Multi Family" from the
 // Zillow-shaped routes (pricepoint, pp-daily, _address, sold-comps' Zillow
 // branch) and "Multi-Family" from listings.js / propertydetails / the Redfin
@@ -609,7 +614,7 @@ const computePriceRead = (vc, premium, discount, decoded) => {
 // area median to read against. Self-contained (re-derives desc/signals) so the
 // SAME card can appear pre-guess (For Sale) or post-guess (Sold reveal) without
 // threading state through PropertyCard/RevealCard.
-const renderPriceRead = (listing, valuePool, details, T) => {
+const listingPriceRead = (listing, valuePool, details) => {
   if (!listing || !valuePool) return null;
   const zid = String(listing.zpid || "");
   const enrichedLp = (zid.startsWith("rc_") || zid.startsWith("rf_"))
@@ -619,10 +624,17 @@ const renderPriceRead = (listing, valuePool, details, T) => {
   const desc = decodeEntities(details?.description || listing.description);
   const sigs = extractValueSignals(desc);
   const decoded = extractAgentSpeak(desc);
-  const pr = computePriceRead(vc, sigs.premium, sigs.discount, decoded);
+  return computePriceRead(vc, sigs.premium, sigs.discount, decoded);
+};
+const priceReadZone = (pr, T) => pr ? {
+  color: pr.zone === "transparent" ? T.green : T.orange,
+  label: pr.zone === "teaser" ? "Likely a teaser" : pr.zone === "ambitious" ? "Ambitious ask" : "Priced near value",
+} : null;
+
+const renderPriceRead = (listing, valuePool, details, T, { flush } = {}) => {
+  const pr = listingPriceRead(listing, valuePool, details);
   if (!pr) return null;
-  const zoneColor = pr.zone === "transparent" ? T.green : T.orange;
-  const zoneLabel = pr.zone === "teaser" ? "Likely a teaser" : pr.zone === "ambitious" ? "Ambitious ask" : "Priced near value";
+  const { color: zoneColor, label: zoneLabel } = priceReadZone(pr, T);
   const absd = Math.round(Math.abs(pr.d));
   const listPart = Math.abs(pr.d) < 2 ? "Listed about at the area’s $/sqft"
     : pr.d < 0 ? `Listed ${absd}% under the area’s $/sqft`
@@ -639,7 +651,7 @@ const renderPriceRead = (listing, valuePool, details, T) => {
     <span style={{ fontSize: 8.5, letterSpacing: 1, fontFamily: MONO, color: pr.zone === z ? zoneColor : T.textTertiary, fontWeight: pr.zone === z ? 700 : 400 }}>{label}</span>
   );
   return (
-    <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
+    <div style={flush ? { marginTop: 10 } : { marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 9 }}>
         <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Price Read</span>
         <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: FONT, color: zoneColor }}>{zoneLabel}</span>
@@ -1256,7 +1268,7 @@ const getStaticMapUrl = (lat, lng) => {
 // Typing a guess re-renders the parent on each keystroke, so the carousel
 // silently snapped back to photo 1 mid-typing. Hoisting it out keeps carousel
 // AND lightbox state alive; `isDesktop` now arrives as a prop.
-const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails }) => {
+const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight }) => {
   const [idx, setIdx] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef(null);
@@ -1305,7 +1317,7 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
       }}>
       <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async"
         onClick={() => setZoomed(true)}
-        style={{ width: "100%", height: IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : (isDesktop ? "100%" : 260), objectFit: "cover", display: "block", transition: "opacity 0.25s", cursor: "zoom-in" }}
+        style={{ width: "100%", height: photoHeight || (IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : (isDesktop ? "100%" : 260)), objectFit: "cover", display: "block", transition: "opacity 0.25s", cursor: "zoom-in" }}
         onError={onPhotoError} />
       {/* Map slide "Location" label — top left on map, replaces badges */}
       {isMapSlide ? (
@@ -1334,6 +1346,14 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
           <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
             {`${idx + 1} / ${count}`}
           </div>
+        )}
+        {/* Share — For Sale cards only (an active, public listing). Light pill
+            so it reads as the primary action against the dark counters. */}
+        {onShare && (
+          <button onClick={(e) => { e.stopPropagation(); onShare(); }} aria-label="Share this property"
+            style={{ background: "rgba(255,255,255,0.94)", border: "none", borderRadius: 8, padding: "5px 10px", color: "#171717", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, fontFamily: FONT, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
+            <Icon name="share" size={13} /> Share
+          </button>
         )}
         {/* Tapping the photo also opens this — the button is the discoverability cue. */}
         <button onClick={(e) => { e.stopPropagation(); setZoomed(true); }} aria-label="Expand photo"
@@ -2504,6 +2524,28 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
   };
 
+  // ── Share a FOR SALE listing BEFORE calling it. Same 'live' challenge link,
+  // just with no guess in the token — the friend lands on the full card and
+  // locks their own number (the receive side treats a missing guess as a
+  // plain "a friend sent you this" share, no head-to-head). ──
+  const listingShareToken = (listing) => encodeChallenge({
+    listing, result: { guess: null, pctOff: null }, mode: 'live',
+    dailyNumber: 0, locationLabel: locationLabel || market?.label || '',
+  });
+  const shareListing = (listing) => {
+    if (!listing) return;
+    const url = buildChallengeUrl(listingShareToken(listing));
+    const where = listing.address || listing.neighborhood || listing.city || 'this home';
+    const text = `${where}: what do you think it sells for? Lock in your price on PricePoint.`;
+    // URL folded INTO text — see shareChallenge (iOS Messages quirk).
+    if (navigator.share) {
+      navigator.share({ title: 'PricePoint', text: `${text}\n${url}` }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(`${text}\n${url}`);
+      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+    }
+  };
+
   // ── Save nickname ──
   const handleSaveNickname = async () => {
     const name = nicknameInput.trim();
@@ -3002,6 +3044,27 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // jumping ahead via a map pin doesn't strand the ones you skipped. ──
   const isLiveGuessed = (l) => !!(l?.zpid && liveGuessedZpids.has(String(l.zpid)));
 
+  // ── Per-property URL: while a For Sale card is on screen the address bar
+  // carries that home's share token (?c=…), so copying the URL shares the
+  // property. Same token the Share button sends; the init effect above opens
+  // it as a no-guess challenge. Bots hitting pricepoint.realstack.app/?c=…
+  // are redirected (query intact) to /api/challenge for the rich unfurl. ──
+  const liveCardListing = view === "live" && !showMap && !livePrediction
+    ? (liveSearchListing || (liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) ? liveListings[liveIdx] : null))
+    : null;
+  const liveCardKey = liveCardListing ? `${liveCardListing.zpid || ""}|${liveCardListing.address || ""}` : "";
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.history?.replaceState) return;
+    const params = new URLSearchParams(window.location.search);
+    if (liveCardListing) params.set("c", listingShareToken(liveCardListing));
+    else if (params.has("c")) params.delete("c");
+    else return;
+    const qs = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveCardKey]);
+
+
   // Bias the address typeahead toward the market the player is actually in —
   // the first pooled listing with coordinates is a good-enough centroid.
   // Memoized: a new object each render would re-fire the geocoder effect.
@@ -3045,6 +3108,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       baths: listing.baths,
       sqft: listing.sqft,
       photo: listing.photo,
+      detailUrl: listing.detailUrl || null,
       propertyType: listing.propertyType,
       status: listing.status || "active",
       vsListPct: vsListPct ? parseFloat(vsListPct) : null,
@@ -3183,6 +3247,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       baths: listing.baths,
       sqft: listing.sqft,
       photo: listing.photo,
+      detailUrl: listing.detailUrl || null,
       propertyType: listing.propertyType,
       status: listing.status || "active",
       vsListPct: vsListPct ? parseFloat(vsListPct) : null,
@@ -3357,17 +3422,49 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // T is always the DARK or LIGHT constant from lib/theme.js (stable refs),
   // so identity comparison is the reliable dark-mode signal here.
   const darkMode = T === DARK;
-  const renderListMapToggle = (accent) => (
+  // ── Notifications bell. On phones/tablets it's portaled into the shell's
+  // top bar (MortgageBlueprint renders #pp-header-actions beside the PricePoint
+  // wordmark); desktop has no such bar, so it stays inline in each header. ──
+  const [ppBellSlot, setPpBellSlot] = useState(null);
+  useEffect(() => {
+    setPpBellSlot(isDesktop ? null : document.getElementById("pp-header-actions"));
+  }, [isDesktop]);
+  const openNotifications = async () => {
+    const result = await fetchNotifications(playerId, true);
+    if (result) { setNotifications(result.notifications || []); setUnreadCount(result.unreadCount || 0); }
+    setShowNotifDrawer(true);
+  };
+  const renderBellButton = (size = 36) => (
+    <button onClick={openNotifications} aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"} style={{
+      position: "relative", width: size, height: size, borderRadius: 9999,
+      background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
+    }}>
+      <Icon name="bell" size={size > 32 ? 16 : 15} style={{ color: T.accent }} />
+      {unreadCount > 0 && (
+        <div style={{
+          position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
+          borderRadius: 8, background: T.red || "#e5484d", color: "#fff",
+          fontSize: 9, fontWeight: 800, fontFamily: FONT,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 4px", border: `2px solid ${T.card}`, boxSizing: "border-box",
+        }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
+      )}
+    </button>
+  );
+
+  const renderListMapToggle = (accent, iconOnly) => (
     <div style={{ display: "inline-flex", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: 3, flexShrink: 0 }}>
       {["List", "Map"].map(label => {
         const isMapSeg = label === "Map";
         const active = isMapSeg === showMap;
         return (
-          <button key={label} onClick={() => setShowMap(isMapSeg)} style={{
-            border: "none", borderRadius: 9999, padding: "4px 12px", fontSize: 11, fontWeight: 700,
+          <button key={label} onClick={() => setShowMap(isMapSeg)} aria-label={`${label} view`} aria-pressed={active} style={{
+            border: "none", borderRadius: 9999, padding: iconOnly ? "6px 10px" : "4px 12px", fontSize: 11, fontWeight: 700,
             fontFamily: FONT, cursor: "pointer", background: active ? accent : "transparent",
             color: active ? "#fff" : T.textSecondary, transition: "background 0.15s",
-          }}>{label}</button>
+            display: "flex", alignItems: "center",
+          }}>{iconOnly ? <Icon name={isMapSeg ? "map" : "list"} size={15} /> : label}</button>
         );
       })}
     </div>
@@ -3406,8 +3503,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   );
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool, onShare, guessPlaceholder }) => {
     const accent = accentColor || T.accent;
+    // Compact = the For Sale card on phones/tablets. Everything down to the
+    // Lock In button has to fit one screen (Christo 2026-09-30): specs fold
+    // into the subtitle, MLS remarks + Price Read + Value Signals collapse into
+    // one Details row, and the photo takes whatever height is left.
+    const compact = !isDesktop && view === "live";
     const pType = propTypeShort(listing.propertyType);
     const showType = showExtras || showPropertyType;
     // Merge photo sources: prefer details API photos, fall back to listing.photos from sold-comps (both capped at 24)
@@ -3438,7 +3540,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             (no arrows/dots) and is the only place the lightbox lives, so the old
             plain-<img> fallback branch is gone — it duplicated the whole pill row
             and had no way to expand. */}
-        <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} />
+        <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare}
+          photoHeight={compact ? "clamp(170px, calc(100dvh - var(--pp-card-chrome, 575px)), 340px)" : undefined} />
         </div>
         </div>
         <div style={{ padding: IS_MOBILE ? "10px 14px 12px" : (isDesktop ? "20px 24px" : "16px 18px 20px"), ...(isDesktop ? { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", borderLeft: `1px solid ${T.cardBorder}` } : {}) }}>
@@ -3447,10 +3550,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
           </div>
           <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
-            {showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{(showExtras || showPropertyType) && listing.propertyType ? ` · ${listing.propertyType}` : ""}
+            {compact
+              ? [resolveNeighborhood(listing), listing.zip,
+                  listing.beds ? `${listing.beds} bd` : null,
+                  listing.baths ? `${listing.baths} ba` : null,
+                  listing.sqft > 0 ? `${Number(listing.sqft).toLocaleString("en-US")} sf` : null,
+                  yearBuilt ? `Built ${yearBuilt}` : null].filter(Boolean).join(" · ")
+              : <>{showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{(showExtras || showPropertyType) && listing.propertyType ? ` · ${listing.propertyType}` : ""}</>}
           </div>
           {/* MLS Description — from details API or listing */}
-          {showExtras && desc && (
+          {showExtras && desc && !compact && (
             <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
               {/* Expanded is CAPPED and scrolls internally — MLS remarks run
                   2,000+ chars, and an unbounded "none" stretched the desktop
@@ -3470,7 +3579,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               read is the whole point pre-offer). On the Sold GAME it would
               telegraph the answer, so there it moves to the post-guess reveal
               (see RevealCard priceRead below). */}
-          {view === "live" && valuePool && renderPriceRead(listing, valuePool, details, T)}
+          {view === "live" && valuePool && !compact && renderPriceRead(listing, valuePool, details, T)}
           {/* Value signals — Free Play / Live ONLY (never daily/challenge: no
               valuePool prop there and the view gate double-locks it). Lexicon
               chips over the MLS description + quant context vs. the current
@@ -3511,20 +3620,40 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               ...sigs.premium.map(s => ({ ...s, color: T.green, bg: T.successBg, border: T.successBorder })),
               ...sigs.discount.map(s => ({ ...s, color: T.red, bg: T.errorBg, border: T.errorBorder })),
             ];
-            if (chips.length === 0 && rows.length === 0 && decoded.length === 0) return null;
+            const pr = compact ? listingPriceRead(listing, valuePool, details) : null;
+            const zone = priceReadZone(pr, T);
+            if (chips.length === 0 && rows.length === 0 && decoded.length === 0 && !(compact && (desc || pr))) return null;
+            // Compact header previews the verdict + top premium chips; the rest
+            // (remarks, Price Read, decoded agent-speak, quant rows) opens below.
+            const headChips = compact ? chips.filter(c => c.color === T.green).slice(0, zone ? 1 : 2) : [];
+            const hiddenCount = chips.length - headChips.length + decoded.length + rows.length;
             return (
               <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
-                <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Value Signals</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textTertiary }}>
-                    {!valueSignalsOpen && (
-                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{chips.length + decoded.length + rows.length}</span>
+                <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} aria-expanded={valueSignalsOpen} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", minWidth: 0 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, flexShrink: 0 }}>{compact ? "Details" : "Value Signals"}</span>
+                    {compact && !valueSignalsOpen && zone && (
+                      <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: FONT, color: zone.color, whiteSpace: "nowrap" }}>{zone.label}</span>
+                    )}
+                    {compact && !valueSignalsOpen && headChips.map(c => (
+                      <span key={c.key} style={{ fontSize: 10.5, fontWeight: 600, fontFamily: FONT, color: c.color, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 9999, padding: "1px 8px", whiteSpace: "nowrap" }}>{c.label}</span>
+                    ))}
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textTertiary, flexShrink: 0 }}>
+                    {!valueSignalsOpen && (compact ? hiddenCount > 0 : true) && (
+                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{compact ? `+${hiddenCount}` : chips.length + decoded.length + rows.length}</span>
                     )}
                     <Icon name="chevron-down" size={13} style={{ transform: valueSignalsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
                   </span>
                 </button>
                 {valueSignalsOpen && (
                   <>
+                    {compact && desc && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: T.textSecondary, lineHeight: 1.55, fontFamily: FONT, maxHeight: 160, overflowY: "auto", overscrollBehavior: "contain" }}>
+                        {renderHighlightedDesc(desc, T)}
+                      </div>
+                    )}
+                    {compact && renderPriceRead(listing, valuePool, details, T, { flush: true })}
                     {chips.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                         {chips.map(c => (
@@ -3560,15 +3689,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             );
           })()}
-          {/* Specs */}
-          <div style={{ display: "flex", gap: 6, margin: IS_MOBILE ? "8px 0" : "14px 0", flexWrap: "wrap" }}>
-            {[[listing.beds, "Beds"], [listing.baths, "Baths"], [(listing.sqft || 0).toLocaleString(), "SqFt"], [yearBuilt, "Built"]].map(([v, l], i) => (
+          {/* Specs — compact folds these into the subtitle line */}
+          {compact ? <div style={{ height: 8 }} /> : <div style={{ display: "flex", gap: 6, margin: IS_MOBILE ? "8px 0" : "14px 0", flexWrap: "wrap" }}>
+            {[[listing.beds, "Beds"], [listing.baths, "Baths"], [listing.sqft > 0 ? Number(listing.sqft).toLocaleString() : "—", "SqFt"], [yearBuilt, "Built"]].map(([v, l], i) => (
               <div key={i} style={{ background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "5px 8px" : "8px 14px", textAlign: "center", flex: 1, minWidth: IS_MOBILE ? 52 : 60, border: `1px solid ${T.cardBorder}` }}>
                 <div style={{ fontSize: IS_MOBILE ? 14 : 16, fontWeight: 700, color: T.text, fontFamily: FONT }}>{v}</div>
                 <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 2, fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>{l}</div>
               </div>
             ))}
-          </div>
+          </div>}
           {/* View on Zillow link — Live mode only, shown before guess to enable informed predictions */}
           {showZillowLink && listing.detailUrl && (
             <a href={listing.detailUrl.startsWith("http") ? listing.detailUrl : `https://www.zillow.com${listing.detailUrl}`} target="_blank" rel="noopener noreferrer"
@@ -3616,7 +3745,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
               style={{ flex: 1.35, minWidth: 0, position: "relative", background: T.inputBg, border: `2px solid ${guess ? T.cardBorder : accent}`, boxShadow: guess ? "none" : `0 0 12px ${accent}33`, borderRadius: 14, padding: IS_MOBILE ? "10px 12px" : "16px 20px", cursor: "text", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.2s" }}>
               <div style={{ fontSize: guess ? (IS_MOBILE ? 20 : 28) : (IS_MOBILE ? 14 : 18), fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: FONT, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s", whiteSpace: "nowrap" }}>
-                {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : (IS_MOBILE ? "Sold for?" : "Tap to enter price")}
+                {guess ? `$${parseInt(guess).toLocaleString("en-US")}` : (guessPlaceholder || (IS_MOBILE ? "Sold for?" : "Tap to enter price"))}
               </div>
               <input id={`pp-guess-${badge || "d"}`} value={guess || ""} onChange={onGuessChange} onKeyDown={e => e.key === "Enter" && onGuess()} inputMode="numeric" autoComplete="off"
                 style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, fontSize: 18, border: "none", outline: "none", background: "none", boxSizing: "border-box" }}
@@ -3785,7 +3914,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   return (
     <div style={{ maxWidth: isDesktop ? (DESKTOP_VIEW_WIDTH[view] || 520) : 480, margin: "0 auto", width: "100%", minHeight: "100vh", fontFamily: FONT, color: T.text, boxSizing: "border-box", position: "relative" }}>
+      {ppBellSlot && createPortal(renderBellButton(32), ppBellSlot)}
       <style>{`
+        /* The shell's global input::placeholder rule (white @15%, built for
+           dark mode) made "Search any address…" invisible in light mode. */
+        .pp-search-input::placeholder { color: var(--pp-ph, #6B7280) !important; opacity: 1 !important; font-weight: 400 !important; }
         @keyframes ppSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes ppFadeIn { from { opacity: 0 } to { opacity: 1 } }
         @keyframes ppSlideUp { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: translateY(0) } }
@@ -4234,26 +4367,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 Set name <Icon name="user" size={12} />
               </button>
             )}
-            <button onClick={async () => {
-              const result = await fetchNotifications(playerId, true);
-              if (result) { setNotifications(result.notifications || []); setUnreadCount(result.unreadCount || 0); }
-              setShowNotifDrawer(true);
-            }} style={{
-              position: "relative", width: 36, height: 36, borderRadius: 9999,
-              background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            }}>
-              <Icon name="bell" size={16} style={{ color: T.accent }} />
-              {unreadCount > 0 && (
-                <div style={{
-                  position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
-                  borderRadius: 8, background: T.red || "#e5484d", color: "#fff",
-                  fontSize: 9, fontWeight: 800, fontFamily: FONT,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  padding: "0 4px", border: `2px solid ${T.card}`,
-                }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
-              )}
-            </button>
+            {!ppBellSlot && renderBellButton()}
           </div>
 
           {/* Admin-only: fire the prediction-resolution cron by hand. Hidden
@@ -4577,78 +4691,66 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ LIVE MODE ═══ */}
       {view === "live" && (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.red }}>FOR SALE</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
-                <span style={{ color: T.textTertiary, fontSize: 13 }}>·</span>
-                {/* Surfaces the active type filter — it persists across sessions,
-                    so a shrunken pool needs a visible cause. Tap → picker. */}
-                <div onClick={() => setView("livePicker")} style={{ fontSize: 13, color: T.red, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                  {liveHoodName || "All"}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? liveTypeSel[0] : `${liveTypeSel.length} types`}` : ""} <Icon name="chevron-right" size={12} />
-                </div>
+          {/* One-row header (Christo 2026-09-30): market + filter left, count +
+              (desktop) bell right. The FOR SALE overline is gone — the tab and
+              the photo badge already say it. On mobile the bell lives in the
+              shell's top bar next to the wordmark (portaled, see ppBellSlot). */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, ...(isDesktop ? { maxWidth: 640, margin: "0 auto 10px" } : {}) }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
+              <div onClick={() => setShowMarketSwitcher(true)} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")} <Icon name="chevron-down" size={12} /></div>
+              <span style={{ color: T.textTertiary }}>·</span>
+              {/* Surfaces the active type filter — it persists across sessions,
+                  so a shrunken pool needs a visible cause. Tap → picker. */}
+              <div onClick={() => setView("livePicker")} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveHoodName || "All"}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}</span> <Icon name="chevron-right" size={12} />
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red)}
-              <StatPill value={`${liveRemaining}`} label="left" color={T.red} />
-              <button onClick={async () => {
-                const result = await fetchNotifications(playerId, true);
-                if (result) { setNotifications(result.notifications || []); setUnreadCount(result.unreadCount || 0); }
-                setShowNotifDrawer(true);
-              }} style={{
-                position: "relative", width: 36, height: 36, borderRadius: 9999,
-                background: `${T.accent}12`, border: `1px solid ${T.accent}30`, cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
-                <Icon name="bell" size={16} style={{ color: T.accent }} />
-                {unreadCount > 0 && (
-                  <div style={{
-                    position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
-                    borderRadius: 8, background: T.red || "#e5484d", color: "#fff",
-                    fontSize: 9, fontWeight: 800, fontFamily: FONT,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    padding: "0 4px", border: `2px solid ${T.card}`,
-                  }}>{unreadCount > 9 ? "9+" : unreadCount}</div>
-                )}
-              </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: T.red, fontFamily: FONT, whiteSpace: "nowrap" }}>{liveRemaining} left</span>
+              {livePrediction && MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
+              {!ppBellSlot && renderBellButton()}
             </div>
           </div>
           {/* ── Address search (A3): predict ANY property, not just the pool.
               Rendered in BOTH list and map views (Christo 2026-07-24) — picking
-              a result closes the map so the guess card is visible. ── */}
+              a result closes the map so the guess card is visible. The List|Map
+              toggle rides on the same row; a search result swaps the search
+              icon for a clear (x) that returns to the listings. ── */}
           {!livePrediction && (
-            <div style={isDesktop ? { maxWidth: 640, margin: "0 auto 12px" } : { marginBottom: 12 }}>
-              <AddressAutocomplete
-                T={T}
-                stateFormat="short"
-                value={liveSearchAddr}
-                onChange={(v) => { setLiveSearchAddr(v); if (liveSearchError) setLiveSearchError(null); }}
-                onSelect={(v) => { setShowMap(false); handleLiveAddressSelect(v); }}
-                onSubmit={(v) => { setShowMap(false); runLiveAddressSearch(v); }}
-                localSuggestions={liveListings}
-                onSelectLocal={(l) => { setShowMap(false); handleLiveListingSelect(l); }}
-                localBadge="For sale"
-                proximity={liveProximity}
-                placeholder="Search any address…"
-                containerStyle={{ marginBottom: 0 }}
-                inputStyle={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, padding: "11px 18px", paddingRight: 40, color: T.text, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: FONT, WebkitAppearance: "none" }}
-              />
+            <div style={isDesktop ? { maxWidth: 640, margin: "0 auto 12px" } : { marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                  <AddressAutocomplete
+                    T={T}
+                    stateFormat="short"
+                    value={liveSearchAddr}
+                    onChange={(v) => { setLiveSearchAddr(v); if (liveSearchError) setLiveSearchError(null); }}
+                    onSelect={(v) => { setShowMap(false); handleLiveAddressSelect(v); }}
+                    onSubmit={(v) => { setShowMap(false); runLiveAddressSearch(v); }}
+                    localSuggestions={liveListings}
+                    onSelectLocal={(l) => { setShowMap(false); handleLiveListingSelect(l); }}
+                    localBadge="For sale"
+                    proximity={liveProximity}
+                    placeholder="Search any address…"
+                    inputClassName="pp-search-input"
+                    containerStyle={{ marginBottom: 0, "--pp-ph": T.textTertiary }}
+                    inputStyle={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, padding: "10px 18px", paddingRight: 40, color: T.text, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: FONT, WebkitAppearance: "none", textOverflow: "ellipsis" }}
+                  />
+                  {liveSearchListing && !liveSearchLoading && (
+                    <button onClick={() => { setLiveSearchListing(null); setLiveSearchAddr(""); setLiveSearchGuessInput(""); setLiveSearchError(null); }}
+                      aria-label="Clear search and go back to listings"
+                      style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: 9999, border: "none", background: T.pillBg, color: T.textSecondary, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                      <Icon name="x" size={13} />
+                    </button>
+                  )}
+                </div>
+                {MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
+              </div>
               {liveSearchLoading && (
                 <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginTop: 6, paddingLeft: 4, animation: "ppPulse 1.2s ease infinite" }}>Looking up that property…</div>
               )}
               {liveSearchError && !liveSearchLoading && (
                 <div style={{ fontSize: 12, color: T.red, fontFamily: FONT, marginTop: 6, paddingLeft: 4 }}>{liveSearchError}</div>
-              )}
-              {liveSearchListing && !liveSearchLoading && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, paddingLeft: 4 }}>
-                  <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>Showing your search result</div>
-                  <button onClick={() => { setLiveSearchListing(null); setLiveSearchAddr(""); setLiveSearchGuessInput(""); setLiveSearchError(null); }}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: T.textSecondary, fontFamily: FONT, cursor: "pointer" }}>
-                    <Icon name="x" size={12} /> Back to listings
-                  </button>
-                </div>
               )}
             </div>
           )}
@@ -4666,11 +4768,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market: prediction resolves if/when it sells</div>
                 </div>
               )}
-              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
             </>
           ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveListings[liveIdx]), details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 560, margin: "0 auto" } : {}) }}>
@@ -4711,6 +4813,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <Icon name="send" size={16} /> Challenge a Friend
                 </button>
                 <PillButton onClick={liveNextProperty} secondary>Next Property</PillButton>
+                {/* Full listing link lives here (post-lock), not on the guess card —
+                    it cost a row above the fold (Christo 2026-09-30). */}
+                {livePrediction.detailUrl && (
+                  <a href={livePrediction.detailUrl.startsWith("http") ? livePrediction.detailUrl : `https://www.zillow.com${livePrediction.detailUrl}`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT }}>
+                    <Icon name="external-link" size={13} /> View full listing on {String(livePrediction.detailUrl).includes("redfin.com") ? "Redfin" : "Zillow"}
+                  </a>
+                )}
               </div>
             </div>
           ) : loading ? (
@@ -4851,7 +4961,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 {/* Deliberately hide the friend's number — revealing it here would
                     anchor the guess. Both numbers appear together after you call it. */}
                 <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
-                  A friend made their call on this <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>active listing</span>
+                  {challengeData.challengerGuess
+                    ? <>A friend made their call on this <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>active listing</span></>
+                    : <>A friend sent you this <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>active listing</span></>}
                 </div>
                 <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>What's your prediction?</div>
               </>
@@ -4869,7 +4981,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               lazy-fetched details — it's a public active listing. SOLD
               challenges stay on the token-only card: details/remarks could
               leak the address and let the recipient look up the answer. */}
-          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" }, showExtras: true, showAddress: true, showZillowLink: true, showLastSold: true, details: propertyDetails[challengeData.listing.zpid] || null, isLoadingDetails: detailsLoading === challengeData.listing.zpid } : {}) })}
+          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", showExtras: true, showAddress: true, showLastSold: true, details: propertyDetails[challengeData.listing.zpid] || null, isLoadingDetails: detailsLoading === challengeData.listing.zpid } : {}) })}
         </div>
         );
       })()}
@@ -4926,6 +5038,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </button>
               )}
               <PillButton onClick={() => setBoardProp(null)} secondary>Close</PillButton>
+              {boardProp.detailUrl && (
+                <a href={boardProp.detailUrl.startsWith("http") ? boardProp.detailUrl : `https://www.zillow.com${boardProp.detailUrl}`} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, textDecoration: "none", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT }}>
+                  <Icon name="external-link" size={13} /> View full listing on {String(boardProp.detailUrl).includes("redfin.com") ? "Redfin" : "Zillow"}
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -4947,7 +5065,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             return (
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 24, padding: "28px 22px", maxWidth: isDesktop ? 560 : 420, width: "100%", animation: "ppScaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
                 <div style={{ textAlign: "center", marginBottom: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>Head to Head</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>{r.challengerGuess ? "Head to Head" : "Prediction Locked"}</div>
                 </div>
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginBottom: 18 }}>{r.neighborhood ? `${r.neighborhood} · ` : ""}{r.city}{r.state ? `, ${r.state}` : ""}</div>
                 <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
@@ -4956,11 +5074,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.guess)}</div>
                     <div style={vsStyle(r.myVsList)}>{vsText(r.myVsList)}</div>
                   </div>
+                  {r.challengerGuess ? (
                   <div style={{ flex: 1, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 14, padding: "16px 10px", textAlign: "center" }}>
                     <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 6 }}>Your Friend</div>
                     <div style={{ fontSize: 22, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(r.challengerGuess)}</div>
                     <div style={vsStyle(r.theirVsList)}>{vsText(r.theirVsList)}</div>
                   </div>
+                  ) : null}
                 </div>
                 <div style={{ textAlign: "center", padding: "10px 0", borderTop: `1px solid ${T.cardBorder}`, borderBottom: `1px solid ${T.cardBorder}`, marginBottom: 14 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 3 }}>List Price</div>
@@ -4968,7 +5088,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
                 {propCalls && propCalls.count > 2 && renderCallsBoard(r.listPrice)}
                 <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, marginBottom: 18 }}>
-                  {same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells, and anyone else with the link can still jump in.
+                  {!r.challengerGuess
+                    ? "Prediction locked. We'll tell you how close you were when it sells. Send it back to whoever shared it and make them call it too."
+                    : <>{same ? "You both made the same call! " : <>You went <b style={{ color: T.text }}>{higher ? "higher" : "lower"}</b> than your friend. </>}We'll tell you who won when it sells, and anyone else with the link can still jump in.</>}
                 </div>
                 {renderNotifyCapture()}
                 {(h2h.wins + h2h.losses + h2h.ties) > 0 && (
@@ -4977,7 +5099,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </div>
                 )}
                 <button onClick={() => shareLiveChallenge(r, challengeData.listing)} style={{ width: "100%", padding: 14, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 0 20px rgba(59,107,245,0.3)" }}>
-                  <Icon name="send" size={16} /> Challenge another friend
+                  <Icon name="send" size={16} /> {r.challengerGuess ? "Challenge another friend" : "Challenge a friend"}
                 </button>
                 <PillButton onClick={resetTo} secondary>Continue</PillButton>
               </div>

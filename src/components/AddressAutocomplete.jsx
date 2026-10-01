@@ -33,6 +33,7 @@
 //   label      — optional node rendered above the input (Blueprint passes its
 //                FieldLabel; PricePoint passes nothing)
 //   inputStyle / containerStyle — style overrides (PricePoint: pill search)
+//   inputClassName — hook for ::placeholder styling (inline styles can't reach it)
 //   stateFormat — "full" (default, Blueprint behavior: "CA" → "California")
 //                 or "short" (keep the 2-letter code — what APIs want)
 //   localSuggestions — optional [{ address, city, state, zip, ... }] matched
@@ -104,7 +105,7 @@ function matchLocal(items, query) {
 
 const STATE_MAP = { "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "DC": "District of Columbia", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming" };
 
-export default function AddressAutocomplete({ onSelect, onSubmit, value, onChange, placeholder, T, label = null, inputStyle = null, containerStyle = null, stateFormat = "full", localSuggestions = null, onSelectLocal = null, localBadge = null, proximity = null }) {
+export default function AddressAutocomplete({ onSelect, onSubmit, value, onChange, placeholder, T, label = null, inputStyle = null, containerStyle = null, inputClassName = undefined, stateFormat = "full", localSuggestions = null, onSelectLocal = null, localBadge = null, proximity = null }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -273,6 +274,7 @@ export default function AddressAutocomplete({ onSelect, onSubmit, value, onChang
         <input
           ref={inputRef}
           type="text"
+          className={inputClassName}
           value={text}
           onChange={e => { onChange(e.target.value); setOpen(true); }}
           onKeyDown={onKeyDown}

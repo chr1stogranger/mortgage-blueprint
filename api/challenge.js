@@ -42,6 +42,9 @@ export default function handler(req, res) {
   const mode = data.m === 'd' ? `Daily #${Number(data.dn) || 0}` : 'Free Play';
   const label = esc(cap(data.lb, 80));
   const isLive = data.m === 'l'; // FOR SALE challenge — no sold price / accuracy yet
+  // A For Sale link shared BEFORE the sender called it (Share button / the
+  // per-property URL) carries no guess — it's "check out this home", not a dare.
+  const hasGuess = Number(data.g) > 0;
 
   // The property photo makes the unfurl — https URLs only (the token is
   // attacker-controllable; esc() handles attribute context, the scheme check
@@ -55,10 +58,14 @@ export default function handler(req, res) {
   // For a FOR SALE challenge the friend's number is deliberately NOT revealed
   // (it would anchor the recipient's guess — both numbers appear together only
   // after they've locked their own prediction).
-  const title = isLive
+  const title = isLive && !hasGuess
+    ? (address ? `${address} — PricePoint` : `${hood} listing — PricePoint`)
+    : isLive
     ? (address ? `PricePoint Challenge — ${address}` : `PricePoint Challenge — call this ${hood} listing`)
     : `PricePoint Challenge — ${accuracy}% on ${hood}`;
-  const description = isLive
+  const description = isLive && !hasGuess
+    ? `For sale in ${hood} (${beds}BR/${baths}BA${sqft ? `, ${Number(sqft).toLocaleString()}sf` : ''}). What do you think it sells for? Lock in your price — closest to the sold price wins.`
+    : isLive
     ? `A friend called this active ${hood} listing (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Lock in your own price — closest to what it sells for wins.`
     : `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;
   return sendOgPage(res, {

@@ -8517,6 +8517,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: T.text, whiteSpace: "nowrap", lineHeight: 1, fontFamily: FONT }}>{appMode === "pricepoint" ? "PricePoint" : appMode === "markets" ? "Markets" : ""}</span>
        <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, lineHeight: 1, whiteSpace: "nowrap" }}>Powered by RealStack</span>
       </button>
+      {/* PricePoint portals its notifications bell in here (top-right, in line
+          with the wordmark) — see ppBellSlot in PricePoint.jsx. */}
+      {appMode === "pricepoint" && <div id="pp-header-actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }} />}
      </div>
     </div>
    )}
