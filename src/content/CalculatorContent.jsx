@@ -295,6 +295,83 @@ export default function CalculatorContent(props) {
   const excludedEscrowAmt = (escTax ? 0 : dispTax) + (escIns ? 0 : dispIns);
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
+  // The compact 5-pillar (3 on refi) qualification row. Desktop renders it in
+  // the right column's row 2; phones render it right under the loan strip.
+  const renderPillars = (compact) => {
+    const compactChecks = isRefi ? [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
+    ] : [
+     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
+     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
+     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
+     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
+     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
+    ];
+    // Mirrors the left cell exactly: overline, then a grid that flexes to fill
+    // the shared row height so both rows of tiles end up identical.
+    return (
+     compact ? (
+      // Phones: one row of small pills inside a single card, right under the
+      // loan strip, so the screenshot carries qualification too.
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 2, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: "9px 4px", marginBottom: 12 }}>
+       {compactChecks.map((c, i) => {
+        const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
+        return (
+         <div key={i} onClick={() => handlePillarClick && handlePillarClick(c.label)} title={`${c.label}: ${c.sub}. Tap for details`}
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0 }}>
+          <div style={{ width: 20, height: 20, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 800, marginBottom: 3 }}>
+           {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
+          <div style={{ fontSize: 8.5, color: T.textTertiary, marginTop: 2, fontFamily: FONT, lineHeight: 1.2, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{c.sub}</div>
+         </div>
+        );
+       })}
+      </div>
+     ) :
+     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+      {/* Overline — the row read as unlabeled colored tiles next to two titled
+          cards (Christo 2026-07-19). Matches the CashToCloseSummary band. */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
+       Qualification · {compactChecks.length} Pillars
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12, flex: 1 }}>
+      {compactChecks.map((c, i) => {
+       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
+       // Plain white tiles (Christo 2026-07-19) — status reads from the circle
+       // and label color, not a background wash.
+       return (
+        <div
+         key={i}
+         onClick={() => handlePillarClick && handlePillarClick(c.label)}
+         title={`${c.label}: ${c.sub}. Click for details`}
+         style={{
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "12px 4px", minHeight: 92, background: T.card, borderRadius: 12,
+          border: `1px solid ${color}2E`, boxShadow: T.cardShadow,
+          cursor: "pointer", transition: "all 0.2s",
+         }}
+        >
+         <div style={{
+          width: 28, height: 28, borderRadius: "50%",
+          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
+         }}>
+          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
+         </div>
+         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
+         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
+        </div>
+       );
+      })}
+      </div>
+     </div>
+    );
+  };
+
   const legendRows = [
     { label: "Principal", value: dispPrin, color: T.cyan || T.blue },
     { label: "Interest",  value: dispPI - dispPrin, color: T.blue },
@@ -315,7 +392,8 @@ export default function CalculatorContent(props) {
   const priceCard = (
    <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
-     <Card>
+     {/* Phones trim the bottom pad: the inputs already carry 14px below. */}
+     <Card style={isDesktop ? undefined : { paddingBottom: 6 }}>
       {isRefi ? (<>
        {/* Refi price card (Christo 7.24): just the two inputs. The Equity and
            payoff TILES are gone — equity already lives in the card beneath the
@@ -344,7 +422,9 @@ export default function CalculatorContent(props) {
        </div>
        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
       </>) : (<>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" }}>
+      {/* Phones give the price a little more room: seven-figure prices were
+          clipping once the Down label carried its $ summary. */}
+      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "minmax(0, 1.3fr) minmax(0, 1fr)", gap: isDesktop ? 12 : 10, alignItems: "start" }}>
        <div>
         {/* Custom label row mirrors the Down field's label row exactly
             (height: 22, label on left) so the two input fields below
@@ -357,8 +437,10 @@ export default function CalculatorContent(props) {
          </div>
         </div>
         <Inp value={salesPrice} onChange={setSalesPrice} max={100000000} req placeholder="Enter price" prefix="$" />
-        {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input. */}
-        <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>
+        {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input.
+            Phones drop it: the down summary rides in the Down label instead
+            (screenshot-ready layout, Christo 2026-10-01). */}
+        {isDesktop && <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>}
        </div>
        {(<>
         {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
@@ -379,28 +461,44 @@ export default function CalculatorContent(props) {
          const downSubtitle = downMode === "pct"
           ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
           : `${fmtCompactPct(downPct)} down`;
+         const miniDownToggle = (
+          <span style={{ display: "inline-flex", borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, background: T.bg, verticalAlign: "middle" }}>
+           {[["dollar", "$"], ["pct", "%"]].map(([m, l]) => (
+            <button key={m} type="button" aria-label={m === "pct" ? "Enter down payment as a percent" : "Enter down payment in dollars"} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setDownMode(m); }}
+             style={{ padding: "3px 7px", fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, lineHeight: 1, background: downMode === m ? T.blue : "transparent", color: downMode === m ? "#fff" : T.textTertiary }}>{l}</button>
+           ))}
+          </span>
+         );
          return (
           <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
-             Down<span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+             Down{isDesktop
+              ? <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
+              : <span style={{ marginLeft: 4, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>· {downSummary}</span>}
             </div>
-            <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
-             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
-             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: "4px 11px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
-            </div>
+            {isDesktop && <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 8px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 8px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
+            </div>}
            </div>
+           {/* Phones: the $/% switch rides inside the box as its suffix so the
+               label row can carry the dollar summary and the price box stays
+               the wider one (Christo 2026-10-01). */}
            {/* Input pill — full width, suffix shows the active unit */}
            {downMode === "pct" ? (
-            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
+            // Phones: the dollar amount rides in the box ("15 % · $150K") so the
+            // label row stays short and the price box can be the wider one.
+            <Inp value={downPct} onChange={setDownPct} prefix="" suffix={isDesktop ? "%" : miniDownToggle} step={0.01} max={100} req />
            ) : (
-            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
+            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" suffix={isDesktop ? undefined : miniDownToggle} step={1000} max={salesPrice} req />
            )}
-           {/* Subtitle: shows the inverse format directly under the input */}
-           <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
+           {/* Subtitle: shows the inverse format directly under the input
+               (desktop; phones carry it in the label). */}
+           {isDesktop && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
             {downSubtitle}
-           </div>
+           </div>}
           </div>
          );
         })()}
@@ -479,13 +577,17 @@ export default function CalculatorContent(props) {
   </div>
  )}
  {autoJumboSwitch && (
-  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: `${T.orange}12`, borderRadius: 10, marginBottom: 12 }}>
-   <div style={{ fontSize: 11, color: T.orange, lineHeight: 1.4 }}>
+  // Solid card + orange edge (Christo 2026-10-01): the translucent tint read
+  // as a smudge over the canvas, and the sentence ran four lines on a phone.
+  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${T.orange}`, borderRadius: 12, boxShadow: T.cardShadow, marginBottom: 10 }}>
+   <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.4, fontFamily: FONT, color: T.textSecondary }}>
     {/* Quote the SAME figure the switch tested — the refi loan amount on a
         refi, the purchase loan amount otherwise. */}
-    <strong>Auto-switched to Jumbo</strong>: loan amount ({fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))}) exceeds the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` for ${propType.toLowerCase()} properties` : ""}. Jumbo requires 20% down, 700+ FICO, and max 43–50% DTI.
-    <span onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }} style={{ color: T.blue, cursor: "pointer", fontWeight: 600, marginLeft: 4 }}>Override →</span>
+    <strong style={{ color: T.orange }}>Jumbo</strong>: {fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the {fmt(getHighBalLimit(propType))} high-balance limit{UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}.
+    <span style={{ display: "block", fontSize: 11, color: T.textTertiary }}>20% down · 700+ FICO · 43–50% max DTI</span>
    </div>
+   <button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
+    style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button>
   </div>
  )}
 
@@ -579,6 +681,15 @@ export default function CalculatorContent(props) {
        </div>
       );
      }
+     if (!isDesktop) return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px 6px", width: "100%" }}>
+       <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Monthly payment</span>
+       <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
+        Escrow
+        <Knob on={includeEscrow} label="Include escrow (tax and insurance)" title={escrowLocked ? `${loanType} loans require escrow: cannot be toggled off` : (includeEscrow ? "Escrow ON: Tax + Insurance included" : "Escrow OFF: Tax + Insurance shown separately")} onClick={() => { if (!escrowLocked) setIncludeEscrow(!includeEscrow); }} />
+       </span>
+      </div>
+     );
      return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 6px 10px", width: "100%" }}>
        <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
@@ -593,7 +704,36 @@ export default function CalculatorContent(props) {
         component) and sits in the lower-left corner of the donut card.
         The donut centers itself in the area to the right of the legend.
         On mobile we collapse to: donut centered, legend below (centered). */}
-    {(() => { const sideBySide = isDesktop && (donutSlotW === 0 || donutSlotW >= 340); return (
+    {/* Phones (screenshot-ready, Christo 2026-10-01): ring left, the four
+        components stacked on the right with amounts right-aligned, and the
+        rate + term + APR under them, so one screenshot carries the payment,
+        its breakdown and the rate. */}
+    {!isDesktop ? (
+     <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 2 }}>
+      <div style={{ flexShrink: 0 }}>
+       <PayRing segments={paySegs} total={calc.displayPayment} size={Math.max(120, Math.min(156, ((donutSlotW || 340) - 14) * 0.46))} hideLegend />
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+       {legendRows.map((row, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: T.textSecondary, fontFamily: FONT }}>
+         <span style={{ width: 9, height: 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
+         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}</span>
+         <span style={{ marginLeft: "auto", fontWeight: 700, color: T.text }}>{fmt(row.value)}</span>
+        </div>
+       ))}
+       <div style={{ marginTop: 4, paddingTop: 7, borderTop: `1px solid ${T.separator}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+         <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
+         <span style={{ fontSize: 17, fontWeight: 800, color: T.blue, letterSpacing: "-0.02em", fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: 1 }}>
+         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>
+         {calc.apr > 0 && <span style={{ whiteSpace: "nowrap" }}>APR {calc.apr.toFixed(2)}%</span>}
+        </div>
+       </div>
+      </div>
+     </div>
+    ) : (() => { const sideBySide = isDesktop && (donutSlotW === 0 || donutSlotW >= 340); return (
     <div ref={donutSlotRef} style={sideBySide
      ? { display: "flex", alignItems: "stretch", gap: 8, marginTop: 4 }
      : { display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 4 }
@@ -641,10 +781,12 @@ export default function CalculatorContent(props) {
    <div style={isDesktop ? { gridColumn: 1, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : {}}>
    {/* Overline mirrors "Qualification · N Pillars" on the right so both row-2
        cells have identical structure (overline + tiles) and identical height. */}
-   <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
+   {isDesktop && <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
     {isRefi ? "Refinance Summary" : "Loan Summary"}
-   </div>
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12, flex: 1 }}>
+   </div>}
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={isDesktop
+    ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12, flex: 1 }
+    : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginBottom: 10, overflow: "hidden" }}>
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
      { l: "New LTV", v: pct(calc.refiNewLTV || calc.ltv, 0), c: T.orange, s: `${fmt(Math.max(0, salesPrice - (calc.refiEffBalance || 0)))} equity`, tip: "New Loan-to-Value ratio after refinancing. Based on your current home value and new loan amount. Below 80% = no PMI on conventional." },
@@ -671,7 +813,15 @@ export default function CalculatorContent(props) {
     // margin is phantom height — it kept these cards 12px short of their row
     // while the pillar tiles opposite filled theirs, so the two rows shared a
     // top edge but not a bottom one (Christo 2026-07-21).
-    ]).map((m, i) => (
+    ]).map((m, i) => !isDesktop ? (
+     // Phones: one divided strip instead of three tall cards (screenshot-
+     // ready layout, Christo 2026-10-01).
+     <div key={i} style={{ padding: "9px 10px", borderLeft: i ? `1px solid ${T.separator}` : "none", minWidth: 0 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: T.textTertiary, letterSpacing: "0.04em", textTransform: "uppercase", display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>{m.l === "Loan Amount" ? "Loan" : m.l === "Cash to Close" ? "To close" : m.l}{m.tip && <InfoTip text={m.tip} />}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em", marginTop: 1, whiteSpace: "nowrap" }}>{m.v}</div>
+      {m.s && <div style={{ fontSize: 10, color: T.textTertiary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.s}</div>}
+     </div>
+    ) : (
      <Card key={i} pad={14} style={{ minHeight: 92, marginBottom: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
       <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
@@ -697,6 +847,7 @@ export default function CalculatorContent(props) {
      </Card>
     ))}
    </div>
+   {!isDesktop && renderPillars(true)}
    </div>{/* end row 2 (left) */}
 
    {/* — row 3: Payment Breakdown. alignSelf:start so the Advanced ladder (and
@@ -1443,61 +1594,7 @@ export default function CalculatorContent(props) {
        row on the left. 28px circles, click to jump to the matching Qualify
        section. */}
    <div style={isDesktop ? { gridColumn: 2, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : {}}>
-   {(() => {
-    const compactChecks = isRefi ? [
-     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "LTV",      ok: refiLtvCheck === "Good!" ? true : refiLtvCheck === "—" ? null : false,     sub: calc.refiNewLTV > 0 ? `${pct(calc.refiNewLTV, 0)}/${refiPurpose === "Cash-Out" ? "80%" : "95%"}` : "—" },
-    ] : [
-     { label: "FICO",     ok: calc.ficoCheck === "Good!" ? true : calc.ficoCheck === "—" ? null : false, sub: creditScore > 0 ? `${creditScore}/${calc.ficoMin}+` : "—" },
-     { label: "Down",     ok: calc.dpWarning === null ? true : false,                                    sub: `${downPct}%/${calc.minDPpct}%+` },
-     { label: "DTI",      ok: calc.dtiCheck === "Good!" ? true : calc.dtiCheck === "—" ? null : false,   sub: calc.qualifyingIncome > 0 ? `${pct(calc.yourDTI, 1)}/${pct(calc.maxDTI, 0)}` : "—" },
-     { label: "Cash",     ok: calc.cashCheck === "Good!" ? true : calc.cashCheck === "—" ? null : false, sub: calc.totalForClosing > 0 ? fmt(calc.totalForClosing) : "—" },
-     { label: "Reserves", ok: calc.resCheck  === "Good!" ? true : calc.resCheck  === "—" ? null : false, sub: calc.totalReserves > 0 ? fmt(calc.totalReserves) : "—" },
-    ];
-    // Mirrors the left cell exactly: overline, then a grid that flexes to fill
-    // the shared row height so both rows of tiles end up identical.
-    return (
-     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-      {/* Overline — the row read as unlabeled colored tiles next to two titled
-          cards (Christo 2026-07-19). Matches the CashToCloseSummary band. */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
-       Qualification · {compactChecks.length} Pillars
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12, flex: 1 }}>
-      {compactChecks.map((c, i) => {
-       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
-       // Plain white tiles (Christo 2026-07-19) — status reads from the circle
-       // and label color, not a background wash.
-       return (
-        <div
-         key={i}
-         onClick={() => handlePillarClick && handlePillarClick(c.label)}
-         title={`${c.label}: ${c.sub}. Click for details`}
-         style={{
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "12px 4px", minHeight: 92, background: T.card, borderRadius: 12,
-          border: `1px solid ${color}2E`, boxShadow: T.cardShadow,
-          cursor: "pointer", transition: "all 0.2s",
-         }}
-        >
-         <div style={{
-          width: 28, height: 28, borderRadius: "50%",
-          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
-         }}>
-          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
-         </div>
-         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
-         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
-        </div>
-       );
-      })}
-      </div>
-     </div>
-    );
-   })()}
+   {isDesktop && renderPillars(false)}
 
    </div>{/* end row 2 (right) */}
 
