@@ -99,11 +99,15 @@ const decodeChallenge = (token) => {
   } catch (e) { console.error('Failed to decode challenge:', e); return null; }
 };
 
+const PRICEPOINT_ORIGIN = 'https://pricepoint.realstack.app';
 const buildChallengeUrl = (token) => {
-  // In the native app window.location.origin is https://localhost, which would
-  // produce an unopenable share link — fall back to the production origin there.
-  const origin = API_BASE || (typeof window !== 'undefined' ? window.location.origin : 'https://blueprint.realstack.app');
-  return `${origin}/api/challenge?c=${token}`;
+  // Always the PricePoint domain — the unfurl's domain line should say
+  // PricePoint, not Blueprint (native builds use API_BASE = blueprint.…, and
+  // web users inside the Blueprint shell sit on blueprint.…). Same Vercel
+  // project, so /api/challenge and the /?c= redirect work on either host.
+  // Local dev keeps its own origin so links stay testable.
+  const local = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname) && !API_BASE;
+  return `${local ? window.location.origin : PRICEPOINT_ORIGIN}/api/challenge?c=${token}`;
 };
 
 // ── Head-to-Head record (per device, localStorage) ──
