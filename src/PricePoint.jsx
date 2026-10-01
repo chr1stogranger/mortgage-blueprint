@@ -5368,6 +5368,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         // Local prediction copies don't learn they resolved — the server's
         // sold price (board fetch) is the truth (Christo 2026-10-01).
         const boardSold = boardProp.soldPrice || propCalls?.soldPrice || null;
+        // Payload-only boards (deep link / other device) borrow basics from the fetch.
+        const bp = propCalls?.property || {};
+        const boardAddress = boardProp.address || bp.address || "";
+        const boardListPrice = boardProp.listPrice || bp.listPrice || null;
+        const boardHood = boardProp.neighborhood || bp.neighborhood || "";
         return (
         <div onClick={() => setBoardProp(null)} style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.9)", backdropFilter: "blur(16px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, animation: "ppFadeIn 0.25s ease", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 20, overflow: "hidden", maxWidth: isDesktop ? 520 : 420, width: "100%", maxHeight: "88vh", overflowY: "auto", animation: "ppScaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}>
@@ -5376,16 +5381,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: boardSold ? T.green : T.orange, marginBottom: 6 }}>
                 {boardSold ? "SOLD" : "PENDING SALE"}
               </div>
-              <div style={{ fontSize: 19, fontWeight: 800, fontFamily: FONT, color: T.text }}>{boardProp.address || resolveNeighborhood(boardProp)}</div>
+              <div style={{ fontSize: 19, fontWeight: 800, fontFamily: FONT, color: T.text }}>{boardAddress || resolveNeighborhood(boardProp)}</div>
               <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 3, marginBottom: 14 }}>
-                {[boardProp.neighborhood || boardProp.city ? resolveNeighborhood(boardProp) : null,
+                {[boardProp.neighborhood || boardProp.city ? resolveNeighborhood(boardProp) : (boardHood || null),
                   boardProp.beds ? `${boardProp.beds}BR/${boardProp.baths || "?"}BA` : null,
                   boardProp.sqft > 0 ? `${Number(boardProp.sqft).toLocaleString()}sf` : null].filter(Boolean).join(" · ")}
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <div style={{ flex: 1, background: T.inputBg, padding: "10px 12px", borderRadius: 10 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary }}>List Price</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardProp.listPrice)}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{boardListPrice ? fmt(boardListPrice) : "—"}</div>
                 </div>
                 {/* guess is null when the pin was guessed on another device and
                     the local prediction record doesn't exist — the board list
@@ -5404,7 +5409,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 ) : null}
               </div>
               {boardProp.zpid
-                ? (renderCallsBoard(boardProp.listPrice, { soldPrice: boardSold }) || (
+                ? (renderCallsBoard(boardListPrice, { soldPrice: boardSold }) || (
                     <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginBottom: 14 }}>
                       {propCalls ? "Just your call on this one so far. Send the link to friends." : "Loading the field…"}
                     </div>

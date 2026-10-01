@@ -161,7 +161,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
       .from('pp_predictions')
-      .select('player_id, predicted_price, predicted_at, resolved, sold_price, pct_off, pp_players(display_name)')
+      .select('player_id, predicted_price, predicted_at, resolved, sold_price, pct_off, address, neighborhood, list_price, pp_players(display_name)')
       .eq('zpid', zpid)
       .order('predicted_at', { ascending: true })
       .limit(50);
@@ -182,7 +182,11 @@ export default async function handler(req, res) {
     }));
     // Sold: rank the field by closeness to the real price.
     if (soldPrice) calls = calls.sort((a, b) => Math.abs(a.guess - soldPrice) - Math.abs(b.guess - soldPrice));
-    return res.status(200).json({ zpid, count: calls.length, calls, soldPrice, revealed });
+    // Property basics so a board opened from a notification/deep link (no local
+    // prediction copy on this device) still has a heading and list price.
+    const first = (data || [])[0];
+    const property = first ? { address: first.address || '', neighborhood: first.neighborhood || '', listPrice: first.list_price || null } : null;
+    return res.status(200).json({ zpid, count: calls.length, calls, soldPrice, revealed, property });
   }
 
   if (req.method !== 'POST') {
