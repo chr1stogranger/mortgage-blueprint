@@ -22,12 +22,18 @@ import { rateLimited } from "./_ratelimit.js";
 
 // ─── In-memory cache (persists across warm invocations) ───
 const cache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours (L2 / Supabase)
+// L1 is per-lambda and invisible to a user refresh that lands on another
+// instance — keep it short so a refreshed L2 row reaches everyone quickly.
+const L1_TTL = 10 * 60 * 1000;
+// User-triggered "check for new listings" (?refresh=1): at most one upstream
+// FOR_SALE re-fetch per city per window, no matter how many people tap it.
+const REFRESH_COOLDOWN = 30 * 60 * 1000;
 
 function getCached(key) {
   const entry = cache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.timestamp > CACHE_TTL) {
+  if (Date.now() - entry.timestamp > L1_TTL) {
     cache.delete(key);
     return null;
   }
@@ -40,7 +46,7 @@ function setCache(key, data) {
     const now = Date.now();
     // Pass 1: remove expired entries
     for (const [k, v] of cache) {
-      if (now - v.timestamp > CACHE_TTL) cache.delete(k);
+      if (now - v.timestamp > L1_TTL) cache.delete(k);
     }
     // Pass 2: if still over limit, remove oldest until under 50
     if (cache.size >= 100) {
@@ -350,7 +356,9 @@ export default async function handler(req, res) {
   if (rateLimited(req, res, { limit: 30 })) return;
 
   try {
-    const { zip, city, state, location: locParam, fresh, debug } = req.query;
+    const { zip, city, state, location: locParam, fresh, debug, refresh } = req.query;
+    // Anyone may ask for a refresh; the cooldown below is what keeps it cheap.
+    const wantRefresh = refresh === "1";
     // Cache bypass forces fresh RapidAPI calls (quota burn) and the debug
     // payload exposes internals — both owner-only now (CIO audit L-2/H-2).
     const privileged = isPrivileged(req);
@@ -375,7 +383,7 @@ export default async function handler(req, res) {
     // Check cache (skip if ?fresh=1 or ?debug=1)
     const cacheKey = location.toLowerCase().trim();
     const supabase = getSupabaseAdmin();
-    if (!skipCache) {
+    if (!skipCache && !wantRefresh) {
       // L1: in-memory (this lambda instance only)
       const cached = getCached(cacheKey);
       if (cached) {
@@ -395,14 +403,14 @@ export default async function handler(req, res) {
             console.error(`[PricePoint] Supabase cache read error (continuing): ${readErr.message}`);
           } else if (row?.data && Date.now() - new Date(row.updated_at).getTime() < CACHE_TTL) {
             setCache(cacheKey, row.data); // re-warm L1 for this instance
-            res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+            res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=600");
             return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
           }
         } catch (e) {
           console.error(`[PricePoint] Supabase cache read failed (continuing): ${e.message}`);
         }
       }
-    } else {
+    } else if (skipCache) {
       cache.delete(cacheKey); // clear stale entry
       console.info(`[PricePoint] Cache bypassed for ${location}`);
     }
@@ -413,6 +421,54 @@ export default async function handler(req, res) {
 
     if (!apiKey) {
       return res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
+    }
+
+    // ── User refresh: re-pull FOR_SALE only (≤10 calls, usually fewer) and
+    // splice it into the cached row, keeping the sold half. Cooldown is shared
+    // through the L2 row, so a burst of taps from many users costs one fetch. ──
+    if (wantRefresh && !skipCache && supabase) {
+      res.setHeader("Cache-Control", "no-store");
+      let base = null;
+      try {
+        const { data: row } = await supabase
+          .from("pp_city_cache").select("data, updated_at").eq("cache_key", cacheKey).maybeSingle();
+        if (row?.data) base = { ...row.data, _rowAt: row.updated_at };
+      } catch (e) {
+        console.error(`[PricePoint] refresh: L2 read failed (continuing): ${e.message}`);
+      }
+      if (base) {
+        const lastActive = Date.parse(base.activeRefreshedAt || base._rowAt || base.timestamp || 0) || 0;
+        const { _rowAt, ...baseData } = base;
+        if (Date.now() - lastActive < REFRESH_COOLDOWN) {
+          return res.status(200).json({ ...baseData, cached: true, refreshed: false, checkedAt: new Date(lastActive).toISOString() });
+        }
+        try {
+          const raw = await fetchAllPages(location, "FOR_SALE", apiKey, apiHost, MAX_ACTIVE_PAGES);
+          const active = raw.filter(r => r.zpid && r.price).map((r, i) => normalizeProperty(r, i, "pp", false));
+          if (active.length > 0) {
+            const activeZpids = new Set(active.map(a => a.zpid));
+            const soldListings = (baseData.soldListings || []).filter(x => !activeZpids.has(x.zpid));
+            const nowIso = new Date().toISOString();
+            const merged = {
+              ...baseData, activeListings: active, activeCount: active.length,
+              soldListings, soldCount: soldListings.length,
+              activeDataStale: false, activeRefreshedAt: nowIso, cached: false,
+            };
+            setCache(cacheKey, merged);
+            const { error: upErr } = await supabase.from("pp_city_cache")
+              .upsert({ cache_key: cacheKey, data: merged, updated_at: nowIso }, { onConflict: "cache_key" });
+            if (upErr) console.error(`[PricePoint] refresh: L2 write error: ${upErr.message}`);
+            const before = new Set((baseData.activeListings || []).map(a => a.zpid));
+            console.info(`[PricePoint] refresh ${cacheKey}: ${active.length} active (${active.filter(a => !before.has(a.zpid)).length} new)`);
+            return res.status(200).json({ ...merged, refreshed: true, checkedAt: nowIso });
+          }
+          console.error(`[PricePoint] refresh ${cacheKey}: upstream returned 0 active — keeping cache`);
+        } catch (e) {
+          console.error(`[PricePoint] refresh ${cacheKey} failed — keeping cache: ${e.message}`);
+        }
+        return res.status(200).json({ ...baseData, cached: true, refreshed: false, checkedAt: new Date(lastActive).toISOString() });
+      }
+      // No cached row at all → fall through to the normal full fetch below.
     }
 
     // Fetch ALL pages of active and sold in parallel (pending comes within
@@ -527,12 +583,14 @@ export default async function handler(req, res) {
     // an s-maxage=86400 on a bad result pins the failure at the CDN for 24h no
     // matter what the L1/L2 layers do — the app keeps serving "0 active" even
     // once the upstream recovers. Short TTL lets the next request re-fetch.
-    if (skipCache) {
+    if (skipCache || wantRefresh) {
       res.setHeader("Cache-Control", "no-store");
     } else if (!activeOk) {
       res.setHeader("Cache-Control", "s-maxage=60");
     } else {
-      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+      // 10 min at the edge (was 24h): L2 answers cheaply, and a user refresh
+      // must reach everyone soon — not a day later.
+      res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=600");
     }
     return res.status(200).json(result);
   } catch (err) {

@@ -3174,6 +3174,50 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     return () => { dead = true; clearTimeout(t); };
   }, [revealZpid]);
   const fieldFor = (zpid) => (zpid && soldField?.zpid === String(zpid) ? soldField : null);
+  // ── "Check for new listings" (For Sale). The server does a FOR_SALE-only
+  // re-fetch at most once per city per 30 min (shared across users), so the
+  // button can't run up RapidAPI no matter how often it's tapped. New homes
+  // matching the current neighborhood/type filter slot in right after the
+  // card on screen — the card you're looking at never jumps. ──
+  const [liveRefresh, setLiveRefresh] = useState({ busy: false, note: null });
+  const refreshLiveListings = async () => {
+    if (!market || liveRefresh.busy) return;
+    setLiveRefresh({ busy: true, note: null });
+    let note = "Couldn't check right now";
+    try {
+      const resp = await fetch(apiUrl(`/api/pricepoint?city=${encodeURIComponent(market.city || market.label)}&state=CA&refresh=1`));
+      const data = resp.ok ? await resp.json() : null;
+      const fresh = data?.activeListings || [];
+      if (fresh.length > 0) {
+        setActiveListings(fresh);
+        try { localStorage.setItem("pp-active-listings", JSON.stringify(fresh)); } catch { /* ignore */ }
+        const zipGroup = (() => {
+          if (!liveHoodFilter) return null;
+          const grp = HOOD_ZIP_GROUPS[(liveHoodName || ZIP_TO_HOOD[liveHoodFilter] || "").toLowerCase()];
+          return grp && grp.size > 0 ? new Set(grp) : new Set([liveHoodFilter]);
+        })();
+        const have = new Set(liveListings.map(l => String(l.zpid)));
+        const added = fresh.filter(l => isTrueActive(l)
+          && (!zipGroup || zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)))
+          && fpTypeMatch(liveTypeSel, l.propertyType)
+          && !have.has(String(l.zpid)));
+        if (added.length > 0) {
+          setLiveListings(prev => {
+            const at = Math.min(prev.length, liveIdx + 1);
+            return [...prev.slice(0, at), ...added, ...prev.slice(at)];
+          });
+          // Nothing on screen (all caught up / empty) → show the first new one.
+          if (!liveListings[liveIdx] || isLiveGuessed(liveListings[liveIdx])) setLiveIdx(Math.min(liveListings.length, liveIdx + 1));
+          note = `${added.length} new ${added.length === 1 ? "listing" : "listings"} added`;
+        } else {
+          const ago = data?.checkedAt ? Math.max(0, Math.round((Date.now() - Date.parse(data.checkedAt)) / 60000)) : null;
+          note = ago != null && ago >= 1 ? `Up to date · checked ${ago} min ago` : "Up to date";
+        }
+      }
+    } catch { /* note stays */ }
+    setLiveRefresh({ busy: false, note });
+    setTimeout(() => setLiveRefresh(r => (r.note === note ? { ...r, note: null } : r)), 3500);
+  };
   const liveFieldPill = (listing) => {
     if (!listing?.zpid || cardCalls?.zpid !== String(listing.zpid)) return null;
     const calls = cardCalls.calls || [];
@@ -4958,7 +5002,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: T.red, fontFamily: FONT, whiteSpace: "nowrap" }}>{liveRemaining} left</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: liveRefresh.note ? T.textSecondary : T.red, fontFamily: FONT, whiteSpace: "nowrap" }}>{liveRefresh.note || `${liveRemaining} left`}</span>
+              <button onClick={refreshLiveListings} disabled={liveRefresh.busy} aria-label="Check for new listings" title="Check for new listings"
+                style={{ width: 26, height: 26, borderRadius: 9999, border: "none", background: "transparent", color: T.textTertiary, cursor: liveRefresh.busy ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
+                <Icon name="refresh-cw" size={14} style={{ animation: liveRefresh.busy ? "ppSpin 0.9s linear infinite" : "none" }} />
+              </button>
               {livePrediction && MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
               {!ppBellSlot && renderBellButton()}
             </div>
