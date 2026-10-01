@@ -608,17 +608,20 @@ export default function CalculatorContent(props) {
                                                      anything above it.
      Mobile keeps the original DOM order untouched — `display: contents` and
      every grid placement is desktop-only. */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto auto", gap: 20, alignItems: "stretch", marginBottom: 16 } : {}}>
+ {/* Phones (Christo 2026-10-01): both columns are display:contents inside a flex
+     column, and `order` puts Rate + loan structure (right row 1) right after the
+     loan strip / pillars and BEFORE Payment Breakdown. Desktop grid unchanged. */}
+ <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "auto auto auto", gap: 20, alignItems: "stretch", marginBottom: 16 } : { display: "flex", flexDirection: "column" }}>
 
   {/* ========== LEFT COLUMN ========== */}
-  <div style={isDesktop ? { display: "contents" } : {}}>
+  <div style={{ display: "contents" }}>
   {/* — row 1: price / donut / escrow — */}
   {/* Row-1 cells stretch to the taller column and the LAST card in each
       (donut here, the 4 pills on the right) flexes to fill, so the two
       columns' bottom edges always line up whatever the content height
       (Christo 2026-09-23 — was alignSelf:start, which only lined up when
       both columns happened to be the same height). */}
-  <div style={isDesktop ? { gridColumn: 1, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : {}}>
+  <div style={isDesktop ? { gridColumn: 1, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : { order: 1 }}>
    {/* Rate/APR card moved to RIGHT column per Christo. Popup modal also removed —
        the rate-type tiles are now always visible inside the Rate card on the right. */}
 
@@ -770,7 +773,7 @@ export default function CalculatorContent(props) {
    {/* — row 2: Loan Amount / LTV / Cash to Close. Shares grid row 2 with the
        5-pillar row on the right, so the two line up top and bottom no matter
        what either column does above or below. */}
-   <div style={isDesktop ? { gridColumn: 1, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : {}}>
+   <div style={isDesktop ? { gridColumn: 1, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : { order: 2 }}>
    {/* Overline mirrors "Qualification · N Pillars" on the right so both row-2
        cells have identical structure (overline + tiles) and identical height. */}
    {isDesktop && <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
@@ -851,7 +854,7 @@ export default function CalculatorContent(props) {
    {/* Row-3 cells STRETCH so both cards share one height and their footer
        bands sit on the same line (Christo 2026-07-22) — the band is the LAST
        element in each card and the row body flex-grows. */}
-   <div style={isDesktop ? { gridColumn: 1, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : {}}>
+   <div style={isDesktop ? { gridColumn: 1, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : { order: 4 }}>
    <div data-field="payment-breakdown" className={isPulse && isPulse("payment-breakdown")} style={{ borderRadius: 14, transition: "all 0.3s", marginBottom: 16, flex: 1, display: "flex", flexDirection: "column" }}>
    <div style={{
      background: T.card,
@@ -1475,9 +1478,9 @@ export default function CalculatorContent(props) {
   {/* ========== END LEFT COLUMN ========== */}
 
   {/* ========== RIGHT COLUMN ========== */}
-  <div style={isDesktop ? { display: "contents" } : {}}>
+  <div style={{ display: "contents" }}>
   {/* — row 1: rate + live rates + the 4 loan-structure pills — */}
-  <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : {}}>
+  <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : { order: 3 }}>
    {/* Refi: CURRENT → NEW leads the right column, above New Rate (Christo
        2026-07-22 — swapped with the price card, now on the left). */}
    {isRefi && currentToNewCard}
@@ -1585,7 +1588,7 @@ export default function CalculatorContent(props) {
    {/* — row 2: the compact 5-pillar row. Shares grid row 2 with the 3-stat
        row on the left. 28px circles, click to jump to the matching Qualify
        section. */}
-   <div style={isDesktop ? { gridColumn: 2, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : {}}>
+   <div style={isDesktop ? { gridColumn: 2, gridRow: 2, display: "flex", flexDirection: "column", justifyContent: "flex-end", minWidth: 0 } : { order: 5 }}>
    {isDesktop && renderPillars(false)}
 
    </div>{/* end row 2 (right) */}
@@ -1593,7 +1596,7 @@ export default function CalculatorContent(props) {
    {/* — row 3: Cash To Close Summary, opposite Payment Breakdown. Also
        alignSelf:start, so the two summary cards top-align and neither one
        expanding drags the aligned pillar row with it. */}
-   <div style={isDesktop ? { gridColumn: 2, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : {}}>
+   <div style={isDesktop ? { gridColumn: 2, gridRow: 3, minWidth: 0, display: "flex", flexDirection: "column" } : { order: 6 }}>
    <CashToCloseSummary
     stretch
     /* Matches the Advanced expander bar tucked under Payment Breakdown's
