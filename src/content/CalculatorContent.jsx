@@ -694,7 +694,9 @@ export default function CalculatorContent(props) {
    {/* Price card leads the LEFT column above the donut, for purchase AND refi
        (Christo 2026-07-22). CURRENT → NEW now leads the right column. */}
    {priceCard}
-   {renderAlerts(["down-min", "three-pct", "jumbo"], { marginBottom: isDesktop ? 0 : 8, marginTop: isDesktop ? 10 : 0 })}
+   {/* Escrow joins the price-card alerts, ABOVE the donut (Christo
+       2026-10-01): it pops up where you're punching in the numbers. */}
+   {renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: isDesktop ? 0 : 8, marginTop: isDesktop ? 10 : 0 })}
 
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
@@ -834,7 +836,6 @@ export default function CalculatorContent(props) {
    </div>
 
 
-   {renderAlerts(["escrow-off", "escrow-required"], { marginTop: isDesktop ? 10 : 0, marginBottom: isDesktop ? 0 : 8 })}
    </div>{/* end row 1 (left) */}
 
    {/* — row 2: Loan Amount / LTV / Cash to Close. Shares grid row 2 with the

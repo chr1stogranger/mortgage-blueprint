@@ -34,6 +34,8 @@ function YesNoSeg({ T, value, onYes, onNo }) {
   );
 }
 
+const STATE_ABBR_LOCAL = { Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA", Colorado: "CO", Connecticut: "CT", Delaware: "DE", "District of Columbia": "DC", Florida: "FL", Georgia: "GA", Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY" };
+
 export default function SetupContent(props) {
   // Dev-only guard for curated-props drift (see src/lib/devPropCheck.js).
   if (import.meta.env.DEV) devCheckProps("SetupContent", props, ["T", "isRefi", "setIsRefi", "salesPrice", "setSalesPrice", "downPct", "setDownPct", "downMode", "setDownMode", "loanType", "setLoanType", "propertyState", "setPropertyState", "propertyCounty", "setPropertyCounty", "city", "setCity", "propertyZip", "setPropertyZip", "propertyAddress", "setPropertyAddress", "setPropertyTBD", "addressInput", "setAddressInput", "AddressAutocomplete", "annualIns", "setAnnualIns", "hoa", "setHoa", "rate", "setRate", "term", "setTerm", "creditScore", "setCreditScore", "married", "setMarried", "firstTimeBuyer", "setFirstTimeBuyer", "refiPurpose", "setRefiPurpose", "taxState", "scenarioName", "ownsProperties", "setOwnsProperties", "hasSellProperty", "setHasSellProperty", "showInvestor", "setShowInvestor", "showRentVsBuy", "setShowRentVsBuy", "showProp19", "setShowProp19", "showRateLadder", "setShowRateLadder", "showVaResidual", "setShowVaResidual", "skillLevel", "onToggleSkillLevel", "Inp", "Sel", "SearchSelect", "Note", "Hero", "Card", "InfoTip", "gameMode", "TAB_PROGRESSION", "completedTabs", "isTabFieldsComplete", "markTouched", "isPulse", "calc", "fmt", "CITY_NAMES", "STATE_NAMES_PROP", "STATE_CITIES", "SKILL_PRESETS", "FILING_STATUSES", "showCompareHint", "setShowCompareHint", "setTab", "scenarioList", "isDesktop", "darkMode", "propTaxMode", "getTTCitiesForState", "getTTForCity", "COUNTY_AMI", "lookupZip", "Icon", "TextInp", "FieldLabel", "Sec", "GuidedNextButton", "ClusterContinue", "refiCurrentLoanType", "setRefiCurrentLoanType", "refiCurrentRateType", "setRefiCurrentRateType", "refiArmStartRate", "setRefiArmStartRate", "refiArmAdjustedDate", "setRefiArmAdjustedDate", "refiLastPaymentDate", "setRefiLastPaymentDate", "refiClosingPmtOverride", "setRefiClosingPmtOverride", "closingMonth", "setClosingMonth", "closingDay", "setClosingDay", "closingYear", "setClosingYear", "refiOriginalAmount", "setRefiOriginalAmount", "refiOriginalTerm", "setRefiOriginalTerm", "refiCurrentRate", "setRefiCurrentRate", "refiClosedDate", "setRefiClosedDate", "refiCurrentBalance", "setRefiCurrentBalance", "refiRemainingMonths", "setRefiRemainingMonths", "refiCurrentPayment", "setRefiCurrentPayment", "refiCurPrinOverride", "setRefiCurPrinOverride", "refiCurIntOverride", "setRefiCurIntOverride", "refiHasStatement", "setRefiHasStatement", "refiEscrowMode", "setRefiEscrowMode", "refiEscrowCombined", "setRefiEscrowCombined", "refiEscrowCombinedPeriod", "setRefiEscrowCombinedPeriod", "refiSecondLien", "setRefiSecondLien", "refiSecondKind", "setRefiSecondKind", "refiSecondBalance", "setRefiSecondBalance", "refiSecondRate", "setRefiSecondRate", "refiSecondPlan", "setRefiSecondPlan", "refiSecondPmtOverride", "setRefiSecondPmtOverride", "refiThirdLien", "setRefiThirdLien", "refiThirdKind", "setRefiThirdKind", "refiThirdBalance", "setRefiThirdBalance", "refiThirdRate", "setRefiThirdRate", "refiThirdPlan", "setRefiThirdPlan", "refiThirdPmtOverride", "setRefiThirdPmtOverride", "refiModified", "setRefiModified", "refiPrepayPenalty", "setRefiPrepayPenalty", "refiExtraCadence", "setRefiExtraCadence", "refiExtraOnceDate", "setRefiExtraOnceDate", "refiEscrowUnsure", "setRefiEscrowUnsure", "refiHasMaturity", "setRefiHasMaturity", "refiMaturityDate", "setRefiMaturityDate", "refiAnnualTax", "setRefiAnnualTax", "refiAnnualIns", "setRefiAnnualIns", "insEffectiveDate", "setInsEffectiveDate", "refiCurrentEscrow", "setRefiCurrentEscrow", "refiCurEscrowTax", "setRefiCurEscrowTax", "refiCurEscrowIns", "setRefiCurEscrowIns", "refiEscrowBalance", "setRefiEscrowBalance", "refiSkipMonths", "setRefiSkipMonths", "refiCurrentMI", "setRefiCurrentMI", "refiCashOut", "setRefiCashOut", "refiExtraPaid", "setRefiExtraPaid", "refiHomeValue", "setRefiHomeValue", "refiPayoffFees", "setRefiPayoffFees", "showRefi3", "setShowRefi3", "refiPreviewOpen", "setRefiPreviewOpen", "refiPayoffDebts", "setRefiPayoffDebts", "debts", "debtFree"]);
@@ -145,7 +147,7 @@ export default function SetupContent(props) {
           if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
           else if (creditScore >= 300) markTouched("fico-input-done");
         }}
-        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "normal", fontVariantNumeric: "tabular-nums" }} />
+        style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: isDesktop ? "12px 14px" : "9px 10px", color: T.text, fontSize: 17, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", letterSpacing: "normal", fontVariantNumeric: "tabular-nums" }} />
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
        <input type="range" min={300} max={850} step={5} value={creditScore || 650}
@@ -161,7 +163,7 @@ export default function SetupContent(props) {
        </div>
       </div>
      </div>
-     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 10 }}>
+     {creditScore > 0 && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: isDesktop ? 6 : 4, marginBottom: isDesktop ? 10 : 2 }}>
       <span style={{ fontSize: 12, color: creditScore >= calc.ficoMin ? T.green : T.red, fontWeight: 600 }}>
        {creditScore >= calc.ficoMin ? `✓ Meets ${loanType} min (${calc.ficoMin}+)` : `Below ${loanType} min (${calc.ficoMin}+): need ${calc.ficoMin - creditScore} more pts`}
       </span>
@@ -174,8 +176,8 @@ export default function SetupContent(props) {
   const locationFillsColumn = isDesktop && !isRefi && hideModules;
   const propertyLocationCard = (
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s", ...(locationFillsColumn ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
-   <Card style={{ marginTop: isDesktop && (isRefi || hideModules) ? 0 : 12, ...(isDesktop ? { marginBottom: 0 } : {}), ...(locationFillsColumn ? { flex: 1 } : {}) }}>
-    <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>
+   <Card style={{ marginTop: isDesktop && (isRefi || hideModules) ? 0 : (isDesktop ? 12 : 0), ...(isDesktop ? { marginBottom: 0 } : { padding: "10px 14px", marginBottom: 8 }), ...(locationFillsColumn ? { flex: 1 } : {}) }}>
+    {isDesktop && <div style={{ fontSize: 11, fontWeight: 600, color: T.textTertiary, fontFamily: FONT, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>Property Location</div>}
     {isRefi ? (
      <>
       <AddressAutocomplete
@@ -274,7 +276,10 @@ export default function SetupContent(props) {
       }}>
        <span style={{ color: T.green, fontWeight: 700 }}>✓</span>
        <span>
-        {city ? `${city}, ` : ""}{propertyCounty ? `${propertyCounty} County, ` : ""}{propertyState || "—"}
+        {/* Phones: one line ("San Francisco, CA"); the county shows on desktop. */}
+        {isDesktop
+         ? <>{city ? `${city}, ` : ""}{propertyCounty ? `${propertyCounty} County, ` : ""}{propertyState || "—"}</>
+         : <>{city || propertyCounty || ""}{(city || propertyCounty) ? ", " : ""}{STATE_ABBR_LOCAL[propertyState] || propertyState || "—"}</>}
        </span>
       </div>
      )}
@@ -286,7 +291,7 @@ export default function SetupContent(props) {
    {/* Purchase on Overview: FICO sits under the ZIP (Christo 2026-09-23),
         leaving the Quick Start card to Experience + Transaction Type. */}
     {!isRefi && hideModules && (
-     <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: 14, paddingTop: 14 }}>{ficoBlock}</div>
+     <div style={{ borderTop: `1px solid ${T.separator}`, marginTop: isDesktop ? 14 : 8, paddingTop: isDesktop ? 14 : 8 }}>{ficoBlock}</div>
     )}
    </Card>
    </div>
@@ -902,16 +907,19 @@ export default function SetupContent(props) {
 
   {/* ── LEFT COLUMN: Profile & Location — stretches to match right column ── */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
-   <Card style={isDesktop ? { flex: 1, marginBottom: 0 } : {}}>
-    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+   {/* Phones (Christo 2026-10-01: Quick Start should fit one screen with the
+       Monthly Payment bar showing): tighter card, no inner header (the banner
+       already says Quick Start), one-line label + switch rows. */}
+   <Card style={isDesktop ? { flex: 1, marginBottom: 0 } : { padding: "10px 14px", marginBottom: 8 }}>
+    {isDesktop && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
      <div style={{ fontSize: 14 }}></div>
      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Quick Start</div>
      <div style={{ fontSize: 9, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 6px", borderRadius: 5, marginLeft: "auto" }}>REQUIRED</div>
-    </div>
+    </div>}
 
     {/* 1) Experience Level */}
-    <div data-field="experience-level" className={isPulse("experience-level")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+    <div data-field="experience-level" className={isPulse("experience-level")} style={{ marginBottom: isDesktop ? 10 : 8, borderRadius: 14, transition: "all 0.3s", ...(isDesktop ? {} : { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }) }}>
+     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: isDesktop ? 6 : 0, display: "flex", alignItems: "center", gap: 6 }}>
       Experience Level
      </div>
      {/* Standard sits on the LEFT (Christo 2026-07-21) — Standard + Purchase is
@@ -919,12 +927,12 @@ export default function SetupContent(props) {
          the common path is a straight read down. Explicit order rather than
          reordering SKILL_PRESETS, so the welcome modal keeps leading with
          Guided for first-time visitors. */}
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, ...(isDesktop ? {} : { width: "62%" }) }}>
       {["standard", "guided"].filter(k => SKILL_PRESETS[k]).map(key => [key, SKILL_PRESETS[key]]).map(([key, preset]) => (
        <button key={key} onClick={() => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(); }}
-        style={{ padding: "8px 6px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-        <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: 2 }}>{preset.label}</div>
+        style={{ padding: isDesktop ? "8px 6px" : "6px 4px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+        {isDesktop && <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>}
+        <div style={{ fontSize: isDesktop ? 11 : 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: isDesktop ? 2 : 0 }}>{preset.label}</div>
        </button>
       ))}
      </div>
@@ -936,16 +944,16 @@ export default function SetupContent(props) {
     </div>
 
     {/* 2) Transaction Type */}
-    <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: 10 }} />
-    <div data-field="transaction-type" className={isPulse("transaction-type")} style={{ marginBottom: 10, borderRadius: 14, transition: "all 0.3s" }}>
-     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 6 }}>Transaction Type</div>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+    <div style={{ borderTop: `1px solid ${T.separator}`, marginBottom: isDesktop ? 10 : 8 }} />
+    <div data-field="transaction-type" className={isPulse("transaction-type")} style={{ marginBottom: isDesktop ? 10 : (isRefi ? 8 : 0), borderRadius: 14, transition: "all 0.3s", ...(isDesktop ? {} : { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }) }}>
+     <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: isDesktop ? 6 : 0 }}>{isDesktop ? "Transaction Type" : "Transaction"}</div>
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, ...(isDesktop ? {} : { width: "62%" }) }}>
       {[["Purchase", false], ["Refinance", true]].map(([label, val]) => {
        // isRefi starts as null; every calc treats null as a purchase, so
        // Purchase is shown selected until the user picks Refinance.
        const on = isRefi === val || (isRefi === null && val === false);
        return (
-       <button key={label} aria-pressed={on} onClick={() => { setIsRefi(val); markTouched("transaction-type-done"); }} style={{ padding: "9px 0", background: on ? `${T.blue}22` : T.inputBg, border: on ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: on ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
+       <button key={label} aria-pressed={on} onClick={() => { setIsRefi(val); markTouched("transaction-type-done"); }} style={{ padding: isDesktop ? "9px 0" : "6px 0", background: on ? `${T.blue}22` : T.inputBg, border: on ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, color: on ? T.blue : T.textSecondary, fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: FONT }}>{label}</button>
        );
       })}
      </div>
