@@ -375,6 +375,9 @@ export default function CalculatorContent(props) {
     );
   };
 
+  // Desktop payment card gets the bigger legend/gaps only when it's wide
+  // enough; a narrow desktop window falls back to the phone sizes.
+  const roomyDonut = isDesktop && donutSlotW >= 440;
   const legendRows = [
     { label: "Principal", value: dispPrin, color: T.cyan || T.blue },
     { label: "Interest",  value: dispPI - dispPrin, color: T.blue },
@@ -693,15 +696,18 @@ export default function CalculatorContent(props) {
 
    {/* Price card leads the LEFT column above the donut, for purchase AND refi
        (Christo 2026-07-22). CURRENT → NEW now leads the right column. */}
-   {priceCard}
+   {/* Desktop (Christo 2026-10-01): the price card + its alerts move to the
+       right column above Rate, so the payment card owns the left column.
+       Phones keep them here, above the donut. */}
+   {!isDesktop && priceCard}
    {/* Escrow joins the price-card alerts, ABOVE the donut (Christo
        2026-10-01): it pops up where you're punching in the numbers. */}
-   {renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: isDesktop ? 0 : 8, marginTop: isDesktop ? 10 : 0 })}
+   {!isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 8 })}
 
    {/* 2. Donut block: Escrow toggle row spans the top, donut centered below.
        On a solid card — the block used to sit bare on the blueprint canvas and
        the wireframe read straight through the ring (Christo 2026-07-19). */}
-   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: isDesktop ? 12 : 0, marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "12px 14px 14px" }}>
+   <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={{ display: "flex", flexDirection: "column", marginTop: 0, marginBottom: isDesktop ? 0 : 8, ...(isDesktop ? { flex: 1 } : {}), background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: isDesktop ? "14px 18px 18px" : "12px 14px 14px" }}>
     {/* Escrow header row.
         PURCHASE — one master toggle (includeEscrow), unchanged.
         REFI — a toggle per component (Christo 2026-07-22): taxes and
@@ -745,7 +751,8 @@ export default function CalculatorContent(props) {
        </div>
       );
      }
-     if (!isDesktop) return (
+     // Same compact header on desktop and phones (Christo 2026-10-01).
+     if (true) return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 6px", width: "100%" }}>
        <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Monthly payment</span>
        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, color: T.textSecondary, fontFamily: FONT, opacity: escrowLocked ? 0.6 : 1 }}>
@@ -772,14 +779,16 @@ export default function CalculatorContent(props) {
         components stacked on the right with amounts right-aligned, and the
         rate + term + APR under them, so one screenshot carries the payment,
         its breakdown and the rate. */}
-    {!isDesktop ? (
-     <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 2 }}>
+    {/* Ring + stacked legend + rate — the phone layout, now on desktop too
+        (Christo 2026-10-01), just larger there. */}
+    {true ? (
+     <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}) }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing segments={paySegs} total={calc.displayPayment} size={Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
+       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(230, ((donutSlotW || 520) - 28) * 0.42)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: roomyDonut ? 8 : 4 }}>
        {legendRows.map((row, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: T.textSecondary, fontFamily: FONT }}>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: roomyDonut ? 14.5 : 12.5, color: T.textSecondary, fontFamily: FONT }}>
          <span style={{ width: 9, height: 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}</span>
          <span style={{ marginLeft: "auto", fontWeight: 700, color: T.text }}>{fmt(row.value)}</span>
@@ -790,7 +799,7 @@ export default function CalculatorContent(props) {
          <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
          {/* Present but quiet: same weight as the legend amounts, so the eye
              stays on the payment (Christo 2026-10-01). */}
-         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
+         <span style={{ fontSize: roomyDonut ? 14.5 : 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: 1 }}>
          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>
@@ -1559,7 +1568,9 @@ export default function CalculatorContent(props) {
        per the 2026-05-02 final layout. Brokers tune the rate first; the 4
        loan-structure pills (occupancy/property type/loan type/term) sit
        directly below so changes flow naturally into the rate context. */}
-   {renderAlerts(["investment"], { marginBottom: 8 })}
+   {isDesktop && priceCard}
+   {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 12 })}
+   {renderAlerts(["investment"], { marginBottom: isDesktop ? 12 : 8 })}
    <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12, ...(loanStructureInQuickStart ? { flex: 1 } : {}) } : { marginBottom: 8, padding: "10px 14px" }}>
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: isDesktop ? 10 : 6 }}>
      <div style={{ flex: 1 }}>
