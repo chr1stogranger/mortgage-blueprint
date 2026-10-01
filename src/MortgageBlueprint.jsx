@@ -282,8 +282,12 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
  useEffect(() => { return () => { if (debounceRef.current) clearTimeout(debounceRef.current); }; }, []);
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={filled} htmlFor={inputId} />
-  <div style={{ display: "flex", alignItems: "center", background: T.inputBg, borderRadius: 12, padding: sm ? "10px 12px" : "12px 14px", border: focused ? `2px solid ${T.blue}` : `1px solid ${T.inputBorder}`, transition: "border 0.2s" }}>
-   {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT }}>{prefix}</span>}
+  {/* Same box height everywhere (Christo 2026-10-01: price and down boxes
+      didn't match): the border stays 1px and focus draws a ring instead of a
+      2px border, the row has a fixed minimum height, and the prefix can't
+      add line height. */}
+  <div style={{ display: "flex", alignItems: "center", boxSizing: "border-box", minHeight: sm ? 42 : 50, background: T.inputBg, borderRadius: 12, padding: sm ? "0 12px" : "0 14px", border: `1px solid ${focused ? T.blue : T.inputBorder}`, boxShadow: focused ? `0 0 0 1px ${T.blue}` : "none", transition: "border-color 0.2s, box-shadow 0.2s" }}>
+   {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT, lineHeight: 1 }}>{prefix}</span>}
    <input ref={inputRef} id={inputId} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
     placeholder={placeholder || ""}
     /* No negative tracking on numerals. -0.02em is display-headline styling;
@@ -664,10 +668,21 @@ function Spark({ data, color, w, h }) {
 // Escrow-off card. Solid card, colored left edge, optional bold title in the
 // note's color, gray body, optional action on the right. `strong` keeps old
 // call sites reading as emphasized (darker body) without the tinted wash.
-function Note({ children, color, strong, title, action, onClick, style }) {
+// `onDismiss` makes it swipeable (Christo 2026-10-01): drag it sideways past
+// ~80px and it slides away. Whoever owns the note decides when it comes back.
+function Note({ children, color, strong, title, action, onClick, style, onDismiss }) {
  const c = color || T.blue;
+ const [dx, setDx] = useState(0);
+ const [gone, setGone] = useState(false);
+ const startX = useRef(null);
+ const swipe = onDismiss ? {
+  onPointerDown: (e) => { if (e.target.closest("button")) return; startX.current = e.clientX; e.currentTarget.setPointerCapture?.(e.pointerId); },
+  onPointerMove: (e) => { if (startX.current !== null) setDx(e.clientX - startX.current); },
+  onPointerUp: () => { if (startX.current === null) return; startX.current = null; if (Math.abs(dx) > 80) { setGone(true); setDx(dx > 0 ? 400 : -400); setTimeout(onDismiss, 180); } else setDx(0); },
+  onPointerCancel: () => { startX.current = null; setDx(0); },
+ } : {};
  return (
-  <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${c}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: 8, fontFamily: FONT, cursor: onClick ? "pointer" : undefined, ...style }}>
+  <div onClick={onClick} {...swipe} title={onDismiss ? "Swipe to dismiss" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, background: T.card, border: `1px solid ${T.cardBorder}`, borderLeft: `3px solid ${c}`, borderRadius: 12, boxShadow: T.cardShadow, padding: "8px 12px", marginTop: 8, fontFamily: FONT, cursor: onClick ? "pointer" : onDismiss ? "grab" : undefined, ...(onDismiss ? { touchAction: "pan-y", userSelect: "none", transform: `translateX(${dx}px)`, opacity: gone ? 0 : Math.max(0.3, 1 - Math.abs(dx) / 240), transition: startX.current !== null ? "none" : "transform 0.18s ease, opacity 0.18s ease" } : {}), ...style }}>
    <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.45, color: strong ? T.text : T.textSecondary, fontWeight: strong && !title ? 500 : 400 }}>
     {title && <strong style={{ display: "block", color: c, fontSize: 12.5, fontWeight: 700 }}>{title}</strong>}
     {children && <span style={title ? { fontSize: 11.5, color: T.textTertiary } : undefined}>{children}</span>}

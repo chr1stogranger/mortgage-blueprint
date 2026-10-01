@@ -213,6 +213,13 @@ export default function CalculatorContent(props) {
   // Closed at rest so the Payment Breakdown card keeps the fixed height that
   // bottom-aligns it with Cash-to-Close on desktop.
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Swiped-away notes (Christo 2026-10-01). A dismissal lasts until the
+  // condition clears: escrow back on / loan back under the limit re-arms it.
+  const escrowNoteOn = (isRefi ? (!refiNewEscrowTax || !refiNewEscrowIns) : !includeEscrow) && loanType !== "FHA" && loanType !== "VA";
+  const [escrowNoteHidden, setEscrowNoteHidden] = useState(false);
+  const [jumboNoteHidden, setJumboNoteHidden] = useState(false);
+  React.useEffect(() => { if (!escrowNoteOn) setEscrowNoteHidden(false); }, [escrowNoteOn]);
+  React.useEffect(() => { if (!autoJumboSwitch) setJumboNoteHidden(false); }, [autoJumboSwitch]);
   // Height of the open Advanced ladder. Cash To Close parks the same height
   // BELOW its card, so its total band stays level with Total Payment instead
   // of stretching down to the ladder's bottom (Christo 2026-09-23).
@@ -566,8 +573,8 @@ export default function CalculatorContent(props) {
    <Sel label="VA Usage" value={vaUsage} onChange={setVaUsage} options={VA_USAGE.map(v => ({value:v,label:v === "First Use" ? "First Use (2.15%)" : v === "Subsequent" ? "Subsequent (3.3%)" : "Disabled (0%)"}))} sm />
   </div>
  )}
- {autoJumboSwitch && (
-  <Note color={T.orange} style={{ marginTop: 0, marginBottom: 10 }}
+ {autoJumboSwitch && !jumboNoteHidden && (
+  <Note color={T.orange} style={{ marginTop: 0, marginBottom: 10 }} onDismiss={() => setJumboNoteHidden(true)}
    title={`Jumbo: ${fmt(Math.round(isRefi ? (calc.refiNewLoanAmt || 0) : salesPrice * (1 - downPct / 100)))} loan is over the ${fmt(getHighBalLimit(propType))} high-balance limit${UNIT_COUNT[propType] > 1 ? ` (${propType.toLowerCase()})` : ""}`}
    action={<button type="button" onClick={() => { setLoanType("Conventional"); userLoanTypeRef.current = "Conventional"; setAutoJumboSwitch(false); }}
     style={{ flexShrink: 0, background: "none", border: `1px solid ${T.blue}40`, borderRadius: 9999, padding: "4px 10px", color: T.blue, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>Override</button>}>
@@ -762,8 +769,8 @@ export default function CalculatorContent(props) {
    {(loanType === "FHA" || loanType === "VA") && <Note color={T.blue}>{loanType} loans require escrow impound accounts. This cannot be toggled off.</Note>}
    {/* Same card as the Jumbo note (Christo 2026-10-01): solid, orange edge,
        one bold line + one detail line, instead of a translucent orange bar. */}
-   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && (
-    <Note color={T.orange} style={{ marginTop: isDesktop ? 8 : 0, marginBottom: isDesktop ? 14 : 8 }}
+   {(!escTax || !escIns) && loanType !== "FHA" && loanType !== "VA" && !escrowNoteHidden && (
+    <Note color={T.orange} style={{ marginTop: isDesktop ? 8 : 0, marginBottom: isDesktop ? 14 : 8 }} onDismiss={() => setEscrowNoteHidden(true)}
      title={`${!escTax && !escIns ? "Escrow off" : !escTax ? "Taxes not escrowed" : "Insurance not escrowed"} · ${fmt(excludedEscrowAmt)}/mo ${!escTax && !escIns ? "tax + ins" : !escTax ? "tax" : "insurance"}`}>
      Paid separately · still counted in DTI
     </Note>
@@ -1505,12 +1512,15 @@ export default function CalculatorContent(props) {
       <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
      </div>
      {!isRefi && calc.apr > 0 && calc.apr !== rate && (
-      <div style={{ flex: 1, marginBottom: 2 }}>
+      <div style={{ flex: 1, marginBottom: isDesktop ? 2 : 0 }}>
        <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
         <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
        </div>
-       <div style={{ background: T.bgAccent, borderRadius: 12, padding: isDesktop ? "10px 14px" : "6px 10px", fontSize: isDesktop ? 18 : 14, fontWeight: 700, color: isDesktop ? T.blue : T.textSecondary, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
+       {isDesktop
+        ? <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
+        : /* Phones: same box as the Rate field so the two sit level (Christo 2026-10-01). */
+          <Inp value={calc.apr.toFixed(3)} onChange={() => {}} readOnly prefix="" suffix="%" sm />}
       </div>
      )}
     </div>
