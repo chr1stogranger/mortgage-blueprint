@@ -1311,8 +1311,6 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [autoLockMin, setAutoLockMin] = useState(5);
  const [consentGiven, setConsentGiven] = useState(false);
  const [showClearConfirm, setShowClearConfirm] = useState(false);
- const [showWelcome, setShowWelcome] = useState(() => { try { return !localStorage.getItem("mb_welcomed"); } catch { return true; } });
- const [welcomeStep, setWelcomeStep] = useState(0);
  const [clearStep, setClearStep] = useState(0);
  const [showFredKey, setShowFredKey] = useState(false);
  const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -4340,6 +4338,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   (async () => {
    try {
     const sl = await LS.get("app:skillLevel");
+    // No saved level → Standard (Christo 2026-10-01: onboarding cut to one
+    // screen; the "How familiar are you?" picker is gone. Guided is one tap
+    // from the consent card's link, Quick Start, or Settings).
+    if (!sl?.value) setSkillLevel("standard");
     if (sl?.value) {
      let level = sl.value;
      // Migrate old 3-tier values to new 2-tier
@@ -8257,64 +8259,29 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
     <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}></div>
-    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 8 }}>Secure Financial Tool</div>
-    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
-     This mortgage calculator processes sensitive financial information including income, debts, credit scores, and assets. By continuing, you acknowledge:
+    <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>Before you start</div>
+    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, marginBottom: 14, textAlign: "center" }}>
+     You'll enter income, debts, credit and assets. By continuing you acknowledge:
     </div>
-    <div style={{ background: T.pillBg, borderRadius: 14, padding: 14, marginBottom: 16, fontSize: 12, color: T.textSecondary, lineHeight: 1.8 }}>
-     <div style={{ marginBottom: 6 }}><strong>Data stays on this device</strong> unless you sign in and turn on cloud sync</div>
-     <div style={{ marginBottom: 6 }}><strong>Privacy Mode</strong> available to mask sensitive numbers</div>
-     <div style={{ marginBottom: 6 }}><strong>Emailed summaries</strong> are not encrypted, so use caution</div>
-     <div style={{ marginBottom: 6 }}> <strong>You can delete all data</strong> at any time in Settings</div>
-     <div><strong>Not a commitment to lend.</strong> Estimates only</div>
+    <div style={{ background: T.pillBg, borderRadius: 14, padding: "12px 14px", marginBottom: 14, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.7 }}>
+     <div><strong>Stays on this device</strong> unless you turn on cloud sync</div>
+     <div><strong>Delete it anytime</strong> in Settings</div>
+     <div><strong>Estimates only.</strong> Not a commitment to lend</div>
     </div>
-    <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 16 }}>
+    <div style={{ fontSize: 11, color: T.textTertiary, textAlign: "center", marginBottom: 14 }}>
      Chris Granger Mortgage · NMLS #952015
     </div>
-    <button onClick={handleConsent} style={{ width: "100%", padding: 16, background: T.blue, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
+    <button onClick={handleConsent} style={{ width: "100%", padding: 15, background: T.blue, border: "none", borderRadius: 9999, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT }}>
      I Understand. Continue
     </button>
+    {/* Replaces the experience picker: Standard by default, Guided one tap away. */}
+    {!isBorrower && <button onClick={() => { handleConsent(); saveSkillLevel("guided"); }} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: T.blue, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>
+     New to buying? Walk me through it
+    </button>}
    </div>
   </div>}
-  {/* ═══ WELCOME TUTORIAL ═══ */}
-  {showWelcome && consentGiven && !isLocked && (() => {
-   const steps = [
-    { emoji: "home", title: "Welcome to Mortgage Blueprint", body: "Your complete mortgage planning tool, designed to help you understand exactly what you can afford, what it costs, and how homeownership builds wealth.\n\nWhether you're buying your first home or your fifth, this app breaks down every number so you can make confident decisions.", color: T.blue },
-    { emoji: "", title: "How to Navigate", body: "Follow the sections from top to bottom. Each one builds on the last:\n\nSetup: Enter property details\nCalculator: See your monthly payment\nCosts: Full closing cost breakdown\nIncome → Debts → Assets: Your full financial picture\nQualify: Check if you're approved\nTax Savings → Amortization: See the long game", color: T.cyan },
-    { emoji: "bar-chart", title: "Compare Loan Options", body: "Not sure which option is best? Create multiple loan scenarios. Try different prices, rates, or loan types, then compare them side-by-side on the Workspace tab.\n\nPro tip: Duplicate a scenario instead of starting from scratch. It copies your credit, income, assets, and debts so you only need to change the numbers you're testing.", color: T.green },
-    { emoji: "", title: "You're Ready!", body: "Start by entering a zip code in Setup to auto-fill tax rates and transfer taxes for your area.\n\nEvery number is calculated in real time. Change anything and watch the whole picture update instantly.", color: T.green },
-    { emoji: "target", title: "Bonus: PricePoint", body: "Think you know your local market? PricePoint pulls real listings from your area and challenges you to guess the price.\n\nSwipe through photos, read the MLS description, and lock in your guess, then see how close you were. Earn XP, level up from Studio Condo to Mega Mansion, and unlock achievement badges along the way.\n\nFind it in the top-left corner of the app.", color: T.purple },
-   ];
-   const step = steps[welcomeStep];
-   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9997, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-     <div style={{ background: T.card, borderRadius: 24, maxWidth: 380, width: "100%", padding: "32px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", textAlign: "center", position: "relative", display: "flex", flexDirection: "column", height: 520 }}>
-      <span onClick={() => { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }} style={{ position: "absolute", top: 16, right: 20, fontSize: 12, color: T.textTertiary, cursor: "pointer", fontFamily: FONT, opacity: 0.6 }}>Skip</span>
-      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: step.color || T.blue, minHeight: 48 }}>{step.emoji ? <Icon name={step.emoji} size={48} /> : null}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 10, fontFamily: FONT }}>{step.title}</div>
-      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.7, marginBottom: 24, whiteSpace: "pre-line", textAlign: "left", flex: 1, overflow: "auto" }}>{step.body}</div>
-      {/* Progress dots */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 20 }}>
-       {steps.map((_, i) => (
-        <div key={i} style={{ width: i === welcomeStep ? 24 : 8, height: 8, borderRadius: 4, background: i === welcomeStep ? step.color : T.ringTrack, transition: "all 0.3s" }} />
-       ))}
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-       {welcomeStep > 0 && (
-        <button onClick={() => setWelcomeStep(s => s - 1)} style={{ flex: 1, padding: "14px 0", background: T.inputBg, border: "none", borderRadius: 14, color: T.textSecondary, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Back</button>
-       )}
-       <button onClick={() => {
-        if (welcomeStep < steps.length - 1) { setWelcomeStep(s => s + 1); }
-        else { setShowWelcome(false); try { localStorage.setItem("mb_welcomed", "1"); LS.set("has-seen-welcome", "1"); } catch {} }
-       }} style={{ flex: 2, padding: "14px 0", background: step.color, border: "none", borderRadius: 14, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT }}>
-        {welcomeStep < steps.length - 1 ? "Next" : "Let's Go!"}
-       </button>
-      </div>
-     </div>
-    </div>
-   );
-  })()}
-  {/* ═══ LOCK SCREEN ═══ */}
+  {/* 5-slide welcome tour removed (2026-10-01): it described tabs that no
+      longer exist, and seven screens stood between a visitor and a number. */}
   {isLocked && consentGiven && <div style={{ position: "fixed", inset: 0, background: T.bg, zIndex: 9998, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ fontSize: 48, marginBottom: 16 }}></div>
    <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>App Locked</div>
@@ -8583,108 +8550,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      </div>
     </div>
    )}
-   {/* ── Welcome Modal — shown only on first visit when no skill level set ── */}
-   {appMode === "blueprint" && skillLevel === null && (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'rgba(0,0,0,0.7)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      padding: 20
-    }}>
-      <div style={{
-        background: T.card,
-        borderRadius: 20,
-        padding: isDesktop ? 40 : 28,
-        maxWidth: 420,
-        width: '100%',
-        textAlign: 'center',
-        border: `1px solid ${T.cardBorder}`,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
-      }}>
-        <div style={{
-          fontFamily: FONT,
-          fontSize: '0.6rem',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '2px',
-          color: T.textTertiary,
-          marginBottom: 4
-        }}>MORTGAGE BLUEPRINT</div>
-        <div style={{
-          fontFamily: MONO,
-          fontSize: '0.55rem',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.15em',
-          color: T.textTertiary,
-          opacity: 0.75,
-          marginBottom: 16
-        }}>Powered by RealStack</div>
-        <h2 style={{
-          fontFamily: FONT,
-          fontSize: 22,
-          fontWeight: 800,
-          color: T.text,
-          margin: '0 0 8px 0',
-          letterSpacing: '-0.03em'
-        }}>Welcome</h2>
-        <p style={{
-          fontSize: 14,
-          color: T.textSecondary,
-          margin: '0 0 24px 0',
-          lineHeight: 1.5
-        }}>How familiar are you with the mortgage process?</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[
-            { level: 'guided', title: 'First-Time Buyer', desc: 'Walk me through it step by step', icon: '\u2302' },
-            { level: 'standard', title: 'I Know the Basics', desc: "Give me full access. I'll explore on my own", icon: '\u25C8' },
-          ].map(opt => (
-            <button
-              key={opt.level}
-              onClick={() => { saveSkillLevel(opt.level); }}
-              style={{
-                padding: '16px 18px',
-                borderRadius: 14,
-                border: `1px solid ${T.cardBorder}`,
-                background: T.inputBg,
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                transition: 'all 0.15s'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.blue; e.currentTarget.style.background = T.blue + '10'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.background = T.inputBg; }}
-            >
-              <div style={{
-                width: 40, height: 40,
-                borderRadius: 10,
-                background: T.blue + '15',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-                color: T.blue,
-                flexShrink: 0
-              }}>{opt.icon}</div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: T.text }}>{opt.title}</div>
-                <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>{opt.desc}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-        <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 16 }}>You can change this anytime in Settings</div>
-      </div>
-    </div>
-   )}
+   {/* Experience picker removed (onboarding cut to one screen, 2026-10-01). */}
    {/* ── Blueprint Mode ── */}
    {appMode === "blueprint" && <>
    {/* ── Content area (pushed down by fixed UnifiedHeader) ──
@@ -9839,9 +9705,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     )}
    </div>
    <div style={{ padding: "12px 0" }}>
-    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, fontFamily: FONT }}>Welcome Tutorial</div>
-    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Replay the intro walkthrough for new users</div>
-    <button onClick={() => { setWelcomeStep(0); setShowWelcome(true); }} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}> Replay Tutorial</button>
+    {/* The intro tour is gone (2026-10-01); this turns on the step-by-step
+        Guided mode instead, which is the walkthrough that stays current. */}
+    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, fontFamily: FONT }}>Guided walkthrough</div>
+    <div style={{ fontSize: 12, color: T.textTertiary, marginBottom: 10 }}>Step through the Blueprint one field at a time</div>
+    <button onClick={() => saveSkillLevel("guided")} style={{ width: "100%", padding: 14, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 12, color: T.blue, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: FONT }}>{skillLevel === "guided" ? "Guided mode is on" : "Turn on Guided mode"}</button>
    </div>
  </SetShell>
  {/* Danger Zone — its own red-banner card so destructive controls never
