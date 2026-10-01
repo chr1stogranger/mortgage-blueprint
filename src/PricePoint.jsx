@@ -2540,10 +2540,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // URL folded INTO text — see shareChallenge (iOS Messages quirk).
     if (navigator.share) {
       navigator.share({ title: 'PricePoint', text: `${text}\n${url}` }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(`${text}\n${url}`);
-      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+      return;
     }
+    // Desktop browsers without a share sheet: copy, and if the clipboard is
+    // blocked (permissions, embedded webviews) hand the link over to copy by hand.
+    const copied = navigator.clipboard?.writeText
+      ? navigator.clipboard.writeText(url).then(() => true, () => false)
+      : Promise.resolve(false);
+    copied.then(ok => {
+      if (ok) { setShareToast(true); setTimeout(() => setShareToast(false), 2500); }
+      else window.prompt("Copy this link to share the property:", url);
+    });
   };
 
   // ── Save nickname ──
