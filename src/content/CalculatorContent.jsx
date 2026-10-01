@@ -422,9 +422,9 @@ export default function CalculatorContent(props) {
        </div>
        {calc.refiEffBalance <= 0 && <Note color={T.orange}>Enter your current loan details in Setup to see balance & equity here.</Note>}
       </>) : (<>
-      {/* Phones give the price a little more room: seven-figure prices were
-          clipping once the Down label carried its $ summary. */}
-      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "minmax(0, 1.3fr) minmax(0, 1fr)", gap: isDesktop ? 12 : 10, alignItems: "start" }}>
+      {/* Even split on phones (Christo 2026-10-01): dollar-mode down payments
+          need the room too. minmax(0, …) keeps content from skewing it. */}
+      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isDesktop ? 12 : 10, alignItems: "start" }}>
        <div>
         {/* Custom label row mirrors the Down field's label row exactly
             (height: 22, label on left) so the two input fields below
@@ -461,27 +461,19 @@ export default function CalculatorContent(props) {
          const downSubtitle = downMode === "pct"
           ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
           : `${fmtCompactPct(downPct)} down`;
-         const miniDownToggle = (
-          <span style={{ display: "inline-flex", borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, background: T.bg, verticalAlign: "middle" }}>
-           {[["dollar", "$"], ["pct", "%"]].map(([m, l]) => (
-            <button key={m} type="button" aria-label={m === "pct" ? "Enter down payment as a percent" : "Enter down payment in dollars"} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setDownMode(m); }}
-             style={{ padding: "3px 7px", fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, lineHeight: 1, background: downMode === m ? T.blue : "transparent", color: downMode === m ? "#fff" : T.textTertiary }}>{l}</button>
-           ))}
-          </span>
-         );
          return (
           <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
            {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
-           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
+           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: isDesktop ? 8 : 4 }}>
+            <div style={{ display: "flex", alignItems: "center", fontSize: isDesktop ? 13 : 12.5, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap" }}>
              Down{isDesktop
               ? <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
               : <span style={{ marginLeft: 4, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>· {downSummary}</span>}
             </div>
-            {isDesktop && <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
-             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 8px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
-             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 8px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
-            </div>}
+            <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 7px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
+             <button onClick={(e) => { e.stopPropagation(); setDownMode("pct"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 7px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "pct" ? T.blue : "transparent", color: downMode === "pct" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>%</button>
+            </div>
            </div>
            {/* Phones: the $/% switch rides inside the box as its suffix so the
                label row can carry the dollar summary and the price box stays
@@ -490,9 +482,9 @@ export default function CalculatorContent(props) {
            {downMode === "pct" ? (
             // Phones: the dollar amount rides in the box ("15 % · $150K") so the
             // label row stays short and the price box can be the wider one.
-            <Inp value={downPct} onChange={setDownPct} prefix="" suffix={isDesktop ? "%" : miniDownToggle} step={0.01} max={100} req />
+            <Inp value={downPct} onChange={setDownPct} prefix="" suffix="%" step={0.01} max={100} req />
            ) : (
-            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" suffix={isDesktop ? undefined : miniDownToggle} step={1000} max={salesPrice} req />
+            <Inp value={Math.round(salesPrice * downPct / 100)} onChange={v => { const p = salesPrice > 0 ? (v / salesPrice) * 100 : 0; setDownPct(Math.round(p * 100) / 100); }} prefix="$" step={1000} max={salesPrice} req />
            )}
            {/* Subtitle: shows the inverse format directly under the input
                (desktop; phones carry it in the label). */}
