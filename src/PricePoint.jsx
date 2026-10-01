@@ -9,7 +9,7 @@ import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
-  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer,
+  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer, fetchMyPredictions, fetchSoldField,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
@@ -1272,7 +1272,7 @@ const getStaticMapUrl = (lat, lng) => {
 // Typing a guess re-renders the parent on each keystroke, so the carousel
 // silently snapped back to photo 1 mid-typing. Hoisting it out keeps carousel
 // AND lightbox state alive; `isDesktop` now arrives as a prop.
-const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight }) => {
+const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill }) => {
   const [idx, setIdx] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef(null);
@@ -1386,8 +1386,16 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
       {/* Bottom row: neighborhood (left, photos only) + sold date (right, every slide
           incl. map — sold date is orthogonal to location, and RentCast Free Play
           listings are often map-only, where it's most useful) */}
-      {listing && (showHood || datePill) && (
+      {listing && (showHood || datePill || (fieldPill && !isMapSlide)) && (
         <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Who's already called this For Sale home — names only, never
+              numbers (those unlock after you lock your own). */}
+          {fieldPill && !isMapSlide && (
+            <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, maxWidth: "100%" }}>
+              <Icon name="users" size={13} style={{ color: "#fff", flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
+            </div>
+          )}
           {showHood && (
             <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Icon name="map-pin" size={13} />
@@ -1651,34 +1659,56 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // Scoreboard rows for the current property — rendered only post-lock.
-  const renderCallsBoard = (listPrice) => {
+  const renderCallsBoard = (listPrice, { soldPrice } = {}) => {
     const calls = propCalls?.calls || [];
     if (calls.length === 0) return null;
+    const sold = soldPrice || propCalls?.soldPrice || null;
     const vs = (g) => (listPrice ? ((g - listPrice) / listPrice) * 100 : null);
+    // Server withholds numbers until you've called it (or it sold) — the
+    // names still show so you know who's in.
+    const hidden = calls.every(c => c.guess == null);
+    const ranked = sold && !hidden
+      ? [...calls].sort((a, b) => Math.abs(a.guess - sold) - Math.abs(b.guess - sold))
+      : calls;
     return (
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 8 }}>
-          The Field · {calls.length} {calls.length === 1 ? "call" : "calls"}
+          {sold ? "Final Board" : "The Field"} · {calls.length} {calls.length === 1 ? "call" : "calls"}
         </div>
-        {calls.map((c, i) => {
-          const v = vs(c.guess);
+        {ranked.map((c, i) => {
+          const v = c.guess != null ? vs(c.guess) : null;
+          const acc = sold && c.guess != null ? Math.max(0, 100 - Math.abs(c.guess - sold) / sold * 100) : null;
+          const winner = sold && i === 0 && c.guess != null;
           return (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: c.you ? `${T.accent}14` : T.inputBg, border: `1px solid ${c.you ? `${T.accent}55` : T.cardBorder}`, marginBottom: 6 }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: winner ? `${T.green}14` : c.you ? `${T.accent}14` : T.inputBg, border: `1px solid ${winner ? `${T.green}55` : c.you ? `${T.accent}55` : T.cardBorder}`, marginBottom: 6 }}>
+              {sold && !hidden && (
+                <div style={{ width: 20, fontSize: 12, fontWeight: 800, fontFamily: FONT, color: winner ? T.green : T.textTertiary, textAlign: "center", flexShrink: 0 }}>
+                  {winner ? <Icon name="trophy" size={14} /> : i + 1}
+                </div>
+              )}
               <div style={{ flex: 1, fontSize: 13, fontWeight: 600, fontFamily: FONT, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {c.you ? "You" : (c.name || "Player")}
               </div>
-              {v != null && (
+              {acc != null ? (
+                <div style={{ fontSize: 11, fontWeight: 700, fontFamily: FONT, color: winner ? T.green : T.textSecondary }}>{acc.toFixed(1)}%</div>
+              ) : v != null ? (
                 <div style={{ fontSize: 11, fontWeight: 700, fontFamily: FONT, color: v >= 0 ? T.orange : T.green }}>
                   {v >= 0 ? "+" : ""}{v.toFixed(1)}% vs list
                 </div>
-              )}
-              <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: T.text, fontVariantNumeric: "tabular-nums" }}>{fmt(c.guess)}</div>
+              ) : null}
+              <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: c.guess == null ? T.textTertiary : T.text, fontVariantNumeric: "tabular-nums", display: "flex", alignItems: "center", gap: 4 }}>
+                {c.guess == null ? <><Icon name="lock" size={12} /> Hidden</> : fmt(c.guess)}
+              </div>
             </div>
           );
         })}
+        {hidden && (
+          <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>Numbers unlock once you lock your own call.</div>
+        )}
       </div>
     );
   };
+
 
   // ── Payoff-loop capture ──
   // A live call's payoff arrives AFTER the player leaves — when the home
@@ -3055,6 +3085,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // jumping ahead via a map pin doesn't strand the ones you skipped. ──
   const isLiveGuessed = (l) => !!(l?.zpid && liveGuessedZpids.has(String(l.zpid)));
 
+  // ── Server → local resolution sync. Predictions are stored locally at lock
+  // time and never learned that they resolved, so Stats and the board said
+  // "pending" on homes that sold weeks ago. Pull the server's truth on load
+  // and whenever Stats opens, and merge it into the local copies. ──
+  const syncResolutions = useCallback(() => {
+    fetchMyPredictions().then(d => {
+      const srv = d?.predictions;
+      if (!Array.isArray(srv) || srv.length === 0) return;
+      const byZpid = new Map(srv.filter(r => r.zpid).map(r => [String(r.zpid), r]));
+      const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      setAllPredictions(prev => {
+        let changed = false;
+        const next = prev.map(p => {
+          const r = (p.zpid && byZpid.get(String(p.zpid))) || (p.address && srv.find(x => norm(x.address) === norm(p.address)));
+          if (!r || !r.resolved || (p.resolved && p.soldPrice === r.soldPrice)) return p;
+          changed = true;
+          return { ...p, resolved: true, soldPrice: r.soldPrice, pctOff: r.pctOff, zpid: p.zpid || r.zpid };
+        });
+        return changed ? next : prev;
+      });
+    });
+  }, []);
+  const statsOpen = view === "tomorrow"; // the Stats tab's view key
+  useEffect(() => { if (playerId) syncResolutions(); }, [playerId, statsOpen, syncResolutions]);
+
   // ── Per-property URL: while a For Sale card is on screen the address bar
   // carries that home's share token (?c=…), so copying the URL shares the
   // property. Same token the Share button sends; the init effect above opens
@@ -3064,6 +3119,44 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     ? (liveSearchListing || (liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) ? liveListings[liveIdx] : null))
     : null;
   const liveCardKey = liveCardListing ? `${liveCardListing.zpid || ""}|${liveCardListing.address || ""}` : "";
+  // Who has already called the For Sale home on screen (pre-guess the server
+  // returns names only — numbers stay hidden until you lock your own).
+  const [cardCalls, setCardCalls] = useState(null);
+  useEffect(() => {
+    const zpid = liveCardListing?.zpid ? String(liveCardListing.zpid) : null;
+    setCardCalls(null);
+    if (!zpid) return;
+    let dead = false;
+    fetchPropertyCalls(zpid).then(d => { if (!dead && d) setCardCalls({ ...d, zpid }); });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveCardKey]);
+  // Sold/Daily: how the field did on the home you just revealed. Fetched once
+  // now and again after 2s so your own just-POSTed guess is counted.
+  const revealZpid = view === "reveal" && dailyResult ? (dailyProperty?.zpid || dailyResult.zpid || null)
+    : view === "freeplay" && fpResult ? (fpListings[fpIdx]?.zpid || null) : null;
+  const [soldField, setSoldField] = useState(null);
+  useEffect(() => {
+    setSoldField(null);
+    if (!revealZpid) return;
+    const z = String(revealZpid);
+    let dead = false;
+    const load = () => fetchSoldField(z).then(d => { if (!dead && d) setSoldField({ ...d, zpid: z }); });
+    load();
+    const t = setTimeout(load, 2000);
+    return () => { dead = true; clearTimeout(t); };
+  }, [revealZpid]);
+  const fieldFor = (zpid) => (zpid && soldField?.zpid === String(zpid) ? soldField : null);
+  const liveFieldPill = (listing) => {
+    if (!listing?.zpid || cardCalls?.zpid !== String(listing.zpid)) return null;
+    const calls = cardCalls.calls || [];
+    if (calls.length === 0) return "No calls yet. Be the first";
+    const names = calls.map(c => c.name).filter(Boolean);
+    const shown = names.slice(0, 2);
+    const rest = calls.length - shown.length;
+    const noun = `${calls.length} ${calls.length === 1 ? "call" : "calls"}`;
+    return shown.length ? `${noun} · ${shown.join(", ")}${rest > 0 ? ` +${rest}` : ""}` : `${noun} locked`;
+  };
   useEffect(() => {
     if (typeof window === "undefined" || !window.history?.replaceState) return;
     const params = new URLSearchParams(window.location.search);
@@ -3514,7 +3607,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   );
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool, onShare, guessPlaceholder }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool, onShare, guessPlaceholder, fieldPill }) => {
     const accent = accentColor || T.accent;
     // Compact = the game cards (For Sale, Sold, Daily) on phones/tablets.
     // Everything down to the guess button has to fit one screen (Christo
@@ -3554,7 +3647,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             (no arrows/dots) and is the only place the lightbox lives, so the old
             plain-<img> fallback branch is gone — it duplicated the whole pill row
             and had no way to expand. */}
-        <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare}
+        <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill}
           photoHeight={compact ? `clamp(170px, calc(100dvh - ${cardChrome}px), 340px)` : undefined} />
         </div>
         </div>
@@ -3792,7 +3885,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
 
   // ── Reveal card ──
-  const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison, priceRead }) => {
+  const RevealCard = ({ result, onShare, onChallenge, onContinue, onRunNumbersClick, showPhases, comparison, priceRead, field }) => {
     const color = fbColor(result.feedback);
     // Compact (phones/tablets): the whole reveal, down to Continue, fits one
     // screen (Christo 2026-09-30) — guess/accuracy/vs-ask share one stat row,
@@ -3904,6 +3997,41 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ fontSize: 15, fontWeight: 600, color: T.text, fontFamily: FONT }}>{result.address}</div>
               <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT }}>{result.neighborhood} · {result.city}, {result.state}</div>
             </div>
+            )}
+            {/* How everyone did on this home (Sold/Daily) — server only answers
+                once you've guessed it, so it can't leak anything pre-reveal. */}
+            {field && !field.locked && field.count > 0 && (
+              <div style={{ background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: cmp ? "8px 12px" : "12px 14px", marginBottom: cmp ? 12 : 16, textAlign: "left" }}>
+                <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 4 }}>
+                  The Field · {field.count} {field.count === 1 ? "player" : "players"}
+                </div>
+                {field.count === 1 ? (
+                  <div style={{ fontSize: 12.5, color: T.textSecondary, fontFamily: FONT }}>You're the first to play this one. Challenge a friend to beat you.</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.45 }}>
+                      You ranked <b style={{ color: field.yourRank === 1 ? T.green : T.text }}>#{field.yourRank}</b> of {field.count}
+                      {field.avgGuess ? <> · avg guess <b style={{ color: T.text }}>{fmt(field.avgGuess)}</b></> : null}
+                    </div>
+                    {!cmp && Array.isArray(field.top) && field.top.length > 0 && (
+                      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                        {field.top.map(t => (
+                          <div key={t.rank} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontFamily: FONT, color: t.you ? T.accent : T.textSecondary }}>
+                            <span style={{ width: 16, fontWeight: 800, color: t.rank === 1 ? T.green : T.textTertiary }}>{t.rank}</span>
+                            <span style={{ flex: 1, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.you ? "You" : (t.name || "Player")}</span>
+                            <span style={{ fontWeight: 700 }}>{Number(t.accuracy).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {cmp && Array.isArray(field.top) && field.top[0] && field.yourRank !== 1 && (
+                      <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>
+                        Closest: {field.top[0].name || "Player"} at {Number(field.top[0].accuracy).toFixed(1)}%
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             )}
             {/* Price Read — post-guess on the Sold game (passed only from the
                 freeplay reveal, where a comp median exists). */}
@@ -4373,7 +4501,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {/* ═══ REVEAL ═══ */}
       {view === "reveal" && dailyResult && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.95)", backdropFilter: "blur(20px)", display: "flex", justifyContent: "center", zIndex: 200, animation: "ppFadeIn 0.3s ease", padding: "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))", overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", boxSizing: "border-box" }}>
-          {RevealCard({ result: dailyResult, showPhases: true, onShare: shareResult,
+          {RevealCard({ result: dailyResult, showPhases: true, onShare: shareResult, field: fieldFor(revealZpid),
             onChallenge: dailyProperty ? (r) => shareChallenge(r, dailyProperty, true) : null,
             onContinue: () => setView("postDaily"),
             onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })}
@@ -4726,8 +4854,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                               </div>
                               <div style={{ textAlign: "right" }}>
                                 <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(pred.guess)}</div>
-                                <div style={{ fontSize: 10, fontFamily: FONT, fontWeight: 600, color: pred.resolved ? T.green : T.orange }}>
-                                  {pred.resolved ? "RESOLVED" : "PENDING"}
+                                <div style={{ fontSize: 10, fontFamily: FONT, fontWeight: 600, color: pred.resolved ? T.green : T.orange, whiteSpace: "nowrap" }}>
+                                  {pred.resolved && pred.soldPrice
+                                    ? `SOLD ${fmt(pred.soldPrice)} · ${Math.max(0, 100 - Math.abs(pred.guess - pred.soldPrice) / pred.soldPrice * 100).toFixed(1)}%`
+                                    : pred.resolved ? "RESOLVED" : "PENDING"}
                                 </div>
                               </div>
                               <Icon name="chevron-right" size={14} style={{ color: T.textTertiary, flexShrink: 0 }} />
@@ -4855,11 +4985,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market: prediction resolves if/when it sells</div>
                 </div>
               )}
-              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), fieldPill: liveFieldPill(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
             </>
           ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveListings[liveIdx]), details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveListings[liveIdx]), fieldPill: liveFieldPill(liveListings[liveIdx]), details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 560, margin: "0 auto" } : {}) }}>
@@ -5074,13 +5204,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       })()}
 
       {/* ═══ PROPERTY BOARD — a past prediction, reopened from Stats/map ═══ */}
-      {boardProp && (
+      {boardProp && (() => {
+        // Local prediction copies don't learn they resolved — the server's
+        // sold price (board fetch) is the truth (Christo 2026-10-01).
+        const boardSold = boardProp.soldPrice || propCalls?.soldPrice || null;
+        return (
         <div onClick={() => setBoardProp(null)} style={{ position: "fixed", inset: 0, background: "rgba(5,5,5,0.9)", backdropFilter: "blur(16px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 210, animation: "ppFadeIn 0.25s ease", padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 20, overflow: "hidden", maxWidth: isDesktop ? 520 : 420, width: "100%", maxHeight: "88vh", overflowY: "auto", animation: "ppScaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1)" }}>
             {boardProp.photo && <img src={boardProp.photo} alt="" style={{ width: "100%", height: isDesktop ? 200 : 150, objectFit: "cover", display: "block" }} onError={onPhotoError} />}
             <div style={{ padding: "18px 20px 20px" }}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: boardProp.resolved ? T.green : T.orange, marginBottom: 6 }}>
-                {boardProp.resolved ? "RESOLVED" : "PENDING SALE"}
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: boardSold ? T.green : T.orange, marginBottom: 6 }}>
+                {boardSold ? "SOLD" : "PENDING SALE"}
               </div>
               <div style={{ fontSize: 19, fontWeight: 800, fontFamily: FONT, color: T.text }}>{boardProp.address || resolveNeighborhood(boardProp)}</div>
               <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 3, marginBottom: 14 }}>
@@ -5100,15 +5234,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardProp.guess)}</div>
                   </div>
                 ) : null}
-                {boardProp.resolved && boardProp.soldPrice ? (
+                {boardSold ? (
                   <div style={{ flex: 1, background: `${T.green}12`, padding: "10px 12px", borderRadius: 10, border: `1px solid ${T.green}30` }}>
                     <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase", fontFamily: MONO, color: T.green }}>Sold</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardProp.soldPrice)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, fontFamily: FONT, color: T.text, marginTop: 2 }}>{fmt(boardSold)}</div>
                   </div>
                 ) : null}
               </div>
               {boardProp.zpid
-                ? (renderCallsBoard(boardProp.listPrice) || (
+                ? (renderCallsBoard(boardProp.listPrice, { soldPrice: boardSold }) || (
                     <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginBottom: 14 }}>
                       {propCalls ? "Just your call on this one so far. Send the link to friends." : "Loading the field…"}
                     </div>
@@ -5118,8 +5252,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     This call was made before group scoreboards. The field can't be looked up for it.
                   </div>
                 )}
-              {!boardProp.resolved && renderNotifyCapture()}
-              {!boardProp.resolved && (
+              {!boardSold && renderNotifyCapture()}
+              {!boardSold && (
                 <button onClick={() => shareLiveChallenge(boardProp, boardProp)} style={{ width: "100%", padding: 13, borderRadius: 9999, border: "none", background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                   <Icon name="send" size={15} /> Challenge more friends
                 </button>
@@ -5134,7 +5268,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ═══ CHALLENGE RESULT ═══ */}
       {view === "challenge" && challengeResult && (
@@ -5306,7 +5441,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {PropertyCard({ listing: fpListings[fpIdx], guess: fpGuessInput, onGuessChange: handleFpGuessInput, onGuess: handleFpGuess, badge: "SOLD", badgeColor: T.cyan, accentColor: T.cyan, showExtras: true, showAddress: true, showSoldDate: true, details: propertyDetails[fpListings[fpIdx]?.zpid] || null, isLoadingDetails: detailsLoading === fpListings[fpIdx]?.zpid, valuePool: fpListings })}
             </>
           ) : fpResult ? (
-            RevealCard({ result: fpResult, onContinue: fpNextProperty,
+            RevealCard({ result: fpResult, onContinue: fpNextProperty, field: fieldFor(revealZpid),
               onChallenge: (r) => shareChallenge(r, fpListings[fpIdx], false),
               priceRead: renderPriceRead(fpListings[fpIdx], fpListings, propertyDetails[fpListings[fpIdx]?.zpid] || null, T),
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })

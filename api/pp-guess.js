@@ -92,14 +92,73 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server not configured' });
   }
 
-  // ── GET ?zpid=X — the group scoreboard for one property ────────────────────
-  // Every prediction on a zpid (one per player, UNIQUE(player_id, zpid)), with
-  // display names. Folded into this route rather than a new file (function-count
-  // discipline). player_ids are NOT returned; the caller passes its own deviceId
-  // (its private localStorage id) and gets a `you` flag back instead.
+  // ── GET — read-only boards (folded into this route: function-count discipline)
+  //   ?mine=1            this player's live predictions + server resolution, so
+  //                      the client's local copies can learn they resolved
+  //   ?zpid=X            For Sale board (pp_predictions). Numbers are only
+  //                      returned once the caller has locked their own call or
+  //                      the home has sold; before that it's names only, so the
+  //                      field can never anchor a guess (enforced HERE, not in UI)
+  //   ?zpid=X&kind=sold  Sold/Daily field summary (pp_guesses) — only for a
+  //                      caller who has already guessed that home
+  // player_ids are never returned; the caller passes its own deviceId and gets
+  // a `you` flag back instead.
   if (req.method === 'GET') {
+    res.setHeader('Cache-Control', 'no-store');
+    const deviceId = String(req.query.deviceId || '').trim();
+    const myPlayerId = await lookupPlayerId(supabase, req, deviceId);
+
+    if (req.query.mine) {
+      if (!myPlayerId) return res.status(200).json({ predictions: [] });
+      const { data, error } = await supabase
+        .from('pp_predictions')
+        .select('zpid, address, predicted_price, predicted_at, resolved, sold_price, pct_off, resolved_at')
+        .eq('player_id', myPlayerId)
+        .order('predicted_at', { ascending: false })
+        .limit(500);
+      if (error) {
+        console.error('[pp-guess] mine read failed:', error.message);
+        return res.status(500).json({ error: 'Predictions unavailable' });
+      }
+      return res.status(200).json({
+        predictions: (data || []).map(r => ({
+          zpid: r.zpid, address: r.address, guess: r.predicted_price,
+          resolved: !!r.resolved, soldPrice: r.sold_price || null,
+          pctOff: r.pct_off, resolvedAt: r.resolved_at,
+        })),
+      });
+    }
+
     const zpid = String(req.query.zpid || '').trim();
     if (!zpid) return res.status(400).json({ error: 'Missing ?zpid' });
+
+    if (req.query.kind === 'sold') {
+      const { data, error } = await supabase
+        .from('pp_guesses')
+        .select('player_id, guess, pct_off, created_at, pp_players(display_name)')
+        .eq('zpid', zpid)
+        .in('mode', ['daily', 'freeplay', 'challenge'])
+        .not('pct_off', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(1000);
+      if (error) {
+        console.error('[pp-guess] sold field read failed:', error.message);
+        return res.status(500).json({ error: 'Field unavailable' });
+      }
+      // One entry per player: their first guess on the home (replays don't count).
+      const byPlayer = new Map();
+      for (const r of data || []) if (!byPlayer.has(r.player_id)) byPlayer.set(r.player_id, r);
+      const rows = [...byPlayer.values()].sort((a, b) => a.pct_off - b.pct_off);
+      const mineIdx = myPlayerId ? rows.findIndex(r => r.player_id === myPlayerId) : -1;
+      if (mineIdx < 0) return res.status(200).json({ zpid, count: rows.length, locked: true });
+      const avg = rows.length ? Math.round(rows.reduce((t, r) => t + Number(r.guess || 0), 0) / rows.length) : null;
+      const top = rows.slice(0, 3).map((r, i) => ({
+        rank: i + 1, name: r.pp_players?.display_name || '', guess: r.guess,
+        accuracy: Math.max(0, 100 - Number(r.pct_off)), you: r.player_id === myPlayerId,
+      }));
+      return res.status(200).json({ zpid, count: rows.length, locked: false, yourRank: mineIdx + 1, avgGuess: avg, top });
+    }
+
     const { data, error } = await supabase
       .from('pp_predictions')
       .select('player_id, predicted_price, predicted_at, resolved, sold_price, pct_off, pp_players(display_name)')
@@ -110,18 +169,20 @@ export default async function handler(req, res) {
       console.error('[pp-guess] scoreboard read failed:', error.message);
       return res.status(500).json({ error: 'Scoreboard unavailable' });
     }
-    const myPlayerId = await lookupPlayerId(supabase, req, String(req.query.deviceId || '').trim());
-    const calls = (data || []).map(r => ({
+    const soldPrice = (data || []).find(r => r.resolved && r.sold_price)?.sold_price || null;
+    const iCalled = myPlayerId != null && (data || []).some(r => r.player_id === myPlayerId);
+    const revealed = iCalled || !!soldPrice;
+    let calls = (data || []).map(r => ({
       name: r.pp_players?.display_name || '',
-      guess: r.predicted_price,
+      guess: revealed ? r.predicted_price : null,
       at: r.predicted_at,
       resolved: !!r.resolved,
-      pctOff: r.pct_off,
+      pctOff: revealed ? r.pct_off : null,
       you: myPlayerId != null && r.player_id === myPlayerId,
     }));
-    const soldPrice = (data || []).find(r => r.resolved && r.sold_price)?.sold_price || null;
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ zpid, count: calls.length, calls, soldPrice });
+    // Sold: rank the field by closeness to the real price.
+    if (soldPrice) calls = calls.sort((a, b) => Math.abs(a.guess - soldPrice) - Math.abs(b.guess - soldPrice));
+    return res.status(200).json({ zpid, count: calls.length, calls, soldPrice, revealed });
   }
 
   if (req.method !== 'POST') {

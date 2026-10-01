@@ -256,6 +256,40 @@ export async function fetchPropertyCalls(zpid) {
 }
 
 /**
+ * This player's live predictions with the SERVER's resolution state (resolved,
+ * soldPrice, pctOff). Local prediction copies never learn they resolved on
+ * their own — Stats merges this in so sold homes stop reading "pending".
+ */
+export async function fetchMyPredictions() {
+  try {
+    const res = await fetch(apiUrl(
+      `/api/pp-guess?mine=1&deviceId=${encodeURIComponent(getDeviceId())}`
+    ), { headers: await authHeader() });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * How the field did on a Sold/Daily home: count, your rank, average guess,
+ * top 3. The server only returns it once this player has guessed the home.
+ */
+export async function fetchSoldField(zpid) {
+  if (!zpid) return null;
+  try {
+    const res = await fetch(apiUrl(
+      `/api/pp-guess?zpid=${encodeURIComponent(zpid)}&kind=sold&deviceId=${encodeURIComponent(getDeviceId())}`
+    ), { headers: await authHeader() });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Cross-device sync: link this device to the signed-in user's canonical
  * player (merging any anonymous local history server-side) and return the
  * account identity + every zpid the account has already called, so local
