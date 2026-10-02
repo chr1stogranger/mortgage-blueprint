@@ -62,7 +62,7 @@ export default function PricePointTeaser({ T, zip, city, onPlay, style }) {
   const hide = () => { try { localStorage.setItem(HIDE_KEY, DAY); } catch { /* ignore */ } setHidden(true); };
   const where = home.neighborhood || home.city || city || zip;
   const spec = [home.beds ? `${home.beds} bd` : null, home.baths ? `${home.baths} ba` : null, home.sqft ? `${Number(home.sqft).toLocaleString("en-US")} sq ft` : null].filter(Boolean).join(" · ");
-  const accent = T.purple || "#7c4dff";
+  const accent = T.accentDeep || "#2B4FCE";
 
   return (
     <div
@@ -73,7 +73,7 @@ export default function PricePointTeaser({ T, zip, city, onPlay, style }) {
       title="Swipe to dismiss"
       style={{
         display: "flex", alignItems: "center", gap: 12, padding: 10, borderRadius: 16,
-        background: `linear-gradient(135deg, ${accent}, ${T.blue})`, color: "#fff", fontFamily: FONT,
+        background: `linear-gradient(135deg, ${T.blue}, ${accent})`, color: "#fff", fontFamily: FONT,
         boxShadow: T.cardShadow, touchAction: "pan-y", userSelect: "none",
         transform: `translateX(${dx}px)`, opacity: Math.max(0.3, 1 - Math.abs(dx) / 240),
         transition: startX.current !== null ? "none" : "transform 0.18s ease, opacity 0.18s ease", ...style,

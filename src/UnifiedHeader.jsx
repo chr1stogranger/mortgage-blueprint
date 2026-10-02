@@ -439,7 +439,7 @@ export default function UnifiedHeader({
               <div onClick={() => setAppPickerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 950, background: "rgba(15,23,41,0.25)" }} />
               <div role="dialog" aria-label="RealStack apps" style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 951, width: 280, background: T.card, borderRadius: 16, boxShadow: T.cardShadow || "0 18px 40px rgba(15,23,41,.22)", border: `1px solid ${T.cardBorder}`, padding: 6, fontFamily: FONT }}>
                 {[["blueprint", "Blueprint", "Payment, costs and qualifying", "home", T.blue],
-                  ["pricepoint", "PricePoint", "Guess real home prices · daily challenge", "target", T.purple || "#7c4dff"],
+                  ["pricepoint", "PricePoint", "Guess real home prices · daily challenge", "target", T.blue],
                   ["markets", "Markets", "Rates and the market today", "trending-up", T.green]].map(([k, name, sub, icon, c]) => (
                   <button key={k} type="button" onClick={() => { setAppPickerOpen(false); if (k !== "blueprint") onOpenApp(k); }}
                     style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 8px", borderRadius: 12, border: "none", background: k === "blueprint" ? `${T.blue}10` : "transparent", cursor: "pointer", textAlign: "left", fontFamily: FONT }}>
