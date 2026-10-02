@@ -1,4 +1,4 @@
-import { FONT } from "../lib/fonts.js";
+import { FONT, MONO } from "../lib/fonts.js";
 import { liveRateFor, isEstimatedRate } from "../lib/liveRates.js";
 import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
@@ -136,6 +136,19 @@ export default function CalculatorContent(props) {
   // ring's old fixed 280px, Christo 2026-08-04).
   const donutSlotRef = useRef(null);
   const [donutSlotW, setDonutSlotW] = useState(0);
+  // Desktop "Today's rates" popover (Christo 2026-10-01): the six live-rate
+  // tiles float over the page instead of growing the Rate card, so the row
+  // beside the donut never changes height.
+  const [ratesPopOpen, setRatesPopOpen] = useState(false);
+  const ratesPopRef = useRef(null);
+  React.useEffect(() => {
+    if (!ratesPopOpen) return;
+    const close = (e) => { if (ratesPopRef.current && !ratesPopRef.current.contains(e.target)) setRatesPopOpen(false); };
+    const esc = (e) => { if (e.key === "Escape") setRatesPopOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
+  }, [ratesPopOpen]);
   // Re-measure after EVERY commit (guarded setState, so no loop): the row
   // resizes when the preview panel opens/closes/drags, and all of those are
   // React state changes that re-render this tree — a mount-time
@@ -339,35 +352,22 @@ export default function CalculatorContent(props) {
       {/* Overline — the row read as unlabeled colored tiles next to two titled
           cards (Christo 2026-07-19). Matches the CashToCloseSummary band. */}
       <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
-       Qualification · {compactChecks.length} Pillars
+       Qualification · {compactChecks.filter(c => c.ok === true).length} of {compactChecks.length} Pillars
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, gap: 6, marginBottom: 12, flex: 1 }}>
+      {/* One strip (Christo 2026-10-01): five tall tiles were mostly white
+          space. A pillar with no data says what to add instead of "—". */}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${compactChecks.length}, 1fr)`, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 18, boxShadow: T.cardShadow, padding: "12px 6px", marginBottom: 12, flex: 1, alignItems: "center" }}>
       {compactChecks.map((c, i) => {
-       const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
-       // Plain white tiles (Christo 2026-07-19) — status reads from the circle
-       // and label color, not a background wash.
+       const color = c.ok === true ? T.green : c.ok === null ? T.textSecondary : T.red;
+       const hint = c.sub === "—" ? ({ FICO: "add FICO", DTI: "add income", Cash: "add assets", Reserves: "add assets", LTV: "add balance" }[c.label] || "—") : null;
        return (
-        <div
-         key={i}
-         onClick={() => handlePillarClick && handlePillarClick(c.label)}
-         title={`${c.label}: ${c.sub}. Click for details`}
-         style={{
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          padding: "12px 4px", minHeight: 92, background: T.card, borderRadius: 12,
-          border: `1px solid ${color}2E`, boxShadow: T.cardShadow,
-          cursor: "pointer", transition: "all 0.2s",
-         }}
-        >
-         <div style={{
-          width: 28, height: 28, borderRadius: "50%",
-          background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#fff", fontSize: 14, fontWeight: 800, marginBottom: 6,
-         }}>
+        <div key={i} onClick={() => handlePillarClick && handlePillarClick(c.label)} title={`${c.label}: ${hint || c.sub}. Click for details`}
+         style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0, padding: "0 2px" }}>
+         <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, marginBottom: 5 }}>
           {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
          </div>
-         <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
-         <div style={{ fontSize: 9, color: T.textTertiary, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>{c.sub}</div>
+         <div style={{ fontSize: 12, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
+         <div style={{ fontSize: 11, color: hint ? T.blue : T.textTertiary, fontWeight: hint ? 600 : 400, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{hint || c.sub}</div>
         </div>
        );
       })}
@@ -396,6 +396,30 @@ export default function CalculatorContent(props) {
   // A const because the two modes park it in different columns (Christo
   // 2026-07-22): purchase keeps it top-left; refi moves it top-RIGHT above
   // the New Rate card, so the left column can lead with Current -> New.
+  // The six live-rate tiles — inline under the button on phones, inside the
+  // "Today's rates" popover on desktop.
+  const rateTiles = (onPick) => (<>
+
+     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 4 }}>
+      {[["30yr", "30yr_fixed"], ["15yr", "15yr_fixed"], ["FHA", "30yr_fha"],
+       ["VA", "30yr_va"], ["Jumbo", "30yr_jumbo"], ["5/1 ARM", "5yr_arm"]
+      ].map(([label, key]) => [label, liveRates[key], isEstimatedRate(liveRates, key)]).filter(([, v]) => v).map(([label, r, est], i) => {
+       const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
+        (label === "15yr" && loanType === "Conventional" && term === 15) ||
+        (label === "FHA" && loanType === "FHA") ||
+        (label === "VA" && loanType === "VA") ||
+        (label === "Jumbo" && loanType === "Jumbo");
+       return (
+        <div key={i} onClick={() => { setRate(r); onPick && onPick(); }} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
+         <div style={{ fontSize: isDesktop ? 15 : 13, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
+        </div>
+       );
+      })}
+     </div>
+     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}{(liveRates.estimated || []).length ? " · est. = spread off the 30yr, not published" : ""}</div>}
+  </>);
+
   const priceCard = (
    <div data-field="calc-price" className={isPulse && isPulse("calc-price")} onBlur={() => { if (!isRefi && salesPrice >= 100000) markTouched && markTouched("calc-price-done"); }} style={{ borderRadius: 18, transition: "all 0.3s" }}>
     <div data-field="down-pct-input">
@@ -448,7 +472,7 @@ export default function CalculatorContent(props) {
         {/* Subtitle slot — empty for now, kept so vertical rhythm matches the Down field's subtitle below its input.
             Phones drop it: the down summary rides in the Down label instead
             (screenshot-ready layout, Christo 2026-10-01). */}
-        {isDesktop && <div style={{ fontSize: 11, color: "transparent", fontFamily: FONT, marginTop: 4, paddingLeft: 4, userSelect: "none" }}>·</div>}
+
        </div>
        {(<>
         {/* Purchase: Down Payment — toggle back in label row so input keeps full mobile width */}
@@ -463,20 +487,14 @@ export default function CalculatorContent(props) {
          const downSummary = downMode === "pct"
           ? fmtCompactUSD(salesPrice * downPct / 100)
           : fmtCompactPct(downPct);
-         // Subtitle below input shows the inverse of the active mode:
-         //   pct mode → "$300,000 down"
-         //   $   mode → "20% down"
-         const downSubtitle = downMode === "pct"
-          ? `${fmtCompactUSD(salesPrice * downPct / 100)} down`
-          : `${fmtCompactPct(downPct)} down`;
          return (
           <div data-field="calc-down" className={isPulse && isPulse("calc-down")} onBlur={() => { markTouched && markTouched("calc-down-done"); }} style={{ borderRadius: 12, transition: "all 0.3s" }}>
-           {/* Label row: 'Down *' on left, %/$ toggle on far right (downSummary moved BELOW input) */}
+           {/* Label row: 'Down · $113K' on left, %/$ toggle on far right */}
            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, height: 22, gap: isDesktop ? 8 : 4 }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: isDesktop ? 13 : 12.5, fontWeight: 500, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap" }}>
-             Down{isDesktop
-              ? <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>
-              : <span style={{ marginLeft: 4, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>· {downSummary}</span>}
+             {/* Desktop too (Christo 2026-10-01): the "$113K down" line under
+                 the box was a whole row of white space. */}
+             Down<span style={{ marginLeft: 4, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>· {downSummary}</span>
             </div>
             <div style={{ display: "flex", background: T.bg, borderRadius: 99, overflow: "hidden", border: `1px solid ${T.inputBorder}`, flexShrink: 0 }}>
              <button onClick={(e) => { e.stopPropagation(); setDownMode("dollar"); }} style={{ padding: isDesktop ? "4px 11px" : "4px 7px", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: FONT, background: downMode === "dollar" ? T.blue : "transparent", color: downMode === "dollar" ? "#fff" : T.textTertiary, transition: "all 0.2s", lineHeight: 1 }}>$</button>
@@ -496,9 +514,7 @@ export default function CalculatorContent(props) {
            )}
            {/* Subtitle: shows the inverse format directly under the input
                (desktop; phones carry it in the label). */}
-           {isDesktop && <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 4, paddingLeft: 4 }}>
-            {downSubtitle}
-           </div>}
+
           </div>
          );
         })()}
@@ -785,7 +801,7 @@ export default function CalculatorContent(props) {
     {true ? (
      <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}) }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(230, ((donutSlotW || 520) - 28) * 0.42)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
+       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: roomyDonut ? 8 : 4 }}>
        {legendRows.map((row, i) => (
@@ -795,7 +811,9 @@ export default function CalculatorContent(props) {
          <span style={{ marginLeft: "auto", fontWeight: 700, color: T.text }}>{fmt(row.value)}</span>
         </div>
        ))}
-       <div style={{ marginTop: 4, paddingTop: 7, borderTop: `1px solid ${T.separator}` }}>
+       {/* Phones only — desktop has the Rate card right beside it, so the
+           repeat just shrank the donut (Christo 2026-10-01). */}
+       {!isDesktop && <div style={{ marginTop: 4, paddingTop: 7, borderTop: `1px solid ${T.separator}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
          <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
          {/* Present but quiet: same weight as the legend amounts, so the eye
@@ -806,7 +824,7 @@ export default function CalculatorContent(props) {
          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>
          {calc.apr > 0 && <span style={{ whiteSpace: "nowrap" }}>APR {calc.apr.toFixed(2)}%</span>}
         </div>
-       </div>
+       </div>}
       </div>
      </div>
     ) : (() => { const sideBySide = isDesktop && (donutSlotW === 0 || donutSlotW >= 340); return (
@@ -857,8 +875,10 @@ export default function CalculatorContent(props) {
    {isDesktop && <div style={{ fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: FONT, marginBottom: 8, paddingLeft: 2 }}>
     {isRefi ? "Refinance Summary" : "Loan Summary"}
    </div>}
+   {/* One divided strip on desktop too (Christo 2026-10-01) — three tall
+       cards were mostly white space. */}
    <div className={changedFields && changedFields.size > 0 ? "field-updated" : ""} style={isDesktop
-    ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12, flex: 1 }
+    ? { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 18, boxShadow: T.cardShadow, marginBottom: 12, overflow: "hidden", flex: 1, alignItems: "center" }
     : { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, marginBottom: 8, overflow: "hidden" }}>
     {(isRefi ? [
      { l: "New Loan", v: fmt(calc.refiNewLoanAmt || calc.loan), c: T.blue, s: refiPurpose === "Cash-Out" ? `incl ${fmt(refiCashOut)} cash-out` : calc.loanCategory, tip: "Your new loan amount after refinancing. For rate/term refis, this equals your current balance. For cash-out, it includes the additional amount." },
@@ -895,29 +915,17 @@ export default function CalculatorContent(props) {
       {m.s && <div style={{ fontSize: 10, color: T.textTertiary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.s}</div>}
      </div>
     ) : (
-     <Card key={i} pad={14} style={{ minHeight: 92, marginBottom: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-      <div style={{ fontSize: 11, fontWeight: 500, color: T.textTertiary, marginBottom: 4, display: "flex", alignItems: "center" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em" }}>{m.v}</div>
-      {m.s && <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 2 }}>{m.s}</div>}
-      {/* County FHFA thresholds — the two numbers that decide the rate sheet.
-          Compact ($1.25M) because three of these sit side by side. */}
-      {m.limits && calc.confLimit > 0 && (() => {
-       const k = (n) => n >= 1e6 ? `$${(n / 1e6).toFixed(2).replace(/\.?0+$/, "")}M` : `$${Math.round(n / 1000)}K`;
-       const noHighBal = calc.highBalLimit === calc.confLimit;
-       return (
-        <div style={{ fontSize: 10, color: T.textTertiary, marginTop: 4, lineHeight: 1.4, fontFamily: FONT }}>
-         {noHighBal
-          ? <>Conf ≤ {k(calc.confLimit)} · then jumbo</>
-          : <>Conf ≤ {k(calc.confLimit)} · HB ≤ {k(calc.highBalLimit)}</>}
-         {/* Never let an assumed national maximum read as this county's real
-             limit — that number decides the rate sheet. */}
-         {calc.countyLimit?.assumedCeiling && (
-          <span style={{ color: T.orange, fontWeight: 600 }}> · set county</span>
-         )}
-        </div>
-       );
-      })()}
-     </Card>
+     <div key={i} style={{ padding: "14px 18px", borderLeft: i ? `1px solid ${T.separator}` : "none", minWidth: 0 }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: T.textTertiary, marginBottom: 2, display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>{m.l}{m.tip && <InfoTip text={m.tip} />}</div>
+      <div style={{ fontSize: 21, fontWeight: 700, color: m.c, fontFamily: FONT, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>{m.v}</div>
+      {/* County limits now live in the (i) tip; only the "county not set"
+          warning stays on the card, since it changes the rate sheet. */}
+      {(m.s || (m.limits && calc.countyLimit?.assumedCeiling)) && (
+       <div style={{ fontSize: 11.5, color: T.textTertiary, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {m.s}{m.limits && calc.countyLimit?.assumedCeiling && <span style={{ color: T.orange, fontWeight: 600 }}>{m.s ? " · " : ""}set county</span>}
+       </div>
+      )}
+     </div>
     ))}
    </div>
    {!isDesktop && renderPillars(true)}
@@ -1577,7 +1585,7 @@ export default function CalculatorContent(props) {
    {isDesktop && priceCard}
    {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 12 })}
    {renderAlerts(["investment"], { marginBottom: isDesktop ? 12 : 8 })}
-   <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12, ...(loanStructureInQuickStart ? { flex: 1 } : {}) } : { marginBottom: 8, padding: "10px 14px" }}>
+   <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12, ...(loanStructureInQuickStart ? { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" } : {}) } : { marginBottom: 8, padding: "10px 14px" }}>
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: isDesktop ? 10 : 6 }}>
      <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
@@ -1586,6 +1594,24 @@ export default function CalculatorContent(props) {
         <InfoTip text="Your annual interest rate. Depends on loan type, FICO, down payment %, loan amount, property type, and market conditions." />
        </div>
        {isRefi && refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
+       {isDesktop && (
+        <div ref={ratesPopRef} data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ marginLeft: isRefi && refiCurrentRate > 0 ? 10 : "auto", position: "relative", borderRadius: 8 }}>
+         <button type="button" onClick={() => { markTouched && markTouched("get-rates"); if (!liveRates && !ratesLoading) fetchRates(); setRatesPopOpen(o => !o); }}
+          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: T.blue, fontFamily: FONT, whiteSpace: "nowrap" }}>
+          {ratesLoading ? "Fetching…" : liveRates ? "Live rates ›" : "Today's rates ›"}
+         </button>
+         {ratesPopOpen && (
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 40, width: 300, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(15,23,41,0.18)", padding: 12 }}>
+           <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 8 }}>
+            {liveRates ? `${liveRates.date || "Today"} · ${liveRateFor(liveRates, loanType, term) ? "applied" : `no published ${loanType} rate`}` : "Today's rates"}
+           </div>
+           {ratesLoading && <div style={{ fontSize: 12.5, color: T.textSecondary, padding: "10px 0" }}>Fetching today's rates…</div>}
+           {ratesError && <div style={{ fontSize: 11, color: T.red, lineHeight: 1.4, padding: 8, background: T.errorBg, borderRadius: 8, wordBreak: "break-all" }}>{ratesError}</div>}
+           {liveRates && rateTiles(() => setRatesPopOpen(false))}
+          </div>
+         )}
+        </div>
+       )}
       </div>
       <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
      </div>
@@ -1593,6 +1619,7 @@ export default function CalculatorContent(props) {
       <div style={{ flex: 1, marginBottom: isDesktop ? 2 : 0 }}>
        <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
+        {isDesktop && <span style={{ order: 2, marginLeft: "auto", fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>}
         <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
        </div>
        {isDesktop
@@ -1610,6 +1637,7 @@ export default function CalculatorContent(props) {
     )}
 
     {/* Live Rates fetch button — full-width pill */}
+    {!isDesktop && (<>
     <div data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ borderRadius: 12, transition: "all 0.3s" }}>
     <button onClick={() => { markTouched && markTouched("get-rates"); fetchRates(); }} disabled={ratesLoading} style={{ width: "100%", background: `${T.blue}${liveRates ? '18' : '10'}`, border: `1px solid ${T.blue}33`, borderRadius: 12, padding: isDesktop ? "10px 14px" : "7px 12px", cursor: ratesLoading ? "wait" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isDesktop ? 10 : 6 }}>
      <span style={{ fontSize: 13, fontWeight: 600, color: T.blue, fontFamily: FONT }}>
@@ -1621,26 +1649,7 @@ export default function CalculatorContent(props) {
     </div>{/* end get-rates anchor */}
     {ratesError && <div style={{ fontSize: 11, color: T.red, marginBottom: 10, wordBreak: "break-all", lineHeight: 1.4, padding: 10, background: T.errorBg, borderRadius: 8 }}>{ratesError}</div>}
 
-    {/* Always-visible 6-tile rate grid (only when liveRates loaded) */}
-    {liveRates && (<>
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 4 }}>
-      {[["30yr", "30yr_fixed"], ["15yr", "15yr_fixed"], ["FHA", "30yr_fha"],
-       ["VA", "30yr_va"], ["Jumbo", "30yr_jumbo"], ["5/1 ARM", "5yr_arm"]
-      ].map(([label, key]) => [label, liveRates[key], isEstimatedRate(liveRates, key)]).filter(([, v]) => v).map(([label, r, est], i) => {
-       const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
-        (label === "15yr" && loanType === "Conventional" && term === 15) ||
-        (label === "FHA" && loanType === "FHA") ||
-        (label === "VA" && loanType === "VA") ||
-        (label === "Jumbo" && loanType === "Jumbo");
-       return (
-        <div key={i} onClick={() => setRate(r)} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
-         <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
-         <div style={{ fontSize: isDesktop ? 15 : 13, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
-        </div>
-       );
-      })}
-     </div>
-     {liveRates.source && <div style={{ fontSize: 10, color: T.textTertiary, textAlign: "center", marginTop: 4 }}>Source: {liveRates.source}{(liveRates.estimated || []).length ? " · est. = spread off the 30yr, not published" : ""}</div>}
+    {liveRates && rateTiles()}
     </>)}
    </Card>
 
