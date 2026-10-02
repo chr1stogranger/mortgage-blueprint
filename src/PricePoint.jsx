@@ -2506,6 +2506,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setView("challenge");
       // For Sale H2H settles later — stash the pair to score when it closes.
       setH2h(addPendingH2H(listing.zpid, val, challengeData.challengerGuess));
+      rememberLiveGuess(listing.zpid);
       setAllPredictions(prev => [...prev, {
         guess: val, zpid: listing.zpid || null, listPrice: lp, address: listing.address, neighborhood: listing.neighborhood,
         city: listing.city, state: listing.state, zip: listing.zip, beds: listing.beds, baths: listing.baths,
@@ -3177,18 +3178,24 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     ? (liveSearchListing || (liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) ? liveListings[liveIdx] : null))
     : null;
   const liveCardKey = liveCardListing ? `${liveCardListing.zpid || ""}|${liveCardListing.address || ""}` : "";
+  // A For Sale property link (?c=…) opens the challenge view — it needs the
+  // same calls lookup so a home you've already called shows your call instead
+  // of a second guess box.
+  const challengeLiveZpid = view === "challenge" && challengeData?.mode === "live" && !challengeResult && challengeData.listing?.zpid
+    ? String(challengeData.listing.zpid) : null;
+  const callsZpid = liveCardListing?.zpid ? String(liveCardListing.zpid) : challengeLiveZpid;
   // Who has already called the For Sale home on screen (pre-guess the server
   // returns names only — numbers stay hidden until you lock your own).
   const [cardCalls, setCardCalls] = useState(null);
   useEffect(() => {
-    const zpid = liveCardListing?.zpid ? String(liveCardListing.zpid) : null;
+    const zpid = callsZpid;
     setCardCalls(null);
     if (!zpid) return;
     let dead = false;
     fetchPropertyCalls(zpid).then(d => { if (!dead && d) setCardCalls({ ...d, zpid }); });
     return () => { dead = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveCardKey]);
+  }, [liveCardKey, challengeLiveZpid]);
   // Sold/Daily: how the field did on the home you just revealed. Fetched once
   // now and again after 2s so your own just-POSTed guess is counted.
   const revealZpid = view === "reveal" && dailyResult ? (dailyProperty?.zpid || dailyResult.zpid || null)
@@ -3298,6 +3305,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       <Icon name="refresh-cw" size={14} style={{ animation: state.busy ? "ppSpin 0.9s linear infinite" : "none" }} />
     </button>
   );
+  // A prediction is one-shot. Any path that lands on a For Sale home you've
+  // already called (address search, a ?c= property link, a reload) shows your
+  // locked call + the board instead of a fresh guess box. Server truth
+  // (`you` on the calls list — follows the signed-in account across devices)
+  // or the local record, whichever knows.
+  const priorLiveCall = (listing) => {
+    if (!listing?.zpid) return null;
+    const z = String(listing.zpid);
+    const mine = cardCalls?.zpid === z ? (cardCalls.calls || []).find(c => c.you) : null;
+    const local = allPredictions.find(p => p.zpid && String(p.zpid) === z);
+    if (!mine && !local && !liveGuessedZpids.has(z)) return null;
+    const guess = mine?.guess || local?.guess || null;
+    return {
+      guess, at: mine?.at || local?.timestamp || null,
+      onOpen: () => openBoardFromPayload({ zpid: z, address: listing.address, list_price: listing.listPrice, predicted_price: guess }),
+    };
+  };
   const liveFieldPill = (listing) => {
     if (!listing?.zpid || cardCalls?.zpid !== String(listing.zpid)) return null;
     const calls = cardCalls.calls || [];
@@ -3758,7 +3782,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   );
 
   // ── Property card (shared daily & free play) ──
-  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool, onShare, guessPlaceholder, fieldPill }) => {
+  const PropertyCard = ({ listing, guess, onGuessChange, onGuess, badge, badgeColor, accentColor, showExtras, showPropertyType, showAddress, showZillowLink, showSoldDate, showLastSold, labelOverrides, details, isLoadingDetails, valuePool, onShare, guessPlaceholder, fieldPill, priorCall }) => {
     const accent = accentColor || T.accent;
     // Compact = the game cards (For Sale, Sold, Daily) on phones/tablets.
     // Everything down to the guess button has to fit one screen (Christo
@@ -4002,6 +4026,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
               );
             })()}
+            {priorCall ? (
+              <div style={{ flex: 1.35, minWidth: 0, background: T.inputBg, border: `2px solid ${accent}`, borderRadius: 14, padding: IS_MOBILE ? "8px 12px" : "14px 18px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                <OverlineLabel>YOUR CALL{priorCall.at ? ` · ${new Date(priorCall.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</OverlineLabel>
+                <div style={{ fontSize: IS_MOBILE ? 20 : 28, fontWeight: 900, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em", marginTop: 2, whiteSpace: "nowrap" }}>
+                  {priorCall.guess ? fmt(priorCall.guess) : "Locked in"}
+                </div>
+              </div>
+            ) : (
             <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
               style={{ flex: 1.35, minWidth: 0, position: "relative", background: T.inputBg, border: `2px solid ${guess ? T.cardBorder : accent}`, boxShadow: guess ? "none" : `0 0 12px ${accent}33`, borderRadius: 14, padding: IS_MOBILE ? "10px 12px" : "16px 20px", cursor: "text", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.2s" }}>
               <div style={{ fontSize: guess ? (IS_MOBILE ? 20 : 28) : (IS_MOBILE ? 14 : 18), fontWeight: guess ? 900 : 500, color: guess ? T.text : T.textTertiary, fontFamily: FONT, letterSpacing: guess ? "-0.02em" : 0, transition: "all 0.15s", whiteSpace: "nowrap" }}>
@@ -4011,9 +4043,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0, fontSize: 18, border: "none", outline: "none", background: "none", boxSizing: "border-box" }}
                 onFocus={e => e.target.parentElement.style.borderColor = accent} onBlur={e => e.target.parentElement.style.borderColor = T.cardBorder} />
             </div>
+            )}
           </div>
           {/* Live feedback — always render to keep DOM stable */}
-          {(!IS_MOBILE || guess) && <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: IS_MOBILE ? 2 : 6, fontFamily: FONT, minHeight: IS_MOBILE ? 16 : 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
+          {!priorCall && (!IS_MOBILE || guess) && <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: IS_MOBILE ? 2 : 6, fontFamily: FONT, minHeight: IS_MOBILE ? 16 : 18, visibility: guess ? "visible" : "hidden" }}>{(() => {
             const v = parseInt(guess);
             if (!v) return "\u00A0";
             // rc_/rf_ rows: raw listPrice falls back to the SOLD price — comparing
@@ -4028,7 +4061,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             return parts.length ? parts.join(" · ") : "\u00A0";
           })()}</div>}
           <div style={{ marginTop: IS_MOBILE ? 4 : 14 }}>
+            {priorCall ? (
+              <PillButton onClick={priorCall.onOpen} secondary style={IS_MOBILE ? { padding: "9px", fontSize: 14 } : undefined}>You already called this · See the board</PillButton>
+            ) : (
             <PillButton onClick={onGuess} disabled={!guess} accent={accent === T.accent} tealAccent={accent === T.cyan} style={IS_MOBILE ? { padding: "9px", fontSize: 14 } : undefined}>{labelOverrides?.buttonLabel || "Final Answer"}</PillButton>
+            )}
           </div>
         </div>
       </div>
@@ -5145,11 +5182,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market: prediction resolves if/when it sells</div>
                 </div>
               )}
-              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), fieldPill: liveFieldPill(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), fieldPill: liveFieldPill(liveSearchListing), priorCall: priorLiveCall(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
             </>
           ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (
             <>
-              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveListings[liveIdx]), fieldPill: liveFieldPill(liveListings[liveIdx]), details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
+              {PropertyCard({ listing: liveListings[liveIdx], guess: liveGuessInput, onGuessChange: handleLiveGuessInput, onGuess: handleLiveGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveListings[liveIdx]), fieldPill: liveFieldPill(liveListings[liveIdx]), priorCall: priorLiveCall(liveListings[liveIdx]), details: propertyDetails[liveListings[liveIdx]?.zpid] || null, isLoadingDetails: detailsLoading === liveListings[liveIdx]?.zpid, valuePool: liveListings })}
             </>
           ) : livePrediction ? (
             <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, overflow: "hidden", ...(isDesktop ? { maxWidth: 560, margin: "0 auto" } : {}) }}>
@@ -5358,7 +5395,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               lazy-fetched details — it's a public active listing. SOLD
               challenges stay on the token-only card: details/remarks could
               leak the address and let the recipient look up the answer. */}
-          {PropertyCard({ listing: challengeData.listing, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", showExtras: true, showAddress: true, showLastSold: true, details: propertyDetails[challengeData.listing.zpid] || null, isLoadingDetails: detailsLoading === challengeData.listing.zpid } : {}) })}
+          {PropertyCard({ listing: challengeData.listing, priorCall: challengeData.mode === 'live' ? priorLiveCall(challengeData.listing) : null, guess: challengeGuess, onGuessChange: handleChallengeGuessInput, onGuess: handleChallengeGuess, badge: challengeData.mode === 'live' ? "FOR SALE" : "CHALLENGE", badgeColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), accentColor: challengeData.mode === 'live' ? (T.red || "#e5484d") : (T.purple || "#8b7bf0"), ...(challengeData.mode === 'live' ? { labelOverrides: { guessLabel: "What's your prediction?", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", showExtras: true, showAddress: true, showLastSold: true, details: propertyDetails[challengeData.listing.zpid] || null, isLoadingDetails: detailsLoading === challengeData.listing.zpid } : {}) })}
         </div>
         );
       })()}
