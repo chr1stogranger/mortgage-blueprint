@@ -4,6 +4,7 @@ import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
 import CashToCloseSummary from "../components/CashToCloseSummary";
 import NetPaymentLadder from "../components/NetPaymentLadder";
+import PricePointTeaser from "../components/PricePointTeaser.jsx";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { NV_CITY_TAX_RATES } from "../citiesData.js";
 import { getPMIRate } from "../lib/finance.js";
@@ -920,6 +921,11 @@ export default function CalculatorContent(props) {
     ))}
    </div>
    {!isDesktop && renderPillars(true)}
+   {/* PricePoint home card (Christo 2026-10-01): a real for-sale home in this
+       ZIP, right after the screenshot stack so it never crowds it. */}
+   {!isDesktop && !isRefi && props.onOpenApp && !props.loanStructureOnly && (
+    <PricePointTeaser T={T} zip={propertyZip} city={city} style={{ marginBottom: 8 }} onPlay={() => props.onOpenApp("pricepoint", "live")} />
+   )}
    </div>{/* end row 2 (left) */}
 
    {/* — row 3: Payment Breakdown. alignSelf:start so the Advanced ladder (and

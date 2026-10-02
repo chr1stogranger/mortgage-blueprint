@@ -1,6 +1,8 @@
 import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { STATE_ABBR } from "./citiesData.js";
+import PricePointTeaser from "./components/PricePointTeaser.jsx";
+import Icon from "./Icon";
 import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, RateLadderContent, VaResidualContent } from "./content/index.js";
 
 
@@ -154,6 +156,26 @@ export default function OverviewTab(props) {
         </div>
       )}
 
+      {/* App switcher row (phones, Christo 2026-10-01): above Quick Start,
+          below the stats strip, and in the page flow so it scrolls away. It
+          tells people Blueprint is one of three apps; the sidebar used to be
+          the only way to find PricePoint. */}
+      {!isDesktop && props.onOpenApp && (
+        <div style={{ display: "flex", gap: 2, padding: 3, margin: "4px 0 2px", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, boxShadow: T.cardShadow }}>
+          {[["blueprint", "Blueprint", "home"], ["pricepoint", "PricePoint", "target"], ["markets", "Markets", "trending-up"]].map(([k, l, icon]) => {
+            const on = k === "blueprint";
+            return (
+              <button key={k} type="button" onClick={() => { if (!on) props.onOpenApp(k); }} aria-current={on ? "page" : undefined}
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "6px 0", borderRadius: 9999, border: "none", cursor: on ? "default" : "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 700,
+                  background: on ? T.blue : "transparent", color: on ? "#fff" : T.textSecondary, position: "relative" }}>
+                <Icon name={icon} size={13} />{l}
+                {k === "pricepoint" && !props.ppSeen && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", marginLeft: 1 }} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ═══════════════════════════════════════
           SECTION 1: QUICK START (full Setup tab)
           ═══════════════════════════════════════ */}
@@ -186,6 +208,12 @@ export default function OverviewTab(props) {
       <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} loanStructureInQuickStart={true} />
       </CollapsibleSection>
+
+      {/* PricePoint home card, desktop placement (phones render it inside the
+          payment section, right under the qualification pillars). */}
+      {isDesktop && props.onOpenApp && !isRefi && (
+        <PricePointTeaser T={T} zip={propertyZip} city={city} style={{ marginTop: 12 }} onPlay={() => props.onOpenApp("pricepoint", "live")} />
+      )}
 
       {/* ═══════════════════════════════════════
           ADD TO THIS BLUEPRINT — the Modules toggles, moved out of Quick

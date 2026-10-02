@@ -20,6 +20,8 @@ export default function UnifiedHeader({
   /* Presence: the "who's here" list, shown as a dropdown off "N online"
      (desktop). Was an in-flow row that pushed the page down ~90px. */
   presencePanel = null,
+  /* PricePoint discovery (2026-10-01): the phone wordmark opens an app picker. */
+  onOpenApp = null, ppSeen = true,
   /* Financials */
   salesPrice, calc, creditScore, downPct, hoa, includeEscrow,
   subjectRentalIncome, otherIncome, otherIncome2,
@@ -86,6 +88,7 @@ export default function UnifiedHeader({
   // ── Clickable stat dropdowns (Arive-style summary popovers) ──
   const [statPop, setStatPop] = useState(null); // { key, x, y }
   const [presenceOpen, setPresenceOpen] = useState(false);
+  const [appPickerOpen, setAppPickerOpen] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const statContent = (key) => {
     if (key === "price") {
@@ -419,12 +422,40 @@ export default function UnifiedHeader({
                opens the RealStack shell drawer (product switcher + theme + LO
                client list). The "powered by" badge appears once per surface —
                here, as the MONO microline under the wordmark. */
-            <button type="button" onClick={onOpenMobileMenu} aria-label="Open RealStack menu"
-              aria-expanded={mobileMenuOpen} aria-haspopup="dialog"
+            <>
+            <button type="button" onClick={() => (onOpenApp ? setAppPickerOpen(o => !o) : onOpenMobileMenu?.())} aria-label="Switch app"
+              aria-expanded={onOpenApp ? appPickerOpen : mobileMenuOpen} aria-haspopup="dialog"
               style={{ background: "transparent", border: "none", padding: 0, margin: 0, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 2, minHeight: 36, justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>
-              <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: T.text, whiteSpace: "nowrap", lineHeight: 1, fontFamily: FONT }}>Blueprint</span>
+              {/* "Blueprint ▾" + "3 apps" chip: the wordmark finally looks like the
+                  door it is (Christo 2026-10-01). */}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: T.text, whiteSpace: "nowrap", lineHeight: 1, fontFamily: FONT }}>Blueprint</span>
+                {onOpenApp && <span style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1 }}>▾</span>}
+                {onOpenApp && <span style={{ position: "relative", fontSize: 9.5, fontWeight: 700, color: T.blue, background: `${T.blue}15`, borderRadius: 9999, padding: "2px 6px", lineHeight: 1.2, fontFamily: FONT }}>3 apps{!ppSeen && <span style={{ position: "absolute", top: -2, right: -3, width: 6, height: 6, borderRadius: "50%", background: "#ef4444" }} />}</span>}
+              </span>
               <span style={{ fontFamily: MONO, fontSize: 8.5, fontWeight: 500, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, lineHeight: 1, whiteSpace: "nowrap" }}>Powered by RealStack</span>
             </button>
+            {onOpenApp && appPickerOpen && (<>
+              <div onClick={() => setAppPickerOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 950, background: "rgba(15,23,41,0.25)" }} />
+              <div role="dialog" aria-label="RealStack apps" style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 951, width: 280, background: T.card, borderRadius: 16, boxShadow: T.cardShadow || "0 18px 40px rgba(15,23,41,.22)", border: `1px solid ${T.cardBorder}`, padding: 6, fontFamily: FONT }}>
+                {[["blueprint", "Blueprint", "Payment, costs and qualifying", "home", T.blue],
+                  ["pricepoint", "PricePoint", "Guess real home prices · daily challenge", "target", T.purple || "#7c4dff"],
+                  ["markets", "Markets", "Rates and the market today", "trending-up", T.green]].map(([k, name, sub, icon, c]) => (
+                  <button key={k} type="button" onClick={() => { setAppPickerOpen(false); if (k !== "blueprint") onOpenApp(k); }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "8px 8px", borderRadius: 12, border: "none", background: k === "blueprint" ? `${T.blue}10` : "transparent", cursor: "pointer", textAlign: "left", fontFamily: FONT }}>
+                    <span style={{ width: 32, height: 32, borderRadius: 10, background: c, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name={icon} size={16} /></span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: T.text }}>{name}{k === "pricepoint" && !ppSeen && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, color: "#fff", background: "#ef4444", borderRadius: 9999, padding: "1px 6px" }}>NEW</span>}</span>
+                      <span style={{ display: "block", fontSize: 11, color: T.textTertiary }}>{sub}</span>
+                    </span>
+                  </button>
+                ))}
+                <div style={{ height: 1, background: T.separator, margin: "4px 8px" }} />
+                <button type="button" onClick={() => { setAppPickerOpen(false); onOpenMobileMenu?.(); }}
+                  style={{ display: "block", width: "100%", padding: "8px 10px", border: "none", background: "transparent", textAlign: "left", fontSize: 12.5, fontWeight: 600, color: T.textSecondary, cursor: "pointer", fontFamily: FONT }}>Open menu · clients, settings, theme</button>
+              </div>
+            </>)}
+            </>
           )}
           {isDesktop && clientLabel && clientLabel.trim() && (
             <>

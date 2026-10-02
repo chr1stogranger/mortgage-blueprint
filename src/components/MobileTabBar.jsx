@@ -66,6 +66,19 @@ export default function MobileTabBar({ items, activeId, onSelect, T, maxWidth = 
           const a11y = isMenu
             ? { "aria-haspopup": "dialog" }
             : { role: "tab", "aria-selected": active };
+          // Featured item (Blueprint's PricePoint, 2026-10-01): a raised
+          // gradient circle in the middle slot, a touch larger than the rest,
+          // with an optional red dot until it's been opened once.
+          if (it.featured) return (
+            <button key={it.id} type="button" aria-label={it.label} onClick={() => onSelect && onSelect(it.id)}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 2, padding: "0 0 8px", minHeight: 44, background: "none", border: "none", cursor: "pointer", fontFamily: FONT, WebkitTapHighlightColor: "transparent", color: accent }}>
+              <span style={{ position: "relative", width: 44, height: 44, marginTop: -14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", background: `linear-gradient(135deg, ${T.purple || "#7c4dff"}, ${accent})`, boxShadow: `0 6px 16px ${accent}55`, border: `3px solid ${T.sideBg || T.card}` }}>
+                <Icon name={it.icon} size={22} />
+                {it.dot && <span style={{ position: "absolute", top: 1, right: 1, width: 9, height: 9, borderRadius: "50%", background: "#ef4444", border: `2px solid ${T.sideBg || T.card}` }} />}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: FONT, letterSpacing: 0.5 }}>{it.label}</span>
+            </button>
+          );
           return (
             <button key={it.id} type="button" aria-label={it.label} {...a11y}
               onClick={() => onSelect && onSelect(it.id)}

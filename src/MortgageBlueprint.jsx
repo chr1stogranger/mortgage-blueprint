@@ -1054,13 +1054,15 @@ const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "lea
 // buttons). Everything else in TABS lives behind "More". Shared with the
 // desktop drawer's icon map so the More sheet and sidebar agree.
 const NAV_ICONS = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
-const BAR_TAB_KEYS = ["overview", "compare", "summary", "learn"];
+// PricePoint takes the raised middle slot (Christo 2026-10-01); Learn moves
+// into the More sheet (moreSheetTabs picks up anything not on the bar).
+const BAR_TAB_KEYS = ["overview", "compare", "summary"];
 const MOBILE_BAR_ITEMS = [
- { id: "overview", label: "Overview", icon: "home" },
- { id: "compare",  label: "Compare",  icon: "bar-chart" },
- { id: "summary",  label: "Share",    icon: "share" },
- { id: "learn",    label: "Learn",    icon: "graduation-cap" },
- { id: "more",     label: "More",     icon: "more-horizontal" },
+ { id: "overview",   label: "Overview",   icon: "home" },
+ { id: "compare",    label: "Compare",    icon: "bar-chart" },
+ { id: "pricepoint", label: "PricePoint", icon: "target", featured: true },
+ { id: "summary",    label: "Share",      icon: "share" },
+ { id: "more",       label: "More",       icon: "more-horizontal" },
 ];
 // Tabs where the sticky payment pill makes sense (numbers pages only).
 const STICKY_PILL_TABS = ["overview", "compare", "refi", "refi3", "invest", "rentvbuy", "sell", "reo", "prop19"];
@@ -1381,6 +1383,18 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [ppSidebarTabCounter, setPpSidebarTabCounter] = useState(0); // force re-trigger same tab
  const [ppCurrentTab, setPpCurrentTab] = useState("daily"); // PricePoint reports its active tab
  const triggerPPTab = (tab) => { setPpSidebarTab(tab); setPpSidebarTabCounter(c => c + 1); };
+ // PricePoint discovery (Christo 2026-10-01): the phone switcher row, the
+ // raised tab-bar button, the "Blueprint ▾" app picker and the ZIP home card
+ // all open apps through here. ppSeen drops the tab's red dot after the first
+ // visit (device-local).
+ const [ppSeen, setPpSeen] = useState(() => { try { return localStorage.getItem("bp_pp_seen") === "1"; } catch { return false; } });
+ const openApp = (mode, ppTab) => {
+  if (mode === "pricepoint") { setPpSeen(true); try { localStorage.setItem("bp_pp_seen", "1"); } catch {} }
+  setMobileMenuOpen(false);
+  setAppMode(mode);
+  if (mode === "pricepoint" && ppTab) setTimeout(() => triggerPPTab(ppTab), 0);
+  try { window.scrollTo({ top: 0 }); } catch {}
+ };
 
  // ── Split-Screen Mode (desktop only) ──
  const [splitMode, setSplitMode] = useState(false); // is split active?
@@ -8081,6 +8095,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     dpOk={dpOk} refiLtvCheck={refiLtvCheck}
     scenarioName={scenarioName} scenarioList={scenarioList} switchScenario={switchScenario}
     saving={saving} loaded={loaded} cloudSyncStatus={cloudSyncStatus} sync={sync}
+    onOpenApp={openApp} ppSeen={ppSeen}
     presencePanel={sync.onlineUsers.length > 0 ? (
      <PresenceBar T={T} onlineUsers={sync.onlineUsers} followEmail={followEmail}
       onJump={(u) => { setFollowEmail(null); jumpToPresence(u); }}
@@ -8157,9 +8172,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       focus so they don't ride the keyboard. */}
   {!isDesktop && appMode === "blueprint" && consentGiven && !isLocked && (
    <>
-    <MobileTabBar T={T} items={MOBILE_BAR_ITEMS}
+    <MobileTabBar T={T} items={MOBILE_BAR_ITEMS.map(it => it.id === "pricepoint" ? { ...it, dot: !ppSeen } : it)}
      activeId={BAR_TAB_KEYS.includes(tab) ? tab : "more"}
-     onSelect={(id) => { if (id === "more") { setMoreSheetOpen(true); return; } goTab(id); }} />
+     onSelect={(id) => { if (id === "more") { setMoreSheetOpen(true); return; } if (id === "pricepoint") { openApp("pricepoint"); return; } goTab(id); }} />
     {/* Floating "Monthly · Qualified" pill removed (Christo 2026-09-23):
         redundant with the header stat strip's Payment + qualification chip. */}
     <Suspense fallback={null}>
@@ -8829,6 +8844,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <OverviewTab {...{
    /* Core */
    T, isDesktop, darkMode, calc, fmt, fmt2, pct, paySegs, changedFields, loanNumber,
+   onOpenApp: openApp, ppSeen,
    setTab, isCloud, auth, isBorrower,
    /* Scenario */
    scenarioName, scenarioList, switchScenario, onCompare: () => setTab("compare"),
