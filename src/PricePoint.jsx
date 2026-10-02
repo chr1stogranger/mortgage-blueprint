@@ -1973,8 +1973,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Stats Tabs ──
   const [statsTab, setStatsTab] = useState("daily"); // "daily", "freeplay", or "live"
-  const [leaderboardTab, setLeaderboardTab] = useState("today"); // "today", "weekly", or "alltime"
-  const [leaderboardMode, setLeaderboardMode] = useState("daily"); // "daily", "free", or "live"
+  // Board opens on Sold · All time (Christo 2026-10-01) — that's where the
+  // field is; Daily/Today was usually just you.
+  const [leaderboardTab, setLeaderboardTab] = useState("alltime"); // "today", "weekly", or "alltime"
+  const [leaderboardMode, setLeaderboardMode] = useState("free"); // "daily", "free" (Sold), or "live"
   const [lbData, setLbData] = useState([]); // Supabase leaderboard rows
   const [lbLoading, setLbLoading] = useState(false);
 
