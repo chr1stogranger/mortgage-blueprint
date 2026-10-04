@@ -1597,11 +1597,12 @@ export default function CalculatorContent(props) {
        {isDesktop && (
         <div ref={ratesPopRef} data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ marginLeft: isRefi && refiCurrentRate > 0 ? 10 : "auto", position: "relative", borderRadius: 8 }}>
          <button type="button" onClick={() => { markTouched && markTouched("get-rates"); if (!liveRates && !ratesLoading) fetchRates(); setRatesPopOpen(o => !o); }}
+          aria-haspopup="dialog" aria-expanded={ratesPopOpen}
           style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: T.blue, fontFamily: FONT, whiteSpace: "nowrap" }}>
           {ratesLoading ? "Fetching…" : liveRates ? "Live rates ›" : "Today's rates ›"}
          </button>
          {ratesPopOpen && (
-          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 40, width: 300, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(15,23,41,0.18)", padding: 12 }}>
+          <div role="dialog" aria-label="Today's rates" style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 40, width: 300, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(15,23,41,0.18)", padding: 12 }}>
            <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 8 }}>
             {liveRates ? `${liveRates.date || "Today"} · ${liveRateFor(liveRates, loanType, term) ? "applied" : `no published ${loanType} rate`}` : "Today's rates"}
            </div>
