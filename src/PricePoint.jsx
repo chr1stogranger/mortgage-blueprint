@@ -2565,6 +2565,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }).catch(e => console.warn('[PricePoint] challenge guess failed:', e));
   };
 
+  // Copy with the shareListing fallback: toast on success, and if the
+  // clipboard is blocked or missing (permissions, embedded webviews) hand the
+  // text over in a prompt to copy by hand.
+  const copyWithFallback = (text, label = "Copy this to share:", toastMs = 2500) => {
+    const copied = navigator.clipboard?.writeText
+      ? navigator.clipboard.writeText(text).then(() => true, () => false)
+      : Promise.resolve(false);
+    copied.then(ok => {
+      if (ok) { setShareToast(true); setTimeout(() => setShareToast(false), toastMs); }
+      else window.prompt(label, text);
+    });
+  };
+
   // ── Share as Challenge (Web Share API + clipboard fallback) ──
   const shareChallenge = (result, listing, isDaily) => {
     const token = encodeChallenge({
@@ -2581,12 +2594,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // URL still unfurls into the rich preview.
     if (navigator.share) {
       navigator.share({ title: 'PricePoint Challenge', text: `${text}\n${url}` }).catch(() => {
-        navigator.clipboard.writeText(`${text}\n${url}`);
-        setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+        copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
       });
     } else {
-      navigator.clipboard.writeText(`${text}\n${url}`);
-      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+      copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
     }
   };
 
@@ -2610,12 +2621,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // iOS Messages drop the text bubble entirely.
     if (navigator.share) {
       navigator.share({ title: 'PricePoint Challenge', text: `${text}\n${url}` }).catch(() => {
-        navigator.clipboard.writeText(`${text}\n${url}`);
-        setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+        copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
       });
     } else {
-      navigator.clipboard.writeText(`${text}\n${url}`);
-      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+      copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
     }
   };
 
@@ -2762,12 +2771,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     ].filter(Boolean).join("\n");
     if (navigator.share) {
       navigator.share({ text }).catch(() => {
-        navigator.clipboard.writeText(text);
-        setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+        copyWithFallback(text, "Copy this to share your result:");
       });
     } else {
-      navigator.clipboard.writeText(text);
-      setShareToast(true); setTimeout(() => setShareToast(false), 2500);
+      copyWithFallback(text, "Copy this to share your result:");
     }
   };
 
@@ -4571,7 +4578,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               if (navigator.share) {
                 navigator.share({ text }).catch(() => {});
               } else {
-                navigator.clipboard.writeText(text).then(() => { setShareToast(true); setTimeout(() => setShareToast(false), 2000); });
+                copyWithFallback(text, "Copy this to share your level:", 2000);
               }
             }} style={{
               width: "100%", padding: "14px", borderRadius: 9999,
