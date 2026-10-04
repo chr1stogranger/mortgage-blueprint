@@ -51,8 +51,8 @@ const GoogleIcon = () => (
 const HomeIcon = () => (
   <svg width="36" height="36" viewBox="0 0 100 100" fill="none">
     {/* Roof */}
-    <polygon points="50,4 8,22 50,14 92,22" fill="#C7D2FE"/>
-    <polygon points="50,14 92,22 92,26 50,18" fill="#4F46E5"/>
+    <polygon points="50,4 8,22 50,14 92,22" fill="#DCE4FF"/>
+    <polygon points="50,14 92,22 92,26 50,18" fill="#3B6BF5"/>
     <polygon points="8,22 50,14 50,18 8,26" fill="#6E90FF"/>
     {/* Sheet 4 — Indigo (top) */}
     <polygon points="8,32 50,24 92,32 50,40" fill="#6E90FF"/>
