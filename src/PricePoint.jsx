@@ -1448,6 +1448,12 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
 
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
+// Keyboard activation for clickable divs given role="button": Enter and
+// Space fire the same handler a click would.
+const onKeyActivate = (fn) => (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(e); }
+};
+
 export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange }) {
   // Run migration BEFORE any useState initializers read localStorage
   const [needsFreshFetch] = useState(() => migrateLocalStorage());
@@ -4692,7 +4698,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", fontFamily: MONO, color: T.accent, flexShrink: 0 }}>Daily #{displayDailyNumber}</span>
               <span style={{ color: T.textTertiary }}>·</span>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               {streak > 0 && <StatPill value={`${streak}d`} label="streak" color={T.orange} />}
@@ -4768,7 +4774,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>YOUR STATS</div>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
             {displayName ? (
               <button onClick={() => { setNicknameInput(displayName); setShowNicknamePrompt(true); }} style={{
@@ -5119,11 +5125,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               shell's top bar next to the wordmark (portaled, see ppBellSlot). */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, ...(isDesktop ? { maxWidth: 640, margin: "0 auto 10px" } : {}) }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")} <Icon name="chevron-down" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")} <Icon name="chevron-down" size={12} /></div>
               <span style={{ color: T.textTertiary }}>·</span>
               {/* Surfaces the active type filter — it persists across sessions,
                   so a shrunken pool needs a visible cause. Tap → picker. */}
-              <div onClick={() => setView("livePicker")} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
+              <div role="button" tabIndex={0} onClick={() => setView("livePicker")} onKeyDown={onKeyActivate(() => setView("livePicker"))} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveHoodName || "All"}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}</span> <Icon name="chevron-right" size={12} />
               </div>
             </div>
@@ -5641,9 +5647,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {/* One-row header (Christo 2026-09-30) — matches For Sale. */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: isDesktop ? 16 : 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
               <span style={{ color: T.textTertiary }}>·</span>
-              <div onClick={() => setView("fpPicker")} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}</span> <Icon name="chevron-right" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setView("fpPicker")} onKeyDown={onKeyActivate(() => setView("fpPicker"))} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}</span> <Icon name="chevron-right" size={12} /></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: soldRefresh.note ? T.textSecondary : T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{soldRefresh.note || `${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""} left`}</span>
@@ -5721,7 +5727,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.accent }}>LEADERBOARD</div>
-              <div onClick={() => setShowMarketSwitcher(true)} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
+              <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>{locationLabel || market?.label || "Your Market"} <Icon name="chevron-down" size={12} /></div>
             </div>
           </div>
 
