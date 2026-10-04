@@ -345,7 +345,7 @@ export default function CalculatorContent(props) {
          <div key={i} role="button" tabIndex={0} onClick={() => handlePillarClick && handlePillarClick(c.label)} onKeyDown={onKeyActivate(() => handlePillarClick && handlePillarClick(c.label))} title={`${c.label}: ${c.sub}. Tap for details`}
           style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0 }}>
           <div style={{ width: 17, height: 17, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800, marginBottom: 2 }}>
-           {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
+           {c.ok === true ? "✓" : c.ok === null ? "?" : "✕"}
           </div>
           <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
           <div style={{ fontSize: 8.5, color: T.textTertiary, marginTop: 2, fontFamily: FONT, lineHeight: 1.2, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{c.sub}</div>
@@ -370,7 +370,7 @@ export default function CalculatorContent(props) {
         <div key={i} role="button" tabIndex={0} onClick={() => handlePillarClick && handlePillarClick(c.label)} onKeyDown={onKeyActivate(() => handlePillarClick && handlePillarClick(c.label))} title={`${c.label}: ${hint || c.sub}. Click for details`}
          style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0, padding: "0 2px" }}>
          <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, marginBottom: 5 }}>
-          {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
+          {c.ok === true ? "✓" : c.ok === null ? "?" : "✕"}
          </div>
          <div style={{ fontSize: 12, fontWeight: 700, color, fontFamily: FONT, lineHeight: 1 }}>{c.label}</div>
          <div style={{ fontSize: 11, color: hint ? T.blue : T.textTertiary, fontWeight: hint ? 600 : 400, marginTop: 3, fontFamily: FONT, lineHeight: 1.2, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{hint || c.sub}</div>

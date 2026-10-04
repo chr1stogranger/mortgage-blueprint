@@ -520,7 +520,7 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
      {/* The light */}
      <div style={{ position: "relative", width: 44, height: 44, marginBottom: 10 }}>
       <div style={{ width: 44, height: 44, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, boxShadow: glow, transition: "all 0.5s", display: "flex", alignItems: "center", justifyContent: "center" }}>
-       <span style={{ fontSize: 20, filter: "brightness(1.5)" }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}</span>
+       <span style={{ fontSize: 20, filter: "brightness(1.5)" }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✕"}</span>
       </div>
       {c.ok === true && <div style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: "50%", background: T.green, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 800, border: `2px solid ${T.bg}` }}>✓</div>}
      </div>
@@ -538,7 +538,7 @@ function StopLight({ checks, onPillarClick, hideBanner }) {
     <div style={{ width: "100%", marginTop: 12, background: T.card, borderRadius: 16, border: `1px solid ${T.cardBorder}`, padding: "14px 16px", animation: "fadeSlide 0.2s ease-out" }}>
      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       <div style={{ width: 36, height: 36, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-       <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}</span>
+       <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{c.ok === true ? "✓" : c.ok === null ? "?" : "✕"}</span>
       </div>
       <div style={{ flex: 1 }}>
        <div style={{ fontSize: 14, fontWeight: 700, color, display: "flex", alignItems: "center", gap: 6 }}>{c.icon && <Icon name={c.icon} size={16} />} {c.fullLabel || c.label}: {statusText}</div>
@@ -555,7 +555,7 @@ function RefiTestLight({ passed, label, detail }) {
  const color = passed === true ? T.green : passed === false ? T.red : T.textTertiary;
  return (<div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderBottom: `1px solid ${T.separator}` }}>
   <div style={{ width: 36, height: 36, borderRadius: "50%", background: passed === true ? T.green : passed === false ? T.red : T.ringTrack, boxShadow: passed === true ? `0 0 10px ${T.green}50` : passed === false ? `0 0 10px ${T.red}30` : "none", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.4s" }}>
-   <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{passed === true ? "✓" : passed === false ? "✗" : "?"}</span>
+   <span style={{ fontSize: 16, color: "#fff", fontWeight: 800 }}>{passed === true ? "✓" : passed === false ? "✕" : "?"}</span>
   </div>
   <div style={{ flex: 1 }}>
    <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: FONT }}>{label}</div>
@@ -710,7 +710,7 @@ function Note({ children, color, strong, title, action, onClick, style, onDismis
  );
 }
 function StatusPill({ ok, label }) {
- return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ok ? T.successBg : ok === null ? T.pillBg : T.errorBg, borderRadius: 99, padding: "3px 10px", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ok ? T.green : ok === null ? T.textTertiary : T.red }}>{ok ? "✓" : ok === null ? "○" : "✗"} {label}</span>;
+ return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ok ? T.successBg : ok === null ? T.pillBg : T.errorBg, borderRadius: 99, padding: "3px 10px", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ok ? T.green : ok === null ? T.textTertiary : T.red }}>{ok ? "✓" : ok === null ? "○" : "✕"} {label}</span>;
 }
 // ── CoBrandBar — dual-identity glass strip: LO always, referring realtor
 //    when present. One glass strip (chrome, so T.glass is correct), two
@@ -9321,7 +9321,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
              border: selected ? `2px solid ${showResult ? (correct ? T.green : T.red) : T.blue}` : `2px solid transparent`,
              transition: "all 0.15s" }}>
             <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${selected ? (showResult ? (correct ? T.green : T.red) : T.blue) : T.textTertiary}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, background: selected ? (showResult ? (correct ? T.green : T.red) : T.blue) : "transparent", color: selected ? "#FFF" : "transparent" }}>
-             {showResult ? (correct ? "✓" : "✗") : selected ? "●" : ""}
+             {showResult ? (correct ? "✓" : "✕") : selected ? "●" : ""}
             </div>
             <div style={{ fontSize: 13, color: T.text, flex: 1 }}>{opt}</div>
            </div>
