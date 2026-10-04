@@ -404,11 +404,14 @@ export default function CalculatorContent(props) {
       {[["30yr", "30yr_fixed"], ["15yr", "15yr_fixed"], ["FHA", "30yr_fha"],
        ["VA", "30yr_va"], ["Jumbo", "30yr_jumbo"], ["5/1 ARM", "5yr_arm"]
       ].map(([label, key]) => [label, liveRates[key], isEstimatedRate(liveRates, key)]).filter(([, v]) => v).map(([label, r, est], i) => {
-       const isActive = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
+       const matchesType = (label === "30yr" && (loanType === "Conventional" || loanType === "USDA") && term === 30) ||
         (label === "15yr" && loanType === "Conventional" && term === 15) ||
         (label === "FHA" && loanType === "FHA") ||
         (label === "VA" && loanType === "VA") ||
         (label === "Jumbo" && loanType === "Jumbo");
+       // An estimated tile is never auto-applied (liveRateFor skips it), so it
+       // only reads as active once its rate is actually the scenario rate.
+       const isActive = matchesType && (!est || Math.abs(Number(r) - Number(rate)) < 0.0005);
        return (
         <div key={i} onClick={() => { setRate(r); onPick && onPick(); }} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
