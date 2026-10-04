@@ -130,6 +130,12 @@ function MiniEdit({ value, onChange, prefix = "", suffix = "", T, width = 76 }) 
   );
 }
 
+// Keyboard activation for clickable divs given role="button": Enter and
+// Space fire the same handler a click would.
+const onKeyActivate = (fn) => (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(e); }
+};
+
 export default function CalculatorContent(props) {
   // Payment-donut slot width — the ring scales to whatever room the card
   // leaves it (the live-preview panel can squeeze the column well under the
@@ -336,7 +342,7 @@ export default function CalculatorContent(props) {
        {compactChecks.map((c, i) => {
         const color = c.ok === true ? T.green : c.ok === null ? T.textTertiary : T.red;
         return (
-         <div key={i} onClick={() => handlePillarClick && handlePillarClick(c.label)} title={`${c.label}: ${c.sub}. Tap for details`}
+         <div key={i} role="button" tabIndex={0} onClick={() => handlePillarClick && handlePillarClick(c.label)} onKeyDown={onKeyActivate(() => handlePillarClick && handlePillarClick(c.label))} title={`${c.label}: ${c.sub}. Tap for details`}
           style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0 }}>
           <div style={{ width: 17, height: 17, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800, marginBottom: 2 }}>
            {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
@@ -361,7 +367,7 @@ export default function CalculatorContent(props) {
        const color = c.ok === true ? T.green : c.ok === null ? T.textSecondary : T.red;
        const hint = c.sub === "—" ? ({ FICO: "add FICO", DTI: "add income", Cash: "add assets", Reserves: "add assets", LTV: "add balance" }[c.label] || "—") : null;
        return (
-        <div key={i} onClick={() => handlePillarClick && handlePillarClick(c.label)} title={`${c.label}: ${hint || c.sub}. Click for details`}
+        <div key={i} role="button" tabIndex={0} onClick={() => handlePillarClick && handlePillarClick(c.label)} onKeyDown={onKeyActivate(() => handlePillarClick && handlePillarClick(c.label))} title={`${c.label}: ${hint || c.sub}. Click for details`}
          style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", minWidth: 0, padding: "0 2px" }}>
          <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.ok === true ? T.green : c.ok === null ? T.ringTrack : T.red, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, marginBottom: 5 }}>
           {c.ok === true ? "✓" : c.ok === null ? "?" : "✗"}
@@ -413,7 +419,7 @@ export default function CalculatorContent(props) {
        // only reads as active once its rate is actually the scenario rate.
        const isActive = matchesType && (!est || Math.abs(Number(r) - Number(rate)) < 0.0005);
        return (
-        <div key={i} onClick={() => { setRate(r); onPick && onPick(); }} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+        <div key={i} role="button" tabIndex={0} aria-pressed={isActive} onClick={() => { setRate(r); onPick && onPick(); }} onKeyDown={onKeyActivate(() => { setRate(r); onPick && onPick(); })} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
          <div style={{ fontSize: isDesktop ? 15 : 13, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
         </div>
