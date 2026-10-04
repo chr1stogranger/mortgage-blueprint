@@ -101,11 +101,12 @@ export default async function handler(req, res) {
   //                      field can never anchor a guess (enforced HERE, not in UI)
   //   ?zpid=X&kind=sold  Sold/Daily field summary (pp_guesses) — only for a
   //                      caller who has already guessed that home
-  // player_ids are never returned; the caller passes its own deviceId and gets
+  // player_ids are never returned; the caller sends its own deviceId and gets
   // a `you` flag back instead.
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store');
-    const deviceId = String(req.query.deviceId || '').trim();
+    // Header first; ?deviceId= is a fallback for clients built before the move.
+    const deviceId = String(req.headers['x-device-id'] || req.query.deviceId || '').trim();
     const myPlayerId = await lookupPlayerId(supabase, req, deviceId);
 
     if (req.query.mine) {

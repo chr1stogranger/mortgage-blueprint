@@ -246,8 +246,8 @@ export async function fetchPropertyCalls(zpid) {
   if (!zpid) return null;
   try {
     const res = await fetch(apiUrl(
-      `/api/pp-guess?zpid=${encodeURIComponent(zpid)}&deviceId=${encodeURIComponent(getDeviceId())}`
-    ), { headers: await authHeader() });
+      `/api/pp-guess?zpid=${encodeURIComponent(zpid)}`
+    ), { headers: await notifHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -263,8 +263,8 @@ export async function fetchPropertyCalls(zpid) {
 export async function fetchMyPredictions() {
   try {
     const res = await fetch(apiUrl(
-      `/api/pp-guess?mine=1&deviceId=${encodeURIComponent(getDeviceId())}`
-    ), { headers: await authHeader() });
+      '/api/pp-guess?mine=1'
+    ), { headers: await notifHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -280,8 +280,8 @@ export async function fetchSoldField(zpid) {
   if (!zpid) return null;
   try {
     const res = await fetch(apiUrl(
-      `/api/pp-guess?zpid=${encodeURIComponent(zpid)}&kind=sold&deviceId=${encodeURIComponent(getDeviceId())}`
-    ), { headers: await authHeader() });
+      `/api/pp-guess?zpid=${encodeURIComponent(zpid)}&kind=sold`
+    ), { headers: await notifHeaders() });
     if (!res.ok) return null;
     return await res.json();
   } catch {
