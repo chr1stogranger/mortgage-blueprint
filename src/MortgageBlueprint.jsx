@@ -705,6 +705,11 @@ function Note({ children, color, strong, title, action, onClick, style, onDismis
     <span style={{ width: 2, height: 14, borderRadius: 1, background: T.textTertiary }} />
     <span style={{ width: 2, height: 14, borderRadius: 1, background: T.textTertiary }} />
    </span>}
+   {/* Swipe-only dismiss isn't reachable by keyboard or switch users. */}
+   {onDismiss && <button type="button" aria-label="Dismiss" onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+    style={{ flexShrink: 0, alignSelf: "flex-start", background: "none", border: "none", padding: 2, margin: "-2px -6px 0 0", color: T.textTertiary, cursor: "pointer", lineHeight: 0, borderRadius: 9999 }}>
+    <Icon name="x" size={14} />
+   </button>}
    {onDismiss && nudge && <style>{`@keyframes bp-note-nudge { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-16px); } 55% { transform: translateX(4px); } } .bp-note-nudge { animation: bp-note-nudge 0.9s ease 0.6s 1; }`}</style>}
   </div>
  );

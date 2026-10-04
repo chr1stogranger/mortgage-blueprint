@@ -1,6 +1,7 @@
 import { FONT, MONO } from "../lib/fonts.js";
 import React, { useEffect, useRef, useState } from "react";
 import { apiUrl } from "../apiBase.js";
+import Icon from "../Icon.jsx";
 
 /**
  * PricePointTeaser — a real for-sale home in the Blueprint's own ZIP, pitched
@@ -88,7 +89,7 @@ export default function PricePointTeaser({ T, zip, city, onPlay, style }) {
       <button type="button" onClick={onPlay}
         style={{ flexShrink: 0, background: "#fff", color: T.blue, border: "none", borderRadius: 9999, padding: "7px 12px", fontWeight: 800, fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Guess</button>
       <button type="button" onClick={hide} aria-label="Hide for today"
-        style={{ flexShrink: 0, alignSelf: "flex-start", background: "none", border: "none", color: "rgba(255,255,255,0.8)", fontSize: 15, lineHeight: 1, cursor: "pointer", padding: "0 2px" }}>×</button>
+        style={{ flexShrink: 0, alignSelf: "flex-start", background: "none", border: "none", color: "rgba(255,255,255,0.8)", fontSize: 15, cursor: "pointer", padding: "0 2px", lineHeight: 0 }}><Icon name="x" size={15} /></button>
     </div>
   );
 }
