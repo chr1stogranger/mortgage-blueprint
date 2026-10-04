@@ -442,6 +442,19 @@ export default async function handler(req, res) {
         if (Date.now() - lastActive < REFRESH_COOLDOWN) {
           return res.status(200).json({ ...baseData, cached: true, refreshed: false, checkedAt: new Date(lastActive).toISOString() });
         }
+        // Claim the cooldown window BEFORE fetching (same pattern as
+        // sold-comps' sold-refresh stamp) so concurrent taps don't all hit
+        // upstream, and a failed or empty fetch still holds the window.
+        // updated_at is left alone so the 24h L2 TTL is not extended.
+        const claimIso = new Date().toISOString();
+        baseData.activeRefreshedAt = claimIso;
+        try {
+          const { error: claimErr } = await supabase.from("pp_city_cache")
+            .update({ data: baseData }).eq("cache_key", cacheKey);
+          if (claimErr) console.error(`[PricePoint] refresh: cooldown claim error (continuing): ${claimErr.message}`);
+        } catch (e) {
+          console.error(`[PricePoint] refresh: cooldown claim failed (continuing): ${e.message}`);
+        }
         try {
           const raw = await fetchAllPages(location, "FOR_SALE", apiKey, apiHost, MAX_ACTIVE_PAGES);
           const active = raw.filter(r => r.zpid && r.price).map((r, i) => normalizeProperty(r, i, "pp", false));
@@ -466,7 +479,7 @@ export default async function handler(req, res) {
         } catch (e) {
           console.error(`[PricePoint] refresh ${cacheKey} failed — keeping cache: ${e.message}`);
         }
-        return res.status(200).json({ ...baseData, cached: true, refreshed: false, checkedAt: new Date(lastActive).toISOString() });
+        return res.status(200).json({ ...baseData, cached: true, refreshed: false, checkedAt: claimIso });
       }
       // No cached row at all → fall through to the normal full fetch below.
     }
