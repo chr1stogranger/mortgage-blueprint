@@ -43,7 +43,9 @@ export function applyCors(req, res, { methods = "GET, OPTIONS" } = {}) {
   // is never served to another.
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", methods);
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  // x-device-id carries anonymous player identity (pp-daily, pp-guess,
+  // notifications); without it a cross-origin preflight from the native app fails.
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-device-id");
   if (req.method === "OPTIONS") {
     res.status(204).end();
     return true;
