@@ -170,7 +170,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Scoreboard unavailable' });
     }
     const soldPrice = (data || []).find(r => r.resolved && r.sold_price)?.sold_price || null;
-    const iCalled = myPlayerId != null && (data || []).some(r => r.player_id === myPlayerId);
+    // The display list is capped at 50, so the caller's own call (and the true
+    // field size) can fall off it. Resolve both with their own queries.
+    let iCalled = myPlayerId != null && (data || []).some(r => r.player_id === myPlayerId);
+    if (!iCalled && myPlayerId != null) {
+      const { data: mine, error: mineErr } = await supabase
+        .from('pp_predictions')
+        .select('player_id')
+        .eq('player_id', myPlayerId)
+        .eq('zpid', zpid)
+        .limit(1)
+        .maybeSingle();
+      if (mineErr) console.error('[pp-guess] own call lookup failed:', mineErr.message);
+      iCalled = !!mine;
+    }
+    let total = (data || []).length;
+    if (total >= 50) {
+      const { count, error: countErr } = await supabase
+        .from('pp_predictions')
+        .select('player_id', { count: 'exact', head: true })
+        .eq('zpid', zpid);
+      if (countErr) console.error('[pp-guess] board count failed:', countErr.message);
+      else if (typeof count === 'number') total = count;
+    }
     const revealed = iCalled || !!soldPrice;
     let calls = (data || []).map(r => ({
       name: r.pp_players?.display_name || '',
@@ -197,7 +219,7 @@ export default async function handler(req, res) {
         if (g) property = { ...property, photo: g.photo, city: g.city, zip: g.zip, beds: g.beds, baths: g.baths, sqft: g.sqft, propertyType: g.property_type };
       } catch (e) { console.error('[pp-guess] board photo lookup failed:', e.message); }
     }
-    return res.status(200).json({ zpid, count: calls.length, calls, soldPrice, revealed, property });
+    return res.status(200).json({ zpid, count: total, calls, soldPrice, revealed, property });
   }
 
   if (req.method !== 'POST') {
