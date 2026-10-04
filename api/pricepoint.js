@@ -380,6 +380,12 @@ export default async function handler(req, res) {
       });
     }
 
+    // pp_city_cache also holds stamp rows keyed "sold-refresh:<market>"; a
+    // location with ':' could read one back as if it were a city.
+    if (String(location).includes(":")) {
+      return res.status(400).json({ error: "Invalid location" });
+    }
+
     // Check cache (skip if ?fresh=1 or ?debug=1)
     const cacheKey = location.toLowerCase().trim();
     const supabase = getSupabaseAdmin();
