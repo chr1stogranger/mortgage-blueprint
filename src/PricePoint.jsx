@@ -3933,6 +3933,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const vc = computeValueContext(listing, valuePool, enrichedLp);
             const sigs = extractValueSignals(desc); // no description (RentCast rows) -> quant stats only
             const decoded = extractAgentSpeak(desc); // realtor euphemisms → plain English
+            // Desktop wide card: always open — it fills the row beside the remarks.
+            const vsOpen = valueSignalsOpen || wide;
             const toneColor = (tone) => tone === "bad" ? T.red : tone === "good" ? T.green : T.orange;
             const rows = [];
             // Prior sale leads the list — on a For Sale card it's the strongest
@@ -3970,24 +3972,24 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             const hiddenCount = chips.length - headChips.length + decoded.length + rows.length;
             return (
               <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
-                <button onClick={() => setValueSignalsOpen(!valueSignalsOpen)} aria-expanded={valueSignalsOpen} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", minWidth: 0 }}>
+                <button onClick={() => setValueSignalsOpen(!vsOpen)} aria-expanded={vsOpen} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", minWidth: 0 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
                     <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, flexShrink: 0 }}>{compact ? "Details" : "Value Signals"}</span>
-                    {compact && !valueSignalsOpen && zone && (
+                    {compact && !vsOpen && zone && (
                       <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: FONT, color: zone.color, whiteSpace: "nowrap" }}>{zone.label}</span>
                     )}
-                    {compact && !valueSignalsOpen && headChips.map(c => (
+                    {compact && !vsOpen && headChips.map(c => (
                       <span key={c.key} style={{ fontSize: 10.5, fontWeight: 600, fontFamily: FONT, color: c.color, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 9999, padding: "1px 8px", whiteSpace: "nowrap" }}>{c.label}</span>
                     ))}
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textTertiary, flexShrink: 0 }}>
-                    {!valueSignalsOpen && (compact ? hiddenCount > 0 : true) && (
+                    {!vsOpen && (compact ? hiddenCount > 0 : true) && (
                       <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{compact ? `+${hiddenCount}` : chips.length + decoded.length + rows.length}</span>
                     )}
-                    <Icon name="chevron-down" size={13} style={{ transform: valueSignalsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                    {!wide && <Icon name="chevron-down" size={13} style={{ transform: vsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />}
                   </span>
                 </button>
-                {valueSignalsOpen && (
+                {vsOpen && (
                   <>
                     {compact && desc && (
                       <div style={{ marginTop: 8, fontSize: 12, color: T.textSecondary, lineHeight: 1.55, fontFamily: FONT, maxHeight: 160, overflowY: "auto", overscrollBehavior: "contain" }}>
