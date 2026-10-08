@@ -4145,9 +4145,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               // stretch: the value-signals box grows to the remarks' height
               // so the two read as one balanced row (Christo 2026-10-07).
               // Same 4-col grid as the spec cards: remarks span three, value
-              // signals sit under BUILT. Equal heights while the remarks are
-              // clamped; expanded, the signals box keeps its own height.
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8, alignItems: mlsExpanded ? "start" : "stretch" }}>
+              // signals sit under BUILT and always match the remarks' height,
+              // clamped or expanded (Christo 2026-10-08).
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8, alignItems: "stretch" }}>
                 {wideDescEl}
                 <div className="pp-vs-fill" style={{ minWidth: 0, display: "flex", flexDirection: "column", gridColumn: wideDescEl ? "span 1" : "span 4" }}>
                   {valueSignalsEl}
