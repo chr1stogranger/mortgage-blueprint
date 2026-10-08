@@ -2584,6 +2584,23 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     });
   };
 
+  // Phones/tablets get the native share sheet; desktop copies straight to the
+  // clipboard. Desktop Chrome/Safari also expose navigator.share (the macOS
+  // share menu), and closing that menu used to fall through to a clipboard
+  // write that the browser then blocked (the click's gesture was spent), so
+  // Christo got a "Copy this link…" prompt after every dismissed menu
+  // (2026-10-07). Dismissing the sheet now does nothing.
+  const shareOrCopy = (title, text, label, copyText = text) => {
+    const touch = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+    if (navigator.share && touch) {
+      navigator.share({ title, text }).catch(err => {
+        if (err?.name !== "AbortError") copyWithFallback(copyText, label);
+      });
+      return;
+    }
+    copyWithFallback(copyText, label);
+  };
+
   // ── Share as Challenge (Web Share API + clipboard fallback) ──
   const shareChallenge = (result, listing, isDaily) => {
     const token = encodeChallenge({
@@ -2598,13 +2615,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // URL folded INTO text (no separate url field): iOS Messages drops the
     // text bubble when both are passed, delivering a bare link. The trailing
     // URL still unfurls into the rich preview.
-    if (navigator.share) {
-      navigator.share({ title: 'PricePoint Challenge', text: `${text}\n${url}` }).catch(() => {
-        copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
-      });
-    } else {
-      copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
-    }
+    shareOrCopy('PricePoint Challenge', `${text}\n${url}`, "Copy this link to share the challenge:");
   };
 
   // ── Share a FOR SALE prediction as a challenge. No sold price yet, so the
@@ -2625,13 +2636,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const text = `I locked in my call on this ${place} listing. Lock in yours: closest to the sold price wins. My number stays hidden until you guess.`;
     // URL folded INTO text — see shareChallenge; a separate url field makes
     // iOS Messages drop the text bubble entirely.
-    if (navigator.share) {
-      navigator.share({ title: 'PricePoint Challenge', text: `${text}\n${url}` }).catch(() => {
-        copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
-      });
-    } else {
-      copyWithFallback(`${text}\n${url}`, "Copy this link to share the challenge:");
-    }
+    shareOrCopy('PricePoint Challenge', `${text}\n${url}`, "Copy this link to share the challenge:");
   };
 
   // ── Share a FOR SALE listing BEFORE calling it. Same 'live' challenge link,
@@ -2648,19 +2653,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const where = listing.address || listing.neighborhood || listing.city || 'this home';
     const text = `${where}: what do you think it sells for? Lock in your price on PricePoint.`;
     // URL folded INTO text — see shareChallenge (iOS Messages quirk).
-    if (navigator.share) {
-      navigator.share({ title: 'PricePoint', text: `${text}\n${url}` }).catch(() => {});
-      return;
-    }
-    // Desktop browsers without a share sheet: copy, and if the clipboard is
-    // blocked (permissions, embedded webviews) hand the link over to copy by hand.
-    const copied = navigator.clipboard?.writeText
-      ? navigator.clipboard.writeText(url).then(() => true, () => false)
-      : Promise.resolve(false);
-    copied.then(ok => {
-      if (ok) { setShareToast(true); setTimeout(() => setShareToast(false), 2500); }
-      else window.prompt("Copy this link to share the property:", url);
-    });
+    shareOrCopy('PricePoint', `${text}\n${url}`, "Copy this link to share the property:", url);
   };
 
   // ── Save nickname ──
@@ -2775,13 +2768,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       "How well do you know your market?",
       "pricepoint.realstack.app",
     ].filter(Boolean).join("\n");
-    if (navigator.share) {
-      navigator.share({ text }).catch(() => {
-        copyWithFallback(text, "Copy this to share your result:");
-      });
-    } else {
-      copyWithFallback(text, "Copy this to share your result:");
-    }
+    shareOrCopy(undefined, text, "Copy this to share your result:");
   };
 
   // ── Free Play ──
@@ -4651,11 +4638,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <button onClick={() => {
               const avg = allResults.length > 0 ? (100 - (allResults.reduce((s, r) => s + (r.pctOff || 0), 0) / allResults.length)).toFixed(1) : "—";
               const text = `I just reached Level ${currentLevel.level}: ${currentLevel.name} on PricePoint!\n\n${allResults.length} guesses · ${avg}% accuracy · ${xp} XP\n\nThink you know real estate prices? Try it: blueprint.realstack.app`;
-              if (navigator.share) {
-                navigator.share({ text }).catch(() => {});
-              } else {
-                copyWithFallback(text, "Copy this to share your level:", 2000);
-              }
+              shareOrCopy(undefined, text, "Copy this to share your level:");
             }} style={{
               width: "100%", padding: "14px", borderRadius: 9999,
               background: "linear-gradient(135deg, #3B6BF5, #2B4FCE)", color: "#fff",
