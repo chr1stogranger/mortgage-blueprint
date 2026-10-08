@@ -1,6 +1,24 @@
 {
   "redirects": [
     {
+      "source": "/pricepoint",
+      "has": [
+        { "type": "query", "key": "c" },
+        { "type": "header", "key": "user-agent", "value": "(?i).*(twitterbot|facebookexternalhit|facebot|slackbot|discordbot|whatsapp|telegrambot|linkedinbot|pinterest|skypeuripreview|redditbot).*" }
+      ],
+      "destination": "/api/challenge",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "query", "key": "c" },
+        { "type": "header", "key": "user-agent", "value": "(?i).*(twitterbot|facebookexternalhit|facebot|slackbot|discordbot|whatsapp|telegrambot|linkedinbot|pinterest|skypeuripreview|redditbot).*" }
+      ],
+      "destination": "/api/challenge",
+      "permanent": false
+    },
+    {
       "source": "/",
       "has": [
         { "type": "host", "value": "pricepoint.realstack.app" },
