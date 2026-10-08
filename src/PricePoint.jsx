@@ -4061,11 +4061,20 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // address, a full-width spec row, and remarks | value signals. ──
     if (wide) {
       const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude);
-      // Remarks always fully open here — there's room, and a Read more on
-      // desktop just hid the best guessing context.
+      // Remarks: ~11 lines, then Read more (Christo 2026-10-07 — fully open
+      // ran 30+ lines on luxury listings). Three quarters of the row, so ~95
+      // chars a line; anything past ~950 chars overflows the clamp.
+      const DESC_LINE = 21; // 13px × 1.6
+      const descClamped = desc && desc.length > 950 && !mlsExpanded;
       const wideDescEl = showExtras && desc ? (
-        <div style={{ marginTop: 10, background: T.inputBg, borderRadius: 10, padding: "12px 16px", border: `1px solid ${T.cardBorder}` }}>
-          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, fontFamily: FONT }}>{renderHighlightedDesc(desc, T)}</div>
+        <div style={{ gridColumn: "span 3", minWidth: 0, background: T.inputBg, borderRadius: 10, padding: "12px 16px", border: `1px solid ${T.cardBorder}` }}>
+          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, fontFamily: FONT, position: "relative", overflow: "hidden", maxHeight: descClamped ? DESC_LINE * 11 : "none" }}>
+            {renderHighlightedDesc(desc, T)}
+            {descClamped && <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 36, background: `linear-gradient(transparent, ${T.inputBg})` }} />}
+          </div>
+          {desc.length > 950 && (
+            <button onClick={() => setMlsExpanded(!mlsExpanded)} style={{ background: "none", border: "none", color: accent, fontSize: 11, fontWeight: 600, fontFamily: FONT, letterSpacing: 1, cursor: "pointer", padding: "6px 0 0", textTransform: "uppercase" }}>{mlsExpanded ? "Show less" : "Read more"}</button>
+          )}
         </div>
       ) : null;
       const pillH = 68;
@@ -4135,9 +4144,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             {(wideDescEl || valueSignalsEl || (view === "live" && valuePool)) && (
               // stretch: the value-signals box grows to the remarks' height
               // so the two read as one balanced row (Christo 2026-10-07).
-              <div style={{ display: "grid", gridTemplateColumns: wideDescEl ? "minmax(0, 1.4fr) minmax(0, 1fr)" : "1fr", gap: 12, alignItems: "stretch" }}>
+              // Same 4-col grid as the spec cards: remarks span three, value
+              // signals sit under BUILT. Equal heights while the remarks are
+              // clamped; expanded, the signals box keeps its own height.
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginTop: 8, alignItems: mlsExpanded ? "start" : "stretch" }}>
                 {wideDescEl}
-                <div className="pp-vs-fill" style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+                <div className="pp-vs-fill" style={{ minWidth: 0, display: "flex", flexDirection: "column", gridColumn: wideDescEl ? "span 1" : "span 4" }}>
                   {valueSignalsEl}
                   {view === "live" && valuePool && renderPriceRead(listing, valuePool, details, T)}
                 </div>
@@ -4526,7 +4538,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       <style>{`
         /* The shell's global input::placeholder rule (white @15%, built for
            dark mode) made "Search any address…" invisible in light mode. */
-        .pp-vs-fill > div:first-child { flex: 1; }
+        .pp-vs-fill > div:first-child { flex: 1; margin-top: 0 !important; }
         .pp-search-input::placeholder { color: var(--pp-ph, #6B7280) !important; opacity: 1 !important; font-weight: 400 !important; }
         @keyframes ppSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes ppFadeIn { from { opacity: 0 } to { opacity: 1 } }
