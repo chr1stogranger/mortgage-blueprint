@@ -272,6 +272,18 @@ export async function fetchMyPredictions() {
   }
 }
 
+/** Your Sold / Daily / challenge guesses, newest first, one row per home. */
+export async function fetchMySoldGuesses() {
+  try {
+    const res = await fetch(apiUrl('/api/pp-guess?mine=sold'), { headers: await notifHeaders() });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return Array.isArray(j?.guesses) ? j.guesses : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * How the field did on a Sold/Daily home: count, your rank, average guess,
  * top 3. The server only returns it once this player has guessed the home.

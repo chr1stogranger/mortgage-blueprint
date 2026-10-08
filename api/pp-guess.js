@@ -93,6 +93,9 @@ export default async function handler(req, res) {
   }
 
   // ── GET — read-only boards (folded into this route: function-count discipline)
+  //   ?mine=sold         this player's Sold / Daily / challenge guesses (Stats
+  //                      tab history), one row per home — first guess, which is
+  //                      the one The Field counts — plus how many times guessed
   //   ?mine=1            this player's live predictions + server resolution, so
   //                      the client's local copies can learn they resolved
   //   ?zpid=X            For Sale board (pp_predictions). Numbers are only
@@ -108,6 +111,34 @@ export default async function handler(req, res) {
     // Header first; ?deviceId= is a fallback for clients built before the move.
     const deviceId = String(req.headers['x-device-id'] || req.query.deviceId || '').trim();
     const myPlayerId = await lookupPlayerId(supabase, req, deviceId);
+
+    if (req.query.mine === 'sold') {
+      if (!myPlayerId) return res.status(200).json({ guesses: [] });
+      const { data, error } = await supabase
+        .from('pp_guesses')
+        .select('mode, zpid, address, neighborhood, city, zip, property_type, beds, baths, sqft, list_price, photo, guess, sold_price, pct_off, created_at')
+        .eq('player_id', myPlayerId)
+        .in('mode', ['daily', 'freeplay', 'challenge'])
+        .order('created_at', { ascending: true })
+        .limit(1000);
+      if (error) {
+        console.error('[pp-guess] mine=sold read failed:', error.message);
+        return res.status(500).json({ error: 'Guesses unavailable' });
+      }
+      const byHome = new Map();
+      for (const r of data || []) {
+        const key = r.zpid || `${r.address || ''}|${r.zip || ''}`;
+        const prev = byHome.get(key);
+        if (prev) { prev.tries += 1; continue; }
+        byHome.set(key, {
+          mode: r.mode, zpid: r.zpid, address: r.address, neighborhood: r.neighborhood,
+          city: r.city, zip: r.zip, propertyType: r.property_type, beds: r.beds, baths: r.baths,
+          sqft: r.sqft, listPrice: r.list_price, photo: r.photo, guess: r.guess,
+          soldPrice: r.sold_price, pctOff: r.pct_off, at: r.created_at, tries: 1,
+        });
+      }
+      return res.status(200).json({ guesses: [...byHome.values()].reverse() });
+    }
 
     if (req.query.mine) {
       if (!myPlayerId) return res.status(200).json({ predictions: [] });

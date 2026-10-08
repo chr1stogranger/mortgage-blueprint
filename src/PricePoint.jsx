@@ -9,7 +9,7 @@ import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
-  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer, fetchMyPredictions, fetchSoldField,
+  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer, fetchMyPredictions, fetchSoldField, fetchMySoldGuesses,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
@@ -3281,6 +3281,90 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     });
   }, []);
   const statsOpen = view === "tomorrow"; // the Stats tab's view key
+  // ── Stats: your Sold / Daily guess history (server, cross-device), like the
+  // For Sale predictions list. Tap a row → that home's Field, inline. ──
+  const [mySoldGuesses, setMySoldGuesses] = useState(null);
+  const [guessListMore, setGuessListMore] = useState({ daily: 20, freeplay: 20 });
+  const [openGuessKey, setOpenGuessKey] = useState(null);
+  const [guessFields, setGuessFields] = useState({});
+  useEffect(() => {
+    if (!statsOpen) return;
+    let dead = false;
+    fetchMySoldGuesses().then(rows => { if (!dead && rows) setMySoldGuesses(rows); });
+    return () => { dead = true; };
+  }, [statsOpen]);
+  const toggleGuessField = (g) => {
+    const key = g.zpid || `${g.address}|${g.zip}`;
+    setOpenGuessKey(k => (k === key ? null : key));
+    if (g.zpid && !guessFields[g.zpid]) {
+      fetchSoldField(String(g.zpid)).then(d => setGuessFields(f => ({ ...f, [g.zpid]: d || { error: true } })));
+    }
+  };
+  const renderGuessHistory = (which, accentColor) => {
+    const rows = (mySoldGuesses || []).filter(g => (which === "daily" ? g.mode === "daily" : g.mode !== "daily"));
+    if (mySoldGuesses && rows.length === 0) return null;
+    const shown = rows.slice(0, guessListMore[which]);
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <OverlineLabel>YOUR GUESSES</OverlineLabel>
+        <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginTop: 6 }}>{mySoldGuesses ? "Tap a property to see how everyone guessed" : "Loading your guesses…"}</div>
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {shown.map((g) => {
+            const key = g.zpid || `${g.address}|${g.zip}`;
+            const open = openGuessKey === key;
+            const acc = g.soldPrice ? Math.max(0, 100 - Math.abs(g.guess - g.soldPrice) / g.soldPrice * 100) : null;
+            const fld = g.zpid ? guessFields[g.zpid] : null;
+            return (
+              <div key={key} style={{ background: T.inputBg, borderRadius: 10 }}>
+                <button onClick={() => toggleGuessField(g)} aria-expanded={open} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left" }}>
+                  <img src={g.photo || NO_PHOTO} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} onError={onPhotoError} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.address || resolveNeighborhood(g)}</div>
+                    <div style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {[g.address ? resolveNeighborhood(g) : null, g.beds ? `${g.beds}BR/${g.baths}BA` : null, g.sqft ? `${Number(g.sqft).toLocaleString()}sf` : null, g.mode === "challenge" ? "Challenge" : null, g.tries > 1 ? `${g.tries} guesses` : null].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, fontFamily: FONT, color: T.text }}>{fmt(g.guess)}</div>
+                    {g.soldPrice ? (
+                      <div style={{ fontSize: 10, fontFamily: FONT, fontWeight: 600, color: acc >= 90 ? T.green : acc >= 80 ? accentColor : T.orange, whiteSpace: "nowrap" }}>SOLD {fmt(g.soldPrice)} · {acc.toFixed(1)}%</div>
+                    ) : null}
+                  </div>
+                  <Icon name="chevron-down" size={14} style={{ color: T.textTertiary, flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                </button>
+                {open && (
+                  <div style={{ padding: "0 12px 12px 62px", fontFamily: FONT }}>
+                    {!g.zpid ? (
+                      <div style={{ fontSize: 12, color: T.textTertiary }}>No board for this one.</div>
+                    ) : !fld ? (
+                      <div style={{ fontSize: 12, color: T.textTertiary, animation: "ppPulse 1.2s ease infinite" }}>Loading the field…</div>
+                    ) : fld.error || fld.locked ? (
+                      <div style={{ fontSize: 12, color: T.textTertiary }}>{fld.count ? `${fld.count} ${fld.count === 1 ? "player" : "players"} on this one` : "The field isn't available for this one."}</div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 6 }}>
+                          {fld.count} {fld.count === 1 ? "player" : "players"}{fld.count > 1 ? ` · avg ${fmt(fld.avgGuess)} · you #${fld.yourRank} of ${fld.count}` : " · just you so far"}
+                        </div>
+                        {(fld.top || []).map(t => (
+                          <div key={t.rank} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: t.you ? T.text : T.textSecondary, fontWeight: t.you ? 700 : 500, padding: "2px 0" }}>
+                            <span>{t.rank}. {t.you ? "You" : (t.name || "Player")}</span>
+                            <span>{fmt(t.guess)} · {Number(t.accuracy).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {rows.length > shown.length && (
+          <button onClick={() => setGuessListMore(m => ({ ...m, [which]: m[which] + 20 }))} style={{ display: "block", margin: "10px auto 0", background: "none", border: "none", color: accentColor, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Show more ({rows.length - shown.length})</button>
+        )}
+      </div>
+    );
+  };
   useEffect(() => { if (playerId) syncResolutions(); }, [playerId, statsOpen, syncResolutions]);
 
   // ── Per-property URL: while a For Sale card is on screen the address bar
@@ -5178,6 +5262,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
               </div>
 
+              {renderGuessHistory("daily", T.accent)}
+
               {/* Next Daily Countdown */}
               <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: "20px", textAlign: "center", marginBottom: 16 }}>
                 <OverlineLabel>NEXT DAILY IN</OverlineLabel>
@@ -5253,6 +5339,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </div>
                 ) : null;
               })()}
+
+              {renderGuessHistory("freeplay", T.cyan)}
             </>
           )}
 
