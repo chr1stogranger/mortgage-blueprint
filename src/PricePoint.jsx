@@ -2181,12 +2181,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   }, [pendingBoardZpid, view]);
 
   // ── Initialize view ──
+  const pendingPropertyLinkRef = useRef(null);
   useEffect(() => {
     // Check for challenge param in URL FIRST
     const params = new URLSearchParams(window.location.search);
     const challengeToken = params.get('c');
     if (challengeToken) {
-      const decoded = decodeChallenge(challengeToken);
+      let decoded = decodeChallenge(challengeToken);
+      // A plain PROPERTY link (no sender guess — the address-bar URL or a
+      // listing share) opens in the regular Sold / For Sale tab with that home
+      // as the current card (Christo 2026-10-08). Needs a market to build the
+      // tab around; first-time visitors still get the challenge screen.
+      if (decoded && !decoded.challengerGuess && decoded.mode !== 'daily' && market) {
+        pendingPropertyLinkRef.current = decoded;
+        decoded = null;
+      }
       if (decoded) {
         setChallengeData(decoded);
         setView("challenge");
@@ -3566,6 +3575,37 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setLiveIdx(prev => nextUnguessedLiveIdx(prev + 1));
     }
   };
+
+  // ── Open a pending property link in its regular tab (see init effect) ──
+  // For Sale: the home becomes the search card over the live pool. Sold: a
+  // whole-city pool with the home spliced in first; waits (≤6s) for the sold
+  // pool to hydrate so Next has somewhere to go.
+  useEffect(() => {
+    const d = pendingPropertyLinkRef.current;
+    if (!d || !market) return;
+    const listing = d.mode === 'live' ? d.listing : { ...d.listing, _source: d.listing._source || "sold_comps" };
+    if (d.mode === 'live') {
+      pendingPropertyLinkRef.current = null;
+      enterLiveMode(null, null);
+      setLiveSearchListing(listing);
+      setLiveSearchAddr([listing.address, listing.city].filter(Boolean).join(", "));
+      if (listing.zpid) fetchPropertyDetails(listing);
+      return;
+    }
+    const go = () => {
+      if (!pendingPropertyLinkRef.current) return;
+      pendingPropertyLinkRef.current = null;
+      enterFreePlay([]);
+      setFpListings(prev => [listing, ...prev.filter(l => String(l.zpid) !== String(listing.zpid))]);
+      setFpIdx(0);
+      if (listing.zpid) fetchPropertyDetails(listing);
+    };
+    // soldListings starts as SAMPLE_SOLD placeholders — wait for real sales.
+    if (soldListings.some(isTrueSold)) { go(); return; }
+    const t = setTimeout(go, 6000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market?.id, soldListings.length]);
 
   // ── Live address search (A3): free-text address → propertydetails?address= → card ──
   const runLiveAddressSearch = async (addressText) => {
