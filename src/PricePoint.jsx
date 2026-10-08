@@ -3309,7 +3309,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // Sold/Daily: how the field did on the home you just revealed. Fetched once
   // now and again after 2s so your own just-POSTed guess is counted.
   const revealZpid = view === "reveal" && dailyResult ? (dailyProperty?.zpid || dailyResult.zpid || null)
-    : view === "freeplay" && fpResult ? (fpListings[fpIdx]?.zpid || null) : null;
+    : view === "freeplay" && fpResult ? (fpListings[fpIdx]?.zpid || null)
+    // Sold challenge reveal: same board as Sold/Daily (guesses are keyed by
+    // zpid across modes), so the recipient sees The Field too (2026-10-08).
+    : view === "challenge" && challengeResult && !challengeResult.isLive ? (challengeData?.listing?.zpid || null) : null;
   const [soldField, setSoldField] = useState(null);
   useEffect(() => {
     setSoldField(null);
@@ -5788,6 +5791,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             );
           })() : RevealCard({
             result: challengeResult,
+            field: fieldFor(challengeData?.listing?.zpid),
             comparison: challengeResult.challengerGuess ? { myAccuracy: challengeResult.myAccuracy, challengerAccuracy: challengeResult.challengerAccuracy, challengerGuess: challengeResult.challengerGuess, iWon: challengeResult.iWon } : null,
             onChallenge: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),
             onShare: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),
