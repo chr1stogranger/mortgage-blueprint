@@ -4059,6 +4059,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // address, a full-width spec row, and remarks | value signals. ──
     if (wide) {
       const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude);
+      // Remarks always fully open here — there's room, and a Read more on
+      // desktop just hid the best guessing context.
+      const wideDescEl = showExtras && desc ? (
+        <div style={{ marginTop: 10, background: T.inputBg, borderRadius: 10, padding: "12px 16px", border: `1px solid ${T.cardBorder}` }}>
+          <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.6, fontFamily: FONT }}>{renderHighlightedDesc(desc, T)}</div>
+        </div>
+      ) : null;
       const pillH = 68;
       const pillBase = { height: pillH, borderRadius: 9999, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", boxSizing: "border-box", fontFamily: FONT };
       return (
@@ -4123,10 +4130,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 </div>
               ))}
             </div>
-            {(descEl || valueSignalsEl || (view === "live" && valuePool)) && (
-              <div style={{ display: "grid", gridTemplateColumns: descEl ? "minmax(0, 1.4fr) minmax(0, 1fr)" : "1fr", gap: 12, alignItems: "start" }}>
-                {descEl}
-                <div style={{ minWidth: 0 }}>
+            {(wideDescEl || valueSignalsEl || (view === "live" && valuePool)) && (
+              // stretch: the value-signals box grows to the remarks' height
+              // so the two read as one balanced row (Christo 2026-10-07).
+              <div style={{ display: "grid", gridTemplateColumns: wideDescEl ? "minmax(0, 1.4fr) minmax(0, 1fr)" : "1fr", gap: 12, alignItems: "stretch" }}>
+                {wideDescEl}
+                <div className="pp-vs-fill" style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
                   {valueSignalsEl}
                   {view === "live" && valuePool && renderPriceRead(listing, valuePool, details, T)}
                 </div>
@@ -4515,6 +4524,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       <style>{`
         /* The shell's global input::placeholder rule (white @15%, built for
            dark mode) made "Search any address…" invisible in light mode. */
+        .pp-vs-fill > div:first-child { flex: 1; }
         .pp-search-input::placeholder { color: var(--pp-ph, #6B7280) !important; opacity: 1 !important; font-weight: 400 !important; }
         @keyframes ppSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes ppFadeIn { from { opacity: 0 } to { opacity: 1 } }
@@ -5304,12 +5314,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div role="button" tabIndex={0} onClick={() => setView("livePicker")} onKeyDown={onKeyActivate(() => setView("livePicker"))} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveHoodName || "All"}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}</span> <Icon name="chevron-right" size={12} />
               </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {/* Desktop: count + refresh ride next to the filter; the List|Map
+                  toggle sits over the photo's top-right corner (2026-10-07). */}
+              {isDesktop && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: liveRefresh.note ? T.textSecondary : T.red, fontFamily: FONT, whiteSpace: "nowrap" }}>{liveRefresh.note || `${liveRemaining} left`}</span>
               {renderRefreshButton(liveRefresh, refreshLiveListings, "Check for new listings")}
-              {livePrediction && MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
-              {!ppBellSlot && renderBellButton()}
+              </span>}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {!isDesktop && <>
+              <span style={{ fontSize: 12, fontWeight: 600, color: liveRefresh.note ? T.textSecondary : T.red, fontFamily: FONT, whiteSpace: "nowrap" }}>{liveRefresh.note || `${liveRemaining} left`}</span>
+              {renderRefreshButton(liveRefresh, refreshLiveListings, "Check for new listings")}
+              </>}
+              {isDesktop && !ppBellSlot && renderBellButton()}
+              {(isDesktop || livePrediction) && MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
+              {!isDesktop && !ppBellSlot && renderBellButton()}
             </div>
           </div>
           {/* ── Address search (A3): predict ANY property, not just the pool.
@@ -5320,7 +5339,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {!livePrediction && (
             <div style={isDesktop ? { minWidth: 0, gridColumn: 2 } : { marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {isDesktop && MAP_ENABLED && liveListings.length > 0 && renderListMapToggle(T.red, true)}
                 <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
                   <AddressAutocomplete
                     T={T}
@@ -5839,11 +5857,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
               <span style={{ color: T.textTertiary }}>·</span>
               <div role="button" tabIndex={0} onClick={() => setView("fpPicker")} onKeyDown={onKeyActivate(() => setView("fpPicker"))} style={{ color: T.cyan, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{fpSelectedNeighborhood || "All"}</span> <Icon name="chevron-right" size={12} /></div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {isDesktop && <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 10 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: soldRefresh.note ? T.textSecondary : T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{soldRefresh.note || `${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""} left`}</span>
               {renderRefreshButton(soldRefresh, refreshSoldListings, "Check for new sales")}
-              {fpResult && MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
+              </span>}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {!isDesktop && <>
+              <span style={{ fontSize: 12, fontWeight: 600, color: soldRefresh.note ? T.textSecondary : T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{soldRefresh.note || `${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""} left`}</span>
+              {renderRefreshButton(soldRefresh, refreshSoldListings, "Check for new sales")}
+              </>}
+              {(isDesktop || fpResult) && MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
             </div>
           </div>
           {/* ── Address search — same bar as For Sale (Christo 2026-10-07):
@@ -5852,7 +5876,6 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           {!fpResult && (
             <div style={isDesktop ? { minWidth: 0, gridColumn: 2 } : { marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {isDesktop && MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
                 <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
                   <AddressAutocomplete
                     T={T}
