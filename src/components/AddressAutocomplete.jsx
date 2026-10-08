@@ -41,6 +41,7 @@
 //   onSelectLocal(item) — fired when one of those is picked (falls back to
 //                 onSelect when omitted)
 //   localBadge — short tag rendered on local rows (e.g. "FOR SALE")
+//   localBadgeColor — its tint (defaults to T.red, the For Sale color)
 //   proximity  — optional { lat, lng } to bias geocoder results to the market
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
@@ -105,7 +106,7 @@ function matchLocal(items, query) {
 
 const STATE_MAP = { "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "DC": "District of Columbia", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming" };
 
-export default function AddressAutocomplete({ onSelect, onSubmit, value, onChange, placeholder, T, label = null, inputStyle = null, containerStyle = null, inputClassName = undefined, stateFormat = "full", localSuggestions = null, onSelectLocal = null, localBadge = null, proximity = null }) {
+export default function AddressAutocomplete({ onSelect, onSubmit, value, onChange, placeholder, T, label = null, inputStyle = null, containerStyle = null, inputClassName = undefined, stateFormat = "full", localSuggestions = null, onSelectLocal = null, localBadge = null, localBadgeColor = null, proximity = null }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -334,7 +335,7 @@ export default function AddressAutocomplete({ onSelect, onSubmit, value, onChang
                     )}
                   </div>
                   {isLocal && localBadge && (
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: T.red || T.accent, background: `${T.red || T.accent}14`, border: `1px solid ${T.red || T.accent}30`, borderRadius: 9999, padding: "2px 7px", flexShrink: 0 }}>{localBadge}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: localBadgeColor || T.red || T.accent, background: `${localBadgeColor || T.red || T.accent}14`, border: `1px solid ${localBadgeColor || T.red || T.accent}30`, borderRadius: 9999, padding: "2px 7px", flexShrink: 0 }}>{localBadge}</span>
                   )}
                 </div>
               );

@@ -2840,6 +2840,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   const fpNextProperty = () => {
     setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
+    if (fpSearchZpid) { setFpSearchZpid(null); setFpSearchAddr(""); }
     setFpIdx(prev => {
       const nextIdx = prev + 1;
       // Auto-fetch more when 3 properties left
@@ -2849,6 +2850,74 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       return nextIdx;
     });
   };
+
+  // ── Sold address search (mirrors For Sale's, Christo 2026-10-07): find any
+  // recent sale and play it. The hit is spliced into fpListings AT the cursor,
+  // so the normal card → guess → reveal → Next flow runs unchanged and Next
+  // lands back on the card you were on. ──
+  const [fpSearchAddr, setFpSearchAddr] = useState("");
+  const [fpSearchLoading, setFpSearchLoading] = useState(false);
+  const [fpSearchError, setFpSearchError] = useState(null);
+  const [fpSearchZpid, setFpSearchZpid] = useState(null); // zpid of the spliced card
+  const showFpSearchHit = (listing) => {
+    const z = String(listing.zpid);
+    setFpListings(prev => {
+      const from = prev.findIndex(l => String(l.zpid) === z);
+      if (from === fpIdx) return prev;
+      const rest = from >= 0 ? prev.filter((_, i) => i !== from) : prev;
+      const at = Math.min(rest.length, from >= 0 && from < fpIdx ? fpIdx - 1 : fpIdx);
+      if (from >= 0 && from < fpIdx) setFpIdx(at);
+      return [...rest.slice(0, at), listing, ...rest.slice(at)];
+    });
+    setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
+    setFpSearchError(null); setFpSearchLoading(false);
+    setFpSearchZpid(z);
+    if (listing.zpid) fetchPropertyDetails(listing);
+  };
+  const clearFpSearch = () => {
+    const z = fpSearchZpid;
+    setFpSearchAddr(""); setFpSearchError(null); setFpSearchZpid(null); setFpGuessInput("");
+    // Drop a looked-up home that was never in the pool; a pool hit stays put.
+    if (z && !soldListings.some(l => String(l.zpid) === z)) {
+      setFpListings(prev => prev.filter((l, i) => !(i === fpIdx && String(l.zpid) === z)));
+    }
+  };
+  const runFpAddressSearch = async (addressText) => {
+    const q = String(addressText || "").trim();
+    if (q.length < 5 || fpSearchLoading) return;
+    setFpSearchError(null);
+    setFpSearchLoading(true);
+    try {
+      const resp = await fetch(apiUrl(`/api/propertydetails?address=${encodeURIComponent(q)}&market=${encodeURIComponent(market?.id || "sf")}&mode=sold`));
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data?.listing?.soldPrice) {
+        showFpSearchHit(data.listing);
+      } else {
+        setFpSearchError(data?.message || "Couldn't find a recent sale there. Try adding city & zip");
+      }
+    } catch {
+      setFpSearchError("Couldn't find a recent sale there. Try adding city & zip");
+    } finally {
+      setFpSearchLoading(false);
+    }
+  };
+  const handleFpAddressSelect = (sel) => {
+    const full = [sel.address, sel.city, [sel.state, sel.zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    setFpSearchAddr(full);
+    runFpAddressSearch(full);
+  };
+  // Typeahead rows: the whole market's sold pool, not just this hood's slice.
+  const fpSearchPool = useMemo(() => {
+    const seen = new Set();
+    return [...fpListings, ...soldListings].filter(l => {
+      if (!l?.zpid || !l.soldPrice || seen.has(String(l.zpid))) return false;
+      seen.add(String(l.zpid)); return true;
+    });
+  }, [fpListings, soldListings]);
+  const fpProximity = useMemo(() => {
+    const withGeo = fpSearchPool.find(l => l?.latitude && l?.longitude);
+    return withGeo ? { lat: withGeo.latitude, lng: withGeo.longitude } : null;
+  }, [fpSearchPool]);
 
   // ═══════════════════════════════════════════════════════════════
   // FIRST-PRINCIPLES MODE SEPARATION
@@ -3768,6 +3837,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // are applied when the pool is built), so the pin's index IS fpIdx/liveIdx.
   const handleFpMapSelect = (i) => {
     setFpIdx(i); setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
+    setFpSearchZpid(null); setFpSearchAddr("");
     setShowMap(false);
   };
   const handleLiveMapSelect = (i) => {
@@ -5645,7 +5715,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       {view === "freeplay" && (
         <div style={{ padding: (IS_MOBILE ? "8px 12px 74px" : "16px 16px 100px"), animation: "ppSlideUp 0.4s ease" }}>
           {/* One-row header (Christo 2026-09-30) — matches For Sale. */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: isDesktop ? 16 : 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, ...(isDesktop ? { maxWidth: 640, margin: "0 auto 10px" } : {}) }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, fontFamily: FONT, whiteSpace: "nowrap" }}>
               <div role="button" tabIndex={0} onClick={() => setShowMarketSwitcher(true)} onKeyDown={onKeyActivate(() => setShowMarketSwitcher(true))} style={{ color: T.textSecondary, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0, overflow: "hidden" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shortMarketLabel(locationLabel || market?.label || "Your Market")}</span> <Icon name="chevron-down" size={12} /></div>
               <span style={{ color: T.textTertiary }}>·</span>
@@ -5654,9 +5724,51 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: soldRefresh.note ? T.textSecondary : T.cyan, fontFamily: FONT, whiteSpace: "nowrap" }}>{soldRefresh.note || `${Math.max(0, fpListings.length - fpIdx - 1)}${fpHasMore && fpZipRef.current ? "+" : ""} left`}</span>
               {renderRefreshButton(soldRefresh, refreshSoldListings, "Check for new sales")}
-              {MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
+              {fpResult && MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
             </div>
           </div>
+          {/* ── Address search — same bar as For Sale (Christo 2026-10-07):
+              look up any recent sale and guess it. Pool homes surface first in
+              the typeahead; anything else goes through ?mode=sold. ── */}
+          {!fpResult && (
+            <div style={isDesktop ? { maxWidth: 640, margin: "0 auto 12px" } : { marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                  <AddressAutocomplete
+                    T={T}
+                    stateFormat="short"
+                    value={fpSearchAddr}
+                    onChange={(v) => { setFpSearchAddr(v); if (fpSearchError) setFpSearchError(null); }}
+                    onSelect={(v) => { setShowMap(false); handleFpAddressSelect(v); }}
+                    onSubmit={(v) => { setShowMap(false); runFpAddressSearch(v); }}
+                    localSuggestions={fpSearchPool}
+                    onSelectLocal={(l) => { setShowMap(false); showFpSearchHit(l); }}
+                    localBadge="Sold"
+                    localBadgeColor={T.cyan}
+                    proximity={fpProximity}
+                    placeholder="Search any address…"
+                    inputClassName="pp-search-input"
+                    containerStyle={{ marginBottom: 0, "--pp-ph": T.textTertiary }}
+                    inputStyle={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 9999, border: `1px solid ${T.cardBorder}`, padding: "10px 18px", paddingRight: 40, color: T.text, fontSize: 14, fontWeight: 500, outline: "none", fontFamily: FONT, WebkitAppearance: "none", textOverflow: "ellipsis" }}
+                  />
+                  {fpSearchZpid && !fpSearchLoading && (
+                    <button onClick={clearFpSearch}
+                      aria-label="Clear search and go back to sales"
+                      style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: 9999, border: "none", background: T.pillBg, color: T.textSecondary, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                      <Icon name="x" size={13} />
+                    </button>
+                  )}
+                </div>
+                {MAP_ENABLED && fpListings.length > 0 && renderListMapToggle(T.cyan, true)}
+              </div>
+              {fpSearchLoading && (
+                <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginTop: 6, paddingLeft: 4, animation: "ppPulse 1.2s ease infinite" }}>Looking up that sale…</div>
+              )}
+              {fpSearchError && !fpSearchLoading && (
+                <div style={{ fontSize: 12, color: T.red, fontFamily: FONT, marginTop: 6, paddingLeft: 4 }}>{fpSearchError}</div>
+              )}
+            </div>
+          )}
           {showMap && MAP_ENABLED ? (
             /* ── A4: map of the freeplay pool — pins only, soldPrice never rendered ── */
             <Suspense fallback={mapSuspenseFallback}>

@@ -22,6 +22,9 @@
 //
 // NEVER returns soldPrice — a Live prediction resolves later via cron, and a
 // prior sale price on an off-market home would anchor the player.
+// EXCEPT &mode=sold (Sold-tab search, 2026-10-07): the player is guessing a
+// closed sale, so the answer ships like it does for every pooled Sold card —
+// and only when the sale is within the last 12 months; otherwise 404 not_sold.
 //
 // NOTE: pp_property_pool.sold_price/sold_date are NOT NULL in the original
 // schema (sql/2026-05-28-pp_property_pool.sql). Upserting an ACTIVE (unsold)
@@ -91,6 +94,17 @@ function toLotSqft(d) {
     : Math.round(d.lotAreaValue);
 }
 
+// "2 6th Avenue" (geocoder) vs "2 6th Ave" (pool) — compare on a canonical
+// form: lowercase, suffixes abbreviated, punctuation and spaces dropped.
+const SUFFIX = { avenue: "ave", street: "st", boulevard: "blvd", drive: "dr", road: "rd", place: "pl", court: "ct", lane: "ln", terrace: "ter", circle: "cir", parkway: "pkwy", highway: "hwy", way: "way" };
+const canonStreet = (s) => String(s || "").toLowerCase()
+  .replace(/\b(apt|unit|ste|suite)\b\.?/g, "#")
+  .replace(/[a-z]+/g, (w) => SUFFIX[w] || w)
+  .replace(/[^a-z0-9#]/g, "");
+
+const SOLD_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
+const isRecentSoldDate = (d) => { const t = Date.parse(d || ""); return !isNaN(t) && Date.now() - t <= SOLD_WINDOW_MS; };
+
 // Escape LIKE wildcards so a street like "100% Main St" can't wildcard-match.
 const escapeLike = (s) => String(s).replace(/[%_\\]/g, (m) => `\\${m}`);
 
@@ -140,7 +154,20 @@ export async function handleAddressSearch(req, res) {
     // market id only shapes the pool cache key — sanitize hard, default 'sf'
     const marketId = /^[a-z0-9_-]{1,32}$/.test(String(req.query.market || "")) ? String(req.query.market) : "sf";
 
-    const cacheKey = address.toLowerCase().replace(/\s+/g, " ");
+    const soldMode = req.query.mode === "sold";
+    // Sold-mode results carry soldPrice — never let a Live lookup read them.
+    const cacheKey = `${soldMode ? "sold:" : ""}${address.toLowerCase().replace(/\s+/g, " ")}`;
+    // Sold mode: attach the answer, or refuse when there's no recent sale.
+    const withSale = (listing, soldPrice, soldDate) => ({
+      ...listing, status: "sold", soldPrice, soldDate, _source: "sold_comps",
+    });
+    const notSold = () => {
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(404).json({
+        error: "not_sold",
+        message: "No sale in the last 12 months for that address. Try it in For Sale",
+      });
+    };
     const cached = getCached(cacheKey);
     if (cached) {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
@@ -155,15 +182,27 @@ export async function handleAddressSearch(req, res) {
     const supabase = getSupabaseAdmin();
     if (supabase && street) {
       try {
-        let q = supabase.from("pp_property_pool").select("*").ilike("address", escapeLike(street)).limit(5);
-        if (zip) q = q.eq("zip", zip);
-        const { data: rows, error: poolErr } = await q;
+        // With a zip: pull that house number's rows in the zip and match on the
+        // canonical street, so suffix spelling ("Avenue"/"Ave") can't miss.
+        const streetNum = street.split(/\s+/)[0];
+        let q = supabase.from("pp_property_pool").select("*");
+        q = zip && /^\d+[a-z]?$/i.test(streetNum)
+          ? q.eq("zip", zip).ilike("address", `${escapeLike(streetNum)} %`).limit(40)
+          : q.ilike("address", escapeLike(street)).limit(5);
+        const { data: raw, error: poolErr } = await q;
+        const want = canonStreet(street);
+        let rows = (raw || []).filter(r => canonStreet(r.address) === want);
+        if (soldMode) {
+          rows = rows.filter(r => r.sold_price && isRecentSoldDate(r.sold_date))
+            .sort((a, b) => String(b.sold_date).localeCompare(String(a.sold_date)));
+        }
         if (poolErr) {
           console.error(`[pp-address] pool read error (continuing): ${poolErr.message}`);
-        } else if (rows && rows.length > 0) {
+        } else if (rows.length > 0) {
           // Prefer a row that can actually render a card (photo or list price)
           const best = rows.find(r => (Array.isArray(r.photos) && r.photos.length > 0) || r.photo || r.list_price) || rows[0];
-          const result = { listing: poolRowToListing(best), source: "pool" };
+          const listing = poolRowToListing(best);
+          const result = { listing: soldMode ? withSale(listing, best.sold_price, best.sold_date) : listing, source: "pool" };
           setCache(cacheKey, result);
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
           return res.status(200).json({ ...result, cached: true });
@@ -324,7 +363,8 @@ export async function handleAddressSearch(req, res) {
       }
     }
 
-    const result = { listing, source: "rapidapi" };
+    if (soldMode && !(soldPrice && isRecentSoldDate(soldDate))) return notSold();
+    const result = { listing: soldMode ? withSale(listing, soldPrice, soldDate) : listing, source: "rapidapi" };
     setCache(cacheKey, result);
     res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
     return res.status(200).json({ ...result, cached: false });

@@ -977,28 +977,43 @@ async function discoverSoldViaRedfin(city, zip, apiKey, marketId, ingestCutoff, 
     console.error(`[SoldComps] redfin discovery ${marketId}${zip ? ` zip=${zip}` : ''}: SKIPPED: regionId resolve failed (see auto-complete error above)`);
     return { rows: [], diag: 'regionId resolve failed' };
   }
-  let items = [];
-  try {
+  // Two windows (2026-10-07): the 90-day feed for a city like SF runs well
+  // past one 350-row page and comes back UNORDERED, so page 1 alone was a
+  // random sample — this week's sales (2 6th Ave, $15M, sold 10/7) were
+  // silently dropped while older ones made it in. The 14-day window fits in a
+  // page or two (SF ≈ 190) and is read to completion, so every fresh sale
+  // lands; the 90-day page then adds volume.
+  const fetchSold = async (soldWithin, page) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
-    let r, j;
     try {
-      r = await fetch(
-        `https://${REDFIN_HOST}/properties/search-sold?regionId=${encodeURIComponent(regionId)}&soldWithin=90&limit=350`,
+      const r = await fetch(
+        `https://${REDFIN_HOST}/properties/search-sold?regionId=${encodeURIComponent(regionId)}&soldWithin=${soldWithin}&limit=350&page=${page}`,
         { headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': REDFIN_HOST }, signal: controller.signal }
       );
-      j = await r.json().catch(() => null);
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        console.error(`[SoldComps] redfin search-sold ${marketId} within=${soldWithin} p${page}: HTTP ${r.status} quota-left=${r.headers.get('x-ratelimit-requests-remaining') ?? '?'} body=${JSON.stringify(j?.message || j || '').slice(0, 120)}`);
+        return { items: [], more: false, err: `search-sold HTTP ${r.status}` };
+      }
+      return { items: Array.isArray(j?.data) ? j.data : [], more: !!j?.meta?.moreData, err: null };
+    } catch (e) {
+      console.error(`[SoldComps] redfin search-sold failed for ${marketId} within=${soldWithin} p${page}: ${e.message}`);
+      return { items: [], more: false, err: e.message };
     } finally { clearTimeout(timer); }
-    if (!r.ok) {
-      console.error(`[SoldComps] redfin search-sold ${marketId}: HTTP ${r.status} quota-left=${r.headers.get('x-ratelimit-requests-remaining') ?? '?'} body=${JSON.stringify(j?.message || j || '').slice(0, 120)}`);
-      return { rows: [], diag: `search-sold HTTP ${r.status}` };
-    }
-    items = j?.data || [];
-    if (!Array.isArray(items)) items = [];
-  } catch (e) {
-    console.error(`[SoldComps] redfin search-sold failed for ${marketId}: ${e.message}`);
-    return { rows: [], diag: e.message };
+  };
+  let items = [];
+  let firstErr = null;
+  for (let page = 1; page <= 3; page++) {
+    const { items: got, more, err } = await fetchSold(14, page);
+    if (err) { firstErr = firstErr || err; break; }
+    items.push(...got);
+    if (!more) break;
   }
+  const wide = await fetchSold(90, 1);
+  if (wide.err) firstErr = firstErr || wide.err;
+  items.push(...wide.items);
+  if (items.length === 0 && firstErr) return { rows: [], diag: firstErr };
   const poolZpids = new Set(poolRows.map(r => String(r.zpid)));
   const poolAddrs = new Set(poolRows.map(r => addrKey(r.address, r.zip)));
   const rows = [];
