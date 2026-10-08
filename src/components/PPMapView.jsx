@@ -11,8 +11,9 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { FONT } from "../lib/fonts.js";
 
-const DARK_STYLE = "mapbox://styles/mapbox/dark-v11";
-const LIGHT_STYLE = "mapbox://styles/mapbox/light-v11";
+// One light street map in both themes (Christo 2026-10-08: "normal Google /
+// Apple Maps colors"), matching the card's static location panel.
+const MAP_STYLE = "mapbox://styles/mapbox/streets-v12";
 
 export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop, guessedZpids }) {
   const containerRef = useRef(null);
@@ -44,7 +45,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
     try {
       map = new mapboxgl.Map({
         container: containerRef.current,
-        style: darkMode ? DARK_STYLE : LIGHT_STYLE,
+        style: MAP_STYLE,
         center: [-122.4376, 37.7577],
         zoom: 10,
         attributionControl: false,
@@ -70,11 +71,6 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── Theme flips restyle in place ──
-  useEffect(() => {
-    if (mapRef.current) mapRef.current.setStyle(darkMode ? DARK_STYLE : LIGHT_STYLE);
-  }, [darkMode]);
 
   // ── Markers (rebuilt when pool / active card / theme changes) ──
   useEffect(() => {
