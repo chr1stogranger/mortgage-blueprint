@@ -2544,13 +2544,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       photo: listing.photo, pctOff: parseFloat(pctOff.toFixed(1)),
       feedback, feedbackMessage: getRandomMessage(feedback), insight,
       myAccuracy, challengerAccuracy: challengeData.challengerAccuracy,
-      challengerGuess: challengeData.challengerGuess,
-      iWon: myAccuracy >= challengeData.challengerAccuracy,
+      challengerGuess: challengeData.challengerGuess || null,
+      iWon: myAccuracy >= (challengeData.challengerAccuracy || 0),
       dailyNumber: challengeData.dailyNumber, timestamp: Date.now(), revealed: true, isDaily: false,
     });
     // Sold H2H settles instantly — closer accuracy wins.
-    const h2hRec = recordH2H(myAccuracy > challengeData.challengerAccuracy ? 'win' : myAccuracy < challengeData.challengerAccuracy ? 'loss' : 'tie');
-    setH2h(h2hRec); saveServerH2H(playerId, h2hRec);
+    // A plain property link (no sender guess) has no opponent to settle.
+    if (challengeData.challengerGuess) {
+      const h2hRec = recordH2H(myAccuracy > challengeData.challengerAccuracy ? 'win' : myAccuracy < challengeData.challengerAccuracy ? 'loss' : 'tie');
+      setH2h(h2hRec); saveServerH2H(playerId, h2hRec);
+    }
     setView("challenge"); // stay in challenge view to show result
     setAllResults(prev => [...prev, { guess: val, soldPrice: listing.soldPrice, pctOff: parseFloat(pctOff.toFixed(1)), revealed: true, isDaily: false, dailyNumber: null, timestamp: Date.now() }]);
 
@@ -2645,6 +2648,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // plain "a friend sent you this" share, no head-to-head). ──
   const listingShareToken = (listing) => encodeChallenge({
     listing, result: { guess: null, pctOff: null }, mode: 'live',
+    dailyNumber: 0, locationLabel: locationLabel || market?.label || '',
+  });
+  const soldShareToken = (listing) => encodeChallenge({
+    listing, result: { guess: null, pctOff: null }, mode: 'freeplay',
     dailyNumber: 0, locationLabel: locationLabel || market?.label || '',
   });
   const shareListing = (listing) => {
@@ -3249,6 +3256,11 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     ? (liveSearchListing || (liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) ? liveListings[liveIdx] : null))
     : null;
   const liveCardKey = liveCardListing ? `${liveCardListing.zpid || ""}|${liveCardListing.address || ""}` : "";
+  // Sold gets the same per-property URL (Christo 2026-10-07). The token is a
+  // no-guess 'freeplay' challenge, so the link opens that home as a fresh
+  // "what did it sell for?" card for whoever taps it.
+  const soldCardListing = view === "freeplay" && !showMap && !fpResult ? (fpListings[fpIdx] || null) : null;
+  const soldCardKey = soldCardListing ? `${soldCardListing.zpid || ""}|${soldCardListing.address || ""}` : "";
   // A For Sale property link (?c=…) opens the challenge view — it needs the
   // same calls lookup so a home you've already called shows your call instead
   // of a second guess box.
@@ -3407,12 +3419,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     if (typeof window === "undefined" || !window.history?.replaceState) return;
     const params = new URLSearchParams(window.location.search);
     if (liveCardListing) params.set("c", listingShareToken(liveCardListing));
+    else if (soldCardListing) params.set("c", soldShareToken(soldCardListing));
     else if (params.has("c")) params.delete("c");
     else return;
     const qs = params.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveCardKey]);
+  }, [liveCardKey, soldCardKey]);
 
 
   // Bias the address typeahead toward the market the player is actually in —
@@ -5451,10 +5464,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </>
             ) : (
               <>
-                <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
-                  Someone scored <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>{challengeData.challengerAccuracy.toFixed(1)}%</span> on this property
-                </div>
-                <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
+                {challengeData.challengerGuess ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
+                      Someone scored <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>{Number(challengeData.challengerAccuracy || 0).toFixed(1)}%</span> on this property
+                    </div>
+                    <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>Can you beat them?</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.text, fontFamily: FONT, lineHeight: 1.5 }}>
+                      A friend sent you this <span style={{ color: chAccent, fontFamily: FONT, fontWeight: 800 }}>sold home</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: T.textSecondary, fontFamily: FONT, marginTop: 4 }}>What do you think it sold for?</div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -5606,7 +5630,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             );
           })() : RevealCard({
             result: challengeResult,
-            comparison: { myAccuracy: challengeResult.myAccuracy, challengerAccuracy: challengeResult.challengerAccuracy, challengerGuess: challengeResult.challengerGuess, iWon: challengeResult.iWon },
+            comparison: challengeResult.challengerGuess ? { myAccuracy: challengeResult.myAccuracy, challengerAccuracy: challengeResult.challengerAccuracy, challengerGuess: challengeResult.challengerGuess, iWon: challengeResult.iWon } : null,
             onChallenge: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),
             onShare: (r) => shareChallenge(r, challengeData.listing, challengeData.mode === 'daily'),
             onContinue: () => {

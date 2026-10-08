@@ -62,11 +62,15 @@ export default function handler(req, res) {
     ? (address ? `${address} — PricePoint` : `${hood} listing — PricePoint`)
     : isLive
     ? (address ? `PricePoint Challenge — ${address}` : `PricePoint Challenge — call this ${hood} listing`)
+    : !hasGuess
+    ? `Sold in ${hood} — PricePoint` // Sold property link: no address (it'd leak the price)
     : `PricePoint Challenge — ${accuracy}% on ${hood}`;
   const description = isLive && !hasGuess
     ? `For sale in ${hood} (${beds}BR/${baths}BA${sqft ? `, ${Number(sqft).toLocaleString()}sf` : ''}). What do you think it sells for? Lock in your price — closest to the sold price wins.`
     : isLive
     ? `A friend called this active ${hood} listing (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Lock in your own price — closest to what it sells for wins.`
+    : !hasGuess
+    ? `A ${hood} home just sold (${beds}BR/${baths}BA${sqft ? `, ${Number(sqft).toLocaleString()}sf` : ''}). What do you think it went for?`
     : `Someone scored ${accuracy}% accuracy on a ${hood} home (${beds}BR/${baths}BA, ${Number(sqft).toLocaleString()}sf). Think you can beat them?`;
   return sendOgPage(res, {
     title,
