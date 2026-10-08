@@ -95,12 +95,24 @@ function toLotSqft(d) {
 }
 
 // "2 6th Avenue" (geocoder) vs "2 6th Ave" (pool) — compare on a canonical
-// form: lowercase, suffixes abbreviated, punctuation and spaces dropped.
+// form: lowercase, suffixes abbreviated, units as "#n", punctuation dropped.
+// Spaces survive so "2 16th Ave" and "21 6th Ave" stay different.
 const SUFFIX = { avenue: "ave", street: "st", boulevard: "blvd", drive: "dr", road: "rd", place: "pl", court: "ct", lane: "ln", terrace: "ter", circle: "cir", parkway: "pkwy", highway: "hwy", way: "way" };
 const canonStreet = (s) => String(s || "").toLowerCase()
   .replace(/\b(apt|unit|ste|suite)\b\.?/g, "#")
   .replace(/[a-z]+/g, (w) => SUFFIX[w] || w)
-  .replace(/[^a-z0-9#]/g, "");
+  .replace(/[^a-z0-9# ]/g, " ")
+  .replace(/#\s+/g, "#")
+  .replace(/\s+/g, " ")
+  .trim();
+// Does a provider's street line belong to the searched address? The query may
+// trail city/state when typed without commas, so accept a word-boundary prefix.
+const sameStreet = (candidate, query) => {
+  const c = canonStreet(candidate), q = canonStreet(query);
+  if (!c || !q) return false;
+  const cBase = c.split(" #")[0].replace(/#.*$/, "").trim();
+  return q === c || q.startsWith(`${c} `) || (!/#/.test(q) && (q === cBase || q.startsWith(`${cBase} `)));
+};
 
 const SOLD_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 const isRecentSoldDate = (d) => { const t = Date.parse(d || ""); return !isNaN(t) && Date.now() - t <= SOLD_WINDOW_MS; };
@@ -232,12 +244,10 @@ export async function handleAddressSearch(req, res) {
       });
       const sRaw = await sResp.json().catch(() => null);
       const list = (sRaw && (Array.isArray(sRaw.data) ? sRaw.data : sRaw.data?.results)) || [];
-      const streetNum = street.split(/\s+/)[0];
-      let match = null;
-      if (list.length === 1) match = list[0];
-      else if (list.length > 1) {
-        match = list.find(r => String(r?.streetAddress || r?.address || "").trim().startsWith(streetNum)) || null;
-      }
+      // Never trust a lone result blindly: "2 6th Avenue" came back as the
+      // single hit 371 6th Ave (2026-10-07), which in Sold mode reveals the
+      // wrong home's price. The street line has to match the search.
+      const match = list.find(r => sameStreet(String(r?.streetAddress || r?.address || "").split(",")[0], street)) || null;
       if (match?.zpid) zpid = String(match.zpid);
     } catch (e) {
       console.error(`[pp-address] resolve failed for "${address}": ${e.message}`);
