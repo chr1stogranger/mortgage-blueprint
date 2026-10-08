@@ -76,6 +76,9 @@ const encodeChallenge = ({ listing, result, mode, dailyNumber, locationLabel }) 
     g: result.guess, ac: result.pctOff != null ? parseFloat((100 - result.pctOff).toFixed(1)) : 0,
     m: mode === 'daily' ? 'd' : mode === 'live' ? 'l' : 'f', dn: dailyNumber || 0, lb: locationLabel || '',
     t: Math.floor(Date.now() / 1000),
+    // General area only (2 decimals ≈ 1 km): the recipient's map shows a
+    // shaded circle, never the exact pin (Christo 2026-10-08).
+    ...(listing.latitude && listing.longitude ? { la: Math.round(listing.latitude * 100) / 100, lo: Math.round(listing.longitude * 100) / 100 } : {}),
   };
   const json = JSON.stringify(payload);
   return btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -91,6 +94,7 @@ const decodeChallenge = (token) => {
         address: d.a, neighborhood: d.h, city: d.c, state: d.s, zip: d.z,
         beds: d.b, baths: d.ba, sqft: d.sf, yearBuilt: d.yb, propertyType: d.pt,
         listPrice: d.lp, soldPrice: d.sp, daysOnMarket: d.dm, photo: d.ph, zpid: d.zp,
+        ...(Number.isFinite(d.la) && Number.isFinite(d.lo) ? { latitude: d.la, longitude: d.lo, approxLocation: true } : {}),
       },
       challengerGuess: d.g, challengerAccuracy: d.ac,
       mode: d.m === 'd' ? 'daily' : d.m === 'l' ? 'live' : 'freeplay', dailyNumber: d.dn,
@@ -1256,13 +1260,26 @@ function migrateLocalStorage() {
 }
 
 // ── Static map URL builder (Mapbox) ──
-const getStaticMapUrl = (lat, lng) => {
+// streets-v12 = the familiar light Google/Apple-style map (Christo
+// 2026-10-08: the dark style read as a black box). approx = challenge links:
+// no pin, a shaded 750m circle around the 2-decimal rounded point (always contains the home), zoomed out a step.
+const getStaticMapUrl = (lat, lng, approx = false) => {
   if (!lat || !lng) return null;
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   if (!token) return null;
-  // Mapbox Static Images API — dark style, indigo marker, retina (@2x)
-  const marker = `pin-s+3b6bf5(${lng},${lat})`;
-  return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${marker}/${lng},${lat},14.5,0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
+  let overlay;
+  if (approx) {
+    const r = 750, pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const a = (i / 24) * 2 * Math.PI;
+      pts.push([+(lng + (r * Math.cos(a)) / (111320 * Math.cos(lat * Math.PI / 180))).toFixed(5), +(lat + (r * Math.sin(a)) / 110540).toFixed(5)]);
+    }
+    const gj = { type: "Feature", properties: { stroke: "#3b6bf5", "stroke-width": 2, "stroke-opacity": 0.9, fill: "#3b6bf5", "fill-opacity": 0.18 }, geometry: { type: "Polygon", coordinates: [pts] } };
+    overlay = `geojson(${encodeURIComponent(JSON.stringify(gj))})`;
+  } else {
+    overlay = `pin-s+3b6bf5(${lng},${lat})`;
+  }
+  return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${overlay}/${lng},${lat},${approx ? 13.4 : 14.5},0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
 };
 
 // Wide desktop Sold / For Sale grid: photo | map, shared by the header row
@@ -1284,7 +1301,7 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
   const touchStartX = useRef(null);
   const zoomTouchStartX = useRef(null);
   // noMapSlide: the wide desktop card shows the map as its own panel.
-  const mapUrl = noMapSlide ? null : getStaticMapUrl(listing?.latitude, listing?.longitude);
+  const mapUrl = noMapSlide ? null : getStaticMapUrl(listing?.latitude, listing?.longitude, !!listing?.approxLocation);
   // Real photos first; else the single fallback photo; else let the map be
   // the hero (licensed sources like RentCast carry no photos); placeholder
   // only when there's nothing else to show. De-dupe by URL — some feeds repeat
@@ -4060,7 +4077,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // three equal pills (list price · your guess · Final Answer), then the
     // address, a full-width spec row, and remarks | value signals. ──
     if (wide) {
-      const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude);
+      const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude, !!listing.approxLocation);
       // Remarks: ~11 lines, then Read more (Christo 2026-10-07 — fully open
       // ran 30+ lines on luxury listings). Three quarters of the row, so ~95
       // chars a line; anything past ~950 chars overflows the clamp.
@@ -4086,10 +4103,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ position: "absolute", inset: 0 }}>{carousel(true)}</div>
             </div>
             {mapUrl && (
-              <div style={{ position: "relative", height: WIDE_MEDIA_H, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: "#242426" }}>
+              <div style={{ position: "relative", height: WIDE_MEDIA_H, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: "#e8eef2" }}>
                 <img src={mapUrl} alt="Property location map" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
-                  <Icon name="map-pin" size={12} /> LOCATION
+                  <Icon name="map-pin" size={12} /> {listing.approxLocation ? "GENERAL AREA" : "LOCATION"}
                 </div>
               </div>
             )}
