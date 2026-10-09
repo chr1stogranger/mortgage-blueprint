@@ -15,7 +15,10 @@ import { FONT } from "../lib/fonts.js";
 // Apple Maps colors"), matching the card's static location panel.
 const MAP_STYLE = "mapbox://styles/mapbox/streets-v12";
 
-export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop, guessedZpids }) {
+// height: fixed panel height (the card's side panel) instead of the full-view
+// size. focusActive: centre on the active home rather than framing the pool —
+// the card panel is "where is THIS house", the full map is "the whole pool".
+export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop, guessedZpids, height, focusActive }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -168,9 +171,21 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
   }, [mappable, activeIdx, T, darkMode, guessedZpids]);
 
   // ── Frame the pool: fitBounds for many, flyTo for one ──
+  // focusActive: jump to the active home once per home (not on every marker
+  // refresh, or locking a call would yank the map back while you pan).
+  const focusedKeyRef = useRef(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || mappable.length === 0) return;
+    if (focusActive) {
+      const a = mappable.find(m => m.i === activeIdx);
+      const key = a ? `${a.l?.zpid || ""}|${a.lat},${a.lng}` : null;
+      if (a && key !== focusedKeyRef.current) {
+        focusedKeyRef.current = key;
+        map.jumpTo({ center: [a.lng, a.lat], zoom: 14.5 });
+      }
+      return;
+    }
     if (mappable.length === 1) {
       map.flyTo({ center: [mappable[0].lng, mappable[0].lat], zoom: 14, duration: 600 });
     } else {
@@ -178,10 +193,10 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
       mappable.forEach(({ lat, lng }) => bounds.extend([lng, lat]));
       map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
     }
-  }, [mappable]);
+  }, [mappable, focusActive, activeIdx]);
 
   return (
-    <div className="pp-map-wrap" style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}` }}>
+    <div className="pp-map-wrap" style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, ...(height ? { height, boxSizing: "border-box" } : {}) }}>
       {/* Theme the Mapbox popup chrome to match T (scoped to this wrapper). */}
       <style>{`
         .pp-map-wrap .mapboxgl-popup-content { background: ${T.card}; color: ${T.text}; border-radius: 12px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
@@ -195,7 +210,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
         .pp-map-wrap .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: ${T.card}; }
         .pp-map-wrap .mapboxgl-popup-close-button { color: ${T.textSecondary}; font-size: 16px; right: 4px; top: 2px; }
       `}</style>
-      <div ref={containerRef} style={{ width: "100%", height: isDesktop ? "min(68vh, 640px)" : "min(62vh, 520px)", minHeight: 320 }} />
+      <div ref={containerRef} style={{ width: "100%", height: height ? "100%" : (isDesktop ? "min(68vh, 640px)" : "min(62vh, 520px)"), minHeight: height ? 0 : 320 }} />
       {mappable.length === 0 && (
         <div style={{
           position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",

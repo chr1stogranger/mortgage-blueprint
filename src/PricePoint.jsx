@@ -2234,6 +2234,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [pendingBoardZpid, setPendingBoardZpid] = useState(() => {
     try { return new URLSearchParams(window.location.search).get("board") || null; } catch { return null; }
   });
+  // ?stats=1 (a "someone beat your call" push) opens Stats.
+  const pendingStatsRef = useRef((() => { try { return new URLSearchParams(window.location.search).get("stats") === "1"; } catch { return false; } })());
+  useEffect(() => {
+    if (!pendingStatsRef.current || view === "onboarding" || !market) return;
+    pendingStatsRef.current = false;
+    setView("tomorrow");
+    try {
+      const q = new URLSearchParams(window.location.search); q.delete("stats");
+      const qs = q.toString();
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+    } catch { /* ignore */ }
+  }, [view, market]);
   useEffect(() => {
     if (!pendingBoardZpid || view === "onboarding") return;
     openBoardFromPayload({ zpid: pendingBoardZpid });
@@ -2254,6 +2266,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [homeBooting, setHomeBooting] = useState(false);
   const startHome = (dailyDone) => {
     if (pendingPropertyLinkRef.current) { setView(dailyDone ? "postDaily" : "daily"); return; }
+    // A "beat your call" push owns the first view — skip the nearby boot so
+    // it can't yank Stats back to For Sale when the location lookup lands.
+    if (pendingStatsRef.current) { pendingStatsRef.current = false; setView("tomorrow"); return; }
     startNearbyRef.current = true;
     setHomeBooting(true);
     setView("live");
@@ -4178,23 +4193,46 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   const handleLiveMapSelect = (i) => {
     const l = liveListings[i];
-    // Tapping a done pin opens that property's board (your call + The Field)
-    // instead of the guess card — you can't call the same home twice.
+    // Tapping a done pin opens that home's full card (photos, specs, your
+    // call, See the board) — Christo 2026-10-09 — not the board overlay.
     if (l && isLiveGuessed(l)) {
-      const pred = allPredictions.find(p =>
-        (p.zpid && String(p.zpid) === String(l.zpid)) ||
-        (p.address && l.address && p.address === l.address && p.zip === l.zip));
-      openPredictionBoard(pred || {
-        zpid: String(l.zpid), address: l.address, neighborhood: l.neighborhood,
-        city: l.city, state: l.state, zip: l.zip, beds: l.beds, baths: l.baths,
-        sqft: l.sqft, photo: l.photo, listPrice: l.listPrice,
-        guess: null, resolved: false, timestamp: 0,
-      });
-      return; // stay on the map — the board is an overlay
+      setLivePrediction(null); setMlsExpanded(false);
+      setLiveSearchListing(l);
+      setLiveSearchAddr([l.address, l.city].filter(Boolean).join(", "));
+      setLiveSearchGuessInput(""); setLiveSearchError(null);
+      if (l.zpid) fetchPropertyDetails(l);
+      setShowMap(false);
+      return;
     }
     setLiveIdx(i); setLivePrediction(null); setLiveGuessInput(""); setMlsExpanded(false);
     setLiveSearchListing(null); setLiveSearchAddr(""); setLiveSearchGuessInput(""); setLiveSearchError(null);
     setShowMap(false);
+  };
+  // ── The For Sale card's side map = the same live map as Map mode (Christo
+  // 2026-10-09): the pool's pins, checks on called homes, tappable popups,
+  // the card's home ringed and centred. The card's home is appended when it
+  // isn't in the pool (address search / link), with its exact point from
+  // details when the link only carried rounded coords. Memoized so pins and
+  // framing don't rebuild on every keystroke.
+  const cardMapHome = view === "challenge" && challengeData?.mode === "live" ? challengeData.listing
+    : (liveSearchListing || liveListings[liveIdx] || null);
+  const cardMapHomeDetails = cardMapHome?.zpid ? propertyDetails[cardMapHome.zpid] : null;
+  const cardMap = useMemo(() => {
+    if (!cardMapHome) return null;
+    const z = cardMapHome.zpid ? String(cardMapHome.zpid) : null;
+    let idx = z ? liveListings.findIndex(l => String(l?.zpid) === z) : -1;
+    if (idx >= 0) return { pool: liveListings, activeIdx: idx };
+    const exact = cardMapHome.approxLocation && cardMapHomeDetails?.latitude
+      ? { latitude: cardMapHomeDetails.latitude, longitude: cardMapHomeDetails.longitude, approxLocation: false } : {};
+    return { pool: [...liveListings, { ...cardMapHome, ...exact }], activeIdx: liveListings.length };
+  }, [cardMapHome, cardMapHomeDetails?.latitude, cardMapHomeDetails?.longitude, liveListings]);
+  const handleCardMapSelect = (i) => {
+    const l = cardMap?.pool?.[i];
+    if (!l || i === cardMap.activeIdx) return;
+    const poolIdx = liveListings.findIndex(x => x === l || (x?.zpid && String(x.zpid) === String(l.zpid)));
+    if (poolIdx < 0) return;
+    if (view === "challenge") setView("live");
+    handleLiveMapSelect(poolIdx);
   };
   const mapSuspenseFallback = (
     <div style={{ height: isDesktop ? "min(68vh, 640px)" : "min(62vh, 520px)", minHeight: 320, borderRadius: 16, border: `1px solid ${T.cardBorder}`, background: T.card, display: "flex", alignItems: "center", justifyContent: "center", color: T.textSecondary, fontFamily: FONT, fontSize: 13, animation: "ppPulse 1.2s ease infinite" }}>
@@ -4430,9 +4468,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
             {mapUrl && (
               <div style={{ position: "relative", height: WIDE_MEDIA_H, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: "#e8eef2" }}>
-                <img src={mapUrl} alt="Property location map" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
-                  <Icon name="map-pin" size={12} /> {mapPoint.approx ? "GENERAL AREA" : "LOCATION"}
+                {isForSale && MAP_ENABLED && cardMap ? (
+                  <Suspense fallback={null}>
+                    <PPMapView listings={cardMap.pool} T={T} darkMode={darkMode} activeIdx={cardMap.activeIdx} onSelect={handleCardMapSelect} onUnsupported={() => {}} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} height={WIDE_MEDIA_H} focusActive />
+                  </Suspense>
+                ) : (
+                  <img src={mapUrl} alt="Property location map" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                )}
+                <div style={{ position: "absolute", top: 12, left: 12, zIndex: 2, pointerEvents: "none", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
+                  <Icon name="map-pin" size={12} /> {mapPoint.approx && !(isForSale && MAP_ENABLED && cardMap) ? "GENERAL AREA" : "LOCATION"}
                 </div>
               </div>
             )}
@@ -6688,7 +6732,10 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   <div key={n.id} onClick={async () => {
                     // A notification about a property opens that property's
                     // board (who called it, final ranking) — Christo 2026-10-01.
-                    if (n.payload?.zpid) { setShowNotifDrawer(false); openBoardFromPayload(n.payload); }
+                    // Sold/Daily alerts ("someone beat your call") land on Stats,
+                    // where each home's field is listed.
+                    if (n.payload?.kind === "sold") { setShowNotifDrawer(false); setView("tomorrow"); }
+                    else if (n.payload?.zpid) { setShowNotifDrawer(false); openBoardFromPayload(n.payload); }
                     if (!n.read) {
                       await markNotificationsRead(playerId, [n.id]);
                       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x));
@@ -6706,7 +6753,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5 }}>{n.body}</div>
                         <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 6, letterSpacing: 1 }}>
                           {new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          {n.payload?.zpid && <span style={{ color: T.accent, fontWeight: 600, marginLeft: 8, letterSpacing: 0 }}>See the board ›</span>}
+                          {n.payload?.zpid && <span style={{ color: T.accent, fontWeight: 600, marginLeft: 8, letterSpacing: 0 }}>{n.payload?.kind === "sold" ? "See your guesses ›" : "See the board ›"}</span>}
                         </div>
                       </div>
                       {!n.read && (

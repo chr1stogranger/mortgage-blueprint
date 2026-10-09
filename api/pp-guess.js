@@ -19,6 +19,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './_cors.js';
 import { rateLimited } from './_ratelimit.js';
+import { deliverPush } from './_push.js';
 
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -178,6 +179,52 @@ async function computeWins(supabase, me) {
     played: firstByHome.size + resolved.length,
     topHood: Math.max(0, ...hoods.values()),
   };
+}
+
+// ── "Someone beat your call" ────────────────────────────────────────────────
+// After a counted (first) Sold/Daily guess lands, if it's strictly closer than
+// the player who was #1 on that home, tell them right away: an in-app bell row
+// plus an instant push (not the 9am queue — the sting is the point). If they
+// were #1 of 2+, that was a live win they just lost.
+async function notifyBeaten(supabase, { me, guessId, zpid, pctOff, address }) {
+  const { data, error } = await supabase
+    .from('pp_guesses')
+    .select('id, player_id, pct_off, created_at')
+    .eq('zpid', String(zpid)).in('mode', SOLD_MODES).not('pct_off', 'is', null)
+    .order('created_at', { ascending: true }).limit(2000);
+  if (error) throw new Error(error.message);
+  const firsts = new Map();
+  for (const r of data || []) if (!firsts.has(r.player_id)) firsts.set(r.player_id, r);
+  if (firsts.get(me)?.id !== guessId) return; // a replay — doesn't count, doesn't beat anyone
+  const others = [...firsts.values()].filter(r => r.player_id !== me)
+    .sort((a, b) => Number(a.pct_off) - Number(b.pct_off)); // stable → earlier call wins ties
+  const leader = others[0];
+  if (!leader || !(Number(pctOff) < Number(leader.pct_off))) return;
+
+  const { data: mine } = await supabase.from('pp_players').select('display_name').eq('id', me).maybeSingle();
+  const who = (mine?.display_name || '').trim() || 'Another player';
+  const where = String(address || '').split(',')[0].trim() || 'a home you played';
+  const lostWin = others.length >= 2; // they were #1 of 2+ = a win
+  const notification = {
+    player_id: leader.player_id,
+    type: 'win_lost',
+    title: lostWin ? `You lost your win on ${where}` : `Someone beat your call on ${where}`,
+    body: `${who} guessed ${Number(pctOff).toFixed(1)}% off. Yours was ${Number(leader.pct_off).toFixed(1)}% off.`,
+    payload: { kind: 'sold', zpid: String(zpid), address: where, pct_off: Number(leader.pct_off), beaten_by: Number(pctOff), lost_win: lostWin },
+  };
+  // Migration 022 adds 'win_lost' to the type CHECK. Until it's applied the
+  // row is rejected — log and still push.
+  const { error: nErr } = await supabase.from('pp_notifications').insert(notification);
+  if (nErr) console.error('[pp-guess] win_lost notification insert failed (migration 022?):', nErr.message);
+
+  const { data: pl } = await supabase.from('pp_players').select('push_enabled').eq('id', leader.player_id).maybeSingle();
+  if (!pl?.push_enabled) return;
+  const { data: tokens } = await supabase.from('pp_device_tokens').select('player_id, token, platform').eq('player_id', leader.player_id);
+  if (!tokens?.length) return;
+  const result = await deliverPush(notification, tokens);
+  for (const dead of result.deadTokens || []) {
+    await supabase.from('pp_device_tokens').delete().eq('player_id', leader.player_id).eq('token', dead.token);
+  }
 }
 
 export default async function handler(req, res) {
@@ -536,6 +583,15 @@ export default async function handler(req, res) {
       }
       console.error('[pp-guess] insert failed:', insErr.message);
       return res.status(500).json({ error: 'Insert failed' });
+    }
+
+    // ── 5a. Sold/Daily: tell whoever this guess just knocked off #1 ───────
+    if (SOLD_MODES.includes(mode) && zpid && pctOff != null) {
+      try {
+        await notifyBeaten(supabase, { me: playerId, guessId: inserted.id, zpid, pctOff, address });
+      } catch (e) {
+        console.error('[pp-guess] beaten-call notify failed (non-fatal):', e.message);
+      }
     }
 
     // ── 5b. Live: also record the prediction (moved server-side) ──────────
