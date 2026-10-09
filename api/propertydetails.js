@@ -7,6 +7,7 @@
 //     PERSISTS photos/description/list_price into pp_property_pool so each
 //     property is enriched at most once, ever.
 
+import { listingAgent } from './_agent.js';
 import { createClient } from "@supabase/supabase-js";
 import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
@@ -164,7 +165,9 @@ export default async function handler(req, res) {
   if (!skipCache) {
     // L1: in-memory (this lambda instance only)
     const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0 && !cappedAt24(cached.data)) {
+    // Entries cached before the listing-agent field (2026-10-09) re-fetch once.
+    const preAgent = (data) => !rcid && data && data.agent === undefined;
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0 && !cappedAt24(cached.data) && !preAgent(cached.data)) {
       if (!cached.data.floorPlansSorted) cached.data = { ...cached.data, photos: await floorPlansFirst(cached.data.photos), floorPlansSorted: true };
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
       return res.status(200).json({ ...cached.data, cached: true });
@@ -199,7 +202,7 @@ export default async function handler(req, res) {
             zpid: String(cacheKey), photos: [], description: "", listPrice: null,
             photoCount: 0, enrichPending: true, source: "negative-cache",
           });
-        } else if (row?.data?.photos?.length > 0 && ageMs < CACHE_TTL && !cappedAt24(row.data)) {
+        } else if (row?.data?.photos?.length > 0 && ageMs < CACHE_TTL && !cappedAt24(row.data) && !preAgent(row.data)) {
           // Cached before floor-plan sorting: reorder on the way out (no
           // provider call) and write the sorted copy back.
           let data = row.data;
@@ -576,12 +579,11 @@ export default async function handler(req, res) {
       latitude: Number.isFinite(+d.latitude) && +d.latitude ? +d.latitude : null,
       longitude: Number.isFinite(+d.longitude) && +d.longitude ? +d.longitude : null,
       homeStatus: d.homeStatus || null,
-      // TEMP probe (2026-10-09): which listing-agent fields the provider sends.
-      _agentProbe: {
-        attributionInfo: d.attributionInfo || null,
-        listedBy: d.listed_by || d.listedBy || null,
-        keys: Object.keys(d).filter(k => /agent|broker|attribution|listed|office|mls/i.test(k)),
-      },
+      // Listing agent + local/out-of-town (RealTalk). See api/_agent.js.
+      agent: rcid ? null : await listingAgent(d, {
+        lat: d.latitude, lng: d.longitude,
+        city: d.address?.city || d.city, state: d.address?.state || d.state,
+      }).catch(e => { console.error(`[PropertyDetails] agent lookup failed: ${e.message}`); return null; }),
       yearBuilt,
       lotSize,
       homeType,

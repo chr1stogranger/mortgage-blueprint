@@ -4376,11 +4376,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             // telegraph the answer (it moves to the reveal there).
             const pr = compact && view === "live" ? listingPriceRead(listing, valuePool, details) : null;
             const zone = priceReadZone(pr, T);
-            if (chips.length === 0 && rows.length === 0 && decoded.length === 0 && !(compact && (desc || pr))) return null;
+            // Listing agent (RealTalk): who's selling it, and whether their
+            // office is local — in this city or within 5 mi (api/_agent.js).
+            const agent = details?.agent?.name ? details.agent : null;
+            if (chips.length === 0 && rows.length === 0 && decoded.length === 0 && !agent && !(compact && (desc || pr))) return null;
             // Compact header previews the verdict + top premium chips; the rest
             // (remarks, Price Read, decoded agent-speak, quant rows) opens below.
             const headChips = compact ? chips.filter(c => c.color === T.green).slice(0, zone ? 1 : 2) : [];
-            const hiddenCount = chips.length - headChips.length + decoded.length + rows.length;
+            const hiddenCount = chips.length - headChips.length + decoded.length + rows.length + (agent ? 1 : 0);
             return (
               <div style={{ marginTop: IS_MOBILE ? 6 : 10, background: T.inputBg, borderRadius: 10, padding: IS_MOBILE ? "8px 12px" : "10px 14px", border: `1px solid ${T.cardBorder}` }}>
                 <button onClick={() => setValueSignalsOpen(!vsOpen)} aria-expanded={vsOpen} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", minWidth: 0 }}>
@@ -4395,7 +4398,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: T.textTertiary, flexShrink: 0 }}>
                     {!vsOpen && (compact ? hiddenCount > 0 : true) && (
-                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{compact ? `+${hiddenCount}` : chips.length + decoded.length + rows.length}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, fontFamily: FONT, color: T.textTertiary, background: T.pillBg, borderRadius: 9999, padding: "2px 8px" }}>{compact ? `+${hiddenCount}` : chips.length + decoded.length + rows.length + (agent ? 1 : 0)}</span>
                     )}
                     {!wide && <Icon name="chevron-down" size={13} style={{ transform: vsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />}
                   </span>
@@ -4415,7 +4418,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         ))}
                       </div>
                     )}
-                    {decoded.length > 0 && (
+                    {(decoded.length > 0 || agent) && (
                       <div style={{ marginTop: 10 }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
                           <span style={{ fontSize: 11.5, fontWeight: 700, fontFamily: FONT, color: T.text, letterSpacing: 0.2 }}>Real<span style={{ color: T.accent }}>Talk</span></span>
@@ -4428,6 +4431,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                               <span><span style={{ color: toneColor(d.tone), fontWeight: 700 }}>“{d.matched}”</span> {d.means}</span>
                             </div>
                           ))}
+                          {agent && (() => {
+                            const tone = agent.local === true ? T.green : agent.local === false ? T.orange : T.textTertiary;
+                            const where = agent.office?.city
+                              ? `office in ${agent.office.city}${agent.local === false && agent.miles != null ? `, ${Math.round(agent.miles)} mi away` : ""}`
+                              : null;
+                            return (
+                              <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, lineHeight: 1.5, display: "flex", gap: 7 }}>
+                                <span aria-hidden style={{ flexShrink: 0, marginTop: 6, width: 6, height: 6, borderRadius: 9999, background: tone }} />
+                                <span>
+                                  Listed by <span style={{ color: T.text, fontWeight: 700 }}>{agent.name}</span>{agent.brokerage ? ` · ${agent.brokerage}` : ""}
+                                  {agent.local != null && <> · <span style={{ color: tone, fontWeight: 700 }}>{agent.local ? "local agent" : "out-of-town agent"}</span></>}
+                                  {where && <span style={{ color: T.textTertiary }}> ({where})</span>}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
