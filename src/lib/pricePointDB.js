@@ -284,6 +284,18 @@ export async function fetchMySoldGuesses() {
   }
 }
 
+/** Live wins (#1 of 2+ players), hits, and badge counters for the XP bar. */
+export async function fetchMyWins() {
+  try {
+    const res = await fetch(apiUrl('/api/pp-guess?mine=wins'), { headers: await notifHeaders() });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return typeof j?.wins === 'number' ? j : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * How the field did on a Sold/Daily home: count, your rank, average guess,
  * top 3. The server only returns it once this player has guessed the home.

@@ -83,6 +83,103 @@ async function lookupPlayerId(supabase, req, deviceId) {
   return row?.id || null;
 }
 
+// ── Wins / hits — the XP bar's scoreline + badge case ────────────────────────
+// A WIN is a home where you're currently #1 of 2+ players: Sold/Daily/challenge
+// rank by first guess (replays never count, same as The Field), For Sale ranks
+// resolved calls by distance to the sold price. Wins are live — a later player
+// who guesses closer takes it, and you can't take it back because your one
+// counted guess already revealed the price. Ties go to whoever called it first.
+// A HIT is a counted guess within HIT_PCT of the sold price, solo or not.
+const HIT_PCT = 3;
+const SOLD_MODES = ['daily', 'freeplay', 'challenge'];
+
+async function inChunks(ids, fetchChunk) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await fetchChunk(ids.slice(i, i + 200));
+    if (error) throw new Error(error.message);
+    out.push(...(data || []));
+  }
+  return out;
+}
+
+async function computeWins(supabase, me) {
+  const [{ data: mineSold, error: e1 }, { data: minePred, error: e2 }] = await Promise.all([
+    supabase.from('pp_guesses').select('zpid, pct_off, neighborhood, created_at')
+      .eq('player_id', me).in('mode', SOLD_MODES).not('pct_off', 'is', null)
+      .order('created_at', { ascending: true }).limit(2000),
+    supabase.from('pp_predictions').select('zpid, resolved, pct_off')
+      .eq('player_id', me).limit(1000),
+  ]);
+  if (e1 || e2) throw new Error((e1 || e2).message);
+
+  // One counted (first) guess per home.
+  const firstByHome = new Map();
+  for (const r of mineSold || []) if (r.zpid && !firstByHome.has(r.zpid)) firstByHome.set(r.zpid, r);
+  const resolved = (minePred || []).filter(p => p.resolved && p.zpid && p.pct_off != null);
+
+  let wins = 0, contested = 0, bestWinField = 0, hits = 0, bullseyes = 0, oracles = 0;
+  const hoods = new Map();
+  for (const r of firstByHome.values()) {
+    const pct = Number(r.pct_off);
+    if (pct <= HIT_PCT) hits++;
+    if (pct <= 1) bullseyes++;
+    if (r.neighborhood) hoods.set(r.neighborhood, (hoods.get(r.neighborhood) || 0) + 1);
+  }
+  for (const p of resolved) {
+    const pct = Number(p.pct_off);
+    if (pct <= HIT_PCT) hits++;
+    if (pct <= 2) oracles++;
+  }
+
+  const tally = (field) => {
+    if (field.length < 2) return;
+    contested++;
+    if (field[0] === me) { wins++; bestWinField = Math.max(bestWinField, field.length); }
+  };
+
+  const soldIds = [...firstByHome.keys()];
+  if (soldIds.length) {
+    const rows = await inChunks(soldIds, ids => supabase.from('pp_guesses')
+      .select('zpid, player_id, pct_off, created_at')
+      .in('zpid', ids).in('mode', SOLD_MODES).not('pct_off', 'is', null)
+      .order('created_at', { ascending: true }).limit(20000));
+    const byHome = new Map();
+    for (const r of rows) {
+      let m = byHome.get(r.zpid);
+      if (!m) byHome.set(r.zpid, (m = new Map()));
+      if (!m.has(r.player_id)) m.set(r.player_id, r); // first guess per player
+    }
+    for (const m of byHome.values()) {
+      // Stable sort over created_at order → ties go to the earlier call.
+      tally([...m.values()].sort((a, b) => Number(a.pct_off) - Number(b.pct_off)).map(r => r.player_id));
+    }
+  }
+
+  const predIds = resolved.map(p => p.zpid);
+  if (predIds.length) {
+    const rows = await inChunks(predIds, ids => supabase.from('pp_predictions')
+      .select('zpid, player_id, pct_off, predicted_at')
+      .in('zpid', ids).eq('resolved', true).not('pct_off', 'is', null)
+      .order('predicted_at', { ascending: true }).limit(20000));
+    const byHome = new Map();
+    for (const r of rows) {
+      let m = byHome.get(r.zpid);
+      if (!m) byHome.set(r.zpid, (m = new Map()));
+      if (!m.has(r.player_id)) m.set(r.player_id, r);
+    }
+    for (const m of byHome.values()) {
+      tally([...m.values()].sort((a, b) => Number(a.pct_off) - Number(b.pct_off)).map(r => r.player_id));
+    }
+  }
+
+  return {
+    wins, contested, bestWinField, hits, bullseyes, oracles,
+    played: firstByHome.size + resolved.length,
+    topHood: Math.max(0, ...hoods.values()),
+  };
+}
+
 export default async function handler(req, res) {
   if (applyCors(req, res, { methods: 'GET, POST, OPTIONS' })) return;
   if (rateLimited(req, res, { limit: 30 })) return;
@@ -138,6 +235,16 @@ export default async function handler(req, res) {
         });
       }
       return res.status(200).json({ guesses: [...byHome.values()].reverse() });
+    }
+
+    if (req.query.mine === 'wins') {
+      if (!myPlayerId) return res.status(200).json({ wins: 0, contested: 0, hits: 0, played: 0 });
+      try {
+        return res.status(200).json(await computeWins(supabase, myPlayerId));
+      } catch (e) {
+        console.error('[pp-guess] mine=wins failed:', e.message);
+        return res.status(500).json({ error: 'Wins unavailable' });
+      }
     }
 
     if (req.query.mine) {

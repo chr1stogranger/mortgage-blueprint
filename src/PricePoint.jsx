@@ -9,7 +9,7 @@ import { apiUrl, API_BASE } from './apiBase';
 import { Capacitor } from '@capacitor/core';
 import {
   getOrCreatePlayer, getDeviceId,
-  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer, fetchMyPredictions, fetchSoldField, fetchMySoldGuesses,
+  submitGuess, flushPendingGuesses, fetchPropertyCalls, syncPlayer, fetchMyPredictions, fetchSoldField, fetchMySoldGuesses, fetchMyWins,
   fetchDaily, getExistingDailyGuess, getLeaderboard,
   updateDisplayName, getPlayer,
   fetchNotifications, markNotificationsRead,
@@ -1832,6 +1832,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     try { return JSON.parse(localStorage.getItem("pp-predictions")) || []; } catch { return []; }
   });
   const [showLevelModal, setShowLevelModal] = useState(false);
+  const [nearMeBusy, setNearMeBusy] = useState(false);
+  const [nearMeError, setNearMeError] = useState(null);
   const [showMarketSwitcher, setShowMarketSwitcher] = useState(false);
 
   // ── Level-Up Celebration ──
@@ -2145,6 +2147,48 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }
     return s;
   }, [allResults]);
+
+  // ── Wins / hits / badges (XP bar scoreline). Wins are live server truth —
+  // someone guessing closer later takes one away — so refetch after each new
+  // guess or call, a beat after the server has written it. ──
+  const [winStats, setWinStats] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("pp-win-stats")) || null; } catch { return null; }
+  });
+  useEffect(() => {
+    let dead = false;
+    const t = setTimeout(() => {
+      fetchMyWins().then(d => {
+        if (dead || !d) return;
+        setWinStats(d);
+        try { localStorage.setItem("pp-win-stats", JSON.stringify(d)); } catch {}
+      });
+    }, 1500);
+    return () => { dead = true; clearTimeout(t); };
+  }, [allResults.length, allPredictions.length]);
+  const bestStreak = useMemo(() => {
+    const nums = [...new Set(allResults.filter(r => r.dailyNumber != null).map(r => r.dailyNumber))].sort((a, b) => a - b);
+    let best = 0, run = 0;
+    nums.forEach((n, i) => { run = i > 0 && n === nums[i - 1] + 1 ? run + 1 : 1; best = Math.max(best, run); });
+    return best;
+  }, [allResults]);
+  // Local fallback until the server answers (first guess per home isn't
+  // knowable here, so replays can inflate it — the server number replaces it).
+  const hits = winStats ? winStats.hits : allResults.filter(r => r.revealed && r.pctOff != null && r.pctOff <= 3).length;
+  const wins = winStats ? winStats.wins : 0;
+  const badges = useMemo(() => {
+    const w = winStats || {};
+    return [
+      { id: "first-win", name: "First Win", icon: "trophy", tint: "#1D9E75", have: wins, need: 1, how: "Finish #1 on a home 2+ players guessed" },
+      { id: "bullseye", name: "Bullseye", icon: "target", tint: "#D9A21B", have: w.bullseyes || allResults.filter(r => r.revealed && r.pctOff <= 1).length, need: 1, how: "Land within 1% of the sold price" },
+      { id: "sharpshooter", name: "Sharpshooter", icon: "star", tint: "#3B6BF5", have: hits, need: 10, how: "10 hits within 3%" },
+      { id: "streak", name: "7-Day Streak", icon: "zap", tint: "#E0703A", have: bestStreak, need: 7, how: "Play the Daily 7 days in a row" },
+      { id: "oracle", name: "Oracle", icon: "eye", tint: "#7F77DD", have: w.oracles || 0, need: 1, how: "Call a For Sale home within 2% of what it sells for" },
+      { id: "upset", name: "Upset", icon: "users", tint: "#D4537E", have: w.bestWinField || 0, need: 5, how: "Win a home 5+ players guessed" },
+      { id: "local", name: "Local", icon: "map", tint: "#0F9E8E", have: w.topHood || 0, need: 10, how: "10 guesses in one neighborhood" },
+      { id: "ten-wins", name: "10 Wins", icon: "award", tint: "#B8860B", have: wins, need: 10, how: "Hold 10 wins at once" },
+    ].map(b => ({ ...b, earned: b.have >= b.need }));
+  }, [winStats, wins, hits, bestStreak, allResults]);
+  const earnedBadges = badges.filter(b => b.earned);
 
   const avgAccuracy = useMemo(() => {
     const revealed = allResults.filter(r => r.revealed && r.soldPrice);
@@ -5048,23 +5092,45 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         </div>
       )}
 
-      {/* Persistent XP bar — visible on Free, Live, Stats */}
+      {/* Persistent XP bar — visible on Free, Live, Stats. Scoreline row
+          (level · wins · hits · latest badges); XP progress is the card's
+          bottom edge so the row stays one line tall. */}
       {(view === "freeplay" || view === "live" || view === "tomorrow") && (
-        <div onClick={() => setShowLevelModal(true)} style={{
-          margin: IS_MOBILE ? "10px 12px 6px" : "16px 16px 12px", padding: IS_MOBILE ? "6px 12px" : "10px 16px", background: T.card,
-          border: `1px solid ${T.cardBorder}`, borderRadius: 12,
-          cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+        <div onClick={() => setShowLevelModal(true)} role="button" aria-label={`Level ${currentLevel.level}, ${wins} wins, ${hits} hits. Open badges`} style={{
+          margin: IS_MOBILE ? "10px 12px 6px" : "16px 16px 12px", padding: IS_MOBILE ? "8px 12px 9px" : "10px 16px 11px", background: T.card,
+          border: `1px solid ${T.cardBorder}`, borderRadius: 12, position: "relative", overflow: "hidden",
+          cursor: "pointer", display: "flex", alignItems: "center", gap: IS_MOBILE ? 10 : 16,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: T.accent }}><Icon name={currentLevel.icon} size={16} /></span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: FONT }}>Lv.{currentLevel.level}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1 }}>
+            <span style={{ color: T.accent, display: "flex" }}><Icon name={currentLevel.icon} size={16} /></span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT, whiteSpace: "nowrap" }}>Lv.{currentLevel.level}</span>
+            <span style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{currentLevel.name}</span>
           </div>
-          <div style={{ flex: 1, height: 6, background: T.inputBg, borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", borderRadius: 3, background: "linear-gradient(90deg, #3B6BF5, #2B4FCE)",
+          <div style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+            <span style={{ color: "#D9A21B", display: "flex" }}><Icon name="trophy" size={15} /></span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{wins}</span>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{wins === 1 ? "win" : "wins"}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+            <span style={{ color: T.green, display: "flex" }}><Icon name="target" size={15} /></span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{hits}</span>
+            <span style={{ fontSize: 11, color: T.textTertiary, fontFamily: FONT }}>{hits === 1 ? "hit" : "hits"}</span>
+          </div>
+          {earnedBadges.length > 0 && (
+            <div style={{ display: "flex", paddingLeft: 6 }}>
+              {earnedBadges.slice(-3).map(b => (
+                <span key={b.id} title={b.name} style={{ width: 22, height: 22, borderRadius: "50%", marginLeft: -6, display: "flex", alignItems: "center", justifyContent: "center", background: `${b.tint}26`, color: b.tint, border: `1.5px solid ${T.card}` }}>
+                  <Icon name={b.icon} size={12} />
+                </span>
+              ))}
+            </div>
+          )}
+          {!IS_MOBILE && <span style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary, whiteSpace: "nowrap" }}>{xp}{nextLevel ? `/${nextLevel.req}` : ""} XP</span>}
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 3, background: T.inputBg }}>
+            <div style={{ height: "100%", background: "linear-gradient(90deg, #3B6BF5, #2B4FCE)",
               width: nextLevel ? `${((xp - currentLevel.req) / (nextLevel.req - currentLevel.req)) * 100}%` : "100%",
               transition: "width 0.5s ease" }} />
           </div>
-          <span style={{ fontSize: 11, fontFamily: FONT, color: T.textTertiary, whiteSpace: "nowrap" }}>{xp}{nextLevel ? `/${nextLevel.req}` : ""} XP</span>
         </div>
       )}
 
@@ -5796,6 +5862,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               })}
             </div>
           </div>
+
+          {/* Near me — the same "Near you" pool the home screen opens on
+              (device location, else the Blueprint zip). Fails loud when
+              neither is available instead of silently opening the whole city. */}
+          <button onClick={async () => {
+              if (nearMeBusy) return;
+              setNearMeBusy(true); setNearMeError(null);
+              const origin = await nearbyOrigin([...activeListings, ...soldListings.filter(isTrueSold)]);
+              setNearMeBusy(false);
+              if (!origin) { setNearMeError("Couldn't find your location. Allow location access, or pick a neighborhood."); return; }
+              enterLiveMode(null, "Near you", liveTypeSel, origin);
+            }}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px", minHeight: 56, borderRadius: 12, border: `1px solid ${T.red}`, background: `${T.red}14`, color: T.red, fontSize: 14, fontWeight: 700, fontFamily: FONT, cursor: nearMeBusy ? "default" : "pointer", marginBottom: nearMeError ? 8 : 20 }}>
+            <Icon name="map-pin" size={16} /> {nearMeBusy ? "Finding homes near you…" : "Near me"}
+          </button>
+          {nearMeError && <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginBottom: 20, textAlign: "center" }}>{nearMeError}</div>}
 
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 }}>Neighborhoods</div>
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr 1fr", gap: 12 }}>
@@ -6783,9 +6865,44 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             width: "100%", maxHeight: "70vh", overflowY: "auto", border: `1px solid ${T.cardBorder}`,
           }}>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase",
-              fontFamily: FONT, color: T.accent, marginBottom: 4 }}>LEVEL ROADMAP</div>
+              fontFamily: FONT, color: T.accent, marginBottom: 4 }}>YOUR SCORECARD</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.text, fontFamily: FONT, marginBottom: 20 }}>
               Your Journey
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+              {[
+                { v: wins, l: "Wins", sub: winStats ? `of ${winStats.contested} contested` : "#1 of 2+ players" },
+                { v: hits, l: "Hits", sub: "within 3%" },
+                { v: `${xp}`, l: "XP", sub: nextLevel ? `${nextLevel.req - xp} to Lv.${nextLevel.level}` : "max level" },
+              ].map(t => (
+                <div key={t.l} style={{ background: T.inputBg, borderRadius: 12, padding: "10px 6px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: T.text, fontFamily: FONT }}>{t.v}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>{t.l}</div>
+                  <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT, marginTop: 1 }}>{t.sub}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.45, marginBottom: 16 }}>
+              Wins are live. If someone guesses a home closer than you, the win is theirs, and you only get one shot per home.
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 10 }}>
+              Badges · {earnedBadges.length}/{badges.length}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px 6px", marginBottom: 22 }}>
+              {badges.map(b => (
+                <div key={b.id} title={b.how} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, textAlign: "center" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                    background: b.earned ? `${b.tint}26` : T.inputBg, color: b.earned ? b.tint : T.textTertiary,
+                    border: b.earned ? `1px solid ${b.tint}55` : `1px dashed ${T.cardBorder}` }}>
+                    <Icon name={b.earned ? b.icon : "lock"} size={b.earned ? 20 : 15} />
+                  </div>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, color: b.earned ? T.text : T.textTertiary, fontFamily: FONT, lineHeight: 1.2 }}>{b.name}</div>
+                  {!b.earned && <div style={{ fontSize: 10, color: T.textTertiary, fontFamily: FONT }}>{Math.min(b.have, b.need)}/{b.need}</div>}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: MONO, color: T.textTertiary, marginBottom: 10 }}>
+              Levels
             </div>
             {LEVELS.map((lvl, i) => {
               const unlocked = xp >= lvl.req;

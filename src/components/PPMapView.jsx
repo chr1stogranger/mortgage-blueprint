@@ -135,13 +135,16 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
       specs.style.cssText = `font-size:12px;color:${T.textSecondary};margin-bottom:9px;`;
       pop.appendChild(specs);
       if (guessed) {
-        const locked = document.createElement("div");
-        locked.textContent = "Prediction locked";
+        // Done homes open their board (your call + The Field) via onSelect.
+        const locked = document.createElement("button");
+        locked.type = "button";
+        locked.textContent = "Prediction locked · View";
         locked.style.cssText = [
           "width:100%", "box-sizing:border-box", "border-radius:9999px", "padding:8px 14px",
           `background:${done}1A`, `border:1px solid ${done}40`, `color:${done}`,
-          "font-size:12px", "font-weight:700", `font-family:${FONT}`, "text-align:center",
+          "font-size:12px", "font-weight:700", `font-family:${FONT}`, "text-align:center", "cursor:pointer",
         ].join(";");
+        locked.addEventListener("click", () => { if (onSelectRef.current) onSelectRef.current(i); });
         pop.appendChild(locked);
       } else {
         const btn = document.createElement("button");
