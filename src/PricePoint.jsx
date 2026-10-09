@@ -1276,26 +1276,29 @@ const getStaticMapUrl = (lat, lng, approx = false, neighbors = null) => {
   if (!lat || !lng) return null;
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   if (!token) return null;
+  // The rest of the pool as small pins — the card's own home is excluded by
+  // zpid (and exact point), so a general-area Sold map never pins the answer.
+  const near = (neighbors?.list || [])
+    .filter(n => n?.latitude && n?.longitude
+      && !(neighbors.selfZpid && n.zpid && String(n.zpid) === String(neighbors.selfZpid))
+      && !(n.latitude === lat && n.longitude === lng))
+    .map(n => ({ n, d: kmBetween({ lat, lng }, { lat: n.latitude, lng: n.longitude }) }))
+    .filter(x => x.d <= 1.5)
+    .sort((a, b) => a.d - b.d).slice(0, 30);
+  const pins = near.map(({ n }) => `pin-s+${neighbors.color}(${(+n.longitude).toFixed(5)},${(+n.latitude).toFixed(5)})`);
   let overlay;
   if (approx) {
+    lat = Math.round(lat * 100) / 100; lng = Math.round(lng * 100) / 100;
     const r = 750, pts = [];
     for (let i = 0; i <= 24; i++) {
       const a = (i / 24) * 2 * Math.PI;
       pts.push([+(lng + (r * Math.cos(a)) / (111320 * Math.cos(lat * Math.PI / 180))).toFixed(5), +(lat + (r * Math.sin(a)) / 110540).toFixed(5)]);
     }
     const gj = { type: "Feature", properties: { stroke: "#3b6bf5", "stroke-width": 2, "stroke-opacity": 0.9, fill: "#3b6bf5", "fill-opacity": 0.18 }, geometry: { type: "Polygon", coordinates: [pts] } };
-    overlay = `geojson(${encodeURIComponent(JSON.stringify(gj))})`;
+    overlay = [`geojson(${encodeURIComponent(JSON.stringify(gj))})`, ...pins].join(",");
   } else {
-    overlay = `pin-l+3b6bf5(${lng},${lat})`;
-    if (neighbors?.list?.length) {
-      const near = neighbors.list
-        .filter(n => n?.latitude && n?.longitude && !(n.latitude === lat && n.longitude === lng))
-        .map(n => ({ n, d: kmBetween({ lat, lng }, { lat: n.latitude, lng: n.longitude }) }))
-        .filter(x => x.d <= 1.5 && x.d > 0.005)
-        .sort((a, b) => a.d - b.d).slice(0, 30);
-      // Mapbox draws overlays in order — neighbors first so the home's pin sits on top.
-      if (near.length) overlay = near.map(({ n }) => `pin-s+${neighbors.color}(${(+n.longitude).toFixed(5)},${(+n.latitude).toFixed(5)})`).join(",") + "," + overlay;
-    }
+    // Overlays draw in order — neighbors first so the home's pin sits on top.
+    overlay = [...pins, `pin-l+3b6bf5(${lng},${lat})`].join(",");
   }
   return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${overlay}/${lng},${lat},${approx ? 13.4 : 14.5},0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
 };
@@ -1313,13 +1316,13 @@ const WIDE_MEDIA_H = 440;
 // Typing a guess re-renders the parent on each keystroke, so the carousel
 // silently snapped back to photo 1 mid-typing. Hoisting it out keeps carousel
 // AND lightbox state alive; `isDesktop` now arrives as a prop.
-const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill, noMapSlide, mapNeighbors }) => {
+const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill, noMapSlide, mapNeighbors, mapPoint }) => {
   const [idx, setIdx] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef(null);
   const zoomTouchStartX = useRef(null);
   // noMapSlide: the wide desktop card shows the map as its own panel.
-  const mapUrl = noMapSlide ? null : getStaticMapUrl(listing?.latitude, listing?.longitude, !!listing?.approxLocation, mapNeighbors);
+  const mapUrl = noMapSlide ? null : (mapPoint ? getStaticMapUrl(mapPoint.lat, mapPoint.lng, mapPoint.approx, mapNeighbors) : getStaticMapUrl(listing?.latitude, listing?.longitude, !!listing?.approxLocation, mapNeighbors));
   // Real photos first; else the single fallback photo; else let the map be
   // the hero (licensed sources like RentCast carry no photos); placeholder
   // only when there's nothing else to show. De-dupe by URL — some feeds repeat
@@ -1369,7 +1372,7 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
       {isMapSlide ? (
         <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
           <div style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
-            <Icon name="map-pin" size={12} /> LOCATION
+            <Icon name="map-pin" size={12} /> {(mapPoint ? mapPoint.approx : listing?.approxLocation) ? "GENERAL AREA" : "LOCATION"}
           </div>
         </div>
       ) : (
@@ -1846,6 +1849,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [nearMeBusy, setNearMeBusy] = useState(false);
   const [nearMeError, setNearMeError] = useState(null);
+  const [offMarketDismissed, setOffMarketDismissed] = useState(() => new Set());
   const [showMarketSwitcher, setShowMarketSwitcher] = useState(false);
 
   // ── Level-Up Celebration ──
@@ -4359,10 +4363,22 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // The rest of this card's pool on its location map: For Sale listings on
     // For Sale cards, sold homes on Sold cards (locations only, no prices).
     const mapNeighbors = Array.isArray(valuePool) && valuePool.length
-      ? { list: valuePool, color: badge === "FOR SALE" ? "e5484d" : "0f9e8e" }
+      ? { list: valuePool, color: badge === "FOR SALE" ? "e5484d" : "0f9e8e", selfZpid: listing.zpid }
       : null;
+    // Location rule (Christo 2026-10-09): For Sale = exact pin (it's public —
+    // links carry only rounded coords, so take the pool's or details' exact
+    // point when we have one); Sold/Daily/challenge = general area, always.
+    const isForSale = badge === "FOR SALE";
+    const poolTwin = isForSale && listing.zpid && Array.isArray(valuePool)
+      ? valuePool.find(l => l?.zpid && String(l.zpid) === String(listing.zpid) && l.latitude && l.longitude) : null;
+    const exactPt = (!listing.approxLocation && listing.latitude && listing.longitude) ? { lat: listing.latitude, lng: listing.longitude }
+      : poolTwin ? { lat: poolTwin.latitude, lng: poolTwin.longitude }
+      : (details?.latitude && details?.longitude) ? { lat: details.latitude, lng: details.longitude } : null;
+    const mapPoint = isForSale
+      ? (exactPt ? { ...exactPt, approx: false } : { lat: listing.latitude, lng: listing.longitude, approx: true })
+      : { lat: listing.latitude, lng: listing.longitude, approx: true };
     const carousel = (noMapSlide) => (
-      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors}
+      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors} mapPoint={mapPoint}
         photoHeight={compact ? `clamp(170px, calc(100dvh - ${cardChrome}px), 340px)` : undefined} />
     );
 
@@ -4371,7 +4387,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // three equal pills (list price · your guess · Final Answer), then the
     // address, a full-width spec row, and remarks | value signals. ──
     if (wide) {
-      const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude, !!listing.approxLocation, mapNeighbors);
+      const mapUrl = getStaticMapUrl(mapPoint.lat, mapPoint.lng, mapPoint.approx, mapNeighbors);
       // Remarks: ~11 lines, then Read more (Christo 2026-10-07 — fully open
       // ran 30+ lines on luxury listings). Three quarters of the row, so ~95
       // chars a line; anything past ~950 chars overflows the clamp.
@@ -4400,7 +4416,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ position: "relative", height: WIDE_MEDIA_H, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, background: "#e8eef2" }}>
                 <img src={mapUrl} alt="Property location map" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: FONT, letterSpacing: 1, textTransform: "uppercase" }}>
-                  <Icon name="map-pin" size={12} /> {listing.approxLocation ? "GENERAL AREA" : "LOCATION"}
+                  <Icon name="map-pin" size={12} /> {mapPoint.approx ? "GENERAL AREA" : "LOCATION"}
                 </div>
               </div>
             )}
@@ -5734,12 +5750,29 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           ) : (<>
           {liveSearchListing && !livePrediction ? (
             <>
-              {liveSearchListing.status !== "active" && liveSearchListing.status !== "pending" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, background: `${T.orange}12`, border: `1px solid ${T.orange}30`, borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
-                  <Icon name="info" size={14} style={{ color: T.orange, flexShrink: 0 }} />
-                  <div style={{ fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Off-market: prediction resolves if/when it sells</div>
-                </div>
-              )}
+              {(() => {
+                // Off-market only when we KNOW it: a home in the live pool is
+                // listed; link-opened homes carry no status, so fall back to the
+                // details' homeStatus. Unknown → say nothing (it was flagging
+                // homes listed that day).
+                const z = liveSearchListing.zpid ? String(liveSearchListing.zpid) : "";
+                const inPool = !!z && liveListings.some(l => String(l?.zpid) === z);
+                const hs = String(propertyDetails[z]?.homeStatus || "").toUpperCase();
+                const st = String(liveSearchListing.status || "").toLowerCase();
+                const listed = inPool || st === "active" || st === "pending" || /FOR_SALE|PENDING|COMING_SOON/.test(hs);
+                const offMarket = !listed && (!!hs || (!!st && st !== "unknown"));
+                if (!offMarket || offMarketDismissed.has(z || liveSearchListing.address)) return null;
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: "10px 8px 10px 14px", marginBottom: 10 }}>
+                    <Icon name="info" size={14} style={{ color: T.orange, flexShrink: 0 }} />
+                    <div style={{ flex: 1, fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>Not listed right now. Your prediction resolves if and when it sells.</div>
+                    <button aria-label="Dismiss" onClick={() => setOffMarketDismissed(prev => new Set(prev).add(z || liveSearchListing.address))}
+                      style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: T.textTertiary, display: "flex", flexShrink: 0 }}>
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
+                );
+              })()}
               {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), fieldPill: liveFieldPill(liveSearchListing), priorCall: priorLiveCall(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
             </>
           ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (

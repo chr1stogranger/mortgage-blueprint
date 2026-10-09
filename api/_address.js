@@ -46,11 +46,15 @@ function getSupabaseAdmin() {
 // ─── L1: in-memory cache (per warm instance) ───
 const cache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h — matches the other pp routes
+const SHORT_TTL = 60 * 60 * 1000;
 
 function getCached(key) {
   const entry = cache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.timestamp > CACHE_TTL) { cache.delete(key); return null; }
+  // Off-market answers go stale fastest (a home listed this morning still
+  // reads off-market on Zillow for a while) — keep them an hour, not a day.
+  const ttl = entry.data?.listing?.status === "off-market" ? SHORT_TTL : CACHE_TTL;
+  if (Date.now() - entry.timestamp > ttl) { cache.delete(key); return null; }
   return entry.data;
 }
 function setCache(key, data) {
@@ -376,7 +380,9 @@ export async function handleAddressSearch(req, res) {
     if (soldMode && !(soldPrice && isRecentSoldDate(soldDate))) return notSold();
     const result = { listing: soldMode ? withSale(listing, soldPrice, soldDate) : listing, source: "rapidapi" };
     setCache(cacheKey, result);
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+    res.setHeader("Cache-Control", result.listing?.status === "off-market"
+      ? "s-maxage=3600, stale-while-revalidate=600"
+      : "s-maxage=86400, stale-while-revalidate=3600");
     return res.status(200).json({ ...result, cached: false });
   } catch (err) {
     console.error("[pp-address] Error:", err);

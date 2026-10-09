@@ -571,6 +571,11 @@ export default async function handler(req, res) {
       description: cleanDescription,
       listPrice: originalListPrice || (rcid ? saneListPrice(listPrice, rcSoldPrice) : listPrice),
       zestimate: d.zestimate || null,
+      // Exact pin + live status for homes opened from a link (whose payload
+      // carries only rounded coords and no status). FOR_SALE / PENDING / SOLD …
+      latitude: Number.isFinite(+d.latitude) && +d.latitude ? +d.latitude : null,
+      longitude: Number.isFinite(+d.longitude) && +d.longitude ? +d.longitude : null,
+      homeStatus: d.homeStatus || null,
       yearBuilt,
       lotSize,
       homeType,
