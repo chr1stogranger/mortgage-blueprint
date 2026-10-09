@@ -352,6 +352,36 @@ const canonPropType = (t) => {
   const s = String(t || "").toLowerCase().replace(/[^a-z]/g, "");
   return s === "manufactured" ? "singlefamily" : (s || "singlefamily");
 };
+// ── For Sale filters (Christo 2026-10-09, after Redfin/Zillow): list price
+// range, beds range (tap two numbers), baths minimum, min sqft, min year
+// built, and new-this-week. Empty object = no filter. ──
+const LIVE_FILTERS_EMPTY = { priceMin: null, priceMax: null, bedsMin: null, bedsMax: null, bathsMin: null, sqftMin: null, yearMin: null, newOnly: false };
+const liveFilterMatch = (f, l) => {
+  if (!f) return true;
+  const lp = Number(l.listPrice) || 0;
+  if (f.priceMin && (!lp || lp < f.priceMin)) return false;
+  if (f.priceMax && (!lp || lp > f.priceMax)) return false;
+  const bd = Number(l.beds) || 0;
+  if (f.bedsMin != null && bd < f.bedsMin) return false;
+  if (f.bedsMax != null && f.bedsMax < 5 && bd > f.bedsMax) return false; // 5 = "5+"
+  if (f.bathsMin && (Number(l.baths) || 0) < f.bathsMin) return false;
+  if (f.sqftMin && (Number(l.sqft) || 0) < f.sqftMin) return false;
+  if (f.yearMin && (Number(l.yearBuilt) || 0) < f.yearMin) return false;
+  if (f.newOnly && !(Number(l.daysOnMarket) >= 0 && Number(l.daysOnMarket) <= 7)) return false;
+  return true;
+};
+const liveFilterCount = (f) => !f ? 0 : [f.priceMin || f.priceMax, f.bedsMin != null, f.bathsMin, f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length;
+// "1.5m" / "800k" / "1,250,000" → dollars
+const parseMoney = (s) => {
+  const m = String(s || "").trim().toLowerCase().replace(/[$,\s]/g, "").match(/^(\d*\.?\d+)([km]?)$/);
+  if (!m) return null;
+  const n = parseFloat(m[1]) * (m[2] === "m" ? 1e6 : m[2] === "k" ? 1e3 : 1);
+  if (!(n > 0)) return null;
+  if (n >= 1000) return Math.round(n);
+  return Math.round(n < 100 ? n * 1e6 : n * 1e3); // bare "1.5" → $1.5M, "850" → $850K
+};
+const fmtShortMoney = (n) => !n ? "" : n >= 1e6 ? `$${(n / 1e6).toFixed(n % 1e6 ? (n % 1e5 ? 2 : 1) : 0)}M` : `$${Math.round(n / 1e3)}K`;
+
 const fpTypeMatch = (sel, pt) => {
   if (!sel || sel.length === 0) return true;
   const t = canonPropType(pt);
@@ -1558,6 +1588,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveTypeSel, setLiveTypeSel] = useState(() => {
     try { const v = JSON.parse(localStorage.getItem("pp-live-types") || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
   });
+  const [liveFilters, setLiveFiltersState] = useState(() => {
+    try { return { ...LIVE_FILTERS_EMPTY, ...(JSON.parse(localStorage.getItem("pp-live-filters") || "{}") || {}) }; } catch { return { ...LIVE_FILTERS_EMPTY }; }
+  });
+  const liveFiltersRef = useRef(liveFilters);
+  const setLiveFilters = (next) => {
+    const v = typeof next === "function" ? next(liveFiltersRef.current) : next;
+    liveFiltersRef.current = v;
+    setLiveFiltersState(v);
+    try { localStorage.setItem("pp-live-filters", JSON.stringify(v)); } catch { /* ignore */ }
+  };
+  const [priceText, setPriceText] = useState(() => ({ min: fmtShortMoney(liveFilters.priceMin), max: fmtShortMoney(liveFilters.priceMax) }));
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const toggleLiveType = (t) => setLiveTypeSel(prev => {
     const next = prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t];
     try { localStorage.setItem("pp-live-types", JSON.stringify(next)); } catch { /* ignore */ }
@@ -3332,6 +3374,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       if (zipGroup) pool = pool.filter(l => zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)));
       // Property-type filter (multi-select; empty = all types)
       pool = pool.filter(l => fpTypeMatch(typeSel, l.propertyType));
+      pool = pool.filter(l => liveFilterMatch(liveFiltersRef.current, l));
       // NOTE: already-predicted listings are KEPT in the pool now — the map
       // shows every active/pending listing with done-state pins (tap → board).
       // The card cursor + liveRemaining skip them via isLiveGuessed instead.
@@ -3584,6 +3627,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         let added = fresh.filter(l => isTrueActive(l)
           && (!zipGroup || zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)))
           && fpTypeMatch(liveTypeSel, l.propertyType)
+          && liveFilterMatch(liveFiltersRef.current, l)
           && !have.has(String(l.zpid)));
         if (liveNear) {
           liveNearAllRef.current = [...liveNearAllRef.current, ...added];
@@ -5825,7 +5869,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {/* Surfaces the active type filter — it persists across sessions,
                   so a shrunken pool needs a visible cause. Tap → picker. */}
               <div role="button" tabIndex={0} onClick={() => setView("livePicker")} onKeyDown={onKeyActivate(() => setView("livePicker"))} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveNear ? `Near you · ${liveNear.radius} km` : (liveHoodName || "All")}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}</span> <Icon name="chevron-right" size={12} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveNear ? `Near you · ${liveNear.radius} km` : (liveHoodName || "All")}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}{liveFilterCount(liveFilters) > 0 ? ` · ${(liveFilters.priceMin || liveFilters.priceMax) ? `${liveFilters.priceMin ? fmtShortMoney(liveFilters.priceMin) : "$0"}–${liveFilters.priceMax ? fmtShortMoney(liveFilters.priceMax) : "any"}` : `${liveFilterCount(liveFilters)} filter${liveFilterCount(liveFilters) > 1 ? "s" : ""}`}` : ""}</span> <Icon name="chevron-right" size={12} />
               </div>
               {/* Desktop: count + refresh ride next to the filter; the List|Map
                   toggle sits over the photo's top-right corner (2026-10-07). */}
@@ -6092,6 +6136,130 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             </div>
           </div>
 
+          {/* ── Filters (Redfin/Zillow-style): price histogram + min/max +
+              quick ranges, beds (tap two numbers for a range), baths min,
+              More (sqft, year built, new this week). Counts are live against
+              the loaded city pool, so you see what a filter costs before
+              you commit. ── */}
+          {(() => {
+            const f = liveFilters;
+            const base = activeListings.filter(isTrueActive).filter(l => fpTypeMatch(liveTypeSel, l.propertyType));
+            const matching = base.filter(l => liveFilterMatch(f, l));
+            const prices = base.map(l => Number(l.listPrice)).filter(p => p > 0).sort((a, b) => a - b);
+            const lo = prices.length ? Math.log10(prices[Math.floor(prices.length * 0.02)]) : 5.7;
+            const hi = prices.length ? Math.log10(prices[Math.ceil(prices.length * 0.98) - 1]) : 6.9;
+            const BINS = 30;
+            const bins = Array.from({ length: BINS }, () => 0);
+            for (const p of prices) { const i = Math.min(BINS - 1, Math.max(0, Math.floor((Math.log10(p) - lo) / ((hi - lo) || 1) * BINS))); bins[i]++; }
+            const peak = Math.max(1, ...bins);
+            const binMid = (i) => Math.pow(10, lo + (i + 0.5) * (hi - lo) / BINS);
+            const inRange = (v) => (!f.priceMin || v >= f.priceMin) && (!f.priceMax || v <= f.priceMax);
+            const setPrice = (min, max) => { setLiveFilters(x => ({ ...x, priceMin: min, priceMax: max })); setPriceText({ min: min ? fmtShortMoney(min) : "", max: max ? fmtShortMoney(max) : "" }); };
+            const QUICK = [["Under $1M", null, 1e6], ["$1–2M", 1e6, 2e6], ["$2–3M", 2e6, 3e6], ["$3M+", 3e6, null]];
+            const seg = (on) => ({ flex: 1, minWidth: 0, padding: "10px 4px", border: "none", borderRadius: 9999, background: on ? T.red : "transparent", color: on ? "#fff" : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", whiteSpace: "nowrap" });
+            const segWrap = { display: "flex", gap: 2, background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: 3 };
+            const label = { fontSize: 10, fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", fontFamily: FONT, color: T.textTertiary, marginBottom: 8 };
+            const tapBeds = (n) => setLiveFilters(x => {
+              if (n == null) return { ...x, bedsMin: null, bedsMax: null };
+              // Redfin: first tap = exactly n; a second, different tap makes a range.
+              if (x.bedsMin == null || x.bedsMin !== x.bedsMax) return { ...x, bedsMin: n, bedsMax: n };
+              if (x.bedsMin === n) return { ...x, bedsMin: null, bedsMax: null };
+              return { ...x, bedsMin: Math.min(n, x.bedsMin), bedsMax: Math.max(n, x.bedsMax) };
+            });
+            const inp = { width: "100%", boxSizing: "border-box", background: T.inputBg, border: `1px solid ${T.cardBorder}`, borderRadius: 9999, padding: "10px 16px", fontSize: 14, color: T.text, fontFamily: FONT, outline: "none" };
+            return (
+              <div style={{ background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, padding: IS_MOBILE ? 14 : 18, marginBottom: IS_MOBILE ? 14 : 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <div style={{ ...label, marginBottom: 0 }}>Price</div>
+                  {liveFilterCount(f) > 0 && (
+                    <button onClick={() => { setLiveFilters({ ...LIVE_FILTERS_EMPTY }); setPriceText({ min: "", max: "" }); }} style={{ background: "none", border: "none", color: T.red, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", padding: 0 }}>Reset all</button>
+                  )}
+                </div>
+                {prices.length > 0 && (
+                  <div aria-hidden style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 48, marginBottom: 4 }}>
+                    {bins.map((c, i) => (
+                      <div key={i} onClick={() => setPrice(Math.round(binMid(i) / 1.15 / 5e4) * 5e4, Math.round(binMid(i) * 1.15 / 5e4) * 5e4)} title={fmtShortMoney(binMid(i))}
+                        style={{ flex: 1, height: `${Math.max(c ? 8 : 2, (c / peak) * 100)}%`, borderRadius: 3, background: inRange(binMid(i)) ? T.red : T.cardBorder, opacity: c ? 1 : 0.4, cursor: "pointer", transition: "background 0.15s" }} />
+                    ))}
+                  </div>
+                )}
+                {prices.length > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: T.textTertiary, fontFamily: FONT, marginBottom: 10 }}>
+                    <span>{fmtShortMoney(Math.pow(10, lo))}</span><span>{fmtShortMoney(Math.pow(10, hi))}+</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <input aria-label="Minimum price" placeholder="No min" inputMode="decimal" value={priceText.min}
+                    onChange={e => setPriceText(t => ({ ...t, min: e.target.value }))}
+                    onBlur={e => { const v = parseMoney(e.target.value); setPrice(v, f.priceMax); }}
+                    onKeyDown={e => e.key === "Enter" && e.currentTarget.blur()} style={inp} />
+                  <span style={{ color: T.textTertiary }}>–</span>
+                  <input aria-label="Maximum price" placeholder="No max" inputMode="decimal" value={priceText.max}
+                    onChange={e => setPriceText(t => ({ ...t, max: e.target.value }))}
+                    onBlur={e => { const v = parseMoney(e.target.value); setPrice(f.priceMin, v); }}
+                    onKeyDown={e => e.key === "Enter" && e.currentTarget.blur()} style={inp} />
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+                  {QUICK.map(([lbl, mn, mx]) => {
+                    const on = (f.priceMin || null) === mn && (f.priceMax || null) === mx;
+                    return (
+                      <button key={lbl} onClick={() => (on ? setPrice(null, null) : setPrice(mn, mx))}
+                        style={{ padding: "6px 12px", borderRadius: 9999, border: `1px solid ${on ? T.red : T.cardBorder}`, background: on ? `${T.red}1f` : T.card, color: on ? T.red : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>{lbl}</button>
+                    );
+                  })}
+                </div>
+
+                <div style={label}>Beds <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>· tap two numbers for a range</span></div>
+                <div style={{ ...segWrap, marginBottom: 14 }}>
+                  <button onClick={() => tapBeds(null)} style={seg(f.bedsMin == null)}>Any</button>
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => tapBeds(n)} style={seg(f.bedsMin != null && n >= f.bedsMin && n <= f.bedsMax)}>{n === 5 ? "5+" : n}</button>
+                  ))}
+                </div>
+
+                <div style={label}>Baths</div>
+                <div style={{ ...segWrap, marginBottom: 14 }}>
+                  {[[null, "Any"], [1, "1+"], [1.5, "1.5+"], [2, "2+"], [2.5, "2.5+"], [3, "3+"], [4, "4+"]].map(([v, t]) => (
+                    <button key={t} onClick={() => setLiveFilters(x => ({ ...x, bathsMin: v }))} style={seg((f.bathsMin || null) === v)}>{t}</button>
+                  ))}
+                </div>
+
+                <button onClick={() => setMoreFiltersOpen(o => !o)} aria-expanded={moreFiltersOpen}
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, color: T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", marginBottom: moreFiltersOpen ? 12 : 0 }}>
+                  More filters{[f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length ? ` (${[f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length})` : ""}
+                  <Icon name="chevron-down" size={13} style={{ transform: moreFiltersOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                </button>
+                {moreFiltersOpen && (
+                  <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr 1fr" : "1fr 1fr", gap: 10, alignItems: "end" }}>
+                    <label style={{ fontFamily: FONT }}>
+                      <div style={label}>Min sqft</div>
+                      <select value={f.sqftMin || ""} onChange={e => setLiveFilters(x => ({ ...x, sqftMin: Number(e.target.value) || null }))} style={{ ...inp, appearance: "auto" }}>
+                        <option value="">No min</option>
+                        {[750, 1000, 1250, 1500, 2000, 2500, 3000, 4000].map(v => <option key={v} value={v}>{v.toLocaleString()}+ sqft</option>)}
+                      </select>
+                    </label>
+                    <label style={{ fontFamily: FONT }}>
+                      <div style={label}>Built after</div>
+                      <select value={f.yearMin || ""} onChange={e => setLiveFilters(x => ({ ...x, yearMin: Number(e.target.value) || null }))} style={{ ...inp, appearance: "auto" }}>
+                        <option value="">Any year</option>
+                        {[1940, 1960, 1980, 2000, 2010, 2020].map(v => <option key={v} value={v}>{v}+</option>)}
+                      </select>
+                    </label>
+                    <button onClick={() => setLiveFilters(x => ({ ...x, newOnly: !x.newOnly }))}
+                      style={{ gridColumn: isDesktop ? "auto" : "1 / -1", padding: "10px 14px", borderRadius: 9999, border: `1px solid ${f.newOnly ? T.red : T.cardBorder}`, background: f.newOnly ? `${T.red}1f` : T.card, color: f.newOnly ? T.red : T.textSecondary, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>
+                      {f.newOnly ? "✓ " : ""}New this week
+                    </button>
+                  </div>
+                )}
+                {base.length > 0 && (
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.cardBorder}`, fontSize: 13, fontWeight: 600, color: matching.length ? T.text : T.red, fontFamily: FONT, textAlign: "center" }}>
+                    {matching.length ? `${matching.length} of ${base.length} homes match · pick an area below` : "No homes match these filters"}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Near me — the same "Near you" pool the home screen opens on
               (device location, else the Blueprint zip). Fails loud when
               neither is available instead of silently opening the whole city. */}
@@ -6123,10 +6291,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   // "All of <city>" (zip === null) spans the full width across both columns.
                   gridColumn: hood.zip === null ? "1 / -1" : "auto",
                 }}
-                onMouseEnter={(e) => { e.target.style.background = T.inputBg; e.target.style.borderColor = T.red; }}
-                onMouseLeave={(e) => { e.target.style.background = T.card; e.target.style.borderColor = T.cardBorder; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = T.inputBg; e.currentTarget.style.borderColor = T.red; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = T.card; e.currentTarget.style.borderColor = T.cardBorder; }}
               >
                 {hood.name}
+                {(() => {
+                  // How many homes this area has under the current type + filters.
+                  const grp = hood.zip ? (HOOD_ZIP_GROUPS[(hood.name || "").toLowerCase()] || new Set([hood.zip])) : null;
+                  const n = activeListings.filter(l => isTrueActive(l) && (!grp || grp.has(l.zip) || (l.zipcode && grp.has(l.zipcode))) && fpTypeMatch(liveTypeSel, l.propertyType) && liveFilterMatch(liveFilters, l)).length;
+                  return activeListings.length > 0 ? <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600, color: n ? T.textTertiary : T.red }}>· {n}</span> : null;
+                })()}
               </button>
             ))}
           </div>
