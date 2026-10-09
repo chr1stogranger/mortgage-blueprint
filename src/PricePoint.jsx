@@ -1269,7 +1269,10 @@ function migrateLocalStorage() {
 // streets-v12 = the familiar light Google/Apple-style map (Christo
 // 2026-10-08: the dark style read as a black box). approx = challenge links:
 // no pin, a shaded 750m circle around the 2-decimal rounded point (always contains the home), zoomed out a step.
-const getStaticMapUrl = (lat, lng, approx = false) => {
+// neighbors: other homes in the same pool (For Sale listings on For Sale
+// cards, sold homes on Sold cards) drawn as small pins under the home's pin.
+// Capped at the 30 nearest within 1.5 km to stay well under the URL limit.
+const getStaticMapUrl = (lat, lng, approx = false, neighbors = null) => {
   if (!lat || !lng) return null;
   const token = import.meta.env.VITE_MAPBOX_TOKEN;
   if (!token) return null;
@@ -1283,7 +1286,16 @@ const getStaticMapUrl = (lat, lng, approx = false) => {
     const gj = { type: "Feature", properties: { stroke: "#3b6bf5", "stroke-width": 2, "stroke-opacity": 0.9, fill: "#3b6bf5", "fill-opacity": 0.18 }, geometry: { type: "Polygon", coordinates: [pts] } };
     overlay = `geojson(${encodeURIComponent(JSON.stringify(gj))})`;
   } else {
-    overlay = `pin-s+3b6bf5(${lng},${lat})`;
+    overlay = `pin-l+3b6bf5(${lng},${lat})`;
+    if (neighbors?.list?.length) {
+      const near = neighbors.list
+        .filter(n => n?.latitude && n?.longitude && !(n.latitude === lat && n.longitude === lng))
+        .map(n => ({ n, d: kmBetween({ lat, lng }, { lat: n.latitude, lng: n.longitude }) }))
+        .filter(x => x.d <= 1.5 && x.d > 0.005)
+        .sort((a, b) => a.d - b.d).slice(0, 30);
+      // Mapbox draws overlays in order — neighbors first so the home's pin sits on top.
+      if (near.length) overlay = near.map(({ n }) => `pin-s+${neighbors.color}(${(+n.longitude).toFixed(5)},${(+n.latitude).toFixed(5)})`).join(",") + "," + overlay;
+    }
   }
   return `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${overlay}/${lng},${lat},${approx ? 13.4 : 14.5},0/800x520@2x?access_token=${token}&attribution=false&logo=false`;
 };
@@ -1301,13 +1313,13 @@ const WIDE_MEDIA_H = 440;
 // Typing a guess re-renders the parent on each keystroke, so the carousel
 // silently snapped back to photo 1 mid-typing. Hoisting it out keeps carousel
 // AND lightbox state alive; `isDesktop` now arrives as a prop.
-const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill, noMapSlide }) => {
+const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill, noMapSlide, mapNeighbors }) => {
   const [idx, setIdx] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef(null);
   const zoomTouchStartX = useRef(null);
   // noMapSlide: the wide desktop card shows the map as its own panel.
-  const mapUrl = noMapSlide ? null : getStaticMapUrl(listing?.latitude, listing?.longitude, !!listing?.approxLocation);
+  const mapUrl = noMapSlide ? null : getStaticMapUrl(listing?.latitude, listing?.longitude, !!listing?.approxLocation, mapNeighbors);
   // Real photos first; else the single fallback photo; else let the map be
   // the hero (licensed sources like RentCast carry no photos); placeholder
   // only when there's nothing else to show. De-dupe by URL — some feeds repeat
@@ -4344,8 +4356,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const rawLp = listing.listPrice && listing.listPrice !== listing.soldPrice ? listing.listPrice : null;
     const displayLp = rawLp || enrichedLp;
     const specs = [[listing.beds, "Beds"], [listing.baths, "Baths"], [listing.sqft > 0 ? Number(listing.sqft).toLocaleString() : "—", "SqFt"], [yearBuilt, "Built"]];
+    // The rest of this card's pool on its location map: For Sale listings on
+    // For Sale cards, sold homes on Sold cards (locations only, no prices).
+    const mapNeighbors = Array.isArray(valuePool) && valuePool.length
+      ? { list: valuePool, color: badge === "FOR SALE" ? "e5484d" : "0f9e8e" }
+      : null;
     const carousel = (noMapSlide) => (
-      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide}
+      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors}
         photoHeight={compact ? `clamp(170px, calc(100dvh - ${cardChrome}px), 340px)` : undefined} />
     );
 
@@ -4354,7 +4371,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // three equal pills (list price · your guess · Final Answer), then the
     // address, a full-width spec row, and remarks | value signals. ──
     if (wide) {
-      const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude, !!listing.approxLocation);
+      const mapUrl = getStaticMapUrl(listing.latitude, listing.longitude, !!listing.approxLocation, mapNeighbors);
       // Remarks: ~11 lines, then Read more (Christo 2026-10-07 — fully open
       // ran 30+ lines on luxury listings). Three quarters of the row, so ~95
       // chars a line; anything past ~950 chars overflows the clamp.
