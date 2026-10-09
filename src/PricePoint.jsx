@@ -4590,9 +4590,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT, flexShrink: 0 }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
             {fieldPill && (
-              <div style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: T.inputBg, border: `1px solid ${T.cardBorder}`, color: T.textSecondary }}>
-                <Icon name="users" size={12} style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 11.5, fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
+              <div style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 4, color: T.textTertiary }}>
+                <Icon name="users" size={11} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11.5, fontWeight: 500, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
               </div>
             )}
             </div>
@@ -4654,9 +4654,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
             {fieldPill && (
-              <div style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: T.inputBg, border: `1px solid ${T.cardBorder}`, color: T.textSecondary }}>
-                <Icon name="users" size={12} style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: 11.5, fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
+              <div style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 4, color: T.textTertiary }}>
+                <Icon name="users" size={11} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11.5, fontWeight: 500, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
               </div>
             )}
           </div>
