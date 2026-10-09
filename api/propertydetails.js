@@ -576,6 +576,12 @@ export default async function handler(req, res) {
       latitude: Number.isFinite(+d.latitude) && +d.latitude ? +d.latitude : null,
       longitude: Number.isFinite(+d.longitude) && +d.longitude ? +d.longitude : null,
       homeStatus: d.homeStatus || null,
+      // TEMP probe (2026-10-09): which listing-agent fields the provider sends.
+      _agentProbe: {
+        attributionInfo: d.attributionInfo || null,
+        listedBy: d.listed_by || d.listedBy || null,
+        keys: Object.keys(d).filter(k => /agent|broker|attribution|listed|office|mls/i.test(k)),
+      },
       yearBuilt,
       lotSize,
       homeType,
