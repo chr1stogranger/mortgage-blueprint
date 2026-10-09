@@ -3250,19 +3250,35 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [liveNear, setLiveNear] = useState(null); // { origin, radius, fromDevice } | null
   const liveNearAllRef = useRef([]);
   const nearPosRef = useRef(null);
-  const NEAR_RADII = [1, 2, 3, 5];
-  const nearSlice = (all, origin, skipZpid) => {
+  // Auto-pick stays within 5 km; "Show more nearby" steps past it on request
+  // and that wider radius becomes the floor for later Nexts.
+  const NEAR_RADII = [1, 2, 3, 5, 8, 12, 25];
+  const NEAR_AUTO_MAX = 5;
+  const nextNearRadius = (r) => NEAR_RADII.find(x => x > r) || null;
+  const nearSlice = (all, origin, skipZpid, floor = 0) => {
     const called = (l) => !!(l?.zpid && (liveGuessedZpidsRef.current.has(String(l.zpid)) || String(l.zpid) === String(skipZpid || "")));
     const withD = all.filter(l => l.latitude && l.longitude)
       .map(l => ({ l, d: kmBetween(origin, { lat: l.latitude, lng: l.longitude }) }))
       .sort((a, b) => a.d - b.d);
-    for (const r of NEAR_RADII) {
+    const radii = NEAR_RADII.filter(r => r >= floor && r <= Math.max(NEAR_AUTO_MAX, floor));
+    for (const r of radii) {
       const within = withD.filter(x => x.d <= r);
-      if (within.filter(x => !called(x.l)).length >= 12 || r === NEAR_RADII[NEAR_RADII.length - 1]) {
+      if (within.filter(x => !called(x.l)).length >= 12 || r === radii[radii.length - 1]) {
         return { list: within.map(x => x.l), radius: r };
       }
     }
-    return { list: [], radius: NEAR_RADII[NEAR_RADII.length - 1] };
+    return { list: [], radius: radii[radii.length - 1] || NEAR_AUTO_MAX };
+  };
+  const widenNear = () => {
+    if (!liveNear) return;
+    const r = nextNearRadius(liveNear.radius);
+    if (!r) return;
+    const pos = (liveNear.fromDevice && nearPosRef.current) || liveNear.origin;
+    const { list, radius } = nearSlice(liveNearAllRef.current, pos, null, r);
+    const i = list.findIndex(l => !(l.zpid && liveGuessedZpidsRef.current.has(String(l.zpid))));
+    setLiveListings(list);
+    setLiveIdx(i >= 0 ? i : list.length);
+    setLiveNear(n => (n ? { ...n, radius, floor: radius } : n));
   };
   // Follow the device while you walk (only when the origin came from it).
   useEffect(() => {
@@ -3776,7 +3792,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     } else if (liveNear) {
       const cur = liveListings[liveIdx];
       const pos = (liveNear.fromDevice && nearPosRef.current) || liveNear.origin;
-      const { list, radius } = nearSlice(liveNearAllRef.current, pos, cur?.zpid);
+      const { list, radius } = nearSlice(liveNearAllRef.current, pos, cur?.zpid, liveNear.floor || 0);
       const i = list.findIndex(l => !(l.zpid && liveGuessedZpidsRef.current.has(String(l.zpid))) && String(l.zpid) !== String(cur?.zpid || ""));
       setLiveListings(list);
       setLiveIdx(i >= 0 ? i : list.length);
@@ -5870,9 +5886,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8, fontFamily: FONT }}>All caught up!</div>
               <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 24, fontFamily: FONT, lineHeight: 1.5 }}>
-                You've locked in predictions on every active listing in {liveHoodName || locationLabel || "this area"}. We'll let you know when they close.
+                {liveNear
+                  ? `You've called every listing within ${liveNear.radius} km of you. We'll let you know when they close.`
+                  : `You've locked in predictions on every active listing in ${liveHoodName || locationLabel || "this area"}. We'll let you know when they close.`}
               </div>
-              <PillButton onClick={() => setView("livePicker")} style={{ marginBottom: 10, background: T.red, color: "#fff" }}>Try Another Neighborhood</PillButton>
+              {liveNear && nextNearRadius(liveNear.radius) && (
+                <PillButton onClick={widenNear} style={{ marginBottom: 10, background: T.red, color: "#fff" }}>Show more nearby · within {nextNearRadius(liveNear.radius)} km</PillButton>
+              )}
+              <PillButton onClick={() => setView("livePicker")} {...(liveNear && nextNearRadius(liveNear.radius) ? { secondary: true } : {})} style={{ marginBottom: 10, ...(liveNear && nextNearRadius(liveNear.radius) ? {} : { background: T.red, color: "#fff" }) }}>Try Another Neighborhood</PillButton>
               <PillButton onClick={() => setView("fpPicker")} tealAccent style={{ marginBottom: 10 }}>Play Sold</PillButton>
               <PillButton onClick={() => handleTab("daily")} secondary>Back to Daily</PillButton>
             </div>
