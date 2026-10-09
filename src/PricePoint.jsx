@@ -3182,9 +3182,41 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ── Live Mode — re-fetches if activeListings cache is empty ──
   // typeOverride: the picker passes the chips as they are AT TAP TIME, so a
   // toggle-then-tap in the same frame can't apply a stale selection.
-  // nearOrigin {lat,lng}: order the pool nearest-first instead of shuffled
-  // (the "near you" home screen).
+  // ── "Near you" For Sale (Christo 2026-10-08): only homes close to you, and
+  // every Next re-picks the nearest one you haven't called from where you are
+  // NOW. liveNearAllRef holds the whole filtered city pool; liveListings is
+  // the slice within `radius` km, nearest first. Radius = the smallest of
+  // 1/2/3/5 km holding ≥12 uncalled homes (never wider than 5 km).
+  const [liveNear, setLiveNear] = useState(null); // { origin, radius, fromDevice } | null
+  const liveNearAllRef = useRef([]);
+  const nearPosRef = useRef(null);
+  const NEAR_RADII = [1, 2, 3, 5];
+  const nearSlice = (all, origin, skipZpid) => {
+    const called = (l) => !!(l?.zpid && (liveGuessedZpidsRef.current.has(String(l.zpid)) || String(l.zpid) === String(skipZpid || "")));
+    const withD = all.filter(l => l.latitude && l.longitude)
+      .map(l => ({ l, d: kmBetween(origin, { lat: l.latitude, lng: l.longitude }) }))
+      .sort((a, b) => a.d - b.d);
+    for (const r of NEAR_RADII) {
+      const within = withD.filter(x => x.d <= r);
+      if (within.filter(x => !called(x.l)).length >= 12 || r === NEAR_RADII[NEAR_RADII.length - 1]) {
+        return { list: within.map(x => x.l), radius: r };
+      }
+    }
+    return { list: [], radius: NEAR_RADII[NEAR_RADII.length - 1] };
+  };
+  // Follow the device while you walk (only when the origin came from it).
+  useEffect(() => {
+    if (!liveNear?.fromDevice || view !== "live" || !navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      p => { nearPosRef.current = { lat: p.coords.latitude, lng: p.coords.longitude }; },
+      () => {}, { maximumAge: 60 * 1000, timeout: 20000 });
+    return () => navigator.geolocation.clearWatch(id);
+  }, [liveNear?.fromDevice, view]);
+
+  // nearOrigin {lat,lng,fromDevice}: "near you" pool (see nearSlice) instead
+  // of the shuffled city pool.
   const enterLiveMode = async (zipFilter, hoodName, typeOverride, nearOrigin) => {
+    if (!nearOrigin) setLiveNear(null);
     const typeSel = typeOverride || liveTypeSel;
     // Switch to the Live view IMMEDIATELY so the tap feels responsive. Previously
     // we awaited the (sometimes 30s) /api/pricepoint fetch BEFORE switching views,
@@ -3217,11 +3249,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // shows every active/pending listing with done-state pins (tap → board).
       // The card cursor + liveRemaining skip them via isLiveGuessed instead.
       if (nearOrigin) {
-        const dist = (l) => (l.latitude && l.longitude ? kmBetween(nearOrigin, { lat: l.latitude, lng: l.longitude }) : 1e6);
-        pool.sort((a, b) => dist(a) - dist(b));
-      } else {
-        pool.sort(() => Math.random() - 0.5);
+        liveNearAllRef.current = pool;
+        const { list, radius } = nearSlice(pool, nearOrigin);
+        setLiveNear({ origin: { lat: nearOrigin.lat, lng: nearOrigin.lng }, radius, fromDevice: !!nearOrigin.fromDevice });
+        return list;
       }
+      pool.sort(() => Math.random() - 0.5);
       return pool;
     };
     // Start the card cursor on the first listing you HAVEN'T called yet.
@@ -3461,10 +3494,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           return grp && grp.size > 0 ? new Set(grp) : new Set([liveHoodFilter]);
         })();
         const have = new Set(liveListings.map(l => String(l.zpid)));
-        const added = fresh.filter(l => isTrueActive(l)
+        let added = fresh.filter(l => isTrueActive(l)
           && (!zipGroup || zipGroup.has(l.zip) || (l.zipcode && zipGroup.has(l.zipcode)))
           && fpTypeMatch(liveTypeSel, l.propertyType)
           && !have.has(String(l.zpid)));
+        if (liveNear) {
+          liveNearAllRef.current = [...liveNearAllRef.current, ...added];
+          const pos = (liveNear.fromDevice && nearPosRef.current) || liveNear.origin;
+          added = added.filter(l => l.latitude && l.longitude && kmBetween(pos, { lat: l.latitude, lng: l.longitude }) <= liveNear.radius);
+        }
         if (added.length > 0) {
           setLiveListings(prev => {
             const at = Math.min(prev.length, liveIdx + 1);
@@ -3675,6 +3713,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // is now guessed and the card area falsely renders "All caught up!"
       // while the header still says N left.
       setLiveIdx(prev => nextUnguessedLiveIdx(prev));
+    } else if (liveNear) {
+      const cur = liveListings[liveIdx];
+      const pos = (liveNear.fromDevice && nearPosRef.current) || liveNear.origin;
+      const { list, radius } = nearSlice(liveNearAllRef.current, pos, cur?.zpid);
+      const i = list.findIndex(l => !(l.zpid && liveGuessedZpidsRef.current.has(String(l.zpid))) && String(l.zpid) !== String(cur?.zpid || ""));
+      setLiveListings(list);
+      setLiveIdx(i >= 0 ? i : list.length);
+      setLiveNear(n => (n ? { ...n, radius } : n));
     } else {
       setLiveIdx(prev => nextUnguessedLiveIdx(prev + 1));
     }
@@ -3694,7 +3740,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         if (perm?.state !== "denied") {
           const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000, maximumAge: 30 * 60 * 1000 }));
           const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          if (!c || kmBetween(here, c) < 60) return here; // outside this market → ignore
+          if (!c || kmBetween(here, c) < 60) return { ...here, fromDevice: true }; // outside this market → ignore
         }
       } catch { /* denied / timed out → zip */ }
     }
@@ -5534,7 +5580,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               {/* Surfaces the active type filter — it persists across sessions,
                   so a shrunken pool needs a visible cause. Tap → picker. */}
               <div role="button" tabIndex={0} onClick={() => setView("livePicker")} onKeyDown={onKeyActivate(() => setView("livePicker"))} style={{ color: T.red, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, minWidth: 0, overflow: "hidden" }}>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveHoodName || "All"}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}</span> <Icon name="chevron-right" size={12} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{liveNear ? `Near you · ${liveNear.radius} km` : (liveHoodName || "All")}{liveTypeSel.length > 0 ? ` · ${liveTypeSel.length === 1 ? typeChipLabel(liveTypeSel[0]) : `${liveTypeSel.length} types`}` : ""}</span> <Icon name="chevron-right" size={12} />
               </div>
               {/* Desktop: count + refresh ride next to the filter; the List|Map
                   toggle sits over the photo's top-right corner (2026-10-07). */}

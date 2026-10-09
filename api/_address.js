@@ -34,7 +34,7 @@
 // the L1 cache still dedupes repeats per warm instance.
 
 import { createClient } from "@supabase/supabase-js";
-import { extractPhotos, isUsablePhoto, isRentalText, saneListPrice, MAX_PHOTOS } from "./_enrich.js";
+import { extractPhotos, isUsablePhoto, isRentalText, saneListPrice, MAX_PHOTOS, floorPlansFirst } from "./_enrich.js";
 
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -267,7 +267,7 @@ export async function handleAddressSearch(req, res) {
     const addrObj = d.address || {};
 
     const status = normalizeStatus(d.homeStatus);
-    const photos = extractPhotos(d).filter(isUsablePhoto).slice(0, MAX_PHOTOS);
+    const photos = await floorPlansFirst(extractPhotos(d).filter(isUsablePhoto).slice(0, MAX_PHOTOS));
     const rawDesc = d.description || d.homeDescription || "";
     const description = isRentalText(rawDesc) ? "" : rawDesc;
 

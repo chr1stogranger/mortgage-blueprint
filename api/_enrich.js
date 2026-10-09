@@ -36,6 +36,47 @@ export function saneListPrice(lp, soldPrice) {
 // buyers want. Same single property-details response — zero extra API calls.
 export const MAX_PHOTOS = 100;
 
+// ── Floor plans right after the hero (Christo 2026-10-08) ──
+// Listing feeds don't tag floor plans, so detect them by look: a floor plan is
+// mostly white/near-gray paper with a little dark linework. Scored on Zillow's
+// 192px thumbnail of each photo (a few KB apiece, fetched in parallel, no
+// RapidAPI call). Non-Zillow URLs, or anything slow/failing, keep their order.
+const ZILLOW_SIZED = /-cc_ft_\d+\.(jpg|webp)$/;
+function looksLikeFloorPlan(rgba) {
+  let white = 0, dark = 0, colorful = 0;
+  const n = rgba.length / 4;
+  for (let i = 0; i < rgba.length; i += 4) {
+    const r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mn > 225 && mx - mn < 25) white++;
+    else if (mx < 90) dark++;
+    if (mx - mn > 60) colorful++;
+  }
+  return white / n > 0.45 && dark / n > 0.003 && dark / n < 0.25 && colorful / n < 0.15;
+}
+export async function floorPlansFirst(photos, { timeoutMs = 3500 } = {}) {
+  if (!Array.isArray(photos) || photos.length < 3) return photos;
+  let decode;
+  try { decode = (await import('jpeg-js')).default.decode; } catch { return photos; }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const flags = await Promise.all(photos.map(async (url, i) => {
+      if (i === 0 || !ZILLOW_SIZED.test(url)) return false;
+      try {
+        const r = await fetch(url.replace(ZILLOW_SIZED, '-cc_ft_192.jpg'), { signal: controller.signal });
+        if (!r.ok) return false;
+        const img = decode(new Uint8Array(await r.arrayBuffer()), { useTArray: true, formatAsRGBA: true, maxResolutionInMP: 1 });
+        return looksLikeFloorPlan(img.data);
+      } catch { return false; }
+    }));
+    if (!flags.some(Boolean)) return photos;
+    return [photos[0], ...photos.filter((_, i) => flags[i]), ...photos.filter((_, i) => i > 0 && !flags[i])];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function extractPhotos(d) {
   const urls = [];
   if (d.photos && Array.isArray(d.photos)) {

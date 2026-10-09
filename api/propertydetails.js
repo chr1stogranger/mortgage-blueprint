@@ -11,7 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
 import { handleAddressSearch } from "./_address.js";
-import { MAX_PHOTOS } from "./_enrich.js";
+import { MAX_PHOTOS, floorPlansFirst } from "./_enrich.js";
 
 export const config = { maxDuration: 30 };
 
@@ -165,6 +165,7 @@ export default async function handler(req, res) {
     // L1: in-memory (this lambda instance only)
     const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0 && !cappedAt24(cached.data)) {
+      if (!cached.data.floorPlansSorted) cached.data = { ...cached.data, photos: await floorPlansFirst(cached.data.photos), floorPlansSorted: true };
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
       return res.status(200).json({ ...cached.data, cached: true });
     }
@@ -199,9 +200,16 @@ export default async function handler(req, res) {
             photoCount: 0, enrichPending: true, source: "negative-cache",
           });
         } else if (row?.data?.photos?.length > 0 && ageMs < CACHE_TTL && !cappedAt24(row.data)) {
-          cache.set(cacheKey, { data: row.data, timestamp: Date.now() }); // re-warm L1
+          // Cached before floor-plan sorting: reorder on the way out (no
+          // provider call) and write the sorted copy back.
+          let data = row.data;
+          if (!data.floorPlansSorted) {
+            data = { ...data, photos: await floorPlansFirst(data.photos), floorPlansSorted: true };
+            supa.from("pp_details_cache").update({ data }).eq("cache_key", cacheKey).then(({ error }) => { if (error) console.error(`[PropertyDetails] floor-plan writeback failed: ${error.message}`); });
+          }
+          cache.set(cacheKey, { data, timestamp: Date.now() }); // re-warm L1
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
-          return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
+          return res.status(200).json({ ...data, cached: true, cacheLayer: "supabase" });
         }
       } catch (e) {
         console.error(`[PropertyDetails] L2 read failed (continuing): ${e.message}`);
@@ -552,7 +560,7 @@ export default async function handler(req, res) {
     // Tells us whether "pending" is real data or whether we always fall back.
     console.error(`[PropertyDetails] timeline ${zpid || rcid}: events=[${saleEvents.map(e => e.event).slice(0, 6).join("|")}] listed=${listedAt} pending=${pendingAt} sold=${soldAt} -> toPending=${daysToPending} toSold=${daysToSold}`);
 
-    const usablePhotos = photos.filter(isUsablePhoto);
+    const usablePhotos = await floorPlansFirst(photos.filter(isUsablePhoto));
     // Rental-listing text (lease terms, rent due dates) misleads the sold-price
     // game — drop it. The photos still show the property itself, so keep them.
     const cleanDescription = isRentalText(description) ? "" : description;
@@ -575,6 +583,7 @@ export default async function handler(req, res) {
       daysToSold,
       photoCount: usablePhotos.length,
       photoCap: MAX_PHOTOS,
+      floorPlansSorted: true,
       cached: false,
     };
 
