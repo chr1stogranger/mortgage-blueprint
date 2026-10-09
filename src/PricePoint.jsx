@@ -1389,7 +1389,8 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
           )}
         </div>
       )}
-      {/* Photo count pill + expand affordance — top right. "1/3", or "MAP". */}
+      {/* Photo count pill — top right. Tapping the photo expands it (the
+          separate expand button went 2026-10-09). */}
       <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, alignItems: "center" }}>
         {isLoadingDetails && (
           <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#fff", fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Loading photos...</div>
@@ -1399,19 +1400,6 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
             {`${idx + 1} / ${count}`}
           </div>
         )}
-        {/* Share — For Sale cards only (an active, public listing). Light pill
-            so it reads as the primary action against the dark counters. */}
-        {onShare && (
-          <button onClick={(e) => { e.stopPropagation(); onShare(); }} aria-label="Share this property"
-            style={{ background: "rgba(255,255,255,0.94)", border: "none", borderRadius: 8, padding: "5px 10px", color: "#171717", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, fontFamily: FONT, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
-            <Icon name="share" size={13} /> Share
-          </button>
-        )}
-        {/* Tapping the photo also opens this — the button is the discoverability cue. */}
-        <button onClick={(e) => { e.stopPropagation(); setZoomed(true); }} aria-label="Expand photo"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", border: "none", borderRadius: 8, padding: "5px 8px", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center" }}>
-          <Icon name="maximize" size={13} />
-        </button>
       </div>
       {/* Prev / Next arrows */}
       {count > 1 && (
@@ -1434,16 +1422,8 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
       {/* Bottom row: neighborhood (left, photos only) + sold date (right, every slide
           incl. map — sold date is orthogonal to location, and RentCast Free Play
           listings are often map-only, where it's most useful) */}
-      {listing && (showHood || datePill || (fieldPill && !isMapSlide)) && (
-        <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          {/* Who's already called this For Sale home — names only, never
-              numbers (those unlock after you lock your own). */}
-          {fieldPill && !isMapSlide && (
-            <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, maxWidth: "100%" }}>
-              <Icon name="users" size={13} style={{ color: "#fff", flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
-            </div>
-          )}
+      {listing && (showHood || datePill || onShare) && (
+        <div style={{ position: "absolute", bottom: 12, left: 12, right: 12, display: "flex", alignItems: "center", gap: 6, pointerEvents: "none" }}>
           {showHood && (
             <div style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 10, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Icon name="map-pin" size={13} />
@@ -1455,6 +1435,14 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
               <Icon name="calendar" size={13} />
               <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{datePill}</span>
             </div>
+          )}
+          {/* Share — For Sale cards (an active, public listing). See-through,
+              lower right, out of the photo's way (Christo 2026-10-09). */}
+          {onShare && (
+            <button onClick={(e) => { e.stopPropagation(); onShare(); }} aria-label="Share this property"
+              style={{ marginLeft: datePill ? 0 : "auto", pointerEvents: "auto", background: "rgba(0,0,0,0.32)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.28)", borderRadius: 9999, padding: "5px 12px", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, fontFamily: FONT }}>
+              <Icon name="share" size={13} /> Share
+            </button>
           )}
         </div>
       )}
@@ -4491,7 +4479,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       ? (exactPt ? { ...exactPt, approx: false } : { lat: listing.latitude, lng: listing.longitude, approx: true })
       : { lat: listing.latitude, lng: listing.longitude, approx: true };
     const carousel = (noMapSlide) => (
-      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors} mapPoint={mapPoint} onMapOpen={isForSale && MAP_ENABLED && cardMap ? () => setFullMapOpen(true) : undefined}
+      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors} mapPoint={mapPoint} onMapOpen={isForSale && MAP_ENABLED && cardMap ? () => setFullMapOpen(true) : undefined}
         photoHeight={compact ? `clamp(170px, calc(100dvh - ${cardChrome}px), 340px)` : undefined} />
     );
 
@@ -4576,7 +4564,17 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               <div style={{ textAlign: "center", fontSize: 12, color: T.textSecondary, marginTop: 8, fontFamily: FONT, minHeight: 16, visibility: guess ? "visible" : "hidden" }}>{feedbackText}</div>
             )}
             <div style={{ height: 1, background: T.cardBorder, margin: priorCall ? "16px 0 14px" : "8px 0 14px" }} />
-            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
+            {/* Address + who's already called it (names only, never numbers —
+                those unlock after you lock your own). */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT, flexShrink: 0 }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
+            {fieldPill && (
+              <div style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: T.inputBg, border: `1px solid ${T.cardBorder}`, color: T.textSecondary }}>
+                <Icon name="users" size={12} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
+              </div>
+            )}
+            </div>
             <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 3, fontFamily: FONT }}>
               {showAddress ? `${resolveNeighborhood(listing)} · ${listing.city}, ${listing.state} ${listing.zip}` : `${listing.city}, ${listing.state} ${listing.zip}`}{showType && listing.propertyType ? ` · ${listing.propertyType}` : ""}
             </div>
@@ -4633,7 +4631,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         <div style={{ padding: IS_MOBILE ? "10px 14px 12px" : (isDesktop ? "20px 24px" : "16px 18px 20px"), ...(isDesktop ? { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", borderLeft: `1px solid ${T.cardBorder}` } : {}) }}>
           {/* Address or Neighborhood heading */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
+            <div style={{ fontSize: showAddress ? 17 : 20, fontWeight: 700, color: T.text, letterSpacing: "-0.02em", fontFamily: FONT, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{showAddress ? listing.address : resolveNeighborhood(listing)}</div>
+            {fieldPill && (
+              <div style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 9999, background: T.inputBg, border: `1px solid ${T.cardBorder}`, color: T.textSecondary }}>
+                <Icon name="users" size={12} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fieldPill}</span>
+              </div>
+            )}
           </div>
           <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 2, fontFamily: FONT }}>
             {compact
