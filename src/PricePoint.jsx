@@ -1328,13 +1328,13 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
   // only when there's nothing else to show. De-dupe by URL — some feeds repeat
   // the hero shot, which otherwise rendered as "photo 2 = a copy of photo 1".
   const basePhotos = photos && photos.length > 0 ? [...new Set(photos)] : (fallbackPhoto ? [fallbackPhoto] : (mapUrl ? [] : [NO_PHOTO]));
-  // Append the location map as the last slide when lat/lng exist. It's counted
-  // as a real slide (e.g. a lone photo + map reads "1 / 2" → "2 / 2") so people
-  // discover there's a location to swipe to; the LOCATION label + blue dot mark
-  // which slide it is.
-  const allPhotos = mapUrl ? [...basePhotos, mapUrl] : basePhotos;
+  // The location map is the SECOND slide (Christo 2026-10-09: one swipe from
+  // the hero, not buried after 50 photos), or the hero when there are no
+  // photos. Counted as a real slide; the LOCATION label + blue dot mark it.
+  const mapIdx = mapUrl ? Math.min(1, basePhotos.length) : -1;
+  const allPhotos = mapUrl ? [...basePhotos.slice(0, mapIdx), mapUrl, ...basePhotos.slice(mapIdx)] : basePhotos;
   const count = allPhotos.length;
-  const isMapSlide = mapUrl && idx === count - 1;
+  const isMapSlide = mapUrl && idx === mapIdx;
   const go = (dir) => setIdx(i => dir === "next" ? (i + 1) % count : (i - 1 + count) % count);
   const showHood = !hideHoodPill && !isMapSlide && listing && resolveNeighborhood(listing) !== "Unknown Area";
 
@@ -1421,7 +1421,7 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
       {count > 1 && count <= 12 && (
         <div style={{ position: "absolute", bottom: showHood || datePill ? 48 : 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
           {allPhotos.map((_, i) => {
-            const isMap = mapUrl && i === count - 1;
+            const isMap = mapUrl && i === mapIdx;
             return (
               <div key={i} onClick={() => setIdx(i)} style={{ width: i === idx ? (isMap ? 20 : 16) : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : isMap ? "rgba(59,107,245,0.6)" : "rgba(255,255,255,0.5)", cursor: "pointer", transition: "all 0.2s" }} />
             );
