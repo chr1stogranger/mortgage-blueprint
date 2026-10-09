@@ -31,23 +31,28 @@ export function saneListPrice(lp, soldPrice) {
   return lp;
 }
 
+// Every listing photo, not the first 24 (Christo 2026-10-08): floor plans and
+// layout sheets sit at the END of the set, so the old cap cut exactly the shots
+// buyers want. Same single property-details response — zero extra API calls.
+export const MAX_PHOTOS = 100;
+
 export function extractPhotos(d) {
   const urls = [];
   if (d.photos && Array.isArray(d.photos)) {
-    for (let i = 0; i < d.photos.length && urls.length < 24; i++) {
+    for (let i = 0; i < d.photos.length && urls.length < MAX_PHOTOS; i++) {
       const jpegs = d.photos[i]?.mixedSources?.jpeg || [];
       if (jpegs.length > 0) urls.push(jpegs[jpegs.length - 1].url);
     }
     if (urls.length > 0) return urls;
   }
   if (d.carouselPhotos && Array.isArray(d.carouselPhotos)) {
-    for (let j = 0; j < d.carouselPhotos.length && urls.length < 24; j++) {
+    for (let j = 0; j < d.carouselPhotos.length && urls.length < MAX_PHOTOS; j++) {
       if (d.carouselPhotos[j].url) urls.push(d.carouselPhotos[j].url);
     }
     if (urls.length > 0) return urls;
   }
   if (d.responsivePhotos && Array.isArray(d.responsivePhotos)) {
-    for (let k = 0; k < d.responsivePhotos.length && urls.length < 24; k++) {
+    for (let k = 0; k < d.responsivePhotos.length && urls.length < MAX_PHOTOS; k++) {
       const srcs = d.responsivePhotos[k]?.mixedSources?.jpeg || [];
       if (srcs.length > 0) urls.push(srcs[srcs.length - 1].url);
     }
@@ -123,7 +128,7 @@ export async function enrichPoolRow(supabase, row, opts = {}) {
     if (photos.length === 0 && !description) { await bump(); return { enriched: false, reason: 'no_content' }; }
 
     const upd = { enrich_attempts: attempts };
-    if (photos.length > 0) { upd.photos = photos.slice(0, 24); upd.photo = photos[0]; }
+    if (photos.length > 0) { upd.photos = photos.slice(0, MAX_PHOTOS); upd.photo = photos[0]; }
     if (description) upd.description = description;
     if (listPrice) upd.list_price = listPrice;
     if (d.yearBuilt && !row.year_built) upd.year_built = d.yearBuilt;

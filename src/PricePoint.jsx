@@ -718,6 +718,12 @@ const isRecentSale = (l) => {
 // Note: unlike isRecentSale ("no date = assume recent", which KEEPS a listing
 // in the pool), ordering sends unknown dates to the back — never lead with a
 // sale we can't date.
+// Equirectangular distance — plenty for ranking homes within one metro.
+const kmBetween = (a, b) => {
+  const x = (b.lng - a.lng) * Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
+  return Math.sqrt(x * x + (b.lat - a.lat) ** 2) * 111.32;
+};
+
 const orderByRecency = (listings) => {
   const now = new Date();
   const cut3 = new Date(now); cut3.setMonth(cut3.getMonth() - 3);
@@ -1478,7 +1484,7 @@ const onKeyActivate = (fn) => (e) => {
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(e); }
 };
 
-export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange }) {
+export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToBlueprint, onOpenMarkets, realtorPartner, appMode, setAppMode, sidebarTab, sidebarTabKey, onTabChange, homeZip }) {
   // Run migration BEFORE any useState initializers read localStorage
   const [needsFreshFetch] = useState(() => migrateLocalStorage());
 
@@ -2182,6 +2188,16 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Initialize view ──
   const pendingPropertyLinkRef = useRef(null);
+  // Home screen = Sold, nearest recent sales first (Christo 2026-10-08), not
+  // the Daily. A pending property link owns the first view instead.
+  const startNearbyRef = useRef(false);
+  const [fpBooting, setFpBooting] = useState(false);
+  const startHome = (dailyDone) => {
+    if (pendingPropertyLinkRef.current) { setView(dailyDone ? "postDaily" : "daily"); return; }
+    startNearbyRef.current = true;
+    setFpBooting(true);
+    setView("freeplay");
+  };
   useEffect(() => {
     // Check for challenge param in URL FIRST
     const params = new URLSearchParams(window.location.search);
@@ -2209,17 +2225,14 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
         if (oldHometown) {
           setMarket(oldHometown);
           setLocationLabel(oldHometown.label || oldHometown.zip || oldHometown.city || "");
-          if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
-          else setView("daily");
+          startHome(dailyResult && dailyResult.dailyNumber === dailyNumber);
           fetchListings(oldHometown.zip || oldHometown.city);
           return;
         }
       } catch {}
       setView("onboarding");
-    } else if (dailyResult && dailyResult.dailyNumber === dailyNumber) {
-      setView("postDaily");
     } else {
-      setView("daily");
+      startHome(dailyResult && dailyResult.dailyNumber === dailyNumber);
     }
   }, []);
 
@@ -2476,8 +2489,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // Switch view IMMEDIATELY — the daily view shows a skeleton until sold
     // data lands. The old `await fetchListings(...)` here kept the user
     // staring at the city picker for the full fetch (~20s on a cache miss).
-    if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
-    else if (view === "onboarding") setView("daily");
+    if (view === "onboarding") startHome(false);
+    else if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
     // Mark fetched so the [market] auto-fetch effect doesn't double-fire the
     // same request. fetchListings resets this on failure, so retry still works.
     hasFetchedRef.current = true;
@@ -3659,6 +3672,58 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       setLiveIdx(prev => nextUnguessedLiveIdx(prev + 1));
     }
   };
+
+  // ── Home: Sold, nearest first ──
+  // Origin = device location (only if it lands near this market's homes),
+  // else the zip entered in Blueprint, else none (newest-first as before).
+  // Distances come from the listings' own lat/lng — no geocoding calls.
+  const nearbyOrigin = async (pool) => {
+    const pts = pool.filter(l => l.latitude && l.longitude);
+    if (pts.length === 0) return null;
+    const c = { lat: pts.reduce((a, l) => a + l.latitude, 0) / pts.length, lng: pts.reduce((a, l) => a + l.longitude, 0) / pts.length };
+    if (navigator.geolocation) {
+      try {
+        const perm = navigator.permissions?.query ? await navigator.permissions.query({ name: "geolocation" }).catch(() => null) : null;
+        if (perm?.state !== "denied") {
+          const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000, maximumAge: 30 * 60 * 1000 }));
+          const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (kmBetween(here, c) < 60) return here; // outside this market → ignore
+        }
+      } catch { /* denied / timed out → zip */ }
+    }
+    const z = String(homeZip || "").trim();
+    if (/^\d{5}$/.test(z)) {
+      const inZip = pts.filter(l => String(l.zip) === z);
+      if (inZip.length) return { lat: inZip.reduce((a, l) => a + l.latitude, 0) / inZip.length, lng: inZip.reduce((a, l) => a + l.longitude, 0) / inZip.length };
+    }
+    return null;
+  };
+  useEffect(() => {
+    if (!startNearbyRef.current || !market) return;
+    let dead = false;
+    const go = async () => {
+      if (!startNearbyRef.current) return;
+      startNearbyRef.current = false;
+      const origin = await nearbyOrigin(soldListings.filter(isTrueSold));
+      if (dead) return;
+      enterFreePlay([]);
+      if (origin) {
+        // Keep the recency tiers (last 3 mo → 3-6 mo → older), nearest first
+        // inside each, so "near you" never buries this week's sales.
+        const tier = (l) => { const d = Date.parse(l.soldDate || ""); const age = isNaN(d) ? Infinity : (Date.now() - d) / 864e5; return age <= 92 ? 0 : age <= 183 ? 1 : 2; };
+        const dist = (l) => (l.latitude && l.longitude ? kmBetween(origin, { lat: l.latitude, lng: l.longitude }) : 1e6);
+        setFpListings(prev => [...prev].sort((a, b) => tier(a) - tier(b) || dist(a) - dist(b)));
+        setFpSelectedNeighborhood("Near you");
+      }
+      setFpBooting(false);
+    };
+    // soldListings starts as SAMPLE_SOLD placeholders — wait for real sales
+    // (≤8s, then go with whatever is there).
+    if (soldListings.some(isTrueSold)) { go(); return () => { dead = true; }; }
+    const t = setTimeout(go, 8000);
+    return () => { dead = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market?.id, soldListings.length]);
 
   // ── Open a pending property link in its regular tab (see init effect) ──
   // For Sale: the home becomes the search card over the live pool. Sold: a
@@ -6092,7 +6157,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
-              {fpHasMore && fpZipRef.current ? (
+              {fpBooting ? (
+                <div style={{ fontSize: 15, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Finding recent sales near you…</div>
+              ) : fpHasMore && fpZipRef.current ? (
                 <>
                   <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.cyan}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.cyan}20` }}>
                     <Icon name="plus" size={24} style={{ color: T.cyan }} />

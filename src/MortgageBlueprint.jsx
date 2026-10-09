@@ -9814,6 +9814,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      }}
      onBackToBlueprint={() => setAppMode("blueprint")}
      onOpenMarkets={() => setAppMode("markets")}
+     homeZip={propertyZip}
     />
     </Suspense>
     </div>

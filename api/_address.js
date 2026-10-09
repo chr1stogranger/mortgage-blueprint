@@ -34,7 +34,7 @@
 // the L1 cache still dedupes repeats per warm instance.
 
 import { createClient } from "@supabase/supabase-js";
-import { extractPhotos, isUsablePhoto, isRentalText, saneListPrice } from "./_enrich.js";
+import { extractPhotos, isUsablePhoto, isRentalText, saneListPrice, MAX_PHOTOS } from "./_enrich.js";
 
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -124,7 +124,7 @@ const escapeLike = (s) => String(s).replace(/[%_\\]/g, (m) => `\\${m}`);
 // soldPrice is deliberately absent. list_price runs through saneListPrice so a
 // sold row whose stored list price IS the sold price can't leak the answer.
 function poolRowToListing(r) {
-  const photos = (Array.isArray(r.photos) ? r.photos : []).filter(isUsablePhoto).slice(0, 24);
+  const photos = (Array.isArray(r.photos) ? r.photos : []).filter(isUsablePhoto).slice(0, MAX_PHOTOS);
   const listPrice = r.sold_price ? saneListPrice(r.list_price, r.sold_price) : (r.list_price || null);
   return {
     id: `addr_${r.zpid}`,
@@ -267,7 +267,7 @@ export async function handleAddressSearch(req, res) {
     const addrObj = d.address || {};
 
     const status = normalizeStatus(d.homeStatus);
-    const photos = extractPhotos(d).filter(isUsablePhoto).slice(0, 24);
+    const photos = extractPhotos(d).filter(isUsablePhoto).slice(0, MAX_PHOTOS);
     const rawDesc = d.description || d.homeDescription || "";
     const description = isRentalText(rawDesc) ? "" : rawDesc;
 
