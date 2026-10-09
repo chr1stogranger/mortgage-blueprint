@@ -2188,15 +2188,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
   // ── Initialize view ──
   const pendingPropertyLinkRef = useRef(null);
-  // Home screen = Sold, nearest recent sales first (Christo 2026-10-08), not
+  // Home screen = For Sale, nearest listings first (Christo 2026-10-08), not
   // the Daily. A pending property link owns the first view instead.
   const startNearbyRef = useRef(false);
-  const [fpBooting, setFpBooting] = useState(false);
+  const [homeBooting, setHomeBooting] = useState(false);
   const startHome = (dailyDone) => {
     if (pendingPropertyLinkRef.current) { setView(dailyDone ? "postDaily" : "daily"); return; }
     startNearbyRef.current = true;
-    setFpBooting(true);
-    setView("freeplay");
+    setHomeBooting(true);
+    setView("live");
   };
   useEffect(() => {
     // Check for challenge param in URL FIRST
@@ -3182,7 +3182,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // ── Live Mode — re-fetches if activeListings cache is empty ──
   // typeOverride: the picker passes the chips as they are AT TAP TIME, so a
   // toggle-then-tap in the same frame can't apply a stale selection.
-  const enterLiveMode = async (zipFilter, hoodName, typeOverride) => {
+  // nearOrigin {lat,lng}: order the pool nearest-first instead of shuffled
+  // (the "near you" home screen).
+  const enterLiveMode = async (zipFilter, hoodName, typeOverride, nearOrigin) => {
     const typeSel = typeOverride || liveTypeSel;
     // Switch to the Live view IMMEDIATELY so the tap feels responsive. Previously
     // we awaited the (sometimes 30s) /api/pricepoint fetch BEFORE switching views,
@@ -3214,7 +3216,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       // NOTE: already-predicted listings are KEPT in the pool now — the map
       // shows every active/pending listing with done-state pins (tap → board).
       // The card cursor + liveRemaining skip them via isLiveGuessed instead.
-      pool.sort(() => Math.random() - 0.5);
+      if (nearOrigin) {
+        const dist = (l) => (l.latitude && l.longitude ? kmBetween(nearOrigin, { lat: l.latitude, lng: l.longitude }) : 1e6);
+        pool.sort((a, b) => dist(a) - dist(b));
+      } else {
+        pool.sort(() => Math.random() - 0.5);
+      }
       return pool;
     };
     // Start the card cursor on the first listing you HAVEN'T called yet.
@@ -3679,15 +3686,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   // Distances come from the listings' own lat/lng — no geocoding calls.
   const nearbyOrigin = async (pool) => {
     const pts = pool.filter(l => l.latitude && l.longitude);
-    if (pts.length === 0) return null;
-    const c = { lat: pts.reduce((a, l) => a + l.latitude, 0) / pts.length, lng: pts.reduce((a, l) => a + l.longitude, 0) / pts.length };
+    // No homes cached yet (first visit): skip the in-market sanity check.
+    const c = pts.length ? { lat: pts.reduce((a, l) => a + l.latitude, 0) / pts.length, lng: pts.reduce((a, l) => a + l.longitude, 0) / pts.length } : null;
     if (navigator.geolocation) {
       try {
         const perm = navigator.permissions?.query ? await navigator.permissions.query({ name: "geolocation" }).catch(() => null) : null;
         if (perm?.state !== "denied") {
           const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000, maximumAge: 30 * 60 * 1000 }));
           const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          if (kmBetween(here, c) < 60) return here; // outside this market → ignore
+          if (!c || kmBetween(here, c) < 60) return here; // outside this market → ignore
         }
       } catch { /* denied / timed out → zip */ }
     }
@@ -3700,30 +3707,18 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   };
   useEffect(() => {
     if (!startNearbyRef.current || !market) return;
+    startNearbyRef.current = false;
     let dead = false;
-    const go = async () => {
-      if (!startNearbyRef.current) return;
-      startNearbyRef.current = false;
-      const origin = await nearbyOrigin(soldListings.filter(isTrueSold));
+    // Origin from whatever homes are already on hand (cached active + sold
+    // pools) — only used for the market-centroid sanity check and zip lookup.
+    nearbyOrigin([...activeListings, ...soldListings.filter(isTrueSold)]).then(origin => {
       if (dead) return;
-      enterFreePlay([]);
-      if (origin) {
-        // Keep the recency tiers (last 3 mo → 3-6 mo → older), nearest first
-        // inside each, so "near you" never buries this week's sales.
-        const tier = (l) => { const d = Date.parse(l.soldDate || ""); const age = isNaN(d) ? Infinity : (Date.now() - d) / 864e5; return age <= 92 ? 0 : age <= 183 ? 1 : 2; };
-        const dist = (l) => (l.latitude && l.longitude ? kmBetween(origin, { lat: l.latitude, lng: l.longitude }) : 1e6);
-        setFpListings(prev => [...prev].sort((a, b) => tier(a) - tier(b) || dist(a) - dist(b)));
-        setFpSelectedNeighborhood("Near you");
-      }
-      setFpBooting(false);
-    };
-    // soldListings starts as SAMPLE_SOLD placeholders — wait for real sales
-    // (≤8s, then go with whatever is there).
-    if (soldListings.some(isTrueSold)) { go(); return () => { dead = true; }; }
-    const t = setTimeout(go, 8000);
-    return () => { dead = true; clearTimeout(t); };
+      enterLiveMode(null, origin ? "Near you" : null, undefined, origin);
+      setHomeBooting(false);
+    });
+    return () => { dead = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [market?.id, soldListings.length]);
+  }, [market?.id]);
 
   // ── Open a pending property link in its regular tab (see init effect) ──
   // For Sale: the home becomes the search card over the live pool. Sold: a
@@ -5671,7 +5666,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 )}
               </div>
             </div>
-          ) : loading ? (
+          ) : (loading || homeBooting) ? (
             /* Fetching active listings — instant feedback so the tap never looks dead */
             <div style={{ textAlign: "center", padding: "48px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
               <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.red}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.red}20`, animation: "ppPulse 1.2s ease infinite" }}>
@@ -6157,9 +6152,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               onRunNumbersClick: onRunNumbers ? (r) => { onRunNumbers({ price: r.soldPrice, state: r.state, city: r.city, zip: r.zip }); } : null })
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px", ...(isDesktop ? { maxWidth: 480, margin: "0 auto" } : {}) }}>
-              {fpBooting ? (
-                <div style={{ fontSize: 15, color: T.textSecondary, fontFamily: FONT, animation: "ppPulse 1.2s ease infinite" }}>Finding recent sales near you…</div>
-              ) : fpHasMore && fpZipRef.current ? (
+              {fpHasMore && fpZipRef.current ? (
                 <>
                   <div style={{ width: 56, height: 56, borderRadius: 16, background: `${T.cyan}12`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", border: `1px solid ${T.cyan}20` }}>
                     <Icon name="plus" size={24} style={{ color: T.cyan }} />

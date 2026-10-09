@@ -17,7 +17,11 @@ export const config = { maxDuration: 30 };
 
 // ─── In-memory cache (persists across warm invocations) ───
 const cache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — property details don't change often
+const CACHE_TTL = 24 * 60 * 60 * 1000;
+// Entries cached before the 100-photo cap (no photoCap tag) that hit the old
+// 24 limit probably dropped photos (floor plans live at the end) — refetch
+// once instead of serving the truncated set for another day.
+const cappedAt24 = (d) => !d?.photoCap && Array.isArray(d?.photos) && d.photos.length === 24; // 24 hours — property details don't change often
 // Negative-cache window for a FAILED enrichment. Without this, a row whose
 // upstream call failed is never persisted, so the pp_property_pool short-circuit
 // never engages and every later view re-bills the same doomed request. When the
@@ -160,7 +164,7 @@ export default async function handler(req, res) {
   if (!skipCache) {
     // L1: in-memory (this lambda instance only)
     const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0) {
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0 && !cappedAt24(cached.data)) {
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
       return res.status(200).json({ ...cached.data, cached: true });
     }
@@ -194,7 +198,7 @@ export default async function handler(req, res) {
             zpid: String(cacheKey), photos: [], description: "", listPrice: null,
             photoCount: 0, enrichPending: true, source: "negative-cache",
           });
-        } else if (row?.data?.photos?.length > 0 && ageMs < CACHE_TTL) {
+        } else if (row?.data?.photos?.length > 0 && ageMs < CACHE_TTL && !cappedAt24(row.data)) {
           cache.set(cacheKey, { data: row.data, timestamp: Date.now() }); // re-warm L1
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
           return res.status(200).json({ ...row.data, cached: true, cacheLayer: "supabase" });
@@ -570,6 +574,7 @@ export default async function handler(req, res) {
       daysToPending,
       daysToSold,
       photoCount: usablePhotos.length,
+      photoCap: MAX_PHOTOS,
       cached: false,
     };
 
