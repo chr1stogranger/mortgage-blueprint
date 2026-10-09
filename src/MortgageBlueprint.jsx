@@ -9803,14 +9803,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      sidebarTab={ppSidebarTab}
      sidebarTabKey={ppSidebarTabCounter}
      onTabChange={setPpCurrentTab}
-     onRunNumbers={({ price, state, city, zip }) => {
+     onRunNumbers={({ price, state, city, zip, address, tab: toTab }) => {
       if (price) setSalesPrice(price);
       if (state) setPropertyState(state);
       if (city) setCity(city);
       if (zip) setPropertyZip(zip);
+      // PricePoint's Blueprint button hands over the home itself too.
+      if (address) { setPropertyAddress(address); setAddressInput(address); setPropertyTBD(false); }
       if (splitMode && splitApp === "blueprint") { /* Blueprint pane will react to state changes */ }
       else { setAppMode("blueprint"); }
-      setTab("calc");
+      setTab(toTab || "calc");
      }}
      onBackToBlueprint={() => setAppMode("blueprint")}
      onOpenMarkets={() => setAppMode("markets")}

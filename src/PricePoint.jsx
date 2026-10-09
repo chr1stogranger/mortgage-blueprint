@@ -2,7 +2,7 @@ import { FONT, MONO } from "./lib/fonts.js";
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './Icon';
-import MobileTabBar from './components/MobileTabBar.jsx';
+import MobileTabBar, { MOBILE_TAB_BAR_HEIGHT } from './components/MobileTabBar.jsx';
 import AddressAutocomplete from './components/AddressAutocomplete.jsx';
 import { DARK } from './lib/theme.js';
 import { apiUrl, API_BASE } from './apiBase';
@@ -25,10 +25,13 @@ const PPMapView = lazy(() => import('./components/PPMapView.jsx'));
 // No token → no map toggle at all (guard, not a broken map).
 const MAP_ENABLED = !!import.meta.env.VITE_MAPBOX_TOKEN;
 // Bottom tab bar entries (rendered by the shared MobileTabBar).
+// Christo 2026-10-09: Daily off the bar; Blueprint takes the raised middle
+// slot (mirror of Blueprint's featured PricePoint button) and runs Blueprint
+// on the home on screen, so the two apps hand a property back and forth.
 const PP_TABS = [
-  { id: "daily", label: "Daily", icon: "target" },
   { id: "free", label: "Sold", icon: "play" },
   { id: "live", label: "For Sale", icon: "radio" },
+  { id: "blueprint", label: "Blueprint", icon: "settings", featured: true },
   { id: "stats", label: "Stats", icon: "bar-chart" },
   { id: "board", label: "Board", icon: "award" },
 ];
@@ -1316,7 +1319,7 @@ const WIDE_MEDIA_H = 440;
 // Typing a guess re-renders the parent on each keystroke, so the carousel
 // silently snapped back to photo 1 mid-typing. Hoisting it out keeps carousel
 // AND lightbox state alive; `isDesktop` now arrives as a prop.
-const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill, noMapSlide, mapNeighbors, mapPoint }) => {
+const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, pType, showExtras, datePill, listing, FONT, isDesktop, hideHoodPill, isLoadingDetails, onShare, photoHeight, fieldPill, noMapSlide, mapNeighbors, mapPoint, onMapOpen }) => {
   const [idx, setIdx] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef(null);
@@ -1365,7 +1368,7 @@ const PhotoCarouselBase = ({ photos, fallbackPhoto, badge, badgeColor, accent, p
         if (Math.abs(dx) > 40) go(dx < 0 ? "next" : "prev");
       }}>
       <img src={allPhotos[idx] || NO_PHOTO} alt={isMapSlide ? "Property location map" : ""} loading={idx === 0 ? "eager" : "lazy"} decoding="async"
-        onClick={() => setZoomed(true)}
+        onClick={() => { if (isMapSlide && onMapOpen) onMapOpen(); else setZoomed(true); }}
         style={{ width: "100%", height: photoHeight || (IS_MOBILE ? "clamp(160px, calc(100vh - 625px), 400px)" : (isDesktop ? "100%" : 260)), objectFit: "cover", display: "block", transition: "opacity 0.25s", cursor: "zoom-in" }}
         onError={onPhotoError} />
       {/* Map slide "Location" label — top left on map, replaces badges */}
@@ -1851,6 +1854,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [nearMeError, setNearMeError] = useState(null);
   const [offMarketDismissed, setOffMarketDismissed] = useState(() => new Set());
   const [editingCallZpid, setEditingCallZpid] = useState(null); // For Sale call being changed
+  const [fullMapOpen, setFullMapOpen] = useState(false); // phone: map slide → full-screen live map
   const [editCallError, setEditCallError] = useState(null);
   const [showMarketSwitcher, setShowMarketSwitcher] = useState(false);
 
@@ -4041,7 +4045,34 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     stats: view === "tomorrow",
     board: view === "leaderboard",
   };
+  // The home on screen, as Blueprint should see it. Price = what the player
+  // can already see: list price on For Sale; on a Sold card the sold price
+  // only once it's revealed, else the list price (never the hidden answer).
+  const homeForBlueprint = () => {
+    const pick = (l, price) => l ? { price: price || null, address: l.address || "", city: l.city || "", state: l.state || "", zip: l.zip || "" } : null;
+    const lp = (l) => (l?.listPrice && l.listPrice !== l.soldPrice ? l.listPrice : null);
+    if (view === "live" || view === "livePicker") {
+      const l = livePrediction || liveSearchListing || liveListings[liveIdx];
+      return pick(l, l?.listPrice);
+    }
+    if (view === "freeplay") {
+      if (fpResult) return pick(fpResult, fpResult.soldPrice);
+      const l = fpListings[fpIdx];
+      return pick(l, lp(l));
+    }
+    if (view === "challenge" && challengeData?.listing) {
+      const l = challengeData.listing;
+      return pick(l, challengeResult ? (l.soldPrice || lp(l)) : lp(l));
+    }
+    return null;
+  };
   const handleTab = (tab) => {
+    if (tab === "blueprint") {
+      const home = homeForBlueprint();
+      if (home && onRunNumbers) onRunNumbers({ ...home, tab: "overview" });
+      else if (onBackToBlueprint) onBackToBlueprint();
+      return;
+    }
     if (tab === "daily") {
       if (dailyResult && dailyResult.dailyNumber === dailyNumber) setView("postDaily");
       else setView("daily");
@@ -4255,6 +4286,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   }, [cardMapHome, cardMapHomeDetails?.latitude, cardMapHomeDetails?.longitude, liveListings]);
   const handleCardMapSelect = (i) => {
     const l = cardMap?.pool?.[i];
+    if (l && i !== cardMap.activeIdx) setFullMapOpen(false);
     if (!l || i === cardMap.activeIdx) return;
     const poolIdx = liveListings.findIndex(x => x === l || (x?.zpid && String(x.zpid) === String(l.zpid)));
     if (poolIdx < 0) return;
@@ -4459,7 +4491,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       ? (exactPt ? { ...exactPt, approx: false } : { lat: listing.latitude, lng: listing.longitude, approx: true })
       : { lat: listing.latitude, lng: listing.longitude, approx: true };
     const carousel = (noMapSlide) => (
-      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors} mapPoint={mapPoint}
+      <PhotoCarouselBase photos={mergedPhotos} fallbackPhoto={listing.photo} badge={badge} badgeColor={badgeColor} accent={accent} pType={pType} showExtras={showType} datePill={datePill} listing={listing} FONT={FONT} isDesktop={isDesktop} hideHoodPill={view === "live"} isLoadingDetails={isLoadingDetails} onShare={onShare} fieldPill={fieldPill} noMapSlide={noMapSlide} mapNeighbors={mapNeighbors} mapPoint={mapPoint} onMapOpen={isForSale && MAP_ENABLED && cardMap ? () => setFullMapOpen(true) : undefined}
         photoHeight={compact ? `clamp(170px, calc(100dvh - ${cardChrome}px), 340px)` : undefined} />
     );
 
@@ -6650,6 +6682,21 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
               : leaderboardMode === "free" ? "Sold rankings based on accuracy across all rounds."
               : "Live rankings based on prediction accuracy once listings close."}
           </div>
+        </div>
+      )}
+
+      {/* ═══ FULL-SCREEN CARD MAP (phones) — the map slide opens the same live
+          map as Map mode, filling the screen down to the bottom bar (never
+          over it). Tapping another home's popup switches the card and closes. */}
+      {fullMapOpen && MAP_ENABLED && cardMap && (
+        <div style={{ position: "fixed", top: "var(--bp-header-h, 0px)", left: 0, right: 0, bottom: showTabBar ? `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px))` : 0, zIndex: 99, background: T.bg || T.card, animation: "ppFadeIn 0.2s ease" }}>
+          <Suspense fallback={mapSuspenseFallback}>
+            <PPMapView listings={cardMap.pool} T={T} darkMode={darkMode} activeIdx={cardMap.activeIdx} onSelect={handleCardMapSelect} onUnsupported={() => setFullMapOpen(false)} isDesktop={isDesktop} guessedZpids={liveGuessedZpids} height="100%" focusActive bare />
+          </Suspense>
+          <button onClick={() => setFullMapOpen(false)} aria-label="Close map"
+            style={{ position: "absolute", top: 12, left: 12, zIndex: 3, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: T.card, color: T.text, fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer", boxShadow: "0 2px 10px rgba(0,0,0,0.18)" }}>
+            <Icon name="x" size={14} /> Close
+          </button>
         </div>
       )}
 

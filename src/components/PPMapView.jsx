@@ -18,7 +18,7 @@ const MAP_STYLE = "mapbox://styles/mapbox/streets-v12";
 // height: fixed panel height (the card's side panel) instead of the full-view
 // size. focusActive: centre on the active home rather than framing the pool —
 // the card panel is "where is THIS house", the full map is "the whole pool".
-export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop, guessedZpids, height, focusActive }) {
+export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, onUnsupported, isDesktop, guessedZpids, height, focusActive, bare }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -196,7 +196,7 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
   }, [mappable, focusActive, activeIdx]);
 
   return (
-    <div className="pp-map-wrap" style={{ position: "relative", borderRadius: 16, overflow: "hidden", border: `1px solid ${T.cardBorder}`, ...(height ? { height, boxSizing: "border-box" } : {}) }}>
+    <div className="pp-map-wrap" style={{ position: "relative", borderRadius: bare ? 0 : 16, overflow: "hidden", border: bare ? "none" : `1px solid ${T.cardBorder}`, ...(height ? { height, boxSizing: "border-box" } : {}) }}>
       {/* Theme the Mapbox popup chrome to match T (scoped to this wrapper). */}
       <style>{`
         .pp-map-wrap .mapboxgl-popup-content { background: ${T.card}; color: ${T.text}; border-radius: 12px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
