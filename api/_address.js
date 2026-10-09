@@ -212,6 +212,11 @@ export async function handleAddressSearch(req, res) {
           rows = rows.filter(r => r.sold_price && isRecentSoldDate(r.sold_date))
             .sort((a, b) => String(b.sold_date).localeCompare(String(a.sold_date)));
         }
+        // For Sale search: a pooled row from a PAST sale says nothing about
+        // today — a relisted home read "sold" → "Off-market" on its first day
+        // back (1775 48th Ave, 2026-10-09). Only unsold rows are trusted; the
+        // rest fall through to the live lookup for current status + price.
+        if (!soldMode) rows = rows.filter(r => !r.sold_price);
         if (poolErr) {
           console.error(`[pp-address] pool read error (continuing): ${poolErr.message}`);
         } else if (rows.length > 0) {
