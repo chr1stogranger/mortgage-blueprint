@@ -451,6 +451,34 @@ export default async function handler(req, res) {
       playerId = pid;
     }
 
+    // ── 2b. Live re-call = EDIT (Christo 2026-10-09: "edit anytime, latest
+    // counts"). One pp_predictions row per player+home; a new call on a home
+    // you've already called replaces the number until it sells. No new
+    // pp_guesses row and no XP — editing can't farm the flat 10. predicted_at
+    // moves to now, so ties (which go to the earlier call) favor the person
+    // who committed to that number first.
+    if (mode === 'live' && zpid) {
+      const { data: prior, error: priorErr } = await supabase
+        .from('pp_predictions').select('id, resolved, predicted_price')
+        .eq('player_id', playerId).eq('zpid', String(zpid)).limit(1).maybeSingle();
+      if (priorErr) console.error('[pp-guess] prior call lookup failed (inserting):', priorErr.message);
+      if (prior) {
+        if (prior.resolved) return res.status(409).json({ error: 'resolved', message: 'This home already sold, so your call is final.' });
+        const { error: updErr } = await supabase.from('pp_predictions')
+          .update({ predicted_price: guessInt, predicted_at: new Date().toISOString(), ...(asInt(listPrice) ? { list_price: asInt(listPrice) } : {}) })
+          .eq('id', prior.id);
+        if (updErr) {
+          console.error('[pp-guess] call edit failed:', updErr.message);
+          return res.status(500).json({ error: 'Edit failed' });
+        }
+        const { data: pl } = await supabase.from('pp_players').select('total_xp, current_level').eq('id', playerId).maybeSingle();
+        return res.status(200).json({
+          ok: true, edited: true, previousGuess: prior.predicted_price, playerId,
+          xpEarned: 0, totalXp: pl?.total_xp ?? null, level: pl?.current_level ?? null,
+        });
+      }
+    }
+
     // ── 3. Determine sold_price server-side, by mode ──────────────────────
     let soldPrice = null;       // null = unscored (live, or unknown freeplay)
     let resolvedDailyId = dailyId || null;

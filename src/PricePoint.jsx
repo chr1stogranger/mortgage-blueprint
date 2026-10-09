@@ -1850,6 +1850,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [nearMeBusy, setNearMeBusy] = useState(false);
   const [nearMeError, setNearMeError] = useState(null);
   const [offMarketDismissed, setOffMarketDismissed] = useState(() => new Set());
+  const [editingCallZpid, setEditingCallZpid] = useState(null); // For Sale call being changed
+  const [editCallError, setEditCallError] = useState(null);
   const [showMarketSwitcher, setShowMarketSwitcher] = useState(false);
 
   // ── Level-Up Celebration ──
@@ -3788,6 +3790,31 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     }).catch(e => console.warn('[PricePoint] live guess failed:', e));
   };
 
+  // ── Change a For Sale call (Christo 2026-10-09: edit anytime before it
+  // sells, latest number counts). The server updates the one pp_predictions
+  // row — no new XP. Local copies + the card's calls update optimistically.
+  const handleEditCall = (listing) => {
+    const val = parseInt(String(liveSearchGuessInput).replace(/[^0-9]/g, ""));
+    const z = listing?.zpid ? String(listing.zpid) : null;
+    if (!val || !z) return;
+    const now = Date.now();
+    setAllPredictions(prev => prev.map(p => (p.zpid && String(p.zpid) === z) ? { ...p, guess: val, timestamp: now,
+      vsListPct: p.listPrice ? parseFloat(((val - p.listPrice) / p.listPrice * 100).toFixed(1)) : p.vsListPct } : p));
+    setCardCalls(prev => (prev && prev.zpid === z)
+      ? { ...prev, calls: (prev.calls || []).map(c => c.you ? { ...c, guess: val, at: new Date(now).toISOString() } : c) } : prev);
+    setEditingCallZpid(null); setLiveSearchGuessInput(""); setEditCallError(null);
+    submitGuess({
+      marketId: market?.id || 'sf', mode: 'live', zpid: z,
+      address: listing.address, neighborhood: listing.neighborhood, city: listing.city, zip: listing.zip,
+      propertyType: listing.propertyType || '', beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
+      listPrice: listing.listPrice, photo: listing.photo, guess: val,
+    }).then(resp => {
+      if (resp === null) { setEditCallError("Couldn't change your call. This home may have already sold."); return; }
+      if (resp?.queued) { setSyncToast('Saved on this device. Will sync when you’re online'); setTimeout(() => setSyncToast(null), 3500); }
+      fetchPropertyCalls(z).then(d => { if (d) setCardCalls(prev => (prev && prev.zpid !== z) ? prev : { ...d, zpid: z }); });
+    }).catch(e => console.warn('[PricePoint] call edit failed:', e));
+  };
+
   const liveNextProperty = () => {
     // A search-result prediction clears the search instead of burning a pool card.
     const fromSearch = !!livePrediction?.fromSearch;
@@ -4494,6 +4521,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ ...pillBase, background: T.inputBg, border: `2px solid ${accent}` }}>
                   <OverlineLabel>YOUR CALL{priorCall.at ? ` · ${new Date(priorCall.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}</OverlineLabel>
                   <div style={{ fontSize: 22, fontWeight: 800, color: T.text, marginTop: 1, whiteSpace: "nowrap" }}>{priorCall.guess ? fmt(priorCall.guess) : "Locked in"}</div>
+                  {priorCall.onEdit && <button onClick={priorCall.onEdit} style={{ background: "none", border: "none", padding: 0, marginTop: 1, color: accent, fontSize: 11, fontWeight: 700, fontFamily: FONT, cursor: "pointer" }}>Change</button>}
                 </div>
               ) : (
                 <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
@@ -4643,6 +4671,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                 <div style={{ fontSize: IS_MOBILE ? 20 : 28, fontWeight: 900, color: T.text, fontFamily: FONT, letterSpacing: "-0.02em", marginTop: 2, whiteSpace: "nowrap" }}>
                   {priorCall.guess ? fmt(priorCall.guess) : "Locked in"}
                 </div>
+                {priorCall.onEdit && <button onClick={priorCall.onEdit} style={{ background: "none", border: "none", padding: 0, marginTop: 2, color: accent, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer" }}>Change</button>}
               </div>
             ) : (
             <div onClick={() => { const el = document.getElementById(`pp-guess-${badge || "d"}`); if (el) el.focus(); }}
@@ -5833,7 +5862,35 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                   </div>
                 );
               })()}
-              {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput, onGuess: handleLiveSearchGuess, badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true, labelOverrides: { guessLabel: "Your Prediction", buttonLabel: "Lock In Prediction" }, guessPlaceholder: "Your price?", onShare: () => shareListing(liveSearchListing), fieldPill: liveFieldPill(liveSearchListing), priorCall: priorLiveCall(liveSearchListing), details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
+              {(() => {
+                const z = liveSearchListing.zpid ? String(liveSearchListing.zpid) : null;
+                const pc = priorLiveCall(liveSearchListing);
+                const sold = !!(cardCalls?.zpid === z && cardCalls?.soldPrice)
+                  || allPredictions.some(p => p.zpid && String(p.zpid) === z && p.resolved);
+                const editing = !!(pc && z && editingCallZpid === z && !sold);
+                return (<>
+                  {editing && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 12, padding: "10px 14px", marginBottom: 10 }}>
+                      <Icon name="edit" size={14} style={{ color: T.red || "#e5484d", flexShrink: 0 }} />
+                      <div style={{ flex: 1, fontSize: 12, color: T.text, fontFamily: FONT, lineHeight: 1.4 }}>
+                        Changing your call{pc.guess ? <> from <b>{fmt(pc.guess)}</b></> : null}. Your new number replaces it.
+                      </div>
+                      <button onClick={() => { setEditingCallZpid(null); setLiveSearchGuessInput(""); }} style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT }}>Cancel</button>
+                    </div>
+                  )}
+                  {editCallError && !editing && (
+                    <div style={{ fontSize: 12, color: T.textSecondary, fontFamily: FONT, marginBottom: 10, textAlign: "center" }}>{editCallError}</div>
+                  )}
+                  {PropertyCard({ listing: liveSearchListing, guess: liveSearchGuessInput, onGuessChange: handleLiveSearchGuessInput,
+                    onGuess: editing ? () => handleEditCall(liveSearchListing) : handleLiveSearchGuess,
+                    badge: "FOR SALE", badgeColor: T.red || "#e5484d", accentColor: T.red || "#e5484d", showExtras: true, showAddress: true, showLastSold: true,
+                    labelOverrides: { guessLabel: editing ? "Your New Call" : "Your Prediction", buttonLabel: editing ? "Update Call" : "Lock In Prediction" },
+                    guessPlaceholder: editing && pc.guess ? `Was ${fmt(pc.guess)}` : "Your price?",
+                    onShare: () => shareListing(liveSearchListing), fieldPill: liveFieldPill(liveSearchListing),
+                    priorCall: editing ? null : (pc ? { ...pc, onEdit: sold ? null : () => { setEditingCallZpid(z); setLiveSearchGuessInput(""); setEditCallError(null); } } : null),
+                    details: propertyDetails[liveSearchListing?.zpid] || null, isLoadingDetails: detailsLoading === liveSearchListing?.zpid, valuePool: liveListings })}
+                </>);
+              })()}
             </>
           ) : liveListings[liveIdx] && !isLiveGuessed(liveListings[liveIdx]) && !livePrediction ? (
             <>
