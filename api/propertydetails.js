@@ -208,7 +208,10 @@ export default async function handler(req, res) {
           let data = row.data;
           if (!data.floorPlansSorted) {
             data = { ...data, photos: await floorPlansFirst(data.photos), floorPlansSorted: true };
-            supa.from("pp_details_cache").update({ data }).eq("cache_key", cacheKey).then(({ error }) => { if (error) console.error(`[PropertyDetails] floor-plan writeback failed: ${error.message}`); });
+            // Awaited: a fire-and-forget write can be frozen with the lambda, and
+            // then every L2 hit re-sorts (up to 100 thumbnail fetches) until one lands.
+            const { error: wbErr } = await supa.from("pp_details_cache").update({ data }).eq("cache_key", cacheKey);
+            if (wbErr) console.error(`[PropertyDetails] floor-plan writeback failed: ${wbErr.message}`);
           }
           cache.set(cacheKey, { data, timestamp: Date.now() }); // re-warm L1
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
@@ -563,7 +566,15 @@ export default async function handler(req, res) {
     // Tells us whether "pending" is real data or whether we always fall back.
     console.error(`[PropertyDetails] timeline ${zpid || rcid}: events=[${saleEvents.map(e => e.event).slice(0, 6).join("|")}] listed=${listedAt} pending=${pendingAt} sold=${soldAt} -> toPending=${daysToPending} toSold=${daysToSold}`);
 
-    const usablePhotos = await floorPlansFirst(photos.filter(isUsablePhoto));
+    // Floor-plan sort (thumbnail fetches) and the agent lookup (DRE + geocode)
+    // are independent; run them together instead of one after the other.
+    const [usablePhotos, agent] = await Promise.all([
+      floorPlansFirst(photos.filter(isUsablePhoto)),
+      rcid ? Promise.resolve(null) : listingAgent(d, {
+        lat: d.latitude, lng: d.longitude,
+        city: d.address?.city || d.city, state: d.address?.state || d.state,
+      }).catch(e => { console.error(`[PropertyDetails] agent lookup failed: ${e.message}`); return null; }),
+    ]);
     // Rental-listing text (lease terms, rent due dates) misleads the sold-price
     // game — drop it. The photos still show the property itself, so keep them.
     const cleanDescription = isRentalText(description) ? "" : description;
@@ -580,10 +591,7 @@ export default async function handler(req, res) {
       longitude: Number.isFinite(+d.longitude) && +d.longitude ? +d.longitude : null,
       homeStatus: d.homeStatus || null,
       // Listing agent + local/out-of-town (RealTalk). See api/_agent.js.
-      agent: rcid ? null : await listingAgent(d, {
-        lat: d.latitude, lng: d.longitude,
-        city: d.address?.city || d.city, state: d.address?.state || d.state,
-      }).catch(e => { console.error(`[PropertyDetails] agent lookup failed: ${e.message}`); return null; }),
+      agent,
       yearBuilt,
       lotSize,
       homeType,
