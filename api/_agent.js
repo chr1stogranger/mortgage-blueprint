@@ -71,7 +71,10 @@ export async function listingAgent(d, home) {
   const brokerage = ai.brokerName || d?.brokerageName || null;
   if (!name && !brokerage) return null;
   const license = ai.agentLicenseNumber || la?.memberStateLicense || null;
-  const agent = { name, brokerage, phone: ai.agentPhoneNumber || null, license, office: null, miles: null, local: null };
+  // Name and brokerage are public listing attribution. The agent's phone and
+  // license number stay server-side: the UI never shows them and the payload
+  // is cached and served to every player.
+  const agent = { name, brokerage, office: null, miles: null, local: null };
 
   const digits = String(license || "").replace(/\D/g, "");
   const isCA = String(home?.state || "").toUpperCase() === "CA" || /DRE/i.test(String(license || ""));
