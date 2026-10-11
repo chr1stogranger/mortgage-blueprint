@@ -3836,6 +3836,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const z = listing?.zpid ? String(listing.zpid) : null;
     if (!val || !z) return;
     const now = Date.now();
+    // Snapshot for rollback: the server can refuse (409 once the home sold).
+    const prevPredictions = allPredictions;
+    const prevCardCalls = cardCalls;
     setAllPredictions(prev => prev.map(p => (p.zpid && String(p.zpid) === z) ? { ...p, guess: val, timestamp: now,
       vsListPct: p.listPrice ? parseFloat(((val - p.listPrice) / p.listPrice * 100).toFixed(1)) : p.vsListPct } : p));
     setCardCalls(prev => (prev && prev.zpid === z)
@@ -3847,7 +3850,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
       propertyType: listing.propertyType || '', beds: listing.beds, baths: listing.baths, sqft: listing.sqft,
       listPrice: listing.listPrice, photo: listing.photo, guess: val,
     }).then(resp => {
-      if (resp === null) { setEditCallError("Couldn't change your call. This home may have already sold."); return; }
+      if (resp === null) {
+        setAllPredictions(prevPredictions);
+        setCardCalls(prev => (prev && prev.zpid === z) ? prevCardCalls : prev);
+        setEditCallError("Couldn't change your call. This home may have already sold.");
+        return;
+      }
       if (resp?.queued) { setSyncToast('Saved on this device. Will sync when you’re online'); setTimeout(() => setSyncToast(null), 3500); }
       fetchPropertyCalls(z).then(d => { if (d) setCardCalls(prev => (prev && prev.zpid !== z) ? prev : { ...d, zpid: z }); });
     }).catch(e => console.warn('[PricePoint] call edit failed:', e));
