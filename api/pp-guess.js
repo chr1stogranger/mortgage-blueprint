@@ -202,8 +202,8 @@ async function notifyBeaten(supabase, { me, guessId, zpid, pctOff, address }) {
   if (!leader || !(Number(pctOff) < Number(leader.pct_off))) return;
 
   const { data: mine } = await supabase.from('pp_players').select('display_name').eq('id', me).maybeSingle();
-  const who = (mine?.display_name || '').trim() || 'Another player';
-  const where = String(address || '').split(',')[0].trim() || 'a home you played';
+  const who = ((mine?.display_name || '').trim() || 'Another player').slice(0, 40);
+  const where = (String(address || '').split(',')[0].trim() || 'a home you played').slice(0, 60);
   const lostWin = others.length >= 2; // they were #1 of 2+ = a win
   const notification = {
     player_id: leader.player_id,
@@ -482,6 +482,10 @@ export default async function handler(req, res) {
     // ── 3. Determine sold_price server-side, by mode ──────────────────────
     let soldPrice = null;       // null = unscored (live, or unknown freeplay)
     let resolvedDailyId = dailyId || null;
+    // True when the sold price came from our own tables (daily or pool), not the
+    // client. Beaten-call pushes are gated on it: a forged clientSoldPrice must
+    // not let one player push notifications to another.
+    let serverScored = false;
 
     if (mode === 'daily') {
       let daily = null;
@@ -508,6 +512,7 @@ export default async function handler(req, res) {
       if (daily) {
         soldPrice = daily.sold_price;
         resolvedDailyId = daily.id;
+        serverScored = true;
       } else if (clientSoldPrice) {
         // No server canonical daily for this market (e.g. hash-fallback markets):
         // score as freeplay-style using the client's sold price. daily_id stays null.
@@ -523,7 +528,7 @@ export default async function handler(req, res) {
           .eq('market_id', market)
           .eq('zpid', String(zpid))
           .maybeSingle();
-        if (poolRow?.sold_price) soldPrice = poolRow.sold_price;
+        if (poolRow?.sold_price) { soldPrice = poolRow.sold_price; serverScored = true; }
       }
       // Client-pool fallback rows (rc_ ids, post-reshuffle) aren't in the pool —
       // accept clientSoldPrice, sanity-checked against listPrice when present.
@@ -614,7 +619,7 @@ export default async function handler(req, res) {
     }
 
     // ── 5a. Sold/Daily: tell whoever this guess just knocked off #1 ───────
-    if (SOLD_MODES.includes(mode) && zpid && pctOff != null) {
+    if (SOLD_MODES.includes(mode) && zpid && pctOff != null && serverScored) {
       try {
         await notifyBeaten(supabase, { me: playerId, guessId: inserted.id, zpid, pctOff, address });
       } catch (e) {
