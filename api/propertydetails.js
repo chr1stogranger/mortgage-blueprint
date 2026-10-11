@@ -40,6 +40,15 @@ function getSupabaseAdmin() {
 
 // Zillow serves maps.googleapis.com Street View as imgSrc for some homes —
 // those 403 when hotlinked from our domain. Treat as no-photo.
+// Listing-agent payload the client may see. Rows cached before 2026-10-11 carry
+// the agent's phone and license number; strip them on the way out until the
+// 24h TTL turns those rows over. Keep in step with api/_agent.js.
+function publicAgent(agent) {
+  if (!agent || typeof agent !== "object") return agent ?? null;
+  const { phone, license, ...rest } = agent; // eslint-disable-line no-unused-vars
+  return rest;
+}
+
 function isUsablePhoto(u) {
   return !!u && typeof u === "string" && !u.includes("maps.googleapis.com") && !u.includes("streetview");
 }
@@ -170,7 +179,7 @@ export default async function handler(req, res) {
     if (cached && Date.now() - cached.timestamp < CACHE_TTL && cached.data.photos?.length > 0 && !cappedAt24(cached.data) && !preAgent(cached.data)) {
       if (!cached.data.floorPlansSorted) cached.data = { ...cached.data, photos: await floorPlansFirst(cached.data.photos), floorPlansSorted: true };
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
-      return res.status(200).json({ ...cached.data, cached: true });
+      return res.status(200).json({ ...cached.data, agent: publicAgent(cached.data.agent), cached: true });
     }
     // Clear stale/empty cached entries
     if (cached && (!cached.data.photos?.length || Date.now() - cached.timestamp > CACHE_TTL)) {
@@ -215,7 +224,7 @@ export default async function handler(req, res) {
           }
           cache.set(cacheKey, { data, timestamp: Date.now() }); // re-warm L1
           res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
-          return res.status(200).json({ ...data, cached: true, cacheLayer: "supabase" });
+          return res.status(200).json({ ...data, agent: publicAgent(data.agent), cached: true, cacheLayer: "supabase" });
         }
       } catch (e) {
         console.error(`[PropertyDetails] L2 read failed (continuing): ${e.message}`);
