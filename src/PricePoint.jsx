@@ -3014,14 +3014,15 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
   const [fpSearchZpid, setFpSearchZpid] = useState(null); // zpid of the spliced card
   const showFpSearchHit = (listing) => {
     const z = String(listing.zpid);
-    setFpListings(prev => {
-      const from = prev.findIndex(l => String(l.zpid) === z);
-      if (from === fpIdx) return prev;
-      const rest = from >= 0 ? prev.filter((_, i) => i !== from) : prev;
+    // Compute from the current list, then set both states: calling setFpIdx
+    // inside the setFpListings updater runs twice under StrictMode.
+    const from = fpListings.findIndex(l => String(l.zpid) === z);
+    if (from !== fpIdx) {
+      const rest = from >= 0 ? fpListings.filter((_, i) => i !== from) : fpListings;
       const at = Math.min(rest.length, from >= 0 && from < fpIdx ? fpIdx - 1 : fpIdx);
       if (from >= 0 && from < fpIdx) setFpIdx(at);
-      return [...rest.slice(0, at), listing, ...rest.slice(at)];
-    });
+      setFpListings([...rest.slice(0, at), listing, ...rest.slice(at)]);
+    }
     setFpResult(null); setFpGuessInput(""); setMlsExpanded(false);
     setFpSearchError(null); setFpSearchLoading(false);
     setFpSearchZpid(z);
@@ -5327,7 +5328,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
           (level · wins · hits · latest badges); XP progress is the card's
           bottom edge so the row stays one line tall. */}
       {(view === "freeplay" || view === "live" || view === "tomorrow") && (
-        <div onClick={() => setShowLevelModal(true)} role="button" aria-label={`Level ${currentLevel.level}, ${wins} wins, ${hits} hits. Open badges`} style={{
+        <div onClick={() => setShowLevelModal(true)} onKeyDown={onKeyActivate(() => setShowLevelModal(true))} tabIndex={0} role="button" aria-label={`Level ${currentLevel.level}, ${wins} wins, ${hits} hits. Open badges`} style={{
           margin: IS_MOBILE ? "10px 12px 6px" : "16px 16px 12px", padding: IS_MOBILE ? "8px 12px 9px" : "10px 16px 11px", background: T.card,
           border: `1px solid ${T.cardBorder}`, borderRadius: 12, position: "relative", overflow: "hidden",
           cursor: "pointer", display: "flex", alignItems: "center", gap: IS_MOBILE ? 10 : 16,
