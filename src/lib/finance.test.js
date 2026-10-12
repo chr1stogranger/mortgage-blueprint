@@ -233,7 +233,7 @@ describe("balances and income frequency", () => {
   });
 });
 
-// ── 11. Temporary buydown (B2) — 2-1 / 1-0 / 3-2-1 escrow subsidy math ───────
+// ── 11. Temporary buydown (B2) — 2-1 / 1-0 / 1-1 / 3-2-1 escrow subsidy math ───────
 describe("calcTempBuydown", () => {
   // $500k @ 6.5% / 30yr — hand-checked reference values (±$2 on the totals);
   // internal consistency asserted against calcPI's own outputs so a rounding
@@ -264,6 +264,21 @@ describe("calcTempBuydown", () => {
     expect(b.years[0].rate).toBe(5.5);
     expect(b.years[0].annualSavings).toBeCloseTo((notePI - calcPI(loan, 5.5, term)) * 12, 6);
     expect(Math.abs(b.totalCost - 3856.7)).toBeLessThan(2);
+  });
+
+  it("1-1: two years both @ 5.5%, total = 2 × the 1-0 year", () => {
+    const b = calcTempBuydown(loan, note, term, "1-1");
+    expect(b.years).toHaveLength(2);
+    expect(b.years.map(y => y.rate)).toEqual([5.5, 5.5]);
+    expect(b.years.map(y => y.year)).toEqual([1, 2]);
+    const one = calcTempBuydown(loan, note, term, "1-0");
+    expect(b.totalCost).toBeCloseTo(one.totalCost * 2, 6);
+  });
+
+  it("unknown type: no buydown years, zero cost, no throw", () => {
+    const b = calcTempBuydown(loan, note, term, "9-9");
+    expect(b.years).toEqual([]);
+    expect(b.totalCost).toBe(0);
   });
 
   it("3-2-1: three descending cuts, years numbered 1..3", () => {

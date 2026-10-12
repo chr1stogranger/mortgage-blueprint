@@ -228,7 +228,17 @@ export default function CalculatorContent(props) {
   // so that Property Tax and PMI breakdowns expand/collapse together.
   const [pmiExpanded, setPmiExpanded] = useState(false);
   const [piExpanded, setPiExpanded] = useState(false); // Principal & Interest split disclosure
-  const [buydownExpanded, setBuydownExpanded] = useState(false); // Temporary buydown disclosure (B2)
+  // A ?listing= flyer opens with its buydown already mapped out — show the
+  // year table instead of a collapsed "Details" link (MortgageBlueprint sets
+  // buydownAutoOpen while that listing's scenario is on screen). Opens on the
+  // rising edge only (adjust-state-during-render), so a manual collapse sticks.
+  const buydownAutoOpen = !!props.buydownAutoOpen && props.buydownType !== "none";
+  const [buydownExpanded, setBuydownExpanded] = useState(buydownAutoOpen); // Temporary buydown disclosure (B2)
+  const [buydownAutoSeen, setBuydownAutoSeen] = useState(buydownAutoOpen);
+  if (buydownAutoOpen !== buydownAutoSeen) {
+    setBuydownAutoSeen(buydownAutoOpen);
+    if (buydownAutoOpen) setBuydownExpanded(true);
+  }
   // Advanced net-payment ladder (rent → tax savings → equity → appreciation).
   // Closed at rest so the Payment Breakdown card keeps the fixed height that
   // bottom-aligns it with Cash-to-Close on desktop.
@@ -1404,7 +1414,7 @@ export default function CalculatorContent(props) {
          <div style={{ background: T.bg, borderRadius: 12, padding: "10px 12px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
            <Sel sm label="Buydown" value={buydownType} onChange={setBuydownType}
-            options={[{ value: "none", label: "None" }, { value: "1-0", label: "1-0" }, { value: "2-1", label: "2-1" }, { value: "3-2-1", label: "3-2-1" }]} />
+            options={[{ value: "none", label: "None" }, { value: "1-0", label: "1-0" }, { value: "1-1", label: "1-1" }, { value: "2-1", label: "2-1" }, { value: "3-2-1", label: "3-2-1" }]} />
            <Sel sm label="Paid By" value={buydownPaidBy} onChange={setBuydownPaidBy}
             options={[{ value: "seller", label: "Seller" }, { value: "lender", label: "Lender" }, { value: "borrower", label: "Borrower" }]} />
           </div>

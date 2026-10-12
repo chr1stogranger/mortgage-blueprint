@@ -364,6 +364,20 @@ export async function extractStatements(scenarioId) {
   return authFetch('/api/statements', { method: 'POST', body: { action: 'extract', scenario_id: scenarioId } });
 }
 
+// ─── Public listing (buydown flyer QR → ?listing=<token>) ───────────────────
+// No auth: the flyer's QR is scanned by home buyers who aren't signed in. Ops
+// serves the listing with CORS *. Throws an Error carrying `.status` so the
+// caller can tell an expired link (404) from a network failure.
+export async function fetchListing(token) {
+  const res = await fetch(`${API_BASE}/api/listing?t=${encodeURIComponent(token)}`, { cache: 'no-store' });
+  if (!res.ok) {
+    const err = new Error(`Listing fetch failed: ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 // ─── Auth helpers ───────────────────────────────────────────────────────────
 
 export function isAuthenticated() {

@@ -17,7 +17,9 @@ import {
  VA_FUNDING_FEES, FED_BRACKETS, FED_STD_DEDUCTION, STATE_TAX, STATE_NAMES,
 } from "./lib/finance.js";
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
-import PlacesAddressInput from "./components/AddressAutocomplete.jsx";
+import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
+import ListingBanner, { ListingNotice } from "./components/ListingBanner.jsx";
+import { readListingToken, listingToPrefill, listingScenarioName } from "./lib/listingPrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
@@ -68,7 +70,7 @@ import {
   searchAriveLoans, fetchAriveImport, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
-  fetchSharedData,
+  fetchSharedData, fetchListing,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios } from "./lib/supabaseClient";
 import useBlueprintSync from "./hooks/useBlueprintSync";
@@ -1080,6 +1082,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const rawAuth = useBlueprintAuth(); // Always called (React hook rules)
  const auth = isBorrower ? null : rawAuth;
  const isCloud = isBorrower ? true : (auth?.isAuthenticated && !auth?.localMode);
+ // ── ?listing=<token> (buydown-flyer QR) — captured ONCE at init, before any
+ // effect can rewrite the URL. Its presence also blocks the boot "reopen last
+ // client" restore and the ?client= deep link, so a signed-in LO who scans a
+ // flyer lands detached from every cloud client (see the ?listing effect).
+ // Share-link borrower mode never reads it.
+ const [listingToken] = useState(() => {
+  if (isBorrower) return null;
+  try { return readListingToken(window.location.search); } catch { return null; }
+ });
+ const [listingScenario, setListingScenario] = useState(null); // local scenario name the listing opened as
  // Auto-connect Gmail send for the signed-in LO (silent — one-time consent
  // popup only ever appears on the first send in a fresh browser). Borrowers
  // never get this: their Google accounts aren't in the Ops send allowlist.
@@ -1490,7 +1502,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const isSFProperty = (zip, c) => /^941\d\d$/.test(String(zip || "").trim()) || String(c || "").trim().toLowerCase() === "san francisco";
  const ttSfAppliedRef = useRef(null);
  const [discountPts, setDiscountPts] = useState(0);
- // Temporary rate buydown (B2): "none" | "1-0" | "2-1" | "3-2-1". Cash-flow
+ // Temporary rate buydown (B2): "none" | "1-0" | "1-1" | "2-1" | "3-2-1". Cash-flow
  // subsidy only — qualification stays at the note rate. Cost is a data point
  // (usually a seller/lender credit), NOT auto-applied to cash-to-close.
  const [buydownType, setBuydownType] = useState("none");
@@ -2819,8 +2831,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      recordRecentBlueprint(makeClientEntry(activeBorrower));
     }
     // ── Self-owned cloud sync (signed-in homebuyer, opt-in) ──
-    // No-op unless the user signed in AND turned sync on.
-    selfSync.schedulePush();
+    // No-op unless the user signed in AND turned sync on. A flyer listing
+    // opened this session stays on the device (nothing from a ?listing= link
+    // is written to any cloud account).
+    if (!(listingScenario && scenarioName === listingScenario)) selfSync.schedulePush();
    }
    // ── Real-time sync (borrower pushes via the share endpoint; the LO's write
    // is saveToCloud above — calling this for the LO too double-wrote) ──
@@ -3150,6 +3164,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (bootRestoreConsumedRef.current) return;
   if (!isCloud || isBorrower || !borrowerList.length) return;
   bootRestoreConsumedRef.current = true;
+  // A ?listing= flyer link opens detached from every client — never reopen
+  // the last client over it (the restore would land after the listing and
+  // autosave the listing's numbers into that client's cloud scenario).
+  if (listingToken) return;
   // A ?client= deep link wins — its own effect handles it.
   try { if (new URLSearchParams(window.location.search).get('client')) return; } catch { /* ignore */ }
   if (activeBorrower?.id) return;                    // already in a file (import, share, …)
@@ -3186,6 +3204,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  useEffect(() => {
   if (deepLinkClientConsumedRef.current) return;
   if (!isCloud || isBorrower || !borrowerList.length) return;
+  // ?listing= wins over ?client= (they never ship together; if they do, the
+  // flyer is the newer intent and must not be written into a client).
+  if (listingToken) { deepLinkClientConsumedRef.current = true; return; }
   let clientId = null;
   try { clientId = new URLSearchParams(window.location.search).get('client'); } catch { /* ignore */ }
   if (!clientId) { deepLinkClientConsumedRef.current = true; return; }
@@ -3240,6 +3261,132 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [isCloud, isBorrower]);
+
+ // ── Deep link: ?listing=<token> (buydown flyer QR) ──
+ // Home buyers scan a flyer at an open house (not signed in, on a phone) and
+ // land on a scenario mapped out for THAT property. The listing is public
+ // JSON from Ops (fetchListing); listingToPrefill maps it onto Blueprint keys
+ // and it's layered onto blankStateRef — never live state — so nothing from
+ // the previous scenario leaks in.
+ //
+ // It opens as its OWN local scenario (named after the street; re-scanning
+ // the same flyer reuses it), so an anonymous visitor's existing scenario is
+ // kept, never overwritten.
+ //
+ // Cloud safety for a signed-in LO: the listing must never land in a client's
+ // cloud scenario. (1) The boot restore and ?client= effects stand down when
+ // the token is present, so no client auto-opens. (2) If a client is open by
+ // the time the fetch lands (the LO picked one mid-fetch), its own state is
+ // flushed to its own row first, then the client is closed — activeBorrower,
+ // activeScenarioId and borrowerScenarios cleared in the SAME batch as
+ // loadState, so the first render carrying listing numbers already has no
+ // active client: saveToCloud bails on !activeBorrower, the autosave's cloud
+ // branch needs activeScenarioId, and live sync is disabled without both.
+ // (3) Pending autosave timers are cancelled before the swap. The signed-in
+ // homebuyer's own opt-in sync (selfSync) is also skipped for the listing
+ // scenario this session — see the autosave effect.
+ const listingConsumedRef = useRef(false);
+ const [listing, setListing] = useState(null);         // payload → banner
+ const [listingDismissed, setListingDismissed] = useState(false);
+ const [listingFailed, setListingFailed] = useState(false); // 404 / network → small notice
+ // Latest values for the async apply (the effect's own closure is from the
+ // render that started the fetch).
+ const listingLiveRef = useRef(null);
+ useEffect(() => {
+  listingLiveRef.current = { isCloud, isBorrower, scenariosAreCloud, activeScenarioId, scenarioName, scenarioList, buildCalcSummary };
+ });
+ useEffect(() => {
+  if (listingConsumedRef.current || !listingToken || isBorrower) return;
+  // Wait for the boot local-restore: applying first would let the saved
+  // active scenario load on top of the listing.
+  if (!loaded) return;
+  listingConsumedRef.current = true;
+  // Strip only ?listing= (keep ?theme=, ?mode=, …) so a refresh doesn't
+  // re-apply it over the visitor's own edits.
+  try {
+   const url = new URL(window.location.href);
+   url.searchParams.delete('listing');
+   window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  } catch { /* ignore */ }
+  (async () => {
+   let data = null;
+   try { data = await fetchListing(listingToken); } catch { data = null; }
+   if (!data || typeof data !== 'object' || data.error) { setListingFailed(true); return; }
+   const prefill = listingToPrefill(data, { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate });
+   const fresh = { ...blankStateRef.current, ...prefill };
+   // No note rate on the flyer → leave the rate unlocked so live rates fill it
+   // (loadState marks any present `rate` as manual).
+   if (prefill.rate === undefined) delete fresh.rate;
+   // Transfer-tax city, seeded explicitly: its auto-sync effect only re-fires
+   // on a city/state CHANGE, and the blank state says "Not listed".
+   if (fresh.propertyState && fresh.city) {
+    fresh.transferTaxCity = getTTCitiesForState(fresh.propertyState).includes(fresh.city) ? fresh.city : "Not listed";
+   }
+   const name = listingScenarioName(data);
+   const live = listingLiveRef.current;
+   // Cancel any pending debounced autosave before the swap.
+   if (saveTimer.current) clearTimeout(saveTimer.current);
+   if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+   const detach = !!live.isCloud && !live.isBorrower;
+   if (detach && live.scenariosAreCloud && live.activeScenarioId) {
+    // A client got opened mid-fetch: save ITS state to ITS row, then detach.
+    try { await apiUpdateScenario({ id: live.activeScenarioId, state_data: getStateRef.current(), calc_summary: live.buildCalcSummary() }); }
+    catch (e) { console.warn('[Blueprint] listing: flush outgoing client failed:', e.message); }
+   }
+   // Local scenario list: the current local list, or (coming off a cloud
+   // client, whose rows were mirrored into the list) this device's own.
+   let baseList = Array.isArray(live.scenarioList) ? live.scenarioList : [];
+   if (live.scenariosAreCloud) {
+    try { baseList = ((await LS.list("scenario:"))?.keys || []).map(k => k.replace("scenario:", "")); }
+    catch { baseList = []; }
+   } else if (live.scenarioName && live.scenarioName !== name) {
+    // Snapshot the outgoing local scenario (same as switchScenario).
+    try { await LS.set("scenario:" + live.scenarioName, JSON.stringify(getStateRef.current())); } catch { /* ignore */ }
+   }
+   try { selfSync.clearTombstone?.(name); } catch { /* ignore */ }
+   if (saveTimer.current) clearTimeout(saveTimer.current);
+   if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+   // ── One synchronous batch from here: detach + load land in one render ──
+   if (detach) {
+    setActiveBorrower(null);
+    setActiveScenarioId(null);
+    setBorrowerScenarios([]);
+   }
+   setListingScenario(name);
+   setScenarioList(baseList.includes(name) ? baseList : [...baseList, name]);
+   setScenarioName(name);
+   if (loadStateRef.current) loadStateRef.current(fresh);
+   // Guest devices adopt the flyer's LO as the contact (PDFs, Get
+   // Pre-Approved copy). Never on a device an LO has signed into
+   // (bp_lo_info_owner set) — LO identity there is theirs, device-level.
+   if (!live.isCloud && data.lo && data.lo.name) {
+    let owner = "";
+    try { owner = localStorage.getItem("bp_lo_info_owner") || ""; } catch { /* private mode */ }
+    if (!owner) {
+     setLoanOfficer(String(data.lo.name));
+     if (data.lo.email) setLoEmail(String(data.lo.email));
+     if (data.lo.phone) setLoPhone(String(data.lo.phone));
+     if (data.lo.nmls) setLoNmls(String(data.lo.nmls));
+     if (data.lo.company) setCompanyName(String(data.lo.company));
+    }
+   }
+   try { LS.set("active-scenario", name); } catch { /* ignore */ }
+   setListing(data);
+   setListingDismissed(false);
+   setAppMode("blueprint");
+   setTab("overview");
+   try { window.scrollTo({ top: 0 }); } catch { /* ignore */ }
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [loaded, listingToken, isBorrower]);
+ // Banner shows only while the listing's own scenario is on screen and no
+ // cloud client is open — switching away retires it.
+ const showListingBanner = !!listing && !listingDismissed && !activeBorrower && scenarioName === listingScenario;
+ const listingBannerEl = showListingBanner
+  ? <ListingBanner T={T} isDesktop={isDesktop} listing={listing} fmt={fmt} onDismiss={() => setListingDismissed(true)} />
+  : listingFailed
+   ? <ListingNotice T={T} onDismiss={() => setListingFailed(false)} />
+   : null;
 
  const switchScenario = async (name, opts = {}) => {
   // ── Cloud mode: switch between the client's cloud rows by id. ──
@@ -8596,10 +8743,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     />
    )}
    <div data-presence-root="" style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+{/* ?listing= flyer banner / expired-link notice on the Calculator tab. The
+    Overview copy renders below the phone section-pill spacer instead, so the
+    fixed "On this page" pill can't sit on top of the banner. */}
+{tab === "calc" && listingBannerEl}
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}
-{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
+{tab === "calc" && <CalculatorContent {...{T, isDesktop, calc, fmt, fmt2, pct, changedFields, paySegs, salesPrice, setSalesPrice, city, taxState, isRefi, downPct, setDownPct, downMode, setDownMode, loanType, setLoanType, firstTimeBuyer, includeEscrow, setIncludeEscrow, loanPurpose, setLoanPurpose, refiCurrentRate, rate, setRate, term, setTerm, refiPurpose, refiCashOut, refiNewLoanAmtOverride, setRefiNewLoanAmtOverride, isPulse, markTouched, fetchRates, ratesLoading, ratesError, liveRates, fredApiKey, userLoanTypeRef, setAutoJumboSwitch, autoJumboSwitch, LOAN_TYPES, vaUsage, setVaUsage, VA_USAGE, getHighBalLimit: getCountyHighBal, UNIT_COUNT, propType, setPropType, PROP_TYPES, subjectRentalIncome, setSubjectRentalIncome, appreciationRate, setAppreciationRate, propertyState, setPropertyState, setCity, propertyCounty, setPropertyCounty, STATE_NAMES_PROP, CITY_NAMES, STATE_CITIES, propTaxMode, STATE_PROPERTY_TAX_RATES, taxRateLocked, setTaxRateLocked, taxExemptionLocked, setTaxExemptionLocked, taxBaseRateOverride, setTaxBaseRateOverride, propTaxExpanded, setPropTaxExpanded, fixedAssessments, setFixedAssessments, CITY_TAX_RATES, taxExemptionOverride, setTaxExemptionOverride, propTaxCustomize, setPropTaxCustomize, pmiRateLocked, setPmiRateLocked, pmiRateOverride, setPmiRateOverride, pmiChartOverrides, setPmiChartOverrides, annualIns, setAnnualIns, setRefiAnnualIns, refiAnnualTax, setRefiAnnualTax, refiTaxAssessedMode, setRefiTaxAssessedMode, refiNewEscrowTax, setRefiNewEscrowTax: setRefiNewEscrowTaxManual, refiNewEscrowIns, setRefiNewEscrowIns: setRefiNewEscrowInsManual, hoa, setHoa, buydownType, setBuydownType, buydownPaidBy, setBuydownPaidBy, buydownAutoOpen: showListingBanner, underwritingFee, processingFee, propertyZip, setPropertyZip, creditScore, StopLight, handlePillarClick, allGood, someGood, refiPillarCount, purchPillarCount, refiLtvCheck, PayRing, Card, Inp, Sel, Note, SearchSelect, InfoTip, Icon, GuidedNextButton, ClusterContinue}} />}
 {tab === "amort" && <AmortContent {...{T, isDesktop, calc, fmt, payExtra, setPayExtra, extraPayment, setExtraPayment: setExtraPaymentByUser, amortView, setAmortView, term, rate, salesPrice, appreciationRate, setAppreciationRate, isPulse, markTouched, Hero, Card, Inp, Tab, MRow, AmortChart, GuidedNextButton}} />}
 {/* ═══ COSTS ═══ */}
 {tab === "costs" && <CostsContent {...{T, isDesktop, calc, fmt, fmt2, isRefi, downPct, underwritingFee, setUnderwritingFee, processingFee, setProcessingFee, adminFee, setAdminFee, lenderWireFee, setLenderWireFee, discountPts, setDiscountPts, originatorComp, setOriginatorComp, appraisalFee, setAppraisalFee, creditReportFee, setCreditReportFee, floodCertFee, setFloodCertFee, mersFee, setMersFee, taxServiceFee, setTaxServiceFee, escrowFee, setEscrowFee: setEscrowFeeManual, courierFee, setCourierFee, loanTieInFee, setLoanTieInFee, notaryFee, setNotaryFee, envProtectionLien, setEnvProtectionLien, titleInsurance, setTitleInsurance: setTitleInsuranceManual, titleSearch, setTitleSearch, settlementFee, setSettlementFee, transferTaxCity, setTransferTaxCity, transferTaxSplit, setTransferTaxSplit, transferTaxCountySplit, setTransferTaxCountySplit, city, propertyState, propertyCounty, salesPrice, getTTCitiesForState, getTTForCity, recordingFee, setRecordingFee, ownersTitleIns, setOwnersTitleIns, homeWarranty, setHomeWarranty, hoa, hoaTransferFee, setHoaTransferFee, buyerPaysComm, setBuyerPaysComm, buyerCommPct, setBuyerCommPct, closingMonth, setClosingMonth, closingDay, setClosingDay, closingYear, setClosingYear, propertyTaxesInstallment, setPropertyTaxesInstallment, sellersProratedTaxCredit, setSellersProratedTaxCredit, annualIns, setAnnualIns, includeEscrow, setIncludeEscrow, lenderCredit, setLenderCredit, sellerCredit, setSellerCredit, realtorCredit, setRealtorCredit, emd, setEmd, emdPct, setEmdPct, emdPaid, setEmdPaid, emdLocked, setEmdLocked, emdFlat, setEmdFlat, customFees, setCustomFees, hiddenFees, setHiddenFees, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton, skillLevel, isPulse, markTouched, ClusterContinue}} />}
@@ -8844,6 +8995,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   <div aria-hidden="true" style={{ height: 40 }} />
  </>
 )}
+{tab === "overview" && listingBannerEl}
 {tab === "overview" && (
  <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: T.textTertiary }}>Loading Overview...</div>}>
   <OverviewTab {...{
@@ -8874,6 +9026,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    /* Refi Quick Start asks for the subject address instead of a bare ZIP */
    propertyAddress, setPropertyAddress, setPropertyTBD, addressInput, setAddressInput, AddressAutocomplete,
    annualIns, setAnnualIns, hoa, setHoa,
+   /* ?listing= flyer: open the buydown year table in the payment section */
+   buydownAutoOpen: showListingBanner,
    includeEscrow, setIncludeEscrow,
    closingMonth, setClosingMonth, closingDay, setClosingDay,
    closingYear, setClosingYear,

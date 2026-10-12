@@ -206,14 +206,14 @@ export function calcBalance(loanAmt, annualRate, termYears, paidMonths) {
 }
 
 /**
- * Temporary rate buydown (2-1, 1-0, 3-2-1) — rate is reduced in the early
+ * Temporary rate buydown (1-0, 1-1, 2-1, 3-2-1) — rate is reduced in the early
  * years, funded by an escrow subsidy (usually a seller/lender credit).
  * Borrower still qualifies at the NOTE rate; this only changes early cash
  * flow. Reduced rates clamp at 0% (e.g. a 2.5% note with a 3-2-1).
  * @param {number} loanAmt   total loan amount ($)
  * @param {number} noteRate  note rate in percent (e.g. 6.5)
  * @param {number} termYears loan term in years (e.g. 30)
- * @param {"1-0"|"2-1"|"3-2-1"} type buydown structure
+ * @param {"1-0"|"1-1"|"2-1"|"3-2-1"} type buydown structure
  * @returns {{ notePI: number,
  *             years: { year: number, rate: number, pi: number,
  *                      monthlySavings: number, annualSavings: number }[],
@@ -221,10 +221,12 @@ export function calcBalance(loanAmt, annualRate, termYears, paidMonths) {
  *             the total subsidy cost (sum of each year's payment savings)
  */
 export function calcTempBuydown(loanAmt, noteRate, termYears, type) {
- // type: "1-0" | "2-1" | "3-2-1"
- const REDUCTIONS = { "1-0": [1], "2-1": [2, 1], "3-2-1": [3, 2, 1] };
+ // type: "1-0" | "1-1" | "2-1" | "3-2-1". 1-1 = 1% off for BOTH of the
+ // first two years. An unknown type yields no buydown years rather than
+ // throwing (a stale/garbled saved value must not crash the calc).
+ const REDUCTIONS = { "1-0": [1], "1-1": [1, 1], "2-1": [2, 1], "3-2-1": [3, 2, 1] };
  const notePI = calcPI(loanAmt, noteRate, termYears);
- const years = REDUCTIONS[type].map((cut, i) => {
+ const years = (REDUCTIONS[type] || []).map((cut, i) => {
   const rate = Math.max(noteRate - cut, 0);
   const pi = calcPI(loanAmt, rate, termYears);
   return { year: i + 1, rate, pi, monthlySavings: notePI - pi, annualSavings: (notePI - pi) * 12 };
