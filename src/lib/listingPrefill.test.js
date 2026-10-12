@@ -62,6 +62,23 @@ describe("listingToPrefill", () => {
   });
 });
 
+describe("fixed assessments + unit count (2026-10-12)", () => {
+  it("passes the flyer's Mello-Roos through, including an explicit $0", () => {
+    expect(listingToPrefill({ ...FIXTURE, fixedAssessments: 2350 }, deps).fixedAssessments).toBe(2350);
+    expect(listingToPrefill({ ...FIXTURE, fixedAssessments: 0 }, deps).fixedAssessments).toBe(0);
+    expect(listingToPrefill(FIXTURE, deps).fixedAssessments).toBeUndefined(); // absent → Blueprint default
+    expect(listingToPrefill({ ...FIXTURE, fixedAssessments: -5 }, deps).fixedAssessments).toBeUndefined();
+  });
+
+  it("units picks the exact multi-unit type; single-unit types ignore it", () => {
+    expect(listingToPrefill({ ...FIXTURE, propertyType: "2-4 Unit", units: 3 }, deps).propType).toBe("3-Unit");
+    expect(listingToPrefill({ ...FIXTURE, propertyType: "2-4 Unit", units: 4 }, deps).propType).toBe("4-Unit");
+    expect(listingToPrefill({ ...FIXTURE, propertyType: "2-4 Unit" }, deps).propType).toBe("2-Unit");
+    expect(listingToPrefill({ ...FIXTURE, propertyType: "Condo", units: 1 }, deps).propType).toBe("Condo");
+    expect(listingToPrefill({ ...FIXTURE, propertyType: "Condo", units: 3 }, deps).propType).toBe("Condo");
+  });
+});
+
 describe("listing token + scenario name", () => {
   it("accepts 8-40 [A-Za-z0-9_-] only", () => {
     expect(readListingToken("?listing=abc123XYZ789")).toBe("abc123XYZ789");

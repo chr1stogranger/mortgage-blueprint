@@ -31,8 +31,8 @@ const str = (v) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v
 // "Condo" | "Townhouse" | "2-Unit" | "3-Unit" | "4-Unit".
 //  · "PUD" → Single Family: a PUD is a zoning/HOA structure, most often a
 //    detached home in CA; Blueprint has no PUD type.
-//  · "2-4 Unit" → 2-Unit: the payload doesn't say how many units, and 2 is the
-//    conservative loan-limit choice. (Ops could send "3-Unit"/"4-Unit" directly.)
+//  · "2-4 Unit" → `units` (2/3/4) from the payload picks the exact type; with
+//    no unit count it falls back to 2-Unit, the conservative loan-limit choice.
 const PROP_TYPE_MAP = {
  "single family": "Single Family", "sfr": "Single Family", "single family residence": "Single Family",
  "single family with adu": "Single Family with ADU",
@@ -93,6 +93,16 @@ export function listingToPrefill(d, { lookupZip, cityNames = [], stateMap = {}, 
 
  const pt = PROP_TYPE_MAP[str(d.propertyType).toLowerCase()];
  if (pt) p.propType = pt;
+ // Exact unit count (Ops sends it for "2-4 Unit") — drives the loan limit.
+ const units = num(d.units);
+ if (units !== null && [2, 3, 4].includes(units) && (!pt || /Unit$/.test(pt))) p.propType = `${units}-Unit`;
+
+ // Annual fixed assessments (Mello-Roos / parcel taxes / special
+ // assessments), added on top of the ad-valorem tax. Present-and-0 is a real
+ // value: the caller re-applies it after loadState, whose `|| 1500` legacy
+ // default would otherwise turn a flyer's $0 into $1,500.
+ const fa = num(d.fixedAssessments);
+ if (fa !== null && fa >= 0 && fa < 100000) p.fixedAssessments = Math.round(fa);
 
  // ── Location ──
  // ZIP wins: Blueprint's tax/transfer-tax/loan-limit tables are keyed to the

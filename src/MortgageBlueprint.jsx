@@ -3361,6 +3361,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setScenarioList(baseList.includes(name) ? baseList : [...baseList, name]);
    setScenarioName(name);
    if (loadStateRef.current) loadStateRef.current(fresh);
+   // loadState maps a saved 0 to its legacy $1,500 default; a flyer's own
+   // fixed-assessment figure (including $0) must win. Same batch → this wins.
+   if (prefill.fixedAssessments !== undefined) setFixedAssessments(prefill.fixedAssessments);
    // Guest devices adopt the flyer's LO as the contact (PDFs, Get
    // Pre-Approved copy). Never on a device an LO has signed into
    // (bp_lo_info_owner set) — LO identity there is theirs, device-level.
