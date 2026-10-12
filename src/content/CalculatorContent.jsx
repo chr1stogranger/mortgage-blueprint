@@ -142,6 +142,12 @@ export default function CalculatorContent(props) {
   // ring's old fixed 280px, Christo 2026-08-04).
   const donutSlotRef = useRef(null);
   const [donutSlotW, setDonutSlotW] = useState(0);
+  // Desktop: the donut sizes to the right column's CONTENT height (price +
+  // rate cards) so both columns end on one line and the payment card has no
+  // dead band (Christo 2026-10-12). Measured from the first child's top to
+  // the last child's bottom, which ignores the grid row's stretch.
+  const rightColRef = useRef(null);
+  const [rightColH, setRightColH] = useState(0);
   // Desktop "Today's rates" popover (Christo 2026-10-01): the six live-rate
   // tiles float over the page instead of growing the Rate card, so the row
   // beside the donut never changes height.
@@ -165,6 +171,11 @@ export default function CalculatorContent(props) {
     if (!el) return;
     const w = Math.floor(el.clientWidth);
     setDonutSlotW(prev => (Math.abs(prev - w) > 1 ? w : prev));
+    const rc = rightColRef.current;
+    if (rc && rc.firstElementChild && rc.lastElementChild) {
+      const h = Math.round(rc.lastElementChild.getBoundingClientRect().bottom - rc.firstElementChild.getBoundingClientRect().top);
+      setRightColH(prev => (Math.abs(prev - h) > 2 ? h : prev));
+    }
   });
   React.useEffect(() => {
     const onResize = () => {
@@ -407,6 +418,15 @@ export default function CalculatorContent(props) {
       { label: "HOA", value: hoa, color: T.purple || T.blue },
     ] : []),
   ];
+  // Desktop legend type scales with how many rows it holds (Christo
+  // 2026-10-12): two rows (escrow off, no PMI/HOA) read big, six step down.
+  const nLeg = legendRows.length;
+  const legendFont = !isDesktop ? 12.5
+    : roomyDonut ? [20, 20, 20, 18.5, 17, 16, 15.5][Math.min(nLeg, 6)]
+    : [16, 16, 16, 15, 14, 13.5, 13][Math.min(nLeg, 6)];
+  const legendGap = !isDesktop ? 4
+    : roomyDonut ? [16, 16, 16, 14, 12, 10, 9][Math.min(nLeg, 6)]
+    : [12, 12, 12, 10, 8, 7, 6][Math.min(nLeg, 6)];
 
   // Price card (Purchase Price+Down / Home Value+Balance+Equity+New Loan).
   // A const because the two modes park it in different columns (Christo
@@ -787,6 +807,10 @@ export default function CalculatorContent(props) {
        </div>
       );
      }
+     // Desktop: the Escrow switch rides in the blue "Monthly Payment" bar
+     // (OverviewTab), so the card doesn't repeat the title (Christo 2026-10-12).
+     // Elsewhere (phones, the Calculator tab) the header row stays.
+     if (isDesktop && loanStructureInQuickStart) return null;
      // Same compact header on desktop and phones (Christo 2026-10-01).
      if (true) return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 6px", width: "100%" }}>
@@ -820,16 +844,23 @@ export default function CalculatorContent(props) {
     {true ? (
      <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}) }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
+       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46, loanStructureInQuickStart && rightColH > 200 ? rightColH - 36 : 999)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: roomyDonut ? 8 : 4 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: legendGap }}>
        {legendRows.map((row, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: roomyDonut ? 14.5 : 12.5, color: T.textSecondary, fontFamily: FONT }}>
-         <span style={{ width: 9, height: 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 9 : 7, fontSize: legendFont, color: T.textSecondary, fontFamily: FONT }}>
+         <span style={{ width: roomyDonut ? 10 : 9, height: roomyDonut ? 10 : 9, borderRadius: 5, background: row.color, flexShrink: 0 }} />
          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}</span>
          <span style={{ marginLeft: "auto", fontWeight: 700, color: T.text }}>{fmt(row.value)}</span>
         </div>
        ))}
+       {/* Escrow off on desktop: once its alert is swiped away, say where tax
+           + insurance went so a two-row legend doesn't read as missing pieces. */}
+       {isDesktop && !isRefi && !includeEscrow && hiddenAlerts["escrow-off"] && (
+        <div style={{ marginTop: 2, paddingTop: 10, borderTop: `1px solid ${T.separator}`, fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>
+         Escrow off · tax and insurance paid separately
+        </div>
+       )}
        {/* Phones only — desktop has the Rate card right beside it, so the
            repeat just shrank the donut (Christo 2026-10-01). */}
        {!isDesktop && <div style={{ marginTop: 4, paddingTop: 7, borderTop: `1px solid ${T.separator}` }}>
@@ -1588,7 +1619,7 @@ export default function CalculatorContent(props) {
   {/* ========== RIGHT COLUMN ========== */}
   <div style={{ display: "contents" }}>
   {/* — row 1: rate + live rates + the 4 loan-structure pills — */}
-  <div style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : { order: 3 }}>
+  <div ref={rightColRef} style={isDesktop ? { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", minWidth: 0 } : { order: 3 }}>
    {/* Refi: CURRENT → NEW leads the right column, above New Rate (Christo
        2026-07-22 — swapped with the price card, now on the left). */}
    {isRefi && currentToNewCard}
@@ -1604,8 +1635,8 @@ export default function CalculatorContent(props) {
    {isDesktop && priceCard}
    {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 12 })}
    {renderAlerts(["investment"], { marginBottom: isDesktop ? 12 : 8 })}
-   <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12, ...(loanStructureInQuickStart ? { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" } : {}) } : { marginBottom: 8, padding: "10px 14px" }}>
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: isDesktop ? 10 : 6 }}>
+   <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12 } : { marginBottom: 8, padding: "10px 14px" }}>
+    <div style={{ display: "flex", gap: 12, alignItems: isDesktop ? "flex-start" : "flex-end", marginBottom: isDesktop ? 0 : 6 }}>
      <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
        <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>
@@ -1613,15 +1644,19 @@ export default function CalculatorContent(props) {
         <InfoTip text="Your annual interest rate. Depends on loan type, FICO, down payment %, loan amount, property type, and market conditions." />
        </div>
        {isRefi && refiCurrentRate > 0 && <span style={{ marginLeft: "auto", fontSize: 11, color: T.textTertiary }}>Current: {refiCurrentRate}%</span>}
+      </div>
+      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
+      {/* Desktop (Christo 2026-10-12): the rates link sits under the pill
+          instead of crowding the label row; its tiles open in a popover. */}
        {isDesktop && (
-        <div ref={ratesPopRef} data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ marginLeft: isRefi && refiCurrentRate > 0 ? 10 : "auto", position: "relative", borderRadius: 8 }}>
+        <div ref={ratesPopRef} data-field="get-rates" className={isPulse && isPulse("get-rates")} style={{ position: "relative", borderRadius: 8, marginTop: 7, width: "fit-content" }}>
          <button type="button" onClick={() => { markTouched && markTouched("get-rates"); if (!liveRates && !ratesLoading) fetchRates(); setRatesPopOpen(o => !o); }}
           aria-haspopup="dialog" aria-expanded={ratesPopOpen}
           style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: T.blue, fontFamily: FONT, whiteSpace: "nowrap" }}>
           {ratesLoading ? "Fetching…" : liveRates ? "Live rates ›" : "Today's rates ›"}
          </button>
          {ratesPopOpen && (
-          <div role="dialog" aria-label="Today's rates" style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 40, width: 300, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(15,23,41,0.18)", padding: 12 }}>
+          <div role="dialog" aria-label="Today's rates" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 40, width: 300, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(15,23,41,0.18)", padding: 12 }}>
            <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 8 }}>
             {liveRates ? `${liveRates.date || "Today"} · ${liveRateFor(liveRates, loanType, term) ? "applied" : `no published ${loanType} rate`}` : "Today's rates"}
            </div>
@@ -1632,20 +1667,17 @@ export default function CalculatorContent(props) {
          )}
         </div>
        )}
-      </div>
-      <Inp value={rate} onChange={setRate} prefix="" suffix="%" step={0.001} max={30} sm req />
      </div>
      {!isRefi && calc.apr > 0 && calc.apr !== rate && (
-      <div style={{ flex: 1, marginBottom: isDesktop ? 2 : 0 }}>
+      <div style={{ flex: 1 }}>
        <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 500, color: T.textSecondary, fontFamily: FONT }}>APR</span>
-        {isDesktop && <span style={{ order: 2, marginLeft: "auto", fontSize: 12, color: T.textTertiary, fontFamily: FONT, whiteSpace: "nowrap" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>}
         <InfoTip text={`APR (${calc.apr.toFixed(3)}%) reflects the true cost of borrowing including fees. Finance charges: ${fmt(calc.aprFinanceCharges)} (origination ${fmt(underwritingFee + processingFee)}, points ${fmt(calc.pointsCost)}${calc.fhaUp > 0 ? ", UFMIP " + fmt(calc.fhaUp) : ""}${calc.vaFundingFee > 0 ? ", VA FF " + fmt(calc.vaFundingFee) : ""}).`} />
        </div>
-       {isDesktop
-        ? <div style={{ background: T.bgAccent, borderRadius: 12, padding: "10px 14px", fontSize: 18, fontWeight: 700, color: T.blue, fontFamily: FONT, textAlign: "center", border: `1px solid ${T.border}` }}>{calc.apr.toFixed(3)}%</div>
-        : /* Phones: same box as the Rate field so the two sit level (Christo 2026-10-01). */
-          <Inp value={calc.apr.toFixed(3)} onChange={() => {}} readOnly prefix="" suffix="%" sm />}
+       {/* Same box as the Rate field so the two pills sit level — phones
+           since 2026-10-01, desktop since 2026-10-12. */}
+       <Inp value={calc.apr.toFixed(3)} onChange={() => {}} readOnly prefix="" suffix="%" sm />
+       {isDesktop && <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginTop: 7, whiteSpace: "nowrap" }}>{term}-yr · {loanType}</div>}
       </div>
      )}
     </div>
