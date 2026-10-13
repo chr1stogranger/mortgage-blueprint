@@ -3538,6 +3538,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setActiveBorrower(b);
   setActiveScenarioId(null);
   setBorrowerScenariosLoading(true);
+  // A client created outside this session (Ops, referral intake) isn't in
+  // borrowerList yet, so `b` is a bare stub with no share_token — and the
+  // header Share Link pill + Share tab Copy Link both hide. Fill it in.
+  if (!b.share_token) {
+   fetchBorrowerById(b.id).then(fresh => {
+    if (!fresh) return;
+    setActiveBorrower(prev => (prev?.id === fresh.id ? { ...prev, ...fresh } : prev));
+    setBorrowerList(prev => (prev.some(x => x.id === fresh.id) ? prev : [...prev, fresh]));
+   }).catch(() => { /* non-fatal — share controls stay hidden */ });
+  }
   try {
    const scens = await apiFetchScenarios(entry.borrowerId);
    setBorrowerScenarios(scens || []);
