@@ -1724,9 +1724,10 @@ export default function CostsContent(props) {
         // row multiplies by the per-diem.
         return (
           /* Amber "heads-up" note (Christo 2026-09-23: yellow reads as "hey,
-             read this"). Tint layered over the solid card so the blueprint
-             canvas doesn't bleed through the glass. */
-          <Card style={{ background: `linear-gradient(${T.orange}1c, ${T.orange}1c), ${T.card}`, border: `1px solid ${T.orange}55`, marginTop: 12 }}>
+             read this"). Solid card with the amber carried by the title and
+             left edge, like the shared Note (Christo 2026-10-12: alerts get a
+             white background, no tint). */
+          <Card style={{ background: T.card, borderLeft: `3px solid ${T.orange}`, marginTop: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 8 }}>When Is My First Payment?</div>
             <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.6 }}>
               <div style={{ marginBottom: 6 }}>You close on <strong>{shortMos[cm]} {closingDay}</strong>. Per-diem interest is collected from closing day through the end of {monthNames[cm]}: <strong>{calc.autoPrepaidDays} days</strong> of prepaid interest.</div>

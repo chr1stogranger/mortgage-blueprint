@@ -885,18 +885,13 @@ export default function SetupContent(props) {
     House at the top of the tab (MortgageBlueprint.jsx) is the single
     source of truth. This embedded copy double-rendered on Overview. */}
 
- {/* Compare Hint */}
+ {/* Compare hint: solid card like every other note (Christo 2026-10-12: no see-through alerts). */}
  {showCompareHint && scenarioList.length > 1 && (
-  <div style={{ background: `${T.green}15`, border: `1px solid ${T.green}33`, borderRadius: 14, padding: "12px 16px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-   <div>
-    <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>Compare tab available!</div>
-    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>You have {scenarioList.length} loan options. View them side-by-side.</div>
-   </div>
-   <div style={{ display: "flex", gap: 6 }}>
-    <button onClick={() => { setTab("compare"); setShowCompareHint(false); }} style={{ background: T.green, color: "#FFF", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Compare</button>
-    <button aria-label="Dismiss" onClick={() => setShowCompareHint(false)} style={{ background: "none", border: "none", color: T.textTertiary, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
-   </div>
-  </div>
+  <Note color={T.green} title="Compare tab available" style={{ marginTop: 0, marginBottom: 12 }}
+   onDismiss={() => setShowCompareHint(false)}
+   action={<button onClick={() => { setTab("compare"); setShowCompareHint(false); }} style={{ flexShrink: 0, background: T.green, color: "#FFF", border: "none", borderRadius: 9999, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>Compare</button>}>
+   You have {scenarioList.length} loan options. View them side-by-side.
+  </Note>
  )}
 
  {/* ── Quick Start — 2-column on desktop, columns stretch to equal height ── */}
@@ -1036,7 +1031,7 @@ export default function SetupContent(props) {
 
  {/* Setup Complete celebration */}
  {gameMode && completedTabs["setup"] && isTabFieldsComplete("setup") && (
-  <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: `${T.green}10`, border: `1px solid ${T.green}30`, borderRadius: 18 }}>
+  <div style={{ textAlign: "center", padding: "20px 16px", margin: "12px 0", background: T.card, border: `1px solid ${T.green}40`, boxShadow: T.cardShadow, borderRadius: 18 }}>
    <div style={{ fontSize: 28, marginBottom: 6 }}></div>
    <div style={{ fontSize: 16, fontWeight: 700, color: T.green, marginBottom: 4 }}>Setup Complete!</div>
    <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>{isRefi ? "Your refi details are locked in. Head to the Refi Summary tab to see your savings." : "Your mortgage blueprint is ready. Explore the tabs below to dive deeper."}</div>
@@ -1612,14 +1607,11 @@ export default function SetupContent(props) {
    {/* The honest exit — they may not need a refinance at all. PMI cancels off
        the FIRST lien's LTV, so a second doesn't block it. */}
    {calc.refiPmiDropEligible && (
-    <div style={{ background: `${T.green}12`, border: `1px solid ${T.green}33`, borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
-     <div style={{ fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 3 }}>They may not need a refinance</div>
-     <div style={{ fontSize: 11, color: T.textSecondary, lineHeight: 1.6 }}>
-      The balance is {((calc.refiEffBalance / refiHomeValue) * 100).toFixed(1)}% of value and they're still paying{" "}
-      {fmt(refiCurrentMI)}/mo in mortgage insurance. They can likely request cancellation from the servicer,
-      worth {fmt(refiCurrentMI * 12)} a year with no closing costs and no new loan.
-     </div>
-    </div>
+    <Note color={T.green} title="They may not need a refinance" style={{ marginTop: 0, marginBottom: 12 }}>
+     The balance is {((calc.refiEffBalance / refiHomeValue) * 100).toFixed(1)}% of value and they're still paying{" "}
+     {fmt(refiCurrentMI)}/mo in mortgage insurance. They can likely request cancellation from the servicer,
+     worth {fmt(refiCurrentMI * 12)} a year with no closing costs and no new loan.
+    </Note>
    )}
    {!calc.refiFromStatement && insEffectiveDateNode}
    {/* The old standalone "Included in the current payment?" toggle section is
