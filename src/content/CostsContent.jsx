@@ -1117,8 +1117,8 @@ export default function CostsContent(props) {
   // Derived numbers
   // Per-component escrow (refi) vs the purchase master toggle. Refi reserves
   // use the refi-side monthlies (Christo 2026-07-22).
-  const gEscTax = isRefi ? !!calc.refiNewEscrowTax : includeEscrow;
-  const gEscIns = isRefi ? !!calc.refiNewEscrowIns : includeEscrow;
+  const gEscTax = isRefi ? !!calc.refiNewEscrowTax : (calc.purchEscTax ?? includeEscrow);
+  const gEscIns = isRefi ? !!calc.refiNewEscrowIns : (calc.purchEscIns ?? includeEscrow);
   const gMonthlyTax = isRefi ? (calc.refiNewMonthlyTax || 0) : (calc.monthlyTax || 0);
   const gMonthlyIns = isRefi ? (calc.refiNewMonthlyIns || 0) : (calc.ins || 0);
   const escrowHOI_reserve = gEscIns ? gMonthlyIns * calc.escrowInsMonths : 0;

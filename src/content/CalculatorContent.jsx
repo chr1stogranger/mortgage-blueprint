@@ -195,7 +195,7 @@ export default function CalculatorContent(props) {
   salesPrice, setSalesPrice, city, taxState,
   isRefi, downPct, setDownPct, downMode, setDownMode,
   loanType, setLoanType, firstTimeBuyer,
-  includeEscrow, setIncludeEscrow,
+  includeEscrow, setIncludeEscrow, escrowInsWaived, setEscrowInsWaived,
   loanPurpose, setLoanPurpose,
   refiCurrentRate, rate, setRate, term, setTerm,
   refiPurpose, refiCashOut,
@@ -334,8 +334,9 @@ export default function CalculatorContent(props) {
   const dispMI = isRefi ? (calc.refiNewMI || 0) : (calc.monthlyMI || 0);
   // Which components the NEW loan escrows. Purchase keeps the single master
   // toggle; refi is per-component (Christo 2026-07-22).
-  const escTax = isRefi ? !!refiNewEscrowTax : includeEscrow;
-  const escIns = isRefi ? !!refiNewEscrowIns : includeEscrow;
+  // Purchase: three modes since 2026-10-12 (Tax + Ins / Tax only / P&I only).
+  const escTax = isRefi ? !!refiNewEscrowTax : (calc.purchEscTax ?? includeEscrow);
+  const escIns = isRefi ? !!refiNewEscrowIns : (calc.purchEscIns ?? includeEscrow);
   const excludedEscrowAmt = (escTax ? 0 : dispTax) + (escIns ? 0 : dispIns);
 
   // Legend rows for the donut — principal / interest / tax / insurance (+ MI when present)
@@ -807,10 +808,10 @@ export default function CalculatorContent(props) {
        </div>
       );
      }
-     // Desktop: the Escrow switch rides in the blue "Monthly Payment" bar
-     // (OverviewTab), so the card doesn't repeat the title (Christo 2026-10-12).
-     // Elsewhere (phones, the Calculator tab) the header row stays.
-     if (isDesktop && loanStructureInQuickStart) return null;
+     // Purchase: no header row — the escrow choice is the three-way pill at
+     // the bottom of the card, and the blue bar already says "Monthly
+     // Payment" (Christo 2026-10-12).
+     if (true) return null;
      // Same compact header on desktop and phones (Christo 2026-10-01).
      if (true) return (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 6px", width: "100%" }}>
@@ -844,7 +845,7 @@ export default function CalculatorContent(props) {
     {true ? (
      <div ref={donutSlotRef} style={{ display: "flex", alignItems: "center", gap: roomyDonut ? 28 : 14, marginTop: 2, ...(isDesktop ? { flex: 1, padding: roomyDonut ? "4px 8px" : 0 } : {}) }}>
       <div style={{ flexShrink: 0 }}>
-       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46, loanStructureInQuickStart && rightColH > 200 ? rightColH - 36 : 999)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
+       <PayRing segments={paySegs} total={calc.displayPayment} size={isDesktop ? Math.max(124, Math.min(250, ((donutSlotW || 520) - 28) * 0.46, loanStructureInQuickStart && rightColH > 200 ? rightColH - (isRefi ? 36 : 82) : 999)) : Math.max(116, Math.min(140, ((donutSlotW || 340) - 14) * 0.44))} hideLegend />
       </div>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: legendGap }}>
        {legendRows.map((row, i) => (
@@ -856,9 +857,9 @@ export default function CalculatorContent(props) {
        ))}
        {/* Escrow off on desktop: once its alert is swiped away, say where tax
            + insurance went so a two-row legend doesn't read as missing pieces. */}
-       {isDesktop && !isRefi && !includeEscrow && hiddenAlerts["escrow-off"] && (
+       {isDesktop && !isRefi && (!escTax || !escIns) && hiddenAlerts["escrow-off"] && (
         <div style={{ marginTop: 2, paddingTop: 10, borderTop: `1px solid ${T.separator}`, fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, lineHeight: 1.4 }}>
-         Escrow off · tax and insurance paid separately
+         {!escTax && !escIns ? `Tax ${fmt(dispTax)} + insurance ${fmt(dispIns)}/mo paid separately` : !escIns ? `Insurance ${fmt(dispIns)}/mo paid separately` : `Tax ${fmt(dispTax)}/mo paid separately`}
         </div>
        )}
        {/* Phones only — desktop has the Rate card right beside it, so the
@@ -911,6 +912,37 @@ export default function CalculatorContent(props) {
      </div>
     </div>
     ); })()}
+    {/* Purchase escrow: one three-way pill across the bottom of the card
+        (Christo 2026-10-12). FHA/VA impound both, so the other two choices
+        gray out with the reason underneath. */}
+    {!isRefi && setIncludeEscrow && (() => {
+     const locked = loanType === "FHA" || loanType === "VA";
+     const mode = !includeEscrow ? "none" : escrowInsWaived ? "tax" : "both";
+     const pick = (m) => {
+      if (locked && m !== "both") return;
+      setIncludeEscrow(m !== "none");
+      if (setEscrowInsWaived) setEscrowInsWaived(m === "tax");
+     };
+     const opts = [["both", "Tax + Ins"], ["tax", "Tax only"], ["none", "P&I only"]];
+     return (<>
+      <div role="radiogroup" aria-label="Escrow" style={{ display: "flex", background: T.inputBg, borderRadius: 9999, padding: 3, marginTop: isDesktop ? 14 : 10, border: `1px solid ${T.cardBorder}` }}>
+       {opts.map(([m, label]) => {
+        const on = mode === m;
+        const dis = locked && m !== "both";
+        return (
+         <button key={m} type="button" role="radio" aria-checked={on} aria-disabled={dis || undefined} onClick={() => pick(m)}
+          title={dis ? `${loanType} loans require escrow` : m === "both" ? "Tax and insurance escrowed in the payment" : m === "tax" ? "Taxes escrowed, insurance paid separately" : "No escrow: tax and insurance paid separately"}
+          style={{ flex: 1, border: "none", borderRadius: 9999, padding: isDesktop ? "7px 6px" : "6px 4px", fontSize: isDesktop ? 12.5 : 12, fontWeight: 600, fontFamily: FONT, whiteSpace: "nowrap",
+           cursor: dis ? "not-allowed" : "pointer", background: on ? T.card : "transparent", color: on ? T.blue : dis ? T.textTertiary : T.textSecondary,
+           opacity: dis ? 0.55 : 1, boxShadow: on ? "0 1px 3px rgba(15,23,41,0.14)" : "none", transition: "all 0.15s" }}>
+          {label}
+         </button>
+        );
+       })}
+      </div>
+      {locked && <div style={{ fontSize: 11.5, color: T.textTertiary, fontFamily: FONT, textAlign: "center", marginTop: 6 }}>{loanType} requires escrow for tax and insurance</div>}
+     </>);
+    })()}
    </div>
 
 

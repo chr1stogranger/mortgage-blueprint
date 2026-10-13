@@ -188,8 +188,7 @@ export default function OverviewTab(props) {
         open={setupOpen}
         onToggle={toggleSetup}
         collapsedSubtitle={setupSummary}
-        heroStyle={true}
-      >
+        heroStyle={true}>
         <SetupContent {...props} hideHero={true} hideModules={true} />
         {/* Loan structure lives in Quick Start on the Overview (Christo
             2026-10-01): set once, tucks away when Quick Start collapses. */}
@@ -206,24 +205,7 @@ export default function OverviewTab(props) {
           built, and "Monthly Payment" undersold it (Christo 2026-08-04). */}
       {/* Phones: slimmer banners so the screenshot reaches from Quick Start
           through the pillars (Christo 2026-10-01). */}
-      <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}
-        headerRight={isDesktop && !isRefi && props.setIncludeEscrow ? (() => {
-          // Desktop: the Escrow switch rides in the bar, so the card below
-          // doesn't repeat "Monthly payment" just to hold it (Christo 2026-10-12).
-          const locked = props.loanType === "FHA" || props.loanType === "VA";
-          const on = !!props.includeEscrow;
-          return (
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.92)", fontFamily: FONT, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.7 : 1 }}
-              title={locked ? `${props.loanType} loans require escrow: cannot be toggled off` : (on ? "Escrow ON: Tax + Insurance included" : "Escrow OFF: Tax + Insurance shown separately")}>
-              Escrow
-              <button type="button" role="switch" aria-checked={on} aria-label="Include escrow (tax and insurance)" aria-disabled={locked || undefined}
-                onClick={() => { if (!locked) props.setIncludeEscrow(!on); }}
-                style={{ width: 38, height: 22, borderRadius: 11, border: "none", padding: 0, cursor: "inherit", background: on ? "#fff" : "rgba(255,255,255,0.35)", position: "relative", transition: "background 0.2s" }}>
-                <span style={{ width: 16, height: 16, borderRadius: 8, background: on ? T.blue : "#fff", position: "absolute", top: 3, left: on ? 19 : 3, transition: "left 0.2s" }} />
-              </button>
-            </label>
-          );
-        })() : null}>
+      <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
         <CalculatorContent {...props} loanStructureInQuickStart={true} />
       </CollapsibleSection>
 

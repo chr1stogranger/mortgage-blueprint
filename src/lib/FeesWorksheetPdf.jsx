@@ -242,7 +242,7 @@ export function FeesWorksheetPage(p) {
             ? <Cell label="Down Payment" value={`${usd(c.dp)} (${p.downPct}%)`} />
             : <Cell label="Cash Out" value={usd(p.refiCashOut || 0)} />}
           <Cell label="Property" value={propLine !== "—" ? propLine : locLine} />
-          <Cell label="Escrow (Impounds)" value={p.includeEscrow ? "Yes" : "Waived"} />
+          <Cell label="Escrow (Impounds)" value={!p.includeEscrow ? "Waived" : p.escrowInsWaived ? "Taxes only" : "Yes"} />
           <Cell label="Credit Score" value={p.creditScore > 0 ? String(p.creditScore) : "Not verified"} />
           {p.closingMonth > 0 && (() => {
             // Closing date from state; first payment = 1st of the second month

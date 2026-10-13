@@ -154,7 +154,8 @@ export default function UnifiedHeader({
     }
     if (key === "payment") {
       const rows = [["Principal & Interest", fmt(calc.pi)]];
-      if (includeEscrow) { rows.push(["Property Tax", fmt(calc.monthlyTax)]); rows.push(["Insurance", fmt(calc.ins)]); }
+      if (calc.purchEscTax ?? includeEscrow) rows.push(["Property Tax", fmt(calc.monthlyTax)]);
+      if (calc.purchEscIns ?? includeEscrow) rows.push(["Insurance", fmt(calc.ins)]);
       if ((calc.monthlyMI || 0) > 0) rows.push([loanType === "FHA" ? "MIP" : "PMI", fmt(calc.monthlyMI)]);
       if ((hoa || 0) > 0) rows.push(["HOA", fmt(hoa)]);
       rows.push(["__t", "Total Payment", fmt(calc.displayPayment)]);
