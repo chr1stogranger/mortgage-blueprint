@@ -449,5 +449,8 @@ export default function useBlueprintSync({
     isEcho,             // (state) => true if the DB already holds exactly this state
     shouldWrite,        // (state) => false for echoes and remote-change knock-ons
     setPresenceInfo,    // ({ tab, field, field_active }) => broadcast where I am
+    // Undo / restore change state from a shortcut or a sheet button, not a
+    // form control — mark it as this person's edit so it gets written.
+    noteUserInput: () => { lastUserInputAtRef.current = Date.now(); },
   };
 }

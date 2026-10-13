@@ -53,6 +53,7 @@ const BlueprintPane = lazyWithRetry(() => import("./BlueprintPane"));
 const SellerNetPane = lazyWithRetry(() => import("./SellerNetPane"));
 const OverviewTab = lazyWithRetry(() => import("./OverviewTab"));
 const BottomSheet = lazyWithRetry(() => import("./BottomSheet"));
+const VersionHistorySheet = lazyWithRetry(() => import("./components/VersionHistorySheet.jsx"));
 const LoPipelinePanel = lazyWithRetry(() => import("./components/LoPipelinePanel"));
 const IncomeSheet = lazyWithRetry(() => import("./IncomeSheet"));
 const DebtsSheet = lazyWithRetry(() => import("./DebtsSheet"));
@@ -73,8 +74,9 @@ import {
   fetchSharedData, fetchListing,
   saveSharedScenario, renameSharedScenario, deleteSharedScenario,
 } from "./api";
-import { fetchScenarioRow, subscribeToBorrowerScenarios } from "./lib/supabaseClient";
-import useBlueprintSync from "./hooks/useBlueprintSync";
+import { fetchScenarioRow, subscribeToBorrowerScenarios, saveScenarioVersion } from "./lib/supabaseClient";
+import { whenLabel } from "./lib/whenLabel.js";
+import useBlueprintSync, { changedKeys } from "./hooks/useBlueprintSync";
 import PresenceBar from "./components/PresenceBar";
 import LivePresenceLayer from "./components/LivePresenceLayer";
 import { presenceRoot, findByKey, outlineBoxFor } from "./lib/fieldPresence";
@@ -1229,7 +1231,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   scenarioId: activeScenarioId,
   roomId: isBorrower ? (borrowerMode.borrower?.id || null) : (activeBorrower?.id || null),
   getState: () => getStateRef.current ? getStateRef.current() : {},
-  loadState: (s) => loadStateRef.current && loadStateRef.current(s),
+  // A co-editor's change arriving over live sync: commit my pending undo
+  // step first, then make theirs the baseline (never an undo step of mine).
+  loadState: (s) => { try { undoRef.current.commit?.(); undoRef.current.skipNext = true; } catch { /* undo not ready */ } loadStateRef.current && loadStateRef.current(s); },
   userInfo: isBorrower ? {
    email: borrowerMode.account?.email || '',
    name: borrowerMode.account?.name || '',
@@ -2533,12 +2537,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    borrowerSwitchingRef.current = false;
   }
  };
- // ── Borrower scenario management (Christo 2026-10-12) ──
+ // ── Borrower scenario management (Christo 2026-10-12, -13) ──
  // Borrowers can make, copy, rename, delete and reorder scenarios. New ones
- // are real rows on their file (the LO sees them, created_by 'borrower');
- // rename / delete only apply to the borrower's own — the LO's stay protected
- // (Ops enforces the same). A view-only LINK can't create anything.
- const borrowerOwnsRow = (row) => !!row && row.created_by === 'borrower';
+ // are real rows on their file (the LO sees them, created_by 'borrower').
+ // Rename / delete work on any scenario the LO left editable, the LO's too;
+ // view-only ones stay protected (Ops enforces the same), and a deleted one
+ // is kept as a version (migration 024). A view-only LINK can't create.
+ const borrowerCanManageRow = (row) => !!row && (row.borrower_visibility || 'editable') === 'editable';
  const borrowerCanCreate = isBorrower && borrowerMode.accessLevel !== 'view_only';
  const borrowerCreateScenario = async (name, stateData, type) => {
   if (!borrowerCanCreate || !borrowerMode.shareToken || !stateData) return null;
@@ -3066,8 +3071,143 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (vp) vp.setAttribute('content', content);
   else { vp = document.createElement('meta'); vp.name = 'viewport'; vp.content = content; document.head.appendChild(vp); }
  }, []);
+ // ── Undo / redo: Cmd/Ctrl+Z, Shift+Cmd+Z or Ctrl+Y (Christo 2026-10-13) ──
+ // Each burst of edits (700ms quiet) is one step, kept as a field diff, so
+ // undo reverts only what THIS person changed: a co-editor's change arriving
+ // over live sync becomes the new baseline, never one of my undo steps.
+ // History is per scenario and per session; switching scenarios starts fresh.
+ const undoRef = useRef({ past: [], future: [], last: null, key: null, timer: null, skipNext: false, commit: null });
+ const undoKeyRef = useRef(null);
+ undoKeyRef.current = activeScenarioId || `local:${scenarioName}`;
+ const [undoToast, setUndoToast] = useState(null);
+ const undoToastTimer = useRef(null);
+ const flashUndoToast = (msg) => { setUndoToast(msg); clearTimeout(undoToastTimer.current); undoToastTimer.current = setTimeout(() => setUndoToast(null), 2800); };
+ const commitUndoPoint = () => {
+  const u = undoRef.current;
+  clearTimeout(u.timer); u.timer = null;
+  const cur = getStateRef.current ? getStateRef.current() : null;
+  if (!cur) return;
+  if (u.key !== undoKeyRef.current) { u.key = undoKeyRef.current; u.past = []; u.future = []; u.last = cur; u.skipNext = false; return; }
+  if (!u.last || u.skipNext) { u.last = cur; u.skipNext = false; return; }
+  const keys = changedKeys(u.last, cur).filter(k => k !== "darkMode" && k !== "themeMode");
+  if (keys.length) {
+   const step = {};
+   for (const k of keys) step[k] = { old: u.last[k], new: cur[k] };
+   u.past.push(step);
+   if (u.past.length > 100) u.past.shift();
+   u.future = [];
+  }
+  u.last = cur;
+ };
+ undoRef.current.commit = commitUndoPoint;
+ const UNDO_NAMES = { salesPrice: "purchase price", downPct: "down payment", rate: "rate", term: "term", loanType: "loan type", propType: "property type", loanPurpose: "occupancy", incomes: "income", debts: "debts", assets: "assets", creditScore: "credit score", annualIns: "insurance", hoa: "HOA", includeEscrow: "escrow", escrowInsWaived: "escrow", city: "city", propertyState: "state", propertyZip: "ZIP", discountPts: "points", sellerCredit: "seller credit", realtorCredit: "realtor credit", isRefi: "transaction type" };
+ const undoName = (k) => UNDO_NAMES[k] || k.replace(/([A-Z])/g, " $1").toLowerCase().trim();
+ const applyUndo = (dir) => {
+  commitUndoPoint();
+  const u = undoRef.current;
+  const step = (dir === "undo" ? u.past : u.future).pop();
+  if (!step) { flashUndoToast(dir === "undo" ? "Nothing to undo" : "Nothing to redo"); return; }
+  (dir === "undo" ? u.future : u.past).push(step);
+  const cur = getStateRef.current();
+  const patch = {};
+  for (const [k, d] of Object.entries(step)) patch[k] = dir === "undo" ? d.old : d.new;
+  u.skipNext = true;
+  sync.noteUserInput?.();
+  loadState({ ...cur, ...patch });
+  const names = [...new Set(Object.keys(step).map(undoName))];
+  const what = names.length > 2 ? `${names.length} changes` : names.join(" and ");
+  flashUndoToast(`${dir === "undo" ? "Undid" : "Redid"} ${what}`);
+ };
+ const applyUndoRef = useRef(applyUndo);
+ applyUndoRef.current = applyUndo;
+ const undoGateRef = useRef(false);
+ undoGateRef.current = appMode === "blueprint" && !roEnforced;
+ useEffect(() => {
+  const onKey = (e) => {
+   if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+   const k = (e.key || "").toLowerCase();
+   const isUndo = k === "z" && !e.shiftKey;
+   const isRedo = (k === "z" && e.shiftKey) || (k === "y" && e.ctrlKey && !e.metaKey);
+   if ((!isUndo && !isRedo) || !undoGateRef.current) return;
+   // Free-text boxes (notes) keep the browser's own text undo.
+   const t = e.target;
+   if (t?.tagName === "TEXTAREA" || t?.isContentEditable) return;
+   e.preventDefault();
+   // Blur first so a field mid-edit commits; the step lands, then undo.
+   const a = document.activeElement;
+   if (a && a !== document.body && typeof a.blur === "function") a.blur();
+   setTimeout(() => applyUndoRef.current(isUndo ? "undo" : "redo"), 60);
+  };
+  window.addEventListener("keydown", onKey);
+  return () => window.removeEventListener("keydown", onKey);
+ }, []);
+
+ // ── Version history (migration 024, Christo 2026-10-13) ──
+ // Cloud scenarios only (an LO's client, or a share-link borrower): open the
+ // sheet for a scenario (switching to it first), restore a version (the
+ // current numbers are saved as "Before restore" first), open one as a copy,
+ // or (LO) bring back a deleted scenario.
+ const versionsAvailable = scenariosAreCloud || isBorrower;
+ const [versionSheet, setVersionSheet] = useState(null); // { id, name }
+ const openVersionHistory = async (name) => {
+  if (!versionsAvailable) return;
+  const row = cloudRowForName(name);
+  if (!row) return;
+  if (row.id !== activeScenarioId) await switchScenario(name);
+  setVersionSheet({ id: row.id, name });
+ };
+ const flushActiveScenario = async () => {
+  if (isBorrower) { await sync.flush(); return; }
+  if (scenariosAreCloud && activeScenarioId) {
+   if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
+   try { await saveToCloud(getState(), activeScenarioId); } catch { /* the restore still applies */ }
+  }
+ };
+ const restoreVersion = async (v) => {
+  const id = activeScenarioId;
+  if (!id || !v?.state_data || v.scenario_id !== id) return;
+  await flushActiveScenario();
+  await saveScenarioVersion(id, "Before restore");
+  commitUndoPoint();
+  sync.noteUserInput?.();
+  loadState({ ...getState(), ...v.state_data });
+  flashUndoToast(`Restored the version from ${whenLabel(v.as_of || v.created_at)}`);
+ };
+ const openVersionCopy = async (v) => {
+  if (!v?.state_data) return;
+  const name = `${v.name || versionSheet?.name || scenarioName} (${whenLabel(v.as_of || v.created_at)})`;
+  if (isBorrower) {
+   const nid = await borrowerCreateScenario(name, v.state_data, v.type);
+   if (nid) { await borrowerOpenScenario(nid); flashUndoToast(`Opened a copy: ${name}`); }
+   return;
+  }
+  if (!scenariosAreCloud || !activeBorrower) return;
+  await flushActiveScenario();
+  try {
+   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: v.type || 'purchase', status: 'draft', created_by: 'lo', state_data: v.state_data, calc_summary: {} });
+   const row = Array.isArray(created) ? created[0] : created;
+   if (!row?.id) return;
+   setBorrowerScenarios(prev => [...prev, row]);
+   loadState(v.state_data); setActiveScenarioId(row.id); setScenarioName(name); sync.initSync(v.state_data, null);
+   flashUndoToast(`Opened a copy: ${name}`);
+  } catch (e) { console.warn('[Blueprint] Open version as copy failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
+ };
+ const recoverDeletedScenario = async (v) => {
+  if (!scenariosAreCloud || isBorrower || !activeBorrower || !v?.state_data) return;
+  const existing = new Set(borrowerScenarios.map(x => x.name || 'Scenario 1'));
+  let name = v.name || 'Restored scenario';
+  if (existing.has(name)) name = `${name} (restored)`;
+  try {
+   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: v.type || 'purchase', status: 'draft', created_by: 'lo', state_data: v.state_data, calc_summary: {} });
+   const row = Array.isArray(created) ? created[0] : created;
+   if (row?.id) { setBorrowerScenarios(prev => [...prev, row]); flashUndoToast(`Brought back ${name}`); }
+  } catch (e) { console.warn('[Blueprint] Recover deleted scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
+ };
+
  useEffect(() => {
   if (!loaded) return;
+  clearTimeout(undoRef.current.timer);
+  undoRef.current.timer = setTimeout(commitUndoPoint, 700);
   if (saveTimer.current) clearTimeout(saveTimer.current);
   saveTimer.current = setTimeout(async () => {
    setSaving(true);
@@ -3819,7 +3959,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const deleteScenario = async (name) => {
   if (isBorrower) {
    const row = cloudRowForName(name);
-   if (!row || !borrowerOwnsRow(row) || scenarioList.length <= 1 || !borrowerMode.shareToken) return;
+   if (!row || !borrowerCanManageRow(row) || scenarioList.length <= 1 || !borrowerMode.shareToken) return;
    try { await deleteSharedScenario(borrowerMode.shareToken, row.id); }
    catch (e) { console.warn('[Blueprint] Delete scenario failed:', e.message); return; }
    const remaining = (borrowerScenariosRef.current || []).filter(s => s.id !== row.id);
@@ -3952,7 +4092,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (isBorrower) {
    const row = cloudRowForName(oldName);
    const nm = (newName || "").trim();
-   if (!row || !borrowerOwnsRow(row) || !nm || nm === oldName || scenarioList.includes(nm) || !borrowerMode.shareToken) return;
+   if (!row || !borrowerCanManageRow(row) || !nm || nm === oldName || scenarioList.includes(nm) || !borrowerMode.shareToken) return;
    try { await renameSharedScenario(borrowerMode.shareToken, row.id, nm); }
    catch (e) { console.warn('[Blueprint] Rename scenario failed:', e.message); return; }
    setBorrowerScenarios(prev => prev.map(s => s.id === row.id ? { ...s, name: nm } : s));
@@ -8462,11 +8602,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
            {(() => {
             // Borrower visibility toggles — cloud clients only (2026-10-12).
             const vis = scenariosAreCloud ? (cloudRowForName(scnMenu.name)?.borrower_visibility || "editable") : null;
-            // Share-link borrowers rename / delete only their own scenarios.
-            const mine = !isBorrower || borrowerOwnsRow(cloudRowForName(scnMenu.name));
+            // Share-link borrowers can't rename / delete a view-only scenario.
+            const mine = !isBorrower || borrowerCanManageRow(cloudRowForName(scnMenu.name));
             return [
             ...(mine ? [["Rename", "edit", () => { setEditingScenarioName(scnMenu.name); setEditScenarioValue(scnMenu.name); }]] : []),
             ["Duplicate", "copy", () => duplicateScenarioByName(scnMenu.name)],
+            ...(versionsAvailable ? [["Version history", "history", () => openVersionHistory(scnMenu.name)]] : []),
             ...(vis ? [
              vis === "hidden" ? ["Show to borrower", "eye", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Hide from borrower", "eye-off", () => setScenarioVisibility(scnMenu.name, "hidden")],
              vis === "view_only" ? ["Allow borrower edits", "unlock", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Make view-only", "lock", () => setScenarioVisibility(scnMenu.name, "view_only")],
@@ -8638,7 +8779,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     appMode={appMode} setAppMode={setAppMode}
     onOpenMobileMenu={() => setMobileMenuOpen(true)}
     mobileMenuOpen={mobileMenuOpen}
-    scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario, ...(isBorrower ? { canManage: (n) => borrowerOwnsRow(cloudRowForName(n)) } : {}) }}
+    scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario, ...(isBorrower ? { canManage: (n) => borrowerCanManageRow(cloudRowForName(n)) } : {}), ...(versionsAvailable ? { history: openVersionHistory } : {}) }}
     canEditScenarios={!isBorrower || borrowerCanCreate}
     tab={tab}
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
@@ -9144,6 +9285,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     Overview copy renders with the Overview content instead, so the
     fixed "On this page" pill can't sit on top of the banner. */}
 {tab === "calc" && listingBannerEl}
+{/* Version history sheet + the undo / restore message (Christo 2026-10-13). */}
+{versionSheet && (
+ <Suspense fallback={null}>
+  <VersionHistorySheet T={T} isOpen onClose={() => setVersionSheet(null)}
+   scenarioId={versionSheet.id} scenarioName={versionSheet.name} borrowerId={activeBorrower?.id}
+   canRestore={!scenarioReadOnly} canCopy={!isBorrower || borrowerCanCreate} showDeleted={scenariosAreCloud && !isBorrower}
+   onRestore={restoreVersion} onOpenCopy={openVersionCopy} onRecoverDeleted={recoverDeletedScenario} />
+ </Suspense>
+)}
+{undoToast && (
+ <div role="status" aria-live="polite" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: isDesktop ? 24 : `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 56px)`, zIndex: 10000, background: T.text, color: T.bg, borderRadius: 9999, padding: "9px 18px", fontSize: 13, fontWeight: 600, fontFamily: FONT, boxShadow: "0 8px 24px rgba(15,23,41,0.25)", maxWidth: "calc(100vw - 32px)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", pointerEvents: "none" }}>
+  {undoToast}
+ </div>
+)}
 <TabIntro id={tab} />
 <Suspense fallback={null}>
 {/* ═══ CALCULATOR ═══ */}

@@ -782,6 +782,7 @@ function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenar
                       {[
                         ...(actions?.canManage?.(name) === false ? [] : [["Rename", "edit", () => { setEditing(name); setEditValue(name); setMenuFor(null); }]]),
                         ["Duplicate", "copy", () => { actions?.duplicate?.(name); close(); }],
+                        ...(actions?.history ? [["History", "history", () => { actions.history(name); close(); }]] : []),
                         ...(scenarioList.length > 1 && actions?.canManage?.(name) !== false ? [["Delete", "trash", () => { actions?.remove?.(name); close(); }]] : []),
                       ].map(([l, ico, fn]) => (
                         <button key={l} type="button" onClick={(e) => { e.stopPropagation(); fn(); }}

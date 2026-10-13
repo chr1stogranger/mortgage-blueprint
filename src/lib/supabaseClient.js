@@ -468,6 +468,37 @@ export async function fetchScenarioRow(scenarioId, borrowerId) {
   return data || null;
 }
 
+// ── Scenario versions (migration 024, Christo 2026-10-13) ──────────────────
+// RLS: whoever can read the scenario can read its versions. Before 024 is
+// applied the table doesn't exist — callers get { missing: true } and show a
+// "turns on after the database update" note instead of an error.
+const VERSION_COLS = 'id, scenario_id, borrower_id, name, type, state_data, kind, label, saved_by, as_of, created_at';
+export async function fetchScenarioVersions(scenarioId, limit = 60) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !scenarioId) return { versions: [] };
+  const { data, error } = await supabase.from('scenario_versions').select(VERSION_COLS)
+    .eq('scenario_id', scenarioId).order('created_at', { ascending: false }).limit(limit);
+  if (error) return { versions: [], missing: /scenario_versions|relation|schema cache/i.test(error.message || ''), error: error.message };
+  return { versions: data || [] };
+}
+// Scenarios deleted from a client's file (team only, by RLS), newest first.
+export async function fetchDeletedScenarios(borrowerId, limit = 20) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !borrowerId) return [];
+  const { data, error } = await supabase.from('scenario_versions').select(VERSION_COLS)
+    .eq('borrower_id', borrowerId).eq('kind', 'deleted').order('created_at', { ascending: false }).limit(limit);
+  return error ? [] : (data || []);
+}
+// Keep the scenario's current saved state as a named version (e.g. right
+// before a restore, so the restore can itself be undone).
+export async function saveScenarioVersion(scenarioId, label) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !scenarioId) return null;
+  const { data, error } = await supabase.rpc('save_scenario_version', { p_scenario_id: scenarioId, p_label: label || null });
+  if (error) { console.warn('[Supabase] saveScenarioVersion:', error.message); return null; }
+  return data || null;
+}
+
 /**
  * LO signed in with Google One Tap (outside Supabase Auth). Exchange the same
  * Google ID token for a Supabase session so the LO's Realtime socket is
