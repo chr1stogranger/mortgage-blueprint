@@ -190,9 +190,11 @@ export default function OverviewTab(props) {
         collapsedSubtitle={setupSummary}
         heroStyle={true}>
         <SetupContent {...props} hideHero={true} hideModules={true} />
-        {/* Loan structure lives in Quick Start on the Overview (Christo
-            2026-10-01): set once, tucks away when Quick Start collapses. */}
-        <CalculatorContent {...props} loanStructureOnly={true} />
+        {/* Loan structure: in Quick Start on phones (Christo 2026-10-01: set
+            once, tucks away when Quick Start collapses, keeps the phone
+            screenshot short); on desktop it heads Monthly Payment instead,
+            right above the rate it drives (Christo 2026-10-13). */}
+        {!isDesktop && <CalculatorContent {...props} loanStructureOnly={true} />}
       </CollapsibleSection>
 
       {/* ═══════════════════════════════════════
@@ -206,6 +208,7 @@ export default function OverviewTab(props) {
       {/* Phones: slimmer banners so the screenshot reaches from Quick Start
           through the pillars (Christo 2026-10-01). */}
       <CollapsibleSection compact={!isDesktop} title={isRefi ? "New Loan" : "Monthly Payment"} T={T} id="overview-payment" heroStyle={true}>
+        {isDesktop && <CalculatorContent {...props} loanStructureOnly={true} />}
         <CalculatorContent {...props} loanStructureInQuickStart={true} />
       </CollapsibleSection>
 

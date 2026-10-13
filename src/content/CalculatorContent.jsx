@@ -1784,7 +1784,9 @@ export default function CalculatorContent(props) {
        {/* Same box as the Rate field so the two pills sit level — phones
            since 2026-10-01, desktop since 2026-10-12. */}
        <Inp value={calc.apr.toFixed(3)} onChange={() => {}} readOnly prefix="" suffix="%" sm />
-       {isDesktop && <div style={{ fontSize: 12.5, color: T.textTertiary, fontFamily: FONT, marginTop: 7, whiteSpace: "nowrap" }}>{term}-yr · {loanType}</div>}
+       {/* The "30-yr · Conventional" line that sat here is gone (Christo
+           2026-10-13): the highlighted rate chip and the payment card's rate
+           row already say it. */}
       </div>
      )}
     </div>
