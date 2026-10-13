@@ -19,7 +19,7 @@ import {
 import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./components/SendWorksheetModal.jsx";
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
 import ListingBanner, { ListingNotice } from "./components/ListingBanner.jsx";
-import { readListingToken, listingToPrefill, listingScenarioName } from "./lib/listingPrefill.js";
+import { readListingToken, listingScenarioPlans } from "./lib/listingPrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
@@ -1104,7 +1104,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (isBorrower) return null;
   try { return readListingToken(window.location.search); } catch { return null; }
  });
- const [listingScenario, setListingScenario] = useState(null); // local scenario name the listing opened as
+ const [listingScenarios, setListingScenarios] = useState([]); // local scenario names the listing opened as (one per flyer column)
+ // Flyer fixed assessments, re-applied whenever a listing scenario loads —
+ // loadState maps a saved 0 to its legacy $1,500 default.
+ const listingFixedRef = useRef(null);
  // Auto-connect Gmail send for the signed-in LO (silent — one-time consent
  // popup only ever appears on the first send in a fresh browser). Borrowers
  // never get this: their Google accounts aren't in the Ops send allowlist.
@@ -3249,7 +3252,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // No-op unless the user signed in AND turned sync on. A flyer listing
     // opened this session stays on the device (nothing from a ?listing= link
     // is written to any cloud account).
-    if (!(listingScenario && scenarioName === listingScenario)) selfSync.schedulePush();
+    if (!listingScenarios.includes(scenarioName)) selfSync.schedulePush();
    }
    // ── Real-time sync (borrower pushes via the share endpoint; the LO's write
    // is saveToCloud above — calling this for the LO too double-wrote) ──
@@ -3737,17 +3740,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    let data = null;
    try { data = await fetchListing(listingToken); } catch { data = null; }
    if (!data || typeof data !== 'object' || data.error) { setListingFailed(true); return; }
-   const prefill = listingToPrefill(data, { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate });
-   const fresh = { ...blankStateRef.current, ...prefill };
-   // No note rate on the flyer → leave the rate unlocked so live rates fill it
-   // (loadState marks any present `rate` as manual).
-   if (prefill.rate === undefined) delete fresh.rate;
-   // Transfer-tax city, seeded explicitly: its auto-sync effect only re-fires
-   // on a city/state CHANGE, and the blank state says "Not listed".
-   if (fresh.propertyState && fresh.city) {
-    fresh.transferTaxCity = getTTCitiesForState(fresh.propertyState).includes(fresh.city) ? fresh.city : "Not listed";
-   }
-   const name = listingScenarioName(data);
+   // One plan per flyer column (Financing flyer) or a single plan (Buydown).
+   const plans = listingScenarioPlans(data, { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate }).map(({ name: n, prefill: pf }) => {
+    const st = { ...blankStateRef.current, ...pf };
+    // No note rate on the flyer → leave the rate unlocked so live rates fill it
+    // (loadState marks any present `rate` as manual).
+    if (pf.rate === undefined) delete st.rate;
+    // Transfer-tax city, seeded explicitly: its auto-sync effect only re-fires
+    // on a city/state CHANGE, and the blank state says "Not listed".
+    if (st.propertyState && st.city) {
+     st.transferTaxCity = getTTCitiesForState(st.propertyState).includes(st.city) ? st.city : "Not listed";
+    }
+    return { name: n, prefill: pf, fresh: st };
+   });
+   const { name, prefill, fresh } = plans[0];
+   const names = plans.map((x) => x.name);
    const live = listingLiveRef.current;
    // Cancel any pending debounced autosave before the swap.
    if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -3768,7 +3775,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     // Snapshot the outgoing local scenario (same as switchScenario).
     try { await LS.set("scenario:" + live.scenarioName, JSON.stringify(getStateRef.current())); } catch { /* ignore */ }
    }
-   try { selfSync.clearTombstone?.(name); } catch { /* ignore */ }
+   for (const n of names) { try { selfSync.clearTombstone?.(n); } catch { /* ignore */ } }
+   // Columns 2..n are written as ordinary local scenarios (switchScenario
+   // loads them from LS like any other); column 1 loads live below.
+   for (const pl of plans.slice(1)) {
+    try { await LS.set("scenario:" + pl.name, JSON.stringify(pl.fresh)); } catch { /* ignore */ }
+   }
    if (saveTimer.current) clearTimeout(saveTimer.current);
    if (supabaseSaveTimer.current) clearTimeout(supabaseSaveTimer.current);
    // ── One synchronous batch from here: detach + load land in one render ──
@@ -3777,8 +3789,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     setActiveScenarioId(null);
     setBorrowerScenarios([]);
    }
-   setListingScenario(name);
-   setScenarioList(baseList.includes(name) ? baseList : [...baseList, name]);
+   setListingScenarios(names);
+   listingFixedRef.current = prefill.fixedAssessments !== undefined ? prefill.fixedAssessments : null;
+   setScenarioList([...baseList, ...names.filter((n) => !baseList.includes(n))]);
    setScenarioName(name);
    if (loadStateRef.current) loadStateRef.current(fresh);
    // loadState maps a saved 0 to its legacy $1,500 default; a flyer's own
@@ -3809,7 +3822,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  }, [loaded, listingToken, isBorrower]);
  // Banner shows only while the listing's own scenario is on screen and no
  // cloud client is open — switching away retires it.
- const showListingBanner = !!listing && !listingDismissed && !activeBorrower && scenarioName === listingScenario;
+ const showListingBanner = !!listing && !listingDismissed && !activeBorrower && listingScenarios.includes(scenarioName);
  const listingBannerEl = showListingBanner
   ? <ListingBanner T={T} isDesktop={isDesktop} listing={listing} fmt={fmt} onDismiss={() => setListingDismissed(true)} />
   : listingFailed
@@ -3862,6 +3875,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try {
    const saved = await LS.get("scenario:" + name);
    if (saved?.value) loadState(JSON.parse(saved.value));
+   // A flyer listing scenario keeps the flyer's fixed assessments ($0 included).
+   if (listingScenarios.includes(name) && listingFixedRef.current != null) setFixedAssessments(listingFixedRef.current);
   } catch(e) {}
   try { await LS.set("active-scenario", name); } catch(e) {}
   // Switching a scenario always lands you on that scenario's Overview.

@@ -92,3 +92,28 @@ describe("listing token + scenario name", () => {
     expect(listingScenarioName({})).toBe("Listing");
   });
 });
+
+import { listingScenarioPlans } from "./listingPrefill.js";
+
+describe("listingScenarioPlans (Financing flyer columns)", () => {
+  it("one scenario per column with that column's loan fields", () => {
+    const d = { ...FIXTURE, buydown: "none", sellerCredit: 5000, scenarios: [
+      { label: "20% Down Payment", downPct: 20, noteRate: 6.5, term: 30, loanType: "Conventional", buydown: "none", points: 0 },
+      { label: "3.5% Down · FHA", downPct: 3.5, noteRate: 6.25, term: 30, loanType: "FHA", buydown: "2-1", points: 0.5 },
+      { label: "0% Down", downPct: 0, noteRate: 6.0, term: 15, loanType: "VA", vaUsage: "Subsequent", buydown: "none" },
+    ] };
+    const plans = listingScenarioPlans(d, deps);
+    expect(plans.map((p) => p.name)).toEqual(["4855 Mission St #6 · 20% Down Payment", "4855 Mission St #6 · 3.5% Down · FHA", "4855 Mission St #6 · 0% Down"]);
+    expect(plans[1].prefill).toMatchObject({ downPct: 3.5, rate: 6.25, loanType: "FHA", buydownType: "2-1", discountPts: 0.5, salesPrice: 800000, sellerCredit: 5000 });
+    expect(plans[2].prefill).toMatchObject({ loanType: "VA", vaUsage: "Subsequent", term: 15, downPct: 0 });
+  });
+  it("buydown flyers (no scenarios) stay a single scenario named after the street", () => {
+    const plans = listingScenarioPlans(FIXTURE, deps);
+    expect(plans).toHaveLength(1);
+    expect(plans[0].name).toBe("4855 Mission St #6");
+  });
+  it("duplicate column labels still get unique names", () => {
+    const plans = listingScenarioPlans({ ...FIXTURE, scenarios: [{ label: "Option", downPct: 10 }, { label: "Option", downPct: 20 }] }, deps);
+    expect(new Set(plans.map((p) => p.name)).size).toBe(2);
+  });
+});

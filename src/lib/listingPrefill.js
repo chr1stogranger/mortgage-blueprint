@@ -146,9 +146,35 @@ export function listingToPrefill(d, { lookupZip, cityNames = [], stateMap = {}, 
   }
  }
 
+ // Financing flyer seller credit (Costs worksheet) → Blueprint credit line.
+ const sc = num(d.sellerCredit);
+ if (sc !== null && sc > 0) p.sellerCredit = Math.round(sc);
+
  const realtorName = str(d.realtor?.name);
  if (realtorName) p.realtorName = realtorName;
  return p;
+}
+
+// Financing-flyer listings carry scenarios[] (one per flyer column). Each
+// becomes its own local scenario: the property-level prefill, re-run with
+// that column's loan fields. Names are "<street> · <column label>", unique,
+// ≤60 chars. Buydown flyers (no scenarios[]) stay a single scenario.
+export function listingScenarioPlans(d, deps) {
+ const base = listingScenarioName(d);
+ const cols = Array.isArray(d?.scenarios) ? d.scenarios.filter((s) => s && typeof s === "object").slice(0, 3) : [];
+ if (cols.length === 0) return [{ name: base, prefill: listingToPrefill(d, deps) }];
+ const used = new Set();
+ return cols.map((s, i) => {
+  const prefill = listingToPrefill({ ...d, downPct: s.downPct, noteRate: s.noteRate, term: s.term, loanType: s.loanType, buydown: s.buydown || "none" }, deps);
+  if (s.loanType === "VA" && s.vaUsage) prefill.vaUsage = String(s.vaUsage);
+  const pts = num(s.points);
+  prefill.discountPts = pts !== null && pts >= 0 && pts < 10 ? pts : 0;
+  const tag = str(s.label) || (num(s.downPct) !== null ? `${num(s.downPct)}% Down` : `Option ${i + 1}`);
+  let name = `${base} · ${tag}`.slice(0, 60);
+  for (let n = 2; used.has(name); n++) name = `${base} · ${tag} (${n})`.slice(0, 60);
+  used.add(name);
+  return { name, prefill };
+ });
 }
 
 // Local scenario name for the listing — the street, else a generic label.
