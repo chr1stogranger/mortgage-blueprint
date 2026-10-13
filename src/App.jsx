@@ -117,7 +117,7 @@ class ShareFlowErrorBoundary extends Component {
   }
   render() {
     if (this.state.hasError) {
-      const T = { bg: '#0a1120', accent: '#3B6BF5', text: '#EDEDED', textSecondary: '#A1A1A1', red: '#e5484d' };
+      const T = { bg: '#f4f9fc', accent: '#3B6BF5', text: '#171717', textSecondary: '#4B5563', red: '#e5484d' }; // light, like the app (2026-10-13)
             return (
         <div style={{ minHeight: '100vh', background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT }}>
           <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
@@ -232,8 +232,8 @@ function App() {
 // yet). Not an error — same layout as the expired screen, neutral tone.
 function ShareEmptyScreen() {
   const T = {
-    bg: '#0a1120', accent: '#3B6BF5',
-    text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#8A8A8A',
+    bg: '#f4f9fc', accent: '#3B6BF5', // light, like the app (2026-10-13)
+    text: '#171717', textSecondary: '#4B5563', textTertiary: '#6B7280',
   };
   return (
     <div style={{
@@ -272,8 +272,8 @@ function ShareEmptyScreen() {
 // ── Share Expired Screen ──────────────────────────────────────────────────
 function ShareExpiredScreen() {
   const T = {
-    bg: '#0a1120', accent: '#3B6BF5',
-    text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#8A8A8A',
+    bg: '#f4f9fc', accent: '#3B6BF5', // light, like the app (2026-10-13)
+    text: '#171717', textSecondary: '#4B5563', textTertiary: '#6B7280',
     red: '#e5484d',
   };
     

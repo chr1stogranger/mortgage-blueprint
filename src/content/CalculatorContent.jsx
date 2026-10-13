@@ -1031,7 +1031,7 @@ export default function CalculatorContent(props) {
         );
        })}
       </div>
-      <InfoTip text={"Escrow: your lender collects property tax and homeowners insurance with each monthly payment, holds it in an escrow account, and pays those bills for you when they're due.\n\nTax + Ins: both are in your payment.\nTax only: taxes are in your payment; you pay insurance yourself.\nP&I only: no escrow. Your payment is just principal and interest, and you pay tax and insurance on your own.\n\nSkipping escrow usually needs at least 20% down and can cost a small fee. FHA and VA loans require it."} />
+      <InfoTip text={"Escrow: your lender collects property tax and homeowners insurance with each monthly payment, holds it in an escrow account, and pays those bills for you when they're due.\n\nTax + Ins: both are in your payment.\nTax only: taxes are in your payment; you pay insurance yourself.\nP&I only: no escrow. Your payment is just principal and interest, and you pay tax and insurance on your own.\n\nHOA dues are never escrowed: you always pay those to the HOA yourself.\n\nSkipping escrow usually needs at least 20% down and can cost a small fee. FHA and VA loans require it."} />
       </div>
       {locked && <div style={{ fontSize: 11.5, color: T.textTertiary, fontFamily: FONT, textAlign: "center", marginTop: 6 }}>{loanType} requires escrow for tax and insurance</div>}
      </>);

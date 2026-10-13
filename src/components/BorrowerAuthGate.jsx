@@ -27,14 +27,16 @@ import {
 } from '../lib/supabaseClient';
 
 
+// Light, like the Blueprint it opens into (Christo 2026-10-13: open on light
+// mode, not dark). Values from LIGHT in src/lib/theme.js.
 const T = {
-  bg: '#0a1120', card: '#0d1524', surface: '#121c30',
-  cardBorder: 'rgba(255,255,255,0.06)', cardBorderHover: 'rgba(255,255,255,0.12)',
-  accent: '#3B6BF5', accentLight: '#6E90FF', accentBright: '#6E90FF',
+  bg: '#f4f9fc', card: '#FFFFFF', surface: '#eef3f9',
+  cardBorder: 'rgba(16,27,46,0.12)', cardBorderHover: 'rgba(16,27,46,0.2)',
+  accent: '#3B6BF5', accentLight: '#6E90FF', accentBright: '#3B6BF5',
   blue: '#3B6BF5', teal: '#38c6c6', green: '#12a150', red: '#e5484d',
-  text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#8A8A8A',
-  separator: 'rgba(255,255,255,0.06)',
-  inputBg: '#162034', inputBorder: 'rgba(255,255,255,0.12)',
+  text: '#171717', textSecondary: '#4B5563', textTertiary: '#6B7280',
+  separator: 'rgba(16,27,46,0.12)',
+  inputBg: '#eef3f9', inputBorder: 'rgba(16,27,46,0.18)',
 };
 
 // ─── Google Icon ──────────────────────────────────────────────────────────────
@@ -463,8 +465,8 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
     }}>
       {/* Background grid */}
       <div style={{
-        position: 'fixed', inset: 0, opacity: 0.02, pointerEvents: 'none',
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+        position: 'fixed', inset: 0, opacity: 0.5, pointerEvents: 'none',
+        backgroundImage: 'linear-gradient(rgba(59,107,245,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(59,107,245,0.07) 1px, transparent 1px)',
         backgroundSize: '40px 40px',
       }} />
 
@@ -497,7 +499,7 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         <div style={{
           background: T.card, border: `1px solid ${T.cardBorder}`,
           borderRadius: 20, padding: '32px 28px',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+          boxShadow: '0 1px 5px rgba(16,27,46,0.08), 0 12px 32px -12px rgba(16,27,46,0.16)',
         }}>
           <div style={{
             fontSize: 20, fontWeight: 700, color: T.text,
