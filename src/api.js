@@ -188,6 +188,9 @@ async function sharedScenarioCall(method, shareToken, body) {
 }
 export const renameSharedScenario = (shareToken, id, name) => sharedScenarioCall('PATCH', shareToken, { id, name });
 export const deleteSharedScenario = (shareToken, id) => sharedScenarioCall('DELETE', shareToken, { id });
+// Sidebar order shared with the LO (scenarios.sort_order, migration 025):
+// Ops sets sort_order = index for each id that's the borrower's and not hidden.
+export const reorderSharedScenarios = (shareToken, ids) => sharedScenarioCall('PATCH', shareToken, { order: ids });
 
 // ─── Field Locks (LO only) ──────────────────────────────────────────────────
 

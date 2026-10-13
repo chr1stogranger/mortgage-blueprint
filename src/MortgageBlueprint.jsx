@@ -72,7 +72,7 @@ import {
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
   fetchSharedData, fetchListing,
-  saveSharedScenario, renameSharedScenario, deleteSharedScenario,
+  saveSharedScenario, renameSharedScenario, deleteSharedScenario, reorderSharedScenarios,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios, saveScenarioVersion } from "./lib/supabaseClient";
 import { whenLabel } from "./lib/whenLabel.js";
@@ -1142,23 +1142,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Legacy duplicate names (e.g. several "Conv - 5%") get a "(2)", "(3)" DISPLAY
  // suffix so every sidebar row is uniquely addressable; the stored cloud name
  // is never changed by this.
- // Share-link borrowers can drag their sidebar into their own order; it's
- // per-device (the cloud has no order column yet), keyed by borrower.
- const borrowerOrderKey = isBorrower ? `bp_share_order:${borrowerMode.borrower?.id || ''}` : null;
- const [borrowerOrder, setBorrowerOrder] = useState(() => {
-  if (!borrowerOrderKey) return [];
-  try { const v = JSON.parse(localStorage.getItem(borrowerOrderKey) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
- });
- const saveBorrowerOrder = (ids) => {
-  setBorrowerOrder(ids);
-  try { if (borrowerOrderKey) localStorage.setItem(borrowerOrderKey, JSON.stringify(ids)); } catch { /* storage blocked */ }
- };
+ // Sidebar order is shared by the LO and the borrower: scenarios.sort_order
+ // (migration 025), set by dragging on either side. Rows without one (made
+ // before ordering, or by the borrower's share link) go after every ordered
+ // row, keeping their incoming relative order.
  const cloudScenarioIndex = React.useMemo(() => {
   const byName = {}; const names = [];
-  // Borrower's own order first (ids it knows), anything new after, in fetch order.
-  const rank = new Map((isBorrower ? borrowerOrder : []).map((id, i) => [id, i]));
-  const ordered = rank.size
-   ? borrowerScenarios.map((s, i) => [s, i]).sort((a, b) => (rank.has(a[0].id) ? rank.get(a[0].id) : 1e6 + a[1]) - (rank.has(b[0].id) ? rank.get(b[0].id) : 1e6 + b[1])).map(x => x[0])
+  const hasOrder = (s) => Number.isFinite(s?.sort_order);
+  const ordered = borrowerScenarios.some(hasOrder)
+   ? borrowerScenarios.map((s, i) => [s, i]).sort((a, b) => {
+     const ao = hasOrder(a[0]), bo = hasOrder(b[0]);
+     if (ao && bo) return (a[0].sort_order - b[0].sort_order) || (a[1] - b[1]);
+     if (ao !== bo) return ao ? -1 : 1;
+     return a[1] - b[1];
+    }).map(x => x[0])
    : borrowerScenarios;
   for (const s of ordered) {
    const base = s.name || 'Scenario 1';
@@ -1168,7 +1165,14 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }
   const byId = {}; for (const [nm, id] of Object.entries(byName)) byId[id] = nm;
   return { names, byName, byId };
- }, [borrowerScenarios, borrowerOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+ }, [borrowerScenarios]);
+ // A new LO cloud row lands at the END of an ordered list. Only sent once the
+ // client has an order (which also proves migration 025 is applied — sending
+ // the column before then would make PostgREST reject the create).
+ const nextSortOrderField = () => {
+  const orders = (borrowerScenariosRef.current || borrowerScenarios).map(x => x?.sort_order).filter(Number.isFinite);
+  return orders.length ? { sort_order: Math.max(...orders) + 1 } : {};
+ };
  // Resolve a sidebar display-name to its cloud row (or null in local mode).
  const cloudRowForName = (name) => {
   const id = cloudScenarioIndex.byName[name];
@@ -2740,6 +2744,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  //    the tab becomes visible, since realtime drops events while asleep. ──
  const borrowerScenariosRef = useRef(borrowerScenarios);
  useEffect(() => { borrowerScenariosRef.current = borrowerScenarios; }, [borrowerScenarios]);
+ // A realtime UPDATE that leaves the sidebar as-is (same name, visibility and
+ // order) is a plain autosave. Columns a payload lacks (pre-migration) match.
+ const sameScenarioTab = (known, row) => known.name === row?.name
+  && (row?.borrower_visibility === undefined || known.borrower_visibility === row.borrower_visibility)
+  && (row?.sort_order === undefined || (known.sort_order ?? null) === (row.sort_order ?? null));
  useEffect(() => {
   const bid = scenariosAreCloud ? activeBorrower?.id : null;
   if (!bid) return;
@@ -2750,7 +2759,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     try {
      const scens = await apiFetchScenarios(bid);
      if (dead || !Array.isArray(scens)) return;
-     const sig = (list) => list.map(x => `${x.id}:${x.name}:${x.borrower_visibility || ""}`).join("|");
+     const sig = (list) => list.map(x => `${x.id}:${x.name}:${x.borrower_visibility || ""}:${x.sort_order ?? ""}`).join("|");
      if (sig(scens) !== sig(borrowerScenariosRef.current || [])) setBorrowerScenarios(scens);
     } catch { /* next event or focus retries */ }
    }, 400);
@@ -2759,8 +2768,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (type === "UPDATE") {
     const known = (borrowerScenariosRef.current || []).find(x => x.id === row?.id);
     // Autosave, not a tab change. A teammate's Hide / View-only toggle does
-    // count (it moves the sidebar icon).
-    if (known && known.name === row?.name && (row?.borrower_visibility === undefined || known.borrower_visibility === row.borrower_visibility)) return;
+    // count (it moves the sidebar icon), and so does a drag on another
+    // device or by the borrower (sort_order, migration 025).
+    if (known && sameScenarioTab(known, row)) return;
    }
    refresh();
   });
@@ -2776,7 +2786,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // may never arrive — hence also), and every 60s. Only touch state when the
  // id / name / visibility signature moved; rows without state_data in the
  // fresh payload (view-only links) keep the copy we already had.
- const borrowerListSig = (list) => (list || []).map(x => `${x.id}:${x.name}:${x.borrower_visibility || ""}`).join("|");
+ const borrowerListSig = (list) => (list || []).map(x => `${x.id}:${x.name}:${x.borrower_visibility || ""}:${x.sort_order ?? ""}`).join("|");
  const refreshBorrowerScenarios = async () => {
   if (!isBorrower || !borrowerMode.shareToken) return null;
   let shared = null;
@@ -2816,7 +2826,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sub = bid ? subscribeToBorrowerScenarios(bid, (type, row) => {
    if (type === "UPDATE") {
     const known = (borrowerScenariosRef.current || []).find(x => x.id === row?.id);
-    if (known && known.name === row?.name && (row?.borrower_visibility === undefined || known.borrower_visibility === row.borrower_visibility)) return; // autosave
+    if (known && sameScenarioTab(known, row)) return; // autosave
    }
    refresh();
   }) : { unsubscribe: () => {} };
@@ -3184,7 +3194,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!scenariosAreCloud || !activeBorrower) return;
   await flushActiveScenario();
   try {
-   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: v.type || 'purchase', status: 'draft', created_by: 'lo', state_data: v.state_data, calc_summary: {} });
+   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: v.type || 'purchase', status: 'draft', created_by: 'lo', state_data: v.state_data, calc_summary: {}, ...nextSortOrderField() });
    const row = Array.isArray(created) ? created[0] : created;
    if (!row?.id) return;
    setBorrowerScenarios(prev => [...prev, row]);
@@ -3198,7 +3208,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   let name = v.name || 'Restored scenario';
   if (existing.has(name)) name = `${name} (restored)`;
   try {
-   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: v.type || 'purchase', status: 'draft', created_by: 'lo', state_data: v.state_data, calc_summary: {} });
+   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: v.type || 'purchase', status: 'draft', created_by: 'lo', state_data: v.state_data, calc_summary: {}, ...nextSortOrderField() });
    const row = Array.isArray(created) ? created[0] : created;
    if (row?.id) { setBorrowerScenarios(prev => [...prev, row]); flashUndoToast(`Brought back ${name}`); }
   } catch (e) { console.warn('[Blueprint] Recover deleted scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
@@ -3946,7 +3956,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // Create a real cloud row so this scenario is its own saved blueprint (not an
    // overwrite of the active row). The lockstep effect adds it to the sidebar.
    try {
-    const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: 'purchase', status: 'draft', created_by: 'lo', state_data: defaults, calc_summary: {} });
+    const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name, type: 'purchase', status: 'draft', created_by: 'lo', state_data: defaults, calc_summary: {}, ...nextSortOrderField() });
     const s = Array.isArray(created) ? created[0] : created;
     if (s?.id) {
      const newId = s.id;
@@ -4016,7 +4026,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   let newName = baseName + " Copy", i = 2;
   while (existing.has(newName)) { newName = baseName + " Copy " + i; i++; }
   try {
-   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name: newName, type: srcType || 'purchase', status: 'draft', created_by: 'lo', state_data: stateData || {}, calc_summary: {} });
+   const created = await apiCreateScenario({ borrower_id: activeBorrower.id, name: newName, type: srcType || 'purchase', status: 'draft', created_by: 'lo', state_data: stateData || {}, calc_summary: {}, ...nextSortOrderField() });
    const s = Array.isArray(created) ? created[0] : created;
    if (s?.id) setBorrowerScenarios(prev => [...prev, s]);
   } catch (e) { console.warn('[Blueprint] Cloud duplicate scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
@@ -4075,19 +4085,46 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Move `fromName` to occupy `toName`'s slot; persist the new order.
  const reorderScenarios = async (fromName, toName) => {
-  // Borrowers: per-device order (there's no order column in the cloud yet).
-  if (isBorrower) {
+  // ── Cloud rows (LO on a client, or the borrower's share link): one shared
+  //    order, scenarios.sort_order (migration 025). Optimistic: every row
+  //    gets sort_order = its new index; rolled back if the save fails. ──
+  if (scenariosAreCloud || isBorrower) {
    if (!fromName || fromName === toName) return;
+   if (isBorrower && (!borrowerCanCreate || !borrowerMode.shareToken)) return; // view-only link
    const names = [...cloudScenarioIndex.names];
    const from = names.indexOf(fromName), to = names.indexOf(toName);
    if (from < 0 || to < 0) return;
    names.splice(from, 1); names.splice(to, 0, fromName);
-   saveBorrowerOrder(names.map(n => cloudScenarioIndex.byName[n]).filter(Boolean));
+   const ids = names.map(n => cloudScenarioIndex.byName[n]).filter(Boolean);
+   const rank = new Map(ids.map((id, i) => [id, i]));
+   const prevRows = borrowerScenariosRef.current || borrowerScenarios;
+   const nextRows = prevRows.map(r => rank.has(r.id) ? { ...r, sort_order: rank.get(r.id) } : r);
+   const changed = nextRows.filter(r => {
+    const before = prevRows.find(p => p.id === r.id);
+    return rank.has(r.id) && (before?.sort_order ?? null) !== r.sort_order;
+   });
+   if (!changed.length) return;
+   borrowerScenariosRef.current = nextRows;
+   setBorrowerScenarios(nextRows);
+   const revert = () => {
+    // Only undo if nothing newer replaced the list meanwhile.
+    if (borrowerScenariosRef.current !== nextRows) return;
+    borrowerScenariosRef.current = prevRows;
+    setBorrowerScenarios(prevRows);
+   };
+   if (isBorrower) {
+    try { await reorderSharedScenarios(borrowerMode.shareToken, ids); }
+    catch (e) { console.warn('[Blueprint] Reorder scenarios failed:', e.message); revert(); }
+    return;
+   }
+   try { await Promise.all(changed.map(r => apiUpdateScenario({ id: r.id, sort_order: r.sort_order }))); }
+   catch (e) {
+    console.warn('[Blueprint] Cloud reorder scenarios failed:', e.message);
+    revert();
+    setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000);
+   }
    return;
   }
-  // Cloud mode has no per-client order column yet — order follows the DB fetch.
-  // No-op here rather than desyncing the sidebar from the cloud list.
-  if (scenariosAreCloud) return;
   if (!fromName || fromName === toName) return;
   const from = scenarioList.indexOf(fromName);
   const to = scenarioList.indexOf(toName);
@@ -8557,7 +8594,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          const isDragOver = dragOverScenario === name && dragScenario && dragScenario !== name;
          return (
           <div key={name} className="bp-sidebar-item"
-           draggable={!editing && isDesktop}
+           draggable={!editing && isDesktop && (!isBorrower || borrowerCanCreate)}
            onDragStart={(e) => { setDragScenario(name); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", name); } catch(err){} }}
            onDragOver={(e) => { if (dragScenario) { e.preventDefault(); if (dragOverScenario !== name) setDragOverScenario(name); } }}
            onDrop={(e) => { e.preventDefault(); if (dragScenario && dragScenario !== name) reorderScenarios(dragScenario, name); setDragScenario(null); setDragOverScenario(null); }}
