@@ -4341,12 +4341,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [liveRates, setLiveRates] = useState(null);
  const [ratesLoading, setRatesLoading] = useState(false);
  const [ratesError, setRatesError] = useState(null);
- const fetchRates = async () => {
+ // `apply: false` just loads the reference grid (the desktop Rate card shows
+ // it inline, Christo 2026-10-12) without touching the scenario's rate.
+ const fetchRates = async ({ apply = true } = {}) => {
   setRatesLoading(true);
   setRatesError(null);
   const applyRates = (parsed) => {
    parsed.date = parsed.date || todayLocal();
    setLiveRates(parsed);
+   if (!apply) return;
    // Published series only — an estimated (spread-filled) rate never becomes
    // the scenario rate; the grid shows it as "est." for reference.
    const matched = liveRateFor(parsed, loanType, term);
