@@ -39,6 +39,8 @@ CREATE INDEX IF NOT EXISTS scenario_versions_scenario_idx ON public.scenario_ver
 CREATE INDEX IF NOT EXISTS scenario_versions_borrower_deleted_idx ON public.scenario_versions (borrower_id, created_at DESC) WHERE kind = 'deleted';
 
 ALTER TABLE public.scenario_versions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.scenario_versions FROM anon, authenticated;
+GRANT SELECT ON public.scenario_versions TO authenticated;
 
 DROP POLICY IF EXISTS scenario_versions_select ON public.scenario_versions;
 CREATE POLICY scenario_versions_select ON public.scenario_versions
