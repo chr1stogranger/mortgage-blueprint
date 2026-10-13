@@ -1,4 +1,4 @@
-import { FONT, MONO } from "../lib/fonts.js";
+import { FONT } from "../lib/fonts.js";
 import { liveRateFor, isEstimatedRate } from "../lib/liveRates.js";
 import { tintOver } from "../lib/theme.js";
 import React, { useState, useRef } from "react";
@@ -1689,8 +1689,19 @@ export default function CalculatorContent(props) {
          </button>
          {ratesPopOpen && (
           <div role="dialog" aria-label="Today's rates" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 40, width: 300, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 14, boxShadow: "0 12px 32px rgba(15,23,41,0.18)", padding: 12 }}>
-           <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.textTertiary, fontFamily: MONO, marginBottom: 8 }}>
-            {liveRates ? `${liveRates.date || "Today"} · ${liveRateFor(liveRates, loanType, term) ? "applied" : `no published ${loanType} rate`}` : "Today's rates"}
+           {/* Inter, sentence case (Christo 2026-10-12: the mono caps header
+               read like a code label). "2026-10-09" → "Rates for Oct 9". */}
+           <div style={{ fontSize: 12.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT, marginBottom: 8, display: "flex", justifyContent: "space-between", gap: 8 }}>
+            {(() => {
+             if (!liveRates) return <span>Today's rates</span>;
+             const d = liveRates.date && /^\d{4}-\d{2}-\d{2}$/.test(liveRates.date) ? new Date(liveRates.date + "T12:00:00") : null;
+             const when = d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : (liveRates.date || "today");
+             const applied = liveRateFor(liveRates, loanType, term);
+             return (<>
+              <span>Rates for {when}</span>
+              <span style={{ fontWeight: 500, color: applied ? T.green : T.textTertiary }}>{applied ? "✓ Applied" : `No published ${loanType} rate`}</span>
+             </>);
+            })()}
            </div>
            {ratesLoading && <div style={{ fontSize: 12.5, color: T.textSecondary, padding: "10px 0" }}>Fetching today's rates…</div>}
            {ratesError && <div style={{ fontSize: 11, color: T.red, lineHeight: 1.4, padding: 8, background: T.errorBg, borderRadius: 8, wordBreak: "break-all" }}>{ratesError}</div>}
