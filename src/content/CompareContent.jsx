@@ -141,8 +141,8 @@ export default function CompareContent({ T, isDesktop, fmt, pct, compareData, co
     card: { background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow },
     label: { fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.textTertiary, fontWeight: 700, fontFamily: FONT },
   };
-  // No onAddOption = share-link borrower: they compare the LO's options but
-  // can't add one (2026-10-12).
+  // No onAddOption = a view-only share link: they compare the LO's options
+  // but can't add one (2026-10-12).
   const addBtn = onAddOption ? (
     <button onClick={onAddOption} style={{ font: `600 13px ${FONT}`, color: T.blue, background: `${T.blue}12`, border: `1px solid ${T.blue}33`, borderRadius: 9999, padding: "7px 16px", cursor: "pointer", whiteSpace: "nowrap" }}>
       + Add option

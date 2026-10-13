@@ -777,10 +777,12 @@ function ScenarioPill({ T, scenarioName, scenarioList, clientLabel, switchScenar
                   </div>
                   {strip && (
                     <div style={{ display: "flex", gap: 6, padding: "4px 8px 8px 40px" }}>
+                      {/* actions.canManage(name) === false: a share-link borrower on
+                          the LO's scenario — duplicate only (Christo 2026-10-12). */}
                       {[
-                        ["Rename", "edit", () => { setEditing(name); setEditValue(name); setMenuFor(null); }],
+                        ...(actions?.canManage?.(name) === false ? [] : [["Rename", "edit", () => { setEditing(name); setEditValue(name); setMenuFor(null); }]]),
                         ["Duplicate", "copy", () => { actions?.duplicate?.(name); close(); }],
-                        ...(scenarioList.length > 1 ? [["Delete", "trash", () => { actions?.remove?.(name); close(); }]] : []),
+                        ...(scenarioList.length > 1 && actions?.canManage?.(name) !== false ? [["Delete", "trash", () => { actions?.remove?.(name); close(); }]] : []),
                       ].map(([l, ico, fn]) => (
                         <button key={l} type="button" onClick={(e) => { e.stopPropagation(); fn(); }}
                           style={{ display: "flex", alignItems: "center", gap: 5, minHeight: 36, padding: "0 12px", borderRadius: 9999, border: `1px solid ${T.cardBorder}`, background: T.pillBg, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: l === "Delete" ? T.red : T.text }}>

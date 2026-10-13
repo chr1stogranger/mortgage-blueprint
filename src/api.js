@@ -175,6 +175,20 @@ export async function saveSharedScenario(shareToken, data) {
   return res.json();
 }
 
+// Borrower renames / deletes a scenario THEY created (Ops refuses the LO's).
+async function sharedScenarioCall(method, shareToken, body) {
+  const res = await fetch(`${API_BASE}/api/share?token=${shareToken}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(await shareAuthHeaders()) },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+export const renameSharedScenario = (shareToken, id, name) => sharedScenarioCall('PATCH', shareToken, { id, name });
+export const deleteSharedScenario = (shareToken, id) => sharedScenarioCall('DELETE', shareToken, { id });
+
 // ─── Field Locks (LO only) ──────────────────────────────────────────────────
 
 export async function lockField(scenarioId, fieldKey, action = 'locked') {

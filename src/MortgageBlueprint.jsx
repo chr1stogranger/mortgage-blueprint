@@ -71,6 +71,7 @@ import {
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
   fetchSharedData, fetchListing,
+  saveSharedScenario, renameSharedScenario, deleteSharedScenario,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios } from "./lib/supabaseClient";
 import useBlueprintSync from "./hooks/useBlueprintSync";
@@ -1139,9 +1140,25 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Legacy duplicate names (e.g. several "Conv - 5%") get a "(2)", "(3)" DISPLAY
  // suffix so every sidebar row is uniquely addressable; the stored cloud name
  // is never changed by this.
+ // Share-link borrowers can drag their sidebar into their own order; it's
+ // per-device (the cloud has no order column yet), keyed by borrower.
+ const borrowerOrderKey = isBorrower ? `bp_share_order:${borrowerMode.borrower?.id || ''}` : null;
+ const [borrowerOrder, setBorrowerOrder] = useState(() => {
+  if (!borrowerOrderKey) return [];
+  try { const v = JSON.parse(localStorage.getItem(borrowerOrderKey) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
+ });
+ const saveBorrowerOrder = (ids) => {
+  setBorrowerOrder(ids);
+  try { if (borrowerOrderKey) localStorage.setItem(borrowerOrderKey, JSON.stringify(ids)); } catch { /* storage blocked */ }
+ };
  const cloudScenarioIndex = React.useMemo(() => {
   const byName = {}; const names = [];
-  for (const s of borrowerScenarios) {
+  // Borrower's own order first (ids it knows), anything new after, in fetch order.
+  const rank = new Map((isBorrower ? borrowerOrder : []).map((id, i) => [id, i]));
+  const ordered = rank.size
+   ? borrowerScenarios.map((s, i) => [s, i]).sort((a, b) => (rank.has(a[0].id) ? rank.get(a[0].id) : 1e6 + a[1]) - (rank.has(b[0].id) ? rank.get(b[0].id) : 1e6 + b[1])).map(x => x[0])
+   : borrowerScenarios;
+  for (const s of ordered) {
    const base = s.name || 'Scenario 1';
    let disp = base, n = 2;
    while (Object.prototype.hasOwnProperty.call(byName, disp)) { disp = `${base} (${n})`; n++; }
@@ -1149,7 +1166,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   }
   const byId = {}; for (const [nm, id] of Object.entries(byName)) byId[id] = nm;
   return { names, byName, byId };
- }, [borrowerScenarios]);
+ }, [borrowerScenarios, borrowerOrder]); // eslint-disable-line react-hooks/exhaustive-deps
  // Resolve a sidebar display-name to its cloud row (or null in local mode).
  const cloudRowForName = (name) => {
   const id = cloudScenarioIndex.byName[name];
@@ -2516,6 +2533,28 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    borrowerSwitchingRef.current = false;
   }
  };
+ // ── Borrower scenario management (Christo 2026-10-12) ──
+ // Borrowers can make, copy, rename, delete and reorder scenarios. New ones
+ // are real rows on their file (the LO sees them, created_by 'borrower');
+ // rename / delete only apply to the borrower's own — the LO's stay protected
+ // (Ops enforces the same). A view-only LINK can't create anything.
+ const borrowerOwnsRow = (row) => !!row && row.created_by === 'borrower';
+ const borrowerCanCreate = isBorrower && borrowerMode.accessLevel !== 'view_only';
+ const borrowerCreateScenario = async (name, stateData, type) => {
+  if (!borrowerCanCreate || !borrowerMode.shareToken || !stateData) return null;
+  try {
+   const created = await saveSharedScenario(borrowerMode.shareToken, { name, type: type === 'refi' ? 'refi' : 'purchase', state_data: stateData });
+   const row = Array.isArray(created) ? created[0] : created;
+   if (!row?.id) return null;
+   const next = [...(borrowerScenariosRef.current || []), { borrower_visibility: 'editable', created_by: 'borrower', ...row }];
+   borrowerScenariosRef.current = next;
+   setBorrowerScenarios(next);
+   return row.id;
+  } catch (e) {
+   console.warn('[Blueprint] Create scenario failed:', e.message);
+   return null;
+  }
+ };
  // ── Live co-editing: the borrower's view follows the LO ──
  // Presence is one room per borrower and says which scenario each person is
  // on. When the LO MOVES to a different scenario of this borrower's file,
@@ -3707,7 +3746,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch (e) { console.error("apply fee defaults failed:", e); }
  };
  const createScenario = async (name) => {
-  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
+  // Borrower "New scenario" starts from a copy of the one on screen (a blank
+  // $1M Alameda default means nothing to them) and opens it.
+  if (isBorrower) { const id = await borrowerCreateScenario(name, getState(), isRefi ? 'refi' : 'purchase'); if (id) { await borrowerOpenScenario(id); setShowCompareHint(true); } return; }
   if (!name || scenarioList.includes(name)) return;
   try { selfSync.clearTombstone?.(name); } catch(e) {}
   if (scenariosAreCloud) {
@@ -3776,7 +3817,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setShowCompareHint(true);
  };
  const deleteScenario = async (name) => {
-  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
+  if (isBorrower) {
+   const row = cloudRowForName(name);
+   if (!row || !borrowerOwnsRow(row) || scenarioList.length <= 1 || !borrowerMode.shareToken) return;
+   try { await deleteSharedScenario(borrowerMode.shareToken, row.id); }
+   catch (e) { console.warn('[Blueprint] Delete scenario failed:', e.message); return; }
+   const remaining = (borrowerScenariosRef.current || []).filter(s => s.id !== row.id);
+   borrowerScenariosRef.current = remaining;
+   setBorrowerScenarios(remaining);
+   if (row.id === activeScenarioId && remaining[0]) await borrowerOpenScenario(remaining[0].id, { skipSave: true });
+   return;
+  }
   if (scenarioList.length <= 1) return;
   // ── Cloud mode: delete the cloud row; the lockstep effect prunes the sidebar. ──
   if (scenariosAreCloud) {
@@ -3821,7 +3872,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch (e) { console.warn('[Blueprint] Cloud duplicate scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
  };
  const duplicateScenario = async () => {
-  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
+  if (isBorrower) { await duplicateScenarioByName(scenarioName); return; }
   if (scenariosAreCloud) { await cloudDuplicate(scenarioName, getState(), isRefi ? 'refi' : 'purchase'); setShowCompareHint(true); return; }
   let newName = scenarioName + " Copy";
   let i = 2;
@@ -3836,7 +3887,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Duplicate a specific (possibly non-active) scenario without switching to it.
  const duplicateScenarioByName = async (name) => {
-  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
+  if (isBorrower) {
+   const row = cloudRowForName(name);
+   if (!row) return;
+   let stateData = row.id === activeScenarioId ? getState() : row.state_data;
+   if (!stateData) stateData = (await fetchScenarioRow(row.id, borrowerMode.borrower?.id).catch(() => null))?.state_data;
+   if (!stateData) return;
+   const existing = new Set((borrowerScenariosRef.current || []).map(s => s.name || 'Scenario 1'));
+   let newName = (row.name || name) + " Copy", i = 2;
+   while (existing.has(newName)) { newName = (row.name || name) + " Copy " + i; i++; }
+   await borrowerCreateScenario(newName, stateData, row.type);
+   setShowCompareHint(true);
+   return;
+  }
   if (scenariosAreCloud) {
    const row = cloudRowForName(name);
    if (!row) return;
@@ -3862,7 +3925,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Move `fromName` to occupy `toName`'s slot; persist the new order.
  const reorderScenarios = async (fromName, toName) => {
-  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
+  // Borrowers: per-device order (there's no order column in the cloud yet).
+  if (isBorrower) {
+   if (!fromName || fromName === toName) return;
+   const names = [...cloudScenarioIndex.names];
+   const from = names.indexOf(fromName), to = names.indexOf(toName);
+   if (from < 0 || to < 0) return;
+   names.splice(from, 1); names.splice(to, 0, fromName);
+   saveBorrowerOrder(names.map(n => cloudScenarioIndex.byName[n]).filter(Boolean));
+   return;
+  }
   // Cloud mode has no per-client order column yet — order follows the DB fetch.
   // No-op here rather than desyncing the sidebar from the cloud list.
   if (scenariosAreCloud) return;
@@ -3877,7 +3949,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { await LS.set("scenario-list", JSON.stringify(newList)); } catch(e) {}
  };
  const renameScenario = async (oldName, newName) => {
-  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
+  if (isBorrower) {
+   const row = cloudRowForName(oldName);
+   const nm = (newName || "").trim();
+   if (!row || !borrowerOwnsRow(row) || !nm || nm === oldName || scenarioList.includes(nm) || !borrowerMode.shareToken) return;
+   try { await renameSharedScenario(borrowerMode.shareToken, row.id, nm); }
+   catch (e) { console.warn('[Blueprint] Rename scenario failed:', e.message); return; }
+   setBorrowerScenarios(prev => prev.map(s => s.id === row.id ? { ...s, name: nm } : s));
+   return;
+  }
   if (!newName || newName === oldName || scenarioList.includes(newName)) return;
   // ── Cloud mode: rename the cloud row; the lockstep effect relabels the sidebar. ──
   if (scenariosAreCloud) {
@@ -8313,8 +8393,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       {/* Scenarios switcher — quick toggle between saved scenarios, docked
           right below the Blueprint/PricePoint/Markets switcher and above the
           Overview nav so brokers can click between scenarios fast. (2026-07-07)
-          Share-link borrowers get it in the mobile drawer too (switch only,
-          no ⋮ menu, no drag) — Christo 2026-10-12. */}
+          Share-link borrowers get it in the mobile drawer too, with the ⋮
+          menu (rename / delete their own only) — Christo 2026-10-12. */}
       {(isDesktop ? !sidebarCollapsed : isBorrower) && appMode === "blueprint" && scenarioList.length > 0 && (
        <>
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 18px 6px" }}>
@@ -8327,7 +8407,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          const isDragOver = dragOverScenario === name && dragScenario && dragScenario !== name;
          return (
           <div key={name} className="bp-sidebar-item"
-           draggable={!editing && isDesktop && !isBorrower}
+           draggable={!editing && isDesktop}
            onDragStart={(e) => { setDragScenario(name); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", name); } catch(err){} }}
            onDragOver={(e) => { if (dragScenario) { e.preventDefault(); if (dragOverScenario !== name) setDragOverScenario(name); } }}
            onDrop={(e) => { e.preventDefault(); if (dragScenario && dragScenario !== name) reorderScenarios(dragScenario, name); setDragScenario(null); setDragOverScenario(null); }}
@@ -8363,7 +8443,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
             const lbl = vis === "hidden" ? "Hidden from borrower" : "View-only for borrower";
             return <span title={lbl} aria-label={lbl} role="img" style={{ flexShrink: 0, display: "flex", alignItems: "center", color: T.textTertiary }}><Icon name={vis === "hidden" ? "eye-off" : "lock"} size={13} /></span>;
            })()}
-           {!editing && !isBorrower && (
+           {!editing && (!isBorrower || borrowerCanCreate) && (
             <button aria-label="Scenario menu"
              className={"scn-menu-btn" + (scnMenu?.name === name ? " open" : "")}
              title="Options"
@@ -8382,14 +8462,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
            {(() => {
             // Borrower visibility toggles — cloud clients only (2026-10-12).
             const vis = scenariosAreCloud ? (cloudRowForName(scnMenu.name)?.borrower_visibility || "editable") : null;
+            // Share-link borrowers rename / delete only their own scenarios.
+            const mine = !isBorrower || borrowerOwnsRow(cloudRowForName(scnMenu.name));
             return [
-            ["Rename", "edit", () => { setEditingScenarioName(scnMenu.name); setEditScenarioValue(scnMenu.name); }],
+            ...(mine ? [["Rename", "edit", () => { setEditingScenarioName(scnMenu.name); setEditScenarioValue(scnMenu.name); }]] : []),
             ["Duplicate", "copy", () => duplicateScenarioByName(scnMenu.name)],
             ...(vis ? [
              vis === "hidden" ? ["Show to borrower", "eye", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Hide from borrower", "eye-off", () => setScenarioVisibility(scnMenu.name, "hidden")],
              vis === "view_only" ? ["Allow borrower edits", "unlock", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Make view-only", "lock", () => setScenarioVisibility(scnMenu.name, "view_only")],
             ] : []),
-            ...(scenarioList.length > 1 ? [["Delete", "trash", () => deleteScenario(scnMenu.name)]] : []),
+            ...(scenarioList.length > 1 && mine ? [["Delete", "trash", () => deleteScenario(scnMenu.name)]] : []),
            ]; })().map(([label, ico, fn]) => (
             <button key={label} onClick={() => { fn(); setScnMenu(null); }}
              onMouseEnter={(e) => { e.currentTarget.style.background = T.tabActiveBg; }}
@@ -8556,8 +8638,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     appMode={appMode} setAppMode={setAppMode}
     onOpenMobileMenu={() => setMobileMenuOpen(true)}
     mobileMenuOpen={mobileMenuOpen}
-    scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario }}
-    canEditScenarios={!isBorrower /* borrowers switch only: no rename/duplicate/delete/new (2026-10-12) */}
+    scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario, ...(isBorrower ? { canManage: (n) => borrowerOwnsRow(cloudRowForName(n)) } : {}) }}
+    canEditScenarios={!isBorrower || borrowerCanCreate}
     tab={tab}
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
@@ -10027,7 +10109,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <CompareContent T={T} isDesktop={isDesktop} fmt={fmt} pct={pct} privacy={privacyMode}
   compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName}
   switchScenario={switchScenario} isRefi={isRefi}
-  onAddOption={isBorrower ? null : async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
+  onAddOption={isBorrower && !borrowerCanCreate ? null : async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
 )}
 {tab === "settings" && (<>
  <SetShell title="Appearance">
