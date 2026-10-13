@@ -210,7 +210,10 @@ export default function BorrowerAuthGate({ shareToken, onAuthenticated, onError 
         }
         throw e;
       }
-      if (!shared || !shared.scenarios) {
+      // An empty list is valid: the LO hid every scenario (or hasn't built one
+      // yet) — App renders a "check back soon" screen. Only a malformed
+      // response is an error (Christo 2026-10-12).
+      if (!shared || !Array.isArray(shared.scenarios)) {
         throw new Error('No scenarios found');
       }
 

@@ -256,6 +256,11 @@ function InfoTip({ text }) {
   )}
  </span>);
 }
+// View-only scenario (borrower share link, Christo 2026-10-12): the content
+// area is wrapped in this provider and the shared input primitives below read
+// it — Inp/TextInp go readOnly, Sel/SearchSelect go disabled. Raw inputs in
+// the content files are caught by the capture guard on the content root.
+const ReadOnlyContext = React.createContext(false);
 // htmlFor (optional) ties the visible label to its control for screen readers
 // and click-to-focus. Inp/Sel/TextInp pass a useId()-generated id.
 function FieldLabel({ label, tip, req, filled, htmlFor }) {
@@ -263,7 +268,8 @@ function FieldLabel({ label, tip, req, filled, htmlFor }) {
  const Tag = htmlFor ? "label" : "div";
  return (<Tag htmlFor={htmlFor} style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 500, color: T.textSecondary, marginBottom: 6, fontFamily: FONT }}>{label}{req && !filled && <span style={{ color: T.red, marginLeft: 3, fontSize: 13, fontWeight: 700, lineHeight: 1 }}>*</span>}{tip && <InfoTip text={tip} />}</Tag>);
 }
-function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder, readOnly, rightSlot, inputMode, pattern, autoComplete }) {
+function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, max, sm, type, tip, req, placeholder, readOnly: readOnlyProp, rightSlot, inputMode, pattern, autoComplete }) {
+ const readOnly = React.useContext(ReadOnlyContext) || readOnlyProp;
  const [focused, setFocused] = useState(false);
  const [editStr, setEditStr] = useState(null);
  const inputId = useId();
@@ -290,7 +296,7 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
       add line height. */}
   <div style={{ display: "flex", alignItems: "center", boxSizing: "border-box", minHeight: sm ? 42 : 50, background: T.inputBg, borderRadius: 12, padding: sm ? "0 12px" : "0 14px", border: `1px solid ${focused ? T.blue : T.inputBorder}`, boxShadow: focused ? `0 0 0 1px ${T.blue}` : "none", transition: "border-color 0.2s, box-shadow 0.2s" }}>
    {prefix && !isText && <span style={{ color: T.textSecondary, fontSize: sm ? 14 : 17, fontWeight: 600, marginRight: 4, fontFamily: FONT, lineHeight: 1 }}>{prefix}</span>}
-   <input ref={inputRef} id={inputId} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
+   <input ref={inputRef} id={inputId} type="text" inputMode={inputMode || (isText ? "text" : "decimal")} pattern={pattern} autoComplete={autoComplete} readOnly={readOnly} value={display} onFocus={() => { if (readOnly) return; setFocused(true); wasFocused.current = true; setEditStr(null); }} onBlur={() => { setFocused(false); wasFocused.current = false; if (readOnly) { setEditStr(null); return; } if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null; } if (editStr !== null) { const n = clamp(parseFloat(editStr.replace(/,/g, ""))); onChange(isNaN(n) ? 0 : n); setEditStr(null); } else if (!isText) { onChange(clamp(value)); } }} onChange={e => { if (isText) return onChange(e.target.value); const raw = e.target.value.replace(/,/g, ""); if (raw === "" || raw === "-") { setEditStr(""); if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(0), 300); return; } if (/^-?\d*\.?\d*$/.test(raw)) { const dotIdx = raw.indexOf("."); const intPart = dotIdx >= 0 ? raw.slice(0, dotIdx) : raw; const decPart = dotIdx >= 0 ? raw.slice(dotIdx) : ""; const fmtInt = intPart.replace(/^(-?)0+(\d)/, "$1$2").replace(/\B(?=(\d{3})+(?!\d))/g, ","); const formatted = fmtInt + decPart; const cursorPos = e.target.selectionStart; const commasBefore = (e.target.value.slice(0, cursorPos).match(/,/g) || []).length; const digitsBeforeCursor = cursorPos - commasBefore; let newCursor = 0, digitsSeen = 0; for (let i = 0; i < formatted.length; i++) { if (formatted[i] !== ",") digitsSeen++; if (digitsSeen >= digitsBeforeCursor) { newCursor = i + 1; break; } } if (digitsBeforeCursor === 0) newCursor = 0; cursorRef.current = newCursor; setEditStr(formatted); const n = parseFloat(raw); if (!isNaN(n)) { if (debounceRef.current) clearTimeout(debounceRef.current); debounceRef.current = setTimeout(() => onChange(n), 150); } } }} min={isText ? undefined : min} step={isText ? undefined : step}
     placeholder={placeholder || ""}
     /* No negative tracking on numerals. -0.02em is display-headline styling;
        at 15px it computes to -0.3px and closes the gap between a digit and
@@ -306,19 +312,21 @@ function Inp({ label, value, onChange, prefix = "$", suffix, step = 1, min = 0, 
 }
 function Sel({ label, value, onChange, options, sm, tip, req }) {
  const selId = useId();
+ const ro = React.useContext(ReadOnlyContext);
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} htmlFor={selId} />
-  <select id={selId} value={value} onChange={e => onChange(e.target.value)}
-   style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, fontWeight: 500, outline: "none", cursor: "pointer", fontFamily: FONT, WebkitAppearance: "none" }}>
+  <select id={selId} value={value} disabled={ro} onChange={e => { if (!ro) onChange(e.target.value); }}
+   style={{ width: "100%", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, fontWeight: 500, outline: "none", cursor: ro ? "default" : "pointer", fontFamily: FONT, WebkitAppearance: "none", opacity: 1 }}>
    {options.map(o => <option key={typeof o === "string" ? o : o.value} value={typeof o === "string" ? o : o.value}>{typeof o === "string" ? o : o.label}</option>)}
   </select>
  </div>);
 }
 function TextInp({ label, value, onChange, placeholder, sm, tip, req, inputMode, pattern }) {
  const textId = useId();
+ const ro = React.useContext(ReadOnlyContext);
  return (<div style={{ marginBottom: sm ? 6 : 14 }}>
   <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} htmlFor={textId} />
-  <input id={textId} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+  <input id={textId} value={value} readOnly={ro} onChange={e => { if (!ro) onChange(e.target.value); }} placeholder={placeholder}
    inputMode={inputMode} pattern={pattern}
    style={{ width: "100%", boxSizing: "border-box", background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: sm ? "10px 12px" : "12px 14px", color: T.text, fontSize: sm ? 13 : 15, outline: "none", fontFamily: FONT }} />
  </div>);
@@ -338,6 +346,7 @@ function AddressAutocomplete({ onSelect, value, onChange, placeholder }) {
  );
 }
 function SearchSelect({ label, value, onChange, options, tip, req }) {
+ const ro = React.useContext(ReadOnlyContext);
  const [open, setOpen] = useState(false);
  const [search, setSearch] = useState("");
  const ref = useRef(null);
@@ -345,8 +354,8 @@ function SearchSelect({ label, value, onChange, options, tip, req }) {
  useEffect(() => { const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, []);
  return (<div style={{ marginBottom: 14, position: "relative" }} ref={ref}>
   <FieldLabel label={label} tip={tip} req={req} filled={value !== ""} />
-  <div onClick={() => setOpen(!open)} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${open ? T.blue : T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, cursor: "pointer", fontFamily: FONT, fontWeight: 500 }}>{value || "Select..."}</div>
-  {open && (<div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: T.card, boxShadow: "0 8px 32px rgba(0,0,0,0.3)", borderRadius: 14, marginTop: 4, maxHeight: 220, overflow: "auto" }}>
+  <div onClick={() => { if (!ro) setOpen(!open); }} aria-disabled={ro || undefined} style={{ background: T.inputBg, borderRadius: 12, border: `1px solid ${open ? T.blue : T.inputBorder}`, padding: "12px 14px", color: T.text, fontSize: 15, cursor: ro ? "default" : "pointer", fontFamily: FONT, fontWeight: 500 }}>{value || "Select..."}</div>
+  {open && !ro && (<div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: T.card, boxShadow: "0 8px 32px rgba(0,0,0,0.3)", borderRadius: 14, marginTop: 4, maxHeight: 220, overflow: "auto" }}>
    <input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} autoFocus style={{ width: "calc(100% - 28px)", margin: "10px 14px", background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: 10, padding: "10px 12px", color: T.text, fontSize: 14, outline: "none", fontFamily: FONT }} />
    {filtered.map(o => (<div key={o} onClick={() => { onChange(o); setOpen(false); setSearch(""); }} style={{ padding: "10px 14px", cursor: "pointer", color: o === value ? T.blue : T.text, fontSize: 14, fontWeight: o === value ? 600 : 400, fontFamily: FONT, borderBottom: `1px solid ${T.separator}` }}>{o}</div>))}
   </div>)}
@@ -1110,7 +1119,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   isBorrower ? (borrowerMode.scenarioId || null) : null
  );
  const [cloudSyncStatus, setCloudSyncStatus] = useState('');     // '', 'saving', 'saved', 'error'
- const [borrowerScenarios, setBorrowerScenarios] = useState([]); // Scenarios for selected borrower (step 2)
+ // Share-link borrowers start with every scenario the LO hasn't hidden (Ops
+ // filters them), so the sidebar lists them all (Christo 2026-10-12).
+ const [borrowerScenarios, setBorrowerScenarios] = useState(() => (
+  isBorrower && Array.isArray(borrowerMode.scenarios) ? borrowerMode.scenarios : []
+ )); // Scenarios for selected borrower (step 2)
  const [borrowerScenariosLoading, setBorrowerScenariosLoading] = useState(false);
  const [deleteClientStep, setDeleteClientStep] = useState(0); // Settings "Delete client": 0 idle, 1 confirming
  const [deletingClient, setDeletingClient] = useState(false);
@@ -1142,6 +1155,21 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const id = cloudScenarioIndex.byName[name];
   return id ? (borrowerScenarios.find(s => s.id === id) || null) : null;
  };
+ const cloudScenarioIndexRef = useRef(cloudScenarioIndex);
+ cloudScenarioIndexRef.current = cloudScenarioIndex;
+ // ── Borrower view-only (Christo 2026-10-12) ──
+ // Most restrictive wins: the scenario's borrower_visibility, the link-level
+ // share_access_level, or a 403 the sync endpoint already handed back for this
+ // scenario (the LO flipped it mid-session, before our list refresh saw it).
+ const [serverSaidReadOnly, setServerSaidReadOnly] = useState({}); // { [scenarioId]: true }
+ const activeRow = isBorrower ? (borrowerScenarios.find(s => s.id === activeScenarioId) || null) : null;
+ const scenarioReadOnly = isBorrower && (
+  activeRow?.borrower_visibility === 'view_only'
+  || borrowerMode.accessLevel === 'view_only'
+  || !!(activeScenarioId && serverSaidReadOnly[activeScenarioId])
+ );
+ // Every scenario hidden mid-session → "still building" empty state.
+ const borrowerListEmpty = isBorrower && borrowerScenarios.length === 0;
  const supabaseSaveTimer = useRef(null);
  // ── Blueprint switcher shelf (left panel): pinned + recent blueprints ──
  const {
@@ -1179,6 +1207,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // getState/loadState are defined below — sync hook uses refs so this is safe
  const getStateRef = useRef(null);
  const loadStateRef = useRef(null);
+ const onSyncReadOnlyRef = useRef(null); // borrower: share-sync PATCH said 403 (set below)
  const sync = useBlueprintSync({
   scenarioId: activeScenarioId,
   roomId: isBorrower ? (borrowerMode.borrower?.id || null) : (activeBorrower?.id || null),
@@ -1198,6 +1227,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   enabled: isBorrower
    ? !!activeScenarioId
    : (isCloud && !!activeBorrower && !!activeScenarioId),
+  readOnly: scenarioReadOnly || borrowerListEmpty,
+  onReadOnly: (info) => onSyncReadOnlyRef.current?.(info),
  });
 
  // ── Version History (Phase 3) ──
@@ -2437,44 +2468,76 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // Wire getState/loadState into the sync hook refs
  getStateRef.current = getState;
  loadStateRef.current = loadState;
+ // ── Borrower: open one of the shared scenarios by id (Christo 2026-10-12) ──
+ // Used by the sidebar / header switcher, the follow-the-LO effect and the
+ // live list refresh. Saves the outgoing scenario through the share-sync path
+ // first (a no-op when it's view-only), then reads the incoming row FRESH —
+ // a cached copy can be stale if the LO edited it meanwhile, and the next
+ // borrower write would put those stale numbers back. Cache / share endpoint
+ // are fallbacks (view-only links get no state_data from /api/share).
+ const borrowerActiveIdRef = useRef(activeScenarioId);
+ borrowerActiveIdRef.current = activeScenarioId;
+ const scenarioReadOnlyRef = useRef(scenarioReadOnly);
+ scenarioReadOnlyRef.current = scenarioReadOnly;
+ const borrowerSwitchingRef = useRef(false);
+ const borrowerOpenScenario = async (id, opts = {}) => {
+  if (!isBorrower || !id || borrowerSwitchingRef.current) return false;
+  borrowerSwitchingRef.current = true;
+  try {
+   const outgoingId = borrowerActiveIdRef.current;
+   if (!opts.skipSave && outgoingId && outgoingId !== id) {
+    await sync.flush();
+    if (!scenarioReadOnlyRef.current) {
+     const outgoing = getState();
+     setBorrowerScenarios(prev => prev.map(s => s.id === outgoingId ? { ...s, state_data: outgoing } : s));
+    }
+   }
+   let row = await fetchScenarioRow(id, borrowerMode.borrower?.id).catch(() => null);
+   if (!row?.state_data) {
+    const cached = (borrowerScenariosRef.current || []).find(s => s.id === id);
+    if (cached?.state_data) row = { ...cached, ...(row || {}), state_data: cached.state_data };
+   }
+   if (!row?.state_data && borrowerMode.shareToken) {
+    // Migration 020 not applied / RLS hid it — the share endpoint still has it.
+    const shared = await fetchSharedData(borrowerMode.shareToken).catch(() => null);
+    row = shared?.scenarios?.find(x => x.id === id) || row;
+   }
+   if (!row?.state_data) return false;
+   loadState(row.state_data);
+   setActiveScenarioId(id);
+   setScenarioName(cloudScenarioIndexRef.current.byId[id] || row.name || "My Blueprint");
+   sync.initSync(row.state_data, row.locked_fields || null);
+   if (!opts.keepTab) setTab("overview");
+   return true;
+  } catch (e) {
+   console.warn('[Blueprint] Could not open scenario:', e.message);
+   return false;
+  } finally {
+   borrowerSwitchingRef.current = false;
+  }
+ };
  // ── Live co-editing: the borrower's view follows the LO ──
  // Presence is one room per borrower and says which scenario each person is
- // on. When the LO is working a different scenario of this borrower's file,
- // switch to it — otherwise both sides edit different rows and neither sees
- // the other's changes.
- const followingRef = useRef(null);
+ // on. When the LO MOVES to a different scenario of this borrower's file,
+ // follow them — otherwise both sides edit different rows and neither sees
+ // the other's changes. Only on the LO's move (not whenever the two differ),
+ // so a borrower who picks another scenario from the sidebar isn't dragged
+ // straight back; and never to a scenario the borrower can't see (an LO
+ // working a hidden draft). (Christo 2026-10-12)
  const loOnScenario = isBorrower
   ? (sync.onlineUsers.find(u => u.user_type === 'lo' && u.scenario_id) || null)
   : null;
  const loScenarioId = loOnScenario?.scenario_id || null;
+ const lastLoScenarioRef = useRef(null);
  useEffect(() => {
-  if (!isBorrower || !loaded || !loScenarioId || loScenarioId === activeScenarioId) return;
-  if (followingRef.current === loScenarioId) return;
-  followingRef.current = loScenarioId;
-  (async () => {
-   try {
-    await sync.flush();
-    let row = await fetchScenarioRow(loScenarioId, borrowerMode.borrower?.id);
-    if (!row?.state_data && borrowerMode.shareToken) {
-     // Migration 020 not applied / RLS hid it — the share endpoint still has it.
-     const shared = await fetchSharedData(borrowerMode.shareToken).catch(() => null);
-     row = shared?.scenarios?.find(x => x.id === loScenarioId) || null;
-    }
-    if (!row?.state_data) return;
-    loadState(row.state_data);
-    setActiveScenarioId(row.id);
-    const nm = row.name || loOnScenario?.scenario_name || "My Blueprint";
-    setScenarioList([nm]);
-    setScenarioName(nm);
-    sync.initSync(row.state_data, row.locked_fields || null);
-   } catch (e) {
-    console.warn('[Blueprint] Could not follow the LO to their scenario:', e.message);
-   } finally {
-    followingRef.current = null;
-   }
-  })();
+  if (!isBorrower || !loaded || !loScenarioId) return;
+  if (lastLoScenarioRef.current === loScenarioId) return;
+  if (!borrowerScenarios.some(s => s.id === loScenarioId)) return; // hidden from the borrower
+  lastLoScenarioRef.current = loScenarioId;
+  if (loScenarioId === activeScenarioId) return;
+  borrowerOpenScenario(loScenarioId, { keepTab: true });
   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [isBorrower, loaded, loScenarioId, activeScenarioId]);
+ }, [isBorrower, loaded, loScenarioId, borrowerScenarios]);
 
  // ── Live co-editing: where am I / jump to / follow the other person ──
  // My tab goes out with presence (field resets on a tab change);
@@ -2532,13 +2595,20 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    if (isBorrower && !borrowerStart && activeScenarioId) {
     try { borrowerStart = (await fetchScenarioRow(activeScenarioId, borrowerMode.borrower?.id))?.state_data || null; } catch { /* stays null */ }
    }
-   if (isBorrower && borrowerStart) {
-    loadState(borrowerStart);
-    setScenarioList([borrowerMode.scenarios?.[0]?.name || "My Blueprint"]);
-    setScenarioName(borrowerMode.scenarios?.[0]?.name || "My Blueprint");
-    // Initialize sync baseline
+   // Every shared scenario is listed (de-duped display names, same index the
+   // LO uses); the lockstep effect already set the list, so only fill it if
+   // it's still empty — this runs async, after that effect (Christo 2026-10-12).
+   // A borrower NEVER falls through to the localStorage path below.
+   if (isBorrower) {
+    const idx = cloudScenarioIndexRef.current;
+    if (borrowerStart) loadState(borrowerStart);
+    setScenarioList(prev => (prev && prev.length ? prev : idx.names));
+    setScenarioName(idx.byId[activeScenarioId] || borrowerMode.scenarios?.find(x => x.id === activeScenarioId)?.name || "My Blueprint");
     if (activeScenarioId) {
-     sync.initSync(borrowerStart, null);
+     if (borrowerStart) sync.initSync(borrowerStart, null);
+     // No readable state → no baseline. Don't let the first autosave write
+     // the blank defaults on screen over the real row.
+     else setServerSaidReadOnly(m => ({ ...m, [activeScenarioId]: true }));
     }
     setLoaded(true);
     try { if (window.__FRED_API_KEY__) { setFredApiKey(window.__FRED_API_KEY__); } } catch(e) {}
@@ -2608,14 +2678,16 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // ── Cloud mode: keep the sidebar Scenarios list in lockstep with the open
  //    client's cloud rows. This is what makes scenarios consistent across tabs
  //    and devices — the list is derived from the DB, not this browser's LS. ──
+ // Share-link borrowers ride the same index (their rows come from /api/share,
+ // already filtered of hidden ones) — Christo 2026-10-12.
  useEffect(() => {
-  if (!scenariosAreCloud) return;
+  if (!scenariosAreCloud && !isBorrower) return;
   setScenarioList(cloudScenarioIndex.names);
   if (activeScenarioId && cloudScenarioIndex.byId[activeScenarioId]) {
    setScenarioName(cloudScenarioIndex.byId[activeScenarioId]);
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [scenariosAreCloud, cloudScenarioIndex, activeScenarioId]);
+ }, [scenariosAreCloud, isBorrower, cloudScenarioIndex, activeScenarioId]);
 
  // ── Live scenario tabs: a teammate adding / duplicating / renaming / deleting
  //    a scenario on this client used to need a refresh (Gina → Christo,
@@ -2634,7 +2706,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     try {
      const scens = await apiFetchScenarios(bid);
      if (dead || !Array.isArray(scens)) return;
-     const sig = (list) => list.map(x => `${x.id}:${x.name}`).join("|");
+     const sig = (list) => list.map(x => `${x.id}:${x.name}:${x.borrower_visibility || ""}`).join("|");
      if (sig(scens) !== sig(borrowerScenariosRef.current || [])) setBorrowerScenarios(scens);
     } catch { /* next event or focus retries */ }
    }, 400);
@@ -2642,7 +2714,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   const sub = subscribeToBorrowerScenarios(bid, (type, row) => {
    if (type === "UPDATE") {
     const known = (borrowerScenariosRef.current || []).find(x => x.id === row?.id);
-    if (known && known.name === row?.name) return; // autosave, not a tab change
+    // Autosave, not a tab change. A teammate's Hide / View-only toggle does
+    // count (it moves the sidebar icon).
+    if (known && known.name === row?.name && (row?.borrower_visibility === undefined || known.borrower_visibility === row.borrower_visibility)) return;
    }
    refresh();
   });
@@ -2650,6 +2724,152 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   document.addEventListener("visibilitychange", onVisible);
   return () => { dead = true; clearTimeout(timer); sub.unsubscribe(); document.removeEventListener("visibilitychange", onVisible); };
  }, [scenariosAreCloud, activeBorrower?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+ // ── Borrower: live scenario list (Christo 2026-10-12) ──
+ // The LO can hide / show / lock a scenario mid-session. Refetch /api/share
+ // (already filtered of hidden rows) when the tab comes back, on a realtime
+ // change to any of this borrower's rows (RLS-scoped, so a row going hidden
+ // may never arrive — hence also), and every 60s. Only touch state when the
+ // id / name / visibility signature moved; rows without state_data in the
+ // fresh payload (view-only links) keep the copy we already had.
+ const borrowerListSig = (list) => (list || []).map(x => `${x.id}:${x.name}:${x.borrower_visibility || ""}`).join("|");
+ const refreshBorrowerScenarios = async () => {
+  if (!isBorrower || !borrowerMode.shareToken) return null;
+  let shared = null;
+  try { shared = await fetchSharedData(borrowerMode.shareToken); } catch { return null; }
+  if (!Array.isArray(shared?.scenarios)) return null;
+  const fresh = shared.scenarios;
+  const prev = borrowerScenariosRef.current || [];
+  if (borrowerListSig(fresh) === borrowerListSig(prev)) return fresh;
+  const byId = new Map(prev.map(x => [x.id, x]));
+  const merged = fresh.map(x => {
+   const old = byId.get(x.id);
+   return (!x.state_data && old?.state_data) ? { ...x, state_data: old.state_data } : x;
+  });
+  borrowerScenariosRef.current = merged;
+  setBorrowerScenarios(merged);
+  // Visibility moved — forget any 403 we were holding; a still-locked row
+  // just answers 403 again on the next write.
+  setServerSaidReadOnly({});
+  const activeId = borrowerActiveIdRef.current;
+  if (merged.length && !merged.some(x => x.id === activeId)) {
+   // The open scenario was hidden (or none was open). It's no longer
+   // writable, so don't save it on the way out.
+   await borrowerOpenScenario(merged[0].id, { skipSave: true });
+  }
+  return merged;
+ };
+ const refreshBorrowerScenariosRef = useRef(refreshBorrowerScenarios);
+ refreshBorrowerScenariosRef.current = refreshBorrowerScenarios;
+ useEffect(() => {
+  if (!isBorrower || !borrowerMode.shareToken) return;
+  let timer = null, dead = false;
+  const refresh = () => {
+   clearTimeout(timer);
+   timer = setTimeout(() => { if (!dead) refreshBorrowerScenariosRef.current(); }, 400);
+  };
+  const bid = borrowerMode.borrower?.id;
+  const sub = bid ? subscribeToBorrowerScenarios(bid, (type, row) => {
+   if (type === "UPDATE") {
+    const known = (borrowerScenariosRef.current || []).find(x => x.id === row?.id);
+    if (known && known.name === row?.name && (row?.borrower_visibility === undefined || known.borrower_visibility === row.borrower_visibility)) return; // autosave
+   }
+   refresh();
+  }) : { unsubscribe: () => {} };
+  const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+  document.addEventListener("visibilitychange", onVisible);
+  const iv = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 60000);
+  return () => { dead = true; clearTimeout(timer); clearInterval(iv); sub.unsubscribe(); document.removeEventListener("visibilitychange", onVisible); };
+ }, [isBorrower, borrowerMode?.shareToken, borrowerMode?.borrower?.id]);
+
+ // ── View-only enforcement on the content area (Christo 2026-10-12) ──
+ // The shared primitives (Inp/TextInp/Sel/SearchSelect) read ReadOnlyContext.
+ // This capture-phase guard is the backstop for raw <input>/<select>/
+ // <textarea>/switches in the content files: typing, paste, drop, picking and
+ // toggling are swallowed, and any change event that slips through never
+ // reaches its handler (React then snaps the controlled value back). Buttons
+ // are left alone so navigation keeps working. Settings (device prefs) and
+ // Team (the share guest list isn't scenario data) stay usable. React capture
+ // props, so portaled sheets inside the root are covered too.
+ const roEnforced = scenarioReadOnly && tab !== "settings" && tab !== "team";
+ const contentRootRef = useRef(null);
+ const roGuard = React.useMemo(() => {
+  if (!roEnforced) return {};
+  const kindOf = (el) => {
+   if (!el || el.closest?.("[data-ro-allow]")) return null;
+   const tag = el.tagName;
+   if (tag === "TEXTAREA") return "text";
+   if (tag === "SELECT") return "pick";
+   if (tag === "INPUT") {
+    const ty = (el.type || "text").toLowerCase();
+    if (["button", "submit", "reset", "image", "hidden", "search"].includes(ty)) return null;
+    if (["checkbox", "radio", "range", "file", "color"].includes(ty)) return "pick";
+    return "text";
+   }
+   if (el.isContentEditable) return "text";
+   if (el.closest?.('[role="switch"],[role="radio"],[role="checkbox"]')) return "switch";
+   return null;
+  };
+  const block = (e) => { e.preventDefault(); e.stopPropagation(); };
+  const EDIT_KEYS = new Set(["Backspace", "Delete"]);
+  const PICK_KEYS = new Set([" ", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+  return {
+   onKeyDownCapture: (e) => {
+    const k = kindOf(e.target);
+    if (!k) return;
+    if (k === "text") {
+     const mod = e.ctrlKey || e.metaKey;
+     if ((!mod && e.key && e.key.length === 1) || EDIT_KEYS.has(e.key) || (mod && /^[xvzy]$/i.test(e.key || ""))) block(e);
+    } else if (k === "pick") { if (PICK_KEYS.has(e.key)) block(e); }
+    else if (e.key === " " || e.key === "Enter") block(e);
+   },
+   onBeforeInputCapture: (e) => { if (kindOf(e.target) === "text") block(e); },
+   onPasteCapture: (e) => { if (kindOf(e.target) === "text") block(e); },
+   onCutCapture: (e) => { if (kindOf(e.target) === "text") block(e); },
+   onDropCapture: (e) => { if (kindOf(e.target) === "text") block(e); },
+   onMouseDownCapture: (e) => { const k = kindOf(e.target); if (k === "pick" || k === "switch") e.preventDefault(); },
+   onClickCapture: (e) => {
+    const k = kindOf(e.target);
+    if (k === "switch" || (k === "pick" && e.target.tagName === "INPUT" && /^(checkbox|radio)$/i.test(e.target.type || ""))) block(e);
+   },
+   onChangeCapture: (e) => { if (kindOf(e.target)) e.stopPropagation(); },
+   onInputCapture: (e) => { if (kindOf(e.target)) e.stopPropagation(); },
+  };
+ }, [roEnforced]);
+ // Native beforeinput as well: mobile keyboards (IME, autocorrect, dictation)
+ // often report key "Unidentified", so keydown alone misses them.
+ useEffect(() => {
+  const root = contentRootRef.current;
+  if (!roEnforced || !root) return;
+  const onBefore = (e) => {
+   const el = e.target;
+   if (el?.closest?.("[data-ro-allow]")) return;
+   if (el?.tagName === "TEXTAREA" || el?.isContentEditable || (el?.tagName === "INPUT" && !/^(button|submit|reset|image|hidden|search|checkbox|radio|range|file|color)$/i.test(el.type || "text"))) {
+    if (e.cancelable) e.preventDefault();
+   }
+  };
+  root.addEventListener("beforeinput", onBefore, true);
+  return () => root.removeEventListener("beforeinput", onBefore, true);
+ }, [roEnforced, borrowerListEmpty, appMode]);
+
+ // The share-sync PATCH came back 403: the LO locked this scenario (or the
+ // link) after we loaded it. Lock the UI for it and show the server's copy —
+ // the borrower's unsaved edits can't land anyway.
+ onSyncReadOnlyRef.current = async (info) => {
+  const id = info?.scenarioId || borrowerActiveIdRef.current;
+  if (!isBorrower || !id) return;
+  setServerSaidReadOnly(m => (m[id] ? m : { ...m, [id]: true }));
+  if (info?.borrower_visibility) {
+   setBorrowerScenarios(prev => prev.map(x => x.id === id ? { ...x, borrower_visibility: info.borrower_visibility } : x));
+  }
+  const row = await fetchScenarioRow(id, borrowerMode.borrower?.id).catch(() => null);
+  if (row?.state_data && borrowerActiveIdRef.current === id) {
+   loadState(row.state_data);
+   sync.initSync(row.state_data, row.locked_fields || null);
+  }
+  // Hidden rather than locked? The refresh moves the borrower off it.
+  refreshBorrowerScenariosRef.current();
+ };
 
  // ── Recently touched Blueprints, by ANYONE (Christo 2026-09-24) ──
  // Recents used to be this device's open history only, so a Blueprint the
@@ -3134,7 +3354,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // opts.preferScenarioId: reopen a specific scenario when we have one (the
  // refresh-restore path) instead of defaulting to the newest.
  const openClient = async (entry, opts = {}) => {
-  if (!entry || entry.borrowerId == null) return;
+  if (!entry || entry.borrowerId == null || isBorrower) return;
   const b = borrowerList.find(x => x.id === entry.borrowerId) || { id: entry.borrowerId, name: entry.borrowerName, status: entry.status };
   setActiveBorrower(b);
   setActiveScenarioId(null);
@@ -3398,6 +3618,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    : null;
 
  const switchScenario = async (name, opts = {}) => {
+  // ── Share-link borrower: switch between the shared rows by id, never by
+  //    name (two "Scenario 1"s get a "(2)" display suffix). Never touches
+  //    localStorage or the LO-only Ops endpoints. (Christo 2026-10-12) ──
+  if (isBorrower) {
+   const id = cloudScenarioIndex.byName[name];
+   if (!id || id === activeScenarioId) return;
+   await borrowerOpenScenario(id, opts);
+   return;
+  }
   // ── Cloud mode: switch between the client's cloud rows by id. ──
   if (scenariosAreCloud) {
    const row = cloudRowForName(name);
@@ -3478,6 +3707,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch (e) { console.error("apply fee defaults failed:", e); }
  };
  const createScenario = async (name) => {
+  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
   if (!name || scenarioList.includes(name)) return;
   try { selfSync.clearTombstone?.(name); } catch(e) {}
   if (scenariosAreCloud) {
@@ -3546,6 +3776,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   setShowCompareHint(true);
  };
  const deleteScenario = async (name) => {
+  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
   if (scenarioList.length <= 1) return;
   // ── Cloud mode: delete the cloud row; the lockstep effect prunes the sidebar. ──
   if (scenariosAreCloud) {
@@ -3590,6 +3821,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   } catch (e) { console.warn('[Blueprint] Cloud duplicate scenario failed:', e.message); setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000); }
  };
  const duplicateScenario = async () => {
+  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
   if (scenariosAreCloud) { await cloudDuplicate(scenarioName, getState(), isRefi ? 'refi' : 'purchase'); setShowCompareHint(true); return; }
   let newName = scenarioName + " Copy";
   let i = 2;
@@ -3604,6 +3836,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Duplicate a specific (possibly non-active) scenario without switching to it.
  const duplicateScenarioByName = async (name) => {
+  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
   if (scenariosAreCloud) {
    const row = cloudRowForName(name);
    if (!row) return;
@@ -3629,6 +3862,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  };
  // Move `fromName` to occupy `toName`'s slot; persist the new order.
  const reorderScenarios = async (fromName, toName) => {
+  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
   // Cloud mode has no per-client order column yet — order follows the DB fetch.
   // No-op here rather than desyncing the sidebar from the cloud list.
   if (scenariosAreCloud) return;
@@ -3643,6 +3877,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try { await LS.set("scenario-list", JSON.stringify(newList)); } catch(e) {}
  };
  const renameScenario = async (oldName, newName) => {
+  if (isBorrower) return; // share-link borrowers never create/rename/delete the LO's scenarios (2026-10-12)
   if (!newName || newName === oldName || scenarioList.includes(newName)) return;
   // ── Cloud mode: rename the cloud row; the lockstep effect relabels the sidebar. ──
   if (scenariosAreCloud) {
@@ -3667,6 +3902,24 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (scenarioName === oldName) {
    setScenarioName(newName);
    try { await LS.set("active-scenario", newName); } catch(e) {}
+  }
+ };
+ // ── LO: who sees a scenario on the borrower's share link (Christo 2026-10-12) ──
+ // 'editable' (default) | 'view_only' | 'hidden'. Cloud clients only — a local
+ // scenario has no borrower. Optimistic, rolled back if Ops rejects it.
+ const setScenarioVisibility = async (name, value) => {
+  if (!scenariosAreCloud || isBorrower) return;
+  if (!['editable', 'view_only', 'hidden'].includes(value)) return;
+  const row = cloudRowForName(name);
+  if (!row) return;
+  const prevVal = row.borrower_visibility || 'editable';
+  if (prevVal === value) return;
+  setBorrowerScenarios(prev => prev.map(s => s.id === row.id ? { ...s, borrower_visibility: value } : s));
+  try { await apiUpdateScenario({ id: row.id, borrower_visibility: value }); }
+  catch (e) {
+   console.warn('[Blueprint] Scenario visibility change failed:', e.message);
+   setBorrowerScenarios(prev => prev.map(s => s.id === row.id ? { ...s, borrower_visibility: prevVal } : s));
+   setCloudSyncStatus('error'); setTimeout(() => setCloudSyncStatus(''), 3000);
   }
  };
  const [editingScenarioName, setEditingScenarioName] = useState(null);
@@ -3794,7 +4047,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   try {
    // Force-save current scenario so storage is up-to-date (local mode only —
    // cloud mode reads non-active states from the in-memory cloud rows).
-   if (!scenariosAreCloud) { try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {} }
+   // Share-link borrowers compare their shared rows (Ops already dropped the
+   // hidden ones) and never touch localStorage (2026-10-12).
+   const fromCloud = scenariosAreCloud || isBorrower;
+   if (!fromCloud) { try { await LS.set("scenario:" + scenarioName, JSON.stringify(getState())); } catch(e) {} }
    const results = [];
    // Live figures for the option on screen — same shape calcQuickMetrics
    // returns, so every column of the Compare table reads the same keys.
@@ -3827,9 +4083,12 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     } else {
      try {
       let s = null;
-      if (scenariosAreCloud) {
+      if (fromCloud) {
        const row = cloudRowForName(name);
        s = row?.state_data || null;
+       // View-only links get no state_data from /api/share — read the row
+       // (RLS-scoped to this borrower, hidden rows never come back).
+       if (!s && isBorrower && row?.id) s = (await fetchScenarioRow(row.id, borrowerMode.borrower?.id))?.state_data || null;
       } else {
        const res = await LS.get("scenario:" + name);
        s = (res && res.value) ? JSON.parse(res.value) : null;
@@ -8053,8 +8312,10 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
       )}
       {/* Scenarios switcher — quick toggle between saved scenarios, docked
           right below the Blueprint/PricePoint/Markets switcher and above the
-          Overview nav so brokers can click between scenarios fast. (2026-07-07) */}
-      {isDesktop && appMode === "blueprint" && !sidebarCollapsed && scenarioList.length > 0 && (
+          Overview nav so brokers can click between scenarios fast. (2026-07-07)
+          Share-link borrowers get it in the mobile drawer too (switch only,
+          no ⋮ menu, no drag) — Christo 2026-10-12. */}
+      {(isDesktop ? !sidebarCollapsed : isBorrower) && appMode === "blueprint" && scenarioList.length > 0 && (
        <>
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 18px 6px" }}>
          <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 600, letterSpacing: 0.2, color: T.textTertiary }}>Scenarios</span>
@@ -8066,7 +8327,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
          const isDragOver = dragOverScenario === name && dragScenario && dragScenario !== name;
          return (
           <div key={name} className="bp-sidebar-item"
-           draggable={!editing && isDesktop}
+           draggable={!editing && isDesktop && !isBorrower}
            onDragStart={(e) => { setDragScenario(name); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", name); } catch(err){} }}
            onDragOver={(e) => { if (dragScenario) { e.preventDefault(); if (dragOverScenario !== name) setDragOverScenario(name); } }}
            onDrop={(e) => { e.preventDefault(); if (dragScenario && dragScenario !== name) reorderScenarios(dragScenario, name); setDragScenario(null); setDragOverScenario(null); }}
@@ -8094,7 +8355,15 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
              <span className="scn-txt" style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? T.blue : T.text }}>{name}</span>
             </span>
            )}
-           {!editing && (
+           {/* Borrower visibility marker (LO, cloud rows only): eye-slash =
+               hidden from the borrower, lock = view-only. Nothing = default. */}
+           {!editing && scenariosAreCloud && (() => {
+            const vis = cloudRowForName(name)?.borrower_visibility;
+            if (vis !== "hidden" && vis !== "view_only") return null;
+            const lbl = vis === "hidden" ? "Hidden from borrower" : "View-only for borrower";
+            return <span title={lbl} aria-label={lbl} role="img" style={{ flexShrink: 0, display: "flex", alignItems: "center", color: T.textTertiary }}><Icon name={vis === "hidden" ? "eye-off" : "lock"} size={13} /></span>;
+           })()}
+           {!editing && !isBorrower && (
             <button aria-label="Scenario menu"
              className={"scn-menu-btn" + (scnMenu?.name === name ? " open" : "")}
              title="Options"
@@ -8109,12 +8378,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         {scnMenu && (
          <>
           <div onClick={() => setScnMenu(null)} onWheel={() => setScnMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
-          <div style={{ position: "fixed", left: Math.max(8, scnMenu.x - 158), top: scnMenu.y + 4, width: 158, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.38)", zIndex: 9999, overflow: "hidden", padding: 4 }}>
-           {[
+          <div style={{ position: "fixed", left: Math.max(8, scnMenu.x - (scenariosAreCloud ? 190 : 158)), top: scnMenu.y + 4, width: scenariosAreCloud ? 190 : 158, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.38)", zIndex: 9999, overflow: "hidden", padding: 4 }}>
+           {(() => {
+            // Borrower visibility toggles — cloud clients only (2026-10-12).
+            const vis = scenariosAreCloud ? (cloudRowForName(scnMenu.name)?.borrower_visibility || "editable") : null;
+            return [
             ["Rename", "edit", () => { setEditingScenarioName(scnMenu.name); setEditScenarioValue(scnMenu.name); }],
             ["Duplicate", "copy", () => duplicateScenarioByName(scnMenu.name)],
+            ...(vis ? [
+             vis === "hidden" ? ["Show to borrower", "eye", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Hide from borrower", "eye-off", () => setScenarioVisibility(scnMenu.name, "hidden")],
+             vis === "view_only" ? ["Allow borrower edits", "unlock", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Make view-only", "lock", () => setScenarioVisibility(scnMenu.name, "view_only")],
+            ] : []),
             ...(scenarioList.length > 1 ? [["Delete", "trash", () => deleteScenario(scnMenu.name)]] : []),
-           ].map(([label, ico, fn]) => (
+           ]; })().map(([label, ico, fn]) => (
             <button key={label} onClick={() => { fn(); setScnMenu(null); }}
              onMouseEnter={(e) => { e.currentTarget.style.background = T.tabActiveBg; }}
              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
@@ -8281,7 +8557,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     onOpenMobileMenu={() => setMobileMenuOpen(true)}
     mobileMenuOpen={mobileMenuOpen}
     scenarioActions={{ rename: renameScenario, duplicate: duplicateScenarioByName, remove: deleteScenario, create: createScenario }}
-    canEditScenarios={!isBorrower || !scenariosAreCloud}
+    canEditScenarios={!isBorrower /* borrowers switch only: no rename/duplicate/delete/new (2026-10-12) */}
     tab={tab}
     tabLabel={(TABS.find(([k]) => k === tab) || [])[1] || ''}
     setTab={setTab} onCompare={() => setTab("compare")}
@@ -8759,7 +9035,29 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      realtorPartner={realtorPartner}
     />
    )}
-   <div data-presence-root="" style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+   {/* View-only scenario (borrower share link, Christo 2026-10-12): one slim
+       note under the header, in the shared Note style. */}
+   {scenarioReadOnly && !borrowerListEmpty && (
+    <div style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto 8px" : "0 0 8px" }}>
+     <Note strong style={{ marginTop: 8 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+       <span style={{ display: "flex", flexShrink: 0, color: T.textSecondary }}><Icon name="lock" size={14} /></span>
+       <span>View only. Your loan officer has locked this scenario.</span>
+      </span>
+     </Note>
+    </div>
+   )}
+   {borrowerListEmpty ? (
+    <div style={{ padding: isDesktop ? "0 32px" : "0 20px" }}>
+     <div style={{ maxWidth: 440, margin: "48px auto", textAlign: "center", background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 16, boxShadow: T.cardShadow, padding: "28px 20px", fontFamily: FONT }}>
+      <div style={{ display: "flex", justifyContent: "center", color: T.blue, marginBottom: 10 }}><Icon name="home" size={24} /></div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>Almost ready</div>
+      <div style={{ fontSize: 13, color: T.textSecondary, lineHeight: 1.5 }}>Your loan officer is still building your Blueprint. Check back soon.</div>
+     </div>
+    </div>
+   ) : (
+   <ReadOnlyContext.Provider value={roEnforced}>
+   <div data-presence-root="" ref={contentRootRef} {...roGuard} style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 {/* ?listing= flyer banner / expired-link notice on the Calculator tab. The
     Overview copy renders below the phone section-pill spacer instead, so the
     fixed "On this page" pill can't sit on top of the banner. */}
@@ -9729,7 +10027,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <CompareContent T={T} isDesktop={isDesktop} fmt={fmt} pct={pct} privacy={privacyMode}
   compareData={compareData} compareLoading={compareLoading} scenarioName={scenarioName}
   switchScenario={switchScenario} isRefi={isRefi}
-  onAddOption={async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
+  onAddOption={isBorrower ? null : async () => { await duplicateScenario(); setTimeout(loadCompareData, 500); }} />
 )}
 {tab === "settings" && (<>
  <SetShell title="Appearance">
@@ -9958,6 +10256,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  )}
 </>)}
    </div>
+   </ReadOnlyContext.Provider>
+   )}
    </>}
    {/* ═══════════════════════════════════════════ */}
    {/* PRICEPOINT MODE */}

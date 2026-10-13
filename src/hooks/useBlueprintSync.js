@@ -122,6 +122,8 @@ export default function useBlueprintSync({
   userType = 'lo',     // 'lo' | 'borrower'
   shareToken = null,   // for borrower access
   enabled = true,
+  readOnly = false,    // borrower on a view-only scenario/link: never write
+  onReadOnly = null,   // (info) => void — the share-sync PATCH came back 403
 }) {
   const [status, setStatus] = useState('idle');        // idle, saving, saved, error
   const [lockedFields, setLockedFields] = useState({});
@@ -145,6 +147,13 @@ export default function useBlueprintSync({
   // below on EVERY render, which tore down the realtime + presence channels).
   const userInfoRef = useRef(userInfo);
   useLayoutEffect(() => { userInfoRef.current = userInfo; });
+  // Read-only (scenario borrower_visibility = view_only, or a view_only link):
+  // scheduleSync/flush become no-ops. Read through refs so flush stays stable
+  // and a switch to an editable scenario takes effect on the next write
+  // (Christo 2026-10-12).
+  const readOnlyRef = useRef(readOnly);
+  const onReadOnlyRef = useRef(onReadOnly);
+  useLayoutEffect(() => { readOnlyRef.current = readOnly; onReadOnlyRef.current = onReadOnly; });
 
   // Keep refs current
   useEffect(() => { scenarioIdRef.current = scenarioId; }, [scenarioId]);
@@ -304,6 +313,7 @@ export default function useBlueprintSync({
   // ── Debounced write to Supabase ───────────────────────────────────────
   const flush = useCallback(async () => {
     if (!scenarioIdRef.current || !getStateRef.current) return;
+    if (readOnlyRef.current) return;
 
     const currentState = getStateRef.current();
     const base = baseRef.current;
@@ -345,6 +355,15 @@ export default function useBlueprintSync({
           });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
+            // 403 = this scenario (code 'scenario_read_only') or the whole
+            // link is view-only. Not a failure to retry: hand it to the
+            // caller, which locks the UI and re-reads the row.
+            if (res.status === 403) {
+              const e403 = new Error(err.error || 'Read only');
+              e403.readOnly = true;
+              e403.info = { code: err.code || null, borrower_visibility: err.borrower_visibility || null, scenarioId: scenarioIdRef.current };
+              throw e403;
+            }
             throw new Error(err.error || `HTTP ${res.status}`);
           }
         } else {
@@ -364,6 +383,11 @@ export default function useBlueprintSync({
       setStatus('saved');
       setTimeout(() => setStatus(s => s === 'saved' ? 'idle' : s), 2000);
     } catch (e) {
+      if (e?.readOnly) {
+        setStatus('idle');
+        try { onReadOnlyRef.current?.(e.info); } catch { /* caller's problem */ }
+        return;
+      }
       console.error('[useBlueprintSync] Save failed:', e);
       setStatus('error');
     }
@@ -371,7 +395,7 @@ export default function useBlueprintSync({
 
   // ── Trigger sync (call this after any state change) ───────────────────
   const scheduleSync = useCallback(() => {
-    if (!scenarioIdRef.current || !enabled) return;
+    if (!scenarioIdRef.current || !enabled || readOnlyRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => { debounceRef.current = null; flush(); }, DEBOUNCE_MS);
   }, [flush, enabled]);

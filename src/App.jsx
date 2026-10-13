@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import MortgageBlueprint from './MortgageBlueprint'
 import BlueprintAuth from './BlueprintAuth'
 import BorrowerAuthGate from './components/BorrowerAuthGate'
+import Icon from './Icon'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://ops.realstack.app';
 
@@ -188,8 +189,14 @@ function App() {
   if (borrowerContext) {
     const { scenarios, shareToken: st, account, borrower, sessionToken, accessLevel } = borrowerContext;
 
-    // Pick the first scenario's state_data (or let user choose if multiple — future enhancement)
-    const scenario = scenarios[0];
+    // Every scenario the LO hasn't hidden arrives here (Ops filters hidden,
+    // oldest first). Open ?scenario=<id> when it's one of them, else the first;
+    // the sidebar lists the rest (Christo 2026-10-12).
+    const list = Array.isArray(scenarios) ? scenarios : [];
+    if (list.length === 0) return <ShareEmptyScreen />;
+    let wantId = null;
+    try { wantId = new URLSearchParams(window.location.search).get('scenario'); } catch { /* no URL */ }
+    const scenario = (wantId && list.find(s => String(s.id) === wantId)) || list[0];
     const initialState = scenario?.state_data || null;
 
     return (
@@ -204,7 +211,7 @@ function App() {
           borrower: borrower || {},
           account: account || {},
           accessLevel: accessLevel || 'can_adjust',
-          scenarios,
+          scenarios: list,
         }}
       />
       <ClaimBanner sessionToken={sessionToken} shareToken={st} />
@@ -218,6 +225,48 @@ function App() {
       <MortgageBlueprint />
     </BlueprintAuth>
   )
+}
+
+// ── Share Empty Screen ──────────────────────────────────────────────────────
+// The link is live but the LO has hidden every scenario (or hasn't built one
+// yet). Not an error — same layout as the expired screen, neutral tone.
+function ShareEmptyScreen() {
+  const T = {
+    bg: '#0a1120', accent: '#3B6BF5',
+    text: '#EDEDED', textSecondary: '#A1A1A1', textTertiary: '#8A8A8A',
+  };
+  return (
+    <div style={{
+      minHeight: '100vh', background: T.bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: FONT,
+    }}>
+      <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
+        <div style={{
+          width: 56, height: 56, margin: '0 auto 16px',
+          borderRadius: 14, background: 'rgba(59,107,245,0.1)',
+          border: '1px solid rgba(59,107,245,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.accent,
+        }}>
+          <Icon name="home" size={24} />
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: T.text, letterSpacing: '-0.03em', marginBottom: 8 }}>
+          Almost ready
+        </div>
+        <div style={{ fontSize: 14, color: T.textSecondary, lineHeight: 1.6 }}>
+          Your loan officer is still building your Blueprint. Check back soon.
+        </div>
+        <button onClick={() => window.location.reload()} style={{ marginTop: 20, padding: '10px 24px', borderRadius: 9999, background: T.accent, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: FONT }}>
+          Check again
+        </button>
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.04em' }}>
+            <span style={{ color: T.textTertiary }}>Real</span><span style={{ color: T.accent }}>Stack</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Share Expired Screen ──────────────────────────────────────────────────
