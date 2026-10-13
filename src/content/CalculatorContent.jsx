@@ -435,6 +435,26 @@ export default function CalculatorContent(props) {
   // the New Rate card, so the left column can lead with Current -> New.
   // The six live-rate tiles — inline under the button on phones, inside the
   // "Today's rates" popover on desktop.
+  // Picking a tile takes its product too (Christo 2026-10-12): 15yr sets a
+  // 15-year term, VA switches the loan to VA, and so on. Every tile except
+  // 15yr is a 30-year series. There's no new-loan ARM product, so 5/1 ARM only
+  // sets the rate. Same loan-type bookkeeping as the Loan Type select.
+  const TILE_PRODUCT = {
+   "30yr": { types: ["Conventional", "USDA"], term: 30 },
+   "15yr": { types: ["Conventional"], term: 15 },
+   FHA: { types: ["FHA"], term: 30 },
+   VA: { types: ["VA"], term: 30 },
+   Jumbo: { types: ["Jumbo"], term: 30 },
+  };
+  const pickTile = (label, r, onPick) => {
+   setRate(r);
+   const prod = TILE_PRODUCT[label];
+   if (prod) {
+    if (!prod.types.includes(loanType)) { const t = prod.types[0]; setLoanType(t); userLoanTypeRef.current = t; setAutoJumboSwitch(false); }
+    if (term !== prod.term) setTerm(prod.term);
+   }
+   onPick && onPick();
+  };
   const rateTiles = (onPick) => (<>
 
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 4 }}>
@@ -450,7 +470,7 @@ export default function CalculatorContent(props) {
        // only reads as active once its rate is actually the scenario rate.
        const isActive = matchesType && (!est || Math.abs(Number(r) - Number(rate)) < 0.0005);
        return (
-        <div key={i} role="button" tabIndex={0} aria-pressed={isActive} onClick={() => { setRate(r); onPick && onPick(); }} onKeyDown={onKeyActivate(() => { setRate(r); onPick && onPick(); })} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+        <div key={i} role="button" tabIndex={0} aria-pressed={isActive} onClick={() => pickTile(label, r, onPick)} onKeyDown={onKeyActivate(() => pickTile(label, r, onPick))} style={{ background: isActive ? `${T.blue}20` : T.inputBg, border: isActive ? `1px solid ${T.blue}55` : `1px solid transparent`, borderRadius: 10, padding: isDesktop ? "8px 10px" : "4px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
          <div style={{ fontSize: 10, color: T.textTertiary, fontWeight: 600, marginBottom: 2 }}>{label}{est && <span title="Estimated off the 30yr — not a published rate" style={{ fontWeight: 500 }}> est.</span>}</div>
          <div style={{ fontSize: isDesktop ? 15 : 13, fontWeight: 700, color: isActive ? T.blue : T.text, fontFamily: FONT }}>{r}%</div>
         </div>
@@ -1667,7 +1687,10 @@ export default function CalculatorContent(props) {
    {isDesktop && priceCard}
    {isDesktop && renderAlerts(["down-min", "three-pct", "jumbo", "escrow-off", "escrow-required"], { marginBottom: 12 })}
    {renderAlerts(["investment"], { marginBottom: isDesktop ? 12 : 8 })}
-   <Card style={isDesktop ? { marginBottom: loanStructureInQuickStart ? 0 : 12 } : { marginBottom: 8, padding: "10px 14px" }}>
+   {/* With loan structure in Quick Start, Rate is the right column's last
+       card, so it flexes to meet the payment card's bottom edge (Christo
+       2026-10-12) and centers its row in the extra height. */}
+   <Card style={isDesktop ? (loanStructureInQuickStart ? { marginBottom: 0, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" } : { marginBottom: 12 }) : { marginBottom: 8, padding: "10px 14px" }}>
     <div style={{ display: "flex", gap: 12, alignItems: isDesktop ? "flex-start" : "flex-end", marginBottom: isDesktop ? 0 : 6 }}>
      <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>

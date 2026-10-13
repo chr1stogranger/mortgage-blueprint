@@ -376,7 +376,9 @@ export default function UnifiedHeader({
     <div ref={headerRef} style={{
       position: "fixed",
       top: 0,
-      left: isBorrower ? 0 : sidebarW,
+      // Borrowers get the sidebar too (2026-05-12), so the header starts
+      // after it for everyone; at left 0 it covered the Blueprint nav item.
+      left: sidebarW,
       right: 0,
       zIndex: 900,
       background: darkMode ? "rgba(5,5,5,0.92)" : "#FFFFFF",

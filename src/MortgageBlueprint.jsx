@@ -719,8 +719,8 @@ function Note({ children, color, strong, title, action, onClick, style, onDismis
 function StatusPill({ ok, label }) {
  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: ok ? T.successBg : ok === null ? T.pillBg : T.errorBg, borderRadius: 99, padding: "3px 10px", fontSize: 12, fontWeight: 600, fontFamily: FONT, color: ok ? T.green : ok === null ? T.textTertiary : T.red }}>{ok ? "✓" : ok === null ? "○" : "✕"} {label}</span>;
 }
-// ── CoBrandBar — dual-identity glass strip: LO always, referring realtor
-//    when present. One glass strip (chrome, so T.glass is correct), two
+// ── CoBrandBar — dual-identity strip: LO always, referring realtor
+//    when present. One solid card strip (was glass until 2026-10-12), two
 //    identity cells split by a T.separator rule. Desktop: side-by-side with
 //    labeled call/email pills; mobile: cells stack and pills shrink to
 //    icon-only discs. Realtor with no photo falls back to a T.purple
@@ -776,13 +776,14 @@ function CoBrandBar({ isDesktop, loInfo, realtorPartner }) {
   ? [realtorPartner.brokerage || "", realtorPartner.dre ? `DRE #${realtorPartner.dre}` : ""].filter(Boolean).join(" · ")
   : "";
  return (
-  <div style={{ padding: "0 16px 8px" }}>
+  // Solid card, with a gap under the fixed header (Christo 2026-10-12:
+  // the glass read see-through and the bar butted against the stats row).
+  <div style={{ padding: "12px 16px 8px" }}>
    <div style={{
     display: "flex", flexDirection: stack ? "column" : "row",
     alignItems: stack ? "stretch" : "center", gap: stack ? 10 : 14,
-    background: T.glass, border: `1px solid ${T.glassBorder}`,
-    backdropFilter: "blur(20px) saturate(1.5)", WebkitBackdropFilter: "blur(20px) saturate(1.5)",
-    borderRadius: 16, padding: "10px 14px", boxShadow: T.glassShadow,
+    background: T.card, border: `1px solid ${T.cardBorder}`,
+    borderRadius: 16, padding: "10px 14px", boxShadow: T.cardShadow,
    }}>
     <CoBrandCell
      name={lo.loanOfficer}
