@@ -949,20 +949,21 @@ export default function CalculatorContent(props) {
          {!escTax && !escIns ? `Tax ${fmt(dispTax)} + insurance ${fmt(dispIns)}/mo paid separately` : !escIns ? `Insurance ${fmt(dispIns)}/mo paid separately` : `Tax ${fmt(dispTax)}/mo paid separately`}
         </div>
        )}
-       {/* Phones only — desktop has the Rate card right beside it, so the
-           repeat just shrank the donut (Christo 2026-10-01). */}
-       {!isDesktop && <div style={{ marginTop: 4, paddingTop: 7, borderTop: `1px solid ${T.separator}` }}>
+       {/* Rate + product + APR under the legend, so one screenshot carries
+           the payment, its breakdown and the rate. Phones since 2026-10-01;
+           back on desktop too (Christo 2026-10-12). */}
+       <div style={{ marginTop: isDesktop ? 2 : 4, paddingTop: isDesktop ? 10 : 7, borderTop: `1px solid ${T.separator}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-         <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
+         <span style={{ fontSize: isDesktop ? (roomyDonut ? 14 : 12.5) : 11.5, fontWeight: 600, color: T.textSecondary, fontFamily: FONT }}>Rate</span>
          {/* Present but quiet: same weight as the legend amounts, so the eye
              stays on the payment (Christo 2026-10-01). */}
          <span style={{ fontSize: roomyDonut ? 14.5 : 13, fontWeight: 700, color: T.text, fontFamily: FONT }}>{(Number(rate) || 0).toFixed(3)}%</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 6, fontSize: isDesktop ? (roomyDonut ? 12.5 : 11.5) : 10.5, color: T.textTertiary, fontFamily: FONT, marginTop: isDesktop ? 2 : 1 }}>
          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{term}-yr · {loanType === "Conventional" ? "Conv." : loanType}</span>
          {calc.apr > 0 && <span style={{ whiteSpace: "nowrap" }}>APR {calc.apr.toFixed(2)}%</span>}
         </div>
-       </div>}
+       </div>
       </div>
      </div>
     ) : (() => { const sideBySide = isDesktop && (donutSlotW === 0 || donutSlotW >= 340); return (
@@ -1012,7 +1013,10 @@ export default function CalculatorContent(props) {
      };
      const opts = [["both", "Tax + Ins"], ["tax", "Tax only"], ["none", "P&I only"]];
      return (<>
-      <div role="radiogroup" aria-label="Escrow" style={{ display: "flex", background: T.inputBg, borderRadius: 9999, padding: 3, marginTop: isDesktop ? 14 : 10, border: `1px solid ${T.cardBorder}` }}>
+      {/* "i" explainer beside the pill (Christo 2026-10-12): what escrow is
+          and what each choice means. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: isDesktop ? 14 : 10 }}>
+      <div role="radiogroup" aria-label="Escrow" style={{ flex: 1, minWidth: 0, display: "flex", background: T.inputBg, borderRadius: 9999, padding: 3, border: `1px solid ${T.cardBorder}` }}>
        {opts.map(([m, label]) => {
         const on = mode === m;
         const dis = locked && m !== "both";
@@ -1026,6 +1030,8 @@ export default function CalculatorContent(props) {
          </button>
         );
        })}
+      </div>
+      <InfoTip text={"Escrow: your lender collects property tax and homeowners insurance with each monthly payment, holds it in an escrow account, and pays those bills for you when they're due.\n\nTax + Ins: both are in your payment.\nTax only: taxes are in your payment; you pay insurance yourself.\nP&I only: no escrow. Your payment is just principal and interest, and you pay tax and insurance on your own.\n\nSkipping escrow usually needs at least 20% down and can cost a small fee. FHA and VA loans require it."} />
       </div>
       {locked && <div style={{ fontSize: 11.5, color: T.textTertiary, fontFamily: FONT, textAlign: "center", marginTop: 6 }}>{loanType} requires escrow for tax and insurance</div>}
      </>);

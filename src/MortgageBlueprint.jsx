@@ -9141,7 +9141,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    <ReadOnlyContext.Provider value={roEnforced}>
    <div data-presence-root="" ref={contentRootRef} {...roGuard} style={{ padding: isDesktop ? "0 32px" : "0 20px", maxWidth: isDesktop ? "min(1600px, 92vw)" : "none", margin: isDesktop ? "0 auto" : 0 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 {/* ?listing= flyer banner / expired-link notice on the Calculator tab. The
-    Overview copy renders below the phone section-pill spacer instead, so the
+    Overview copy renders with the Overview content instead, so the
     fixed "On this page" pill can't sit on top of the banner. */}
 {tab === "calc" && listingBannerEl}
 <TabIntro id={tab} />
@@ -9378,19 +9378,19 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     the drawer index was (guided flow keeps its wizard). */}
 {tab === "overview" && !isDesktop && skillLevel !== "guided" && OVERVIEW_SECTIONS.length > 0 && !keyboardOpen && !sectionPillHidden && (
  <>
-  {/* Fixed, not sticky: html/body carry overflow-x:hidden (see the <style>
-      block), which turns body into the sticky containing block and the strip
-      would scroll away. Fixed under the header + a 40px spacer in flow. */}
-  <div style={{ position: "fixed", top: "var(--bp-header-h, calc(92px + env(safe-area-inset-top, 0px)))", left: 0, right: 0, zIndex: 20, pointerEvents: "none" }}>
-   <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "6px 16px 4px" }}>
+  {/* Fixed (html/body carry overflow-x:hidden, so sticky would scroll away).
+      Lower right, just above the bottom tab bar (Christo 2026-10-13: it sat
+      under the header, upper right, and cost a 40px row at the top). */}
+  <div style={{ position: "fixed", bottom: `calc(${MOBILE_TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom, 0px) + 10px)`, left: 0, right: 0, zIndex: 20, pointerEvents: "none" }}>
+   <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", alignItems: "center", gap: 8, padding: "0 16px" }}>
     <button type="button" onClick={() => setSectionSheetOpen(true)} aria-haspopup="dialog" aria-label="Jump to a section"
-     style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+     style={{ marginLeft: "auto", pointerEvents: "auto", display: "flex", alignItems: "center", gap: 4, minHeight: 32, padding: "5px 10px 5px 12px", borderRadius: 9999, background: T.sideBg || T.glass, border: `1px solid ${T.glassBorder || T.cardBorder}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", boxShadow: "0 4px 16px rgba(15,23,41,0.16)", color: T.text, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
      {(OVERVIEW_SECTIONS.find((x) => x.id === currentSectionId) || OVERVIEW_SECTIONS[0]).label}
-     <Icon name="chevron-down" size={13} color={T.textSecondary} />
+     {/* The section sheet rises from the bottom now, so the chevron points up. */}
+     <Icon name="chevron-up" size={13} color={T.textSecondary} />
     </button>
    </div>
   </div>
-  <div aria-hidden="true" style={{ height: 40 }} />
  </>
 )}
 {tab === "overview" && listingBannerEl}
