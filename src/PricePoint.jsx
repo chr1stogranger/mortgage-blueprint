@@ -4436,6 +4436,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     // its PRIOR sale is guessing context, not a caption — it reads as the answer
     // sitting on the photo. It moves into Value Signals below (Christo 2026-07-19).
     const datePill = showSoldDate ? fmtSoldPill(listing.soldDate) : null;
+    // Under-contract homes stay in For Sale but wear a PENDING badge (orange,
+    // Redfin's sash) instead of FOR SALE — you're still calling the final price.
+    if (badge === "FOR SALE" && listing.status === "pending") { badge = "PENDING"; badgeColor = T.orange; }
     const lastSoldLabel = showLastSold
       ? fmtMonthYear(details?.lastSoldDate || listing.lastSoldDate)
       : null;

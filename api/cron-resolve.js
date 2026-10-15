@@ -190,6 +190,42 @@ async function fetchPropertyDetails(zpid) {
   }
 }
 
+// ── Redfin-sourced For Sale homes (rf_<id>, the pending set /api/pricepoint
+// merges in) have no Zillow zpid, and resolution reads Zillow property-details.
+// Map once by address → Zillow zpid via /search, cached in pp_city_cache
+// ("zmap:rf_…"), so each predicted home costs one extra call, ever. ──
+const MARKET_CITY = { sf: 'San Francisco', oakland: 'Oakland', berkeley: 'Berkeley', alameda: 'Alameda', la: 'Los Angeles', sd: 'San Diego' };
+const streetCanon = (s) => String(s || '').toLowerCase().replace(/\b(avenue)\b/g, 'ave').replace(/\b(street)\b/g, 'st').replace(/[^a-z0-9# ]/g, ' ').replace(/\s+/g, ' ').trim();
+async function zillowZpidForRedfin(rfId, supabase) {
+  const key = `zmap:${rfId}`;
+  try {
+    const { data: row } = await supabase.from('pp_city_cache').select('data').eq('cache_key', key).maybeSingle();
+    if (row?.data?.zpid) return String(row.data.zpid);
+  } catch { /* look it up */ }
+  const { data: pred } = await supabase.from('pp_predictions').select('address, market_id, guess_id').eq('zpid', rfId).limit(1).maybeSingle();
+  if (!pred?.address) return null;
+  let city = MARKET_CITY[pred.market_id] || '', zip = '';
+  if (pred.guess_id) {
+    const { data: g } = await supabase.from('pp_guesses').select('city, zip').eq('id', pred.guess_id).maybeSingle();
+    city = g?.city || city; zip = g?.zip || '';
+  }
+  const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
+  try {
+    const q = [pred.address, city, `CA ${zip}`.trim()].filter(Boolean).join(', ');
+    const r = await fetch(`https://${apiHost}/search?location=${encodeURIComponent(q)}`, { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': apiHost } });
+    const j = await r.json().catch(() => null);
+    const list = (j && (Array.isArray(j.data) ? j.data : j.data?.results)) || [];
+    const want = streetCanon(pred.address);
+    const hit = list.find(x => streetCanon(String(x?.streetAddress || x?.address || '').split(',')[0]) === want);
+    if (!hit?.zpid) { console.warn(`[CronResolve] no Zillow match for ${rfId} (${q})`); return null; }
+    await supabase.from('pp_city_cache').upsert({ cache_key: key, data: { zpid: String(hit.zpid) }, updated_at: new Date().toISOString() }, { onConflict: 'cache_key' });
+    return String(hit.zpid);
+  } catch (e) {
+    console.error(`[CronResolve] zpid lookup failed for ${rfId}: ${e.message}`);
+    return null;
+  }
+}
+
 // Process a batch of zpids
 async function processBatch(zpids, supabase) {
   const results = {
@@ -200,8 +236,11 @@ async function processBatch(zpids, supabase) {
 
   for (const zpid of zpids) {
     try {
-      // Fetch property details
-      const propertyData = await fetchPropertyDetails(zpid);
+      // Fetch property details (rf_ rows: via their mapped Zillow zpid; the
+      // predictions keep their rf_ zpid, which the queries below match on)
+      const lookupZpid = String(zpid).startsWith('rf_') ? await zillowZpidForRedfin(zpid, supabase) : zpid;
+      if (!lookupZpid) { results.errors.push(`No Zillow zpid for ${zpid} yet`); continue; }
+      const propertyData = await fetchPropertyDetails(lookupZpid);
 
       if (!propertyData) {
         results.errors.push(`Failed to fetch zpid ${zpid}`);

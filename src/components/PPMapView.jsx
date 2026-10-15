@@ -95,7 +95,8 @@ export default function PPMapView({ listings, T, darkMode, onSelect, activeIdx, 
       const el = document.createElement("div");
       el.style.cssText = [
         `width:${size}px`, `height:${size}px`, "border-radius:9999px",
-        `background:${guessed ? done : accent}`, "border:2px solid #fff",
+        // Pending (under contract) homes read orange, like Redfin's sash.
+        `background:${guessed ? done : (l?.status === "pending" ? (T.orange || "#d98a0b") : accent)}`, "border:2px solid #fff",
         `box-shadow:0 1px 6px rgba(0,0,0,0.35)${active ? `,0 0 0 4px ${ring}` : ""}`,
         guessed ? "opacity:0.9" : "",
         "cursor:pointer", "display:flex", "align-items:center", "justify-content:center",

@@ -129,6 +129,116 @@ function normalizeProperty(raw, index, prefix, isSold) {
   };
 }
 
+// ═══ Pending listings (Redfin) ═══
+// The Zillow host only searches FOR_SALE / FOR_RENT / RECENTLY_SOLD, and its
+// FOR_SALE results exclude anything under contract — so homes vanished from
+// For Sale the day they went pending (1775 48th Ave, 2026-10-14). Redfin's
+// search-sale with status=130 returns exactly the pending / under-contract
+// set. A pending home Zillow still lists keeps its Zillow zpid (and gets
+// status "pending"); the rest join as rf_<propertyId> rows, which the
+// resolver maps back to a Zillow zpid by address when someone predicts one.
+const REDFIN_HOST = "redfin-com-data.p.rapidapi.com";
+const REDFIN_PENDING_STATUS = 130;
+const REDFIN_TYPES = { 6: "Single Family", 3: "Condo", 13: "Townhouse", 4: "Multi Family", 20: "Multi Family", 7: "Manufactured", 8: "Manufactured" };
+const redfinRegionMem = new Map();
+const pendAddrKey = (addr, zip) => `${String(addr || "").toLowerCase().replace(/[^a-z0-9]/g, "")}|${String(zip || "").slice(0, 5)}`;
+
+async function redfinCityRegion(city, apiKey, supabase) {
+  const key = `city:${String(city).toLowerCase().trim()}`;
+  if (redfinRegionMem.has(key)) return redfinRegionMem.get(key);
+  // Same persisted cache sold-comps fills ("redfin_region:city:<city>").
+  if (supabase) {
+    try {
+      const { data: row } = await supabase.from("pp_city_cache").select("data").eq("cache_key", `redfin_region:${key}`).maybeSingle();
+      if (row?.data?.regionId) { redfinRegionMem.set(key, String(row.data.regionId)); return String(row.data.regionId); }
+    } catch { /* fall through */ }
+  }
+  try {
+    const r = await fetch(`https://${REDFIN_HOST}/properties/auto-complete?query=${encodeURIComponent(city)}`, { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": REDFIN_HOST } });
+    const j = await r.json().catch(() => null);
+    const rows = (Array.isArray(j?.data) ? j.data : []).flatMap(sec => sec?.rows || []);
+    const hit = rows.find(x => x?.id && String(x.id).startsWith("6_")) || rows.find(x => x?.id);
+    if (hit?.id) {
+      redfinRegionMem.set(key, String(hit.id));
+      if (supabase) supabase.from("pp_city_cache").upsert({ cache_key: `redfin_region:${key}`, data: { regionId: hit.id }, updated_at: new Date().toISOString() }, { onConflict: "cache_key" }).then(() => {}, () => {});
+      return String(hit.id);
+    }
+  } catch (e) {
+    console.error(`[PricePoint] redfin region lookup failed for ${city}: ${e.message}`);
+  }
+  return null;
+}
+
+function redfinPendingToListing(item, i) {
+  const h = item?.homeData;
+  const price = Number(h?.priceInfo?.amount || h?.priceInfo?.homePrice?.int64Value || 0);
+  if (!h?.propertyId || !price) return null;
+  const a = h.addressInfo || {};
+  const sqft = Number(h.sqftInfo?.amount) || 0;
+  const photos = [...(h.photos?.bigPhotos || []), ...(h.photos?.smallPhotos || [])];
+  const zip = a.zip || "";
+  return {
+    id: `ppp${i + 1}`,
+    zpid: `rf_${h.propertyId}`,
+    address: a.formattedStreetLine || "Unknown",
+    city: a.city || "", state: a.state || "CA", zip,
+    beds: h.beds || 0, baths: h.baths ?? h.fullBaths ?? 0, sqft,
+    lotSqft: Number(h.lotSize?.amount) || 0,
+    yearBuilt: h.yearBuilt?.yearBuilt || null,
+    propertyType: REDFIN_TYPES[h.propertyType] || "Single Family",
+    listPrice: price, zestimate: null, soldPrice: null, soldDate: null,
+    daysOnMarket: Number(h.daysOnMarket?.daysOnMarket) || 0,
+    status: "pending",
+    photo: photos[0] || null,
+    neighborhood: ZIP_TO_NEIGHBORHOOD[zip] || a.location || "",
+    pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
+    latitude: a.centroid?.centroid?.latitude ?? null,
+    longitude: a.centroid?.centroid?.longitude ?? null,
+    rentZestimate: null,
+    detailUrl: h.url ? `https://www.redfin.com${h.url}` : null,
+    listingAgent: null, description: null,
+    _source: "active_api",
+  };
+}
+
+async function fetchRedfinPending(city, apiKey, supabase) {
+  const regionId = await redfinCityRegion(city, apiKey, supabase);
+  if (!regionId) return [];
+  const out = [];
+  for (let page = 1; page <= 3; page++) {
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 15000);
+      const r = await fetch(`https://${REDFIN_HOST}/properties/search-sale?regionId=${encodeURIComponent(regionId)}&status=${REDFIN_PENDING_STATUS}&limit=350&page=${page}`,
+        { headers: { "X-RapidAPI-Key": apiKey, "X-RapidAPI-Host": REDFIN_HOST }, signal: ctl.signal }).finally(() => clearTimeout(t));
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !Array.isArray(j?.data)) { console.error(`[PricePoint] redfin pending ${city} p${page}: HTTP ${r.status}`); break; }
+      out.push(...j.data);
+      if (!j.meta?.moreData) break;
+    } catch (e) {
+      console.error(`[PricePoint] redfin pending ${city} p${page} failed: ${e.message}`);
+      break;
+    }
+  }
+  return out.map(redfinPendingToListing).filter(Boolean);
+}
+
+// Zillow row for the same home wins (keeps the resolvable zpid) — it's just
+// flipped to "pending"; Redfin-only pending homes are appended.
+function mergePending(active, pending) {
+  if (!pending.length) return active;
+  const byAddr = new Map(active.map(l => [pendAddrKey(l.address, l.zip), l]));
+  const out = active.slice();
+  let flipped = 0, added = 0;
+  for (const p of pending) {
+    const z = byAddr.get(pendAddrKey(p.address, p.zip));
+    if (z) { z.status = "pending"; flipped++; continue; }
+    out.push(p); added++;
+  }
+  console.info(`[PricePoint] pending merge: ${pending.length} redfin pending → ${flipped} flipped, ${added} added`);
+  return out;
+}
+
 function normalizeHomeType(type) {
   if (!type) return "Single Family";
   const map = {
@@ -462,8 +572,11 @@ export default async function handler(req, res) {
           console.error(`[PricePoint] refresh: cooldown claim failed (continuing): ${e.message}`);
         }
         try {
-          const raw = await fetchAllPages(location, "FOR_SALE", apiKey, apiHost, MAX_ACTIVE_PAGES);
-          const active = raw.filter(r => r.zpid && r.price).map((r, i) => normalizeProperty(r, i, "pp", false));
+          const [raw, pendingRows] = await Promise.all([
+            fetchAllPages(location, "FOR_SALE", apiKey, apiHost, MAX_ACTIVE_PAGES),
+            fetchRedfinPending(location, apiKey, supabase).catch(() => []),
+          ]);
+          const active = mergePending(raw.filter(r => r.zpid && r.price).map((r, i) => normalizeProperty(r, i, "pp", false)), pendingRows);
           if (active.length > 0) {
             const activeZpids = new Set(active.map(a => a.zpid));
             const soldListings = (baseData.soldListings || []).filter(x => !activeZpids.has(x.zpid));
@@ -490,12 +603,13 @@ export default async function handler(req, res) {
       // No cached row at all → fall through to the normal full fetch below.
     }
 
-    // Fetch ALL pages of active and sold in parallel (pending comes within
-    // forSale). Pagination is what lets Live mode show the full city inventory
+    // Fetch ALL pages of active and sold in parallel, plus Redfin's pending
+    // set (Zillow's forSale search excludes it — see mergePending). Pagination is what lets Live mode show the full city inventory
     // instead of just the first ~40 results a single search call returns.
-    const [activeData, soldData] = await Promise.allSettled([
+    const [activeData, soldData, pendingData] = await Promise.allSettled([
       fetchAllPages(location, "FOR_SALE", apiKey, apiHost, MAX_ACTIVE_PAGES),
       fetchAllPages(location, "RECENTLY_SOLD", apiKey, apiHost, MAX_SOLD_PAGES),
+      fetchRedfinPending(location, apiKey, supabase),
     ]);
 
     // Parse active listings (fetchAllPages returns a flat, de-duped array)
@@ -505,6 +619,7 @@ export default async function handler(req, res) {
         .filter(r => r.zpid && r.price)
         .map((r, i) => normalizeProperty(r, i, "pp", false));
       console.info(`[PricePoint] Active across pages: ${activeData.value.length} raw, ${active.length} usable`);
+      if (pendingData.status === "fulfilled") active = mergePending(active, pendingData.value);
     } else {
       console.error(`[PricePoint] Active failed: ${activeData.reason?.message}`);
     }
