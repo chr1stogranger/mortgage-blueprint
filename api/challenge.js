@@ -19,7 +19,7 @@ export default function handler(req, res) {
     return sendOgPage(res, {
       title: 'PricePoint — The Home Price Guessing Game',
       description: 'Guess what real homes sold for. Daily challenges, streaks, and leaderboards on real sold listings. Powered by RealStack.',
-      canonicalUrl: 'https://pricepoint.realstack.app/',
+      canonicalUrl: 'https://blueprint.realstack.app/pricepoint',
       redirectTo: '/',
     });
   }

@@ -48,6 +48,10 @@
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/pricepoint", "destination": "/pricepoint.html" },
+    { "source": "/markets", "destination": "/markets.html" },
+    { "source": "/", "has": [{ "type": "host", "value": "pricepoint.realstack.app" }], "destination": "/pricepoint.html" },
+    { "source": "/", "has": [{ "type": "host", "value": "markets.realstack.app" }], "destination": "/markets.html" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [
