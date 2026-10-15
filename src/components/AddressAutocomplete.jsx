@@ -41,7 +41,8 @@
 //   onSelectLocal(item) — fired when one of those is picked (falls back to
 //                 onSelect when omitted)
 //   localBadge — short tag rendered on local rows (e.g. "FOR SALE")
-//   localBadgeColor — its tint (defaults to T.red, the For Sale color)
+//   localBadgeColor — its tint (defaults to T.red, the For Sale color);
+//                 both may be functions of the row item
 //   proximity  — optional { lat, lng } to bias geocoder results to the market
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
@@ -334,9 +335,12 @@ export default function AddressAutocomplete({ onSelect, onSubmit, value, onChang
                       <div style={{ fontSize: 11, color: T.textSecondary, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{secondary}</div>
                     )}
                   </div>
-                  {isLocal && localBadge && (
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: localBadgeColor || T.red || T.accent, background: `${localBadgeColor || T.red || T.accent}14`, border: `1px solid ${localBadgeColor || T.red || T.accent}30`, borderRadius: 9999, padding: "2px 7px", flexShrink: 0 }}>{localBadge}</span>
-                  )}
+                  {isLocal && localBadge && (() => {
+                    // localBadge / localBadgeColor may be per-row functions (e.g. PENDING vs FOR SALE).
+                    const txt = typeof localBadge === "function" ? localBadge(row.item) : localBadge;
+                    const col = (typeof localBadgeColor === "function" ? localBadgeColor(row.item) : localBadgeColor) || T.red || T.accent;
+                    return txt ? <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", fontFamily: FONT, color: col, background: `${col}14`, border: `1px solid ${col}30`, borderRadius: 9999, padding: "2px 7px", flexShrink: 0 }}>{txt}</span> : null;
+                  })()}
                 </div>
               );
             })}

@@ -342,7 +342,13 @@ export default async function handler(req, res) {
         rank: i + 1, name: r.pp_players?.display_name || '', guess: r.guess,
         accuracy: Math.max(0, 100 - Number(r.pct_off)), you: r.player_id === myPlayerId,
       }));
-      return res.status(200).json({ zpid, count: rows.length, locked: false, yourRank: mineIdx + 1, avgGuess: avg, top });
+      // The whole field, ranked (Christo 2026-10-14: "see what all of the
+      // guesses were") — same unlock rule as top: only after you've guessed.
+      const all = rows.slice(0, 200).map((r, i) => ({
+        rank: i + 1, name: r.pp_players?.display_name || '', guess: r.guess,
+        accuracy: Math.max(0, 100 - Number(r.pct_off)), you: r.player_id === myPlayerId,
+      }));
+      return res.status(200).json({ zpid, count: rows.length, locked: false, yourRank: mineIdx + 1, avgGuess: avg, top, all });
     }
 
     const { data, error } = await supabase

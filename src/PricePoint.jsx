@@ -356,7 +356,7 @@ const canonPropType = (t) => {
 // ── For Sale filters (Christo 2026-10-09, after Redfin/Zillow): list price
 // range, beds range (tap two numbers), baths minimum, min sqft, min year
 // built, and new-this-week. Empty object = no filter. ──
-const LIVE_FILTERS_EMPTY = { priceMode: "list", priceMin: null, priceMax: null, payMin: null, payMax: null, payDown: 0.2, bedsMin: null, bedsMax: null, bathsMin: null, sqftMin: null, yearMin: null, newOnly: false };
+const LIVE_FILTERS_EMPTY = { hidePending: false, priceMode: "list", priceMin: null, priceMax: null, payMin: null, payMax: null, payDown: 0.2, bedsMin: null, bedsMax: null, bathsMin: null, sqftMin: null, yearMin: null, newOnly: false };
 
 // ── Monthly-payment estimate for the filter (Redfin's "Monthly payment" tab).
 // P&I at today's 30-yr fixed (jumbo rate above the county high-balance
@@ -404,6 +404,7 @@ const fmtMonthly = (n) => !n ? "" : n >= 1e4 ? `$${(n / 1e3).toFixed(n % 1e3 ? 1
 
 const liveFilterMatch = (f, l, payCtx) => {
   if (!f) return true;
+  if (f.hidePending && l.status === "pending") return false;
   const lp = Number(l.listPrice) || 0;
   if (f.priceMode === "monthly") {
     if (f.payMin || f.payMax) {
@@ -425,7 +426,7 @@ const liveFilterMatch = (f, l, payCtx) => {
   if (f.newOnly && !(Number(l.daysOnMarket) >= 0 && Number(l.daysOnMarket) <= 7)) return false;
   return true;
 };
-const liveFilterCount = (f) => !f ? 0 : [f.priceMode === "monthly" ? (f.payMin || f.payMax) : (f.priceMin || f.priceMax), f.bedsMin != null, f.bathsMin, f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length;
+const liveFilterCount = (f) => !f ? 0 : [f.hidePending, f.priceMode === "monthly" ? (f.payMin || f.payMax) : (f.priceMin || f.priceMax), f.bedsMin != null, f.bathsMin, f.sqftMin, f.yearMin, f.newOnly].filter(Boolean).length;
 // "1.5m" / "800k" / "1,250,000" → dollars
 const parseMoney = (s) => {
   const m = String(s || "").trim().toLowerCase().replace(/[$,\s]/g, "").match(/^(\d*\.?\d+)([km]?)$/);
@@ -3532,6 +3533,33 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     });
   }, []);
   const statsOpen = view === "tomorrow"; // the Stats tab's view key
+  // The Field: "See all N guesses" expands the ranked list with each guess.
+  const [fieldAllOpen, setFieldAllOpen] = useState(null); // zpid | null
+  const renderFieldAll = (fld, zpid, compactRows = false) => {
+    const all = Array.isArray(fld?.all) ? fld.all : [];
+    if (all.length <= 3) return null;
+    const open = fieldAllOpen === String(zpid);
+    return (
+      <div style={{ marginTop: 8 }}>
+        <button onClick={(e) => { e.stopPropagation(); setFieldAllOpen(open ? null : String(zpid)); }}
+          style={{ background: "none", border: "none", padding: 0, color: T.accent, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer" }}>
+          {open ? "Hide guesses" : `See all ${all.length} guesses`}
+        </button>
+        {open && (
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3, maxHeight: 320, overflowY: "auto" }}>
+            {all.map(t => (
+              <div key={t.rank} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: compactRows ? 12 : 12.5, fontFamily: FONT, color: t.you ? T.accent : T.textSecondary, fontWeight: t.you ? 700 : 500 }}>
+                <span style={{ width: 22, fontWeight: 800, color: t.rank === 1 ? T.green : T.textTertiary }}>{t.rank}</span>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.you ? "You" : (t.name || "Player")}</span>
+                <span style={{ fontWeight: 700, color: T.text }}>{fmt(t.guess)}</span>
+                <span style={{ width: 52, textAlign: "right" }}>{Number(t.accuracy).toFixed(1)}%</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
   // ── Stats: your Sold / Daily guess history (server, cross-device), like the
   // For Sale predictions list. Tap a row → that home's Field, inline. ──
   const [mySoldGuesses, setMySoldGuesses] = useState(null);
@@ -3596,12 +3624,13 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 6 }}>
                           {fld.count} {fld.count === 1 ? "player" : "players"}{fld.count > 1 ? ` · avg ${fmt(fld.avgGuess)} · you #${fld.yourRank} of ${fld.count}` : " · just you so far"}
                         </div>
-                        {(fld.top || []).map(t => (
+                        {fieldAllOpen !== String(g.zpid) && (fld.top || []).map(t => (
                           <div key={t.rank} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: t.you ? T.text : T.textSecondary, fontWeight: t.you ? 700 : 500, padding: "2px 0" }}>
                             <span>{t.rank}. {t.you ? "You" : (t.name || "Player")}</span>
                             <span>{fmt(t.guess)} · {Number(t.accuracy).toFixed(1)}%</span>
                           </div>
                         ))}
+                        {renderFieldAll(fld, g.zpid, true)}
                       </>
                     )}
                   </div>
@@ -5016,7 +5045,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                       You ranked <b style={{ color: field.yourRank === 1 ? T.green : T.text }}>#{field.yourRank}</b> of {field.count}
                       {field.avgGuess ? <> · avg guess <b style={{ color: T.text }}>{fmt(field.avgGuess)}</b></> : null}
                     </div>
-                    {!cmp && Array.isArray(field.top) && field.top.length > 0 && (
+                    {!cmp && Array.isArray(field.top) && field.top.length > 0 && fieldAllOpen !== String(field.zpid || result.zpid) && (
                       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
                         {field.top.map(t => (
                           <div key={t.rank} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontFamily: FONT, color: t.you ? T.accent : T.textSecondary }}>
@@ -5027,6 +5056,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         ))}
                       </div>
                     )}
+                    {renderFieldAll(field, field.zpid || result.zpid, cmp)}
                     {cmp && Array.isArray(field.top) && field.top[0] && field.yourRank !== 1 && (
                       <div style={{ fontSize: 12, color: T.textTertiary, fontFamily: FONT, marginTop: 2 }}>
                         Closest: {field.top[0].name || "Player"} at {Number(field.top[0].accuracy).toFixed(1)}%
@@ -5988,7 +6018,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     onSubmit={(v) => { setShowMap(false); runLiveAddressSearch(v); }}
                     localSuggestions={liveListings}
                     onSelectLocal={(l) => { setShowMap(false); handleLiveListingSelect(l); }}
-                    localBadge="For sale"
+                    localBadge={(l) => (l?.status === "pending" ? "Pending" : "For sale")}
+                    localBadgeColor={(l) => (l?.status === "pending" ? T.orange : T.red)}
                     proximity={liveProximity}
                     placeholder="Search any address…"
                     inputClassName="pp-search-input"
@@ -6331,6 +6362,12 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                         style={{ padding: "6px 12px", borderRadius: 9999, border: `1px solid ${on ? T.red : T.cardBorder}`, background: on ? `${T.red}1f` : T.card, color: on ? T.red : T.textSecondary, fontSize: 12, fontWeight: 600, fontFamily: FONT, cursor: "pointer" }}>{lbl}</button>
                     );
                   })}
+                </div>
+
+                <div style={label}>Status</div>
+                <div style={{ ...segWrap, marginBottom: 14 }}>
+                  <button onClick={() => setLiveFilters(x => ({ ...x, hidePending: false }))} style={seg(!f.hidePending)}>Active + pending</button>
+                  <button onClick={() => setLiveFilters(x => ({ ...x, hidePending: true }))} style={seg(!!f.hidePending)}>Active only</button>
                 </div>
 
                 <div style={label}>Beds <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>· tap two numbers for a range</span></div>
