@@ -2019,7 +2019,7 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     setDetailsLoading(zpid);
     try {
       const reqUrl = isRc
-        ? apiUrl(`/api/propertydetails?rcid=${encodeURIComponent(zpid)}&address=${encodeURIComponent(`${lst.address}, ${lst.city}, ${lst.state || "CA"} ${lst.zip || ""}`.trim())}`)
+        ? apiUrl(`/api/propertydetails?rcid=${encodeURIComponent(zpid)}&address=${encodeURIComponent(`${lst.address}, ${lst.city}, ${lst.state || "CA"} ${lst.zip || ""}`.trim())}${lst.rfPhotoSpec ? `&rfp=${encodeURIComponent(lst.rfPhotoSpec)}` : ""}`)
         // &v= is a response-shape version: bumping it skips the 24h edge
         // cache of the old shape (v2 = listing agent, 2026-10-09).
         : apiUrl(`/api/propertydetails?zpid=${zpid}&v=2`);

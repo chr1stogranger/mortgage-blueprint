@@ -42,6 +42,26 @@ export const MAX_PHOTOS = 100;
 // 192px thumbnail of each photo (a few KB apiece, fetched in parallel, no
 // RapidAPI call). Non-Zillow URLs, or anything slow/failing, keep their order.
 const ZILLOW_SIZED = /-cc_ft_\d+\.(jpg|webp)$/;
+const REDFIN_BIG = /\/bigphoto\/(\d+)\/(\d+_[\d_]+\.jpg)$/;
+// Small, cheap thumbnail for scoring: Zillow's 192px rendition, or Redfin's
+// ~19KB "islphoto" copy of a bigphoto. null = can't score this URL.
+const thumbFor = (url) => (ZILLOW_SIZED.test(url) ? url.replace(ZILLOW_SIZED, '-cc_ft_192.jpg')
+  : REDFIN_BIG.test(url) ? url.replace(REDFIN_BIG, '/islphoto/$1/genIslnoResize.$2') : null);
+
+// Redfin listing photos from the search payload's photo range:
+// "<dataSourceId>.<mlsId>.<start>.<end>.<version>" → bigphoto URLs
+// (index 0 = <mls>_0.jpg, N ≥ 1 = <mls>_N_<version>.jpg; verified on
+// 1775 48th Ave, 58 photos).
+export function redfinPhotosFromSpec(spec) {
+  const m = String(spec || '').match(/^(\d{1,4})\.(\d{4,14})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return [];
+  const [, ds, mls, a, b, v] = m;
+  const start = Number(a), end = Math.min(Number(b), Number(a) + MAX_PHOTOS - 1);
+  const base = `https://ssl.cdn-redfin.com/photo/${ds}/bigphoto/${mls.slice(-3)}`;
+  const out = [];
+  for (let i = start; i <= end; i++) out.push(i === 0 ? `${base}/${mls}_0.jpg` : `${base}/${mls}_${i}_${v}.jpg`);
+  return out;
+}
 function looksLikeFloorPlan(rgba) {
   let white = 0, dark = 0, colorful = 0;
   const n = rgba.length / 4;
@@ -62,9 +82,10 @@ export async function floorPlansFirst(photos, { timeoutMs = 3500 } = {}) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const flags = await Promise.all(photos.map(async (url, i) => {
-      if (i === 0 || !ZILLOW_SIZED.test(url)) return false;
+      const thumb = i === 0 ? null : thumbFor(url);
+      if (!thumb) return false;
       try {
-        const r = await fetch(url.replace(ZILLOW_SIZED, '-cc_ft_192.jpg'), { signal: controller.signal });
+        const r = await fetch(thumb, { signal: controller.signal });
         if (!r.ok) return false;
         const img = decode(new Uint8Array(await r.arrayBuffer()), { useTArray: true, formatAsRGBA: true, maxResolutionInMP: 1 });
         return looksLikeFloorPlan(img.data);

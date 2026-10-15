@@ -12,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
 import { handleAddressSearch } from "./_address.js";
-import { MAX_PHOTOS, floorPlansFirst } from "./_enrich.js";
+import { MAX_PHOTOS, floorPlansFirst, redfinPhotosFromSpec } from "./_enrich.js";
 
 export const config = { maxDuration: 30 };
 
@@ -169,6 +169,27 @@ export default async function handler(req, res) {
 
   // Cache key: rc_ id for RentCast rows (stable), zillow zpid otherwise.
   const cacheKey = rcid || zpid;
+
+  // ─── Pending For Sale home that only Redfin lists (rf_, no pool row) ───
+  // The client passes the search payload's photo range (?rfp=); build the
+  // full bigphoto set from it and put floor plans after the hero. No provider
+  // call; the URL (incl. rfp) is CDN-cached and L1 holds it per instance.
+  if (!zpid && rcid && rcid.startsWith("rf_") && req.query.rfp) {
+    const k = `rfp:${rcid}:${req.query.rfp}`;
+    const hit = cache.get(k);
+    if (hit && Date.now() - hit.timestamp < CACHE_TTL) {
+      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+      return res.status(200).json({ ...hit.data, cached: true });
+    }
+    const built = redfinPhotosFromSpec(req.query.rfp);
+    if (built.length > 0) {
+      const photos = await floorPlansFirst(built);
+      const out = { zpid: rcid, photos, description: "", photoCount: photos.length, photoCap: MAX_PHOTOS, floorPlansSorted: true, source: "redfin-photos" };
+      cache.set(k, { data: out, timestamp: Date.now() });
+      res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
+      return res.status(200).json(out);
+    }
+  }
 
   // Check cache (skip if ?fresh=1, or if cached result has no photos — re-fetch to get real data)
   if (!skipCache) {

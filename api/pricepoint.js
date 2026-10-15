@@ -8,6 +8,7 @@
 //   L3: RapidAPI fetch (parallel-paged) — the expensive path (~2-4s)
 
 import { createClient } from "@supabase/supabase-js";
+import { redfinPhotosFromSpec } from "./_enrich.js";
 
 // ─── Supabase admin client (server-side, bypasses RLS) — same pattern as sold-comps ───
 function getSupabaseAdmin() {
@@ -175,7 +176,13 @@ function redfinPendingToListing(item, i) {
   if (!h?.propertyId || !price) return null;
   const a = h.addressInfo || {};
   const sqft = Number(h.sqftInfo?.amount) || 0;
-  const photos = [...(h.photos?.bigPhotos || []), ...(h.photos?.smallPhotos || [])];
+  // Full photo set from the payload's photo range (the search payload itself
+  // carries only 1-2 URLs); falls back to whatever URLs it did include.
+  const range = h.photosInfo?.photoRanges?.[0];
+  const rfPhotoSpec = range && h.dataSourceId && h.mlsId
+    ? `${h.dataSourceId}.${h.mlsId}.${range.startPos || 0}.${range.endPos || 0}.${range.version || 1}` : null;
+  const built = rfPhotoSpec ? redfinPhotosFromSpec(rfPhotoSpec) : [];
+  const photos = built.length ? built : [...(h.photos?.bigPhotos || []), ...(h.photos?.smallPhotos || [])];
   const zip = a.zip || "";
   return {
     id: `ppp${i + 1}`,
@@ -190,6 +197,8 @@ function redfinPendingToListing(item, i) {
     daysOnMarket: Number(h.daysOnMarket?.daysOnMarket) || 0,
     status: "pending",
     photo: photos[0] || null,
+    photos,
+    rfPhotoSpec,
     neighborhood: ZIP_TO_NEIGHBORHOOD[zip] || a.location || "",
     pricePerSqft: sqft > 0 ? Math.round(price / sqft) : 0,
     latitude: a.centroid?.centroid?.latitude ?? null,
