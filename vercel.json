@@ -28,6 +28,18 @@
       "permanent": false
     },
     {
+      "source": "/",
+      "has": [{ "type": "host", "value": "pricepoint.realstack.app" }],
+      "destination": "/pricepoint",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "markets.realstack.app" }],
+      "destination": "/markets",
+      "permanent": false
+    },
+    {
       "source": "/:path(.*)",
       "has": [{ "type": "host", "value": "mortgageblueprint.app" }],
       "destination": "https://blueprint.realstack.app/:path",
@@ -50,8 +62,6 @@
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/pricepoint", "destination": "/pricepoint.html" },
     { "source": "/markets", "destination": "/markets.html" },
-    { "source": "/", "has": [{ "type": "host", "value": "pricepoint.realstack.app" }], "destination": "/pricepoint.html" },
-    { "source": "/", "has": [{ "type": "host", "value": "markets.realstack.app" }], "destination": "/markets.html" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

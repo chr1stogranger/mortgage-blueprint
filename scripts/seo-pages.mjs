@@ -6,8 +6,11 @@
 // pricepoint.realstack.app host as "Alternate page with proper canonical tag"
 // and never indexed them. These copies are the same app bundle with
 // section-specific <title>, description, OG tags and a self-referencing
-// canonical. vercel.json rewrites /pricepoint, /markets and the section
-// subdomains to them; the SPA picks its mode from the path/host as before.
+// canonical. vercel.json rewrites /pricepoint and /markets to them. The
+// section subdomains' bare "/" can't be rewritten (Vercel serves the
+// index.html file before rewrites run), so vercel.json redirects it to the
+// same host's /pricepoint or /markets instead: same origin, so players keep
+// their localStorage stats. The SPA picks its mode from the path as before.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const ORIGIN = 'https://blueprint.realstack.app';
