@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { enrichPoolRow } from './_enrich.js';
+import { enrichPoolRow, extractPhotos, isUsablePhoto } from './_enrich.js';
 import { safeEq } from './_safeEq.js';
 
 // Raise the function budget: this cron now resolves predictions AND runs the
@@ -291,6 +291,8 @@ async function processBatch(zpids, supabase) {
       // each player where they landed. These are everyone who predicted this
       // listing — a challenge pair, plus any other players who called it.
       const soldStr = `$${(soldPrice / 1000000).toFixed(2)}M`;
+      // Hero photo for the result email/push — we already have the listing.
+      const photo = extractPhotos(propertyData).find(isUsablePhoto) || null;
       const scored = predictions.map((p) => ({
         ...p,
         pctOff: Math.abs((p.predicted_price - soldPrice) / soldPrice * 100),
@@ -344,6 +346,7 @@ async function processBatch(zpids, supabase) {
             list_price: pred.list_price,
             rank,
             of: n,
+            photo,
           },
         };
       });
