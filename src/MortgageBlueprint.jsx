@@ -9001,7 +9001,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
     onLocalField={(field, active) => sync.setPresenceInfo({ field, field_active: active })} />
   )}
   {/* ═══ CONSENT MODAL ═══ */}
-  {!consentGiven && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+  {/* Blueprint only: it's about entering income/debts/credit. On PricePoint
+      or Markets it stood in front of a shared link and read as a sign-up
+      wall; first-time guessers closed the tab (feedback 2026-10-16). It
+      still appears the first time they switch into Blueprint. */}
+  {!consentGiven && appMode === "blueprint" && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
    <div style={{ background: T.card, borderRadius: 24, maxWidth: 400, width: "100%", padding: "28px 22px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
     <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}></div>
     <div style={{ fontSize: 20, fontWeight: 700, textAlign: "center", marginBottom: 6 }}>Before you start</div>
