@@ -4209,6 +4209,8 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [editingScenarioName, setEditingScenarioName] = useState(null);
  const [editScenarioValue, setEditScenarioValue] = useState("");
  const [scnMenu, setScnMenu] = useState(null); // sidebar scenario kebab menu: {name,x,y}
+ // Borrower delete is two-step: the LO's copy is only recoverable from the LO side.
+ const [scnDeleteArm, setScnDeleteArm] = useState(null);
  const [dragScenario, setDragScenario] = useState(null);
  const [dragOverScenario, setDragOverScenario] = useState(null);
  // Quick metrics calculator for compare view
@@ -8661,7 +8663,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
         })}
         {scnMenu && (
          <>
-          <div onClick={() => setScnMenu(null)} onWheel={() => setScnMenu(null)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
+          <div onClick={() => { setScnMenu(null); setScnDeleteArm(null); }} onWheel={() => { setScnMenu(null); setScnDeleteArm(null); }} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
           <div style={{ position: "fixed", left: Math.max(8, scnMenu.x - (scenariosAreCloud ? 190 : 158)), top: scnMenu.y + 4, width: scenariosAreCloud ? 190 : 158, background: T.card, border: `1px solid ${T.cardBorder}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.38)", zIndex: 9999, overflow: "hidden", padding: 4 }}>
            {(() => {
             // Borrower visibility toggles — cloud clients only (2026-10-12).
@@ -8676,13 +8678,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
              vis === "hidden" ? ["Show to borrower", "eye", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Hide from borrower", "eye-off", () => setScenarioVisibility(scnMenu.name, "hidden")],
              vis === "view_only" ? ["Allow borrower edits", "unlock", () => setScenarioVisibility(scnMenu.name, "editable")] : ["Make view-only", "lock", () => setScenarioVisibility(scnMenu.name, "view_only")],
             ] : []),
-            ...(scenarioList.length > 1 && mine ? [["Delete", "trash", () => deleteScenario(scnMenu.name)]] : []),
-           ]; })().map(([label, ico, fn]) => (
-            <button key={label} onClick={() => { fn(); setScnMenu(null); }}
+            ...(scenarioList.length > 1 && mine ? [
+             isBorrower && scnDeleteArm !== scnMenu.name
+              ? ["Delete", "trash", () => setScnDeleteArm(scnMenu.name), true]
+              : [isBorrower ? "Tap again to delete" : "Delete", "trash", () => deleteScenario(scnMenu.name)],
+            ] : []),
+           ]; })().map(([label, ico, fn, keepOpen]) => (
+            <button key={label} onClick={() => { fn(); if (!keepOpen) { setScnMenu(null); setScnDeleteArm(null); } }}
              onMouseEnter={(e) => { e.currentTarget.style.background = T.tabActiveBg; }}
              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-             style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", boxSizing: "border-box", padding: "8px 10px", background: "transparent", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: FONT, color: label === "Delete" ? T.red : T.text, textAlign: "left" }}>
-             <Icon name={ico} size={14} color={label === "Delete" ? T.red : T.textSecondary} /> {label}
+             style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", boxSizing: "border-box", padding: "8px 10px", background: "transparent", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: FONT, color: ico === "trash" ? T.red : T.text, textAlign: "left" }}>
+             <Icon name={ico} size={14} color={ico === "trash" ? T.red : T.textSecondary} /> {label}
             </button>
            ))}
           </div>
