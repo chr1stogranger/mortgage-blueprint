@@ -69,8 +69,11 @@ async function loadBoard(supabase, zpid) {
 
 const BOARD_MAX = 10;
 function boardHtml(board, playerId, soldPrice) {
-  const rows = board?.rows || [];
+  let rows = board?.rows || [];
   if (rows.length === 0) return "";
+  // Rank by the sold price this email is built from: loadBoard sorts only when
+  // the prediction row already carried one, and the payload may know it first.
+  if (soldPrice) rows = [...rows].sort((a, b) => Math.abs(a.guess - soldPrice) - Math.abs(b.guess - soldPrice));
   const ranked = rows.map((r, i) => ({ ...r, rank: i + 1, you: r.playerId === playerId }));
   let shown = ranked.slice(0, BOARD_MAX);
   const mine = ranked.find(r => r.you);
