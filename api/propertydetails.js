@@ -186,6 +186,12 @@ export default async function handler(req, res) {
       const photos = await floorPlansFirst(built);
       const out = { zpid: rcid, photos, description: "", photoCount: photos.length, photoCap: MAX_PHOTOS, floorPlansSorted: true, source: "redfin-photos" };
       cache.set(k, { data: out, timestamp: Date.now() });
+      // Same eviction as the main path; these keys include the caller's spec,
+      // so without it the L1 map only grows.
+      if (cache.size > 200) {
+        const now = Date.now();
+        for (const [ck, v] of cache) if (now - v.timestamp > CACHE_TTL) cache.delete(ck);
+      }
       res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=3600");
       return res.status(200).json(out);
     }

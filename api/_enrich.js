@@ -81,7 +81,12 @@ export async function floorPlansFirst(photos, { timeoutMs = 3500 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const flags = await Promise.all(photos.map(async (url, i) => {
+    // Score at most the first SCORE_MAX thumbnails, 8 at a time: this runs on
+    // unauthenticated paths, and 100 parallel fetches plus JPEG decodes per
+    // request is an easy way to amplify a caller's traffic (and to OOM).
+    const SCORE_MAX = 30, POOL = 8;
+    const flags = photos.map(() => false);
+    const scoreOne = async (url, i) => {
       const thumb = i === 0 ? null : thumbFor(url);
       if (!thumb) return false;
       try {
@@ -90,6 +95,10 @@ export async function floorPlansFirst(photos, { timeoutMs = 3500 } = {}) {
         const img = decode(new Uint8Array(await r.arrayBuffer()), { useTArray: true, formatAsRGBA: true, maxResolutionInMP: 1 });
         return looksLikeFloorPlan(img.data);
       } catch { return false; }
+    };
+    const queue = photos.slice(0, SCORE_MAX).map((url, i) => [url, i]);
+    await Promise.all(Array.from({ length: Math.min(POOL, queue.length) }, async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) flags[item[1]] = await scoreOne(item[0], item[1]);
     }));
     if (!flags.some(Boolean)) return photos;
     return [photos[0], ...photos.filter((_, i) => flags[i]), ...photos.filter((_, i) => i > 0 && !flags[i])];
