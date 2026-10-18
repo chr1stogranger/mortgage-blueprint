@@ -1,5 +1,10 @@
 # Mortgage Blueprint — App Store Update Guide (Dummy-Proof)
 
+> **Superseded 2026-10-18:** releases now run through `scripts/ios-release.sh`
+> (build → archive → upload in one command) and the `ios-app-update` Claude
+> skill (`.claude/skills/ios-app-update/SKILL.md`), which a scheduled task runs
+> every Monday. The manual Xcode steps below still work as a fallback.
+
 Last updated: 2026-08-25. Reusable every release — just bump the version numbers.
 
 **Current live version:** 1.4 (build 7) — submitted 2026-08-25, MANUAL release: click "Release This Version" after approval
