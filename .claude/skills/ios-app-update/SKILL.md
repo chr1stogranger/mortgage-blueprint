@@ -33,10 +33,31 @@ Read the last line (`RESULT: …`):
 
 | RESULT | Meaning | What to do |
 |---|---|---|
-| `ready 1.5 build 8 (N changes)` | New code is waiting | Go to Step 2. Keep the change list; it's your What's New source. |
+| `ready 1.5 build 8 (N changes)` | New code is waiting | Go to Step 1b. Keep the change list; it's your What's New source. |
 | `nothing-to-ship` | No app changes since the last release | Stop. Report "nothing new, App Store is current at X". |
 | `pending 1.5 not live yet` | Last upload is still in review, waiting for release, or rejected | Don't build. Go to Step 4 to check its status in App Store Connect and report it. If it's been rejected, tell the user the reason; don't resubmit unasked. |
 | `failed …` | Preflight broke | See Troubleshooting. |
+
+## Step 1b — Smoke-test the real iPhone app first (5 min)
+
+The web and the native shell run the same code but not the same way. Two bugs
+that only existed in the iPhone app were caught here on 2026-10-18 (PricePoint
+For Sale spun forever on "Finding active listings…"; the clock was white on
+white). Never upload without this check.
+
+```bash
+cd ~/Desktop/Projects/mortgage-blueprint && scripts/ios-release.sh --sim
+```
+
+`RESULT: sim-ready …` means main is running in the iPhone 17 Pro Max simulator.
+With the iOS Simulator tool (`attach`, then `screenshot`/`tap`), confirm:
+1. Overview loads with numbers in the donut, and the clock/battery are visible at the top.
+2. Tap the center **PricePoint** tab: a For Sale home card appears within ~10 s.
+3. Tap **Blueprint** (center) to go back. No blank or black screens.
+
+Anything broken → stop, fix it on main (it's a real bug for users), rerun `--sim`.
+If the simulator tool says Xcode isn't selected, the user runs
+`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` once.
 
 ## Step 2 — Build and upload (10–20 min)
 
@@ -80,7 +101,18 @@ stop and ask them to sign in).
 5. **Save** (top right) → **Add for Review** → **Submit for Review**
    (in the panel that slides in, confirm the submission).
 
-Screenshots, description, keywords, privacy answers all carry over — don't touch them.
+Description, keywords, privacy answers carry over — don't touch them.
+
+**Screenshots** carry over too. Refresh them only when the app's look or
+headline features changed a lot (last refresh: 1.5, 2026-10-18), and show the
+user the new set next to the old one before uploading. The set lives in
+`app-store-screenshots/` (1290×2796, captions in `scripts/app-store-shots.py`,
+real simulator captures in `app-store-screenshots/raw/`). To refresh: capture
+with `xcrun simctl io <udid> screenshot` from the `--sim` build (hide the
+"On this page" pill first: tap it → Hide), drop them into `raw/`, run
+`python3 scripts/app-store-shots.py`. In App Store Connect: version page →
+**Previews and Screenshots** → **iPhone 6.9" Display** → delete the old ones →
+drag in the 5 new PNGs in order (1 → 5).
 
 ## Step 4 — Confirm it's updated
 
@@ -113,6 +145,11 @@ App Store Connect, and anything that needs the user (rejection, sign-in, etc.).
   Connect. The account holder (Christo) accepts it at
   https://developer.apple.com/account — never click Agree on his behalf. Then
   rerun Step 2 (nothing was committed, so it rebuilds the same version).
+- **`You do not have required contracts`** right after accepting a new agreement —
+  App Store Connect lags the developer site (its yellow banner stays up); it took
+  over an hour on 2026-10-18. Wait and retry; nothing to click.
+- **`Failed to Use Accounts`** — Xcode's Apple ID session expired (signing out of
+  Apple sites can do it). User: Xcode → Settings → Accounts → sign in again.
 - **`upload failed` "bundle version must be higher" / redundant binary** — that build
   number was already uploaded (e.g. an earlier run uploaded but didn't push its
   commit). Rerun with the next build: edit `CURRENT_PROJECT_VERSION` on main, or

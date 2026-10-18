@@ -5,6 +5,7 @@
 # click on appstoreconnect.apple.com (see .claude/skills/ios-app-update).
 #
 #   scripts/ios-release.sh --check        preflight + "is there anything to ship?" only
+#   scripts/ios-release.sh --sim          build main into the iOS simulator and launch it (smoke test)
 #   scripts/ios-release.sh --build-only   full build + archive, no upload, no commit
 #   scripts/ios-release.sh                full release: archive, upload, commit version bump
 #   scripts/ios-release.sh --force        ship even if nothing changed / last release still pending
@@ -14,6 +15,11 @@
 # The last line is always "RESULT: <status> ..." so a caller can parse it.
 
 set -euo pipefail
+
+# Everything sits in one { } block so bash parses the whole file before
+# running it: editing this script mid-release (it runs 10-20 min) would
+# otherwise make bash resume at the wrong byte offset.
+{
 
 TEAM_ID="L8MLCV6TV3"
 BUNDLE_ID="com.xperthome.mortgageblueprint"
@@ -27,6 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) MODE="check" ;;
     --build-only) MODE="build" ;;
+    --sim) MODE="sim" ;;
     --force) FORCE=1 ;;
     --version) NEW_VERSION="$2"; shift ;;
     *) echo "unknown option: $1"; exit 1 ;;
@@ -128,6 +135,27 @@ if [[ -n "$SUPA_HOST" ]] && ! grep -rqF "$SUPA_HOST" ios/App/App/public/assets; 
   die "Supabase URL is not baked into the bundle — env file wasn't read"
 fi
 
+if [[ "$MODE" == "sim" ]]; then
+  # Native-only bugs (no location permission, status bar style, deep links)
+  # never show up on the web — look at the real shell before uploading.
+  say "Building for the iOS simulator"
+  SIM="$(xcrun simctl list devices available | sed -nE 's/^ +iPhone 17 Pro Max \(([0-9A-F-]+)\).*/\1/p' | head -1)"
+  [[ -n "$SIM" ]] || die "no iPhone 17 Pro Max simulator installed"
+  run "simulator build" xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+    -sdk iphonesimulator -destination "platform=iOS Simulator,id=$SIM" -derivedDataPath "$LOG_DIR/simbuild" \
+    CODE_SIGNING_ALLOWED=NO build
+  SIM_APP="$LOG_DIR/simbuild/Build/Products/Release-iphonesimulator/App.app"
+  xcrun simctl boot "$SIM" 2>/dev/null || true
+  xcrun simctl bootstatus "$SIM" -b >/dev/null 2>&1 || true
+  xcrun simctl status_bar "$SIM" override --time "9:41" --batteryState charged --batteryLevel 100 >/dev/null 2>&1 || true
+  xcrun simctl location "$SIM" set 37.7599,-122.4889 >/dev/null 2>&1 || true
+  open -a Simulator --args -CurrentDeviceUDID "$SIM"
+  run "simulator install" xcrun simctl install "$SIM" "$SIM_APP"
+  run "simulator launch" xcrun simctl launch "$SIM" "$BUNDLE_ID"
+  echo "RESULT: sim-ready $NEW_VERSION build $NEW_BUILD device=$SIM app=$SIM_APP"
+  exit 0
+fi
+
 say "Setting version $NEW_VERSION (build $NEW_BUILD)"
 sed -i '' -E "s/MARKETING_VERSION = [0-9.]+;/MARKETING_VERSION = $NEW_VERSION;/; s/CURRENT_PROJECT_VERSION = [0-9]+;/CURRENT_PROJECT_VERSION = $NEW_BUILD;/" "$PBXPROJ"
 grep -q "MARKETING_VERSION = $NEW_VERSION;" "$PBXPROJ" || die "version bump didn't apply"
@@ -183,3 +211,5 @@ done
 [[ "${PUSHED:-0}" == 1 ]] || echo "WARNING: uploaded fine, but the version-bump commit didn't push — push it by hand from $WT"
 
 echo "RESULT: uploaded $NEW_VERSION build $NEW_BUILD ($COUNT changes) archive=$ARCHIVE"
+exit
+}
