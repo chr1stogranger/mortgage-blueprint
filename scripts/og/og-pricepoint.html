@@ -1,0 +1,81 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!--
+  Source for public/og-pricepoint.png (1200x630) — the card iMessage/Slack/etc.
+  show when a PricePoint link is shared (api/challenge.js brand card,
+  scripts/seo-pages.mjs). Follows CLAUDE.md "Product naming": PricePoint is the
+  headline, one POWERED BY REALSTACK microline. Grange palette (src/lib/theme.js),
+  Inter text, Geist Mono only for uppercase labels. Rings mirror the "target"
+  canvas in src/components/AppBackground.jsx.
+
+  Re-render (needs network for Google Fonts):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+      --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --virtual-time-budget=8000 \
+      --screenshot="$PWD/public/og-pricepoint.png" "file://$PWD/scripts/og/og-pricepoint.html"
+
+  iMessage caches unfurls per URL — old shares keep the old card.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1200px;height:630px;overflow:hidden}
+body{background:#0a1120;color:#EDEDED;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;position:relative;-webkit-font-smoothing:antialiased}
+.mono{font-family:'Geist Mono',monospace;text-transform:uppercase}
+.wash{position:absolute;inset:0;background:
+ radial-gradient(900px 600px at 85% 10%, rgba(59,107,245,0.16), transparent 60%),
+ radial-gradient(700px 500px at 0% 100%, rgba(43,79,206,0.10), transparent 60%)}
+svg.rings{position:absolute;inset:0}
+.card{position:absolute;background:rgba(18,28,48,0.82);border:1px solid rgba(255,255,255,0.10);border-radius:24px;
+ box-shadow:0 1px 2px rgba(0,0,0,0.3),0 30px 60px -20px rgba(0,0,0,0.7);backdrop-filter:blur(8px)}
+.hood{font-size:13px;letter-spacing:0.15em;color:#6E90FF}
+.addr{font-weight:700;color:#EDEDED;letter-spacing:-0.01em}
+.sub{color:#A1A1A1}
+.stats{display:flex;gap:10px}
+.stat{flex:1;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);border-radius:14px;text-align:center;padding:14px 0 12px}
+.stat b{display:block;font-size:24px;font-weight:700}
+.stat span{display:block;font-size:10px;letter-spacing:0.15em;color:#8A8A8A;margin-top:6px}
+.btn{border-radius:9999px;background:linear-gradient(135deg,#3B6BF5,#2B4FCE);color:#fff;font-weight:700;text-align:center;box-shadow:0 10px 30px -8px rgba(59,107,245,0.6)}
+.bar{height:8px;border-radius:9999px;background:rgba(255,255,255,0.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9999px;background:linear-gradient(90deg,#2B4FCE,#3B6BF5 60%,#6E90FF)}
+.foot{position:absolute;left:84px;bottom:44px;font-size:22px;color:#8A8A8A;font-weight:500}
+.pb{font-size:13px;letter-spacing:0.15em;color:#8A8A8A}
+</style><style>
+.left{position:absolute;left:84px;top:0;height:630px;width:600px;display:flex;flex-direction:column;justify-content:center;padding-bottom:20px}
+h1{font-size:122px;font-weight:800;letter-spacing:-0.05em;line-height:0.95}
+h1 .pt{color:#3B6BF5}
+.pb{margin-top:20px;font-size:14px}
+.rule{width:64px;height:3px;border-radius:9999px;background:linear-gradient(90deg,#3B6BF5,#2B4FCE);margin-top:40px}
+.tag{font-size:34px;line-height:1.25;color:#EDEDED;margin-top:26px;font-weight:600;letter-spacing:-0.02em}
+.tag span{color:#A1A1A1;font-weight:400}
+.card{left:736px;top:118px;width:368px;padding:28px 26px 26px}
+.addr{font-size:25px;margin-top:10px}.sub{font-size:15px;margin-top:6px}
+.stats{margin-top:20px}
+.row{display:flex;justify-content:space-between;align-items:baseline;margin-top:20px}
+.row .mono{font-size:11px;letter-spacing:0.15em;color:#8A8A8A}
+.row b{font-size:26px;font-weight:700}
+.row.sold b{color:#6E90FF}
+.hr{height:1px;background:rgba(255,255,255,0.08);margin-top:16px}
+.bar{margin-top:20px}
+.accl{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;letter-spacing:0.15em;color:#8A8A8A}
+.accl b{font-family:Inter;font-size:15px;letter-spacing:0;color:#EDEDED}
+.foot{left:84px}
+</style></head><body><div class="wash"></div>
+<svg class="rings" width="1200" height="630"><g fill="none" stroke="rgba(59,107,245,0.17)" stroke-width="1"><circle cx="905" cy="315" r="48"/><circle cx="905" cy="315" r="100"/><circle cx="905" cy="315" r="160"/><circle cx="905" cy="315" r="228"/><circle cx="905" cy="315" r="304"/><circle cx="905" cy="315" r="388"/><path d="M946 315L960 315M850 315L864 315M905 356L905 370M905 260L905 274M998 315L1012 315M798 315L812 315M905 408L905 422M905 208L905 222M1058 315L1072 315M738 315L752 315M905 468L905 482M905 148L905 162M1126 315L1140 315M670 315L684 315M905 536L905 550M905 80L905 94M1202 315L1216 315M594 315L608 315M905 612L905 626M905 4L905 18M1286 315L1300 315M510 315L524 315M905 696L905 710M905 -80L905 -66"/></g><circle cx="905" cy="315" r="3.5" fill="rgba(110,144,255,0.5)"/></svg><div class="left">
+<h1>Price<span class="pt">Point</span></h1>
+<div class="mono pb">Powered by RealStack</div>
+<div class="rule"></div>
+<div class="tag">Guess what real homes sell for.<br><span>Closest to the sold price wins.</span></div>
+</div>
+<div class="card">
+<div class="mono hood">Pacific Heights</div>
+<div class="addr">2655 Steiner St</div>
+<div class="sub">San Francisco, CA · Single Family</div>
+<div class="stats"><div class="stat"><b>4</b><span class="mono">Beds</span></div><div class="stat"><b>5</b><span class="mono">Baths</span></div><div class="stat"><b>4,411</b><span class="mono">Sqft</span></div></div>
+<div class="row"><span class="mono">Your guess</span><b>$5,150,000</b></div>
+<div class="hr"></div>
+<div class="row sold"><span class="mono">Sold for</span><b>$5,925,000</b></div>
+<div class="bar"><i style="width:87%"></i></div>
+<div class="accl mono"><span>Accuracy</span><b>87%</b></div>
+</div>
+<div class="foot">pricepoint.realstack.app</div></body></html>
