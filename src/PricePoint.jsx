@@ -3995,11 +3995,19 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
     const pts = pool.filter(l => l.latitude && l.longitude);
     // No homes cached yet (first visit): skip the in-market sanity check.
     const c = pts.length ? { lat: pts.reduce((a, l) => a + l.latitude, 0) / pts.length, lng: pts.reduce((a, l) => a + l.longitude, 0) / pts.length } : null;
-    if (navigator.geolocation) {
+    // Native shell: Info.plist declares no location permission, so WKWebView's
+    // getCurrentPosition never calls back (its own timeout only starts after a
+    // grant) and For Sale sat on "Finding active listings…" forever (found
+    // 2026-10-18 before iOS 1.5). Go straight to the zip there; on the web,
+    // cap the wait ourselves so an unanswered prompt can't hang it either.
+    if (navigator.geolocation && !Capacitor.isNativePlatform()) {
       try {
         const perm = navigator.permissions?.query ? await navigator.permissions.query({ name: "geolocation" }).catch(() => null) : null;
         if (perm?.state !== "denied") {
-          const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000, maximumAge: 30 * 60 * 1000 }));
+          const pos = await Promise.race([
+            new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 6000, maximumAge: 30 * 60 * 1000 })),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("geolocation timeout")), 8000)),
+          ]);
           const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           if (!c || kmBetween(here, c) < 60) return { ...here, fromDevice: true }; // outside this market → ignore
         }
