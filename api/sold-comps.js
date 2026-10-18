@@ -20,6 +20,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors, isPrivileged } from './_cors.js';
 import { rateLimited } from './_ratelimit.js';
+import { rapidFetch } from './_rapid.js';
 import { rentcastAllow, marketHasRentcastRows } from './_budget.js';
 
 // Allow longer execution so multi-page discovery finishes inside the timeout.
@@ -1303,26 +1304,22 @@ async function discoverSoldZpidsForCity(city, apiKey, apiHost) {
 
 // ─── Fetch property details from RapidAPI with timeout ───
 async function fetchPropertyDetails(zpid, apiKey, apiHost, timeoutMs = 6000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const url = `https://${apiHost}/property-details?zpid=${zpid}`;
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": apiKey,
-        "X-RapidAPI-Host": apiHost,
-      },
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      throw new Error(`API ${res.status} for zpid ${zpid}`);
-    }
-    const raw = await res.json();
-    return raw.data || raw;
-  } finally {
-    clearTimeout(timer);
+  const url = `https://${apiHost}/property-details?zpid=${zpid}`;
+  // Paced + one 429 retry: discovery fires up to DISCOVERY_BATCH_CAP of these
+  // at once, which was the per-second burst behind the Oct 15 429s. The
+  // timeout clock starts when the request launches, not while it queues.
+  const res = await rapidFetch(url, {
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": apiKey,
+      "X-RapidAPI-Host": apiHost,
+    },
+  }, { timeoutMs });
+  if (!res.ok) {
+    throw new Error(`API ${res.status} for zpid ${zpid}`);
   }
+  const raw = await res.json();
+  return raw.data || raw;
 }
 
 // ─── Extract the MOST RECENT "Sold" event from priceHistory ───

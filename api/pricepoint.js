@@ -20,6 +20,7 @@ function getSupabaseAdmin() {
 
 import { applyCors, isPrivileged } from "./_cors.js";
 import { rateLimited } from "./_ratelimit.js";
+import { rapidFetch } from "./_rapid.js";
 
 // ─── In-memory cache (persists across warm invocations) ───
 const cache = new Map();
@@ -281,20 +282,8 @@ function normalizeSoldDate(raw) {
 // Those 429s landed on page 1 as readily as on later pages, and a failed page 1
 // zeroed out the entire city (see fetchAllPages) — that's why Alameda reported
 // "no active listings" while genuinely having ~49.
-const MAX_CONCURRENT = 4;
-let inFlight = 0;
-const slotWaiters = [];
-async function withSlot(fn) {
-  if (inFlight >= MAX_CONCURRENT) await new Promise(r => slotWaiters.push(r));
-  inFlight++;
-  try {
-    return await fn();
-  } finally {
-    inFlight--;
-    const next = slotWaiters.shift();
-    if (next) next();
-  }
-}
+// The slot cap alone was not enough (the cap is per SECOND, see api/_rapid.js):
+// launches are now spaced out too, and a 429 waits for the window to roll over.
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const RETRY_DELAYS = [400, 1200, 2500]; // a per-second cap needs real spacing
@@ -348,13 +337,13 @@ async function fetchListings(location, homeStatus, apiKey, apiHost, page = 1) {
       await sleep(wait);
     }
     try {
-      const res = await withSlot(() => fetch(url, {
+      const res = await rapidFetch(url, {
         method: "GET",
         headers: {
           "X-RapidAPI-Key": apiKey,
           "X-RapidAPI-Host": apiHost,
         },
-      }));
+      });
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
