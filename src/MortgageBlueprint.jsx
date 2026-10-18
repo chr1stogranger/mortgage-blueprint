@@ -93,6 +93,7 @@ import AccountSheet from "./components/AccountSheet";
 import CloudMergeSheet from "./components/CloudMergeSheet";
 import { getCountyLimits, LIMIT_YEAR } from "./data/loanLimits.js";
 import { lookupTitleEscrow } from "./data/titleEscrowFees.js";
+import { syncNativeStatusBar } from "./lib/nativeStatusBar.js";
 // ═══ REALTOR PARTNER DIRECTORY ═══
 // To add a new realtor: copy a block, change the fields, deploy. That's it.
 const REALTOR_PARTNERS = {
@@ -1321,6 +1322,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  });
  useEffect(() => {
   setDarkMode(themeMode === 'dark');
+  syncNativeStatusBar(themeMode === 'dark');
   // Persist on EVERY themeMode change (not just the header toggle) so a hard
   // refresh always restores the last-used mode. Default stays 'light'.
   try { localStorage.setItem('bp_theme_mode', themeMode); } catch {}

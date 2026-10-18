@@ -6,6 +6,7 @@ import store from './store/store'
 import './index.css'
 import App from './App.jsx'
 import { Capacitor } from '@capacitor/core'
+import { syncNativeStatusBar } from './lib/nativeStatusBar.js'
 
 // ── Error tracking (CIO audit H-5) ──
 // Without this, production crashes are invisible — the PDF TypeError shipped
@@ -95,9 +96,12 @@ window.__GOOGLE_PLACES_KEY__ = "";
 // ── Native iOS/Android status bar styling ──
 // Only runs inside Capacitor native shell, no-op on web
 if (Capacitor.isNativePlatform()) {
-  import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-    // Light text on dark background (matches dark mode default)
-    StatusBar.setStyle({ style: Style.Dark });
+  // Match the saved theme before React mounts so the clock never flashes
+  // the wrong color; MortgageBlueprint keeps it in sync on every toggle.
+  let savedDark = false;
+  try { savedDark = localStorage.getItem('bp_theme_mode') === 'dark'; } catch { /* ignore */ }
+  syncNativeStatusBar(savedDark);
+  import('@capacitor/status-bar').then(({ StatusBar }) => {
     // Let content render behind the status bar (for safe-area handling)
     StatusBar.setOverlaysWebView({ overlay: true });
   }).catch(() => {
