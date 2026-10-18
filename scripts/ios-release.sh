@@ -172,7 +172,9 @@ grep -qiE "Upload succeeded|EXPORT SUCCEEDED|Uploaded" "$LOG" || die "upload did
 # Record the release on main so the repo matches what shipped and the next
 # run knows where this release started.
 say "Committing the version bump to main"
-git -C "$WT" add "$PBXPROJ"
+# Tracked files cap sync rewrote (e.g. CapApp-SPM/Package.swift after a
+# Capacitor bump) shipped in this binary, so they go in with the bump.
+git -C "$WT" add -u ios
 git -C "$WT" commit -q -m "iOS release $NEW_VERSION (build $NEW_BUILD)" -m "Uploaded to App Store Connect by scripts/ios-release.sh."
 for attempt in 1 2 3; do
   if git -C "$WT" push -q origin HEAD:main >>"$LOG" 2>&1; then PUSHED=1; break; fi
