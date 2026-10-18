@@ -63,6 +63,18 @@ xcodebuild -version >/dev/null 2>&1 || die "xcodebuild can't run (open Xcode onc
 command -v npm >/dev/null || die "npm not on PATH"
 echo "Xcode: $(xcodebuild -version | head -1)"
 
+# App Store Connect API key (Admin, created 2026-10-18): uploads don't
+# depend on Xcode's GUI sign-in, which the command line stopped seeing
+# after the account was re-added. IDs live outside the repo.
+AUTH=()
+ASC_ENV="$HOME/.appstoreconnect/blueprint-release.env"
+if [[ -f "$ASC_ENV" ]]; then
+  # shellcheck disable=SC1090
+  source "$ASC_ENV"
+  AUTH=(-authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+  echo "Signing/upload auth: App Store Connect API key $ASC_KEY_ID"
+fi
+
 run "git fetch" git -C "$REPO" fetch origin main
 MAIN="$(git -C "$REPO" rev-parse origin/main)"
 
@@ -165,7 +177,7 @@ ARCHIVE="$ARCHIVE_DIR/MortgageBlueprint $NEW_VERSION ($NEW_BUILD) $STAMP.xcarchi
 mkdir -p "$ARCHIVE_DIR"
 say "Archiving in Xcode (a few minutes)"
 run "xcodebuild archive" xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
-  -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" -allowProvisioningUpdates archive
+  -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} archive
 APP_INFO="$ARCHIVE/Products/Applications/App.app/Info.plist"
 [[ "$(plutil -extract CFBundleShortVersionString raw "$APP_INFO")" == "$NEW_VERSION" ]] || die "archive has the wrong version"
 [[ "$(plutil -extract CFBundleVersion raw "$APP_INFO")" == "$NEW_BUILD" ]] || die "archive has the wrong build number"
@@ -199,10 +211,10 @@ PLIST
 UPLOADED=0
 for attempt in $(seq 1 13); do
   UP_OUT="$(xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$EXPORT_OPTS" \
-    -exportPath "$LOG_DIR/export-$STAMP-$attempt" -allowProvisioningUpdates 2>&1)" || true
+    -exportPath "$LOG_DIR/export-$STAMP-$attempt" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} 2>&1)" || true
   echo "--- upload attempt $attempt" >>"$LOG"; echo "$UP_OUT" >>"$LOG"
   if echo "$UP_OUT" | grep -q "EXPORT SUCCEEDED"; then UPLOADED=1; break; fi
-  if echo "$UP_OUT" | grep -q "required contracts" && [[ $attempt -lt 13 ]]; then
+  if echo "$UP_OUT" | grep -qE "required contracts|REQUIRED_AGREEMENTS" && [[ $attempt -lt 13 ]]; then
     echo "Apple says 'required contracts' (agreement still syncing) — retrying in 10 min ($attempt/12)"
     sleep 600; continue
   fi
