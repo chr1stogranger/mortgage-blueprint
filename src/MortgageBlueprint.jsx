@@ -3716,7 +3716,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const listingConsumedRef = useRef(false);
  const [listing, setListing] = useState(null);         // payload → banner
  const [listingDismissed, setListingDismissed] = useState(false);
- const [listingFailed, setListingFailed] = useState(false); // 404 / network → small notice
+ const [listingFailed, setListingFailed] = useState(false); // 'expired' | 'unavailable' | false → small notice
  // Latest values for the async apply (the effect's own closure is from the
  // render that started the fetch).
  const listingLiveRef = useRef(null);
@@ -3737,9 +3737,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
   } catch { /* ignore */ }
   (async () => {
-   let data = null;
-   try { data = await fetchListing(listingToken); } catch { data = null; }
-   if (!data || typeof data !== 'object' || data.error) { setListingFailed(true); return; }
+   let data = null, failStatus = 0;
+   try { data = await fetchListing(listingToken); } catch (e) { data = null; failStatus = e?.status || 0; }
+   // A 404 means the link is gone; anything else (network, 5xx, rate limit) is
+   // a temporary miss and should not be announced as expired.
+   if (!data || typeof data !== 'object' || data.error) { setListingFailed(failStatus === 404 || !!data?.error ? 'expired' : 'unavailable'); return; }
    // One plan per flyer column (Financing flyer) or a single plan (Buydown).
    const plans = listingScenarioPlans(data, { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate }).map(({ name: n, prefill: pf }) => {
     const st = { ...blankStateRef.current, ...pf };
@@ -3826,7 +3828,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const listingBannerEl = showListingBanner
   ? <ListingBanner T={T} isDesktop={isDesktop} listing={listing} fmt={fmt} onDismiss={() => setListingDismissed(true)} />
   : listingFailed
-   ? <ListingNotice T={T} onDismiss={() => setListingFailed(false)} />
+   ? <ListingNotice T={T} reason={listingFailed} onDismiss={() => setListingFailed(false)} />
    : null;
 
  const switchScenario = async (name, opts = {}) => {

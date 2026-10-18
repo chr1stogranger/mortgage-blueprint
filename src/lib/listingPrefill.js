@@ -166,7 +166,8 @@ export function listingScenarioPlans(d, deps) {
  const used = new Set();
  return cols.map((s, i) => {
   const prefill = listingToPrefill({ ...d, downPct: s.downPct, noteRate: s.noteRate, term: s.term, loanType: s.loanType, buydown: s.buydown || "none" }, deps);
-  if (s.loanType === "VA" && s.vaUsage) prefill.vaUsage = String(s.vaUsage);
+  // Allow-list like every other field from the Ops payload.
+  if (s.loanType === "VA" && ["First Use", "Subsequent", "Disabled"].includes(s.vaUsage)) prefill.vaUsage = s.vaUsage;
   const pts = num(s.points);
   prefill.discountPts = pts !== null && pts >= 0 && pts < 10 ? pts : 0;
   const tag = str(s.label) || (num(s.downPct) !== null ? `${num(s.downPct)}% Down` : `Option ${i + 1}`);

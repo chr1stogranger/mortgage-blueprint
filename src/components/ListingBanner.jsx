@@ -106,7 +106,10 @@ export default function ListingBanner({ T, isDesktop, listing, fmt, onDismiss })
 }
 
 // Non-blocking notice when the link is expired/unknown or the fetch failed.
-export function ListingNotice({ T, onDismiss }) {
+export function ListingNotice({ T, onDismiss, reason = 'expired' }) {
+ const msg = reason === 'unavailable'
+  ? "Couldn't load this property link right now. Here's Blueprint with default numbers; refresh to try again."
+  : "This property link has expired. Here's Blueprint with default numbers.";
  return (
   <div role="status" style={{
    display: "flex", alignItems: "center", gap: 10,
@@ -115,7 +118,7 @@ export function ListingNotice({ T, onDismiss }) {
    borderRadius: 14, padding: "10px 12px", boxShadow: T.glassShadow, margin: "4px 0 10px", fontFamily: FONT,
   }}>
    <span style={{ color: T.orange, display: "flex", flexShrink: 0 }}><Icon name="info" size={16} /></span>
-   <span style={{ flex: 1, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.45 }}>This property link has expired. Here's Blueprint with default numbers.</span>
+   <span style={{ flex: 1, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.45 }}>{msg}</span>
    <button type="button" onClick={onDismiss} aria-label="Dismiss" style={{ background: "transparent", border: "none", color: T.textTertiary, cursor: "pointer", padding: 4, borderRadius: 9999, display: "flex", flexShrink: 0 }}>
     <Icon name="x" size={15} />
    </button>
