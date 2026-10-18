@@ -6312,9 +6312,9 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
                     <button onClick={() => { setLiveFilters({ ...LIVE_FILTERS_EMPTY, priceMode: f.priceMode, payDown: down }); setPriceText({ min: "", max: "" }); }} style={{ background: "none", border: "none", color: T.red, fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer", padding: 0 }}>Reset all</button>
                   )}
                 </div>
-                <div style={{ display: "flex", marginBottom: 12, borderBottom: `1px solid ${T.cardBorder}` }}>
-                  <button onClick={() => setMode("list")} style={tab(!monthly)}>List price</button>
-                  <button onClick={() => setMode("monthly")} style={tab(monthly)}>Monthly payment</button>
+                <div role="tablist" aria-label="Price filter" style={{ display: "flex", marginBottom: 12, borderBottom: `1px solid ${T.cardBorder}` }}>
+                  <button role="tab" aria-selected={!monthly} onClick={() => setMode("list")} style={tab(!monthly)}>List price</button>
+                  <button role="tab" aria-selected={monthly} onClick={() => setMode("monthly")} style={tab(monthly)}>Monthly payment</button>
                 </div>
                 {monthly && (
                   <div style={{ marginBottom: 12 }}>
@@ -6366,8 +6366,8 @@ export default function PricePoint({ T, isDesktop, FONT, onRunNumbers, onBackToB
 
                 <div style={label}>Status</div>
                 <div style={{ ...segWrap, marginBottom: 14 }}>
-                  <button onClick={() => setLiveFilters(x => ({ ...x, hidePending: false }))} style={seg(!f.hidePending)}>Active + pending</button>
-                  <button onClick={() => setLiveFilters(x => ({ ...x, hidePending: true }))} style={seg(!!f.hidePending)}>Active only</button>
+                  <button aria-pressed={!f.hidePending} onClick={() => setLiveFilters(x => ({ ...x, hidePending: false }))} style={seg(!f.hidePending)}>Active + pending</button>
+                  <button aria-pressed={!!f.hidePending} onClick={() => setLiveFilters(x => ({ ...x, hidePending: true }))} style={seg(!!f.hidePending)}>Active only</button>
                 </div>
 
                 <div style={label}>Beds <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>· tap two numbers for a range</span></div>
