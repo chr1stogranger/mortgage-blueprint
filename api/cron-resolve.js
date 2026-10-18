@@ -204,14 +204,21 @@ async function zillowZpidForRedfin(rfId, supabase) {
   } catch { /* look it up */ }
   const { data: pred } = await supabase.from('pp_predictions').select('address, market_id, guess_id').eq('zpid', rfId).limit(1).maybeSingle();
   if (!pred?.address) return null;
-  let city = MARKET_CITY[pred.market_id] || '', zip = '';
+  let city = MARKET_CITY[pred.market_id] || '', zip = '', state = '';
   if (pred.guess_id) {
-    const { data: g } = await supabase.from('pp_guesses').select('city, zip').eq('id', pred.guess_id).maybeSingle();
-    city = g?.city || city; zip = g?.zip || '';
+    const { data: g } = await supabase.from('pp_guesses').select('city, zip, state').eq('id', pred.guess_id).maybeSingle();
+    city = g?.city || city; zip = g?.zip || ''; state = g?.state || '';
   }
+  // The state used to be hard-coded CA, so a pending home in Miami, Seattle or
+  // any other non-CA market never found its zpid and never resolved.
+  if (!state && pred.market_id) {
+    const { data: m } = await supabase.from('pp_markets').select('name, state').eq('id', pred.market_id).maybeSingle();
+    state = m?.state || ''; city = city || m?.name || '';
+  }
+  state = state || 'CA';
   const apiHost = process.env.RAPIDAPI_HOST || 'real-time-real-estate-data.p.rapidapi.com';
   try {
-    const q = [pred.address, city, `CA ${zip}`.trim()].filter(Boolean).join(', ');
+    const q = [pred.address, city, `${state} ${zip}`.trim()].filter(Boolean).join(', ');
     const r = await fetch(`https://${apiHost}/search?location=${encodeURIComponent(q)}`, { headers: { 'X-RapidAPI-Key': process.env.RAPIDAPI_KEY, 'X-RapidAPI-Host': apiHost } });
     const j = await r.json().catch(() => null);
     const list = (j && (Array.isArray(j.data) ? j.data : j.data?.results)) || [];
