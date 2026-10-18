@@ -193,9 +193,23 @@ cat >"$EXPORT_OPTS" <<PLIST
 </dict>
 </plist>
 PLIST
-run "upload" xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$EXPORT_OPTS" \
-  -exportPath "$LOG_DIR/export-$STAMP" -allowProvisioningUpdates
-grep -qiE "Upload succeeded|EXPORT SUCCEEDED|Uploaded" "$LOG" || die "upload didn't report success"
+# Apple refuses uploads with "required contracts" for a while after a new
+# agreement is accepted (App Store Connect lags the developer site — over
+# an hour on 2026-10-18). Wait it out instead of failing the release.
+UPLOADED=0
+for attempt in $(seq 1 13); do
+  UP_OUT="$(xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$EXPORT_OPTS" \
+    -exportPath "$LOG_DIR/export-$STAMP-$attempt" -allowProvisioningUpdates 2>&1)" || true
+  echo "--- upload attempt $attempt" >>"$LOG"; echo "$UP_OUT" >>"$LOG"
+  if echo "$UP_OUT" | grep -q "EXPORT SUCCEEDED"; then UPLOADED=1; break; fi
+  if echo "$UP_OUT" | grep -q "required contracts" && [[ $attempt -lt 13 ]]; then
+    echo "Apple says 'required contracts' (agreement still syncing) — retrying in 10 min ($attempt/12)"
+    sleep 600; continue
+  fi
+  echo "$UP_OUT" | grep -E "^error" | head -5
+  break
+done
+[[ $UPLOADED == 1 ]] || die "upload failed"
 
 # Record the release on main so the repo matches what shipped and the next
 # run knows where this release started.
