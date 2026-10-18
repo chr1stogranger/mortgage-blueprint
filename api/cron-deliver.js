@@ -11,6 +11,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { deliverPush, notificationUrl } from './_push.js';
 import { safeEq } from './_safeEq.js';
+import { safePhotoUrl } from './_photoUrl.js';
 
 const ALLOWED_ORIGINS = [
   "https://blueprint.realstack.app",
@@ -57,7 +58,7 @@ async function loadBoard(supabase, zpid) {
       .select("photo")
       .eq("zpid", zpid).not("photo", "is", null)
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (g?.photo) photo = g.photo;
+    if (g?.photo) photo = safePhotoUrl(g.photo) || null;
     board = { rows, sold, photo };
   } catch (e) {
     console.error(`[CronDeliver] board lookup failed for ${zpid}: ${e.message}`);
@@ -99,7 +100,7 @@ export function buildEmailHtml(notification, board) {
   const resolved = notification.type === "prediction_resolved";
   const sold = payload.sold_price || board?.sold || null;
   const guess = payload.predicted_price || null;
-  const photo = resolved ? (payload.photo || board?.photo || null) : null;
+  const photo = resolved ? (safePhotoUrl(payload.photo) || board?.photo || null) : null;
   const pctOff = payload.pct_off != null ? `${Number(payload.pct_off).toFixed(1)}%` : "";
   const stat = (label, value, color = "#171717") => `<td width="33%" style="padding:14px 4px;text-align:center;vertical-align:top">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#737373;margin-bottom:6px">${label}</div>

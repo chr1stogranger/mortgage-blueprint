@@ -20,6 +20,7 @@ import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './_cors.js';
 import { rateLimited } from './_ratelimit.js';
 import { deliverPush } from './_push.js';
+import { safePhotoUrl } from './_photoUrl.js';
 
 function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -580,7 +581,7 @@ export default async function handler(req, res) {
       baths: baths != null ? Number(baths) : null,
       sqft: asInt(sqft),
       list_price: asInt(listPrice),
-      photo: photo || '',
+      photo: safePhotoUrl(photo),
       guess: guessInt,
       sold_price: soldPrice,
       pct_off: pctOff,
