@@ -44,7 +44,7 @@ Read the last line (`RESULT: …`):
 cd ~/Desktop/Projects/mortgage-blueprint && scripts/ios-release.sh
 ```
 
-Run it in the background (it's long) and wait for the exit. It:
+Run it in the background (it's long) and judge it by the final `RESULT:` line, not the exit code. It:
 1. makes a clean copy of `origin/main` in `.claude/worktrees/ios-release` (your
    main checkout is never touched),
 2. runs `npm ci`, `npm test`, `npm run build`, `npx cap sync ios`,
@@ -106,6 +106,13 @@ App Store Connect, and anything that needs the user (rejection, sign-in, etc.).
 - **`npm test failed`** — main is broken; don't ship. Report the failing test.
 - **`xcodebuild archive failed` with signing / "No Account"** — Xcode → Settings →
   Accounts: the Apple ID must be signed in (user does this). Then rerun.
+- **`upload failed` with "PLA Update available"** (often alongside `No signing
+  certificate "iOS Distribution" found`) — Apple updated the Developer Program
+  License Agreement and blocks uploads, new versions and cert creation until
+  it's accepted. Same cause as an "Agreement Update" pop-up in App Store
+  Connect. The account holder (Christo) accepts it at
+  https://developer.apple.com/account — never click Agree on his behalf. Then
+  rerun Step 2 (nothing was committed, so it rebuilds the same version).
 - **`upload failed` "bundle version must be higher" / redundant binary** — that build
   number was already uploaded (e.g. an earlier run uploaded but didn't push its
   commit). Rerun with the next build: edit `CURRENT_PROJECT_VERSION` on main, or
