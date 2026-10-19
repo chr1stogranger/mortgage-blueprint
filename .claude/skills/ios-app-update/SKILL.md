@@ -10,8 +10,8 @@ so a Vercel deploy never reaches App Store users. Getting it there takes a new
 binary: build → archive → upload → submit for review → Apple approves (usually
 24–48 h) → it's on the App Store automatically.
 
-`scripts/ios-release.sh` does every step except the last click in App Store
-Connect. You (Claude) do that click in the user's Chrome.
+`scripts/ios-release.sh` builds and uploads; `scripts/asc.mjs` submits for review
+through the App Store Connect API. No browser or Apple sign-in is needed.
 
 Facts you need:
 - App Store Connect app id `6773117288`, bundle `com.xperthome.mortgageblueprint`, team `L8MLCV6TV3`.
@@ -35,7 +35,7 @@ Read the last line (`RESULT: …`):
 |---|---|---|
 | `ready 1.5 build 8 (N changes)` | New code is waiting | Go to Step 1b. Keep the change list; it's your What's New source. |
 | `nothing-to-ship` | No app changes since the last release | Stop. Report "nothing new, App Store is current at X". |
-| `pending 1.5 not live yet` | Last upload is still in review, waiting for release, or rejected | Don't build. Go to Step 4 to check its status in App Store Connect and report it. If it's been rejected, tell the user the reason; don't resubmit unasked. |
+| `pending 1.5 not live yet` | Last upload is still in review, waiting for release, or rejected | Don't build. Run `node scripts/asc.mjs status` and report it. If it's been rejected, tell the user the reason; don't resubmit unasked. |
 | `failed …` | Preflight broke | See Troubleshooting. |
 
 ## Step 1b — Smoke-test the real iPhone app first (5 min)
@@ -56,6 +56,12 @@ With the iOS Simulator tool (`attach`, then `screenshot`/`tap`), confirm:
 3. Tap **Blueprint** (center) to go back. No blank or black screens.
 
 Anything broken → stop, fix it on main (it's a real bug for users), rerun `--sim`.
+
+**Scheduled (unattended) runs:** the iOS Simulator tool isn't available there.
+Use `xcrun simctl io <udid> screenshot` instead: check 1 from a screenshot
+~15 s after launch, and count the Overview's "PricePoint · For Sale near you"
+card as evidence that For Sale listings load. Say in the report that the tap
+checks were skipped.
 If the simulator tool says Xcode isn't selected, the user runs
 `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` once.
 
@@ -77,48 +83,44 @@ Run it in the background (it's long) and judge it by the final `RESULT:` line, n
 Success = `RESULT: uploaded 1.5 build 8 …`. Anything else: Troubleshooting.
 A dry run that stops before uploading: `scripts/ios-release.sh --build-only`.
 
-## Step 3 — Submit for review (App Store Connect, in Chrome)
+## Step 3 — Submit for review (App Store Connect API, no browser)
 
-Apple processes the upload for 5–30 min first. Use Claude in Chrome (the user is
-signed in there; never type their Apple password — if you hit a sign-in page,
-stop and ask them to sign in).
+Apple processes the upload for 5–30 min first. Everything here goes through
+`scripts/asc.mjs` with the API key, so no Chrome and no Apple sign-in. (Chrome
+sessions kept expiring on 2026-10-19; don't go back to the website unless the
+API is down.)
 
-1. Open `https://appstoreconnect.apple.com/apps/6773117288/distribution/ios/version/inflight`
-   (or the app page → left sidebar → **iOS App**). If no editable version
-   exists yet, click the **+** next to "iOS App" → type the new version (e.g.
-   `1.5`) → **Create**.
-2. **What's New in This Version** — 3–5 short bullets in plain words for
-   borrowers/agents, written from the `--check` change list. Lead with the
-   biggest user-facing features; skip internal/SEO/a11y plumbing; end with
+1. Write the **What's New** text to a scratch file: 3–5 short bullets in plain
+   words for borrowers/agents, written from the `--check` change list. Lead with
+   the biggest user-facing features, skip internal/SEO/a11y plumbing, end with
    "Performance and polish fixes throughout." No emojis.
-3. **Build** section → **Add Build** → pick the new build number → **Done**.
-   If it isn't listed, it's still processing: wait 5 min and reload (up to ~45 min).
-   If asked about encryption: Info.plist already declares
-   `ITSAppUsesNonExemptEncryption = false`, so it shouldn't ask; if it does, answer
-   that the app uses only standard HTTPS (exempt).
-4. **App Store Version Release** → **Automatically release this version**
-   (so the weekly cycle doesn't stall on a manual release click).
-5. **Save** (top right) → **Add for Review** → **Submit for Review**
-   (in the panel that slides in, confirm the submission).
+2. `node scripts/asc.mjs prepare <version> <build> <notes.txt>` creates the
+   version (or reuses it), attaches the build, sets What's New, and sets
+   "release automatically after approval". If it says the build isn't VALID
+   yet, it's still processing: wait 5 min and rerun (up to ~45 min).
+3. Only when the screenshots were refreshed (see below):
+   `node scripts/asc.mjs screenshots <version> app-store-screenshots/screenshot-*.png`
+   (it replaces the iPhone 6.9" set in that order).
+4. `node scripts/asc.mjs submit <version>`.
 
-Description, keywords, privacy answers carry over — don't touch them.
+Description, keywords, privacy answers and screenshots carry over from the last
+version, so don't touch them.
 
-**Screenshots** carry over too. Refresh them only when the app's look or
-headline features changed a lot (last refresh: 1.5, 2026-10-18), and show the
-user the new set next to the old one before uploading. The set lives in
-`app-store-screenshots/` (1290×2796, captions in `scripts/app-store-shots.py`,
-real simulator captures in `app-store-screenshots/raw/`). To refresh: capture
-with `xcrun simctl io <udid> screenshot` from the `--sim` build (hide the
-"On this page" pill first: tap it → Hide), drop them into `raw/`, run
-`python3 scripts/app-store-shots.py`. In App Store Connect: version page →
-**Previews and Screenshots** → **iPhone 6.9" Display** → delete the old ones →
-drag in the 5 new PNGs in order (1 → 5).
+**Screenshots:** refresh them only when the app's look or headline features
+changed a lot (last refresh: 1.5, 2026-10-19). Show the user the new set next to
+the old one before uploading. The set lives in `app-store-screenshots/`
+(1290×2796, captions in `scripts/app-store-shots.py`, real simulator captures in
+`app-store-screenshots/raw/`). To refresh: capture with
+`xcrun simctl io <udid> screenshot` from the `--sim` build (hide the "On this
+page" pill first: tap it → Hide), drop them into `raw/`, run
+`python3 scripts/app-store-shots.py`. Keep a single iPhone set (6.9"); Apple
+scales it to smaller iPhones. An older 6.5" set would override it on those.
 
 ## Step 4 — Confirm it's updated
 
 Confirm each, and report what you actually saw:
-- App Store Connect shows the new version with status **Waiting for Review**
-  (or In Review). That's "submitted" — done for today.
+- `node scripts/asc.mjs status` shows the new version as `WAITING_FOR_REVIEW`
+  (or `IN_REVIEW`). That's "submitted", so you're done for today.
 - `git log -1 origin/main` is the `iOS release X (build N)` commit.
 - After Apple approves (1–2 days), the public App Store shows it:
   ```bash
