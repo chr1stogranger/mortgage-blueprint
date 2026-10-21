@@ -39,9 +39,9 @@ function YesNoSeg({ T, value, onYes, onNo }) {
  * track, the selected side lifts out as a white pill ringed in blue.
  * options = [{ key, label, icon? }]; Icon is the shared icon component.
  */
-function PillSeg({ T, Icon, options, value, onPick, ariaLabel }) {
+function PillSeg({ T, Icon, options, value, onPick, ariaLabel, className }) {
   return (
-    <div role="group" aria-label={ariaLabel} style={{ display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 4, padding: 3, background: T.inputBg, border: `1px solid ${T.separator}`, borderRadius: 9999 }}>
+    <div role="group" aria-label={ariaLabel} className={className} style={{ display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 4, padding: 3, background: T.inputBg, border: `1px solid ${T.separator}`, borderRadius: 9999 }}>
       {options.map(({ key, label, icon }) => {
         const on = value === key;
         return (
@@ -940,7 +940,8 @@ export default function SetupContent(props) {
     <div className="qs-strip-grid">
     <div data-field="experience-level" className={isPulse("experience-level")} style={cell(true)}>
      <div style={overline}>Experience</div>
-     <PillSeg T={T} Icon={Icon} ariaLabel="Experience level" value={skillLevel}
+     {/* No level picked yet: the guided ring pulses on the choice itself. */}
+     <PillSeg T={T} Icon={Icon} ariaLabel="Experience level" value={skillLevel} className={skillLevel ? undefined : "pulse-next"}
       options={["standard", "guided"].filter(k => SKILL_PRESETS[k]).map(k => ({ key: k, label: SKILL_PRESETS[k].label, icon: SKILL_PRESETS[k].icon }))}
       onPick={key => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(key); }} />
     </div>
@@ -1033,7 +1034,9 @@ export default function SetupContent(props) {
          the common path is a straight read down. Explicit order rather than
          reordering SKILL_PRESETS, so the welcome modal keeps leading with
          Guided for first-time visitors. */}
-     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, ...(isDesktop ? {} : { width: "62%" }) }}>
+     {/* No level picked yet: the guided ring pulses around the pair (it
+         replaced a dashed "Select your experience level" box, Christo 2026-10-21). */}
+     <div className={skillLevel ? undefined : "pulse-next"} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, ...(isDesktop ? {} : { width: "62%" }) }}>
       {["standard", "guided"].filter(k => SKILL_PRESETS[k]).map(key => [key, SKILL_PRESETS[key]]).map(([key, preset]) => (
        <button key={key} onClick={() => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(key); }}
         style={{ padding: isDesktop ? "8px 6px" : "6px 4px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
@@ -1042,11 +1045,6 @@ export default function SetupContent(props) {
        </button>
       ))}
      </div>
-     {!skillLevel && (
-      <div style={{ marginTop: 6, padding: "6px 10px", background: `${T.blue}08`, border: `1px dashed ${T.blue}30`, borderRadius: 8, fontSize: 11, color: T.blue, textAlign: "center" }}>
-       Select your experience level
-      </div>
-     )}
     </div>
 
     {/* 2) Transaction Type */}
