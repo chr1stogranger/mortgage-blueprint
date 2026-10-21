@@ -1,0 +1,346 @@
+{
+ "convDti": {
+  "ok": true,
+  "maxPrice": 730000,
+  "dp": 60000,
+  "loan": 670000,
+  "totalLoan": 670000,
+  "ltv": 0.9178082191780822,
+  "pi": 4234.855757402868,
+  "tax": 1022,
+  "ins": 212.91666666666666,
+  "mi": 279.1666666666667,
+  "fhaUp": 0,
+  "vaFF": 0,
+  "total": 5748.939090736202,
+  "dti": 0.4999151272588962,
+  "dpPct": 8.21917808219178,
+  "programType": "Conventional",
+  "programMaxDTI": 50,
+  "limitedBy": "dti",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 522000,
+    "total": 3995.7042685375,
+    "isQJumbo": false,
+    "mhp": 4000
+   },
+   {
+    "qPrice": 626000,
+    "total": 4872.32167963685,
+    "isQJumbo": false,
+    "mhp": 4875
+   },
+   {
+    "qPrice": 730000,
+    "total": 5748.939090736202,
+    "isQJumbo": false,
+    "mhp": 5750
+   }
+  ]
+ },
+ "fhaCash": {
+  "ok": true,
+  "maxPrice": 571000,
+  "dp": 20000,
+  "loan": 551000,
+  "totalLoan": 560642.5,
+  "ltv": 0.9649737302977233,
+  "pi": 3543.6419686115482,
+  "tax": 799.4,
+  "ins": 166.54166666666666,
+  "mi": 256.9611458333333,
+  "fhaUp": 9642.500000000002,
+  "vaFF": 0,
+  "total": 4766.544781111548,
+  "dti": 0.4213235824889239,
+  "dpPct": 3.502626970227671,
+  "programType": "FHA",
+  "programMaxDTI": 56.99,
+  "limitedBy": "cash",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 481000,
+    "total": 3993.5066135978645,
+    "isQJumbo": false,
+    "mhp": 4000
+   },
+   {
+    "qPrice": 571000,
+    "total": 4766.544781111548,
+    "isQJumbo": false,
+    "mhp": 4875
+   },
+   {
+    "qPrice": 571000,
+    "total": 4766.544781111548,
+    "isQJumbo": false,
+    "mhp": 5750
+   }
+  ]
+ },
+ "convTiny": {
+  "ok": true,
+  "maxPrice": 99000,
+  "dp": 5000,
+  "loan": 94000,
+  "totalLoan": 94000,
+  "ltv": 0.9494949494949495,
+  "pi": 594.1439420833874,
+  "tax": 138.6,
+  "ins": 100,
+  "mi": 39.166666666666664,
+  "fhaUp": 0,
+  "vaFF": 0,
+  "total": 871.910608750054,
+  "dti": 0.10975284870000432,
+  "dpPct": 5.05050505050505,
+  "programType": "Conventional",
+  "programMaxDTI": 50,
+  "limitedBy": "cash",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 99000,
+    "total": 871.910608750054,
+    "isQJumbo": false,
+    "mhp": 4000
+   },
+   {
+    "qPrice": 99000,
+    "total": 871.910608750054,
+    "isQJumbo": false,
+    "mhp": 4875
+   },
+   {
+    "qPrice": 99000,
+    "total": 871.910608750054,
+    "isQJumbo": false,
+    "mhp": 5750
+   }
+  ]
+ },
+ "noIncome": {
+  "ok": false,
+  "reason": "no-income"
+ },
+ "debtsExceed": {
+  "ok": false,
+  "reason": "debts-exceed"
+ },
+ "vaJumbo": {
+  "ok": true,
+  "maxPrice": 882000,
+  "dp": 50000,
+  "loan": 832000,
+  "totalLoan": 851136,
+  "ltv": 0.9433106575963719,
+  "pi": 5379.758492437085,
+  "tax": 1234.8,
+  "ins": 257.25,
+  "mi": 0,
+  "fhaUp": 0,
+  "vaFF": 19136,
+  "total": 6871.808492437085,
+  "dti": 0.2623936164145695,
+  "dpPct": 5.6689342403628125,
+  "programType": "VA",
+  "programMaxDTI": 60,
+  "limitedBy": "cash",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 882000,
+    "total": 6871.808492437085,
+    "isQJumbo": false,
+    "mhp": 9800
+   },
+   {
+    "qPrice": 882000,
+    "total": 6871.808492437085,
+    "isQJumbo": false,
+    "mhp": 11900
+   },
+   {
+    "qPrice": 882000,
+    "total": 6871.808492437085,
+    "isQJumbo": false,
+    "mhp": 14000
+   }
+  ]
+ },
+ "jumboCap": {
+  "ok": true,
+  "maxPrice": 1032000,
+  "dp": 200000,
+  "loan": 832000,
+  "totalLoan": 832000,
+  "ltv": 0.8062015503875969,
+  "pi": 5258.805955461472,
+  "tax": 1444.8,
+  "ins": 301,
+  "mi": 346.6666666666667,
+  "fhaUp": 0,
+  "vaFF": 0,
+  "total": 7351.272622128139,
+  "dti": 0.31405090488512555,
+  "dpPct": 19.379844961240313,
+  "programType": "Conventional",
+  "programMaxDTI": 50,
+  "limitedBy": "cash",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 1032000,
+    "total": 7351.272622128139,
+    "isQJumbo": false,
+    "mhp": 8500
+   },
+   {
+    "qPrice": 1032000,
+    "total": 7351.272622128139,
+    "isQJumbo": false,
+    "mhp": 10250
+   },
+   {
+    "qPrice": 1032000,
+    "total": 7351.272622128139,
+    "isQJumbo": false,
+    "mhp": 12000
+   }
+  ]
+ },
+ "jumboHit": {
+  "ok": true,
+  "maxPrice": 2636000,
+  "dp": 700000,
+  "loan": 1936000,
+  "totalLoan": 1936000,
+  "ltv": 0.7344461305007587,
+  "pi": 12236.83693482381,
+  "tax": 3690.3999999999996,
+  "ins": 768.8333333333334,
+  "mi": 0,
+  "fhaUp": 0,
+  "vaFF": 0,
+  "total": 16696.070268157142,
+  "dti": 0.42990175670392855,
+  "dpPct": 26.555386949924127,
+  "programType": "Jumbo",
+  "programMaxDTI": 43,
+  "limitedBy": "dti",
+  "maxConfPrice": 1532000,
+  "isJumbo": true,
+  "scenarios": [
+   {
+    "qPrice": 2286000,
+    "total": 13891.74885259843,
+    "isQJumbo": true,
+    "mhp": 13900
+   },
+   {
+    "qPrice": 2636000,
+    "total": 16696.070268157142,
+    "isQJumbo": true,
+    "mhp": 16700
+   },
+   {
+    "qPrice": 2636000,
+    "total": 16696.070268157142,
+    "isQJumbo": true,
+    "mhp": 19500
+   }
+  ]
+ },
+ "jumboProgram": {
+  "ok": true,
+  "maxPrice": 2636000,
+  "dp": 700000,
+  "loan": 1936000,
+  "totalLoan": 1936000,
+  "ltv": 0.7344461305007587,
+  "pi": 12236.83693482381,
+  "tax": 3690.3999999999996,
+  "ins": 768.8333333333334,
+  "mi": 0,
+  "fhaUp": 0,
+  "vaFF": 0,
+  "total": 16696.070268157142,
+  "dti": 0.42990175670392855,
+  "dpPct": 26.555386949924127,
+  "programType": "Jumbo",
+  "programMaxDTI": 43,
+  "limitedBy": "dti",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 2286000,
+    "total": 13891.74885259843,
+    "isQJumbo": false,
+    "mhp": 13900
+   },
+   {
+    "qPrice": 2636000,
+    "total": 16696.070268157142,
+    "isQJumbo": false,
+    "mhp": 16700
+   },
+   {
+    "qPrice": 2636000,
+    "total": 16696.070268157142,
+    "isQJumbo": false,
+    "mhp": 19500
+   }
+  ]
+ },
+ "withInsHoa": {
+  "ok": true,
+  "maxPrice": 737000,
+  "dp": 60000,
+  "loan": 677000,
+  "totalLoan": 677000,
+  "ltv": 0.9185888738127544,
+  "pi": 4279.100519047375,
+  "tax": 1031.8,
+  "ins": 150,
+  "mi": 282.0833333333333,
+  "fhaUp": 0,
+  "vaFF": 0,
+  "total": 5742.983852380708,
+  "dti": 0.49943870819045666,
+  "dpPct": 8.14111261872456,
+  "programType": "Conventional",
+  "programMaxDTI": 50,
+  "limitedBy": "dti",
+  "maxConfPrice": 0,
+  "isJumbo": false,
+  "scenarios": [
+   {
+    "qPrice": 522000,
+    "total": 3993.4542685375,
+    "isQJumbo": false,
+    "mhp": 4000
+   },
+   {
+    "qPrice": 630000,
+    "total": 4872.287733909902,
+    "isQJumbo": false,
+    "mhp": 4875
+   },
+   {
+    "qPrice": 737000,
+    "total": 5742.983852380708,
+    "isQJumbo": false,
+    "mhp": 5750
+   }
+  ]
+ }
+}

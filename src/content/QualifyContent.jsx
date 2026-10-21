@@ -3,6 +3,7 @@ import React from "react";
 import Icon from "../Icon";
 import { devCheckProps } from "../lib/devPropCheck.js";
 import { getApplyUrl } from "../lib/applyUrl.js";
+import { solveMaxPrice, solveScenarioPrice } from "../lib/affordability.js";
 // AMI lookup is no longer rendered in the Debt to Income Summary card. The
 // old src/data/caAmi.js table was removed (recover from git history if needed).
 
@@ -422,19 +423,6 @@ export default function QualifyContent(props) {
  )}
  {(() => {
   const confLimit = getHighBalLimit(propType);
-  // Program-default max DTI (Target DTI input was removed — use the loan program's max).
-  const programDTI = affordLoanType === "FHA" ? 56.99 : affordLoanType === "VA" ? 60 : affordLoanType === "Jumbo" ? 43 : 50;
-  const maxHousingPayment = affordIncome * (programDTI / 100) - affordDebts;
-  // No income entered: point to the Income tab (same card style as the
-  // "Add income to see DTI" prompt) instead of the debts-exceed warning.
-  if (!(affordIncome > 0)) return (
-   <div onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
-    <Note color={T.orange} title="Add income to see what you can afford" style={{ marginTop: 0 }}>Tap to go to the Income tab</Note>
-   </div>
-  );
-  if (maxHousingPayment <= 0) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
-  const r = (affordRate / 100) / 12;
-  const n = affordTerm * 12;
   // Price the escrow the way the calculator does (Christo 2026-09-24): the
   // flat 1.25% tax + 0.35% insurance guesses priced $1.648M at $10,086/mo
   // while the calculator said $10,461. Tax scales with price at this
@@ -442,84 +430,19 @@ export default function QualifyContent(props) {
   const effTaxRate = salesPrice > 0 && calc.monthlyTax > 0 ? (calc.monthlyTax * 12) / salesPrice : 0.0125;
   const insMo = calc.ins > 0 ? calc.ins : null;
   const hoaMo = Math.max(0, (calc.housingPayment || 0) - (calc.pi || 0) - (calc.monthlyTax || 0) - (calc.ins || 0) - (calc.monthlyMI || 0));
-  // Dynamic loan program: if loan > conforming limit, switch to Jumbo rules
-  const getProgram = (price, dpAmt) => {
-   const loan = price - dpAmt;
-   const isJumbo = loan > confLimit && affordLoanType !== "Jumbo";
-   if (isJumbo || affordLoanType === "Jumbo") return { type: "Jumbo", minDPpct: 20, maxDTI: 43, fhaUp: 0, vaFF: 0, miRate: 0 };
-   if (affordLoanType === "FHA") return { type: "FHA", minDPpct: 3.5, maxDTI: 56.99, fhaUp: 0.0175, vaFF: 0, miRate: 0.0055 };
-   if (affordLoanType === "VA") return { type: "VA", minDPpct: 0, maxDTI: 60, fhaUp: 0, vaFF: 0.023, miRate: 0 };
-   return { type: "Conventional", minDPpct: 5, maxDTI: 50, fhaUp: 0, vaFF: 0, miRate: 0 };
-  };
-  const calcPmt = (price) => {
-   // First pass: estimate DP with base program
-   const baseProg = getProgram(price, Math.min(affordDown, price));
-   const reqDP = price * baseProg.minDPpct / 100;
-   if (baseProg.minDPpct > 0 && affordDown < reqDP) return null;
-   const dp = Math.min(affordDown, price);
-   const loan = price - dp;
-   // Re-check program with actual loan amount
-   const prog = getProgram(price, dp);
-   const progReqDP = price * prog.minDPpct / 100;
-   if (prog.minDPpct > 0 && affordDown < progReqDP) return null;
-   const actualDP = Math.max(dp, progReqDP);
-   const actualLoan = price - actualDP;
-   const ltv = price > 0 ? actualLoan / price : 0;
-   const fhaUp = prog.fhaUp * actualLoan;
-   const vaFF = prog.vaFF * actualLoan;
-   const totalLoan = actualLoan + fhaUp + vaFF;
-   const pi = r > 0 ? totalLoan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : totalLoan / n;
-   const tax = price * effTaxRate / 12;
-   const ins = insMo ?? Math.max(1200, price * 0.0035) / 12;
-   let mi = 0;
-   if (prog.type === "FHA") mi = totalLoan * prog.miRate / 12;
-   else if (prog.type !== "VA" && prog.type !== "Jumbo" && ltv > 0.8) mi = totalLoan * 0.005 / 12;
-   const maxPmt = affordIncome * (prog.maxDTI / 100) - affordDebts;
-   return { dp: actualDP, loan: actualLoan, totalLoan, ltv, pi, tax, ins, mi, fhaUp, vaFF, total: pi + tax + ins + mi + hoaMo, prog, maxPmt, isJumbo: prog.type === "Jumbo" && affordLoanType !== "Jumbo" };
-  };
-  // Binary search: max price where total payment fits within the program's DTI limit
-  const jumboDPmax = Math.floor(affordDown / 0.20);
-  const baseDPpct = affordLoanType === "VA" ? 0 : affordLoanType === "FHA" ? 3.5 : affordLoanType === "Conventional" ? 5 : 20;
-  const baseDPmax = baseDPpct > 0 ? Math.floor(affordDown / (baseDPpct / 100)) : 20000000;
-  let lo = 0, hi = Math.min(Math.max(baseDPmax, jumboDPmax), 20000000);
-  for (let i = 0; i < 80; i++) {
-   const mid = Math.round((lo + hi) / 2);
-   const pmt = calcPmt(mid);
-   if (!pmt || pmt.total > pmt.maxPmt) hi = mid;
-   else lo = mid;
-   if (hi - lo < 500) break;
-  }
-  let maxPrice = Math.floor(lo / 1000) * 1000;
-  if (maxPrice < 10000) maxPrice = 0;
-  const result = calcPmt(maxPrice);
-  if (!result) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Not enough cash for minimum down payment at any viable price.</div></Card>;
-  const { dp: actualDP, pi, tax, ins, mi, ltv, loan: loanAmt, totalLoan, fhaUp, vaFF, prog: finalProg, isJumbo: hitsJumbo } = result;
-  const totalPmt = result.total;
-  const dpPct = maxPrice > 0 ? (actualDP / maxPrice * 100) : 0;
-  const actualDTI = affordIncome > 0 ? (totalPmt + affordDebts) / affordIncome : 0;
-  // What stops the price going higher? Step $5k past the max and see which
-  // rule breaks: the loan crossing into Jumbo (20% down, 43% DTI), running
-  // out of down payment, or the DTI cap itself.
-  const nextUp = calcPmt(maxPrice + 5000);
-  const limitedBy = !nextUp ? "cash"
-   : (!hitsJumbo && nextUp.prog.type === "Jumbo" && affordLoanType !== "Jumbo") ? "jumbo"
-   : "dti";
-  // Also find max conforming price (before Jumbo kicks in)
-  let maxConfPrice = 0;
-  if (hitsJumbo) {
-   let cLo = 0, cHi = Math.min(baseDPmax, 20000000);
-   for (let i = 0; i < 80; i++) {
-    const mid = Math.round((cLo + cHi) / 2);
-    const dp2 = Math.min(affordDown, mid);
-    const loan2 = mid - dp2;
-    if (loan2 > confLimit) { cHi = mid; continue; }
-    const pmt = calcPmt(mid);
-    if (!pmt || pmt.total > (affordIncome * (programDTI / 100) - affordDebts)) cHi = mid;
-    else cLo = mid;
-    if (cHi - cLo < 500) break;
-   }
-   maxConfPrice = Math.floor(cLo / 1000) * 1000;
-  }
+  // Solver math lives in lib/affordability.js (shared with the MCP server).
+  const affordInputs = { monthlyIncome: affordIncome, monthlyDebts: affordDebts, cashAvailable: affordDown, rate: affordRate, termYears: affordTerm, loanType: affordLoanType, confLimit, effTaxRate, insMonthly: insMo, hoaMonthly: hoaMo };
+  const solved = solveMaxPrice(affordInputs);
+  // No income entered: point to the Income tab (same card style as the
+  // "Add income to see DTI" prompt) instead of the debts-exceed warning.
+  if (!solved.ok && solved.reason === "no-income") return (
+   <div onClick={() => setTab("income")} style={{ borderRadius: 14, transition: "all 0.3s", cursor: "pointer" }}>
+    <Note color={T.orange} title="Add income to see what you can afford" style={{ marginTop: 0 }}>Tap to go to the Income tab</Note>
+   </div>
+  );
+  if (!solved.ok && solved.reason === "debts-exceed") return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Your debts exceed your target DTI at this income level. Reduce debts or increase income.</div></Card>;
+  if (!solved.ok) return <Card><div style={{ textAlign: "center", padding: 20, color: T.red, fontWeight: 600 }}>Not enough cash for minimum down payment at any viable price.</div></Card>;
+  const { maxPrice, dp: actualDP, loan: loanAmt, total: totalPmt, dpPct, dti: actualDTI, program: finalProg, isJumbo: hitsJumbo, limitedBy, maxConfPrice } = solved;
   return (<>
    <Sec title="Your Maximum Purchase Price">
     {/* Solid Grange-blue hero, white type (Christo 2026-09-23: "mega pop").
@@ -564,21 +487,9 @@ export default function QualifyContent(props) {
       { label: "Standard (43% DTI)", dti: 43 },
       { label: "Stretch (50% DTI)", dti: 50 },
      ].map((sc, si) => {
-      const mhp = affordIncome * (sc.dti / 100) - affordDebts;
-      if (mhp <= 0) return null;
-      let qLo = 0, qHi = Math.min(Math.max(baseDPmax, jumboDPmax), 20000000);
-      for (let i = 0; i < 80; i++) {
-       const mid = Math.round((qLo + qHi) / 2);
-       const pmt = calcPmt(mid);
-       // Use the lower of scenario DTI and program max DTI
-       const effMaxPmt = affordIncome * (Math.min(sc.dti, pmt ? (pmt.prog.type === "Jumbo" ? 43 : sc.dti) : sc.dti) / 100) - affordDebts;
-       if (!pmt || pmt.total > effMaxPmt) qHi = mid;
-       else qLo = mid;
-       if (qHi - qLo < 500) break;
-      }
-      const qPrice = Math.floor(qLo / 1000) * 1000;
-      const qResult = calcPmt(qPrice);
-      if (!qResult || qPrice < 10000) return null;
+      const q = solveScenarioPrice(affordInputs, sc.dti);
+      if (!q) return null;
+      const { price: qPrice, payment: qResult, maxHousing: mhp } = q;
       const isQJumbo = qResult.isJumbo;
       return (
        <div key={si} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: si < 2 ? `1px solid ${T.separator}` : "none" }}>
