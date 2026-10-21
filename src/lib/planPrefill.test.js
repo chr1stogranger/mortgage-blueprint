@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readPlanToken, planToPrefill, planScenarioName, planLanding } from "./planPrefill.js";
+import { readPlanToken, planToPrefill, planScenarioName, planLanding, planLicensed } from "./planPrefill.js";
 
 const deps = {
   lookupZip: (z) => (z === "94112" ? { city: "San Francisco", county: "San Francisco", state: "California" } : null),
@@ -63,5 +63,17 @@ describe("planScenarioName / planLanding", () => {
     expect(planLanding({ sourceTool: "compare_rent_vs_buy" })).toEqual({ tab: "rentvbuy", section: null });
     expect(planLanding({ sourceTool: "compare_rate_options", options: [{}, {}] })).toEqual({ tab: "overview", section: "overview-rateladder" });
     expect(planLanding({ sourceTool: "estimate_max_home_price" })).toEqual({ tab: "overview", section: null });
+  });
+});
+
+describe("planLicensed", () => {
+  it("reads the stored flag, falling back to the property state", () => {
+    expect(planLicensed({ ...BASE, licensed: true })).toBe(true);
+    expect(planLicensed({ ...BASE, state: "Florida", licensed: false })).toBe(false);
+    expect(planLicensed({ ...BASE })).toBe(true);                 // Texas, no flag
+    expect(planLicensed({ ...BASE, state: "Florida" })).toBe(false);
+  });
+  it("never leaks into the Blueprint state", () => {
+    expect(planToPrefill({ ...BASE, sourceTool: "estimate_max_home_price", licensed: false }, deps).licensed).toBeUndefined();
   });
 });

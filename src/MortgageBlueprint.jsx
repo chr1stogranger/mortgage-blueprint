@@ -22,7 +22,7 @@ import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./c
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
 import ListingBanner, { ListingNotice } from "./components/ListingBanner.jsx";
 import { readListingToken, listingScenarioPlans } from "./lib/listingPrefill.js";
-import { readPlanToken, planToPrefill, planScenarioName, planLanding, planClientLabel } from "./lib/planPrefill.js";
+import { readPlanToken, planToPrefill, planScenarioName, planLanding, planClientLabel, planLicensed } from "./lib/planPrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
@@ -3858,7 +3858,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const planActive = showListingBanner && planScenarioOn;
  const listingBannerEl = planActive
   ? <Note color={T.blue} title={`Opened from ${planClientLabel(listing.client)}`} onDismiss={() => setListingDismissed(true)} style={{ margin: "4px 0 10px" }}>
-     These are the numbers from your chat. Add your income and debts to see what you qualify for, or tap Get Pre-Approved to talk to {(loanOfficer || "Chris").split(" ")[0]}.
+     {/* Outside Chris's licensed states (data/licensing.js) the note never
+         invites contact or a pre-approval for this property. */}
+     {planLicensed(listing)
+      ? <>These are the numbers from your chat. Add your income and debts to see what you qualify for, or tap Get Pre-Approved to talk to {(loanOfficer || "Chris").split(" ")[0]}.</>
+      : <>These are the numbers from your chat. Adjust any of them, add your income and debts, and save the plan.</>}
     </Note>
   : showListingBanner
   ? <ListingBanner T={T} isDesktop={isDesktop} listing={listing} fmt={fmt} onDismiss={() => setListingDismissed(true)} />

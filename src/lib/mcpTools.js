@@ -12,6 +12,10 @@
 //      fields and is .strict(), so extra keys are rejected, not stored.
 //   4. Every result carries DISCLOSURE.
 //   5. Honest annotations: the calculators are read-only; the link tool writes.
+//   6. Licensing (Christo 2026-10-21): every tool still calculates for any
+//      state, but outside data/licensing.js's list the result says Chris can't
+//      originate there (licensed: false) and nothing invites contact or a
+//      pre-approval for that property.
 
 import { z } from "zod";
 import { solveMaxPrice, programMaxDTI } from "./affordability.js";
@@ -20,6 +24,7 @@ import { computeTaxSavings, computeRateLadder, STATE_TAX } from "./finance.js";
 import { resolveBaseIdx } from "./rateLadder.js";
 import { getCountyLimits, CONF_BASELINE, LIMIT_YEAR } from "../data/loanLimits.js";
 import { buildScenario, resolveStateName, propertyTaxBasis } from "./mcpScenario.js";
+import { isLicensedState, unlicensedLine, LICENSED_STATES_TEXT } from "../data/licensing.js";
 
 export const BLUEPRINT_ORIGIN = "https://blueprint.realstack.app";
 
@@ -57,6 +62,7 @@ const LOAN_TYPE = z.enum(LOAN_TYPES).default("Conventional").describe("Loan prog
 const STATE = z.string().min(2).max(40).describe("US state where the home is, full name or 2-letter code.");
 const ASSUMPTIONS = z.array(z.string()).describe("Every default or simplification behind the numbers, in plain sentences.");
 const DISCLOSURE_OUT = z.string().describe("Required disclosure; show it with the result.");
+const LICENSED_OUT = z.boolean().describe(`Whether Chris Granger can originate a loan for a property in this state (licensed in ${LICENSED_STATES_TEXT}). When false, don't suggest contacting him or getting pre-approved through him.`);
 const PAYMENT_OUT = z.object({
   principal_interest: z.number(), property_tax: z.number(), insurance: z.number(),
   mortgage_insurance: z.number(), hoa: z.number(), total: z.number(),
@@ -98,6 +104,7 @@ const maxPriceOutput = z.object({
   max_price_before_jumbo: z.number().optional().describe("Highest price that keeps the loan under the conforming limit; present only when the max price needs a jumbo loan."),
   conforming_limit: z.number(),
   interest_rate: z.number(), term_years: z.number(), loan_type: z.string(), state: z.string(),
+  licensed: LICENSED_OUT,
   assumptions: ASSUMPTIONS, disclosure: DISCLOSURE_OUT,
 });
 
@@ -149,6 +156,8 @@ export function estimateMaxHomePrice(a) {
   ];
   if (r.isJumbo) lines.push(`${jumboLine}${r.maxConfPrice > 0 ? ` Max price that keeps the loan under the limit on ${a.loan_type} rules: ${money(r.maxConfPrice)}.` : ""}`);
   lines.push(`Assumes: ${assumptions.slice(1, 4).join("; ")}.`);
+  const licensed = isLicensedState(state);
+  if (!licensed) lines.push(unlicensedLine(state));
 
   return okResult(lines.join("\n"), {
     max_price: r.maxPrice, down_payment: r2(r.dp), down_payment_pct: r2(r.dpPct),
@@ -158,6 +167,7 @@ export function estimateMaxHomePrice(a) {
     limited_by: r.limitedBy, ...(r.isJumbo && r.maxConfPrice > 0 ? { max_price_before_jumbo: r.maxConfPrice } : {}),
     conforming_limit: confLimit,
     interest_rate: a.interest_rate, term_years: a.term_years, loan_type: a.loan_type, state,
+    licensed,
     assumptions,
   });
 }
@@ -198,6 +208,7 @@ const rentVsBuyOutput = z.object({
   annual_tax_savings: z.number(),
   break_even_year: z.number().optional().describe("First year buying's net position beats renting's; absent if not within 30 years."),
   years: z.array(RVB_YEAR),
+  licensed: LICENSED_OUT,
   assumptions: ASSUMPTIONS, disclosure: DISCLOSURE_OUT,
 });
 
@@ -250,6 +261,8 @@ export function compareRentVsBuy(a) {
     taxLine,
     "Limits: the renter only invests the upfront cash; no selling costs.",
   ];
+  const licensed = isLicensedState(state);
+  if (!licensed) lines.push(unlicensedLine(state));
 
   return okResult(lines.join("\n"), {
     home_price: a.home_price, down_payment: a.down_payment, loan_amount: r2(s.totalLoan),
@@ -261,6 +274,7 @@ export function compareRentVsBuy(a) {
     annual_tax_savings: r2(annualTaxSavings),
     ...(rb.breakEvenYear ? { break_even_year: rb.breakEvenYear } : {}),
     years: yrs.map((y) => ({ year: y.yr, rent_monthly: y.rentMo, home_value: y.homeVal, equity: y.equity, buyer_net: y.buyerNet, renter_net: y.renterNet })),
+    licensed,
     assumptions,
   });
 }
@@ -276,6 +290,7 @@ const rateOptionsInput = z.object({
   baseline_rate: z.number().min(1).max(15).optional().describe("The option to compare against; must be one of the options' rates. Default: the option closest to 0 points."),
   hold_years: z.number().int().min(1).max(30).default(5).describe("How long the user expects to keep the loan, years."),
   marginal_tax_rate_pct: z.number().min(0).max(60).default(0).describe("Combined marginal income-tax rate if the user itemizes, percent. 0 = compare pre-tax."),
+  state: z.string().min(2).max(40).optional().describe("US state where the home is, if known (full name or 2-letter code)."),
 });
 
 const RATE_ROW = z.object({
@@ -293,6 +308,8 @@ const rateOptionsOutput = z.object({
   options: z.array(RATE_ROW),
   best_value_rate: z.number().optional().describe("Lowest rate whose points pay back within the hold period; absent when none do."),
   credit_pick_rate: z.number().optional().describe("Highest-rate credit option whose credit outlasts the hold period; absent when none does."),
+  state: z.string().optional(),
+  licensed: LICENSED_OUT.optional(),
   assumptions: ASSUMPTIONS, disclosure: DISCLOSURE_OUT,
 });
 
@@ -302,6 +319,11 @@ const sortRungs = (rungs) => rungs
   .sort((a, b) => b.rate - a.rate || a.pts - b.pts);
 
 export function compareRateOptions(a) {
+  let state = null;
+  if (a.state) {
+    state = resolveStateName(a.state);
+    if (!state) return badState(a.state);
+  }
   const rungs = a.options.map((o) => ({ rate: o.rate, pts: o.points }));
   const sorted = sortRungs(rungs);
   let baseIdx;
@@ -338,6 +360,8 @@ export function compareRateOptions(a) {
   if (L.spot) lines.push(`Best value within your ${a.hold_years}-year hold: ${rateText(L.spot.rate)} at ${ptsText(L.spot.pts)}${L.spot.breakeven > 0 ? ` (pays back in ${mo1(L.spot.breakeven)})` : ""}.`);
   else if (lower.length) lines.push(`None of the lower-rate options pay off within ${a.hold_years} years.`);
   if (L.creditPick) lines.push(`Best credit option: ${rateText(L.creditPick.rate)}; its credit outlasts the ${a.hold_years}-year hold.`);
+  const licensed = state ? isLicensedState(state) : null;
+  if (licensed === false) lines.push(unlicensedLine(state));
 
   const assumptions = [
     "Compares principal & interest only; taxes, insurance and mortgage insurance are the same for every option",
@@ -362,6 +386,7 @@ export function compareRateOptions(a) {
     })),
     ...(L.spot ? { best_value_rate: L.spot.rate } : {}),
     ...(L.creditPick ? { credit_pick_rate: L.creditPick.rate } : {}),
+    ...(state ? { state, licensed } : {}),
     assumptions,
   });
 }
@@ -394,6 +419,7 @@ export const openInBlueprintInput = z.object({
 
 const openInBlueprintOutput = z.object({
   url: z.string(), expires_at: z.string(), source_tool: z.string(),
+  licensed: LICENSED_OUT,
   disclosure: DISCLOSURE_OUT,
 });
 
@@ -408,6 +434,8 @@ export function handoffPayload(a) {
   const p = {
     homePrice: a.home_price, downPayment: a.down_payment, interestRate: a.interest_rate,
     termYears: a.term_years, loanType: a.loan_type, state,
+    // The app drops its "talk to Chris / Get Pre-Approved" line when false.
+    licensed: isLicensedState(state),
   };
   if (a.city) p.city = a.city.trim();
   if (a.zip) p.zip = a.zip;
@@ -445,11 +473,15 @@ export async function openInBlueprint(a, ctx = {}) {
   const saved = await ctx.saveHandoff({ sourceTool: a.source_tool, payload: h.payload });
   if (saved.error) return errorResult(HANDOFF_ERRORS[saved.error] || HANDOFF_ERRORS.failed);
   const url = `${BLUEPRINT_ORIGIN}/?plan=${saved.token}`;
+  const licensed = h.payload.licensed;
   const text = [
     `Open this scenario in Mortgage Blueprint: ${url}`,
-    "It opens with the home price, down payment, rate and term filled in. From there the user can adjust every number, see closing costs and taxes, add income to check what they qualify for, save it, and reach a loan officer. The link works for 30 days.",
+    licensed
+      ? "It opens with the home price, down payment, rate and term filled in. From there the user can adjust every number, see closing costs and taxes, add income to check what they qualify for, save it, and reach a loan officer. The link works for 30 days."
+      : "It opens with the home price, down payment, rate and term filled in. Blueprint is free to use for planning: the user can adjust every number, see closing costs and taxes, and save it. The link works for 30 days.",
+    ...(licensed ? [] : [unlicensedLine(h.payload.state)]),
   ].join("\n");
-  return okResult(text, { url, expires_at: saved.expiresAt, source_tool: a.source_tool });
+  return okResult(text, { url, expires_at: saved.expiresAt, source_tool: a.source_tool, licensed });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -488,7 +520,7 @@ export const TOOLS = [
     name: "compare_rate_options",
     config: {
       title: "Compare rate and points options",
-      description: "Compare interest-rate options from a lender quote or Loan Estimate, where lower rates cost discount points and higher rates may come with a lender credit. Shows the monthly payment difference, the upfront cost, and how many months until paying points breaks even. Use only rate/point pairs the user provides; never make up pricing.",
+      description: "Compare interest-rate options from a lender quote or Loan Estimate, where lower rates cost discount points and higher rates may come with a lender credit. Shows the monthly payment difference, the upfront cost, and how many months until paying points breaks even. Use only rate/point pairs the user provides; never make up pricing. Pass the property's state if known.",
       inputSchema: rateOptionsInput,
       outputSchema: rateOptionsOutput,
       annotations: { title: "Compare rate and points options", ...READ_ONLY },
@@ -499,7 +531,7 @@ export const TOOLS = [
     name: "open_in_blueprint",
     config: {
       title: "Open in Mortgage Blueprint",
-      description: "Create a link that opens this scenario in Mortgage Blueprint, a free mortgage planning app, where the user can adjust every number, see closing costs and taxes, save it, and talk to a loan officer. Call this when the user wants to save, share, dig deeper, or 'see the full breakdown'. Pass the same property and loan inputs used in the previous calculation. Do not pass income or debts.",
+      description: `Create a link that opens this scenario in Mortgage Blueprint, a free mortgage planning app, where the user can adjust every number, see closing costs and taxes, and save it. Call this when the user wants to save, share, dig deeper, or 'see the full breakdown'. Pass the same property and loan inputs used in the previous calculation. Do not pass income or debts. Only mention talking to a loan officer if the result says licensed: true (Chris Granger is licensed in ${LICENSED_STATES_TEXT}).`,
       inputSchema: openInBlueprintInput,
       outputSchema: openInBlueprintOutput,
       annotations: { title: "Open in Mortgage Blueprint", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },

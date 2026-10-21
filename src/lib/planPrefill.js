@@ -12,6 +12,7 @@
 
 import { listingToPrefill, LISTING_TOKEN_RE } from "./listingPrefill.js";
 import { DEFAULT_RATE_LADDER } from "./rateLadder.js";
+import { isLicensedState } from "../data/licensing.js";
 
 export const PLAN_CLIENT_LABELS = { chatgpt: "ChatGPT", claude: "Claude" };
 
@@ -81,6 +82,16 @@ export function planToPrefill(d, deps) {
   }
  }
  return p;
+}
+
+/**
+ * Can Chris originate for this plan's property? The MCP server stores
+ * `licensed` on every handoff; a row without it falls back to the state.
+ * Not a Blueprint state key — the caller reads it off the plan payload.
+ * @returns {boolean}
+ */
+export function planLicensed(d) {
+ return typeof d?.licensed === "boolean" ? d.licensed : isLicensedState(d?.state);
 }
 
 /** "From ChatGPT · $650K" — ≤ 60 chars. */

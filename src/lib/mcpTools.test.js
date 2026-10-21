@@ -166,7 +166,7 @@ describe("open_in_blueprint", () => {
   it("stores property + loan fields only and returns the ?plan= link", async () => {
     let saved;
     const r = await run("open_in_blueprint", args, { saveHandoff: async (row) => { saved = row; return { token: "AbCdEfGhIjKlMnOpQrStUv", expiresAt: "2026-11-20T00:00:00.000Z" }; } });
-    expect(saved).toEqual({ sourceTool: "compare_rent_vs_buy", payload: { homePrice: 400000, downPayment: 20000, interestRate: 6.5, termYears: 30, loanType: "Conventional", state: "Texas", monthlyRent: 2600 } });
+    expect(saved).toEqual({ sourceTool: "compare_rent_vs_buy", payload: { homePrice: 400000, downPayment: 20000, interestRate: 6.5, termYears: 30, loanType: "Conventional", state: "Texas", licensed: true, monthlyRent: 2600 } });
     expect(r.structuredContent.url).toBe("https://blueprint.realstack.app/?plan=AbCdEfGhIjKlMnOpQrStUv");
     expect(text(r)).toContain(DISCLOSURE);
   });
@@ -176,5 +176,42 @@ describe("open_in_blueprint", () => {
       expect(r.isError).toBe(true);
       expect(text(r)).toMatch(re);
     }
+  });
+});
+
+describe("licensed-state gating (AZ, CA, CO, HI, NV, OR, TX, WA)", () => {
+  const LINE = (st) => `Chris Granger is licensed in AZ, CA, CO, HI, NV, OR, TX and WA, and can't originate a loan for a property in ${st}.`;
+  const saveHandoff = async () => ({ token: "AbCdEfGhIjKlMnOpQrStUv", expiresAt: "2026-11-20T00:00:00.000Z" });
+  const cases = {
+    estimate_max_home_price: (state) => ({ annual_income: 150000, monthly_debts: 500, cash_available: 60000, interest_rate: 6.5, state }),
+    compare_rent_vs_buy: (state) => ({ monthly_rent: 2600, home_price: 400000, down_payment: 20000, interest_rate: 6.5, state }),
+    compare_rate_options: (state) => ({ loan_amount: 400000, state, options: [{ rate: 6.625, points: 0 }, { rate: 6.5, points: 0.45 }] }),
+    open_in_blueprint: (state) => ({ source_tool: "compare_rent_vs_buy", home_price: 400000, down_payment: 20000, interest_rate: 6.5, state }),
+  };
+  for (const [name, args] of Object.entries(cases)) {
+    it(`${name}: Texas is licensed, normal wording`, async () => {
+      const r = await run(name, args("TX"), { saveHandoff });
+      expect(r.structuredContent.licensed).toBe(true);
+      expect(text(r)).not.toContain("can't originate");
+    });
+    it(`${name}: Florida still calculates, says Chris can't originate there`, async () => {
+      const r = await run(name, args("Florida"), { saveHandoff });
+      expect(r.isError).toBeUndefined();
+      expect(r.structuredContent.licensed).toBe(false);
+      expect(text(r)).toContain(LINE("Florida"));
+    });
+  }
+  it("open_in_blueprint never invites contact for an unlicensed property, and stores licensed: false", async () => {
+    let saved;
+    const r = await run("open_in_blueprint", cases.open_in_blueprint("FL"), { saveHandoff: async (row) => { saved = row; return saveHandoff(); } });
+    expect(saved.payload.licensed).toBe(false);
+    expect(text(r)).not.toMatch(/loan officer|pre-approv|talk to/i);
+    expect(text(r)).toContain("Blueprint is free to use for planning");
+    const ok = await run("open_in_blueprint", cases.open_in_blueprint("TX"), { saveHandoff });
+    expect(text(ok)).toContain("reach a loan officer");
+  });
+  it("compare_rate_options without a state omits licensed", async () => {
+    const r = await run("compare_rate_options", { loan_amount: 400000, options: [{ rate: 6.625, points: 0 }, { rate: 6.5, points: 0.45 }] });
+    expect(r.structuredContent.licensed).toBeUndefined();
   });
 });
