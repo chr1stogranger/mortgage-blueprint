@@ -154,5 +154,7 @@ button:focus:not(:focus-visible) {
 }
 @container (max-width: 920px) {
   .qs-strip-grid { grid-template-columns: 1fr 1fr; row-gap: 14px; }
-  .qs-strip-grid > :nth-child(3) { border-left: none !important; }
+  .qs-strip-grid:not(.qs-strip-row2) > :nth-child(3) { border-left: none !important; }
+  /* Refi row two: the address fills a row on its own, so Home Value starts the next. */
+  .qs-strip-row2 > :nth-child(2) { border-left: none !important; }
 }

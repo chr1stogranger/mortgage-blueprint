@@ -198,8 +198,33 @@ export default function SetupContent(props) {
   // Purchase on Overview: the location card is alone in the right column, so
   // it stretches to the Quick Start card's height (edges line up).
   const locationFillsColumn = isDesktop && !isRefi && hideModules;
-  // Desktop purchase on the Overview renders Quick Start as a single strip.
-  const quickStrip = isDesktop && !isRefi && hideModules;
+  // Desktop on the Overview renders Quick Start as a strip: one row for a
+  // purchase, two for a refi.
+  const quickStrip = isDesktop && hideModules;
+
+  // Refi address typeahead handlers, shared by the location card and the strip.
+  const onAddressChange = v => {
+   setAddressInput(v);
+   // Free-typed text is still the property address — a scenario saved
+   // mid-type keeps what the user wrote instead of silently dropping it.
+   setPropertyAddress(v);
+   if (v) setPropertyTBD(false);
+  };
+  const onAddressSelect = sel => {
+   const street = sel.address || "";
+   setPropertyAddress(street);
+   setPropertyTBD(false);
+   // Set city/county/state from the geocoder FIRST; when the ZIP is in
+   // ZIP_DATA the propertyZip effect overwrites them a render later with
+   // the lookup values the tax tables are keyed to. When it isn't, these
+   // survive as the only location we have.
+   if (sel.city) setCity(sel.city);
+   if (sel.state) setPropertyState(sel.state);
+   if (sel.county) setPropertyCounty(sel.county);
+   const z = String(sel.zip || "").replace(/[^0-9]/g, "").slice(0, 5);
+   if (z.length === 5) { setPropertyZip(z); markTouched("zip-code-done"); }
+  };
+  const onZipChange = v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); };
   const propertyLocationCard = (
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s", ...(locationFillsColumn ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
    <Card style={{ marginTop: isDesktop && (isRefi || hideModules) ? 0 : (isDesktop ? 12 : 0), ...(isDesktop ? { marginBottom: 0 } : { padding: "10px 14px", marginBottom: 8 }), ...(locationFillsColumn ? { flex: 1 } : {}) }}>
@@ -210,27 +235,8 @@ export default function SetupContent(props) {
        /* Legacy scenarios saved a propertyAddress with no addressInput — fall
           back so a reopened scenario shows the address it already has. */
        value={addressInput || propertyAddress || ""}
-       onChange={v => {
-        setAddressInput(v);
-        // Free-typed text is still the property address — a scenario saved
-        // mid-type keeps what the user wrote instead of silently dropping it.
-        setPropertyAddress(v);
-        if (v) setPropertyTBD(false);
-       }}
-       onSelect={sel => {
-        const street = sel.address || "";
-        setPropertyAddress(street);
-        setPropertyTBD(false);
-        // Set city/county/state from the geocoder FIRST; when the ZIP is in
-        // ZIP_DATA the propertyZip effect overwrites them a render later with
-        // the lookup values the tax tables are keyed to. When it isn't, these
-        // survive as the only location we have.
-        if (sel.city) setCity(sel.city);
-        if (sel.state) setPropertyState(sel.state);
-        if (sel.county) setPropertyCounty(sel.county);
-        const z = String(sel.zip || "").replace(/[^0-9]/g, "").slice(0, 5);
-        if (z.length === 5) { setPropertyZip(z); markTouched("zip-code-done"); }
-       }}
+       onChange={onAddressChange}
+       onSelect={onAddressSelect}
        placeholder="Start typing the property address..."
       />
       {/* Fallback: address picked (or typed) but no ZIP came with it — county,
@@ -240,7 +246,7 @@ export default function SetupContent(props) {
         <Inp
          label="Zip Code"
          value={propertyZip || ""}
-         onChange={v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
+         onChange={onZipChange}
          type="text"
          inputMode="numeric"
          pattern="[0-9]*"
@@ -281,7 +287,7 @@ export default function SetupContent(props) {
       <Inp
        label="Zip Code"
        value={propertyZip || ""}
-       onChange={v => { const z = String(v).replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
+       onChange={onZipChange}
        type="text"
        inputMode="numeric"
        pattern="[0-9]*"
@@ -926,14 +932,18 @@ export default function SetupContent(props) {
      overlines, the way the Price / Down / Cash / Payment strip reads. The
      county moves to the city's hover title and the FICO minimum shrinks
      into the FICO label; REQUIRED rides on the Quick Start banner.
-     Refi keeps the two-column cards below: it adds Refi Purpose, the
-     address typeahead and Home Value, which don't fit one row. ── */}
+     Refi (Christo 2026-10-21: "now do it with refis") swaps Location for
+     Refi Purpose on row one, and adds a second row for what a refi has that
+     a purchase doesn't: the subject address, Home Value and the 3-Point
+     test. Purpose explanations move into the overline's info tip. ── */}
  {quickStrip && (() => {
   const overline = { fontSize: 10, fontWeight: 600, fontFamily: MONO, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, marginBottom: 7, height: 18, display: "flex", alignItems: "center", whiteSpace: "nowrap" };
   const cell = (first) => ({ padding: "0 14px", minWidth: 0, borderLeft: first ? "none" : `1px solid ${T.separator}`, borderRadius: 0, transition: "all 0.3s" });
   const numInput = { height: 36, background: T.inputBg, borderRadius: 10, border: `1px solid ${T.inputBorder}`, color: T.text, fontSize: 15, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", fontVariantNumeric: "tabular-nums", flex: "none", padding: 0 };
   const zipOk = propertyZip && propertyZip.length === 5;
   const ficoMeets = creditScore >= calc.ficoMin;
+  // Info tip inside a mono-caps overline: reset the caps so the "i" and its popup read normally.
+  const tip = text => <span style={{ display: "inline-flex", textTransform: "none", letterSpacing: "normal", fontFamily: FONT, fontWeight: 400 }}><InfoTip text={text} /></span>;
   return (
    <div className="qs-strip">
    <Card pad="12px 6px">
@@ -952,12 +962,20 @@ export default function SetupContent(props) {
       options={[{ key: "purchase", label: "Purchase" }, { key: "refi", label: "Refinance" }]}
       onPick={key => { setIsRefi(key === "refi"); markTouched("transaction-type-done"); }} />
     </div>
+    {isRefi ? (
+    <div data-field="refi-purpose" className={isPulse("refi-purpose")} style={cell(false)}>
+     <div style={overline}>Refi Purpose{tip("Rate/Term: lower your rate, shorten your term, or both. Up to 1% of the new loan amount back in cash; above that it reclassifies as cash-out.\n\nCash-Out: pull equity as cash, or pay off non-mortgage debt through the refi. Typically requires ≤80% LTV and may carry a slightly higher rate.")}</div>
+     <PillSeg T={T} Icon={Icon} ariaLabel="Refi purpose" value={refiPurpose}
+      options={[{ key: "Rate/Term", label: "Rate/Term" }, { key: "Cash-Out", label: "Cash-Out" }]}
+      onPick={p => { setRefiPurpose(p); markTouched("refi-purpose"); }} />
+    </div>
+    ) : (
     <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (zipOk) markTouched("zip-code-done"); }} style={cell(false)}>
      <div style={overline}>Location</div>
      <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36 }}>
       <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="postal-code" aria-label="Property ZIP code" placeholder="94501"
        value={propertyZip || ""}
-       onChange={e => { const z = e.target.value.replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
+       onChange={e => onZipChange(e.target.value)}
        style={{ ...numInput, width: 76 }} />
       {zipOk && (city || propertyCounty || propertyState) && (
        <div title={[propertyCounty && `${propertyCounty} County`, propertyState].filter(Boolean).join(", ")}
@@ -973,11 +991,11 @@ export default function SetupContent(props) {
       )}
      </div>
     </div>
+    )}
     <div data-field="fico-input" className={isPulse("fico-input")} style={cell(false)}>
      <div style={overline}>
       Middle FICO
-      {/* Reset the overline's mono caps so the "i" and its popup read normally. */}
-      <span style={{ display: "inline-flex", textTransform: "none", letterSpacing: "normal", fontFamily: FONT, fontWeight: 400 }}><InfoTip text="Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification." /></span>
+      {tip("Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification.")}
       {creditScore > 0 && (
        <span style={{ marginLeft: "auto", paddingLeft: 8, fontFamily: FONT, letterSpacing: 0, textTransform: "none", fontSize: 11, fontWeight: 600, color: ficoMeets ? T.green : T.red }}>
         {ficoMeets ? `✓ ${loanType} ${calc.ficoMin}+` : `${calc.ficoMin - creditScore} pts short of ${calc.ficoMin}+`}
@@ -1000,6 +1018,48 @@ export default function SetupContent(props) {
      </div>
     </div>
     </div>
+    {/* Refi row two. The address spans the first two columns so Home Value
+        and the 3-Point test line up under Purpose and FICO. */}
+    {isRefi && (
+    <div className="qs-strip-grid qs-strip-row2" style={{ borderTop: `1px solid ${T.separator}`, marginTop: 12, paddingTop: 12 }}>
+     <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (zipOk) markTouched("zip-code-done"); }} style={{ ...cell(true), gridColumn: "span 2" }}>
+      <div style={overline}>Property Address</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+       <div style={{ flex: 1, minWidth: 0 }}>
+        <AddressAutocomplete compact value={addressInput || propertyAddress || ""} onChange={onAddressChange} onSelect={onAddressSelect} placeholder="Start typing the property address..." />
+       </div>
+       {/* Fallback: address picked (or typed) but no ZIP came with it. */}
+       {(addressInput || propertyAddress) && !zipOk && (
+        <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="postal-code" aria-label="Property ZIP code" placeholder="ZIP"
+         value={propertyZip || ""} onChange={e => onZipChange(e.target.value)}
+         style={{ ...numInput, width: 76, height: 42 }} />
+       )}
+      </div>
+      {/* The county drives the loan limit and tax rate, so it stays visible;
+          it goes orange when it can't be resolved (a wrong county is a wrong limit). */}
+      {zipOk && (
+       propertyCounty
+        ? <div style={{ fontSize: 11, color: T.textTertiary, marginTop: 6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+           <span style={{ color: T.green, fontWeight: 700 }}>✓</span> <strong style={{ color: T.textSecondary }}>{propertyCounty} County</strong>: sets the loan limit and tax rate
+          </div>
+        : <div style={{ fontSize: 11, color: T.orange, fontWeight: 600, marginTop: 6, lineHeight: 1.4 }}>
+           County couldn't be resolved from {propertyZip}: loan limit and tax rate fall back to state defaults. Confirm it before quoting.
+          </div>
+      )}
+     </div>
+     <div style={cell(false)}>
+      <div style={overline}>Home Value{tip("Current estimated market value. Sets your LTV and equity position.")}</div>
+      {/* Inp brings its own 6px bottom margin; the cell supplies spacing here. */}
+      <div style={{ marginBottom: -6 }}><Inp value={salesPrice} onChange={setSalesPrice} max={100000000} sm /></div>
+     </div>
+     <div style={cell(false)}>
+      <div style={overline}>3-Point Refi Test{tip("Shows the rate-drop, breakeven & payoff-acceleration test tab.")}</div>
+      <PillSeg T={T} Icon={Icon} ariaLabel="3-Point Refi Test" value={showRefi3 === true ? "yes" : showRefi3 === false ? "no" : null}
+       options={[{ key: "yes", label: "Yes" }, { key: "no", label: "No" }]}
+       onPick={k => setShowRefi3(k === "yes")} />
+     </div>
+    </div>
+    )}
    </Card>
    </div>
   );

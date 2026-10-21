@@ -322,12 +322,18 @@ function TextInp({ label, value, onChange, placeholder, sm, tip, req, inputMode,
 // Live "search any address" reuses the same component. This thin wrapper
 // preserves Blueprint's original API and rendering: FieldLabel header, the
 // active theme object T, and full state names ("CA" → "California").
-function AddressAutocomplete({ onSelect, value, onChange, placeholder }) {
+// `compact` drops the label and margin for the Quick Start strip, which
+// labels the cell with its own overline.
+function AddressAutocomplete({ onSelect, value, onChange, placeholder, compact = false }) {
  return (
   <PlacesAddressInput
    onSelect={onSelect} value={value} onChange={onChange} placeholder={placeholder}
    T={T} stateFormat="full"
-   label={<FieldLabel label="Property Address" req filled={value !== ""} />}
+   label={compact ? null : <FieldLabel label="Property Address" req filled={value !== ""} />}
+   {...(compact ? {
+    containerStyle: { marginBottom: 0 },
+    inputStyle: { width: "100%", boxSizing: "border-box", height: 42, background: T.inputBg, borderRadius: 12, border: `1px solid ${T.inputBorder}`, padding: "0 36px 0 12px", color: T.text, fontSize: 14, outline: "none", fontFamily: FONT, WebkitAppearance: "none" },
+   } : {})}
   />
  );
 }
