@@ -11,6 +11,7 @@ import { liveRateFor } from "./lib/liveRates.js";
  */
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { CA_CITY_TAX_RATES, CA_CITY_NAMES, STATE_CITIES, NV_CITY_TAX_RATES } from "./citiesData.js";
+import { STATE_PROPERTY_TAX_RATES } from "./data/propertyTax.js";
 import { calcPI, getPMIRate } from "./lib/finance.js"; // shared engine — was a drift-prone local copy
 import Icon from "./Icon";
 
@@ -26,21 +27,8 @@ function fmt(v) {
 function pct(v, d = 1) { return ((v || 0) * 100).toFixed(d) + "%"; }
 // calcPI / getPMIRate now imported from ./lib/finance.js (audit M-1 dedup)
 
-const STATE_PROPERTY_TAX_RATES = {
-  "Alabama": 0.0040, "Alaska": 0.0118, "Arizona": 0.0062, "Arkansas": 0.0061,
-  "California": null, "Colorado": 0.0051, "Connecticut": 0.0215, "Delaware": 0.0057,
-  "Florida": 0.0086, "Georgia": 0.0090, "Hawaii": 0.0029,
-  "Idaho": 0.0063, "Illinois": 0.0214, "Indiana": 0.0085, "Iowa": 0.0153,
-  "Kansas": 0.0141, "Kentucky": 0.0086, "Louisiana": 0.0055, "Maine": 0.0136,
-  "Maryland": 0.0107, "Massachusetts": 0.0123, "Michigan": 0.0154, "Minnesota": 0.0113,
-  "Mississippi": 0.0065, "Missouri": 0.0097, "Montana": 0.0083, "Nebraska": 0.0173,
-  "Nevada": 0.0053, "New Hampshire": 0.0218, "New Jersey": 0.0223, "New Mexico": 0.0067,
-  "New York": 0.0172, "North Carolina": 0.0082, "North Dakota": 0.0098, "Ohio": 0.0157,
-  "Oklahoma": 0.0087, "Oregon": 0.0097, "Pennsylvania": 0.0153, "Rhode Island": 0.0163,
-  "South Carolina": 0.0057, "South Dakota": 0.0128, "Tennessee": 0.0066, "Texas": 0.0168,
-  "Utah": 0.0058, "Vermont": 0.0188, "Virginia": 0.0082, "Washington": 0.0092,
-  "West Virginia": 0.0058, "Wisconsin": 0.0178, "Wyoming": 0.0057,
-};
+// STATE_PROPERTY_TAX_RATES lives in data/propertyTax.js (shared with MortgageBlueprint
+// and the MCP server). This pane keeps its own resolver below, with a 1.25% fallback.
 
 const LOAN_TYPES = ["Conventional", "FHA", "VA", "Jumbo"];
 const PROP_TYPES = ["Single Family", "Single Family with ADU", "Condo", "Townhouse", "2-Unit", "3-Unit", "4-Unit"];
