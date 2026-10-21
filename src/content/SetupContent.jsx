@@ -34,6 +34,30 @@ function YesNoSeg({ T, value, onYes, onNo }) {
   );
 }
 
+/**
+ * PillSeg — the Quick Start strip's two-way segmented control: one pill
+ * track, the selected side lifts out as a white pill ringed in blue.
+ * options = [{ key, label, icon? }]; Icon is the shared icon component.
+ */
+function PillSeg({ T, Icon, options, value, onPick, ariaLabel }) {
+  return (
+    <div role="group" aria-label={ariaLabel} style={{ display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 4, padding: 3, background: T.inputBg, border: `1px solid ${T.separator}`, borderRadius: 9999 }}>
+      {options.map(({ key, label, icon }) => {
+        const on = value === key;
+        return (
+          <button key={key} type="button" aria-pressed={on} onClick={() => onPick(key)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 30, padding: "0 10px", border: "none", borderRadius: 9999, cursor: "pointer", whiteSpace: "nowrap", fontFamily: FONT, fontSize: 13, fontWeight: 600, transition: "all 0.2s",
+              background: on ? T.card : "transparent", color: on ? T.blue : T.textSecondary,
+              boxShadow: on ? `0 0 0 1.5px ${T.blue}, 0 1px 3px rgba(16,27,46,0.12)` : "none" }}>
+            {icon && <Icon name={icon} size={14} />}
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const STATE_ABBR_LOCAL = { Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA", Colorado: "CO", Connecticut: "CT", Delaware: "DE", "District of Columbia": "DC", Florida: "FL", Georgia: "GA", Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY" };
 
 export default function SetupContent(props) {
@@ -174,6 +198,8 @@ export default function SetupContent(props) {
   // Purchase on Overview: the location card is alone in the right column, so
   // it stretches to the Quick Start card's height (edges line up).
   const locationFillsColumn = isDesktop && !isRefi && hideModules;
+  // Desktop purchase on the Overview renders Quick Start as a single strip.
+  const quickStrip = isDesktop && !isRefi && hideModules;
   const propertyLocationCard = (
    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (propertyZip && propertyZip.length === 5) markTouched("zip-code-done"); }} style={{ borderRadius: 14, transition: "all 0.3s", ...(locationFillsColumn ? { flex: 1, display: "flex", flexDirection: "column" } : {}) }}>
    <Card style={{ marginTop: isDesktop && (isRefi || hideModules) ? 0 : (isDesktop ? 12 : 0), ...(isDesktop ? { marginBottom: 0 } : { padding: "10px 14px", marginBottom: 8 }), ...(locationFillsColumn ? { flex: 1 } : {}) }}>
@@ -894,11 +920,95 @@ export default function SetupContent(props) {
   </Note>
  )}
 
+ {/* ── Quick Start strip — desktop purchase on the Overview (Christo
+     2026-10-21: "a lot of white space… condense that down to 50%").
+     Experience, Transaction, ZIP and FICO sit on one row under mono
+     overlines, the way the Price / Down / Cash / Payment strip reads. The
+     county moves to the city's hover title and the FICO minimum shrinks
+     into the FICO label; REQUIRED rides on the Quick Start banner.
+     Refi keeps the two-column cards below: it adds Refi Purpose, the
+     address typeahead and Home Value, which don't fit one row. ── */}
+ {quickStrip && (() => {
+  const overline = { fontSize: 10, fontWeight: 600, fontFamily: MONO, letterSpacing: "0.15em", textTransform: "uppercase", color: T.textTertiary, marginBottom: 7, height: 18, display: "flex", alignItems: "center", whiteSpace: "nowrap" };
+  const cell = (first) => ({ padding: "0 14px", minWidth: 0, borderLeft: first ? "none" : `1px solid ${T.separator}`, borderRadius: 0, transition: "all 0.3s" });
+  const numInput = { height: 36, background: T.inputBg, borderRadius: 10, border: `1px solid ${T.inputBorder}`, color: T.text, fontSize: 15, fontWeight: 600, fontFamily: FONT, outline: "none", textAlign: "center", fontVariantNumeric: "tabular-nums", flex: "none", padding: 0 };
+  const zipOk = propertyZip && propertyZip.length === 5;
+  const ficoMeets = creditScore >= calc.ficoMin;
+  return (
+   <div className="qs-strip">
+   <Card pad="12px 6px">
+    <div className="qs-strip-grid">
+    <div data-field="experience-level" className={isPulse("experience-level")} style={cell(true)}>
+     <div style={overline}>Experience</div>
+     <PillSeg T={T} Icon={Icon} ariaLabel="Experience level" value={skillLevel}
+      options={["standard", "guided"].filter(k => SKILL_PRESETS[k]).map(k => ({ key: k, label: SKILL_PRESETS[k].label, icon: SKILL_PRESETS[k].icon }))}
+      onPick={key => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(key); }} />
+    </div>
+    <div data-field="transaction-type" className={isPulse("transaction-type")} style={cell(false)}>
+     <div style={overline}>Transaction</div>
+     {/* isRefi null reads as Purchase, same as the full cards. */}
+     <PillSeg T={T} Icon={Icon} ariaLabel="Transaction type" value={isRefi ? "refi" : "purchase"}
+      options={[{ key: "purchase", label: "Purchase" }, { key: "refi", label: "Refinance" }]}
+      onPick={key => { setIsRefi(key === "refi"); markTouched("transaction-type-done"); }} />
+    </div>
+    <div data-field="zip-code" className={isPulse("zip-code")} onBlur={() => { if (zipOk) markTouched("zip-code-done"); }} style={cell(false)}>
+     <div style={overline}>Location</div>
+     <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36 }}>
+      <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="postal-code" aria-label="Property ZIP code" placeholder="94501"
+       value={propertyZip || ""}
+       onChange={e => { const z = e.target.value.replace(/[^0-9]/g, "").slice(0, 5); setPropertyZip(z); if (z.length === 5) markTouched("zip-code-done"); }}
+       style={{ ...numInput, width: 76 }} />
+      {zipOk && (city || propertyCounty || propertyState) && (
+       <div title={[propertyCounty && `${propertyCounty} County`, propertyState].filter(Boolean).join(", ")}
+        style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 13, color: T.text, fontFamily: FONT }}>
+        <span style={{ color: T.green, fontWeight: 700 }}>✓</span>
+        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+         {city || propertyCounty || ""}{(city || propertyCounty) ? ", " : ""}{STATE_ABBR_LOCAL[propertyState] || propertyState || "—"}
+        </span>
+       </div>
+      )}
+      {zipOk && !city && !propertyCounty && (
+       <span style={{ fontSize: 12, fontWeight: 600, color: T.orange, whiteSpace: "nowrap" }}>ZIP not in lookup</span>
+      )}
+     </div>
+    </div>
+    <div data-field="fico-input" className={isPulse("fico-input")} style={cell(false)}>
+     <div style={overline}>
+      Middle FICO
+      {/* Reset the overline's mono caps so the "i" and its popup read normally. */}
+      <span style={{ display: "inline-flex", textTransform: "none", letterSpacing: "normal", fontFamily: FONT, fontWeight: 400 }}><InfoTip text="Lenders pull all three bureaus and use the lowest middle score of all borrowers for qualification." /></span>
+      {creditScore > 0 && (
+       <span style={{ marginLeft: "auto", paddingLeft: 8, fontFamily: FONT, letterSpacing: 0, textTransform: "none", fontSize: 11, fontWeight: 600, color: ficoMeets ? T.green : T.red }}>
+        {ficoMeets ? `✓ ${loanType} ${calc.ficoMin}+` : `${calc.ficoMin - creditScore} pts short of ${calc.ficoMin}+`}
+       </span>
+      )}
+     </div>
+     <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
+      <input type="text" inputMode="numeric" aria-label="Middle FICO score" placeholder="750"
+       value={creditScore === 0 ? "" : creditScore}
+       onChange={e => { const v = e.target.value.replace(/\D/g, ""); if (v === "") { setCreditScore(0); return; } setCreditScore(Math.min(parseInt(v, 10), 850)); }}
+       onBlur={() => {
+         if (creditScore > 0 && creditScore < 300) { setCreditScore(300); markTouched("fico-input-done"); }
+         else if (creditScore >= 300) markTouched("fico-input-done");
+       }}
+       style={{ ...numInput, width: 64 }} />
+      <input type="range" min={300} max={850} step={5} value={creditScore || 650} aria-label="Middle FICO score slider"
+       onChange={e => setCreditScore(parseInt(e.target.value, 10))}
+       onMouseUp={() => markTouched("fico-input-done")} onTouchEnd={() => markTouched("fico-input-done")}
+       style={{ flex: 1, minWidth: 0, height: 5, appearance: "none", WebkitAppearance: "none", background: `linear-gradient(to right, ${T.red} 0%, ${T.orange} 30%, ${T.green} 70%, ${T.green} 100%)`, borderRadius: 3, outline: "none", cursor: "pointer", accentColor: T.blue }} />
+     </div>
+    </div>
+    </div>
+   </Card>
+   </div>
+  );
+ })()}
+
  {/* ── Quick Start — 2-column on desktop, columns stretch to equal height ── */}
  {/* Card edges line up across the two columns (Christo 2026-09-23): the
      first card in each column has no top margin, the last has no bottom
      margin, and the grid's own marginBottom supplies the space below. */}
- <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch", marginBottom: 12 } : {}}>
+ {!quickStrip && <div style={isDesktop ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch", marginBottom: 12 } : {}}>
 
   {/* ── LEFT COLUMN: Profile & Location — stretches to match right column ── */}
   <div style={isDesktop ? { display: "flex", flexDirection: "column" } : {}}>
@@ -906,7 +1016,8 @@ export default function SetupContent(props) {
        Monthly Payment bar showing): tighter card, no inner header (the banner
        already says Quick Start), one-line label + switch rows. */}
    <Card style={isDesktop ? { flex: 1, marginBottom: 0 } : { padding: "10px 14px", marginBottom: 8 }}>
-    {isDesktop && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+    {/* On the Overview the banner above already says Quick Start and carries REQUIRED. */}
+    {isDesktop && !hideModules && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
      <div style={{ fontSize: 14 }}></div>
      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Quick Start</div>
      <div style={{ fontSize: 9, fontWeight: 600, color: T.green, background: `${T.green}15`, padding: "2px 6px", borderRadius: 5, marginLeft: "auto" }}>REQUIRED</div>
@@ -924,7 +1035,7 @@ export default function SetupContent(props) {
          Guided for first-time visitors. */}
      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, ...(isDesktop ? {} : { width: "62%" }) }}>
       {["standard", "guided"].filter(k => SKILL_PRESETS[k]).map(key => [key, SKILL_PRESETS[key]]).map(([key, preset]) => (
-       <button key={key} onClick={() => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(); }}
+       <button key={key} onClick={() => { if (skillLevel !== key && onToggleSkillLevel) onToggleSkillLevel(key); }}
         style={{ padding: isDesktop ? "8px 6px" : "6px 4px", background: skillLevel === key ? `${T.blue}18` : T.inputBg, border: skillLevel === key ? `2px solid ${T.blue}` : `1px solid ${T.separator}`, borderRadius: 10, cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
         {isDesktop && <div style={{ display: "flex", justifyContent: "center", color: skillLevel === key ? T.blue : T.textSecondary }}><Icon name={preset.icon} size={16} /></div>}
         <div style={{ fontSize: isDesktop ? 11 : 12, fontWeight: 700, color: skillLevel === key ? T.blue : T.text, marginTop: isDesktop ? 2 : 0 }}>{preset.label}</div>
@@ -1027,7 +1138,7 @@ export default function SetupContent(props) {
    {!hideModules && modulesCard}
   </div>{/* end right column */}
 
- </div>{/* end 2-column grid */}
+ </div>}{/* end 2-column grid */}
 
  {/* Setup Complete celebration */}
  {gameMode && completedTabs["setup"] && isTabFieldsComplete("setup") && (

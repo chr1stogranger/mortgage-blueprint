@@ -141,3 +141,18 @@ button:focus:not(:focus-visible) {
 /* Sideways-scroll hint for min-width tables (Rate & Points ladder on Share); phones only. */
 .bp-swipe-hint { display: none; }
 @media (max-width: 480px) { .bp-swipe-hint { display: block; } }
+
+/* Quick Start strip (SetupContent, desktop purchase on the Overview): four
+   cells in one row while the column fits them, 2×2 once it doesn't. A
+   container query, because the sidebar makes viewport width a poor proxy.
+   !important beats the cells' inline divider so the third cell (now the
+   start of row two) loses its left border. */
+.qs-strip { container-type: inline-size; }
+.qs-strip-grid {
+  display: grid; align-items: start;
+  grid-template-columns: minmax(225px, 1.1fr) minmax(200px, 1fr) minmax(205px, 1.2fr) minmax(260px, 1.5fr);
+}
+@container (max-width: 920px) {
+  .qs-strip-grid { grid-template-columns: 1fr 1fr; row-gap: 14px; }
+  .qs-strip-grid > :nth-child(3) { border-left: none !important; }
+}

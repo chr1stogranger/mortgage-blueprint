@@ -188,7 +188,12 @@ export default function OverviewTab(props) {
         open={setupOpen}
         onToggle={toggleSetup}
         collapsedSubtitle={setupSummary}
-        heroStyle={true}>
+        heroStyle={true}
+        /* REQUIRED moved up from the card's inner header (Christo 2026-10-21),
+           which the condensed Quick Start dropped. */
+        headerRight={isDesktop && setupOpen ? (
+          <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, letterSpacing: "0.15em", color: "#fff", background: "rgba(255,255,255,0.18)", padding: "3px 8px", borderRadius: 9999 }}>REQUIRED</span>
+        ) : null}>
         <SetupContent {...props} hideHero={true} hideModules={true} />
         {/* Loan structure: in Quick Start on phones (Christo 2026-10-01: set
             once, tucks away when Quick Start collapses, keeps the phone
