@@ -22,6 +22,7 @@ import SendWorksheetModal, { downloadWorksheetPdf, BorrowerSendModal } from "./c
 import PlacesAddressInput, { STATE_MAP } from "./components/AddressAutocomplete.jsx";
 import ListingBanner, { ListingNotice } from "./components/ListingBanner.jsx";
 import { readListingToken, listingScenarioPlans } from "./lib/listingPrefill.js";
+import { readPlanToken, planToPrefill, planScenarioName, planLanding, planClientLabel } from "./lib/planPrefill.js";
 import { liveRateFor } from "./lib/liveRates.js";
 import { TRANSFER_TAX_CITIES, TT_CITY_NAMES, getTTCitiesForState, getTTForCity, countyTTRateFor } from "./data/transferTax.js";
 import { VARIABLE_PAY_TYPES, buildCalcSummary as buildCalcSummaryFromState } from "./lib/calcSummary.js";
@@ -73,7 +74,7 @@ import {
   searchAriveLoans, fetchAriveImport, fetchDealTeam, saveDealTeam,
   listStatements, signStatementUpload, putStatementToSignedUrl,
   fetchStatementDoc, deleteStatementDoc, extractStatements,
-  fetchSharedData, fetchListing,
+  fetchSharedData, fetchListing, fetchPlan,
   saveSharedScenario, renameSharedScenario, deleteSharedScenario, reorderSharedScenarios,
 } from "./api";
 import { fetchScenarioRow, subscribeToBorrowerScenarios, saveScenarioVersion } from "./lib/supabaseClient";
@@ -1084,6 +1085,13 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [listingToken] = useState(() => {
   if (isBorrower) return null;
   try { return readListingToken(window.location.search); } catch { return null; }
+ });
+ // ── ?plan=<token> (MCP handoff from a ChatGPT / Claude chat, api/plan.js) —
+ // same rules as ?listing=: captured once, blocks the boot restore and the
+ // ?client= deep link, opens detached as its own local scenario.
+ const [planToken] = useState(() => {
+  if (isBorrower) return null;
+  try { return readPlanToken(window.location.search); } catch { return null; }
  });
  const [listingScenarios, setListingScenarios] = useState([]); // local scenario names the listing opened as (one per flyer column)
  // Flyer fixed assessments, re-applied whenever a listing scenario loads —
@@ -3574,10 +3582,11 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (bootRestoreConsumedRef.current) return;
   if (!isCloud || isBorrower || !borrowerList.length) return;
   bootRestoreConsumedRef.current = true;
-  // A ?listing= flyer link opens detached from every client — never reopen
-  // the last client over it (the restore would land after the listing and
-  // autosave the listing's numbers into that client's cloud scenario).
-  if (listingToken) return;
+  // A ?listing= flyer link (or a ?plan= chat handoff) opens detached from
+  // every client — never reopen the last client over it (the restore would
+  // land after the listing and autosave its numbers into that client's cloud
+  // scenario).
+  if (listingToken || planToken) return;
   // A ?client= deep link wins — its own effect handles it.
   try { if (new URLSearchParams(window.location.search).get('client')) return; } catch { /* ignore */ }
   if (activeBorrower?.id) return;                    // already in a file (import, share, …)
@@ -3616,7 +3625,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   if (!isCloud || isBorrower || !borrowerList.length) return;
   // ?listing= wins over ?client= (they never ship together; if they do, the
   // flyer is the newer intent and must not be written into a client).
-  if (listingToken) { deepLinkClientConsumedRef.current = true; return; }
+  if (listingToken || planToken) { deepLinkClientConsumedRef.current = true; return; }
   let clientId = null;
   try { clientId = new URLSearchParams(window.location.search).get('client'); } catch { /* ignore */ }
   if (!clientId) { deepLinkClientConsumedRef.current = true; return; }
@@ -3699,6 +3708,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  const [listing, setListing] = useState(null);         // payload → banner
  const [listingDismissed, setListingDismissed] = useState(false);
  const [listingFailed, setListingFailed] = useState(false); // 'expired' | 'unavailable' | false → small notice
+ const [listingFailKind, setListingFailKind] = useState('listing'); // 'listing' | 'plan' — notice copy
  // Latest values for the async apply (the effect's own closure is from the
  // render that started the fetch).
  const listingLiveRef = useRef(null);
@@ -3706,26 +3716,37 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
   listingLiveRef.current = { isCloud, isBorrower, scenariosAreCloud, activeScenarioId, scenarioName, scenarioList, buildCalcSummary };
  });
  useEffect(() => {
-  if (listingConsumedRef.current || !listingToken || isBorrower) return;
+  // ?plan= rides the same path: a different fetcher + mapper, everything
+  // after (detach, LS writes, loadState batch) shared.
+  const deepToken = listingToken || planToken;
+  const isPlan = !listingToken && !!planToken;
+  if (listingConsumedRef.current || !deepToken || isBorrower) return;
   // Wait for the boot local-restore: applying first would let the saved
   // active scenario load on top of the listing.
   if (!loaded) return;
   listingConsumedRef.current = true;
-  // Strip only ?listing= (keep ?theme=, ?mode=, …) so a refresh doesn't
-  // re-apply it over the visitor's own edits.
+  // Strip only ?listing= / ?plan= (keep ?theme=, ?mode=, …) so a refresh
+  // doesn't re-apply it over the visitor's own edits.
   try {
    const url = new URL(window.location.href);
    url.searchParams.delete('listing');
+   url.searchParams.delete('plan');
    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
   } catch { /* ignore */ }
   (async () => {
    let data = null, failStatus = 0;
-   try { data = await fetchListing(listingToken); } catch (e) { data = null; failStatus = e?.status || 0; }
-   // A 404 means the link is gone; anything else (network, 5xx, rate limit) is
-   // a temporary miss and should not be announced as expired.
-   if (!data || typeof data !== 'object' || data.error) { setListingFailed(failStatus === 404 || !!data?.error ? 'expired' : 'unavailable'); return; }
-   // One plan per flyer column (Financing flyer) or a single plan (Buydown).
-   const plans = listingScenarioPlans(data, { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate }).map(({ name: n, prefill: pf }) => {
+   try { data = await (isPlan ? fetchPlan(planToken) : fetchListing(listingToken)); } catch (e) { data = null; failStatus = e?.status || 0; }
+   // A 404 (or a plan's 410) means the link is gone; anything else (network,
+   // 5xx, rate limit) is a temporary miss and should not be announced as expired.
+   if (!data || typeof data !== 'object' || data.error) { setListingFailed(failStatus === 404 || failStatus === 410 || !!data?.error ? 'expired' : 'unavailable'); setListingFailKind(isPlan ? 'plan' : 'listing'); return; }
+   if (isPlan) data = { ...data, kind: "plan" };
+   const prefillDeps = { lookupZip, cityNames: CITY_NAMES, stateMap: STATE_MAP, getAutoTaxRate };
+   // One plan per flyer column (Financing flyer) or a single plan (Buydown,
+   // or a chat handoff).
+   const rawPlans = isPlan
+    ? [{ name: planScenarioName(data), prefill: planToPrefill(data, prefillDeps) }]
+    : listingScenarioPlans(data, prefillDeps);
+   const plans = rawPlans.map(({ name: n, prefill: pf }) => {
     const st = { ...blankStateRef.current, ...pf };
     // No note rate on the flyer → leave the rate unlocked so live rates fill it
     // (loadState marks any present `rate` as manual).
@@ -3784,7 +3805,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    // Guest devices adopt the flyer's LO as the contact (PDFs, Get
    // Pre-Approved copy). Never on a device an LO has signed into
    // (bp_lo_info_owner set) — LO identity there is theirs, device-level.
-   if (!live.isCloud && data.lo && data.lo.name) {
+   if (!isPlan && !live.isCloud && data.lo && data.lo.name) {
     let owner = "";
     try { owner = localStorage.getItem("bp_lo_info_owner") || ""; } catch { /* private mode */ }
     if (!owner) {
@@ -3799,19 +3820,42 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
    setListing(data);
    setListingDismissed(false);
    setAppMode("blueprint");
-   setTab("overview");
+   // A chat handoff lands where the chat left off: Rent vs Buy, the Rate &
+   // Points section, or Overview.
+   const landing = isPlan ? planLanding(data) : { tab: "overview", section: null };
+   setTab(landing.tab);
    try { window.scrollTo({ top: 0 }); } catch { /* ignore */ }
+   // The Overview tab is lazy-loaded, so wait (up to ~4s) for the section to mount.
+   if (landing.section) {
+    let tries = 0;
+    const jump = () => {
+     const el = document.getElementById(landing.section);
+     if (el) { try { el.scrollIntoView({ block: "start" }); } catch { /* ignore */ } }
+     else if (++tries < 20) setTimeout(jump, 200);
+    };
+    setTimeout(jump, 400);
+   }
   })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [loaded, listingToken, isBorrower]);
+ }, [loaded, listingToken, planToken, isBorrower]);
  // Banner shows only while the listing's own scenario is on screen and no
  // cloud client is open — switching away retires it.
  const showListingBanner = !!listing && !listingDismissed && !activeBorrower && listingScenarios.includes(scenarioName);
- const listingBannerEl = showListingBanner
+ // A chat handoff (?plan=) gets the shared Note, not the flyer banner.
+ const planScenarioOn = listing?.kind === "plan" && !activeBorrower && listingScenarios.includes(scenarioName);
+ const planActive = showListingBanner && planScenarioOn;
+ const listingBannerEl = planActive
+  ? <Note color={T.blue} title={`Opened from ${planClientLabel(listing.client)}`} onDismiss={() => setListingDismissed(true)} style={{ margin: "4px 0 10px" }}>
+     These are the numbers from your chat. Add your income and debts to see what you qualify for, or tap Get Pre-Approved to talk to {(loanOfficer || "Chris").split(" ")[0]}.
+    </Note>
+  : showListingBanner
   ? <ListingBanner T={T} isDesktop={isDesktop} listing={listing} fmt={fmt} onDismiss={() => setListingDismissed(true)} />
   : listingFailed
-   ? <ListingNotice T={T} reason={listingFailed} onDismiss={() => setListingFailed(false)} />
+   ? <ListingNotice T={T} reason={listingFailed} noun={listingFailKind === 'plan' ? 'Blueprint link' : undefined} onDismiss={() => setListingFailed(false)} />
    : null;
+ // 1003 attribution: while a chat-handoff scenario is on screen, the
+ // Get Pre-Approved links carry source=mcp-<client> instead of the realtor slug.
+ const applySlug = planScenarioOn ? `mcp-${listing.client || "other"}` : realtorPartnerSlug;
 
  const switchScenario = async (name, opts = {}) => {
   // ── Share-link borrower: switch between the shared rows by id, never by
@@ -8728,7 +8772,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      {/* Sidebar Footer */}
      {isDesktop && appMode === "blueprint" && applyUrl && !sidebarCollapsed && (
       <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.separator}` }}>
-       <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+       <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", padding: "10px 12px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 2px 10px ${T.green}30` }}>
         <Icon name="check-circle" size={14} />
         Get Pre-Approved
@@ -8737,7 +8781,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
      )}
      {sidebarCollapsed && isDesktop && appMode === "blueprint" && applyUrl && (
       <div style={{ padding: "8px 4px", borderTop: `1px solid ${T.separator}`, textAlign: "center" }}>
-       <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+       <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, textDecoration: "none", cursor: "pointer", padding: "4px 0" }}>
         <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg, ${T.green}, #059669)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
          <Icon name="check-circle" size={14} color="#fff" />
@@ -8871,7 +8915,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
        })}
       </div>
       {applyUrl && (
-       <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+       <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", boxSizing: "border-box", marginTop: 12, padding: "12px 14px", background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 9999, color: "#fff", fontSize: 13, fontWeight: 700, fontFamily: FONT, textDecoration: "none", cursor: "pointer" }}>
         <Icon name="check-circle" size={14} />
         Get Pre-Approved
@@ -9393,7 +9437,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  )}
  {loanOfficer && applyUrl && (
   <div style={{ marginBottom: 16 }}>
-   <a href={applyHref(applyUrl, realtorPartnerSlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
+   <a href={applyHref(applyUrl, applySlug)} target="_blank" rel="noopener noreferrer" onClick={notifyPreapprovalIntent}
     style={{ display: "block", width: "100%", boxSizing: "border-box", padding: 16, background: `linear-gradient(135deg, ${T.green}, #059669)`, border: "none", borderRadius: 14, color: "#fff", fontWeight: 700, fontSize: 16, cursor: "pointer", fontFamily: FONT, textAlign: "center", textDecoration: "none", letterSpacing: "0.02em", boxShadow: `0 4px 14px ${T.green}40` }}>
      Get Pre-Approved Now
    </a>
@@ -9797,6 +9841,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ INVESTMENT PROPERTY ═══ */}
 {tab === "invest" && <InvestContent {...{T, isDesktop, calc, fmt, invCalc, invMonthlyRent, setInvMonthlyRent, invVacancy, setInvVacancy, invRentGrowth, setInvRentGrowth, invMgmt, setInvMgmt, invMaintPct, setInvMaintPct, invCapEx, setInvCapEx, hoa, invHoldYears, setInvHoldYears, invSellerComm, setInvSellerComm, invSellClosing, setInvSellClosing, appreciationRate, setAppreciationRate, Hero, Card, Sec, Inp, MRow, GuidedNextButton}} />}
 {/* ═══ RENT VS BUY ═══ */}
+{tab === "rentvbuy" && listingBannerEl}
 {tab === "rentvbuy" && <RentVsBuyContent {...{T, isDesktop, calc, fmt, rbCalc, rbCurrentRent, setRbCurrentRent, rbRentGrowth, setRbRentGrowth, rbInvestReturn, setRbInvestReturn, Hero, Card, Sec, Inp, Note, MRow, GuidedNextButton}} />}
 </Suspense>
 {/* ═══ LEARNING CENTER ═══ */}

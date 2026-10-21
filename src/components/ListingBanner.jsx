@@ -106,10 +106,10 @@ export default function ListingBanner({ T, isDesktop, listing, fmt, onDismiss })
 }
 
 // Non-blocking notice when the link is expired/unknown or the fetch failed.
-export function ListingNotice({ T, onDismiss, reason = 'expired' }) {
+export function ListingNotice({ T, onDismiss, reason = 'expired', noun = 'property link' }) {
  const msg = reason === 'unavailable'
-  ? "Couldn't load this property link right now. Here's Blueprint with default numbers; refresh to try again."
-  : "This property link has expired. Here's Blueprint with default numbers.";
+  ? `Couldn't load this ${noun} right now. Here's Blueprint with default numbers; refresh to try again.`
+  : `This ${noun} has expired. Here's Blueprint with default numbers.`;
  return (
   <div role="status" style={{
    display: "flex", alignItems: "center", gap: 10,

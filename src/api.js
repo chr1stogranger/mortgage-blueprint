@@ -395,6 +395,23 @@ export async function fetchListing(token) {
   return res.json();
 }
 
+// ─── MCP handoff (ChatGPT / Claude → ?plan=<token>) ─────────────────────────
+// No auth, like fetchListing. Served by THIS app's own /api/plan (not Ops), so
+// it goes through apiUrl (absolute on Capacitor; imported lazily because
+// apiBase reads `window` at load, which breaks this module's node tests).
+// Throws an Error carrying `.status`: 404 unknown, 410 expired, 503 table not
+// migrated yet.
+export async function fetchPlan(token) {
+  const { apiUrl } = await import('./apiBase');
+  const res = await fetch(apiUrl(`/api/plan?t=${encodeURIComponent(token)}`), { cache: 'no-store' });
+  if (!res.ok) {
+    const err = new Error(`Plan fetch failed: ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 // ─── Auth helpers ───────────────────────────────────────────────────────────
 
 export function isAuthenticated() {

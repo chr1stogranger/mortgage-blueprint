@@ -62,6 +62,7 @@
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/pricepoint", "destination": "/pricepoint.html" },
     { "source": "/markets", "destination": "/markets.html" },
+    { "source": "/mcp", "destination": "/api/mcp" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

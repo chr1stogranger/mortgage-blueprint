@@ -108,7 +108,7 @@
       <div class="broker">A product of RealStack · NMLS #2179191</div>
     </div>
 
-    <p class="effective-date">Effective Date: March 1, 2026 · Last Updated: July 3, 2026</p>
+    <p class="effective-date">Effective Date: March 1, 2026 · Last Updated: October 21, 2026</p>
 
     <div class="highlight-box">
       <p><strong>Summary:</strong> The calculator works without an account, and in that mode your inputs stay on your device. If you create an optional account and turn on cloud sync — or if a loan officer shares a blueprint with you — the blueprint data you enter is stored encrypted in our database so it can sync across your devices and be collaborated on. We never sell your data, and you can export or delete your cloud data at any time.</p>
@@ -117,7 +117,7 @@
     <h2>1. Introduction</h2>
     <p>Mortgage Blueprint ("the App") is a mortgage calculator and educational tool developed by Chris Granger, a licensed mortgage broker (NMLS #952015) operating under Xpert Home Lending, Inc. (NMLS #2179191). This Privacy Policy explains how the App handles your information across our web application (blueprint.realstack.app) and mobile applications (iOS and Android).</p>
 
-    <h2>2. Three Ways to Use the App — and What Each Stores</h2>
+    <h2>2. Four Ways to Use the App — and What Each Stores</h2>
 
     <h3>a. Without an account (the default)</h3>
     <p>Loan scenario inputs, property details, and financial profile details (purchase price, down payment, interest rate, income, debts, FICO score, assets) are processed on your device and saved in your browser's local storage. In this mode, this data is not transmitted to or stored on our servers, and it is deleted when you clear your browser data or uninstall the App.</p>
@@ -127,6 +127,11 @@
 
     <h3>c. Blueprints shared with you by a loan officer</h3>
     <p>If your loan officer shares a pre-filled blueprint with you via a secure link, that blueprint (and the edits you both make) is stored in our database so you can collaborate in real time. Access requires signing in, and access controls limit each blueprint to you and your loan officer.</p>
+
+    <h3>d. Inside ChatGPT or Claude (the Mortgage Blueprint connector)</h3>
+    <p>Mortgage Blueprint's calculators can be used from an AI chat app such as ChatGPT or Claude. When you ask for an estimate there, the chat app sends the figures you gave it (for example income, monthly debts, cash for a down payment, the interest rate you provided, the home price, and the state) to our server, which calculates the result and sends it back. <strong>The calculators do not store these figures.</strong> As with any web request, our hosting provider may log the request (see Vercel below).</p>
+    <p>If you ask the chat to open your scenario in Mortgage Blueprint, we save a link record so the link can open your numbers in the App. That record holds <strong>property and loan figures only</strong> (home price, down payment, interest rate, term, loan type, state, and optionally city, ZIP, HOA dues, rent-vs-buy assumptions, or the rate options you compared). It never includes your income or debts. It also records which chat app created it, when the link was created and opened, and a one-way hashed form of the network address that created it (used only to limit abuse; we never store the address itself). The link stops working after 30 days. Once you open it, the scenario is saved on your device like any other local scenario.</p>
+    <p>Your conversation itself is handled by the chat provider under its own privacy policy (<a href="https://openai.com/policies/privacy-policy" target="_blank">OpenAI</a>, <a href="https://www.anthropic.com/legal/privacy" target="_blank">Anthropic</a>). We do not receive your conversation history, only the figures the chat app sends to the calculator.</p>
 
     <h2>3. Information We Collect (Accounts &amp; Shared Blueprints Only)</h2>
     <table>
@@ -181,6 +186,7 @@
     <h2>8. Data Retention and Deletion</h2>
     <ul>
       <li><strong>Local data:</strong> stays on your device until you clear it or uninstall the App.</li>
+      <li><strong>ChatGPT / Claude link records:</strong> the link stops working after 30 days. The record (property and loan figures, chat app, timestamps, hashed network address) is kept as a record of the inquiry; contact us to have yours deleted.</li>
       <li><strong>Account &amp; cloud blueprints:</strong> kept until you delete them or delete your account (Account → Delete my account, available in-app on all platforms). Deletion is permanent and removes your cloud blueprints, edit history, and sign-in.</li>
       <li><strong>Loan officer records:</strong> if you work with a loan officer, records they maintain for your loan file (contact details, shared blueprint records) are business records they are required to retain under applicable law and are not deleted by deleting your App account.</li>
     </ul>
