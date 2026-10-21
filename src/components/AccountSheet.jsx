@@ -13,6 +13,7 @@ import { FONT, MONO } from "../lib/fonts.js";
 import { useState, useEffect, useRef } from 'react';
 import { signInWithMagicLink, signInWithGoogle, verifyEmailCode } from '../lib/supabaseClient';
 import { exportMyData } from '../lib/cloudScenarios';
+import { Capacitor } from '@capacitor/core';
 
 
 const GoogleIcon = () => (
@@ -27,7 +28,7 @@ const GoogleIcon = () => (
 export default function AccountSheet({ open, onClose, accountHook, onResetSync, T, darkMode }) {
   const {
     session, account, isSignedIn, syncEnabled,
-    setSyncEnabled, signOut, deleteAccount,
+    setSyncEnabled, signOut, deleteAccount, homeReportUrl,
   } = accountHook;
 
   const [email, setEmail] = useState('');
@@ -39,6 +40,7 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
   const [deleteText, setDeleteText] = useState('');
   const [exportCount, setExportCount] = useState(null);
   const [resetMsg, setResetMsg] = useState('');
+  const [reportMsg, setReportMsg] = useState('');
 
   // Close the sheet the moment a sign-in that started here completes (email
   // code or the Google round-trip) — landing on "My Account" mid-flow feels
@@ -327,6 +329,40 @@ export default function AccountSheet({ open, onClose, accountHook, onResetSync, 
                 }} />
               </button>
             </div>
+
+            {/* Home report: the client's own Homebot digest (link from Ops). On the
+                web the tab opens synchronously so popup blockers allow it, then
+                gets the link; native opens the in-app browser. */}
+            {homeReportUrl && (
+              <>
+                <button
+                  disabled={busy}
+                  onClick={async () => {
+                    setReportMsg('');
+                    const native = Capacitor.isNativePlatform();
+                    const tab = native ? null : window.open('', '_blank');
+                    try {
+                      const url = await homeReportUrl();
+                      if (native) {
+                        const { Browser } = await import('@capacitor/browser');
+                        await Browser.open({ url });
+                      } else if (tab) {
+                        tab.location.href = url;
+                      } else {
+                        window.location.href = url;
+                      }
+                    } catch (e) {
+                      tab?.close();
+                      setReportMsg(e.message);
+                    }
+                  }}
+                  style={{ ...pill('rgba(59,107,245,0.08)', accent, { border: '1px solid rgba(59,107,245,0.25)' }), marginBottom: reportMsg ? 6 : 10 }}
+                >
+                  View my home report
+                </button>
+                {reportMsg && <div style={{ fontSize: 12, color: tertiary, textAlign: 'center', marginBottom: 10 }}>{reportMsg}</div>}
+              </>
+            )}
 
             {/* Export */}
             <button onClick={handleExport} disabled={busy} style={{ ...pill('transparent', secondary, { border: `1px solid ${T?.separator || 'rgba(255,255,255,0.1)'}` }), marginBottom: 10 }}>

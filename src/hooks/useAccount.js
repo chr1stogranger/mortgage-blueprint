@@ -152,6 +152,20 @@ export default function useAccount() {
     } catch { return null; }
   }, [session]);
 
+  // Homebot home report: Ops looks the signed-in email up in Chris's Homebot
+  // account and returns that client's own digest link (the Homebot API key
+  // lives only in Ops). Throws with a friendly message when there's no report.
+  const homeReportUrl = useCallback(async () => {
+    if (!session) throw new Error('Sign in first');
+    const res = await fetch(`${API_BASE}/api/homebot-report`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      cache: 'no-store',
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.url) throw new Error(body.message || body.error || 'Your home report is not available right now');
+    return body.url;
+  }, [session]);
+
   const deleteAccount = useCallback(async () => {
     if (!session) throw new Error('Not signed in');
     const res = await fetch(`${API_BASE}/api/collab?resource=account&action=delete`, {
@@ -181,6 +195,7 @@ export default function useAccount() {
     recordConsent,
     claimShare,
     requestPreapproval,
+    homeReportUrl,
     deleteAccount,
   };
 }
