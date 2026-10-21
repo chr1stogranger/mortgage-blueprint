@@ -62,6 +62,7 @@ const IncomeSheet = lazyWithRetry(() => import("./IncomeSheet"));
 const DebtsSheet = lazyWithRetry(() => import("./DebtsSheet"));
 const AssetsSheet = lazyWithRetry(() => import("./AssetsSheet"));
 import { SetupContent, IncomeContent, AssetsContent, DebtsContent, ReoContent, AmortContent, SellContent, RentVsBuyContent, InvestContent, CostsContent, CalculatorContent, QualifyContent, TaxContent, Prop19Content, TeamContent, CompareContent } from "./content/index.js";
+import MyHomeTab from "./components/MyHomeTab";
 import UnifiedHeader from "./UnifiedHeader";
 import RefiPdfPagesPreview from "./components/RefiPdfPagesPreview";
 import { WorkspaceProvider, useWorkspace, WORKSPACE_MODES } from "./WorkspaceContext";
@@ -1050,12 +1051,12 @@ function WorkspaceHost({ T, isDesktop, sidebarW, incomes, debts, otherIncome, re
 // for MobileTabBar on every keystroke) ═══
 // Core destinations that stay PINNED above the section index. These are real
 // tab switches (not in-page scrolls), in the order Christo specified.
-const CORE_TAB_KEYS = ["overview", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
+const CORE_TAB_KEYS = ["overview", "myhome", "refi", "refi3", "compare", "workspace", "learn", "team", "pipeline", "summary", "settings"];
 // ═══ MOBILE BOTTOM TAB BAR (2026-09-06) ═══
 // Five fixed slots, identical for every user and flow (no reflow, no dead
 // buttons). Everything else in TABS lives behind "More". Shared with the
 // desktop drawer's icon map so the More sheet and sidebar agree.
-const NAV_ICONS = { overview: "home", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
+const NAV_ICONS = { overview: "home", myhome: "key", setup: "clipboard", calc: "calculator", costs: "dollar", income: "banknote", debts: "credit-card", assets: "landmark", qualify: "check", tax: "bar-chart", amort: "trending-up", invest: "grid", rentvbuy: "scale", learn: "graduation-cap", workspace: "grid", compare: "bar-chart", team: "users", pipeline: "activity", summary: "link", settings: "settings", reo: "home", sell: "dollar", refi: "refresh-cw", refi3: "target", prop19: "landmark" };
 // PricePoint takes the raised middle slot (Christo 2026-10-01); Learn moves
 // into the More sheet (moreSheetTabs picks up anything not on the bar).
 const BAR_TAB_KEYS = ["overview", "compare", "summary"];
@@ -2067,6 +2068,17 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  // using LO auth — the account button is hidden for them (isCloud check).
  const account = useAccount();
  const selfMode = !isBorrower && !isCloud && account.isSignedIn;
+ // "My Home" sidebar tab: the signed-in client's Homebot report link, from Ops
+ // (/api/homebot-report; the Homebot key never leaves Ops). Only clients Chris
+ // has in Homebot get a link, so the tab only appears for them. LOs never ask.
+ const [homeReportLink, setHomeReportLink] = useState(null);
+ const homeReportEmail = (selfMode || isBorrower) ? (account.session?.user?.email || "") : "";
+ useEffect(() => {
+  if (!homeReportEmail) { setHomeReportLink(null); return; }
+  let live = true;
+  account.homeReportUrl().then((u) => { if (live) setHomeReportLink(u); }).catch(() => { if (live) setHomeReportLink(null); });
+  return () => { live = false; };
+ }, [homeReportEmail]); // eslint-disable-line react-hooks/exhaustive-deps
  // "Get Pre-Approved" intent hook: a signed-in homebuyer clicking any
  // pre-approval CTA is explicitly asking to work with the LO — surface them
  // in Ops Pipeline Leads (server creates/links a blueprint-crm borrowers row
@@ -7951,6 +7963,9 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
  <GuidedNextButton />
  </>);
  const TABS = [["overview","Overview"],
+  // My Home — the client's own Homebot home report (2026-10-21). Only shown
+  // when Ops returned a report link for the signed-in email (homeReportLink).
+  ...(homeReportLink ? [["myhome","My Home"]] : []),
   // setup, income, debts, assets, qualify, tax, amort folded into Overview and
   // hidden from the sidebar (2026-05-21, per Christo). calc + costs were folded
   // earlier. All of these remain routable tabs — Overview's jump links (setTab)
@@ -9378,6 +9393,7 @@ export default function MortgageBlueprint({ initialState, borrowerMode }) {
 {/* ═══ SELLER NET ═══ */}
 {tab === "sell" && <SellContent {...{T, isDesktop, calc, fmt, reos, debts, sellLinkedReoId, setSellLinkedReoId, sellPrice, setSellPrice, sellMortgagePayoff, setSellMortgagePayoff, sellCommission, setSellCommission, sellTransferTaxCity, setSellTransferTaxCity, sellEscrow, setSellEscrow, sellTitle, setSellTitle, sellOther, setSellOther, sellSellerCredit, setSellSellerCredit, sellCostBasis, setSellCostBasis, sellImprovements, setSellImprovements, sellYearsOwned, setSellYearsOwned, sellPrimaryRes, setSellPrimaryRes, married, taxState, TT_CITY_NAMES, getTTForCity, Hero, Card, Sec, Inp, Sel, Note, MRow, GuidedNextButton}} />}
 {/* ═══ DEAL TEAM ═══ */}
+{tab === "myhome" && homeReportLink && <MyHomeTab T={T} url={homeReportLink} />}
 {tab === "team" && <TeamContent {...{T, isDesktop, isBorrower, isCloud, isRefi, activeBorrower, borrowerMode, auth, Hero, Card, Sec, Note, TextInp, onRenameClient: handleRenameClient}} />}
 {/* ═══ MY PIPELINE (LO only — per-LO Ops/Arive loans, B5) ═══ */}
 {tab === "pipeline" && isCloud && !isBorrower && (
